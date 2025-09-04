@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-03T11:49:53.028541",
+  "timestamp": "2025-09-04T05:24:28.594730",
   "version": "v0.31",
   "summary": {
-    "total": 198,
-    "transpile_success": 198,
-    "execute_success": 198,
-    "complete_success": 198,
+    "total": 201,
+    "transpile_success": 201,
+    "execute_success": 201,
+    "complete_success": 201,
     "success_rate": "100.0%"
   },
   "results": [
@@ -202,7 +202,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -230,14 +230,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -489,7 +489,7 @@
       "file": "test_import_python_comprehensive.frm",
       "transpile": true,
       "execute": true,
-      "output": "=== Python Import Types Test ===\n=== Testing Simple Imports ===\nmath.pi: 3.141592653589793\nmath.sqrt(16): 4.0\njson.dumps(): {\"key\": \"value\"}\n=== Testing Aliased Imports ===\nCurrent date: 2025-09-03\nRa",
+      "output": "=== Python Import Types Test ===\n=== Testing Simple Imports ===\nmath.pi: 3.141592653589793\nmath.sqrt(16): 4.0\njson.dumps(): {\"key\": \"value\"}\n=== Testing Aliased Imports ===\nCurrent date: 2025-09-04\nRa",
       "error": null
     },
     {
@@ -581,6 +581,20 @@
       "transpile": true,
       "execute": true,
       "output": "=== LEGB Scope Resolution Test ===\nModule scope: name=MODULE\n\n=== Function Scope Test ===\nFunction scope: name=FUNCTION\nFunction local: LOCAL_VAR\nBlock scope: name=BLOCK\nBlock local: BLOCK_VAR\nNested ",
+      "error": null
+    },
+    {
+      "file": "test_list_comprehensions.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing List Comprehensions ===\nSquares: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]\nBasic comprehension length: 10\nEven numbers: [2, 4, 6, 8, 10]\nConditional comprehension: [2, 4, 6, 8, 10]\nMatrix: [[0,",
+      "error": null
+    },
+    {
+      "file": "test_list_comprehensions_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing List Comprehensions ===\nSquares: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]\nBasic comprehension length: 10\nEven numbers: [2, 4, 6, 8, 10]\nConditional comprehension: [2, 4, 6, 8, 10]\nMatrix: [[0,",
       "error": null
     },
     {
@@ -1288,6 +1302,13 @@
       "transpile": true,
       "execute": true,
       "output": "Working with underscore prefix...\n",
+      "error": null
+    },
+    {
+      "file": "test_unpacking_operator.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Unpacking Operator ===\nCombined list: [1, 2, 3, 4, 5, 6, 7, 8]\nTest 1 length: 8\nMultiple unpacking: [0, 1, 2, 3, 4, 5, 6, 7]\nTest 2 length: 8\nWith expressions: [5, 10, 20, 30, 40, 50]\nTest",
       "error": null
     },
     {

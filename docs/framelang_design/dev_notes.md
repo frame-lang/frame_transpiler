@@ -1,15 +1,50 @@
 # Frame v0.34 Development Notes
 
-## Latest Status: v0.34 Complete with Full Module System and Import Validation (2025-09-03)
+## Language Support Classification (Updated 2025-09-03)
+
+### 1st Class Language (Full Visitor Implementation)
+- **Python**: Complete transpiler with visitor pattern
+- All Frame features directly supported
+- Primary development and testing target
+
+### 2nd Class Languages (Generation Guides Only)
+Languages considered in Frame's design with documented patterns:
+- **Rust**: State machine and module patterns
+- **JavaScript**: Prototype and ES6 module patterns
+- **C#/Java**: Object-oriented patterns
+- **Go**: Composition and interface patterns
+- **C/C++**: Procedural and function pointer patterns
+
+### 3rd Class Languages (LLM-Generated)
+- Other languages via AI generation
+- No formal support or guarantees
+
+## Latest Status: v0.34 Complete with List Comprehensions and Unpacking (2025-09-04)
 
 ### v0.34 Final Release - COMPLETE ✅
 - **Module System**: Complete implementation with named modules and qualified access
-- **Module Functions**: Fixed second-pass lookup with ModuleSymbol type
-- **Nested Modules**: Full support for hierarchical module organization  
+- **List Comprehensions**: Full support for `[expr for var in iter if cond]` syntax
+- **Unpacking Operator**: Working `*` operator for list unpacking in literals
 - **Import System**: Comprehensive import support for Python and FSL
 - **FSL Imports**: Explicit import requirement (`from fsl import ...`)
-- **Test Coverage**: **198/198 tests passing (100% success rate)** 🎉
-- **Import Validation**: All import syntax variations validated and tested
+- **Test Coverage**: **201/201 tests passing (100% success rate)** 🎉
+
+### NEW: List Comprehensions (v0.34) ✅
+- **Basic Syntax**: `[x * x for x in range(10)]`
+- **Conditional Filtering**: `[x for x in numbers if x % 2 == 0]`
+- **Nested Comprehensions**: `[[i * j for j in range(3)] for i in range(3)]`
+- **Complex Expressions**: Support for any valid Frame expression
+- **Parser Implementation**: New `list_comprehension()` parser method
+- **AST Support**: `ListComprehensionNode` and `ListComprehensionExprT`
+- **Visitor Implementation**: Both `accept` and `accept_to_string` methods
+
+### NEW: Unpacking Operator (v0.34) ✅
+- **List Unpacking**: `[*list1, *list2, 7, 8]`
+- **Multiple Unpacking**: `[0, *a, *b, *c, 7]`
+- **Mixed Expressions**: `[5, *base, 40, 50]`
+- **Parser Support**: Recognition of `*expr` syntax
+- **AST Support**: `UnpackExprNode` and `UnpackExprT`
+- **Visitor Fix**: Implemented missing `visit_unpack_expr_node_to_string`
 
 ### Module System Features
 - **Module Keyword**: `module name { ... }` syntax fully implemented
@@ -30,6 +65,8 @@
 - **Cross-Module Access**: ✅ Functions in modules accessible from outside
 - **Code Generation**: ✅ Module structures generated in target languages
 - **Nested Module Support**: ✅ Full nested module functionality
+- **List Comprehensions**: ✅ Full Python-style list comprehension support
+- **Unpacking Operator**: ✅ Working unpacking in list literals
 
 ## Previous Status: Frame Standard Library Complete with Module System Implementation (2025-01-20)
 

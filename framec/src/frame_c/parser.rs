@@ -3274,8 +3274,14 @@ impl<'a> Parser<'a> {
                     value = Rc::new(DefaultLiteralValueForTypeExprT)
                 }
                 Ok(Some(NilExprT)) => value = Rc::new(NilExprT),
-                Ok(Some(SelfExprT)) => value = Rc::new(SelfExprT),
+                Ok(Some(SelfExprT { self_expr_node })) => value = Rc::new(SelfExprT { self_expr_node }),
                 Ok(Some(ListT { list_node })) => value = Rc::new(ListT { list_node }),
+                Ok(Some(ListComprehensionExprT { list_comprehension_node })) => {
+                    value = Rc::new(ListComprehensionExprT { list_comprehension_node })
+                }
+                Ok(Some(UnpackExprT { unpack_expr_node })) => {
+                    value = Rc::new(UnpackExprT { unpack_expr_node })
+                }
                 Ok(Some(ExprListT { expr_list_node })) => {
                     let err_msg =
                         &format!("Expr type 'ExprList' is not a valid rvalue assignment type.");
@@ -4963,6 +4969,16 @@ impl<'a> Parser<'a> {
                         // FSL built-in properties are not valid as statements on their own
                         self.error_at_previous("Built-in property expressions not allowed as statements.");
                         return Err(ParseError::new("Built-in property must be part of an assignment or expression"));
+                    }
+                    ExprType::UnpackExprT { .. } => {
+                        // Unpacking expressions are not valid as statements on their own
+                        self.error_at_previous("Unpacking expressions not allowed as statements.");
+                        return Err(ParseError::new("Unpacking must be part of an assignment or function call"));
+                    }
+                    ExprType::ListComprehensionExprT { .. } => {
+                        // List comprehensions are not valid as statements on their own
+                        self.error_at_previous("List comprehension expressions not allowed as statements.");
+                        return Err(ParseError::new("List comprehension must be part of an assignment or expression"));
                     }
                 }
             }
@@ -7629,22 +7645,64 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    // list -> '[' expression* ']'
+    // list -> '[' (list_comprehension | expression_list) ']'
+    // list_comprehension -> expression 'for' identifier 'in' expression ('if' expression)?
+    // expression_list -> (unpack_expr | expression) (',' (unpack_expr | expression))*
+    // unpack_expr -> '*' expression
 
     fn list(&mut self) -> Result<ListNode, ParseError> {
+        // First, check if this is a list comprehension by looking ahead
+        // We need to look for the pattern: expr 'for' ... 
+        let checkpoint = self.current;
+        let mut is_comprehension = false;
+        
+        // Try to parse first expression and check if 'for' follows
+        if let Ok(Some(_first_expr)) = self.expression() {
+            if self.peek().token_type == TokenType::For {
+                is_comprehension = true;
+            }
+        }
+        
+        // Reset to start of list content
+        self.current = checkpoint;
+        
+        if is_comprehension {
+            // Parse as list comprehension
+            return self.list_comprehension();
+        }
+        
+        // Parse as regular list with possible unpacking
         let mut expressions: Vec<ExprType> = Vec::new();
 
         loop {
             if self.match_token(&[TokenType::RBracket]) {
                 break;
             }
-            match self.expression() {
-                Ok(Some(expression)) => {
-                    expressions.push(expression);
+            
+            // Check for unpacking operator
+            if self.match_token(&[TokenType::Star]) {
+                // Parse unpacked expression
+                match self.expression() {
+                    Ok(Some(expr)) => {
+                        let unpack_node = UnpackExprNode::new(expr);
+                        expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
+                    }
+                    Ok(None) => {
+                        return Err(ParseError::new("Expected expression after '*' operator"));
+                    }
+                    Err(parse_error) => return Err(parse_error),
                 }
-                Ok(None) => break,
-                Err(parse_error) => return Err(parse_error),
+            } else {
+                // Regular expression
+                match self.expression() {
+                    Ok(Some(expression)) => {
+                        expressions.push(expression);
+                    }
+                    Ok(None) => break,
+                    Err(parse_error) => return Err(parse_error),
+                }
             }
+            
             if self.peek().token_type == TokenType::RBracket {
                 continue;
             }
@@ -7654,15 +7712,66 @@ impl<'a> Parser<'a> {
         }
 
         Ok(ListNode::new(expressions))
-
-        // if expressions.is_empty() {
-        //     Ok(None)
-        // } else {
-        //     let expr_list = ListT {
-        //         list_node: ListNode::new(expressions),
-        //     };
-        //     Ok(Some(expr_list))
-        // }
+    }
+    
+    // Parse list comprehension: [expr for var in iterable if condition]
+    fn list_comprehension(&mut self) -> Result<ListNode, ParseError> {
+        // Parse the expression part
+        let expr = match self.expression() {
+            Ok(Some(e)) => e,
+            Ok(None) => return Err(ParseError::new("Expected expression in list comprehension")),
+            Err(e) => return Err(e),
+        };
+        
+        // Expect 'for'
+        if !self.match_token(&[TokenType::For]) {
+            return Err(ParseError::new("Expected 'for' in list comprehension"));
+        }
+        
+        // Parse target variable
+        let target = if self.peek().token_type == TokenType::Identifier {
+            let token = self.advance();
+            token.lexeme.clone()
+        } else {
+            return Err(ParseError::new("Expected identifier after 'for'"));
+        };
+        
+        // Expect 'in'
+        if !self.match_token(&[TokenType::In]) {
+            return Err(ParseError::new("Expected 'in' after identifier in list comprehension"));
+        }
+        
+        // Parse iterable expression
+        let iter = match self.expression() {
+            Ok(Some(e)) => e,
+            Ok(None) => return Err(ParseError::new("Expected iterable expression after 'in'")),
+            Err(e) => return Err(e),
+        };
+        
+        // Optional 'if' condition
+        let condition = if self.match_token(&[TokenType::If]) {
+            match self.expression() {
+                Ok(Some(e)) => Some(e),
+                Ok(None) => return Err(ParseError::new("Expected condition after 'if'")),
+                Err(e) => return Err(e),
+            }
+        } else {
+            None
+        };
+        
+        // Consume the closing bracket
+        if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']' after list comprehension.") {
+            return Err(parse_error);
+        }
+        
+        // Create comprehension node and wrap it in a list
+        let comprehension_node = ListComprehensionNode::new(expr, target, iter, condition);
+        let comp_expr = ExprType::ListComprehensionExprT { 
+            list_comprehension_node: comprehension_node 
+        };
+        
+        // Return as a ListNode with a single comprehension expression
+        Ok(ListNode::new(vec![comp_expr]))
     }
 
     /* --------------------------------------------------------------------- */
@@ -7676,14 +7785,32 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::RParen]) {
                 break;
             }
-            match self.expression() {
-                Ok(Some(expression)) => {
-                    expressions.push(expression);
+            
+            // Check for unpacking operator in function arguments
+            if self.match_token(&[TokenType::Star]) {
+                // Parse unpacked expression
+                match self.expression() {
+                    Ok(Some(expr)) => {
+                        let unpack_node = UnpackExprNode::new(expr);
+                        expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
+                    }
+                    Ok(None) => {
+                        return Err(ParseError::new("Expected expression after '*' operator"));
+                    }
+                    Err(parse_error) => return Err(parse_error),
                 }
-                // should see a list of valid expressions until ')'
-                Ok(None) => return Ok(None),
-                Err(parse_error) => return Err(parse_error),
+            } else {
+                // Regular expression
+                match self.expression() {
+                    Ok(Some(expression)) => {
+                        expressions.push(expression);
+                    }
+                    // should see a list of valid expressions until ')'
+                    Ok(None) => return Ok(None),
+                    Err(parse_error) => return Err(parse_error),
+                }
             }
+            
             if self.peek().token_type == TokenType::RParen {
                 continue;
             }

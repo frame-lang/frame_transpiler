@@ -1522,6 +1522,14 @@ pub enum ExprType {
     BuiltInPropertyExprT {
         builtin_property_node: Box<crate::frame_c::fsl::BuiltInPropertyNode>,
     },
+    // Unpacking operator (v0.34)
+    UnpackExprT {
+        unpack_expr_node: UnpackExprNode,
+    },
+    // List comprehension (v0.34)
+    ListComprehensionExprT {
+        list_comprehension_node: ListComprehensionNode,
+    },
     // TODO:
     // NilExprT is a new ExprType used atm to hack around
     // differences between variables and parameters. Parameters
@@ -1618,6 +1626,8 @@ impl ExprType {
             ExprType::SelfExprT { .. } => "SelfExprT",
             ExprType::BuiltInCallExprT { .. } => "BuiltInCallExprT",
             ExprType::BuiltInPropertyExprT { .. } => "BuiltInPropertyExprT",
+            ExprType::UnpackExprT { .. } => "UnpackExprT",
+            ExprType::ListComprehensionExprT { .. } => "ListComprehensionExprT",
         }
     }
 
@@ -1647,6 +1657,21 @@ impl ExprType {
                     }
                     separator = ".";
                 }
+            }
+            ExprType::UnpackExprT { unpack_expr_node } => {
+                print!("*");
+                unpack_expr_node.expr.debug_print();
+            }
+            ExprType::ListComprehensionExprT { list_comprehension_node } => {
+                print!("[");
+                list_comprehension_node.expr.debug_print();
+                print!(" for {} in ", list_comprehension_node.target);
+                list_comprehension_node.iter.debug_print();
+                if let Some(ref cond) = list_comprehension_node.condition {
+                    print!(" if ");
+                    cond.debug_print();
+                }
+                print!("]");
             }
             _ => {}
         }
@@ -1738,6 +1763,12 @@ impl NodeElement for ExprType {
             ExprType::BuiltInPropertyExprT { builtin_property_node } => {
                 ast_visitor.visit_builtin_property_expr_node(builtin_property_node);
             }
+            ExprType::UnpackExprT { unpack_expr_node } => {
+                ast_visitor.visit_unpack_expr_node(unpack_expr_node);
+            }
+            ExprType::ListComprehensionExprT { list_comprehension_node } => {
+                ast_visitor.visit_list_comprehension_node(list_comprehension_node);
+            }
         }
     }
 
@@ -1827,6 +1858,12 @@ impl NodeElement for ExprType {
             }
             ExprType::BuiltInPropertyExprT { builtin_property_node } => {
                 ast_visitor.visit_builtin_property_expr_node_to_string(builtin_property_node, output);
+            }
+            ExprType::UnpackExprT { unpack_expr_node } => {
+                ast_visitor.visit_unpack_expr_node_to_string(unpack_expr_node, output);
+            }
+            ExprType::ListComprehensionExprT { list_comprehension_node } => {
+                ast_visitor.visit_list_comprehension_node_to_string(list_comprehension_node, output);
             }
         }
     }
@@ -4191,6 +4228,67 @@ impl NodeElement for ListElementNode {
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_list_elem_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// UnpackExprNode for *args unpacking (v0.34)
+pub struct UnpackExprNode {
+    pub expr: Box<ExprType>,
+}
+
+impl UnpackExprNode {
+    pub fn new(expr: ExprType) -> UnpackExprNode {
+        UnpackExprNode {
+            expr: Box::new(expr),
+        }
+    }
+}
+
+impl NodeElement for UnpackExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_unpack_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_unpack_expr_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// ListComprehensionNode for [expr for var in iterable if condition] (v0.34)
+pub struct ListComprehensionNode {
+    pub expr: Box<ExprType>,            // The expression to evaluate
+    pub target: String,                 // Loop variable name
+    pub iter: Box<ExprType>,            // The iterable to loop over
+    pub condition: Option<Box<ExprType>>, // Optional filter condition
+}
+
+impl ListComprehensionNode {
+    pub fn new(
+        expr: ExprType,
+        target: String,
+        iter: ExprType,
+        condition: Option<ExprType>,
+    ) -> ListComprehensionNode {
+        ListComprehensionNode {
+            expr: Box::new(expr),
+            target,
+            iter: Box::new(iter),
+            condition: condition.map(Box::new),
+        }
+    }
+}
+
+impl NodeElement for ListComprehensionNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_list_comprehension_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_list_comprehension_node_to_string(self, output);
     }
 }
 

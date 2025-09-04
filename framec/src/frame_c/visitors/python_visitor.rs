@@ -7190,6 +7190,16 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_list_node(&mut self, list: &ListNode) {
+        // Check if this is a list comprehension (single comprehension expression)
+        if list.exprs_t.len() == 1 {
+            if let ExprType::ListComprehensionExprT { .. } = &list.exprs_t[0] {
+                // Just visit the comprehension directly, it will generate [...]
+                list.exprs_t[0].accept(self);
+                return;
+            }
+        }
+        
+        // Regular list or list with unpacking
         let mut separator = "";
         self.add_code("[");
 
@@ -7205,6 +7215,14 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_list_node_to_string(&mut self, list: &ListNode, output: &mut String) {
+        // Check if this is a list comprehension
+        if list.exprs_t.len() == 1 {
+            if let ExprType::ListComprehensionExprT { .. } = &list.exprs_t[0] {
+                list.exprs_t[0].accept_to_string(self, output);
+                return;
+            }
+        }
+        
         let mut separator = "";
         output.push('[');
         for expr in &list.exprs_t {
@@ -7213,6 +7231,64 @@ impl AstVisitor for PythonVisitor {
             separator = ",";
         }
         output.push(']');
+    }
+    
+    //* --------------------------------------------------------------------- *//
+    
+    // v0.34: Visit unpacking expression node
+    fn visit_unpack_expr_node(&mut self, unpack: &UnpackExprNode) {
+        self.add_code("*");
+        unpack.expr.accept(self);
+    }
+    
+    // v0.34: Visit list comprehension node
+    fn visit_list_comprehension_node(&mut self, comp: &ListComprehensionNode) {
+        self.add_code("[");
+        
+        // Generate the expression part
+        comp.expr.accept(self);
+        
+        // Generate 'for target in iterable'
+        self.add_code(" for ");
+        self.add_code(&comp.target);
+        self.add_code(" in ");
+        comp.iter.accept(self);
+        
+        // Optional 'if' condition
+        if let Some(ref condition) = comp.condition {
+            self.add_code(" if ");
+            condition.accept(self);
+        }
+        
+        self.add_code("]");
+    }
+    
+    // v0.34: Visit list comprehension node to string
+    fn visit_list_comprehension_node_to_string(&mut self, comp: &ListComprehensionNode, output: &mut String) {
+        output.push('[');
+        
+        // Generate the expression part
+        comp.expr.accept_to_string(self, output);
+        
+        // Generate 'for target in iterable'
+        output.push_str(" for ");
+        output.push_str(&comp.target);
+        output.push_str(" in ");
+        comp.iter.accept_to_string(self, output);
+        
+        // Optional 'if' condition
+        if let Some(ref condition) = comp.condition {
+            output.push_str(" if ");
+            condition.accept_to_string(self, output);
+        }
+        
+        output.push(']');
+    }
+    
+    // v0.34: Visit unpacking expression node to string  
+    fn visit_unpack_expr_node_to_string(&mut self, unpack: &UnpackExprNode, output: &mut String) {
+        output.push('*');
+        unpack.expr.accept_to_string(self, output);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -7657,20 +7733,6 @@ impl AstVisitor for PythonVisitor {
         // This ensures consistent error checking regardless of code generation order
         
         let var_init_expr = &variable_decl_node.get_initializer_value_rc();
-        let init_type_name = match &**var_init_expr {
-            ExprType::BuiltInCallExprT { .. } => {
-                eprintln!("DEBUG: Found FSL BuiltInCallExprT as initializer!");
-                "BuiltInCall"
-            },
-            ExprType::BuiltInPropertyExprT { .. } => "BuiltInProperty",
-            ExprType::CallChainExprT { .. } => "CallChain",
-            ExprType::SystemTypeExprT { .. } => "SystemType",
-            ExprType::SystemInstanceExprT { .. } => "SystemInstance",
-            ExprType::VariableExprT { .. } => "Variable",
-            ExprType::LiteralExprT { .. } => "Literal",
-            _ => "Other"
-        };
-        eprintln!("DEBUG visit_variable_decl_node: var {} init type: {}", var_name, init_type_name);
         //self.newline();
         let mut code = String::new();
         
@@ -7720,7 +7782,6 @@ impl AstVisitor for PythonVisitor {
             var_init_expr.accept_to_string(self, &mut code);
         }
         
-        eprintln!("DEBUG visit_variable_decl_node: var {} = {}", var_name, code);
         match &variable_decl_node.identifier_decl_scope {
             IdentifierDeclScope::DomainBlockScope => {
                 self.add_code(&format!("self.{} ", var_name));

@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-03 11:49  
-**Total Tests**: 198  
+**Generated**: 2025-09-04 05:24  
+**Total Tests**: 201  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 198 | 100% |
-| **Transpilation Success** | 198 | 100.0% |
-| **Execution Success** | 198 | 100.0% |
-| **Complete Success** | 198 | 100.0% |
+| **Total Tests** | 201 | 100% |
+| **Transpilation Success** | 201 | 100.0% |
+| **Execution Success** | 201 | 100.0% |
+| **Complete Success** | 201 | 100.0% |
 
 ## v0.31 Features
 
@@ -110,6 +110,8 @@
 | test_legb_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_legb_resolution.frm | ✅ | ✅ | ✅ PASS |
 | test_legb_scope_resolution.frm | ✅ | ✅ | ✅ PASS |
+| test_list_comprehensions.frm | ✅ | ✅ | ✅ PASS |
+| test_list_comprehensions_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_list_features.frm | ✅ | ✅ | ✅ PASS |
 | test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
 | test_method_call_simple.frm | ✅ | ✅ | ✅ PASS |
@@ -211,6 +213,7 @@
 | test_type_annotation_fix.frm | ✅ | ✅ | ✅ PASS |
 | test_type_fix.frm | ✅ | ✅ | ✅ PASS |
 | test_underscore_actions.frm | ✅ | ✅ | ✅ PASS |
+| test_unpacking_operator.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_edge_cases.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_functions_only.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_hierarchical_systems.frm | ✅ | ✅ | ✅ PASS |

@@ -37,7 +37,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.34`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (198/198 tests passing) - Module System Complete with Full Import Validation
+**Status**: ✅ **100% TEST SUCCESS RATE** (201/201 tests passing) - Module System, List Comprehensions, Unpacking Complete
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -60,16 +60,33 @@ Parser → framec/src/frame_c/parser.rs
     ↓
 AST (FrameModule) → framec/src/frame_c/ast.rs
     ↓
-Visitors (Code Generation) → framec/src/frame_c/visitors/
+Visitor (Code Generation) → framec/src/frame_c/visitors/python_visitor.rs
     ↓
-Target Code (Python, JavaScript, C#, Java, Go, C, Rust*)
+Target Code (Python - 1st Class Language)
 ```
-*Rust support planned for v0.34
 
-### v0.34 Module System - COMPLETE ✅
+## Language Support Classification
 
-Frame v0.34 introduces a complete module system with named modules, qualified access, and nested module support.
+### 1st Class Language (Full Visitor Implementation)
+- **Python**: Complete visitor implementation with all Frame features
 
+### 2nd Class Languages (Design Guides, No Visitor)
+Languages with generation guides and considered in Frame's design:
+- **C/C++**: Procedural/OOP mapping guides
+- **JavaScript**: Prototype-based OOP mapping
+- **C#**: Object-oriented with interfaces
+- **Java**: Class-based OOP mapping
+- **Go**: Struct and interface composition
+- **Rust**: Ownership-aware state machines
+
+### 3rd Class Languages (LLM-Generated)
+Other languages may be supported via LLM code generation but without guarantees
+
+### v0.34 Features - COMPLETE ✅
+
+Frame v0.34 introduces a complete module system with list comprehensions and unpacking operator support.
+
+#### Module System
 ```frame
 // Named modules with functions and variables
 module Utils {
@@ -94,6 +111,40 @@ fn main() {
 - **Nested Modules**: Full hierarchical organization support
 - **Symbol Table**: ModuleSymbol type for proper scope resolution
 - **Two-Pass Parsing**: Modules enter scope in both passes
+
+#### List Comprehensions (NEW in v0.34)
+```frame
+from fsl import str
+
+fn examples() {
+    // Basic comprehension
+    var squares = [x * x for x in range(10)]
+    
+    // With conditional filtering
+    var evens = [x for x in numbers if x % 2 == 0]
+    
+    // Nested comprehensions
+    var matrix = [[i * j for j in range(3)] for i in range(3)]
+    
+    // Complex expressions
+    var processed = [str(x).upper() for x in items if x > 0]
+}
+```
+
+#### Unpacking Operator (NEW in v0.34)
+```frame
+fn unpacking() {
+    var list1 = [1, 2, 3]
+    var list2 = [4, 5, 6]
+    
+    // Unpacking in list literals
+    var combined = [*list1, *list2, 7, 8]
+    // Result: [1, 2, 3, 4, 5, 6, 7, 8]
+    
+    // Multiple unpacking
+    var result = [0, *list1, *list2, 99]
+}
+```
 
 ### v0.34 Frame Standard Library (FSL) - Import Required ✅
 

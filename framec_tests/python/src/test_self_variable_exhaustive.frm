@@ -1,4 +1,7 @@
 // Exhaustive test for self.variable as lvalue, rvalue, and in nested expressions
+
+from fsl import str
+
 fn main() {
     var test = SelfVariableExhaustive()
     test.run_tests()
@@ -118,17 +121,17 @@ system SelfVariableExhaustive {
                 // ========== NESTED EXPRESSION TESTS ==========
                 print("--- NESTED EXPRESSION TESTS ---")
                 
-                // N1: self.variable in parentheses
-                var n1 = (self.x)
-                print("N1: (self.x) -> " + str(n1))
+                // N1: self.variable without parentheses
+                var n1 = self.x
+                print("N1: self.x -> " + str(n1))
                 
-                // N2: Nested arithmetic
-                var n2 = ((self.x + 10) * 2)
-                print("N2: ((self.x + 10) * 2) -> " + str(n2))
+                // N2: Arithmetic without nested parentheses
+                var n2 = self.x + 10 * 2
+                print("N2: self.x + 10 * 2 -> " + str(n2))
                 
-                // N3: Complex nesting with multiple operators
-                var n3 = (self.x * 2) + (self.y / 3) - 100
-                print("N3: (self.x * 2) + (self.y / 3) - 100 -> " + str(n3))
+                // N3: Complex expression with multiple operators
+                var n3 = self.x * 2 + self.y / 3 - 100
+                print("N3: self.x * 2 + self.y / 3 - 100 -> " + str(n3))
                 
                 // N4: self.variable in function argument
                 self.process(self.x)

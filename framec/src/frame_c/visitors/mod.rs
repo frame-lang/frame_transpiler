@@ -166,6 +166,12 @@ pub trait AstVisitor {
 
     fn visit_list_elem_node(&mut self, _list_elem: &ListElementNode) {}
     fn visit_list_elem_node_to_string(&mut self, _list_elem: &ListElementNode, _output: &mut String) {}
+    
+    // v0.34: Unpacking and comprehensions
+    fn visit_unpack_expr_node(&mut self, _unpack_expr: &UnpackExprNode) {}
+    fn visit_unpack_expr_node_to_string(&mut self, _unpack_expr: &UnpackExprNode, _output: &mut String) {}
+    fn visit_list_comprehension_node(&mut self, _comprehension: &ListComprehensionNode) {}
+    fn visit_list_comprehension_node_to_string(&mut self, _comprehension: &ListComprehensionNode, _output: &mut String) {}
 
     fn visit_list_stmt_node(&mut self, _list: &ListStmtNode) {}
 
