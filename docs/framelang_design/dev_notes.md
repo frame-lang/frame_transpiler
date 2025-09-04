@@ -1,4 +1,4 @@
-# Frame v0.36 Development Notes
+# Frame v0.37 Development Notes
 
 ## Language Support Classification (Updated 2025-09-04)
 
@@ -19,7 +19,29 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.36 Event-Handlers-as-Functions Architecture (2025-09-04)
+## Latest Status: v0.37 Async Support & Index Operation Limitations (2025-09-04)
+
+### v0.37 Release - Async Support with Known Limitations ✅
+- **Test Coverage**: **211/212 tests passing (99.5% success rate)**
+- **Async Support**: Full async/await support for functions and systems
+- **Mixed Sync/Async**: Systems can have both sync and async interface methods
+- **Event Handlers**: Individual async event handlers with proper runtime handling
+
+#### Known Issue: Index Operations
+- **Parser Limitation**: Frame's parser does not properly support index operations (`array[index]`, `dict[key]`)
+- **Symptom**: Index expressions are parsed as separate statements, causing malformed generated code
+- **Example Problem**: `self.results[str(task_id)] = value` generates as two lines:
+  ```python
+  self.results
+  [str(task_id)] = value  # Invalid Python
+  ```
+- **Workaround**: Use backtick expressions for index operations:
+  ```frame
+  self.results`[str(task_id)]` = value  // Correct
+  var item = array`[index]`             // Correct
+  ```
+- **Impact**: Affects 1 test (test_async_stress.frm) out of 212 total tests
+- **Fix Status**: Requires parser grammar changes for proper index operation support
 
 ### v0.36 Release - Event-Handlers-as-Functions Architecture ✅
 - **Architecture Restructure**: Event handlers generated as individual functions instead of monolithic state methods
@@ -27,7 +49,6 @@ Languages considered in Frame's design with documented patterns:
 - **Handler Naming**: Automatic conversion of special events (`$>` → `_enter`, `<$` → `_exit`) for valid Python identifiers
 - **State Dispatchers**: State methods become lightweight dispatchers routing to individual handlers
 - **Async Detection**: Individual handlers detect and generate `async def` when containing await expressions
-- **Test Coverage**: **208/209 tests passing (99.5% success rate)** - Only async test remaining
 - **Foundation for Async**: Architecture sets foundation for proper async/await support in hybrid environments
 
 ### v0.35 Features (Preserved) - Async/Await Foundation ✅

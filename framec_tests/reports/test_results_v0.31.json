@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-04T07:38:54.562441",
+  "timestamp": "2025-09-04T14:44:17.806699",
   "version": "v0.31",
   "summary": {
-    "total": 207,
-    "transpile_success": 207,
-    "execute_success": 207,
-    "complete_success": 207,
-    "success_rate": "100.0%"
+    "total": 212,
+    "transpile_success": 212,
+    "execute_success": 211,
+    "complete_success": 211,
+    "success_rate": "99.5%"
   },
   "results": [
     {
@@ -56,6 +56,27 @@
       "transpile": true,
       "execute": true,
       "output": "Simple async test started\n",
+      "error": null
+    },
+    {
+      "file": "test_async_stress.frm",
+      "transpile": true,
+      "execute": false,
+      "output": null,
+      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_async_stress.py\", line 52\n    return\n          ^\nIndentationError: unindent does not match any outer indentation level"
+    },
+    {
+      "file": "test_async_stress_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.37 Async Stress Test\n========================================\n=== Frame v0.37 Async Stress Test ===\n\nTest 1: Basic Async Work\n------------------------------\nStarting work 100\nCompleted work 1",
+      "error": null
+    },
+    {
+      "file": "test_async_validate.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Starting Frame v0.37 Async Validation\n=== Async Validation Test ===\nFetching data for id: 100\nDirect call result: data_100\nGetting data for: 42\nFetching data for id: 42\nReceived: data_42\nInterface cal",
       "error": null
     },
     {
@@ -244,7 +265,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -272,14 +293,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -301,6 +322,13 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_event_handlers_poc.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Event-Handlers-as-Functions PoC\n=== Testing Mixed Handler Demo ===\nSync handler: getData\nGot sync data: cached_123\nSync handler: getStatus\nStatus: ready\n=== Test Complete ===\n",
       "error": null
     },
     {
@@ -448,6 +476,13 @@
       "transpile": true,
       "execute": true,
       "output": "Final count: 3\n",
+      "error": null
+    },
+    {
+      "file": "test_handlers_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "State: idle\nStarting work\nEntered working state\nState: working\nDoing work with: task1\nResult: processed\nDoing work with: task2\nDoing work with: task3\nState: idle\n",
       "error": null
     },
     {

@@ -75,6 +75,7 @@ pub struct PythonVisitor {
     global_vars_in_function: HashSet<String>, // Track global variables accessed in current function
     current_system_enums: HashSet<String>,   // Track enum names defined in the current system
     module_level_enums: HashSet<String>,     // Track enum names defined at module level
+    system_has_async_runtime: bool,          // v0.37: Track if current system needs async runtime
 }
 
 impl PythonVisitor {
@@ -163,6 +164,7 @@ impl PythonVisitor {
             global_vars_in_function: HashSet::new(),
             current_system_enums: HashSet::new(),
             module_level_enums: HashSet::new(),
+            system_has_async_runtime: false,
         }
     }
 
@@ -203,6 +205,10 @@ impl PythonVisitor {
                             }
                         }
                         false
+                    }
+                    ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                        // Check if the right-hand side of assignment contains await
+                        self.expr_contains_await(&assignment_stmt_node.assignment_expr_node.r_value_rc)
                     }
                     _ => false
                 }
@@ -248,6 +254,10 @@ impl PythonVisitor {
             StatementType::WhileStmt { while_stmt_node } => {
                 self.expr_contains_await(&while_stmt_node.condition) ||
                 self.contains_await_expr(&while_stmt_node.block.statements)
+            }
+            StatementType::SuperStringStmt { super_string_stmt_node } => {
+                // Check if the super string (backtick block) contains "await"
+                super_string_stmt_node.literal_expr_node.value.contains("await ")
             }
             _ => false
         }
@@ -301,6 +311,76 @@ impl PythonVisitor {
     // v0.36: Event-handlers-as-functions helper methods
     //* --------------------------------------------------------------------- *//
     
+    /// Determine if the system needs async runtime (v0.37)
+    fn system_needs_async_runtime(&self, system_node: &SystemNode) -> bool {
+        // Check if any interface method is async
+        if let Some(interface_block) = &system_node.interface_block_node_opt {
+            for interface_method_rcref in &interface_block.interface_methods {
+                let interface_method = interface_method_rcref.borrow();
+                if interface_method.is_async {
+                    return true;
+                }
+            }
+        }
+        
+        // Check if any state has async handlers when using event-handlers-as-functions
+        if self.config.code.event_handlers_as_functions {
+            if let Some(machine_block) = &system_node.machine_block_node_opt {
+                for state_rcref in &machine_block.states {
+                    let state = state_rcref.borrow();
+                    for evt_handler_rcref in &state.evt_handlers_rcref {
+                        let evt_handler = evt_handler_rcref.borrow();
+                        
+                        // Check if handler contains await expressions
+                        if self.contains_await_expr(&evt_handler.statements) {
+                            return true;
+                        }
+                        
+                        // Check if this event corresponds to an async interface method
+                        if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
+                            if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
+                                if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
+                                    if ast_node.borrow().is_async {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        false
+    }
+    
+    /// Determine if the system needs async runtime from SystemSymbol (v0.37)
+    fn system_symbol_needs_async_runtime(&self, system_symbol: &SystemSymbol) -> bool {
+        // Check if any interface method is async
+        if let Some(interface_block_symbol) = &system_symbol.interface_block_symbol_opt {
+            let interface_block = interface_block_symbol.borrow();
+            let symtab = interface_block.symtab_rcref.borrow();
+            
+            for (_name, symbol_type_rcref) in symtab.symbols.iter() {
+                let symbol_type = symbol_type_rcref.borrow();
+                if let SymbolType::InterfaceMethod { interface_method_symbol_rcref } = &*symbol_type {
+                    let interface_method_symbol = interface_method_symbol_rcref.borrow();
+                    if let Some(ast_node) = &interface_method_symbol.ast_node_opt {
+                        let method_node = ast_node.borrow();
+                        if method_node.is_async {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // For SystemSymbol, we can't easily check handler contents without the AST,
+        // but we can rely on the system_has_async_runtime field if it's been set
+        // during the initial visit. For now, return false as a fallback.
+        false
+    }
+    
     /// Generate a unique handler function name for an event handler
     fn generate_handler_name(&self, state_name: &str, msg_t: &MessageType) -> String {
         let handler_prefix = format!("__handle_{}", self.format_state_name(state_name));
@@ -342,25 +422,9 @@ impl PythonVisitor {
             None => None,
         };
         
-        // v0.36: Check if handler needs to be async
-        let mut handler_needs_async = false;
-        
-        // Check if this event corresponds to an async interface method
-        if let MessageType::CustomMessage { message_node } = &evt_handler_node.msg_t {
-            // Look up the interface method to check if it's async
-            if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
-                if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
-                    if ast_node.borrow().is_async {
-                        handler_needs_async = true;
-                    }
-                }
-            }
-        }
-        
-        // Also check if the handler contains await expressions
-        if !handler_needs_async && self.contains_await_expr(&evt_handler_node.statements) {
-            handler_needs_async = true;
-        }
+        // v0.37: Check if handler needs to be async
+        // If the system has async runtime, ALL handlers must be async for uniform awaiting
+        let handler_needs_async = self.system_has_async_runtime;
         
         self.newline();
         if handler_needs_async {
@@ -408,33 +472,10 @@ impl PythonVisitor {
         self.newline();
     }
     
-    /// Generate state method as dispatcher (v0.36)
+    /// Generate state method as dispatcher (v0.37)
     fn generate_state_dispatcher(&mut self, state_node: &StateNode) {
-        // v0.36: Check if any handler in this state is async
-        let mut state_needs_async = false;
-        
-        for evt_handler_rcref in &state_node.evt_handlers_rcref {
-            let evt_handler = evt_handler_rcref.borrow();
-            
-            // Check if this event corresponds to an async interface method
-            if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
-                // Look up the interface method to check if it's async
-                if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
-                    if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
-                        if ast_node.borrow().is_async {
-                            state_needs_async = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // Also check if the handler contains await expressions
-            if !state_needs_async && self.contains_await_expr(&evt_handler.statements) {
-                state_needs_async = true;
-                break;
-            }
-        }
+        // v0.37: Use system-wide async runtime flag
+        let state_needs_async = self.system_has_async_runtime;
         
         self.newline();
         self.add_code("# ----------------------------------------");
@@ -518,29 +559,8 @@ impl PythonVisitor {
                 self.indent();
                 self.newline();
                 
-                // v0.36: Check if this specific handler is async and await it if needed
-                let handler_is_async = {
-                    // Check if this event corresponds to an async interface method
-                    let mut is_async = false;
-                    if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
-                        if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
-                            if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
-                                if ast_node.borrow().is_async {
-                                    is_async = true;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Also check if the handler contains await expressions
-                    if !is_async && self.contains_await_expr(&evt_handler.statements) {
-                        is_async = true;
-                    }
-                    
-                    is_async
-                };
-                
-                if handler_is_async && state_needs_async {
+                // v0.37: If system has async runtime, await all handlers uniformly
+                if state_needs_async {
                     self.add_code(&format!("return await self.{}(__e, compartment)", handler_name));
                 } else {
                     self.add_code(&format!("return self.{}(__e, compartment)", handler_name));
@@ -1508,6 +1528,13 @@ impl PythonVisitor {
         // Set up necessary state for visitor methods
         self.system_name = system_node.name.clone();
         
+        // v0.37: Determine if system needs async runtime BEFORE visiting interface methods
+        if self.config.code.event_handlers_as_functions {
+            self.system_has_async_runtime = self.system_needs_async_runtime(system_node);
+        } else {
+            self.system_has_async_runtime = false;
+        }
+        
         // Clear and populate enum names from this system's domain block
         self.current_system_enums.clear();
         if let Some(ref domain_block_node) = system_node.domain_block_node_opt {
@@ -1731,7 +1758,12 @@ impl PythonVisitor {
                 self.add_code("frame_event = FrameEvent(\"$>\", None)");
             }
             self.newline();
-            self.add_code("self.__kernel(frame_event)");
+            // v0.37: Use sync wrapper for async systems
+            if self.system_has_async_runtime {
+                self.add_code("self.__kernel_sync(frame_event)");
+            } else {
+                self.add_code("self.__kernel(frame_event)");
+            }
         } else {
             self.newline();
             self.add_code("self.__compartment = None");
@@ -1791,19 +1823,31 @@ impl PythonVisitor {
         
         let machine_block_node = system_node.machine_block_node_opt.as_ref().unwrap();
         
+        // v0.37: Check if system needs async runtime
+        let needs_async = self.config.code.event_handlers_as_functions && 
+                         self.system_needs_async_runtime(system_node);
+        
         self.newline();
         self.newline();
         self.add_code("# ==================== System Runtime =================== #");
         self.newline();
         
-        // Generate __kernel method
+        // Generate __kernel method (async if needed)
         self.newline();
-        self.add_code("def __kernel(self, __e):");
+        if needs_async {
+            self.add_code("async def __kernel(self, __e):");
+        } else {
+            self.add_code("def __kernel(self, __e):");
+        }
         self.indent();
         self.newline();
         self.add_code("# send event to current state");
         self.newline();
-        self.add_code("self.__router(__e)");
+        if needs_async {
+            self.add_code("await self.__router(__e)");
+        } else {
+            self.add_code("self.__router(__e)");
+        }
         self.newline();
         self.newline();
         self.add_code("# loop until no transitions occur");
@@ -1818,7 +1862,11 @@ impl PythonVisitor {
         self.newline();
         self.add_code("# exit current state");
         self.newline();
-        self.add_code("self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))");
+        if needs_async {
+            self.add_code("await self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))");
+        } else {
+            self.add_code("self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))");
+        }
         self.newline();
         self.add_code("# change state");
         self.newline();
@@ -1830,7 +1878,11 @@ impl PythonVisitor {
         self.newline();
         self.add_code("# send normal enter event");
         self.newline();
-        self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+        if needs_async {
+            self.add_code("await self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+        } else {
+            self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+        }
         self.outdent();
         self.newline();
         self.add_code("else:");
@@ -1841,15 +1893,25 @@ impl PythonVisitor {
         self.add_code("if next_compartment.forward_event._message == \"$>\":");
         self.indent();
         self.newline();
-        self.add_code("self.__router(next_compartment.forward_event)");
+        if needs_async {
+            self.add_code("await self.__router(next_compartment.forward_event)");
+        } else {
+            self.add_code("self.__router(next_compartment.forward_event)");
+        }
         self.outdent();
         self.newline();
         self.add_code("else:");
         self.indent();
         self.newline();
-        self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
-        self.newline();
-        self.add_code("self.__router(next_compartment.forward_event)");
+        if needs_async {
+            self.add_code("await self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+            self.newline();
+            self.add_code("await self.__router(next_compartment.forward_event)");
+        } else {
+            self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+            self.newline();
+            self.add_code("self.__router(next_compartment.forward_event)");
+        }
         self.outdent();
         self.newline();
         self.add_code("next_compartment.forward_event = None");
@@ -1857,10 +1919,14 @@ impl PythonVisitor {
         self.outdent();
         self.outdent();
         
-        // Generate __router method
+        // Generate __router method (async if needed)
         self.newline();
         self.newline();
-        self.add_code("def __router(self, __e, compartment=None):");
+        if needs_async {
+            self.add_code("async def __router(self, __e, compartment=None):");
+        } else {
+            self.add_code("def __router(self, __e, compartment=None):");
+        }
         self.indent();
         self.newline();
         self.add_code("target_compartment = compartment or self.__compartment");
@@ -1878,7 +1944,11 @@ impl PythonVisitor {
             }
             self.indent();
             self.newline();
-            self.add_code(&format!("self.{}(__e, target_compartment)", state_name));
+            if needs_async {
+                self.add_code(&format!("await self.{}(__e, target_compartment)", state_name));
+            } else {
+                self.add_code(&format!("self.{}(__e, target_compartment)", state_name));
+            }
             self.outdent();
             if index < machine_block_node.states.len() - 1 {
                 self.newline();
@@ -1910,6 +1980,67 @@ impl PythonVisitor {
             self.indent();
             self.newline();
             self.add_code("return self.__state_stack.pop()");
+            self.outdent();
+        }
+        
+        // v0.37: Generate sync wrapper for async kernel if needed
+        if needs_async {
+            self.newline();
+            self.newline();
+            self.add_code("def __kernel_sync(self, __e):");
+            self.indent();
+            self.newline();
+            self.add_code("import asyncio");
+            self.newline();
+            self.add_code("try:");
+            self.indent();
+            self.newline();
+            self.add_code("loop = asyncio.get_running_loop()");
+            self.newline();
+            self.add_code("# Already in async context, use run_in_executor for sync call");
+            self.newline();
+            self.add_code("import concurrent.futures");
+            self.newline();
+            self.add_code("import threading");
+            self.newline();
+            self.add_code("# Create a new event loop in a separate thread");
+            self.newline();
+            self.add_code("def run_in_new_loop():");
+            self.indent();
+            self.newline();
+            self.add_code("new_loop = asyncio.new_event_loop()");
+            self.newline();
+            self.add_code("asyncio.set_event_loop(new_loop)");
+            self.newline();
+            self.add_code("try:");
+            self.indent();
+            self.newline();
+            self.add_code("return new_loop.run_until_complete(self.__kernel(__e))");
+            self.outdent();
+            self.newline();
+            self.add_code("finally:");
+            self.indent();
+            self.newline();
+            self.add_code("new_loop.close()");
+            self.outdent();
+            self.outdent();
+            self.newline();
+            self.add_code("with concurrent.futures.ThreadPoolExecutor() as executor:");
+            self.indent();
+            self.newline();
+            self.add_code("future = executor.submit(run_in_new_loop)");
+            self.newline();
+            self.add_code("return future.result()");
+            self.outdent();
+            self.outdent();
+            self.newline();
+            self.add_code("except RuntimeError:");
+            self.indent();
+            self.newline();
+            self.add_code("# No running loop, use asyncio.run");
+            self.newline();
+            self.add_code("asyncio.run(self.__kernel(__e))");
+            self.outdent();
             self.outdent();
         }
     }
@@ -3534,6 +3665,12 @@ impl PythonVisitor {
 
     // v0.30: Generate a single system from its symbol
     fn generate_single_system(&mut self, system_symbol: &SystemSymbol) {
+        // v0.37: Check if system needs async runtime based on SystemSymbol
+        // NOTE: This is for the Symbol-based generation path (not currently used)
+        if self.config.code.event_handlers_as_functions {
+            self.system_has_async_runtime = self.system_symbol_needs_async_runtime(system_symbol);
+        }
+        
         // domain variable vector
         let mut domain_vec: Vec<(String, String)> = Vec::new();
         if let Some(domain_block_symbol_rcref) = &system_symbol.domain_block_symbol_opt {
@@ -3688,14 +3825,21 @@ impl PythonVisitor {
         if system_symbol.machine_block_symbol_opt.is_some() {
             self.newline();
             self.newline();
+            
+            // v0.37: For async runtime, use sync wrapper in __init__
             self.add_code("# Send system start event");
             self.newline();
             self.add_code("frame_event = FrameEvent(\"$>\", None)");
             self.newline();
-            self.add_code("self.__kernel(frame_event)");
+            if self.system_has_async_runtime {
+                self.add_code("self.__kernel_sync(frame_event)");
+            } else {
+                self.add_code("self.__kernel(frame_event)");
+            }
         }
         
         self.outdent();
+        
         self.newline();
     }
     
@@ -3768,14 +3912,26 @@ impl PythonVisitor {
         self.add_code("# ==================== System Runtime =================== #");
         self.newline();
         
+        // v0.37: Check if system needs async runtime
+        let needs_async = self.config.code.event_handlers_as_functions && 
+                         self.system_symbol_needs_async_runtime(system_symbol);
+        
         // Generate __kernel method
         self.newline();
-        self.add_code("def __kernel(self, __e):");
+        if needs_async {
+            self.add_code("async def __kernel(self, __e):");
+        } else {
+            self.add_code("def __kernel(self, __e):");
+        }
         self.indent();
         self.newline();
         self.add_code("# send event to current state");
         self.newline();
-        self.add_code("self.__router(__e)");
+        if needs_async {
+            self.add_code("await self.__router(__e)");
+        } else {
+            self.add_code("self.__router(__e)");
+        }
         self.newline();
         self.newline();
         self.add_code("# loop until no transitions occur");
@@ -3790,7 +3946,11 @@ impl PythonVisitor {
         self.newline();
         self.add_code("# exit current state");
         self.newline();
-        self.add_code("self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))");
+        if needs_async {
+            self.add_code("await self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))");
+        } else {
+            self.add_code("self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))");
+        }
         self.newline();
         self.add_code("# change state");
         self.newline();
@@ -3802,7 +3962,11 @@ impl PythonVisitor {
         self.newline();
         self.add_code("# send normal enter event");
         self.newline();
-        self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+        if needs_async {
+            self.add_code("await self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+        } else {
+            self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+        }
         self.outdent();
         self.newline();
         self.add_code("else:");
@@ -3813,15 +3977,25 @@ impl PythonVisitor {
         self.add_code("if next_compartment.forward_event._message == \"$>\":");
         self.indent();
         self.newline();
-        self.add_code("self.__router(next_compartment.forward_event)");
+        if needs_async {
+            self.add_code("await self.__router(next_compartment.forward_event)");
+        } else {
+            self.add_code("self.__router(next_compartment.forward_event)");
+        }
         self.outdent();
         self.newline();
         self.add_code("else:");
         self.indent();
         self.newline();
-        self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
-        self.newline();
-        self.add_code("self.__router(next_compartment.forward_event)");
+        if needs_async {
+            self.add_code("await self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+            self.newline();
+            self.add_code("await self.__router(next_compartment.forward_event)");
+        } else {
+            self.add_code("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+            self.newline();
+            self.add_code("self.__router(next_compartment.forward_event)");
+        }
         self.outdent();
         self.newline();
         self.add_code("next_compartment.forward_event = None");
@@ -3829,10 +4003,14 @@ impl PythonVisitor {
         self.outdent();
         self.outdent();
         
-        // Generate __router method
+        // Generate __router method (async if needed)
         self.newline();
         self.newline();
-        self.add_code("def __router(self, __e, compartment=None):");
+        if needs_async {
+            self.add_code("async def __router(self, __e, compartment=None):");
+        } else {
+            self.add_code("def __router(self, __e, compartment=None):");
+        }
         self.indent();
         self.newline();
         self.add_code("target_compartment = compartment or self.__compartment");
@@ -3864,7 +4042,11 @@ impl PythonVisitor {
                 }
                 self.indent();
                 self.newline();
-                self.add_code(&format!("self.{}(__e, target_compartment)", state_name));
+                if needs_async {
+                    self.add_code(&format!("return await self.{}(__e, target_compartment)", state_name));
+                } else {
+                    self.add_code(&format!("self.{}(__e, target_compartment)", state_name));
+                }
                 self.outdent();
                 if index < state_names.len() - 1 {
                     self.newline();
@@ -4593,7 +4775,7 @@ impl AstVisitor for PythonVisitor {
             }
         }
 
-        // v0.35: Generate async def for async interface methods
+        // v0.37: Generate async def only for async interface methods
         if interface_method_node.is_async {
             self.add_code(&format!("async def {}(self", interface_method_node.name));
         } else {
@@ -4648,7 +4830,20 @@ impl AstVisitor for PythonVisitor {
         ));
         if self.has_states {
             self.newline();
-            self.add_code("self.__kernel(__e)");
+            // v0.37: Call kernel appropriately based on interface method and system async status
+            if self.system_has_async_runtime {
+                // System has async runtime
+                if interface_method_node.is_async {
+                    // Async interface method can await async kernel
+                    self.add_code("await self.__kernel(__e)");
+                } else {
+                    // Sync interface method calls sync wrapper
+                    self.add_code("self.__kernel_sync(__e)");
+                }
+            } else {
+                // System has sync runtime - just call the kernel
+                self.add_code("self.__kernel(__e)");
+            }
         }
 
         match &interface_method_node.return_type_opt {
@@ -6710,7 +6905,23 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_superstring_stmt_node(&mut self, super_string_stmt_node: &SuperStringStmtNode) {
-        self.newline();
+        // Don't add a newline for SuperString statements that are part of expressions
+        // This fixes two cases:
+        // 1. self.pipeline_config`["urls"]` - backtick dictionary access  
+        // 2. self.results[str(task_id)] = value - index operation incorrectly parsed as SuperString
+        
+        let content = &super_string_stmt_node.literal_expr_node.value;
+        
+        // Check if this looks like an index operation or assignment with index
+        // This handles both [...] access and [...] = assignment patterns
+        let trimmed = content.trim_start();
+        let is_index_operation = trimmed.starts_with('[') && 
+                                (trimmed.contains("] =") || 
+                                 (trimmed.contains(']') && !trimmed.contains('=')));
+        
+        if !is_index_operation {
+            self.newline();
+        }
         super_string_stmt_node.literal_expr_node.accept(self);
     }
 
@@ -7785,7 +7996,41 @@ impl AstVisitor for PythonVisitor {
     fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) {
         match &literal_expression_node.token_t {
             TokenType::Number => self.add_code(&literal_expression_node.value.to_string()),
-            TokenType::SuperString => self.add_code(&literal_expression_node.value.to_string()),
+            TokenType::SuperString => {
+                // Handle SuperString with proper indentation for each line
+                let content = &literal_expression_node.value;
+                
+                // Check if this looks like an index operation that shouldn't have a newline
+                // This handles: [str(task_id)] = value
+                let trimmed = content.trim_start();
+                let is_index_operation = trimmed.starts_with('[') && 
+                                        (trimmed.contains("] =") || 
+                                         (trimmed.contains(']') && !trimmed.contains('=')));
+                
+                if is_index_operation {
+                    // Don't add any newlines for index operations
+                    self.add_code(content);
+                } else {
+                    // Normal SuperString handling
+                    let lines: Vec<&str> = content.lines().collect();
+                    
+                    for (i, line) in lines.iter().enumerate() {
+                        if i == 0 {
+                            // First line - just add the content (already has proper indentation from newline)
+                            self.add_code(line);
+                        } else {
+                            // Subsequent lines - add newline with current indentation, then the line content
+                            // Only add line content if it's not empty (preserve empty lines)
+                            if line.trim().is_empty() {
+                                self.code.push('\n');
+                            } else {
+                                self.newline();
+                                self.add_code(line);
+                            }
+                        }
+                    }
+                }
+            },
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::True => self.add_code("True"),
             TokenType::False => self.add_code("False"),

@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.36)
+# Frame Language Grammar (v0.37)
 
 **Last Updated**: 2025-09-04  
-**Status**: Event-handlers-as-functions architecture implemented with 99.5% test success rate (208/209 tests passing).
+**Status**: Event-handlers-as-functions architecture implemented with 99.5% test success rate (211/212 tests passing).
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1777,6 +1777,52 @@ fsl_string_method: expr '.' ('trim' | 'upper' | 'lower' | 'replace' | 'split' |
 ```
 
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
+
+### Index Operations (Limited Support)
+
+⚠️ **Important**: Frame currently has limited support for index operations (subscript notation with square brackets).
+
+#### Current Limitations
+
+Frame's parser does not fully support native index operations like `array[index]` or `dict[key]`. When such syntax is used, the parser may incorrectly interpret it as separate expressions, leading to malformed generated code.
+
+**Problematic patterns**:
+```frame
+// These patterns may generate incorrect code:
+self.results[str(task_id)] = value     // May split across lines
+var item = array[index]                // May not parse correctly
+dict[key] = new_value                  // May generate invalid syntax
+```
+
+#### Workarounds
+
+For dictionary and list access, use backtick expressions:
+
+```frame
+// Use backticks for index operations:
+var urls = self.config`["urls"]`       // Dictionary access
+var item = self.items`[0]`             // List access by index
+self.data`[str(key)]` = value          // Dictionary assignment
+
+// For complex operations, use full backtick blocks:
+`
+    self.results[str(task_id)] = value
+    item = my_list[index]
+    my_dict[key] = new_value
+`
+```
+
+#### Negative Indexing
+
+For lists, negative indexing works within backtick expressions:
+
+```frame
+var items = [10, 20, 30, 40, 50]
+var last = items`[-1]`          // Last element: 50
+var second_last = items`[-2]`   // Second to last: 40
+```
+
+**Note**: This is a known limitation in Frame v0.37. Future versions may add full native support for index operations.
 
 **Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
 

@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-04 07:38  
-**Total Tests**: 207  
+**Generated**: 2025-09-04 14:44  
+**Total Tests**: 212  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 207 | 100% |
-| **Transpilation Success** | 207 | 100.0% |
-| **Execution Success** | 207 | 100.0% |
-| **Complete Success** | 207 | 100.0% |
+| **Total Tests** | 212 | 100% |
+| **Transpilation Success** | 212 | 100.0% |
+| **Execution Success** | 211 | 99.5% |
+| **Complete Success** | 211 | 99.5% |
 
 ## v0.31 Features
 
@@ -22,7 +22,12 @@
 
 ## Failed Tests
 
-🎉 **All tests passing!**
+| Test File | Transpile | Execute | Error |
+|-----------|-----------|---------|-------|
+| test_async_stress.frm | ✅ | ❌ |   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_async_stress.py", line 52
+    return
+          ^
+IndentationError: unindent does not match any outer indentation level |
 
 ## Test Details
 
@@ -35,6 +40,9 @@
 | test_async_interface.frm | ✅ | ✅ | ✅ PASS |
 | test_async_minimal.frm | ✅ | ✅ | ✅ PASS |
 | test_async_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_async_stress.frm | ✅ | ❌ | ❌ FAIL |
+| test_async_stress_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_async_validate.frm | ✅ | ✅ | ✅ PASS |
 | test_backticks_still_work.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope_working.frm | ✅ | ✅ | ✅ PASS |
@@ -70,6 +78,7 @@
 | test_enums_doc_values.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_terminator.frm | ✅ | ✅ | ✅ PASS |
+| test_event_handlers_poc.frm | ✅ | ✅ | ✅ PASS |
 | test_explicit_self_syntax.frm | ✅ | ✅ | ✅ PASS |
 | test_explicit_self_system_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_first_plus_simple.frm | ✅ | ✅ | ✅ PASS |
@@ -91,6 +100,7 @@
 | test_functions_event_handler.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_with_system.frm | ✅ | ✅ | ✅ PASS |
+| test_handlers_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_history.frm | ✅ | ✅ | ✅ PASS |
 | test_if_elif_returns.frm | ✅ | ✅ | ✅ PASS |
 | test_if_simple.frm | ✅ | ✅ | ✅ PASS |
