@@ -48,6 +48,32 @@ Languages considered in Frame's design with documented patterns:
   self.results`[str(task_id)]` = value  // For complex index operations
   ```
 
+## v0.38 Planning - Python Operator Alignment
+
+### Planning Documents Created (2025-01-22)
+- **[Python Operator Alignment Plan](../plan/python_operator_alignment.md)**: Comprehensive roadmap for aligning Frame's operators with Python
+- **[Conditional Operators Analysis](../plan/conditional_operators_analysis.md)**: Analysis of Frame's conditional syntax and proposed improvements
+- **[Event Syntax Migration](../plan/event_syntax_migration.md)**: Analysis showing no changes needed for `@` operator
+
+### Key Proposals
+1. **Python Operators to Add**:
+   - `**` (power), `//` (floor division)
+   - Augmented assignments (`+=`, `-=`, etc.)
+   - Bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`)
+   - Python logical keywords (`and`, `or`, `not`)
+   - Identity operators (`is`, `is not`)
+   - Ternary expression (`a if c else b`)
+
+2. **Collection Literals**:
+   - Dictionary literals: `{"key": value}`
+   - Set literals: `{1, 2, 3}`
+   - Tuple literals: `(1, 2, 3)`
+
+3. **No Breaking Changes for Events**:
+   - `@` already used correctly for decorators
+   - `$@` for current event (no conflict)
+   - Matrix multiplication operator can be added immediately
+
 ### v0.36 Release - Event-Handlers-as-Functions Architecture ✅
 - **Architecture Restructure**: Event handlers generated as individual functions instead of monolithic state methods
 - **Configuration Flag**: `event_handlers_as_functions` flag in PythonConfig enables new architecture
