@@ -166,6 +166,8 @@ pub trait AstVisitor {
 
     fn visit_list_elem_node(&mut self, _list_elem: &ListElementNode) {}
     fn visit_list_elem_node_to_string(&mut self, _list_elem: &ListElementNode, _output: &mut String) {}
+    fn visit_slice_node(&mut self, _slice_node: &SliceNode) {}
+    fn visit_slice_node_to_string(&mut self, _slice_node: &SliceNode, _output: &mut String) {}
     
     // v0.34: Unpacking and comprehensions
     fn visit_unpack_expr_node(&mut self, _unpack_expr: &UnpackExprNode) {}
@@ -193,6 +195,7 @@ pub trait AstVisitor {
     fn visit_try_stmt_node(&mut self, _try_stmt_node: &TryStmtNode) {}
     fn visit_except_clause_node(&mut self, _except_clause_node: &ExceptClauseNode) {}
     fn visit_raise_stmt_node(&mut self, _raise_stmt_node: &RaiseStmtNode) {}
+    fn visit_with_stmt_node(&mut self, _with_stmt_node: &WithStmtNode) {}
     fn visit_superstring_stmt_node(&mut self, _continue_expr_node: &SuperStringStmtNode) {}
     fn visit_block_stmt_node(&mut self, _block_stmt_node: &BlockStmtNode) {}
     fn visit_literal_expression_node(&mut self, _node: &LiteralExprNode) {}

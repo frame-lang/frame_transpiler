@@ -170,6 +170,10 @@ pub trait CallableExpr {
 
 // TODO: note - exploring if this enum can replace the Callable : Downcast approach
 pub enum CallChainNodeType {
+    // Special node for 'self' reference (v0.37)
+    SelfT {
+        self_expr_node: SelfExprNode,
+    },
     // Declared identifier types
     VariableNodeT {
         var_node: VariableNode,
@@ -196,6 +200,9 @@ pub enum CallChainNodeType {
     ListElementNodeT {
         list_elem_node: ListElementNode,
     },
+    SliceNodeT {
+        slice_node: SliceNode,
+    },
     // Undeclared identifier types
     UndeclaredIdentifierNodeT {
         id_node: IdentifierNode,
@@ -205,6 +212,9 @@ pub enum CallChainNodeType {
     },
     UndeclaredListElementT {
         list_elem_node: ListElementNode,
+    },
+    UndeclaredSliceT {
+        slice_node: SliceNode,
     },
 }
 
@@ -415,6 +425,7 @@ pub struct SystemNode {
     pub operations_block_node_opt: Option<OperationsBlockNode>,
     pub domain_block_node_opt: Option<DomainBlockNode>,
     pub line: usize,
+    pub runtime_info: Option<RuntimeInfo>,  // v0.37: Runtime async requirements
 }
 
 impl SystemNode {
@@ -446,6 +457,7 @@ impl SystemNode {
             operations_block_node_opt,
             domain_block_node_opt,
             line,
+            runtime_info: None,  // v0.37: Will be populated during semantic analysis
         }
     }
 
@@ -479,6 +491,7 @@ impl Clone for SystemNode {
             operations_block_node_opt: None,
             domain_block_node_opt: None,
             line: self.line,
+            runtime_info: None,  // v0.37: Runtime info not cloned
         }
     }
 }
@@ -720,6 +733,7 @@ pub struct ActionNode {
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
+    pub is_async: bool,  // v0.37: async action support
     pub code_opt: Option<String>, // TODO - remove
 }
 
@@ -731,6 +745,7 @@ impl ActionNode {
         statements: Vec<DeclOrStmtType>,
         terminator_node: TerminatorExpr,
         type_opt: Option<TypeNode>,
+        is_async: bool,
         code_opt: Option<String>,
     ) -> ActionNode {
         ActionNode {
@@ -740,6 +755,7 @@ impl ActionNode {
             statements,
             terminator_expr: terminator_node,
             type_opt,
+            is_async,
             code_opt,
         }
     }
@@ -1300,6 +1316,7 @@ pub struct EventHandlerNode {
     pub event_handler_has_transition: bool,
     pub line: usize,
     pub return_init_expr_opt: Option<ExprType>,  // Default return value for event handler
+    pub is_async: bool,  // v0.37: async event handler support
 }
 
 impl EventHandlerNode {
@@ -1313,6 +1330,7 @@ impl EventHandlerNode {
         event_handler_has_transition: bool,
         line: usize,
         return_init_expr_opt: Option<ExprType>,
+        is_async: bool,
     ) -> EventHandlerNode {
         EventHandlerNode {
             //  event_handler_type,
@@ -1324,6 +1342,7 @@ impl EventHandlerNode {
             event_handler_has_transition,
             line,
             return_init_expr_opt,
+            is_async,
         }
     }
 
@@ -2049,6 +2068,9 @@ pub enum StatementType {
     },
     RaiseStmt {
         raise_stmt_node: RaiseStmtNode,
+    },
+    WithStmt {
+        with_stmt_node: WithStmtNode,
     },
     SuperStringStmt {
         super_string_stmt_node: SuperStringStmtNode,
@@ -3091,6 +3113,37 @@ impl NodeElement for RaiseStmtNode {
 
 //-----------------------------------------------------//
 
+pub struct WithStmtNode {
+    pub is_async: bool,
+    pub context_expr: ExprType,
+    pub target_var: Option<String>,
+    pub with_block: BlockStmtNode,
+}
+
+impl WithStmtNode {
+    pub fn new(
+        is_async: bool,
+        context_expr: ExprType,
+        target_var: Option<String>,
+        with_block: BlockStmtNode,
+    ) -> WithStmtNode {
+        WithStmtNode {
+            is_async,
+            context_expr,
+            target_var,
+            with_block,
+        }
+    }
+}
+
+impl NodeElement for WithStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_with_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
 #[derive(Clone)]
 pub struct SuperStringStmtNode {
     pub literal_expr_node: LiteralExprNode,
@@ -3221,6 +3274,9 @@ impl fmt::Display for CallChainExprNode {
         for node in &self.call_chain {
             output.push_str(separator);
             match &node {
+                CallChainNodeType::SelfT { .. } => {
+                    output.push_str("self");
+                }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     output.push_str(&*id_node.to_string());
                 }
@@ -3255,6 +3311,12 @@ impl fmt::Display for CallChainExprNode {
                 }
                 CallChainNodeType::UndeclaredListElementT { .. } => {
                     // output.push_str(&*var_node.to_string());
+                }
+                CallChainNodeType::SliceNodeT { .. } => {
+                    // Slice nodes will be handled similarly to list elements
+                }
+                CallChainNodeType::UndeclaredSliceT { .. } => {
+                    // Undeclared slice nodes similarly
                 }
             }
             separator = ".";
@@ -4245,6 +4307,34 @@ impl ListElementNode {
     }
 }
 
+// SliceNode captures slice operations such as
+// text[1:5], array[:10], list[5:], data[::2]
+pub struct SliceNode {
+    pub identifier: IdentifierNode,
+    pub scope: IdentifierDeclScope,
+    pub start_expr: Option<Box<ExprType>>,
+    pub end_expr: Option<Box<ExprType>>,
+    pub step_expr: Option<Box<ExprType>>,
+}
+
+impl SliceNode {
+    pub fn new(
+        identifier: IdentifierNode,
+        scope: IdentifierDeclScope,
+        start_expr: Option<Box<ExprType>>,
+        end_expr: Option<Box<ExprType>>,
+        step_expr: Option<Box<ExprType>>,
+    ) -> SliceNode {
+        SliceNode {
+            identifier,
+            scope,
+            start_expr,
+            end_expr,
+            step_expr,
+        }
+    }
+}
+
 impl NodeElement for ListElementNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_list_elem_node(self);
@@ -4252,6 +4342,16 @@ impl NodeElement for ListElementNode {
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_list_elem_node_to_string(self, output);
+    }
+}
+
+impl NodeElement for SliceNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_slice_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_slice_node_to_string(self, output);
     }
 }
 
@@ -4403,6 +4503,87 @@ impl ParentDispatchStmtNode {
 impl NodeElement for ParentDispatchStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_parent_dispatch_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+// v0.37: Runtime infrastructure nodes for async chain analysis
+
+pub struct RuntimeInfo {
+    pub kernel: KernelNode,
+    pub router: RouterNode,
+    pub transitions: Vec<TransitionNode>,
+    pub state_dispatchers: Vec<StateDispatcherNode>,
+}
+
+impl RuntimeInfo {
+    pub fn new() -> RuntimeInfo {
+        RuntimeInfo {
+            kernel: KernelNode::new(false),
+            router: RouterNode::new(false),
+            transitions: Vec::new(),
+            state_dispatchers: Vec::new(),
+        }
+    }
+}
+
+pub struct KernelNode {
+    pub is_async: bool,
+    pub system_ref: String,
+}
+
+impl KernelNode {
+    pub fn new(is_async: bool) -> KernelNode {
+        KernelNode { 
+            is_async,
+            system_ref: String::new(),
+        }
+    }
+}
+
+pub struct RouterNode {
+    pub is_async: bool,
+    pub system_ref: String,
+}
+
+impl RouterNode {
+    pub fn new(is_async: bool) -> RouterNode {
+        RouterNode {
+            is_async,
+            system_ref: String::new(),
+        }
+    }
+}
+
+pub struct TransitionNode {
+    pub from_state: String,
+    pub to_state: String,
+    pub is_async: bool,
+    pub handler_name: String,  // Which handler triggers this transition
+}
+
+impl TransitionNode {
+    pub fn new(from_state: String, to_state: String, is_async: bool, handler_name: String) -> TransitionNode {
+        TransitionNode {
+            from_state,
+            to_state,
+            is_async,
+            handler_name,
+        }
+    }
+}
+
+pub struct StateDispatcherNode {
+    pub state_name: String,
+    pub is_async: bool,
+}
+
+impl StateDispatcherNode {
+    pub fn new(state_name: String, is_async: bool) -> StateDispatcherNode {
+        StateDispatcherNode {
+            state_name,
+            is_async,
+        }
     }
 }
 

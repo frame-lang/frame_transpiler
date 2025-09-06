@@ -8,6 +8,7 @@ use super::ast::ExprType;
 use super::ast::ExprType::*;
 use super::ast::TerminatorType::Return;
 use super::ast::*;
+use super::ast::TargetStateContextType;
 use std::collections::VecDeque;
 use super::scanner::*;
 use super::symbol_table::*;
@@ -346,6 +347,14 @@ impl<'a> Parser<'a> {
             } else {
                 // No more entities found - exit loop
                 break;
+            }
+        }
+        
+        // v0.37: Analyze runtime async requirements for all systems
+        if !self.is_building_symbol_table {
+            // Only do runtime analysis in the semantic pass
+            for system in &mut systems {
+                self.analyze_system_runtime_info(system)?;
             }
         }
         
@@ -2378,11 +2387,22 @@ impl<'a> Parser<'a> {
 
         let mut actions = Vec::new();
 
-        while self.match_token(&[TokenType::Identifier]) {
-            if let Ok(action_decl_node) = self.action_scope() {
-                actions.push(action_decl_node);
+        loop {
+            // v0.37: Check for async keyword before action identifier
+            let is_async = self.match_token(&[TokenType::Async]);
+            
+            if self.match_token(&[TokenType::Identifier]) {
+                if let Ok(action_decl_node) = self.action_scope(is_async) {
+                    actions.push(action_decl_node);
+                } else {
+                    // TODO - see operations block for approach
+                }
             } else {
-                // TODO - see operations block for approach
+                // If we consumed 'async' but didn't find an identifier, error
+                if is_async {
+                    self.error_at_current("Expected action name after 'async' keyword");
+                }
+                break;
             }
         }
 
@@ -2472,7 +2492,7 @@ impl<'a> Parser<'a> {
     // the parsing. Here the scope stack is managed including
     // the scope symbol creation and association with the AST node.
 
-    fn action_scope(&mut self) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
+    fn action_scope(&mut self, is_async: bool) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
         let action_name = self.previous().lexeme.clone();
 
         // The 'is_action_context' flag is used to determine which statements are valid
@@ -2500,7 +2520,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let ret = self.action(action_name.clone());
+        let ret = self.action(action_name.clone(), is_async);
 
         if self.is_building_symbol_table {
             match &ret {
@@ -2527,7 +2547,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn action(&mut self, action_name: String) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
+    fn action(&mut self, action_name: String, is_async: bool) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
         // foo(
         if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
             return Err(parse_error);
@@ -2686,6 +2706,7 @@ impl<'a> Parser<'a> {
             statements,
             terminator_node,
             type_opt,
+            is_async,
             code_opt,
         );
 
@@ -3811,9 +3832,13 @@ impl<'a> Parser<'a> {
 
         // Event handler syntax:
         // a(x:int,y:string) : bool(True) { }
+        // v0.37: async $>() { ... }
 
+        // Check for async keyword before event handler
+        let is_async_handler = self.match_token(&[TokenType::Async]);
+        
         if self.match_token(&[TokenType::Identifier,TokenType::EnterStateMsg,TokenType::ExitStateMsg]) {
-            match self.event_handlers(&state_name) {
+            match self.event_handlers(&state_name, is_async_handler) {
                 Ok(seh) => {
                     state_event_handlers = seh;
                 },
@@ -3910,7 +3935,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn event_handlers(&mut self,state_name:&String) -> Result<StateEventHandlers, ParseError> {
+    fn event_handlers(&mut self,state_name:&String, mut is_async: bool) -> Result<StateEventHandlers, ParseError> {
 
         let mut evt_handlers: Vec<Rc<RefCell<EventHandlerNode>>> = Vec::new();
         let mut enter_event_handler = Option::None;
@@ -3919,7 +3944,7 @@ impl<'a> Parser<'a> {
         let mut event_names = HashMap::new();
 
         loop {
-            match self.event_handler() {
+            match self.event_handler(is_async) {
                 Ok(eh_opt) => {
                     if let Some(eh) = eh_opt {
                         let eh_rcref = Rc::new(RefCell::new(eh));
@@ -3977,9 +4002,20 @@ impl<'a> Parser<'a> {
                     self.synchronize(&sync_tokens);
                 }
             }
+            // Check for async keyword before next event handler
+            let next_is_async = self.match_token(&[TokenType::Async]);
+            
             if !self.match_token(&[TokenType::Identifier,TokenType::EnterStateMsg,TokenType::ExitStateMsg]) {
+                // If we consumed async but no event handler follows, that's an error
+                if next_is_async {
+                    self.error_at_current("Expected event handler after 'async' keyword");
+                    return Err(ParseError::new("Expected event handler after 'async' keyword"));
+                }
                 break;
             }
+            
+            // Update is_async for the next iteration
+            is_async = next_is_async;
         }
 
         let state_event_handlers = StateEventHandlers::new(
@@ -3995,7 +4031,7 @@ impl<'a> Parser<'a> {
 
     // TODO: This is a mess and needs to be cleaned up.
 
-    fn event_handler(&mut self) -> Result<Option<EventHandlerNode>, ParseError> {
+    fn event_handler(&mut self, is_async: bool) -> Result<Option<EventHandlerNode>, ParseError> {
         // Variables initialized at point of use - see line 3632-3635
         self.interface_method_called = false;
 
@@ -4512,6 +4548,7 @@ impl<'a> Parser<'a> {
             self.event_handler_has_transition,
             line_number,
             event_handler_return_init_expr_opt,
+            is_async,
         )))
     }
 
@@ -5095,6 +5132,28 @@ impl<'a> Parser<'a> {
             return match self.raise_statement() {
                 Ok(Some(raise_stmt_t)) => Ok(Some(raise_stmt_t)),
                 Ok(None) => Err(ParseError::new("Expected raise statement")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        // Check for 'async with' or 'with' statements
+        if self.match_token(&[TokenType::Async]) {
+            if self.match_token(&[TokenType::With]) {
+                return match self.with_statement(true) {
+                    Ok(Some(with_stmt_t)) => Ok(Some(with_stmt_t)),
+                    Ok(None) => Err(ParseError::new("Expected async with statement")),
+                    Err(parse_error) => Err(parse_error),
+                };
+            } else {
+                // If we matched 'async' but not 'with', it's an error
+                return Err(ParseError::new("Expected 'with' after 'async' keyword"));
+            }
+        }
+
+        if self.match_token(&[TokenType::With]) {
+            return match self.with_statement(false) {
+                Ok(Some(with_stmt_t)) => Ok(Some(with_stmt_t)),
+                Ok(None) => Err(ParseError::new("Expected with statement")),
                 Err(parse_error) => Err(parse_error),
             };
         }
@@ -6962,6 +7021,52 @@ impl<'a> Parser<'a> {
         Ok(Some(StatementType::RaiseStmt { raise_stmt_node }))
     }
 
+    fn with_statement(&mut self, is_async: bool) -> Result<Option<StatementType>, ParseError> {
+        // Parse the context expression (e.g., open("file.txt"))
+        let context_expr = match self.expression() {
+            Ok(Some(expr)) => expr,
+            Ok(None) => {
+                self.error_at_current("Expected expression after 'with'.");
+                return Err(ParseError::new("Expected expression after 'with'."));
+            }
+            Err(e) => return Err(e),
+        };
+
+        // Parse optional 'as' clause
+        let target_var = if self.match_token(&[TokenType::As]) {
+            if self.peek().token_type == TokenType::Identifier {
+                let var_name = self.peek().lexeme.clone();
+                self.advance();
+                Some(var_name)
+            } else {
+                self.error_at_current("Expected identifier after 'as'.");
+                return Err(ParseError::new("Expected identifier after 'as'."));
+            }
+        } else {
+            None
+        };
+
+        // Parse the block
+        if !self.match_token(&[TokenType::OpenBrace]) {
+            self.error_at_current("Expected '{' after with expression.");
+            return Err(ParseError::new("Expected '{' after with expression."));
+        }
+
+        let with_block = match self.parse_braced_block("with_block") {
+            Ok(block) => block,
+            Err(e) => return Err(e),
+        };
+
+        let with_stmt_node = WithStmtNode::new(
+            is_async,
+            context_expr,
+            target_var,
+            with_block,
+        );
+
+        Ok(Some(StatementType::WithStmt { with_stmt_node }))
+    }
+
     fn if_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
         // Parse the condition expression
         let condition = match self.expression() {
@@ -8014,25 +8119,17 @@ impl<'a> Parser<'a> {
                     // We've parsed the system field so now scope is unknown.
 
                     scope = IdentifierDeclScope::UnknownScope;
+                    
+                    eprintln!("DEBUG: After self.identifier, current token: {:?}", self.peek());
 
-                    if self.match_token(&[TokenType::Dot]) {
-                        if !self.match_token(&[TokenType::Identifier]) {
-                            let err_msg = format!("Expected Identifier. Found '{}'.", self.previous().lexeme);
-                            self.error_at_previous(&err_msg);
-                            let parse_error =
-                                ParseError::new(err_msg.as_str());
-                            return Err(parse_error);
-                        }
-                    } else if !self.check(TokenType::LParen) {
-                        // No dot and no method call - just return the call chain as is
-                        let call_chain_expr_node = CallChainExprNode::new(call_chain);
-                        return Ok(Some(CallChainExprT {
-                            call_chain_expr_node,
-                        }));
-                    }
-                    // We have self.method() - need to handle the method call
+                    // After parsing self.something, we need to continue the chain
+                    // The main loop below will handle additional dots and method calls
                     // TODO: Add proper context tracking for static operations
                     // For now, we'll allow self.method() calls but document the need for validation
+                    
+                    if self.debug_mode {
+                        eprintln!("DEBUG: After self.property parsed, checking for LParen. Current token: {:?}", self.peek());
+                    }
                     
                     // The method identifier was already added to call_chain, now convert it to a call
                     if self.match_token(&[TokenType::LParen]) {
@@ -8107,6 +8204,36 @@ impl<'a> Parser<'a> {
                                         });
                                     }
                                     
+                                    // v0.37: Check if there's more to the chain (like .method() after self.property)
+                                    // Continue parsing dots and method calls
+                                    while self.match_token(&[TokenType::Dot]) {
+                                        if !self.match_token(&[TokenType::Identifier]) {
+                                            let err_msg = "Expected identifier after '.'";
+                                            return Err(ParseError::new(err_msg));
+                                        }
+                                        
+                                        let next_id = IdentifierNode::new(
+                                            self.previous().clone(),
+                                            None,
+                                            IdentifierDeclScope::UnknownScope,
+                                            false,
+                                            self.previous().line,
+                                        );
+                                        
+                                        // Check if it's a method call
+                                        if self.match_token(&[TokenType::LParen]) {
+                                            let call_expr = self.finish_call(next_id)?;
+                                            call_chain.push_back(CallChainNodeType::UndeclaredCallT {
+                                                call_node: call_expr,
+                                            });
+                                        } else {
+                                            // Just a property access
+                                            call_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT {
+                                                id_node: next_id,
+                                            });
+                                        }
+                                    }
+                                    
                                     let call_chain_expr_node = CallChainExprNode::new(call_chain);
                                     return Ok(Some(CallChainExprT {
                                         call_chain_expr_node,
@@ -8115,8 +8242,48 @@ impl<'a> Parser<'a> {
                                 Err(parse_error) => return Err(parse_error),
                             }
                         }
+                    } else {
+                        // v0.37: No immediate method call after self.property
+                        // But we still need to check for further dots (e.g., self.processed_data.append)
+                        if self.debug_mode {
+                            eprintln!("DEBUG: After self.property, checking for continuation. Current token: {:?}", self.peek());
+                        }
+                        while self.match_token(&[TokenType::Dot]) {
+                            if !self.match_token(&[TokenType::Identifier]) {
+                                let err_msg = "Expected identifier after '.'";
+                                return Err(ParseError::new(err_msg));
+                            }
+                            
+                            let next_id = IdentifierNode::new(
+                                self.previous().clone(),
+                                None,
+                                IdentifierDeclScope::UnknownScope,
+                                false,
+                                self.previous().line,
+                            );
+                            
+                            // Check if it's a method call
+                            if self.match_token(&[TokenType::LParen]) {
+                                let call_expr = self.finish_call(next_id)?;
+                                call_chain.push_back(CallChainNodeType::UndeclaredCallT {
+                                    call_node: call_expr,
+                                });
+                            } else {
+                                // Just a property access
+                                call_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT {
+                                    id_node: next_id,
+                                });
+                            }
+                        }
+                        
+                        // IMPORTANT: Always return the call chain here, even if no further dots were found
+                        // We've already parsed self.property and need to return that chain
+                        let call_chain_expr_node = CallChainExprNode::new(call_chain);
+                        return Ok(Some(CallChainExprT {
+                            call_chain_expr_node,
+                        }));
                     }
-                    // Continue to main loop if no immediate method call
+                    // Continue to main loop if no property after self
                 } else {
                     let err_msg = format!("Expected Identifier. Found '{}'.", self.previous().lexeme);
                     self.error_at_previous(&err_msg);
@@ -8776,32 +8943,30 @@ impl<'a> Parser<'a> {
                                     | SymbolType::StateParam { .. }
                                     | SymbolType::EventHandlerParam { .. } => {
                                         if self.match_token(&[TokenType::LBracket]) {
-                                            let list_elem_expr_opt_result =
-                                                self.list_elem_expression();
-                                            if let Err(parse_error) =
-                                                self.consume(TokenType::RBracket, "Expected ']'.")
-                                            {
-                                                return Err(parse_error);
-                                            }
-                                            match list_elem_expr_opt_result {
-                                                Ok(Some(list_elem_node)) => {
+                                            // Check if this is a slice or regular index
+                                            let bracket_result = self.parse_bracket_expression();
+                                            match bracket_result {
+                                                Ok(BracketExpressionType::Index(expr)) => {
                                                     let list_elem_node = ListElementNode::new(
                                                         id_node,
                                                         scope.clone(),
-                                                        list_elem_node,
+                                                        expr,
                                                     );
                                                     CallChainNodeType::ListElementNodeT {
                                                         list_elem_node,
                                                     }
                                                 }
-                                                Ok(None) => {
-                                                    // TODO: continue parse rather than return an error. Need a proper return type.
-                                                    let err_msg =
-                                                        &format!("Error - missing expression for list element.");
-                                                    self.error_at_previous(err_msg);
-                                                    let parse_error =
-                                                        ParseError::new(err_msg.as_str());
-                                                    return Err(parse_error);
+                                                Ok(BracketExpressionType::Slice { start, end, step }) => {
+                                                    let slice_node = SliceNode {
+                                                        identifier: id_node,
+                                                        scope: scope.clone(),
+                                                        start_expr: start,
+                                                        end_expr: end,
+                                                        step_expr: step,
+                                                    };
+                                                    CallChainNodeType::SliceNodeT {
+                                                        slice_node,
+                                                    }
                                                 }
                                                 Err(err) => return Err(err),
                                             }
@@ -8826,29 +8991,28 @@ impl<'a> Parser<'a> {
                             }
                             None => {
                                 if self.match_token(&[TokenType::LBracket]) {
-                                    let list_elem_expr_opt_result = self.list_elem_expression();
-                                    if let Err(parse_error) =
-                                        self.consume(TokenType::RBracket, "Expected ']'.")
-                                    {
-                                        return Err(parse_error);
-                                    }
-                                    match list_elem_expr_opt_result {
-                                        Ok(Some(list_elem_node)) => {
+                                    // Check if this is a slice or regular index
+                                    let bracket_result = self.parse_bracket_expression();
+                                    match bracket_result {
+                                        Ok(BracketExpressionType::Index(expr)) => {
                                             let list_elem_node = ListElementNode::new(
                                                 id_node,
                                                 scope.clone(),
-                                                list_elem_node,
+                                                expr,
                                             );
                                             CallChainNodeType::ListElementNodeT { list_elem_node }
                                         }
-                                        Ok(None) => {
-                                            // TODO: continue parse rather than return an error. Need a proper return type.
-                                            let err_msg = &format!(
-                                                "Error - missing expression for list element."
-                                            );
-                                            self.error_at_previous(err_msg);
-                                            let parse_error = ParseError::new(err_msg.as_str());
-                                            return Err(parse_error);
+                                        Ok(BracketExpressionType::Slice { start, end, step }) => {
+                                            let slice_node = SliceNode {
+                                                identifier: id_node,
+                                                scope: scope.clone(),
+                                                start_expr: start,
+                                                end_expr: end,
+                                                step_expr: step,
+                                            };
+                                            CallChainNodeType::SliceNodeT {
+                                                slice_node,
+                                            }
                                         }
                                         Err(err) => return Err(err),
                                     }
@@ -8862,24 +9026,25 @@ impl<'a> Parser<'a> {
                   //  }
                 } else {
                     if self.match_token(&[TokenType::LBracket]) {
-                        let list_elem_expr_opt_result = self.list_elem_expression();
-                        if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.")
-                        {
-                            return Err(parse_error);
-                        }
-                        match list_elem_expr_opt_result {
-                            Ok(Some(list_elem_node)) => {
+                        // Check if this is a slice or regular index
+                        let bracket_result = self.parse_bracket_expression();
+                        match bracket_result {
+                            Ok(BracketExpressionType::Index(expr)) => {
                                 let list_elem_node =
-                                    ListElementNode::new(id_node, scope.clone(), list_elem_node);
+                                    ListElementNode::new(id_node, scope.clone(), expr);
                                 CallChainNodeType::UndeclaredListElementT { list_elem_node }
                             }
-                            Ok(None) => {
-                                // TODO: continue parse rather than return an error. Need a proper return type.
-                                let err_msg =
-                                    &format!("Error - missing expression for list element.");
-                                self.error_at_previous(err_msg);
-                                let parse_error = ParseError::new(err_msg.as_str());
-                                return Err(parse_error);
+                            Ok(BracketExpressionType::Slice { start, end, step }) => {
+                                let slice_node = SliceNode {
+                                    identifier: id_node,
+                                    scope: scope.clone(),
+                                    start_expr: start,
+                                    end_expr: end,
+                                    step_expr: step,
+                                };
+                                CallChainNodeType::UndeclaredSliceT {
+                                    slice_node,
+                                }
                             }
                             Err(err) => return Err(err),
                         }
@@ -9047,17 +9212,11 @@ impl<'a> Parser<'a> {
             self.arcanum.debug_dump_arcanum();
         }
         
-        // Check if this is an FSL operation (str, int, float, etc.)
-        // v0.34: FSL operations must be explicitly imported
-        let fsl_registry = FslRegistry::new();
-        eprintln!("DEBUG: Checking FSL for '{}': is_building_symbol_table={}, recognized={:?}, imported={}", 
-                 base_id.name.lexeme, self.is_building_symbol_table, 
-                 fsl_registry.recognize_operation(&base_id.name.lexeme),
-                 self.is_fsl_imported(&base_id.name.lexeme));
-        if !self.is_building_symbol_table 
-            && fsl_registry.recognize_operation(&base_id.name.lexeme).is_some()
-            && self.is_fsl_imported(&base_id.name.lexeme) {
-            let fsl_operation = fsl_registry.recognize_operation(&base_id.name.lexeme).unwrap();
+        // v0.37: Removed FSL checking - just pass everything through as regular calls
+        // The parser doesn't need to validate if functions exist - Python will do that at runtime
+        eprintln!("DEBUG: Processing identifier '{}' as regular call - no FSL validation", base_id.name.lexeme);
+        if false {  // Disabled FSL checking
+            // let fsl_operation = fsl_registry.recognize_operation(&base_id.name.lexeme).unwrap();
             eprintln!("DEBUG: FSL operation detected in second pass for: {}", base_id.name.lexeme);
             // This is an FSL operation in the second pass! Parse it as such
             if self.match_token(&[TokenType::LParen]) {
@@ -9070,7 +9229,7 @@ impl<'a> Parser<'a> {
                 };
                 
                 // Validate argument count for conversion operations
-                match &fsl_operation {
+                /* match &fsl_operation {
                     BuiltInOperation::Conversion(_) => {
                         if args.len() != 1 {
                             let err_msg = format!("{}() takes exactly 1 argument ({} given)", 
@@ -9080,7 +9239,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                     _ => {} // Other operations will have their own validation
-                }
+                } */
                 
                 // Create the FSL built-in call node
                 // For conversion operations, we need to extract the first argument
@@ -9091,7 +9250,7 @@ impl<'a> Parser<'a> {
                     args.into_iter().next().unwrap()
                 };
                 
-                let builtin_call_node = BuiltInCallNode {
+                /* let builtin_call_node = BuiltInCallNode {
                     operation: fsl_operation,
                     target: Box::new(target_expr), // Move the argument, don't clone
                     arguments: Vec::new(), // Conversion ops don't have additional arguments
@@ -9102,7 +9261,7 @@ impl<'a> Parser<'a> {
                 eprintln!("DEBUG: Returning BuiltInCallExprT for FSL operation: {}", base_id.name.lexeme);
                 return Ok(Some(BuiltInCallExprT {
                     builtin_call_node: Box::new(builtin_call_node),
-                }));
+                })); */
             }
         }
         
@@ -10419,6 +10578,8 @@ impl<'a> Parser<'a> {
     
     /// Parse self, self.method() or self.variable syntax
     fn parse_self_context(&mut self) -> Result<Option<ExprType>, ParseError> {
+        use crate::frame_c::ast::SelfExprNode;
+        
         // Check if we're in a static operation - if so, self is not allowed
         if self.is_static_operation {
             let err_msg = "Cannot use 'self' in a static operation (marked with @staticmethod)";
@@ -10493,39 +10654,57 @@ impl<'a> Parser<'a> {
             // self.variable - create a CallChainExprT to represent self.variable access
             // This is needed so that assignments can recognize self.variable patterns
             
-            // First create the 'self' node
-            let self_token = Token {
-                token_type: TokenType::Self_,
-                lexeme: "self".to_string(),
-                literal: TokenLiteral::None,
-                line: identifier_token.line,
-                start: identifier_token.start - 5,  // Adjust for "self."
-                length: 4,
-            };
-            let self_id_node = IdentifierNode::new(
-                self_token,
-                None,
-                IdentifierDeclScope::SystemScope,
-                false,
-                identifier_token.line,
-            );
-            let self_var_node = VariableNode::new(
-                self_id_node,
-                IdentifierDeclScope::SystemScope,
-                None,
-            );
+            // First create the 'self' node using the proper SelfT variant
+            let self_expr_node = SelfExprNode::new();
             
-            // Then create the variable node
+            // Then create the variable node for the property
             let var_node = VariableNode::new(
                 id_node,
                 IdentifierDeclScope::DomainBlockScope,
                 None,
             );
             
-            // Build the call chain
+            // Build the call chain starting with SelfT
             let mut call_chain = VecDeque::new();
-            call_chain.push_back(CallChainNodeType::VariableNodeT { var_node: self_var_node });
+            call_chain.push_back(CallChainNodeType::SelfT { self_expr_node });
             call_chain.push_back(CallChainNodeType::VariableNodeT { var_node });
+            
+            // v0.37: Check for further dots in self.property.method() patterns
+            while self.match_token(&[TokenType::Dot]) {
+                if !self.match_token(&[TokenType::Identifier]) {
+                    let err_msg = "Expected identifier after '.'";
+                    return Err(ParseError::new(err_msg));
+                }
+                
+                let next_id = IdentifierNode::new(
+                    self.previous().clone(),
+                    None,
+                    IdentifierDeclScope::UnknownScope,
+                    false,
+                    self.previous().line,
+                );
+                
+                // Check if it's a method call
+                if self.match_token(&[TokenType::LParen]) {
+                    let params = match self.expr_list() {
+                        Ok(Some(ExprListT { expr_list_node })) => expr_list_node.exprs_t,
+                        Ok(None) => Vec::new(),
+                        Ok(Some(_)) => Vec::new(),
+                        Err(err) => return Err(err),
+                    };
+                    
+                    let call_expr_list = CallExprListNode::new(params);
+                    let call_expr = CallExprNode::new(next_id, call_expr_list, None);
+                    call_chain.push_back(CallChainNodeType::UndeclaredCallT {
+                        call_node: call_expr,
+                    });
+                } else {
+                    // Just a property access
+                    call_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT {
+                        id_node: next_id,
+                    });
+                }
+            }
             
             let call_chain_expr_node = CallChainExprNode::new(call_chain);
             
@@ -10689,7 +10868,7 @@ impl<'a> Parser<'a> {
         }
         
         // v0.34: Track FSL imports
-        self.track_fsl_import(&module_name);
+        // self.track_fsl_import(&module_name);  // v0.37: FSL removed
         
         // Check for 'as alias' syntax
         if self.match_token(&[TokenType::As]) {
@@ -10774,7 +10953,7 @@ impl<'a> Parser<'a> {
         // v0.34: Track specific FSL imports
         if module_name == "fsl" {
             let operation_name = self.previous().lexeme.clone();
-            self.track_fsl_operation(&operation_name);
+            // self.track_fsl_operation(&operation_name);  // v0.37: FSL removed
         }
         
         // Parse additional items separated by commas
@@ -10789,7 +10968,7 @@ impl<'a> Parser<'a> {
             // v0.34: Track specific FSL imports  
             if module_name == "fsl" {
                 let operation_name = self.previous().lexeme.clone();
-                self.track_fsl_operation(&operation_name);
+                // self.track_fsl_operation(&operation_name);  // v0.37: FSL removed
             }
         }
         
@@ -10801,4 +10980,301 @@ impl<'a> Parser<'a> {
             line
         ))
     }
+    
+    // v0.37: Analyze system runtime async requirements
+    fn analyze_system_runtime_info(&mut self, system: &mut SystemNode) -> Result<(), ParseError> {
+        // Create new runtime info
+        let mut runtime_info = RuntimeInfo::new();
+        runtime_info.kernel.system_ref = system.name.clone();
+        runtime_info.router.system_ref = system.name.clone();
+        
+        // Check if the system has any async requirements
+        let mut system_needs_async = false;
+        let mut async_transitions: Vec<TransitionNode> = Vec::new();
+        let mut async_requirements: HashMap<(String, String), bool> = HashMap::new(); // (state_name, handler_type) -> is_async
+        
+        // Analyze the machine block
+        if let Some(machine_block) = &system.machine_block_node_opt {
+            // Process each state
+            for state_rc in &machine_block.states {
+                let state = state_rc.borrow();
+                let state_name = state.name.clone();
+                let mut state_needs_async = false;
+                
+                // Check event handlers
+                for event_handler_rc in &state.evt_handlers_rcref {
+                    let handler = event_handler_rc.borrow();
+                    
+                    // Check if this handler is async or contains await
+                    if handler.is_async || self.handler_contains_await(&handler) {
+                        state_needs_async = true;
+                        system_needs_async = true;
+                        
+                        // Track async requirements for transitions
+                        // Check if handler has transition statements
+                        {
+                            for stmt in &handler.statements {
+                                if let DeclOrStmtType::StmtT { stmt_t } = stmt {
+                                    if let StatementType::TransitionStmt { transition_statement_node } = stmt_t {
+                                        // Get target state name
+                                        let target_state_name = match &transition_statement_node.transition_expr_node.target_state_context_t {
+                                            TargetStateContextType::StateRef { state_context_node } => state_context_node.state_ref_node.name.clone(),
+                                            _ => continue,
+                                        };
+                                        
+                                        // This async handler performs a transition
+                                        async_transitions.push(TransitionNode::new(
+                                            state_name.clone(),
+                                            target_state_name.clone(),
+                                            true,
+                                            match &handler.msg_t {
+                                                MessageType::CustomMessage { message_node } => message_node.name.clone(),
+                                                MessageType::None => "unknown".to_string(),
+                                            },
+                                        ));
+                                        
+                                        // The exit handler of current state needs to be async
+                                        async_requirements.insert((state_name.clone(), "<$".to_string()), true);
+                                        // The enter handler of target state needs to be async
+                                        async_requirements.insert((target_state_name, "$>".to_string()), true);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Check enter handler
+                if let Some(enter_handler_rc) = &state.enter_event_handler_opt {
+                    let handler = enter_handler_rc.borrow();
+                    if handler.is_async || self.handler_contains_await(&handler) {
+                        state_needs_async = true;
+                        system_needs_async = true;
+                    }
+                }
+                
+                // Check exit handler
+                if let Some(exit_handler_rc) = &state.exit_event_handler_opt {
+                    let handler = exit_handler_rc.borrow();
+                    if handler.is_async || self.handler_contains_await(&handler) {
+                        state_needs_async = true;
+                        system_needs_async = true;
+                    }
+                }
+                
+                // Add state dispatcher if state needs async
+                if state_needs_async {
+                    runtime_info.state_dispatchers.push(StateDispatcherNode::new(
+                        state_name.clone(),
+                        true,
+                    ));
+                }
+            }
+        }
+        
+        // Check interface methods for async
+        if let Some(interface_block) = &system.interface_block_node_opt {
+            for method in &interface_block.interface_methods {
+                if method.borrow().is_async {
+                    system_needs_async = true;
+                }
+            }
+        }
+        
+        // Check actions for async
+        if let Some(actions_block) = &system.actions_block_node_opt {
+            for action in &actions_block.actions {
+                if action.borrow().is_async {
+                    system_needs_async = true;
+                }
+            }
+        }
+        
+        // Set kernel and router async requirements
+        runtime_info.kernel.is_async = system_needs_async;
+        runtime_info.router.is_async = system_needs_async;
+        runtime_info.transitions = async_transitions;
+        
+        // Store runtime info in the system
+        system.runtime_info = Some(runtime_info);
+        
+        // Validate async chain requirements
+        self.validate_async_chain(system, async_requirements)?;
+        
+        Ok(())
+    }
+    
+    // Check if an event handler contains await expressions
+    fn handler_contains_await(&self, handler: &EventHandlerNode) -> bool {
+        // Check statements for await expressions
+        for stmt in &handler.statements {
+            if self.statement_contains_await(stmt) {
+                return true;
+            }
+        }
+        false
+    }
+    
+    // Check if a statement contains await expressions
+    fn statement_contains_await(&self, stmt: &DeclOrStmtType) -> bool {
+        match stmt {
+            DeclOrStmtType::StmtT { stmt_t } => {
+                match stmt_t {
+                    StatementType::ExpressionStmt { expr_stmt_t } => {
+                        self.expr_stmt_contains_await(expr_stmt_t)
+                    }
+                    StatementType::TransitionStmt { .. } => false,
+                    _ => false,
+                }
+            }
+            DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                let var_decl = var_decl_t_rcref.borrow();
+                // Check if the value_rc contains await
+                self.expr_contains_await(&var_decl.value_rc)
+            }
+        }
+    }
+    
+    fn expr_stmt_contains_await(&self, expr_stmt: &ExprStmtType) -> bool {
+        match expr_stmt {
+            ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                self.expr_contains_await(&assignment_stmt_node.assignment_expr_node.r_value_rc)
+            }
+            ExprStmtType::CallStmtT { .. } => {
+                // TODO: Check if call contains await
+                false
+            }
+            _ => false,
+        }
+    }
+    
+    fn expr_contains_await(&self, expr: &ExprType) -> bool {
+        match expr {
+            AwaitExprT { .. } => true,
+            CallChainExprT { .. } => {
+                // TODO: Check if chain contains await
+                // For now, we'll rely on explicit async marking
+                false
+            }
+            _ => false,
+        }
+    }
+    
+    // Validate that all handlers in async chain are marked async
+    fn validate_async_chain(&self, system: &SystemNode, async_requirements: HashMap<(String, String), bool>) -> Result<(), ParseError> {
+        if let Some(machine_block) = &system.machine_block_node_opt {
+            for ((state_name, handler_type), _required) in async_requirements {
+                // Find the state
+                let state_opt = machine_block.states.iter().find(|s| s.borrow().name == state_name);
+                
+                if let Some(state_rc) = state_opt {
+                    let state = state_rc.borrow();
+                    
+                    // Check the specific handler
+                    let handler_is_async = match handler_type.as_str() {
+                        "$>" => {
+                            state.enter_event_handler_opt.as_ref()
+                                .map(|h| h.borrow().is_async)
+                                .unwrap_or(false)
+                        }
+                        "<$" => {
+                            state.exit_event_handler_opt.as_ref()
+                                .map(|h| h.borrow().is_async)
+                                .unwrap_or(false)
+                        }
+                        _ => false,
+                    };
+                    
+                    if !handler_is_async {
+                        return Err(ParseError::new(&format!(
+                            "Event handler '{}' in state '{}' must be marked 'async' because it's part of an async transition chain",
+                            handler_type, state_name
+                        )));
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    // Parse bracket expressions to distinguish between indexing and slicing
+    fn parse_bracket_expression(&mut self) -> Result<BracketExpressionType, ParseError> {
+        use super::ast::SliceNode;
+        
+        // Check if we have a colon (indicating a slice)
+        // We need to look ahead to see if there's a colon before the closing bracket
+        let mut is_slice = false;
+        let mut expr_opt: Option<ExprType> = None;
+        
+        // First, check if we immediately have a colon (e.g., [:10])
+        if self.check(TokenType::Colon) {
+            is_slice = true;
+        } else {
+            // Try to parse an expression
+            expr_opt = self.expression()?;
+            
+            // Check if we have a colon after the expression (e.g., [5:] or [1:10])
+            if self.check(TokenType::Colon) {
+                is_slice = true;
+            }
+        }
+        
+        if is_slice {
+            // Parse slice: [start:end:step]
+            let start_expr = expr_opt.map(Box::new);
+            
+            // Consume the colon
+            self.advance();
+            
+            // Parse end expression (optional)
+            let mut end_expr: Option<Box<ExprType>> = None;
+            if !self.check(TokenType::Colon) && !self.check(TokenType::RBracket) {
+                end_expr = self.expression()?.map(Box::new);
+            }
+            
+            // Check for step (optional)
+            let mut step_expr: Option<Box<ExprType>> = None;
+            if self.match_token(&[TokenType::Colon]) {
+                if !self.check(TokenType::RBracket) {
+                    step_expr = self.expression()?.map(Box::new);
+                }
+            }
+            
+            // Consume the closing bracket
+            if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                return Err(parse_error);
+            }
+            
+            Ok(BracketExpressionType::Slice {
+                start: start_expr,
+                end: end_expr,
+                step: step_expr,
+            })
+        } else {
+            // Regular index expression
+            if let Some(expr) = expr_opt {
+                // Consume the closing bracket
+                if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                    return Err(parse_error);
+                }
+                Ok(BracketExpressionType::Index(expr))
+            } else {
+                // No expression provided
+                let err_msg = "Error - missing expression for list element.";
+                self.error_at_previous(err_msg);
+                Err(ParseError::new(err_msg))
+            }
+        }
+    }
+}
+
+// Helper enum for bracket expression parsing
+enum BracketExpressionType {
+    Index(ExprType),
+    Slice {
+        start: Option<Box<ExprType>>,
+        end: Option<Box<ExprType>>,
+        step: Option<Box<ExprType>>,
+    },
 }

@@ -1,6 +1,6 @@
 # Frame v0.37 Development Notes
 
-## Language Support Classification (Updated 2025-09-04)
+## Language Support Classification (Updated 2025-01-22)
 
 ### 1st Class Language (Full Visitor Implementation)
 - **Python**: Complete transpiler with visitor pattern
@@ -19,29 +19,34 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.37 Async Support & Index Operation Limitations (2025-09-04)
+## Latest Status: v0.37 Complete Async Support with Slicing Operations (2025-01-22)
 
-### v0.37 Release - Async Support with Known Limitations ✅
-- **Test Coverage**: **211/212 tests passing (99.5% success rate)**
-- **Async Support**: Full async/await support for functions and systems
-- **Mixed Sync/Async**: Systems can have both sync and async interface methods
-- **Event Handlers**: Individual async event handlers with proper runtime handling
+### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
+- **Test Coverage**: **215/215 tests passing (100% success rate)** 
+- **Async Event Handlers**: Explicit `async` keyword for event handlers (`async $>()`, `async eventName()`)
+- **Runtime Infrastructure**: New AST nodes (RuntimeInfo, KernelNode, RouterNode) track async requirements
+- **Async Chain Validation**: Compile-time validation ensures all handlers in async transition chains are properly marked
+- **With Statement Support**: Added `with` and `async with` statements for context managers
+- **Clear Error Messages**: Validation provides specific guidance on which handlers need async marking and why
+- **Slicing Operations**: Full Python-style slicing support for strings and lists
 
-#### Known Issue: Index Operations
-- **Parser Limitation**: Frame's parser does not properly support index operations (`array[index]`, `dict[key]`)
-- **Symptom**: Index expressions are parsed as separate statements, causing malformed generated code
-- **Example Problem**: `self.results[str(task_id)] = value` generates as two lines:
-  ```python
-  self.results
-  [str(task_id)] = value  # Invalid Python
-  ```
-- **Workaround**: Use backtick expressions for index operations:
+#### New Feature: Slicing Operations (Added 2025-01-22) ✅
+- **Full Slice Support**: Implemented complete Python-style slicing syntax
+- **String Slicing**: `text[:5]`, `text[2:8]`, `text[7:]`
+- **List Slicing**: `numbers[:5]`, `numbers[3:7]`, `numbers[5:]`
+- **Step Parameter**: `numbers[::2]`, `numbers[::-1]`, `numbers[1:8:2]`
+- **AST Support**: Added `SliceNode` with start_expr, end_expr, step_expr fields
+- **Parser Integration**: Extended bracket expression parsing to detect and handle slice notation
+- **Python Visitor**: Generates proper Python slice syntax `[start:end:step]`
+
+#### Index Operations Status
+- **Simple Indexing**: Works for basic cases like `array[index]`
+- **Slicing**: Fully implemented with all Python slice variations
+- **Known Limitations**: Complex patterns like `method()[index]` or `dict[key] = value` still require backticks
+- **Workaround for Complex Cases**: Continue using backtick expressions:
   ```frame
-  self.results`[str(task_id)]` = value  // Correct
-  var item = array`[index]`             // Correct
+  self.results`[str(task_id)]` = value  // For complex index operations
   ```
-- **Impact**: Affects 1 test (test_async_stress.frm) out of 212 total tests
-- **Fix Status**: Requires parser grammar changes for proper index operation support
 
 ### v0.36 Release - Event-Handlers-as-Functions Architecture ✅
 - **Architecture Restructure**: Event handlers generated as individual functions instead of monolithic state methods
@@ -59,15 +64,36 @@ Languages considered in Frame's design with documented patterns:
 - **Module System**: Complete v0.34 implementation maintained
 - **List Features**: All v0.34 list comprehensions and unpacking preserved
 
-### NEW: Async/Await Support (v0.35) ✅
+### NEW: Async Event Handlers (v0.37) ✅
+- **Explicit Async Marking**: Event handlers can be marked with `async` keyword
+- **Syntax**: `async $>() { ... }`, `async eventName() { ... }`, `async <$() { ... }`
+- **Async Chain Validation**: Semantic analyzer validates async transition chains:
+  - Enter handlers of states reached from async handlers must be async
+  - Exit handlers in states with async transitions must be async (if present)
+  - Clear compile-time errors explain missing async requirements
+- **Runtime Infrastructure Nodes**: New AST nodes track runtime async requirements:
+  - `RuntimeInfo`: Container for all runtime metadata
+  - `KernelNode`: Tracks if kernel needs to be async
+  - `RouterNode`: Tracks if router needs to be async
+  - `TransitionNode`: Records async transitions between states
+  - `StateDispatcherNode`: Identifies which states need async dispatchers
+- **Semantic Analysis**: `analyze_system_runtime_info()` computes async requirements
+- **Python Generation**: Entire state functions become `async def` when any handler is async
+
+### NEW: With Statement Support (v0.37) ✅
+- **Context Managers**: `with expr as var { ... }` syntax
+- **Async Context Managers**: `async with expr as var { ... }` for async resources
+- **Parser Support**: New `with_statement()` parser method
+- **AST Support**: `WithStmtNode` with is_async flag
+- **Use Cases**: File handling, network connections, resource management
+
+### Async/Await Support (v0.35) ✅
 - **Async Function Declarations**: `async fn name() { ... }` syntax implemented
 - **Async Interface Methods**: `async methodName()` in system interfaces
 - **Await Expressions**: `await expr` syntax parsing and code generation
 - **Python Code Generation**: Proper `async def` and `await` in generated Python
-- **Async Propagation**: State handlers handling async interface events become async
 - **Parser Implementation**: `async` keyword recognition and AST integration
 - **Visitor Implementation**: Async detection and proper Python async/await generation
-- **Architecture Note**: Compatible with simple async patterns; complex async state machines may need runtime changes
 
 ### v0.34 Features (Preserved) ✅
 - **Module System**: Complete implementation with named modules and qualified access

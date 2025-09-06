@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.37)
 
-**Last Updated**: 2025-09-04  
-**Status**: Event-handlers-as-functions architecture implemented with 99.5% test success rate (211/212 tests passing).
+**Last Updated**: 2025-01-22  
+**Status**: Async event handlers and runtime infrastructure implemented with comprehensive async chain validation. Slicing operations for strings and lists fully supported.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -473,18 +473,78 @@ system AsyncService {
 }
 ```
 
+### Async Event Handlers (v0.37)
+
+Event handlers can be explicitly marked as `async` to support await expressions within state machines:
+
+```frame
+system AsyncDataPipeline {
+    interface:
+        async fetchBatch(urls)
+        async processBatch(id)
+        
+    machine:
+        $Idle {
+            fetchBatch(urls) {
+                self.urls = urls
+                -> $Downloading
+            }
+        }
+        
+        $Downloading {
+            // Explicitly async enter handler
+            async $>() {
+                var data = await download_parallel(self.urls)
+                self.batch_data = data
+                -> $Processing
+            }
+        }
+        
+        $Processing {
+            // Async handler with await
+            async processBatch(id) {
+                var result = await process_item(self.batch_data[id])
+                return = result
+            }
+            
+            // Must be async - entered from async state
+            async $>() {
+                print("Processing " + str(len(self.batch_data)) + " items")
+                -> $Complete
+            }
+        }
+        
+        $Complete {
+            // Must be async - part of async transition chain
+            async $>() {
+                print("Pipeline complete")
+            }
+        }
+}
+```
+
+**Async Chain Validation**: Frame v0.37 validates that all handlers in an async transition chain are properly marked:
+- If an async handler transitions to another state, that state's enter handler must be async
+- Exit handlers in states with async transitions must be async (if they exist)
+- Provides clear compile-time errors explaining which handlers need async marking
+
 ### Current Implementation Status
 
-**✅ Implemented Features**:
+**✅ Implemented Features (v0.37)**:
 - Async function declarations (`async fn name() { }`)
 - Async interface method declarations (`async methodName()`)
+- Async event handler declarations (`async $>() { }`, `async eventName() { }`)
 - Await expression parsing (`await expression`)
 - Async function code generation (Python `async def`)
 - Async interface method code generation
-- State handler async propagation (when handling async interface events)
+- Async event handler code generation with full state async propagation
+- Runtime infrastructure nodes (RuntimeInfo, KernelNode, RouterNode, etc.)
+- Comprehensive async chain validation during semantic analysis
+- Clear error messages for missing async markings in transition chains
+- `with` and `async with` statement support for context managers
 
-**⚠️ Architectural Limitation**:
-Frame's event-driven state machine runtime is synchronous by design. While async interface methods and functions work correctly, complex async state handlers with await expressions may require runtime architecture changes for full compatibility.
+**✅ Runtime Architecture**: 
+Frame v0.37 introduces runtime infrastructure nodes that track async requirements throughout the system. The semantic analyzer computes which states, handlers, and runtime components need to be async, enabling proper async/await code generation for the entire state machine runtime.
 
 **Example Working Pattern**:
 ```frame
@@ -833,7 +893,7 @@ interface_method: IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)?
 ```bnf
 machine_block: 'machine:' state*
 state: '$' IDENTIFIER ('=>' '$' IDENTIFIER)? '{' event_handler* state_var* '}'
-event_handler: event_selector '{' stmt* terminator? '}'
+event_handler: ('async')? event_selector '{' stmt* terminator? '}'  // v0.37: async handlers
 event_selector: IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)?
                | '$>' '(' parameter_list? ')'  // Enter handler
                | '<$' '(' parameter_list? ')'  // Exit handler
@@ -1605,6 +1665,7 @@ stmt: expr_stmt
     | for_stmt
     | while_stmt
     | loop_stmt
+    | with_stmt        // v0.37: context managers
     | return_stmt
     | return_assign_stmt
     | parent_dispatch_stmt
@@ -1617,6 +1678,7 @@ stmt: expr_stmt
 expr_stmt: expr
 var_decl: 'var' IDENTIFIER type? '=' expr
 assignment: lvalue '=' expr
+with_stmt: ('async')? 'with' expr ('as' IDENTIFIER)? '{' stmt* '}'  // v0.37
 return_stmt: 'return' expr?
 return_assign_stmt: 'return' '=' expr
 parent_dispatch_stmt: '=>' '$^'
@@ -1625,6 +1687,44 @@ state_stack_op: '$$[' '+' ']' | '$$[' '-' ']'
 block_stmt: '{' stmt* '}'
 break_stmt: 'break'
 continue_stmt: 'continue'
+```
+
+### With Statement (v0.37)
+
+Frame v0.37 adds support for `with` and `async with` statements for context management:
+
+```frame
+// Regular with statement
+fn readFile(filename) {
+    with open(filename, "r") as f {
+        var content = f.read()
+        print("File content: " + content)
+    }
+}
+
+// Async with statement
+async fn fetchData(url) {
+    async with aiohttp.ClientSession() as session {
+        async with session.get(url) as response {
+            var text = await response.text()
+            return text
+        }
+    }
+}
+
+// With statements in systems
+system FileProcessor {
+    machine:
+        $Ready {
+            processFile(filename) {
+                with open(filename, "r") as file {
+                    self.content = file.read()
+                    print("Read " + str(len(self.content)) + " bytes")
+                }
+                -> $Processing
+            }
+        }
+}
 ```
 
 ### Parent Dispatch Statement
@@ -1740,7 +1840,7 @@ actions:
 
 ```bnf
 expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr 
-    | list_expr | list_comprehension | unpack_expr  // v0.34: Added list features
+    | list_expr | list_comprehension | unpack_expr | index_expr | slice_expr  // v0.37: Added index_expr and slice_expr
 
 binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '%'
@@ -1757,6 +1857,12 @@ self_expr: 'self' | 'self' '.' IDENTIFIER  // v0.31: self as standalone or dotte
 
 call_expr: IDENTIFIER '(' arg_list? ')' | '_' IDENTIFIER '(' arg_list? ')'
 arg_list: expr (',' expr)*
+
+// v0.37: Index and slice operations
+index_expr: (IDENTIFIER | self_expr) '[' expr ']'  // Simple indexing support
+slice_expr: (IDENTIFIER | self_expr) '[' slice_notation ']'  // Slicing support
+slice_notation: (expr)? ':' (expr)? (':' (expr)?)?  // [start:end:step]
+          // Note: Complex patterns like method()[index] or chained[i][j] not yet supported
 
 // v0.34: List expressions and comprehensions
 list_expr: '[' list_elements? ']'
@@ -1778,31 +1884,49 @@ fsl_string_method: expr '.' ('trim' | 'upper' | 'lower' | 'replace' | 'split' |
 
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
 
-### Index Operations (Limited Support)
+### Index Operations (Improved Support in v0.37)
 
-⚠️ **Important**: Frame currently has limited support for index operations (subscript notation with square brackets).
+⚠️ **Important**: Frame v0.37 has improved but still partial support for index operations (subscript notation with square brackets).
 
-#### Current Limitations
+#### Current Support (v0.37)
 
-Frame's parser does not fully support native index operations like `array[index]` or `dict[key]`. When such syntax is used, the parser may incorrectly interpret it as separate expressions, leading to malformed generated code.
+The parser now recognizes index operations `[expression]` after identifiers and variables in call chains, creating a `ListElementNode` in the AST:
 
-**Problematic patterns**:
+**Working patterns**:
 ```frame
-// These patterns may generate incorrect code:
-self.results[str(task_id)] = value     // May split across lines
-var item = array[index]                // May not parse correctly
-dict[key] = new_value                  // May generate invalid syntax
+// Simple indexing now works:
+var item = mylist[0]                   // ✅ Simple list indexing
+var value = self.data[index]           // ✅ Self variable indexing  
+var element = array[i]                 // ✅ Variable as index
 ```
 
-#### Workarounds
+**Still problematic patterns**:
+```frame
+// Complex expressions in brackets may still fail:
+self.results[str(task_id)] = value     // ❌ Function call in index
+var item = getArray()[0]               // ❌ Index after method call
+matrix[i][j] = value                   // ❌ Chained indexing
+dict["key"] = value                    // ⚠️ May not work with literals
+```
 
-For dictionary and list access, use backtick expressions:
+#### Parser Implementation Details
+
+The v0.37 parser enhancement in the `call()` function checks for `LBracket` tokens after completing the call chain dot notation parsing. When found, it:
+1. Extracts the last node from the call chain
+2. Creates a `ListElementNode` with the index expression
+3. Pushes it back as an `UndeclaredListElementT` node
+
+This works for simple cases but doesn't handle all complex expressions or chained operations.
+
+#### Workarounds for Complex Cases
+
+For patterns not yet supported, use backtick expressions:
 
 ```frame
-// Use backticks for index operations:
-var urls = self.config`["urls"]`       // Dictionary access
-var item = self.items`[0]`             // List access by index
-self.data`[str(key)]` = value          // Dictionary assignment
+// Use backticks for complex index operations:
+self.results`[str(task_id)]` = value   // Function call in index
+var item = `getArray()[0]`             // Index after method call
+`matrix[i][j]` = value                  // Chained indexing
 
 // For complex operations, use full backtick blocks:
 `
@@ -1814,15 +1938,50 @@ self.data`[str(key)]` = value          // Dictionary assignment
 
 #### Negative Indexing
 
-For lists, negative indexing works within backtick expressions:
+For lists, negative indexing works in simple cases or with backticks:
 
 ```frame
 var items = [10, 20, 30, 40, 50]
-var last = items`[-1]`          // Last element: 50
+var last = items[-1]            // May work in v0.37
+var last = items`[-1]`          // Always works: 50
 var second_last = items`[-2]`   // Second to last: 40
 ```
 
-**Note**: This is a known limitation in Frame v0.37. Future versions may add full native support for index operations.
+#### Slicing Operations (v0.37) ✅
+
+Frame now supports Python-style slicing for strings and lists:
+
+```frame
+fn slicingExamples() {
+    var text = "Hello, World!"
+    var numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    
+    // Basic slicing
+    var first5 = text[:5]          // "Hello"
+    var last6 = text[7:]           // "World!"
+    var middle = text[2:8]         // "llo, W"
+    
+    // List slicing
+    var firstHalf = numbers[:5]    // [0, 1, 2, 3, 4]
+    var secondHalf = numbers[5:]   // [5, 6, 7, 8, 9]
+    var subset = numbers[3:7]      // [3, 4, 5, 6]
+    
+    // Step parameter
+    var everyOther = numbers[::2]  // [0, 2, 4, 6, 8]
+    var reversed = numbers[::-1]   // [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+    var skipTwo = numbers[1:8:2]   // [1, 3, 5, 7]
+}
+```
+
+**Slice Notation**:
+- `[start:end]` - Basic slice from start (inclusive) to end (exclusive)
+- `[:end]` - From beginning to end
+- `[start:]` - From start to end of sequence
+- `[start:end:step]` - With step parameter
+- `[::step]` - Whole sequence with step
+- `[::-1]` - Reverse the sequence
+
+**Note**: Full native support for all index operation patterns is planned for future Frame versions.
 
 **Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
 

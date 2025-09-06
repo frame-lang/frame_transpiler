@@ -423,8 +423,10 @@ impl PythonVisitor {
         };
         
         // v0.37: Check if handler needs to be async
-        // If the system has async runtime, ALL handlers must be async for uniform awaiting
-        let handler_needs_async = self.system_has_async_runtime;
+        // Handler is async if:
+        // 1. The handler is explicitly marked as async
+        // 2. The system has async runtime (for uniform awaiting)
+        let handler_needs_async = evt_handler_node.is_async || self.system_has_async_runtime;
         
         self.newline();
         if handler_needs_async {
@@ -1357,6 +1359,9 @@ impl PythonVisitor {
                             StatementType::RaiseStmt { raise_stmt_node } => {
                                 raise_stmt_node.accept(self);
                             }
+                            StatementType::WithStmt { with_stmt_node } => {
+                                with_stmt_node.accept(self);
+                            }
                         }
                         self.newline();
                     }
@@ -2162,6 +2167,9 @@ impl PythonVisitor {
                                         StatementType::RaiseStmt { raise_stmt_node } => {
                                             raise_stmt_node.accept(self);
                                         }
+                                        StatementType::WithStmt { with_stmt_node } => {
+                                            with_stmt_node.accept(self);
+                                        }
                                         _ => {}
                                     }
                                 }
@@ -2498,6 +2506,9 @@ impl PythonVisitor {
                         }
                         StatementType::RaiseStmt { raise_stmt_node } => {
                             raise_stmt_node.accept(self);
+                        }
+                        StatementType::WithStmt { with_stmt_node } => {
+                            with_stmt_node.accept(self);
                         }
                         StatementType::NoStmt => {
                             // TODO
@@ -5179,12 +5190,19 @@ impl AstVisitor for PythonVisitor {
         // v0.35: Check if state handler needs to be async
         // A state handler is async if it handles events from async interface methods
         // or contains await expressions in its handlers
+        // v0.37: Also async if any event handler is explicitly marked as async
         let mut state_needs_async = false;
         
         // Check if any event handler in this state handles an async interface method
-        // or contains await expressions
+        // or contains await expressions, or is explicitly marked as async
         for evt_handler_rcref in &state_node.evt_handlers_rcref {
             let evt_handler = evt_handler_rcref.borrow();
+            
+            // v0.37: Check if event handler is explicitly marked as async
+            if evt_handler.is_async {
+                state_needs_async = true;
+                break;
+            }
             
             // Check if this event corresponds to an async interface method
             if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
@@ -5984,10 +6002,13 @@ impl AstVisitor for PythonVisitor {
         
         // Special handling for self.domain_variable patterns
         // Check if this is a chain starting with "self" followed by a variable
+        // v0.37: Also check for SelfT variant
         let starts_with_self_var = call_l_chain_expression_node.call_chain.len() >= 2 &&
-            matches!(call_l_chain_expression_node.call_chain.get(0), 
+            (matches!(call_l_chain_expression_node.call_chain.get(0), 
                 Some(CallChainNodeType::VariableNodeT { var_node }) 
-                    if var_node.id_node.name.lexeme == "self") &&
+                    if var_node.id_node.name.lexeme == "self") ||
+             matches!(call_l_chain_expression_node.call_chain.get(0),
+                Some(CallChainNodeType::SelfT { .. }))) &&
             matches!(call_l_chain_expression_node.call_chain.get(1),
                 Some(CallChainNodeType::VariableNodeT { .. }));
         
@@ -6026,6 +6047,7 @@ impl AstVisitor for PythonVisitor {
             }
             
             let node_type = match &node {
+                CallChainNodeType::SelfT { .. } => "Self".to_string(),
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme)
                 },
@@ -6043,6 +6065,8 @@ impl AstVisitor for PythonVisitor {
                 },
                 CallChainNodeType::ListElementNodeT { .. } => "ListElement".to_string(),
                 CallChainNodeType::UndeclaredListElementT { .. } => "UndeclaredListElement".to_string(),
+                CallChainNodeType::SliceNodeT { .. } => "Slice".to_string(),
+                CallChainNodeType::UndeclaredSliceT { .. } => "UndeclaredSlice".to_string(),
             };
             self.debug_print(&format!("Chain node[{}]: {}", i, node_type));
             
@@ -6061,6 +6085,10 @@ impl AstVisitor for PythonVisitor {
             separator = ".";
             
             match &node {
+                CallChainNodeType::SelfT { .. } => {
+                    // v0.37: Handle 'self' in call chains
+                    self.add_code("self");
+                }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     eprintln!("DEBUG: Accepting UndeclaredIdentifier '{}'", id_node.name.lexeme);
                     eprintln!("  Current system enums: {:?}", self.current_system_enums);
@@ -6242,6 +6270,12 @@ impl AstVisitor for PythonVisitor {
                 }
                 CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
                     list_elem_node.accept(self);
+                }
+                CallChainNodeType::SliceNodeT { slice_node } => {
+                    slice_node.accept(self);
+                }
+                CallChainNodeType::UndeclaredSliceT { slice_node } => {
+                    slice_node.accept(self);
                 }
             }
         }
@@ -6485,10 +6519,13 @@ impl AstVisitor for PythonVisitor {
     ) {
         // Special handling for self.domain_variable patterns
         // Check if this is a chain starting with "self" followed by a variable
+        // v0.37: Also check for SelfT variant
         let starts_with_self_var = call_chain_expression_node.call_chain.len() >= 2 &&
-            matches!(call_chain_expression_node.call_chain.get(0), 
+            (matches!(call_chain_expression_node.call_chain.get(0), 
                 Some(CallChainNodeType::VariableNodeT { var_node }) 
-                    if var_node.id_node.name.lexeme == "self") &&
+                    if var_node.id_node.name.lexeme == "self") ||
+             matches!(call_chain_expression_node.call_chain.get(0),
+                Some(CallChainNodeType::SelfT { .. }))) &&
             matches!(call_chain_expression_node.call_chain.get(1),
                 Some(CallChainNodeType::VariableNodeT { .. }));
         
@@ -6523,6 +6560,7 @@ impl AstVisitor for PythonVisitor {
             }
             
             let node_desc = match &node {
+                CallChainNodeType::SelfT { .. } => "Self".to_string(),
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => 
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme),
                 CallChainNodeType::UndeclaredCallT { call_node } => 
@@ -6531,6 +6569,10 @@ impl AstVisitor for PythonVisitor {
             };
             output.push_str(separator);
             match &node {
+                CallChainNodeType::SelfT { .. } => {
+                    // v0.37: Handle 'self' as the base of a call chain
+                    output.push_str("self");
+                }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     eprintln!("DEBUG _to_string: UndeclaredIdentifier '{}'", id_node.name.lexeme);
                     eprintln!("  Current system enums: {:?}", self.current_system_enums);
@@ -6596,7 +6638,14 @@ impl AstVisitor for PythonVisitor {
                     if self.current_system_enums.contains(&var_node.id_node.name.lexeme) {
                         output.push_str(&format!("{}_{}", self.system_name, var_node.id_node.name.lexeme));
                     } else {
-                        var_node.accept_to_string(self, output);
+                        // v0.37: When in a call chain with SelfT, just output the variable name
+                        // without the "self." prefix since SelfT already provides it
+                        if i > 0 && matches!(call_chain_expression_node.call_chain[0], CallChainNodeType::SelfT { .. }) {
+                            // Just output the variable name without "self." prefix
+                            output.push_str(&var_node.id_node.name.lexeme);
+                        } else {
+                            var_node.accept_to_string(self, output);
+                        }
                     }
                 }
                 CallChainNodeType::ListElementNodeT { list_elem_node } => {
@@ -6604,6 +6653,12 @@ impl AstVisitor for PythonVisitor {
                 }
                 CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
                     list_elem_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::SliceNodeT { slice_node } => {
+                    slice_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::UndeclaredSliceT { slice_node } => {
+                    slice_node.accept_to_string(self, output);
                 }
             }
             separator = ".";
@@ -7784,6 +7839,37 @@ impl AstVisitor for PythonVisitor {
     
     //* --------------------------------------------------------------------- *//
 
+    fn visit_with_stmt_node(&mut self, with_stmt_node: &WithStmtNode) {
+        self.newline();
+        
+        // Add 'async with' or 'with' keyword
+        if with_stmt_node.is_async {
+            self.add_code("async with ");
+        } else {
+            self.add_code("with ");
+        }
+        
+        // Add the context expression
+        let mut expr_str = String::new();
+        with_stmt_node.context_expr.accept_to_string(self, &mut expr_str);
+        self.add_code(&expr_str);
+        
+        // Add 'as' clause if present
+        if let Some(target_var) = &with_stmt_node.target_var {
+            self.add_code(" as ");
+            self.add_code(target_var);
+        }
+        
+        self.add_code(":");
+        
+        // Visit the with block
+        self.indent();
+        with_stmt_node.with_block.accept(self);
+        self.outdent();
+    }
+    
+    //* --------------------------------------------------------------------- *//
+
     fn visit_enum_match_test_pattern_node(
         &mut self,
         _enum_match_test_pattern_node: &EnumMatchTestPatternNode,
@@ -7979,6 +8065,52 @@ impl AstVisitor for PythonVisitor {
         //  list_elem.identifier.accept_to_string(self,output);
         output.push('[');
         list_elem.expr_t.accept_to_string(self, output);
+        output.push(']');
+    }
+
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_slice_node(&mut self, slice_node: &SliceNode) {
+        // Output the identifier
+        slice_node.identifier.accept(self);
+        self.add_code("[");
+        
+        // Output start:end:step
+        if let Some(start) = &slice_node.start_expr {
+            start.accept(self);
+        }
+        self.add_code(":");
+        if let Some(end) = &slice_node.end_expr {
+            end.accept(self);
+        }
+        if let Some(step) = &slice_node.step_expr {
+            self.add_code(":");
+            step.accept(self);
+        }
+        
+        self.add_code("]");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_slice_node_to_string(&mut self, slice_node: &SliceNode, output: &mut String) {
+        // Output the identifier
+        slice_node.identifier.accept_to_string(self, output);
+        output.push('[');
+        
+        // Output start:end:step
+        if let Some(start) = &slice_node.start_expr {
+            start.accept_to_string(self, output);
+        }
+        output.push(':');
+        if let Some(end) = &slice_node.end_expr {
+            end.accept_to_string(self, output);
+        }
+        if let Some(step) = &slice_node.step_expr {
+            output.push(':');
+            step.accept_to_string(self, output);
+        }
+        
         output.push(']');
     }
 
@@ -8234,9 +8366,16 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.newline();
         let action_name = self.format_action_name(&action_node.name);
-        self.add_code(&format!("def {}(self", action_name));
-        self.newline_to_string(&mut subclass_code);
-        subclass_code.push_str(&format!("#def {}(self", action_name));
+        // v0.37: Support async actions
+        if action_node.is_async {
+            self.add_code(&format!("async def {}(self", action_name));
+            self.newline_to_string(&mut subclass_code);
+            subclass_code.push_str(&format!("#async def {}(self", action_name));
+        } else {
+            self.add_code(&format!("def {}(self", action_name));
+            self.newline_to_string(&mut subclass_code);
+            subclass_code.push_str(&format!("#def {}(self", action_name));
+        }
 
         match &action_node.params {
             Some(params) => {
@@ -8300,7 +8439,12 @@ impl AstVisitor for PythonVisitor {
         self.newline();
 
         let action_name = self.format_action_name(&action_node.name);
-        self.add_code(&format!("def {}(self", action_name));
+        // v0.37: Support async actions
+        if action_node.is_async {
+            self.add_code(&format!("async def {}(self", action_name));
+        } else {
+            self.add_code(&format!("def {}(self", action_name));
+        }
         match &action_node.params {
             Some(params) => {
                 self.add_code(",");
@@ -9017,14 +9161,46 @@ impl AstVisitor for PythonVisitor {
         }
     }
     
-    fn visit_builtin_property_expr_node(&mut self, _node: &crate::frame_c::fsl::BuiltInPropertyNode) {
-        // Properties will be implemented in future phases
-        self.add_code("/* FSL property access not yet implemented */");
+    fn visit_builtin_property_expr_node(&mut self, node: &crate::frame_c::fsl::BuiltInPropertyNode) {
+        use crate::frame_c::fsl::BuiltInProperty;
+        
+        // Transform the property access
+        match &node.property {
+            BuiltInProperty::Length => {
+                self.add_code("len(");
+                node.target.accept(self);
+                self.add_code(")");
+            }
+            BuiltInProperty::IsEmpty => {
+                self.add_code("len(");
+                node.target.accept(self);
+                self.add_code(") == 0");
+            }
+            _ => {
+                self.add_code("/* Unsupported FSL property */");
+            }
+        }
     }
     
-    fn visit_builtin_property_expr_node_to_string(&mut self, _node: &crate::frame_c::fsl::BuiltInPropertyNode, output: &mut String) {
-        // Properties will be implemented in future phases  
-        output.push_str("/* FSL property access not yet implemented */");
+    fn visit_builtin_property_expr_node_to_string(&mut self, node: &crate::frame_c::fsl::BuiltInPropertyNode, output: &mut String) {
+        use crate::frame_c::fsl::BuiltInProperty;
+        
+        // Transform the property access
+        match &node.property {
+            BuiltInProperty::Length => {
+                output.push_str("len(");
+                node.target.accept_to_string(self, output);
+                output.push_str(")");
+            }
+            BuiltInProperty::IsEmpty => {
+                output.push_str("len(");
+                node.target.accept_to_string(self, output);
+                output.push_str(") == 0");
+            }
+            _ => {
+                output.push_str("/* Unsupported FSL property */");
+            }
+        }
     }
     
 }

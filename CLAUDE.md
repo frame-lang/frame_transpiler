@@ -8,7 +8,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), and v0.34 (Complete Module System implementation with qualified names).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), and v0.37 (async event handlers with runtime infrastructure).
 
 ## File Locations
 
@@ -36,8 +36,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.36`  
-**Status**: ✅ **99.5% TEST SUCCESS RATE** (208/209 tests passing) - Event-Handlers-as-Functions Architecture Complete
+**Version**: `v0.37`  
+**Status**: ✅ **100% TEST SUCCESS RATE** (215/215 tests passing) - Complete Async Support with Slicing Operations
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -47,6 +47,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.34 achievements, see**: [`docs/v0.34_achievements.md`](docs/v0.34_achievements.md)
 📊 **For v0.35 achievements, see**: [`docs/v0.35_achievements.md`](docs/v0.35_achievements.md)
 📊 **For v0.36 achievements, see**: [`docs/v0.36_achievements.md`](docs/v0.36_achievements.md)
+📊 **For v0.37 achievements, see**: [`docs/v0.37_achievements.md`](docs/v0.37_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
@@ -277,6 +278,73 @@ var len = text.length        // Converts to len(text)
 - **Systems**: Global declarations also generated for system state methods
 - **Shadowing Protection**: Local variables cannot shadow module variables (Python target)
 - **Conditional Imports**: Only generates imports (e.g., `from enum import Enum`) when actually used
+
+### v0.37 Async Event Handlers, Runtime Infrastructure & Slicing (NEW)
+
+#### Async Event Handlers
+- **Explicit async marking**: `async $>()`, `async eventName()`, `async <$()`
+- **Await support**: Full await expression support in async handlers
+- **State-level async**: Entire state function becomes async when any handler is async
+
+#### Runtime Infrastructure Nodes
+- **RuntimeInfo**: Container for runtime metadata
+- **KernelNode**: Tracks kernel async requirements
+- **RouterNode**: Tracks router async requirements  
+- **TransitionNode**: Records async transitions
+- **StateDispatcherNode**: Identifies async state dispatchers
+
+#### Async Chain Validation
+- **Compile-time validation**: Ensures all handlers in async chains are properly marked
+- **Clear error messages**: Explains which handlers need async and why
+- **Transition tracking**: Validates enter/exit handlers in async transition chains
+
+#### With Statement Support
+- **Context managers**: `with expr as var { ... }`
+- **Async context managers**: `async with expr as var { ... }`
+- **Resource management**: Proper cleanup with context managers
+
+#### Slicing Operations (Added 2025-01-22)
+- **Full Python-style slicing**: Strings and lists support all slice notations
+- **Basic slices**: `text[:5]`, `list[2:8]`, `data[7:]`
+- **Step parameter**: `list[::2]`, `data[::-1]`, `nums[1:8:2]`
+- **AST integration**: SliceNode with start, end, step expressions
+- **Parser enhancement**: Detects colon-based slice notation in brackets
+
+Slicing Example:
+```frame
+fn demonstrateSlicing() {
+    var text = "Hello, World!"
+    var nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    
+    // Basic slicing
+    print(text[:5])         // "Hello"
+    print(text[7:])         // "World!"
+    print(nums[:5])         // [0, 1, 2, 3, 4]
+    
+    // With step parameter
+    print(nums[::2])        // [0, 2, 4, 6, 8]
+    print(nums[::-1])       // [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+}
+```
+
+Async Example:
+```frame
+system AsyncPipeline {
+    machine:
+        $Processing {
+            // Explicit async handler
+            async processBatch(id) {
+                var result = await process_item(self.data[id])
+                return = result
+            }
+            
+            // Async enter handler (required due to async chain)
+            async $>() {
+                print("Processing started")
+            }
+        }
+}
+```
 
 ### v0.34 Module System (Complete Implementation)
 
