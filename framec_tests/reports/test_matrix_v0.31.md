@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-06 14:18  
-**Total Tests**: 222  
+**Generated**: 2025-09-06 15:25  
+**Total Tests**: 224  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 222 | 100% |
-| **Transpilation Success** | 222 | 100.0% |
-| **Execution Success** | 222 | 100.0% |
-| **Complete Success** | 222 | 100.0% |
+| **Total Tests** | 224 | 100% |
+| **Transpilation Success** | 224 | 100.0% |
+| **Execution Success** | 224 | 100.0% |
+| **Complete Success** | 224 | 100.0% |
 
 ## v0.31 Features
 
@@ -168,6 +168,8 @@
 | test_parent_dispatch_complete.frm | ✅ | ✅ | ✅ PASS |
 | test_parent_transition_detection.frm | ✅ | ✅ | ✅ PASS |
 | test_python_logical_keywords.frm | ✅ | ✅ | ✅ PASS |
+| test_python_logical_operators.frm | ✅ | ✅ | ✅ PASS |
+| test_python_logical_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_python_style.frm | ✅ | ✅ | ✅ PASS |
 | test_qualified_names.frm | ✅ | ✅ | ✅ PASS |
 | test_return_assign.frm | ✅ | ✅ | ✅ PASS |

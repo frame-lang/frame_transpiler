@@ -28,7 +28,7 @@ fn main() {
         print("bool(1) is truthy")
     }
     
-    if !bool(0) {
+    if not bool(0) {
         print("bool(0) is falsy")
     }
     

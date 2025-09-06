@@ -51,7 +51,7 @@ fn test_multiple_modifications() {
     print("=== test_multiple_modifications ===")
     shared_counter = shared_counter + 1
     module_string = "multi_mod_" + str(shared_counter)
-    module_bool = !module_bool
+    module_bool = not module_bool
     print("shared_counter: " + str(shared_counter))
     print("module_string: " + module_string)
     print("module_bool: " + str(module_bool))

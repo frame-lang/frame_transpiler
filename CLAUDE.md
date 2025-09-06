@@ -8,7 +8,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), and v0.37 (async event handlers with runtime infrastructure).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), and v0.38 (Python logical operators alignment).
 
 ## File Locations
 
@@ -36,8 +36,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.37`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (222/222 tests passing) - Complete Feature Set with All Tests Passing
+**Version**: `v0.38`  
+**Status**: ✅ **100% TEST SUCCESS RATE** (224/224 tests passing) - Python Logical Operators Alignment
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -48,6 +48,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.35 achievements, see**: [`docs/v0.35_achievements.md`](docs/v0.35_achievements.md)
 📊 **For v0.36 achievements, see**: [`docs/v0.36_achievements.md`](docs/v0.36_achievements.md)
 📊 **For v0.37 achievements, see**: [`docs/v0.37_achievements.md`](docs/v0.37_achievements.md)
+📊 **For v0.38 achievements, see**: [`docs/v0.38_achievements.md`](docs/v0.38_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
@@ -341,6 +342,50 @@ system AsyncPipeline {
             // Async enter handler (required due to async chain)
             async $>() {
                 print("Processing started")
+            }
+        }
+}
+```
+
+### v0.38 Python Logical Operators (NEW)
+
+#### Breaking Change: C-Style Operators Removed
+- **Removed**: `&&`, `||`, `!` operators no longer supported
+- **Required**: Use Python-style `and`, `or`, `not` keywords exclusively
+- **Error Messages**: Scanner provides clear migration guidance
+
+#### Python Logical Operators
+```frame
+fn examples() {
+    // Boolean AND
+    if a and b {
+        print("Both are true")
+    }
+    
+    // Boolean OR
+    if x or y {
+        print("At least one is true")
+    }
+    
+    // Boolean NOT
+    if not condition {
+        print("Condition is false")
+    }
+    
+    // Complex expressions
+    if (a and b) or (not c) {
+        print("Complex logic")
+    }
+    
+    // In state machines
+    machine:
+        $State {
+            check(x, y) {
+                if x > 0 and y > 0 {
+                    -> $Valid
+                } elif not x or not y {
+                    -> $Invalid
+                }
             }
         }
 }

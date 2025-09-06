@@ -6019,7 +6019,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&[TokenType::PipePipe, TokenType::Or]) {
+        while self.match_token(&[TokenType::Or]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.logical_and() {
@@ -6053,7 +6053,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&[TokenType::LogicalAnd, TokenType::And]) {
+        while self.match_token(&[TokenType::And]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.unary_expression() {
@@ -6239,7 +6239,7 @@ impl<'a> Parser<'a> {
             }
         }
         
-        if self.match_token(&[TokenType::Bang, TokenType::Not, TokenType::Dash]) {
+        if self.match_token(&[TokenType::Not, TokenType::Dash]) {
             let token = self.previous();
             let mut operator_type = self.get_operator_type(&token.clone());
             if operator_type == OperatorType::Minus {

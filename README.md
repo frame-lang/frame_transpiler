@@ -3,7 +3,7 @@ be
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-## Current Features (v0.37)
+## Current Features (v0.38)
 
 ### Core Language
 - **State Machines**: Hierarchical state machines with enter/exit handlers
@@ -12,7 +12,8 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Event Handlers**: Named events, enter (`$>`), and exit (`<$`) handlers
 - **Transitions**: State transitions with parameters and event forwarding
 
-### Modern Syntax (v0.35-v0.37)
+### Modern Syntax (v0.35-v0.38)
+- **Python Logical Operators**: `and`, `or`, `not` keywords (v0.38 - C-style removed)
 - **Async/Await**: Full async function and event handler support
 - **Slicing**: Python-style slicing for strings and lists (`text[:5]`, `list[::2]`)
 - **With Statements**: Context manager support (`with`/`async with`)
@@ -31,7 +32,7 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Interface Methods**: Public system interfaces with async support
 
 ### Test Coverage
-- **100% Success Rate**: All 222 tests passing 🎉
+- **100% Success Rate**: All 224 tests passing 🎉
 - **Complete Feature Coverage**: All language features fully tested and operational
 
 ## Explore Frame

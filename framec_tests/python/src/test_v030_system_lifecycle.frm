@@ -51,7 +51,7 @@ system MainSystem {
             
             next() {
                 var continueProcessing = sysA.next()
-                if (!continueProcessing) {
+                if (not continueProcessing) {
                     print("MainSystem: SystemA complete, transitioning to StateB")
                     -> $StateB
                 }
@@ -75,7 +75,7 @@ system MainSystem {
             
             next() {
                 var continueProcessing = sysB.next()
-                if (!continueProcessing) {
+                if (not continueProcessing) {
                     print("MainSystem: SystemB complete, transitioning to StateA")
                     -> $StateA
                 }

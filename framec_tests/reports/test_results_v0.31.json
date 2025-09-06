@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-06T14:18:05.742236",
+  "timestamp": "2025-09-06T15:25:31.225082",
   "version": "v0.31",
   "summary": {
-    "total": 222,
-    "transpile_success": 222,
-    "execute_success": 222,
-    "complete_success": 222,
+    "total": 224,
+    "transpile_success": 224,
+    "execute_success": 224,
+    "complete_success": 224,
     "success_rate": "100.0%"
   },
   "results": [
@@ -279,7 +279,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -307,14 +307,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -987,6 +987,20 @@
       "transpile": true,
       "execute": true,
       "output": "Testing Python Logical Keywords\n================================\nPython 'and' works!\nPython 'or' works!\nPython 'not' works!\nComplex Python expression works!\nPython 'and' with comparisons works!\n\nTesti",
+      "error": null
+    },
+    {
+      "file": "test_python_logical_operators.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_python_logical_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Python Logical Operators ===\na and c is true\na and b is false\na or b is true\nb or false is false\nnot b is true\nnot a is false\n(a and c) or b is true\nnot (b or false) is true\na and not b is",
       "error": null
     },
     {

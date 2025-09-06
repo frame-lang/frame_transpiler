@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.37)
+# Frame Language Grammar (v0.38)
 
-**Last Updated**: 2025-09-06  
-**Status**: Complete with async/await support, slicing operations, with statements, and runtime async infrastructure with 100% test coverage (222/222 tests passing)
+**Last Updated**: 2025-01-22  
+**Status**: Complete with Python logical operators, async/await support, slicing operations, with statements, and runtime async infrastructure with 100% test coverage (224/224 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1762,9 +1762,9 @@ expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr
 binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '%'
         | '==' | '!=' | '<' | '>' | '<=' | '>='
-        | '&&' | '||'
+        | 'and' | 'or'  // v0.38: Python logical operators only
 
-unary_expr: ('-' | '!' | '~') expr
+unary_expr: ('-' | 'not' | '~') expr  // v0.38: Python 'not' operator
 
 primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
             | 'true' | 'false' | 'None'
@@ -1784,6 +1784,37 @@ fsl_method: expr '.' ('append' | 'pop' | 'clear' | 'remove') '(' arg_list? ')'
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
 
 **Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
+
+### Logical Operators (v0.38)
+
+**Breaking Change**: C-style logical operators have been completely removed in favor of Python-style keywords.
+
+| Old Syntax (Removed) | New Syntax (Required) | Description |
+|---------------------|----------------------|-------------|
+| `&&` | `and` | Logical AND |
+| `\|\|` | `or` | Logical OR |
+| `!` | `not` | Logical NOT |
+
+Examples:
+```frame
+// v0.38: Python logical operators
+if x > 0 and y > 0 {
+    print("Both positive")
+}
+
+if a or b {
+    print("At least one true")
+}
+
+if not condition {
+    print("Condition is false")
+}
+
+// Complex expressions
+if (a and b) or (not c and d) {
+    print("Complex logic")
+}
+```
 
 **Call Chain Support**: Multi-node call chains like `sys.methodName()` correctly generate interface method calls on system instances without adding action prefixes.
 

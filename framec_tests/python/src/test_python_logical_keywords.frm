@@ -37,13 +37,13 @@ fn test_c_style_still_works() {
     var x = true
     var y = false
     
-    // Test that C-style still works (for compatibility)
-    if x && !y {
-        print("C-style && and ! still work")
+    // Python-style only now (C-style removed)
+    if x and not y {
+        print("Python-style only now")
     }
     
-    if y || x {
-        print("C-style || still works")
+    if y or x {
+        print("Python 'or' confirmed working")
     }
 }
 
@@ -52,13 +52,13 @@ fn test_mixed_styles() {
     var b = false
     var c = true
     
-    // Mix Python and C-style (not recommended but should work)
-    if a and b || c {
-        print("Mixed styles work (but not recommended)")
+    // Python-style only (no mixing)
+    if a and b or c {
+        print("Python-style logical operators only")
     }
     
-    if !a or b and c {
-        print("More mixed styles")
+    if not a or b and c {
+        print("Pure Python style")
     }
 }
 

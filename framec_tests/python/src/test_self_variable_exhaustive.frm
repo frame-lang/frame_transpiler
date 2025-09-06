@@ -140,10 +140,10 @@ system SelfVariableExhaustive {
                 self.process(self.calculate(self.x))
                 
                 // N6: Boolean expression nesting
-                if (self.x > 100) && (self.y < 500) {
-                    print("N6: (self.x > 100) && (self.y < 500) -> true")
+                if (self.x > 100) and (self.y < 500) {
+                    print("N6: (self.x > 100) and (self.y < 500) -> true")
                 } else {
-                    print("N6: (self.x > 100) && (self.y < 500) -> false")
+                    print("N6: (self.x > 100) and (self.y < 500) -> false")
                 }
                 
                 // N7: Ternary-like expression (using if)

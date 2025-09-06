@@ -3352,14 +3352,11 @@ impl OperatorType {
             TokenType::GreaterEqual => GreaterEqual,
             TokenType::LT => OperatorType::Less,
             TokenType::LessEqual => LessEqual,
-            TokenType::Bang => OperatorType::Not,
-            TokenType::Not => OperatorType::Not,  // Python 'not' keyword
+            TokenType::Not => OperatorType::Not,  // Python 'not' keyword only
             TokenType::EqualEqual => OperatorType::EqualEqual,
             TokenType::BangEqual => OperatorType::NotEqual,
-            TokenType::LogicalAnd => OperatorType::LogicalAnd,
-            TokenType::And => OperatorType::LogicalAnd,  // Python 'and' keyword
-            TokenType::PipePipe => OperatorType::LogicalOr,
-            TokenType::Or => OperatorType::LogicalOr,  // Python 'or' keyword
+            TokenType::And => OperatorType::LogicalAnd,  // Python 'and' keyword only
+            TokenType::Or => OperatorType::LogicalOr,  // Python 'or' keyword only
             TokenType::LogicalXor => OperatorType::LogicalXor,
             TokenType::Percent => OperatorType::Percent,
             _ => OperatorType::Unknown,

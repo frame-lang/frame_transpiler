@@ -53,7 +53,7 @@ system TextAnalyzer {
                 return "short"  // Return to caller
             }
             
-            if text == text.upper() && text != text.lower() {
+            if text == text.upper() and text != text.lower() {
                 return "caps"   // Return to caller
             }
             

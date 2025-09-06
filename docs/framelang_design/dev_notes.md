@@ -1,4 +1,4 @@
-# Frame v0.37 Development Notes
+# Frame v0.38 Development Notes
 
 ## Language Support Classification (Updated 2025-01-22)
 
@@ -19,10 +19,17 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.37 Complete Async Support with Slicing Operations (2025-09-06)
+## Latest Status: v0.38 Python Logical Operators Alignment (2025-01-22)
+
+### v0.38 Release - Python Logical Operators ✅
+- **Test Coverage**: **224/224 tests passing (100% success rate)** 🎉
+- **Breaking Change**: Removed C-style logical operators (`&&`, `||`, `!`)
+- **Python Operators**: Exclusively use `and`, `or`, `not` keywords
+- **Clear Migration**: Scanner provides helpful error messages for old syntax
+- **Full Compatibility**: All existing tests updated and passing
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
-- **Test Coverage**: **222/222 tests passing (100% success rate)** 🎉
+- **Test Coverage**: **222/222 tests passing (100% success rate)**
 - **Async Event Handlers**: Explicit `async` keyword for event handlers (`async $>()`, `async eventName()`)
 - **Runtime Infrastructure**: New AST nodes (RuntimeInfo, KernelNode, RouterNode) track async requirements
 - **Async Chain Validation**: Compile-time validation ensures all handlers in async transition chains are properly marked

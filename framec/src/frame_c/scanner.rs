@@ -168,12 +168,12 @@ impl Scanner {
             ']' => self.add_token(TokenType::RBracket),
             '|' => {
                 if self.match_char('|') {
-                    if self.match_char('.') {
-                        self.add_token(TokenType::PipePipeDot);
-                    } else if self.match_char('[') {
-                        self.add_token(TokenType::PipePipeLBracket);
+                    // || is no longer supported - use 'or' keyword instead
+                    // Check if it's part of old HSM syntax (||.) or (||[)
+                    if self.peek() == '.' || self.peek() == '[' {
+                        self.error(self.line, "Hierarchical state machine syntax '||.' and '||[' have been removed.");
                     } else {
-                        self.add_token(TokenType::PipePipe);
+                        self.error(self.line, "Operator '||' has been removed. Use 'or' keyword instead.");
                     }
                 } else {
                     self.add_token(TokenType::Pipe)
@@ -189,13 +189,13 @@ impl Scanner {
             }
             '!' => {
                 if self.match_char('=') {
-                    self.add_token(TokenType::BangEqual);
+                    self.add_token(TokenType::BangEqual);  // != is still valid for not-equal
                 } else if self.peek() == '/' && self.peek_next() == '/' {
-                    self.match_char('/');
-                    self.match_char('/');
-                    self.add_token(TokenType::MatchNull);
+                    // !/! pattern matching syntax removed
+                    self.error(self.line, "Pattern matching syntax '!//' has been removed.");
                 } else {
-                    self.add_token(TokenType::Bang);
+                    // ! for negation is no longer supported - use 'not' keyword
+                    self.error(self.line, "Operator '!' has been removed. Use 'not' keyword instead.");
                 }
             }
             '$' => {
@@ -262,9 +262,10 @@ impl Scanner {
             }
             '&' => {
                 if self.match_char('&') {
-                    self.add_token(TokenType::LogicalAnd)
+                    // && is no longer supported - use 'and' keyword instead
+                    self.error(self.line, "Operator '&&' has been removed. Use 'and' keyword instead.");
                 } else if self.match_char('|') {
-                    self.add_token(TokenType::LogicalXor)
+                    self.add_token(TokenType::LogicalXor)  // &| is still used for XOR
                 } else {
                     self.add_token(TokenType::Ampersand)
                 }
