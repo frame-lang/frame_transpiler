@@ -5175,6 +5175,8 @@ impl<'a> Parser<'a> {
         }
 
         if self.match_token(&[TokenType::Loop]) {
+            // Emit deprecation warning
+            eprintln!("Warning: 'loop' keyword is deprecated. Use 'while true' instead.");
             return match self.loop_statement_scope() {
                 Ok(Some(loop_stmt_t)) => Ok(Some(loop_stmt_t)),
                 Ok(None) => Err(ParseError::new("TODO")),
@@ -8990,7 +8992,13 @@ impl<'a> Parser<'a> {
                                 }
                             }
                             None => {
-                                if self.match_token(&[TokenType::LBracket]) {
+                                // Check if this could be an imported module (has a dot after it)
+                                // This allows us to support things like math.pi, dt.datetime.now() without backticks
+                                if self.peek().token_type == TokenType::Dot {
+                                    // This could be an imported module, allow it as an undeclared identifier
+                                    // The visitor will handle the actual module resolution
+                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                                } else if self.match_token(&[TokenType::LBracket]) {
                                     // Check if this is a slice or regular index
                                     let bracket_result = self.parse_bracket_expression();
                                     match bracket_result {
