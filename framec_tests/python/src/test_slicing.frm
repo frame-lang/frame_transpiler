@@ -1,5 +1,3 @@
-#![module_attribute("package", "testing")]
-
 from fsl import str
 
 fn main() {

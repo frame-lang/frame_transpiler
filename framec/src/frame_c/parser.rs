@@ -1282,7 +1282,7 @@ impl<'a> Parser<'a> {
         if self.is_building_symbol_table {
             // lexical pass
             if self.debug_mode {
-                eprintln!("DEBUG: Building symbol table for function: {}", function_name);
+                // eprintln!("DEBUG: Building symbol table for function: {}", function_name);
             }
             let function_symbol = FunctionScopeSymbol::new(function_name.clone());
             //            function_symbol_opt = Some(function_symbol);
@@ -1291,12 +1291,12 @@ impl<'a> Parser<'a> {
             let function_symbol_parse_scope_t = ParseScopeType::Function {
                 function_scope_symbol_rcref,
             };
-            eprintln!("DEBUG: Entering function scope for: {}", function_name);
+            // eprintln!("DEBUG: Entering function scope for: {}", function_name);
             self.arcanum.enter_scope(function_symbol_parse_scope_t);
             
             // Set scope context to Function
             self.arcanum.set_scope_context(ScopeContext::Function(function_name.clone()));
-            eprintln!("DEBUG: Function symbol table building complete for: {}", function_name);
+            // eprintln!("DEBUG: Function symbol table building complete for: {}", function_name);
         } else {
             // semantic pass
             // link function symbol to function declaration node
@@ -1395,7 +1395,7 @@ impl<'a> Parser<'a> {
                 // Debug: Check if the system symbol has blocks
                 {
                     let sys = system_symbol.borrow();
-                    eprintln!("DEBUG: Retrieved system '{}' in semantic pass", sys.name);
+                    // eprintln!("DEBUG: Retrieved system '{}' in semantic pass", sys.name);
                     eprintln!("  Has actions block: {}", sys.actions_block_symbol_opt.is_some());
                     eprintln!("  Has machine block: {}", sys.machine_block_symbol_opt.is_some());
                     eprintln!("  Has interface block: {}", sys.interface_block_symbol_opt.is_some());
@@ -3248,7 +3248,7 @@ impl<'a> Parser<'a> {
         let mut value = Rc::new(ExprType::DefaultLiteralValueForTypeExprT);
 
         if self.match_token(&[TokenType::Equals]) {
-            eprintln!("DEBUG: Parsing initializer for variable '{}'", name);
+            // eprintln!("DEBUG: Parsing initializer for variable '{}'", name);
             match self.equality() {
                 Ok(Some(LiteralExprT { literal_expr_node })) => {
                     value = Rc::new(LiteralExprT { literal_expr_node })
@@ -3267,7 +3267,7 @@ impl<'a> Parser<'a> {
                 Ok(Some(CallChainExprT {
                     call_chain_expr_node,
                 })) => {
-                    eprintln!("DEBUG: Found CallChainExprT as initializer for variable '{}'", name);
+                    // eprintln!("DEBUG: Found CallChainExprT as initializer for variable '{}'", name);
                     value = Rc::new(CallChainExprT {
                         call_chain_expr_node,
                     })
@@ -3276,7 +3276,7 @@ impl<'a> Parser<'a> {
                     builtin_call_node,
                 })) => {
                     // FSL operation as initializer (v0.33)
-                    eprintln!("DEBUG: Found BuiltInCallExprT as initializer for variable '{}'", name);
+                    // eprintln!("DEBUG: Found BuiltInCallExprT as initializer for variable '{}'", name);
                     value = Rc::new(BuiltInCallExprT {
                         builtin_call_node,
                     })
@@ -3381,7 +3381,7 @@ impl<'a> Parser<'a> {
                     })
                 }
                 Ok(None) => {
-                    eprintln!("DEBUG: Got None from equality() for variable '{}'", name);
+                    // eprintln!("DEBUG: Got None from equality() for variable '{}'", name);
                     let err_msg = "Unexpected assignment expression value.";
                     self.error_at_current(err_msg);
                     return Err(ParseError::new(err_msg));
@@ -8122,7 +8122,7 @@ impl<'a> Parser<'a> {
 
                     scope = IdentifierDeclScope::UnknownScope;
                     
-                    eprintln!("DEBUG: After self.identifier, current token: {:?}", self.peek());
+                    // eprintln!("DEBUG: After self.identifier, current token: {:?}", self.peek());
 
                     // After parsing self.something, we need to continue the chain
                     // The main loop below will handle additional dots and method calls
@@ -8130,7 +8130,7 @@ impl<'a> Parser<'a> {
                     // For now, we'll allow self.method() calls but document the need for validation
                     
                     if self.debug_mode {
-                        eprintln!("DEBUG: After self.property parsed, checking for LParen. Current token: {:?}", self.peek());
+                        // eprintln!("DEBUG: After self.property parsed, checking for LParen. Current token: {:?}", self.peek());
                     }
                     
                     // The method identifier was already added to call_chain, now convert it to a call
@@ -8247,9 +8247,9 @@ impl<'a> Parser<'a> {
                     } else {
                         // v0.37: No immediate method call after self.property
                         // But we still need to check for further dots (e.g., self.processed_data.append)
-                        if self.debug_mode {
-                            eprintln!("DEBUG: After self.property, checking for continuation. Current token: {:?}", self.peek());
-                        }
+                        // if self.debug_mode {
+                        //     eprintln!("DEBUG: After self.property, checking for continuation. Current token: {:?}", self.peek());
+                        // }
                         while self.match_token(&[TokenType::Dot]) {
                             if !self.match_token(&[TokenType::Identifier]) {
                                 let err_msg = "Expected identifier after '.'";
@@ -8326,23 +8326,23 @@ impl<'a> Parser<'a> {
                 if (is_first_node && call_chain.is_empty()) {
                     // Rewind the LParen token since build_call_chain_v2 expects to parse it
                     self.current -= 1;
-                    eprintln!("DEBUG: Calling build_call_chain_v2_with_existing from call() for: {}", id_node.name.lexeme);
+                    // eprintln!("DEBUG: Calling build_call_chain_v2_with_existing from call() for: {}", id_node.name.lexeme);
                     let result = self.build_call_chain_v2_with_existing(id_node, call_chain);
                     match &result {
                         Ok(Some(BuiltInCallExprT { .. })) => {
-                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: BuiltInCallExprT");
+                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: BuiltInCallExprT");
                         }
                         Ok(Some(CallChainExprT { .. })) => {
-                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: CallChainExprT");
+                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: CallChainExprT");
                         }
                         Ok(Some(_)) => {
-                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: Other ExprType");
+                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: Other ExprType");
                         }
                         Ok(None) => {
-                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: None");
+                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: None");
                         }
                         Err(_) => {
-                            eprintln!("DEBUG: build_call_chain_v2_with_existing returned: Error");
+                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: Error");
                         }
                     }
                     return result;
@@ -8584,34 +8584,34 @@ impl<'a> Parser<'a> {
                             } else {
                                 // is first or only node in a call chain. For simple external calls, just add as UndeclaredCallT
                                 let method_name = call_expr_node.identifier.name.lexeme.clone();
-                                eprintln!("DEBUG PARSER: Creating UndeclaredCallT for simple function call '{}'", method_name);
+                                // eprintln!("DEBUG PARSER: Creating UndeclaredCallT for simple function call '{}'", method_name);
                                 let call_t = CallChainNodeType::UndeclaredCallT {
                                     call_node: call_expr_node,
                                 };
                                 call_chain.push_back(call_t);
-                                eprintln!("DEBUG PARSER: Added UndeclaredCallT to call_chain, new length: {}", call_chain.len());
+                                // eprintln!("DEBUG PARSER: Added UndeclaredCallT to call_chain, new length: {}", call_chain.len());
                                 
                                 // For now, skip the complex action/interface lookup logic for simple calls
                                 /*
                                 // Debug dump before symbol lookup
                                 if std::env::var("FRAME_DEBUG").is_ok() {
-                                    eprintln!(">>> PARSER: About to lookup action '{}' in call chain", method_name);
+                                    // eprintln!(">>> PARSER: About to lookup action '{}' in call chain", method_name);
                                     self.arcanum.debug_dump_arcanum();
                                 }
                                 
                                 let action_decl_symbol_opt =
                                     self.arcanum.lookup_action(&method_name);
 
-                                eprintln!("DEBUG PARSER: Looking up action '{}', result: {:?}", method_name, action_decl_symbol_opt.is_some());
+                                // eprintln!("DEBUG PARSER: Looking up action '{}', result: {:?}", method_name, action_decl_symbol_opt.is_some());
                                 match action_decl_symbol_opt {
                                     Some(ads) => {
-                                        eprintln!("DEBUG PARSER: Found action, processing...");
+                                        // eprintln!("DEBUG PARSER: Found action, processing...");
                                         
                                         // SCOPE CHECK: Functions cannot call actions
                                         match self.arcanum.scope_context {
                                             ScopeContext::Function(_) => {
                                                 // Functions cannot call actions - treat as undeclared call
-                                                eprintln!("DEBUG PARSER: In function scope, cannot call action '{}', treating as undeclared", method_name);
+                                                // eprintln!("DEBUG PARSER: In function scope, cannot call action '{}', treating as undeclared", method_name);
                                                 let call_t = CallChainNodeType::UndeclaredCallT {
                                                     call_node: call_expr_node,
                                                 };
@@ -9222,10 +9222,10 @@ impl<'a> Parser<'a> {
         
         // v0.37: Removed FSL checking - just pass everything through as regular calls
         // The parser doesn't need to validate if functions exist - Python will do that at runtime
-        eprintln!("DEBUG: Processing identifier '{}' as regular call - no FSL validation", base_id.name.lexeme);
+        // eprintln!("DEBUG: Processing identifier '{}' as regular call - no FSL validation", base_id.name.lexeme);
         if false {  // Disabled FSL checking
             // let fsl_operation = fsl_registry.recognize_operation(&base_id.name.lexeme).unwrap();
-            eprintln!("DEBUG: FSL operation detected in second pass for: {}", base_id.name.lexeme);
+            // eprintln!("DEBUG: FSL operation detected in second pass for: {}", base_id.name.lexeme);
             // This is an FSL operation in the second pass! Parse it as such
             if self.match_token(&[TokenType::LParen]) {
                 // Parse the arguments

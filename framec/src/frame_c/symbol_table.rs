@@ -730,12 +730,12 @@ impl SymbolTable {
                 function_scope_symbol_rcref,
             } => {
                 let name = function_scope_symbol_rcref.borrow().name.clone();
-                eprintln!("DEBUG: Inserting function symbol '{}' into symbol table", name);
+                // eprintln!("DEBUG: Inserting function symbol '{}' into symbol table", name);
                 let st_ref = Rc::new(RefCell::new(SymbolType::FunctionScope {
                     function_symbol_ref: function_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name.clone(), st_ref);
-                eprintln!("DEBUG: Function symbol '{}' inserted successfully. Total symbols: {}", name, self.symbols.len());
+                // eprintln!("DEBUG: Function symbol '{}' inserted successfully. Total symbols: {}", name, self.symbols.len());
             }
             ParseScopeType::System { system_symbol } => {
                 let name = system_symbol.borrow().name.clone();
@@ -2461,8 +2461,8 @@ impl Arcanum {
                 let symbols_map = &symbol_table.symbols;
                 let available_symbols: Vec<String> = symbols_map.keys().cloned().collect();
                 
-                eprintln!("DEBUG: Looking for symbol '{}' in scope '{}'. Available symbols: {:?}", 
-                          scope_name, scope_name_for_debug, available_symbols);
+                // eprintln!("DEBUG: Looking for symbol '{}' in scope '{}'. Available symbols: {:?}", 
+                //           scope_name, scope_name_for_debug, available_symbols);
                           
                 let found_symbol = symbols_map.get(scope_name).map(|symbol_t_rcref| {
                     let symbol_t = symbol_t_rcref.borrow();
@@ -2477,15 +2477,15 @@ impl Arcanum {
             searched_scopes.push(scope_name_for_debug.clone());
             
             if let Some(symbol_table_rcref) = found_symbol {
-                eprintln!("DEBUG: Found symbol '{}' in scope '{}'", scope_name, scope_name_for_debug);
+                // eprintln!("DEBUG: Found symbol '{}' in scope '{}'", scope_name, scope_name_for_debug);
                 return Ok(Rc::clone(&symbol_table_rcref));
             }
             
             // Symbol not found in current scope, try parent scope
             if let Some(parent_symtab) = parent_opt {
                 current_scope = parent_symtab;
-                eprintln!("DEBUG: Symbol '{}' not found in '{}', checking parent scope...", 
-                          scope_name, scope_name_for_debug);
+                // eprintln!("DEBUG: Symbol '{}' not found in '{}', checking parent scope...", 
+                //           scope_name, scope_name_for_debug);
             } else {
                 // No parent scope - we've reached the top (builtin scope)
                 break;
