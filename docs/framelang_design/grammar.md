@@ -1,14 +1,14 @@
-# Frame Language Grammar (v0.34)
+# Frame Language Grammar (v0.37)
 
-**Last Updated**: 2025-09-03  
-**Status**: Complete with module system, Frame Standard Library (FSL), advanced enum features, and comprehensive import support with 100% test coverage (198/198 tests passing)
+**Last Updated**: 2025-09-06  
+**Status**: Complete with async/await support, slicing operations, with statements, and runtime async infrastructure with 93.7% test coverage (208/222 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
 ## Module Structure
 
 ```bnf
-module: (import_stmt | enum_decl | var_decl | function | system)*
+module: (import_stmt | enum_decl | var_decl | function | async_function | system)*
 ```
 
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
@@ -296,6 +296,156 @@ fn increment() {
     counter = counter + 1  // Automatic 'global counter' in Python
     return counter
 }
+
+## Async/Await Support (v0.35-v0.37)
+
+Frame v0.35-v0.37 introduces comprehensive async/await support for asynchronous programming:
+
+```bnf
+async_function: 'async' 'fn' IDENTIFIER '(' parameter_list? ')' type? function_body
+async_interface_method: 'async' IDENTIFIER '(' parameter_list? ')'
+async_event_handler: 'async' event_handler
+await_expr: 'await' expr
+```
+
+### Async Features
+
+- **Async Functions**: Functions declared with `async fn` become coroutines
+- **Async Interface Methods**: Interface methods can be marked as `async`
+- **Async Event Handlers**: State handlers can be explicitly marked as `async`
+- **Await Expressions**: Use `await` to wait for async operations
+- **Automatic Propagation**: State handlers become async when handling async interface events
+- **Runtime Infrastructure**: v0.37 adds runtime nodes for tracking async requirements
+
+### Async Examples
+
+```frame
+// Async function
+async fn fetchData(url) {
+    print("Fetching from " + url)
+    var response = await http_get(url)
+    return response
+}
+
+// System with async interface methods
+system DataProcessor {
+    interface:
+        async processData(data)  // Async interface method
+        getStatus()              // Sync interface method
+    
+    machine:
+        $Ready {
+            // Handler automatically async due to interface method
+            async processData(data) {
+                var result = await process_item(data)
+                return = result
+            }
+            
+            getStatus() {
+                return = "ready"
+            }
+        }
+}
+
+// Explicit async event handlers (v0.37)
+system AsyncMachine {
+    machine:
+        $Processing {
+            // Explicitly marked async enter handler
+            async $>() {
+                var data = await initialize()
+                self.data = data
+            }
+            
+            // Async event handler
+            async handleRequest(id) {
+                var result = await fetch_item(id)
+                return = result
+            }
+        }
+}
+```
+
+### Async Chain Validation (v0.37)
+
+Frame v0.37 validates async chains at compile time:
+- Handlers using `await` must be marked `async`
+- Enter/exit handlers in async transition chains must be async
+- Clear error messages explain which handlers need async marking
+
+## Slicing Operations (v0.37)
+
+Frame v0.37 adds full Python-style slicing support for strings and lists:
+
+```bnf
+slice_expr: expr '[' slice_notation ']'
+slice_notation: slice_component? ':' slice_component? (':' slice_component?)?
+slice_component: expr
+```
+
+### Slicing Features
+
+- **Basic Slices**: `text[:5]`, `list[2:8]`, `data[7:]`
+- **Step Parameter**: `list[::2]`, `data[::-1]`, `nums[1:8:2]`
+- **Negative Indices**: `text[-5:]`, `list[:-2]`
+- **String Slicing**: Full support for string slicing
+- **List Slicing**: Full support for list slicing
+
+### Slicing Examples
+
+```frame
+fn demonstrateSlicing() {
+    var text = "Hello, World!"
+    var nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    
+    // Basic slicing
+    print(text[:5])         // "Hello"
+    print(text[7:])         // "World!"
+    print(nums[:5])         // [0, 1, 2, 3, 4]
+    print(nums[2:8])        // [2, 3, 4, 5, 6, 7]
+    
+    // Step parameter
+    print(nums[::2])        // [0, 2, 4, 6, 8]
+    print(nums[1::2])       // [1, 3, 5, 7, 9]
+    print(text[::-1])       // "!dlroW ,olleH" (reversed)
+    
+    // Negative indices
+    print(text[-6:])        // "World!"
+    print(nums[-3:])        // [7, 8, 9]
+    print(nums[:-5])        // [0, 1, 2, 3, 4]
+}
+```
+
+## With Statement Support (v0.37)
+
+Frame v0.37 adds support for context managers via with statements:
+
+```bnf
+with_stmt: 'with' expr 'as' IDENTIFIER '{' stmt* '}'
+async_with_stmt: 'async' 'with' expr 'as' IDENTIFIER '{' stmt* '}'
+```
+
+### With Statement Examples
+
+```frame
+// Synchronous with statement
+fn readFile(path) {
+    with open(path, "r") as file {
+        var content = file.read()
+        return content
+    }
+}
+
+// Async with statement
+async fn fetchWithSession() {
+    async with aiohttp.ClientSession() as session {
+        async with session.get("https://api.example.com") as response {
+            var data = await response.json()
+            return data
+        }
+    }
+}
+```
 
 fn getMessage() {
     return message  // Read access doesn't need global declaration

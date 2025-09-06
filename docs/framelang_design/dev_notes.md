@@ -19,10 +19,10 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.37 Complete Async Support with Slicing Operations (2025-01-22)
+## Latest Status: v0.37 Complete Async Support with Slicing Operations (2025-09-06)
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
-- **Test Coverage**: **215/215 tests passing (100% success rate)** 
+- **Test Coverage**: **208/222 tests passing (93.7% success rate)** 
 - **Async Event Handlers**: Explicit `async` keyword for event handlers (`async $>()`, `async eventName()`)
 - **Runtime Infrastructure**: New AST nodes (RuntimeInfo, KernelNode, RouterNode) track async requirements
 - **Async Chain Validation**: Compile-time validation ensures all handlers in async transition chains are properly marked

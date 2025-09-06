@@ -37,7 +37,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.37`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (215/215 tests passing) - Complete Async Support with Slicing Operations
+**Status**: ✅ **93.7% TEST SUCCESS RATE** (208/222 tests passing) - Complete Async Support with Slicing Operations
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)

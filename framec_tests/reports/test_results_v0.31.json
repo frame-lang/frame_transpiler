@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-04T14:44:17.806699",
+  "timestamp": "2025-09-06T11:28:44.847037",
   "version": "v0.31",
   "summary": {
-    "total": 212,
-    "transpile_success": 212,
-    "execute_success": 211,
-    "complete_success": 211,
-    "success_rate": "99.5%"
+    "total": 222,
+    "transpile_success": 213,
+    "execute_success": 208,
+    "complete_success": 208,
+    "success_rate": "93.7%"
   },
   "results": [
     {
@@ -61,29 +61,43 @@
     {
       "file": "test_async_stress.frm",
       "transpile": true,
-      "execute": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_async_stress.py\", line 52\n    return\n          ^\nIndentationError: unindent does not match any outer indentation level"
+      "execute": true,
+      "output": "Frame v0.37 Async Stress Test Suite\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------\nConfigu",
+      "error": null
+    },
+    {
+      "file": "test_async_stress_fixed.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.37 Async Stress Test Suite - Fixed\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------",
+      "error": null
     },
     {
       "file": "test_async_stress_simple.frm",
       "transpile": true,
       "execute": true,
-      "output": "Frame v0.37 Async Stress Test\n========================================\n=== Frame v0.37 Async Stress Test ===\n\nTest 1: Basic Async Work\n------------------------------\nStarting work 100\nCompleted work 1",
+      "output": "Frame v0.37 Async Stress Test\n========================================\n\n",
       "error": null
     },
     {
       "file": "test_async_validate.frm",
       "transpile": true,
       "execute": true,
-      "output": "Starting Frame v0.37 Async Validation\n=== Async Validation Test ===\nFetching data for id: 100\nDirect call result: data_100\nGetting data for: 42\nFetching data for id: 42\nReceived: data_42\nInterface cal",
+      "output": "Starting Frame v0.37 Async Validation\n",
       "error": null
     },
     {
-      "file": "test_backticks_still_work.frm",
+      "file": "test_async_with_proper.frm",
       "transpile": true,
       "execute": true,
-      "output": "Result: 42\n",
+      "output": "Starting proper async with validation...\n======================================================================\nFrame v0.37 Async With Statement Tests - PROPER VALIDATION\n=============================",
+      "error": null
+    },
+    {
+      "file": "test_async_with_real.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Starting REAL async with validation (requires internet)...\n============================================================\nFrame v0.37 Async With - REAL TESTS (No Mocking!)\n==============================",
       "error": null
     },
     {
@@ -264,9 +278,9 @@
     {
       "file": "test_enums.frm",
       "transpile": true,
-      "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
-      "error": null
+      "execute": false,
+      "output": null,
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums.py\", line 136, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/marktruluck/p"
     },
     {
       "file": "test_enums_doc_calendar.frm",
@@ -292,16 +306,16 @@
     {
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
-      "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
-      "error": null
+      "execute": false,
+      "output": null,
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums_doc_grocery_demo.py\", line 136, in <module>\n    main()\n    ~~~~^^\n  File \"/Us"
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
-      "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
-      "error": null
+      "execute": false,
+      "output": null,
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums_doc_grocery_full.py\", line 136, in <module>\n    main()\n    ~~~~^^\n  File \"/Us"
     },
     {
       "file": "test_enums_doc_values.frm",
@@ -515,10 +529,9 @@
     },
     {
       "file": "test_import_conflicts.frm",
-      "transpile": true,
-      "execute": true,
-      "output": null,
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 7] Error at '}' : Expected binary expression. Found \"TODO +\".\n[line 22] Error at '}' : Expected binary expression. Found \"TODO +\".\n\n"
     },
     {
       "file": "test_import_fsl_individual.frm",
@@ -557,17 +570,15 @@
     },
     {
       "file": "test_import_mixed.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Mixed Import Test ===\n=== Testing Mixed FSL and Python Imports ===\nFSL str(42): 42\nFSL int('999'): 999\nPython math.pi: 3.141592653589793\nPython math.sqrt(25): 5.0\nCurrent year: 2025\nFSL str() on P",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'var'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_import_python_comprehensive.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Python Import Types Test ===\n=== Testing Simple Imports ===\nmath.pi: 3.141592653589793\nmath.sqrt(16): 4.0\njson.dumps(): {\"key\": \"value\"}\n=== Testing Aliased Imports ===\nCurrent date: 2025-09-04\nRa",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 23] Error at 'var' : Unexpected assignment expression value.\n\n"
     },
     {
       "file": "test_import_simple.frm",
@@ -578,17 +589,15 @@
     },
     {
       "file": "test_import_statements.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Testing imports...\nPi: 3.141592653589793\nSquare root of 16: 4.0\nCreated defaultdict and OrderedDict\nJSON: {\"name\": \"Frame\", \"version\": \"0.31\"}\n",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 25] Error at 'var' : Unexpected assignment expression value.\n\n"
     },
     {
       "file": "test_import_validation_summary.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== COMPREHENSIVE IMPORT/FSL VALIDATION ===\n=== Validating ALL FSL Operations ===\nstr(42): 42\nstr(3.14): 3.14\nstr(true): True\nint('123'): 123\nint(89.99): 89\nfloat('123.456'): 123.456\nfloat(789): 789.0",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'var'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_instantiation_debug.frm",
@@ -662,24 +671,22 @@
     },
     {
       "file": "test_list_comprehensions.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Testing List Comprehensions ===\nSquares: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]\nBasic comprehension length: 10\nEven numbers: [2, 4, 6, 8, 10]\nConditional comprehension: [2, 4, 6, 8, 10]\nMatrix: [[0,",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'evens'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_list_comprehensions_simple.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Testing List Comprehensions ===\nSquares: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]\nBasic comprehension length: 10\nEven numbers: [2, 4, 6, 8, 10]\nConditional comprehension: [2, 4, 6, 8, 10]\nMatrix: [[0,",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'evens'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_list_features.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "output": "First number: 1\nLast string: frame\n\n=== Iterating numbers ===\nNumber: 1\nNumber: 2\nNumber: 3\nNumber: 4\nNumber: 5\n\n=== Iterating strings ===\nString: hello\nString: world\nString: frame\n\n=== Matrix ===\nRow",
-      "error": null
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_list_features.py\", line 58, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/marktr"
     },
     {
       "file": "test_list_native_methods.frm",
@@ -777,6 +784,13 @@
       "transpile": true,
       "execute": true,
       "output": "Main function calling helper\nHelper function called\nBack in main\n",
+      "error": null
+    },
+    {
+      "file": "test_module_imports_no_backticks.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== MODULE IMPORT TESTS WITHOUT BACKTICKS ===\n=== Testing Module Attributes Without Backticks ===\nmath.pi = 3.141592653589793\nmath.e = 2.718281828459045\n=== Testing Module Functions Without Backticks ",
       "error": null
     },
     {
@@ -959,6 +973,13 @@
       "transpile": true,
       "execute": true,
       "output": "=== Testing parent transition detection ===\nChild: Before parent dispatch\nParent: Triggering transition to NewState\nSUCCESS: We are correctly in NewState after parent transition\n",
+      "error": null
+    },
+    {
+      "file": "test_python_logical_keywords.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing Python Logical Keywords\n================================\nPython 'and' works!\nPython 'or' works!\nPython 'not' works!\nComplex Python expression works!\nPython 'and' with comparisons works!\n\nTesti",
       "error": null
     },
     {
@@ -1186,6 +1207,34 @@
       "error": null
     },
     {
+      "file": "test_slicing.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "First 5 chars: Hello\nLast 6 chars: World!\nMiddle chars: llo, W\nFirst half: [1, 2, 3, 4, 5]\nSecond half: [6, 7, 8, 9, 10]\nMiddle section: [4, 5, 6, 7]\nEvery other: [1, 3, 5, 7, 9]\nReversed: [10, 9, 8, ",
+      "error": null
+    },
+    {
+      "file": "test_slicing_comprehensive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Original text: Hello, World!\nFirst 5 chars: Hello\nFrom index 7 onward: World!\nChars 2-8: llo, W\nOriginal list: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]\nFirst 3 elements: [0, 1, 2]\nLast 3 elements: [7, 8, 9]\nMid",
+      "error": null
+    },
+    {
+      "file": "test_slicing_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "e\n",
+      "error": null
+    },
+    {
+      "file": "test_slicing_simple2.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Hel\n",
+      "error": null
+    },
+    {
       "file": "test_state_parameters.frm",
       "transpile": true,
       "execute": true,
@@ -1383,10 +1432,9 @@
     },
     {
       "file": "test_unpacking_operator.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Testing Unpacking Operator ===\nCombined list: [1, 2, 3, 4, 5, 6, 7, 8]\nTest 1 length: 8\nMultiple unpacking: [0, 1, 2, 3, 4, 5, 6, 7]\nTest 2 length: 8\nWith expressions: [5, 10, 20, 30, 40, 50]\nTest",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'test2'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_v030_edge_cases.frm",
@@ -1467,10 +1515,9 @@
     },
     {
       "file": "test_v031_comprehensive.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Doing work...\nCounter: 10\nGot: Test value from interface\n",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 31] Error at 'var' : Expected binary expression. Found \"TODO +\".\n[line 31] Error at 'msg' : Expected '}'\n[line 37] Error at 'get_value' : "
     },
     {
       "file": "test_validation_comprehensive.frm",
@@ -1484,6 +1531,20 @@
       "transpile": true,
       "execute": true,
       "output": "Machine: Start state entered\nOperations: do_work called\nActions: calling finish_work\nActions: finish_work called\nDomain: counter = 42\n",
+      "error": null
+    },
+    {
+      "file": "test_with_statement.frm",
+      "transpile": true,
+      "execute": false,
+      "output": "Testing with statement support in Frame v0.37\n==================================================\n\n1. Testing regular with statement:\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_with_statement.py\", line 289, in <module>\n    run()\n    ~~~^^\n  File \"/Users/marktr"
+    },
+    {
+      "file": "test_with_statement_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "==================================================\nTesting with statement support in Frame v0.37\n==================================================\n\nTest 1: Basic with statement\n----------------------",
       "error": null
     },
     {

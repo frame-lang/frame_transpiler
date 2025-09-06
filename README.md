@@ -3,6 +3,37 @@ be
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
+## Current Features (v0.37)
+
+### Core Language
+- **State Machines**: Hierarchical state machines with enter/exit handlers
+- **Multi-Entity Support**: Multiple functions and systems per module
+- **Module System**: Named modules with qualified access (`module.function()`)
+- **Event Handlers**: Named events, enter (`$>`), and exit (`<$`) handlers
+- **Transitions**: State transitions with parameters and event forwarding
+
+### Modern Syntax (v0.35-v0.37)
+- **Async/Await**: Full async function and event handler support
+- **Slicing**: Python-style slicing for strings and lists (`text[:5]`, `list[::2]`)
+- **With Statements**: Context manager support (`with`/`async with`)
+- **Import Statements**: Native Python imports without backticks
+- **List Comprehensions**: Python-style comprehensions `[x*2 for x in list]`
+
+### Frame Standard Library (FSL)
+- **Type Conversions**: `str()`, `int()`, `float()`, `bool()`
+- **List Operations**: `.append()`, `.pop()`, `.sort()`, `.reverse()`, etc.
+- **String Operations**: `.upper()`, `.lower()`, `.split()`, `.replace()`
+
+### Advanced Features
+- **Enums**: Custom values, string enums, iteration support
+- **Scope Resolution**: LEGB scope rules with proper isolation
+- **Static Methods**: `@staticmethod` decorator support
+- **Interface Methods**: Public system interfaces with async support
+
+### Test Coverage
+- **93.7% Success Rate**: 208 of 222 tests passing
+- **100% Async Tests**: All async functionality fully tested
+
 ## Explore Frame
 
 To learn more about the Frame language, please find Frame's official documentation on [Read the Docs](https://docs.frame-lang.org). 

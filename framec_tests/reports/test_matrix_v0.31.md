@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-04 14:44  
-**Total Tests**: 212  
+**Generated**: 2025-09-06 11:28  
+**Total Tests**: 222  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 212 | 100% |
-| **Transpilation Success** | 212 | 100.0% |
-| **Execution Success** | 211 | 99.5% |
-| **Complete Success** | 211 | 99.5% |
+| **Total Tests** | 222 | 100% |
+| **Transpilation Success** | 213 | 95.9% |
+| **Execution Success** | 208 | 93.7% |
+| **Complete Success** | 208 | 93.7% |
 
 ## v0.31 Features
 
@@ -24,10 +24,82 @@
 
 | Test File | Transpile | Execute | Error |
 |-----------|-----------|---------|-------|
-| test_async_stress.frm | ✅ | ❌ |   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_async_stress.py", line 52
-    return
-          ^
-IndentationError: unindent does not match any outer indentation level |
+| test_enums.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums.py", line 136, in <module>
+    main()
+    ~~~~^^
+  File "/Users/marktruluck/p |
+| test_enums_doc_grocery_demo.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums_doc_grocery_demo.py", line 136, in <module>
+    main()
+    ~~~~^^
+  File "/Us |
+| test_enums_doc_grocery_full.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums_doc_grocery_full.py", line 136, in <module>
+    main()
+    ~~~~^^
+  File "/Us |
+| test_import_conflicts.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 7] Error at '}' : Expected binary expression. Found "TODO +".
+[line 22] Error at '}' : Expected binary expression. Found "TODO +".
+
+ |
+| test_import_mixed.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'var'
+
+Symbol table construction failed. Please check your Frame syntax.
+ |
+| test_import_python_comprehensive.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 23] Error at 'var' : Unexpected assignment expression value.
+
+ |
+| test_import_statements.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 25] Error at 'var' : Unexpected assignment expression value.
+
+ |
+| test_import_validation_summary.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'var'
+
+Symbol table construction failed. Please check your Frame syntax.
+ |
+| test_list_comprehensions.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'evens'
+
+Symbol table construction failed. Please check your Frame syntax.
+ |
+| test_list_comprehensions_simple.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'evens'
+
+Symbol table construction failed. Please check your Frame syntax.
+ |
+| test_list_features.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_list_features.py", line 58, in <module>
+    main()
+    ~~~~^^
+  File "/Users/marktr |
+| test_unpacking_operator.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'test2'
+
+Symbol table construction failed. Please check your Frame syntax.
+ |
+| test_v031_comprehensive.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 31] Error at 'var' : Expected binary expression. Found "TODO +".
+[line 31] Error at 'msg' : Expected '}'
+[line 37] Error at 'get_value' :  |
+| test_with_statement.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_with_statement.py", line 289, in <module>
+    run()
+    ~~~^^
+  File "/Users/marktr |
 
 ## Test Details
 
@@ -40,10 +112,12 @@ IndentationError: unindent does not match any outer indentation level |
 | test_async_interface.frm | ✅ | ✅ | ✅ PASS |
 | test_async_minimal.frm | ✅ | ✅ | ✅ PASS |
 | test_async_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_async_stress.frm | ✅ | ❌ | ❌ FAIL |
+| test_async_stress.frm | ✅ | ✅ | ✅ PASS |
+| test_async_stress_fixed.frm | ✅ | ✅ | ✅ PASS |
 | test_async_stress_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_async_validate.frm | ✅ | ✅ | ✅ PASS |
-| test_backticks_still_work.frm | ✅ | ✅ | ✅ PASS |
+| test_async_with_proper.frm | ✅ | ✅ | ✅ PASS |
+| test_async_with_real.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope_working.frm | ✅ | ✅ | ✅ PASS |
 | test_blocks_simple.frm | ✅ | ✅ | ✅ PASS |
@@ -69,12 +143,12 @@ IndentationError: unindent does not match any outer indentation level |
 | test_enum_iteration.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_module_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_string_values.frm | ✅ | ✅ | ✅ PASS |
-| test_enums.frm | ✅ | ✅ | ✅ PASS |
+| test_enums.frm | ✅ | ❌ | ❌ FAIL |
 | test_enums_doc_calendar.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_doc_fruitsystem.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_doc_function.frm | ✅ | ✅ | ✅ PASS |
-| test_enums_doc_grocery_demo.frm | ✅ | ✅ | ✅ PASS |
-| test_enums_doc_grocery_full.frm | ✅ | ✅ | ✅ PASS |
+| test_enums_doc_grocery_demo.frm | ✅ | ❌ | ❌ FAIL |
+| test_enums_doc_grocery_full.frm | ✅ | ❌ | ❌ FAIL |
 | test_enums_doc_values.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_terminator.frm | ✅ | ✅ | ✅ PASS |
@@ -105,17 +179,17 @@ IndentationError: unindent does not match any outer indentation level |
 | test_if_elif_returns.frm | ✅ | ✅ | ✅ PASS |
 | test_if_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_if_with_simple_stmt.frm | ✅ | ✅ | ✅ PASS |
-| test_import_conflicts.frm | ✅ | ✅ | ✅ PASS |
+| test_import_conflicts.frm | ❌ | ❌ | ❌ FAIL |
 | test_import_fsl_individual.frm | ✅ | ✅ | ✅ PASS |
 | test_import_fsl_no_import.frm | ✅ | ✅ | ✅ PASS |
 | test_import_fsl_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_import_fsl_user_conflict.frm | ✅ | ✅ | ✅ PASS |
 | test_import_fsl_wildcard.frm | ✅ | ✅ | ✅ PASS |
-| test_import_mixed.frm | ✅ | ✅ | ✅ PASS |
-| test_import_python_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_import_mixed.frm | ❌ | ❌ | ❌ FAIL |
+| test_import_python_comprehensive.frm | ❌ | ❌ | ❌ FAIL |
 | test_import_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_import_statements.frm | ✅ | ✅ | ✅ PASS |
-| test_import_validation_summary.frm | ✅ | ✅ | ✅ PASS |
+| test_import_statements.frm | ❌ | ❌ | ❌ FAIL |
+| test_import_validation_summary.frm | ❌ | ❌ | ❌ FAIL |
 | test_instantiation_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_instantiation_fix.frm | ✅ | ✅ | ✅ PASS |
 | test_interface_type_annotation.frm | ✅ | ✅ | ✅ PASS |
@@ -126,9 +200,9 @@ IndentationError: unindent does not match any outer indentation level |
 | test_legb_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_legb_resolution.frm | ✅ | ✅ | ✅ PASS |
 | test_legb_scope_resolution.frm | ✅ | ✅ | ✅ PASS |
-| test_list_comprehensions.frm | ✅ | ✅ | ✅ PASS |
-| test_list_comprehensions_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_list_features.frm | ✅ | ✅ | ✅ PASS |
+| test_list_comprehensions.frm | ❌ | ❌ | ❌ FAIL |
+| test_list_comprehensions_simple.frm | ❌ | ❌ | ❌ FAIL |
+| test_list_features.frm | ✅ | ❌ | ❌ FAIL |
 | test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
 | test_method_call_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_call.frm | ✅ | ✅ | ✅ PASS |
@@ -143,6 +217,7 @@ IndentationError: unindent does not match any outer indentation level |
 | test_mixed_system_states.frm | ✅ | ✅ | ✅ PASS |
 | test_module_declaration.frm | ✅ | ✅ | ✅ PASS |
 | test_module_function_calls.frm | ✅ | ✅ | ✅ PASS |
+| test_module_imports_no_backticks.frm | ✅ | ✅ | ✅ PASS |
 | test_module_qualified_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_comprehensive.frm | ✅ | ✅ | ✅ PASS |
@@ -169,6 +244,7 @@ IndentationError: unindent does not match any outer indentation level |
 | test_parent_dispatch.frm | ✅ | ✅ | ✅ PASS |
 | test_parent_dispatch_complete.frm | ✅ | ✅ | ✅ PASS |
 | test_parent_transition_detection.frm | ✅ | ✅ | ✅ PASS |
+| test_python_logical_keywords.frm | ✅ | ✅ | ✅ PASS |
 | test_python_style.frm | ✅ | ✅ | ✅ PASS |
 | test_qualified_names.frm | ✅ | ✅ | ✅ PASS |
 | test_return_assign.frm | ✅ | ✅ | ✅ PASS |
@@ -201,6 +277,10 @@ IndentationError: unindent does not match any outer indentation level |
 | test_single_system_only.frm | ✅ | ✅ | ✅ PASS |
 | test_single_system_transitions.frm | ✅ | ✅ | ✅ PASS |
 | test_single_transition.frm | ✅ | ✅ | ✅ PASS |
+| test_slicing.frm | ✅ | ✅ | ✅ PASS |
+| test_slicing_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_slicing_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_slicing_simple2.frm | ✅ | ✅ | ✅ PASS |
 | test_state_parameters.frm | ✅ | ✅ | ✅ PASS |
 | test_state_var.frm | ✅ | ✅ | ✅ PASS |
 | test_state_vars_complex.frm | ✅ | ✅ | ✅ PASS |
@@ -229,7 +309,7 @@ IndentationError: unindent does not match any outer indentation level |
 | test_type_annotation_fix.frm | ✅ | ✅ | ✅ PASS |
 | test_type_fix.frm | ✅ | ✅ | ✅ PASS |
 | test_underscore_actions.frm | ✅ | ✅ | ✅ PASS |
-| test_unpacking_operator.frm | ✅ | ✅ | ✅ PASS |
+| test_unpacking_operator.frm | ❌ | ❌ | ❌ FAIL |
 | test_v030_edge_cases.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_functions_only.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_hierarchical_systems.frm | ✅ | ✅ | ✅ PASS |
@@ -241,7 +321,9 @@ IndentationError: unindent does not match any outer indentation level |
 | test_v030_system_lifecycle_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_system_with_functions.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_three_systems.frm | ✅ | ✅ | ✅ PASS |
-| test_v031_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_v031_comprehensive.frm | ❌ | ❌ | ❌ FAIL |
 | test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
+| test_with_statement.frm | ✅ | ❌ | ❌ FAIL |
+| test_with_statement_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_your_example.frm | ✅ | ✅ | ✅ PASS |
