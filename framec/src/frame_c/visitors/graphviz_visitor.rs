@@ -463,6 +463,9 @@ impl GraphVizVisitor {
                         StatementType::RaiseStmt { .. } => {
                             // TODO: Implement raise statement visualization
                         }
+                        StatementType::WithStmt { .. } => {
+                            // TODO: Implement with statement visualization
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");

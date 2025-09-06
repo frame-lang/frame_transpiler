@@ -54,6 +54,7 @@ impl Scanner {
             ("except".to_string(), TokenType::Except),
             ("finally".to_string(), TokenType::Finally),
             ("raise".to_string(), TokenType::Raise),
+            ("with".to_string(), TokenType::With),
         ]
         .iter()
         .cloned()
@@ -787,6 +788,7 @@ pub enum TokenType {
     Except,   // 'except' keyword
     Finally,  // 'finally' keyword
     Raise,    // 'raise' keyword
+    With,     // 'with' keyword
     // SingleLineComment, // --- comment
     MultiLineComment, // {-- comments --}
     OpenBrace,        // {
