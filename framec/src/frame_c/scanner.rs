@@ -55,6 +55,9 @@ impl Scanner {
             ("finally".to_string(), TokenType::Finally),
             ("raise".to_string(), TokenType::Raise),
             ("with".to_string(), TokenType::With),
+            ("and".to_string(), TokenType::And),
+            ("or".to_string(), TokenType::Or),
+            ("not".to_string(), TokenType::Not),
         ]
         .iter()
         .cloned()
@@ -789,6 +792,9 @@ pub enum TokenType {
     Finally,  // 'finally' keyword
     Raise,    // 'raise' keyword
     With,     // 'with' keyword
+    And,      // 'and' keyword (Python logical AND)
+    Or,       // 'or' keyword (Python logical OR)
+    Not,      // 'not' keyword (Python logical NOT)
     // SingleLineComment, // --- comment
     MultiLineComment, // {-- comments --}
     OpenBrace,        // {
