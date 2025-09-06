@@ -47,7 +47,7 @@ system MixedHandlerDemo {
             }
             
             // Async event handler - needs async due to await
-            fetchRemote(id) {
+            async fetchRemote(id) {
                 print("Async handler: fetchRemote")
                 var data = await fetch_data(id)
                 self.data = data
@@ -55,7 +55,7 @@ system MixedHandlerDemo {
             }
             
             // Another async handler with await
-            processData(data) {
+            async processData(data) {
                 print("Async handler: processData")
                 var result = await process_async(data)
                 return = result
@@ -70,7 +70,7 @@ system MixedHandlerDemo {
         
         $Processing {
             // Async enter event with await
-            $>() {
+            async $>() {
                 print("Processing state entered")
                 var processed = await process_async(self.data)
                 print("Processing complete: " + processed)

@@ -439,9 +439,7 @@ impl GraphVizVisitor {
                         StatementType::BreakStmt { .. } => {
                             // break_stmt_node.accept(self);
                         }
-                        StatementType::SuperStringStmt { .. } => {
-                            // super_string_stmt_node.accept(self);
-                        }
+                        // SuperStringStmt removed - backticks no longer supported
                         StatementType::IfStmt { .. } => {
                             // TODO: Implement if statement visualization
                         }
@@ -1922,7 +1920,7 @@ impl AstVisitor for GraphVizVisitor {
     fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) {
         match &literal_expression_node.token_t {
             TokenType::Number => self.add_code(&literal_expression_node.value.to_string()),
-            TokenType::SuperString => self.add_code(&literal_expression_node.value.to_string()),
+            // SuperString removed - backticks no longer supported
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::True => self.add_code("true"),
             TokenType::False => self.add_code("false"),

@@ -532,10 +532,7 @@ impl GolangVisitor {
                         StatementType::BreakStmt { break_stmt_node } => {
                             break_stmt_node.accept(self);
                         }
-                        StatementType::SuperStringStmt {
-                            super_string_stmt_node,
-                        } => {
-                            super_string_stmt_node.accept(self);
+                        // SuperStringStmt removed - backticks no longer supported
                         }
                         StatementType::NoStmt => {
                             // TODO

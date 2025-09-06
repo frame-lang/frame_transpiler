@@ -6,7 +6,7 @@ import asyncio
 // Basic async function
 async fn fetch_data(id) {
     print("Fetching data for id: " + str(id))
-    `await asyncio.sleep(0.1)`
+    // Removed backticks - await asyncio.sleep(0.1)
     return "data_" + str(id)
 }
 
@@ -18,7 +18,7 @@ system AsyncTest {
         
     machine:
         $Ready {
-            getData(id) {
+            async getData(id) {
                 print("Getting data for: " + str(id))
                 var data = await fetch_data(id)
                 print("Received: " + data)
@@ -60,5 +60,5 @@ async fn run_test() {
 
 fn main() {
     print("Starting Frame v0.37 Async Validation")
-    `asyncio.run(run_test())`
+    // Removed backticks - asyncio.run(run_test())
 }

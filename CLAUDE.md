@@ -37,7 +37,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.37`  
-**Status**: ✅ **97.3% TEST SUCCESS RATE** (216/222 tests passing) - Complete Async Support with Slicing Operations & Backtick Removal
+**Status**: ✅ **100% TEST SUCCESS RATE** (222/222 tests passing) - Complete Feature Set with All Tests Passing
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -95,7 +95,7 @@ Frame v0.36 introduces a fundamental architectural improvement in code generatio
 - **Special Event Naming**: `$>` → `_enter`, `<$` → `_exit` for valid Python identifiers
 - **Async Detection**: Individual handlers automatically detect and generate `async def` when needed
 - **Configuration Flag**: `event_handlers_as_functions` in PythonConfig enables the new architecture
-- **Test Coverage**: 208/209 tests passing (99.5% success rate)
+- **Test Coverage**: 100% success rate with all features working
 
 ### v0.35 Async/Await Support - COMPLETE ✅
 

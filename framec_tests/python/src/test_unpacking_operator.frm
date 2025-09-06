@@ -43,13 +43,13 @@ fn main() {
     print("=== Testing Unpacking Operator ===")
     
     var test1 = test_list_unpacking()
-    print("Test 1 length: " + str(`len(test1)`))
+    print("Test 1 result: " + str(test1))
     
     var test2 = test_multiple_unpacking()
-    print("Test 2 length: " + str(`len(test2)`))
+    print("Test 2 result: " + str(test2))
     
     var test3 = test_unpacking_with_expressions()
-    print("Test 3 length: " + str(`len(test3)`))
+    print("Test 3 result: " + str(test3))
     
     print("=== All Unpacking Tests Complete ===")
 }

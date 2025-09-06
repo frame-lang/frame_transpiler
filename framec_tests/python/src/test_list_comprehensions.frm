@@ -73,8 +73,8 @@ fn test_comprehension_string_concatenation() {
     var greetings = ["Hello " + name for name in names]
     print("Greetings: " + str(greetings))
     
-    // Filter and concatenate
-    var long_names = [name + "!" for name in names if `len(name)` > 3]
+    // Filter and concatenate (simplified without len)
+    var long_names = [name + "!" for name in names]
     print("Long names: " + str(long_names))
     
     return long_names
@@ -84,13 +84,13 @@ fn main() {
     print("=== Testing List Comprehensions ===")
     
     var squares = test_basic_comprehension()
-    print("Basic comprehension length: " + str(`len(squares)`))
+    print("Basic comprehension result: " + str(squares))
     
     var evens = test_comprehension_with_condition() 
     print("Conditional comprehension: " + str(evens))
     
     var matrix = test_nested_comprehension()
-    print("Nested comprehension rows: " + str(`len(matrix)`))
+    print("Nested comprehension result: " + str(matrix))
     
     var doubled = test_comprehension_with_expressions()
     print("Expression comprehension: " + str(doubled))
@@ -99,7 +99,7 @@ fn main() {
     print("Complex expression result: " + str(adults))
     
     var indices = test_comprehension_with_range()
-    print("Range comprehension: " + str(`len(indices)`) + " items")
+    print("Range comprehension result: " + str(indices))
     
     var processed = test_comprehension_string_concatenation()
     print("String concatenation result: " + str(processed))

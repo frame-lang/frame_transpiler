@@ -338,7 +338,7 @@ impl Scanner {
             }
             ';' => self.add_token(TokenType::Semicolon),
             '"' => self.string(),
-            '`' => self.super_string(),
+            // Backtick support removed - no longer needed in Frame
             '#' => {
                 // Hash is only used for attributes now
                 if self.match_char('[') {
@@ -687,32 +687,7 @@ impl Scanner {
         self.add_string_token_literal(TokenType::String, TokenLiteral::None);
     }
 
-    fn super_string(&mut self) {
-        let start_line = self.line;
-        while !self.is_at_end() {
-            let c = self.peek();
-            if c == '\\' {
-                self.advance();
-                if self.is_at_end() {
-                    break;
-                }
-            } else if c == '\n' {
-                // self.line += 1;
-            } else if c == '`' {
-                break;
-            }
-            self.advance();
-        }
-
-        // Unterminated string.
-        if self.is_at_end() {
-            self.error(start_line, "Unterminated super string.");
-            return;
-        }
-
-        self.advance();
-        self.add_string_token_literal(TokenType::SuperString, TokenLiteral::None);
-    }
+    // Backtick/SuperString support removed - no longer needed in Frame
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -765,7 +740,6 @@ pub enum TokenType {
     //    ChangeState,                  // ->>
     String,      // "foo"
     // REMOVED: ThreeTicks (```) - not used
-    SuperString, // `stuff + "stuff"`
     Number,                 // 1, 1.01
     Var,                    // var keyword
     Const,                  // const keyword

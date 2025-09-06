@@ -1,0 +1,16 @@
+# Python dependencies for Frame transpiler tests
+# Install with: pip install -r requirements.txt
+
+# Async support
+aiohttp>=3.8.0
+asyncio
+
+# Testing utilities (if needed)
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+# JSON handling
+jsonpickle>=3.0.0
+
+# Standard utilities
+tempfile2>=0.1.0

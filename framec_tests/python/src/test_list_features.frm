@@ -28,13 +28,13 @@ fn main() {
         print("Row:", row)
     }
     
-    // Test list operations (using backticks for Python methods)
-    `numbers.append(6)`
+    // Test list operations
+    numbers.append(6)
     
     print("\n=== After append ===")
     print("Numbers:", numbers)
     
-    var length = `len(numbers)`
+    var length = numbers.length
     print("Length:", length)
     
     // Test list as function parameter

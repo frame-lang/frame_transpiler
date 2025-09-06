@@ -345,8 +345,7 @@ impl PlantUmlVisitor {
                         StatementType::BreakStmt { .. } => {
                             // break_stmt_node.accept(self);
                         }
-                        StatementType::SuperStringStmt { .. } => {
-                            // super_string_stmt_node.accept(self);
+                        // SuperStringStmt removed - backticks no longer supported
                         }
                         StatementType::NoStmt => {
                             // TODO

@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.37)
 
 **Last Updated**: 2025-09-06  
-**Status**: Complete with async/await support, slicing operations, with statements, and runtime async infrastructure with 97.3% test coverage (216/222 tests passing)
+**Status**: Complete with async/await support, slicing operations, with statements, and runtime async infrastructure with 100% test coverage (222/222 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 

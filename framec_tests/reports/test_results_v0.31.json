@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-06T11:28:44.847037",
+  "timestamp": "2025-09-06T14:18:05.742236",
   "version": "v0.31",
   "summary": {
     "total": 222,
-    "transpile_success": 213,
-    "execute_success": 208,
-    "complete_success": 208,
-    "success_rate": "93.7%"
+    "transpile_success": 222,
+    "execute_success": 222,
+    "complete_success": 222,
+    "success_rate": "100.0%"
   },
   "results": [
     {
@@ -278,9 +278,9 @@
     {
       "file": "test_enums.frm",
       "transpile": true,
-      "execute": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums.py\", line 136, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/marktruluck/p"
+      "execute": true,
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "error": null
     },
     {
       "file": "test_enums_doc_calendar.frm",
@@ -306,16 +306,16 @@
     {
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
-      "execute": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums_doc_grocery_demo.py\", line 136, in <module>\n    main()\n    ~~~~^^\n  File \"/Us"
+      "execute": true,
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
-      "execute": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enums_doc_grocery_full.py\", line 136, in <module>\n    main()\n    ~~~~^^\n  File \"/Us"
+      "execute": true,
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "error": null
     },
     {
       "file": "test_enums_doc_values.frm",
@@ -529,9 +529,10 @@
     },
     {
       "file": "test_import_conflicts.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 7] Error at '}' : Expected binary expression. Found \"TODO +\".\n[line 22] Error at '}' : Expected binary expression. Found \"TODO +\".\n\n"
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
     },
     {
       "file": "test_import_fsl_individual.frm",
@@ -570,15 +571,17 @@
     },
     {
       "file": "test_import_mixed.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'var'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== Mixed Import Test ===\n=== Testing Mixed FSL and Python Imports ===\nFSL str(42): 42\nFSL int('999'): 999\nPython math.pi: 3.14159\nPython math.sqrt(25): 5.0\nCurrent year: 2025\nFSL str() on Python sqrt",
+      "error": null
     },
     {
       "file": "test_import_python_comprehensive.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 23] Error at 'var' : Unexpected assignment expression value.\n\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== Python Import Types Test ===\n=== Testing Simple Imports ===\nmath.pi: 3.14159\nmath.sqrt(16): 4.0\njson.dumps(): {\"key\": \"value\"}\n=== Testing Aliased Imports ===\nCurrent date: 2025-09-06\nRandom numbe",
+      "error": null
     },
     {
       "file": "test_import_simple.frm",
@@ -589,15 +592,17 @@
     },
     {
       "file": "test_import_statements.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 25] Error at 'var' : Unexpected assignment expression value.\n\n"
+      "transpile": true,
+      "execute": true,
+      "output": "Testing imports...\nPi: 3.14159\nSquare root of 16: 4.0\nCreated defaultdict and OrderedDict\nJSON: {\"name\": \"Frame\", \"version\": \"0.31\"}\n",
+      "error": null
     },
     {
       "file": "test_import_validation_summary.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'var'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== COMPREHENSIVE IMPORT/FSL VALIDATION ===\n=== Validating ALL FSL Operations ===\nstr(42): 42\nstr(3.14): 3.14\nstr(true): True\nint('123'): 123\nint(89.99): 89\nfloat('123.456'): 123.456\nfloat(789): 789.0",
+      "error": null
     },
     {
       "file": "test_instantiation_debug.frm",
@@ -671,22 +676,24 @@
     },
     {
       "file": "test_list_comprehensions.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'evens'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing List Comprehensions ===\nSquares: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]\nBasic comprehension result: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]\nEven numbers: [2, 4, 6, 8, 10]\nConditional comprehens",
+      "error": null
     },
     {
       "file": "test_list_comprehensions_simple.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'evens'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing List Comprehensions ===\nSquares: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]\nBasic comprehension result: [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]\nEven numbers: [2, 4, 6, 8, 10]\nConditional comprehens",
+      "error": null
     },
     {
       "file": "test_list_features.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "output": "First number: 1\nLast string: frame\n\n=== Iterating numbers ===\nNumber: 1\nNumber: 2\nNumber: 3\nNumber: 4\nNumber: 5\n\n=== Iterating strings ===\nString: hello\nString: world\nString: frame\n\n=== Matrix ===\nRow",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_list_features.py\", line 58, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/marktr"
+      "error": null
     },
     {
       "file": "test_list_native_methods.frm",
@@ -1432,9 +1439,10 @@
     },
     {
       "file": "test_unpacking_operator.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'test2'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Unpacking Operator ===\nCombined list: [1, 2, 3, 4, 5, 6, 7, 8]\nTest 1 result: [1, 2, 3, 4, 5, 6, 7, 8]\nMultiple unpacking: [0, 1, 2, 3, 4, 5, 6, 7]\nTest 2 result: [0, 1, 2, 3, 4, 5, 6, 7]\n",
+      "error": null
     },
     {
       "file": "test_v030_edge_cases.frm",
@@ -1515,9 +1523,10 @@
     },
     {
       "file": "test_v031_comprehensive.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 31] Error at 'var' : Expected binary expression. Found \"TODO +\".\n[line 31] Error at 'msg' : Expected '}'\n[line 37] Error at 'get_value' : "
+      "transpile": true,
+      "execute": true,
+      "output": "Doing work...\nCounter: 10\nGot: Test value from interface\n",
+      "error": null
     },
     {
       "file": "test_validation_comprehensive.frm",
@@ -1536,9 +1545,9 @@
     {
       "file": "test_with_statement.frm",
       "transpile": true,
-      "execute": false,
-      "output": "Testing with statement support in Frame v0.37\n==================================================\n\n1. Testing regular with statement:\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_with_statement.py\", line 289, in <module>\n    run()\n    ~~~^^\n  File \"/Users/marktr"
+      "execute": true,
+      "output": "Testing with statement support in Frame v0.37\n==================================================\n\n1. Testing regular with statement:\nFile content: This is a test file for the with statement test.\nIt c",
+      "error": null
     },
     {
       "file": "test_with_statement_basic.frm",

@@ -2072,9 +2072,7 @@ pub enum StatementType {
     WithStmt {
         with_stmt_node: WithStmtNode,
     },
-    SuperStringStmt {
-        super_string_stmt_node: SuperStringStmtNode,
-    },
+    // SuperStringStmt removed - backticks no longer supported
     BlockStmt {
         block_stmt_node: BlockStmtNode,
     },
@@ -3144,22 +3142,7 @@ impl NodeElement for WithStmtNode {
 
 //-----------------------------------------------------//
 
-#[derive(Clone)]
-pub struct SuperStringStmtNode {
-    pub literal_expr_node: LiteralExprNode,
-}
-
-impl SuperStringStmtNode {
-    pub fn new(literal_expr_node: LiteralExprNode) -> SuperStringStmtNode {
-        SuperStringStmtNode { literal_expr_node }
-    }
-}
-
-impl NodeElement for SuperStringStmtNode {
-    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
-        ast_visitor.visit_superstring_stmt_node(self);
-    }
-}
+// SuperStringStmtNode removed - backticks no longer supported
 
 //-----------------------------------------------------//
 

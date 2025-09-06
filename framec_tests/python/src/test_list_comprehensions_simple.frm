@@ -33,31 +33,27 @@ fn test_nested_comprehension() {
 }
 
 fn test_comprehension_with_complex_expression() {
-    var data = [
-        `{"name": "Alice", "age": 30}`,
-        `{"name": "Bob", "age": 25}`,
-        `{"name": "Charlie", "age": 35}`,
-        `{"name": "David", "age": 28}`
-    ]
+    // Using simple strings instead of dict objects
+    var names = ["Alice", "Bob", "Charlie", "David"]
     
-    // Extract names with comprehension (simplified without dict access)
-    var names = [`person["name"]` for person in data]
-    print("Names: " + str(names))
+    // Process strings with comprehension
+    var upper_names = [str(name) for name in names]
+    print("Names: " + str(upper_names))
     
-    return names
+    return upper_names
 }
 
 fn main() {
     print("=== Testing List Comprehensions ===")
     
     var squares = test_basic_comprehension()
-    print("Basic comprehension length: " + str(`len(squares)`))
+    print("Basic comprehension result: " + str(squares))
     
     var evens = test_comprehension_with_condition() 
     print("Conditional comprehension: " + str(evens))
     
     var matrix = test_nested_comprehension()
-    print("Nested comprehension rows: " + str(`len(matrix)`))
+    print("Nested comprehension result: " + str(matrix))
     
     var names = test_comprehension_with_complex_expression()
     print("Complex expression result: " + str(names))

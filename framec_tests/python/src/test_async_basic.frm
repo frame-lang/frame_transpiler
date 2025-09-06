@@ -32,7 +32,7 @@ system AsyncService {
         
     machine:
         $Ready {
-            getData(id) {
+            async getData(id) {
                 print("Getting data for id: " + str(id))
                 var data = await fetch_data("api.example.com/item/" + str(id))
                 print("Received: " + data)
@@ -41,7 +41,7 @@ system AsyncService {
                 -> $Processing
             }
             
-            processItem(item) {
+            async processItem(item) {
                 var result = await process_data(item)
                 print("Result: " + result)
                 return result
@@ -49,7 +49,7 @@ system AsyncService {
         }
         
         $Processing {
-            $>() {
+            async $>() {
                 print("Now processing: " + self.lastData)
                 var processed = await process_data(self.lastData)
                 print("Processing complete: " + processed)

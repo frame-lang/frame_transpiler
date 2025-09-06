@@ -196,7 +196,7 @@ pub trait AstVisitor {
     fn visit_except_clause_node(&mut self, _except_clause_node: &ExceptClauseNode) {}
     fn visit_raise_stmt_node(&mut self, _raise_stmt_node: &RaiseStmtNode) {}
     fn visit_with_stmt_node(&mut self, _with_stmt_node: &WithStmtNode) {}
-    fn visit_superstring_stmt_node(&mut self, _continue_expr_node: &SuperStringStmtNode) {}
+    // visit_superstring_stmt_node removed - backticks no longer supported
     fn visit_block_stmt_node(&mut self, _block_stmt_node: &BlockStmtNode) {}
     fn visit_literal_expression_node(&mut self, _node: &LiteralExprNode) {}
     fn visit_literal_expression_node_to_string(&mut self, _node: &LiteralExprNode, _output: &mut String) {}

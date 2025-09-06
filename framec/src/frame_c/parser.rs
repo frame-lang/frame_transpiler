@@ -387,7 +387,8 @@ impl<'a> Parser<'a> {
                         return Err(err);
                     }
                 }
-            } else if self.match_token(&[TokenType::SuperString]) {
+            } else if false {
+                // SuperString/backtick support removed
                 let mut code_block = String::new();
                 let tok = self.previous();
                 code_block.push_str(&tok.lexeme.clone());
@@ -1932,7 +1933,8 @@ impl<'a> Parser<'a> {
 
         let mut type_str = String::new();
 
-        if self.match_token(&[TokenType::SuperString]) {
+        if false {
+            // SuperString/backtick support removed
             let id = self.previous();
             let type_str = id.lexeme.clone();
             Ok(TypeNode::new(true, false, false, false, None, type_str))
@@ -1999,7 +2001,7 @@ impl<'a> Parser<'a> {
             | TokenType::String
             | TokenType::GT
             | TokenType::LT
-            | TokenType::SuperString
+            // SuperString removed
             // | TokenType::GTx2
             // | TokenType::GTx3
             // | TokenType::LTx2
@@ -2056,7 +2058,7 @@ impl<'a> Parser<'a> {
             | TokenType::String
             | TokenType::GT
             | TokenType::LT
-            | TokenType::SuperString
+            // SuperString removed
             // | TokenType::GTx2
             // | TokenType::GTx3
             // | TokenType::LTx2
@@ -4990,13 +4992,7 @@ impl<'a> Parser<'a> {
                     }
                     LiteralExprT { literal_expr_node } => {
                         // Superstring is the only permitted literal type to be a statement.
-                        if literal_expr_node.token_t == TokenType::SuperString {
-                            let super_string_stmt_node =
-                                SuperStringStmtNode::new(literal_expr_node);
-                            return Ok(Some(StatementType::SuperStringStmt {
-                                super_string_stmt_node,
-                            }));
-                        }
+                        // SuperString/backtick support removed - no longer create SuperStringStmt
                         self.error_at_previous("Literal statements not allowed.");
                         return Err(ParseError::new("TODO"));
                     }
@@ -5242,9 +5238,7 @@ impl<'a> Parser<'a> {
         //     let break_stmt_node = BreakStmtNode::new();
         //     return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
         // }
-        if self.match_token(&[TokenType::SuperString]) {
-            // TODO?
-        }
+        // SuperString/backtick support removed
 
         Ok(None)
     }
@@ -9435,7 +9429,7 @@ impl<'a> Parser<'a> {
     fn literal_expr(&mut self) -> Result<Option<LiteralExprNode>, ParseError> {
         // TODO: move this vec to the scanner
         let literal_tokens = vec![
-            TokenType::SuperString,
+            // SuperString removed,
             TokenType::String,
             TokenType::Number,
             TokenType::True,
@@ -10999,7 +10993,6 @@ impl<'a> Parser<'a> {
         // Check if the system has any async requirements
         let mut system_needs_async = false;
         let mut async_transitions: Vec<TransitionNode> = Vec::new();
-        let mut async_requirements: HashMap<(String, String), bool> = HashMap::new(); // (state_name, handler_type) -> is_async
         
         // Analyze the machine block
         if let Some(machine_block) = &system.machine_block_node_opt {
@@ -11041,10 +11034,8 @@ impl<'a> Parser<'a> {
                                             },
                                         ));
                                         
-                                        // The exit handler of current state needs to be async
-                                        async_requirements.insert((state_name.clone(), "<$".to_string()), true);
-                                        // The enter handler of target state needs to be async
-                                        async_requirements.insert((target_state_name, "$>".to_string()), true);
+                                        // NOTE: We do NOT force exit/enter handlers to be async
+                                        // They should only be async if they actually use await
                                     }
                                 }
                             }
@@ -11106,8 +11097,8 @@ impl<'a> Parser<'a> {
         // Store runtime info in the system
         system.runtime_info = Some(runtime_info);
         
-        // Validate async chain requirements
-        self.validate_async_chain(system, async_requirements)?;
+        // Validate that async handlers are properly marked
+        self.validate_async_handlers(system)?;
         
         Ok(())
     }
@@ -11148,8 +11139,13 @@ impl<'a> Parser<'a> {
             ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
                 self.expr_contains_await(&assignment_stmt_node.assignment_expr_node.r_value_rc)
             }
-            ExprStmtType::CallStmtT { .. } => {
-                // TODO: Check if call contains await
+            ExprStmtType::CallStmtT { call_stmt_node } => {
+                // Check if the call expression might contain await
+                // This is a simplified check - just returns false for now
+                false
+            }
+            ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+                // Check each node in the chain for an expression that might contain await
                 false
             }
             _ => false,
@@ -11157,46 +11153,58 @@ impl<'a> Parser<'a> {
     }
     
     fn expr_contains_await(&self, expr: &ExprType) -> bool {
+        use crate::frame_c::ast::ExprType::*;
         match expr {
             AwaitExprT { .. } => true,
             CallChainExprT { .. } => {
-                // TODO: Check if chain contains await
-                // For now, we'll rely on explicit async marking
+                // For now, we don't check inside call chains deeply
+                // This would require more complex traversal
                 false
             }
             _ => false,
         }
     }
     
-    // Validate that all handlers in async chain are marked async
-    fn validate_async_chain(&self, system: &SystemNode, async_requirements: HashMap<(String, String), bool>) -> Result<(), ParseError> {
+    // Validate that handlers using await are marked async
+    fn validate_async_handlers(&self, system: &SystemNode) -> Result<(), ParseError> {
         if let Some(machine_block) = &system.machine_block_node_opt {
-            for ((state_name, handler_type), _required) in async_requirements {
-                // Find the state
-                let state_opt = machine_block.states.iter().find(|s| s.borrow().name == state_name);
+            for state_rc in &machine_block.states {
+                let state = state_rc.borrow();
+                let state_name = &state.name;
                 
-                if let Some(state_rc) = state_opt {
-                    let state = state_rc.borrow();
-                    
-                    // Check the specific handler
-                    let handler_is_async = match handler_type.as_str() {
-                        "$>" => {
-                            state.enter_event_handler_opt.as_ref()
-                                .map(|h| h.borrow().is_async)
-                                .unwrap_or(false)
-                        }
-                        "<$" => {
-                            state.exit_event_handler_opt.as_ref()
-                                .map(|h| h.borrow().is_async)
-                                .unwrap_or(false)
-                        }
-                        _ => false,
-                    };
-                    
-                    if !handler_is_async {
+                // Check event handlers
+                for handler_rc in &state.evt_handlers_rcref {
+                    let handler = handler_rc.borrow();
+                    if self.handler_contains_await(&handler) && !handler.is_async {
+                        let handler_name = match &handler.msg_t {
+                            MessageType::CustomMessage { message_node } => message_node.name.clone(),
+                            MessageType::None => "unknown".to_string(),
+                        };
                         return Err(ParseError::new(&format!(
-                            "Event handler '{}' in state '{}' must be marked 'async' because it's part of an async transition chain",
-                            handler_type, state_name
+                            "Event handler '{}' in state '{}' uses 'await' but is not marked 'async'",
+                            handler_name, state_name
+                        )));
+                    }
+                }
+                
+                // Check enter handler
+                if let Some(enter_handler_rc) = &state.enter_event_handler_opt {
+                    let handler = enter_handler_rc.borrow();
+                    if self.handler_contains_await(&handler) && !handler.is_async {
+                        return Err(ParseError::new(&format!(
+                            "Enter handler '$>' in state '{}' uses 'await' but is not marked 'async'",
+                            state_name
+                        )));
+                    }
+                }
+                
+                // Check exit handler
+                if let Some(exit_handler_rc) = &state.exit_event_handler_opt {
+                    let handler = exit_handler_rc.borrow();
+                    if self.handler_contains_await(&handler) && !handler.is_async {
+                        return Err(ParseError::new(&format!(
+                            "Exit handler '<$' in state '{}' uses 'await' but is not marked 'async'",
+                            state_name
                         )));
                     }
                 }

@@ -25,7 +25,7 @@ system TestSystem {
                 var result = self.calculate(42)
                 
                 // Test self.domainVar access
-                print("Counter: " + `str(self.counter)`)
+                print("Counter: " + str(self.counter))
                 
                 // Test interface method calls (with self. prefix)
                 var msg = self.get_value()

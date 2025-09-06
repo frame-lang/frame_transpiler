@@ -255,10 +255,7 @@ impl PythonVisitor {
                 self.expr_contains_await(&while_stmt_node.condition) ||
                 self.contains_await_expr(&while_stmt_node.block.statements)
             }
-            StatementType::SuperStringStmt { super_string_stmt_node } => {
-                // Check if the super string (backtick block) contains "await"
-                super_string_stmt_node.literal_expr_node.value.contains("await ")
-            }
+            // SuperStringStmt removed - backticks no longer supported
             _ => false
         }
     }
@@ -1329,9 +1326,7 @@ impl PythonVisitor {
                             StatementType::BreakStmt { break_stmt_node } => {
                                 break_stmt_node.accept(self);
                             }
-                            StatementType::SuperStringStmt { super_string_stmt_node } => {
-                                super_string_stmt_node.accept(self);
-                            }
+                            // SuperStringStmt removed - backticks no longer supported
                             StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
                                 parent_dispatch_stmt_node.accept(self);
                             }
@@ -2481,11 +2476,7 @@ impl PythonVisitor {
                         StatementType::BreakStmt { break_stmt_node } => {
                             break_stmt_node.accept(self);
                         }
-                        StatementType::SuperStringStmt {
-                            super_string_stmt_node,
-                        } => {
-                            super_string_stmt_node.accept(self);
-                        }
+                        // SuperStringStmt removed - backticks no longer supported
                         StatementType::IfStmt { if_stmt_node } => {
                             if_stmt_node.accept(self);
                         }
@@ -6959,26 +6950,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_superstring_stmt_node(&mut self, super_string_stmt_node: &SuperStringStmtNode) {
-        // Don't add a newline for SuperString statements that are part of expressions
-        // This fixes two cases:
-        // 1. self.pipeline_config`["urls"]` - backtick dictionary access  
-        // 2. self.results[str(task_id)] = value - index operation incorrectly parsed as SuperString
-        
-        let content = &super_string_stmt_node.literal_expr_node.value;
-        
-        // Check if this looks like an index operation or assignment with index
-        // This handles both [...] access and [...] = assignment patterns
-        let trimmed = content.trim_start();
-        let is_index_operation = trimmed.starts_with('[') && 
-                                (trimmed.contains("] =") || 
-                                 (trimmed.contains(']') && !trimmed.contains('=')));
-        
-        if !is_index_operation {
-            self.newline();
-        }
-        super_string_stmt_node.literal_expr_node.accept(self);
-    }
+    // visit_superstring_stmt_node removed - backticks no longer supported
 
     //* --------------------------------------------------------------------- *//
 
@@ -8128,41 +8100,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) {
         match &literal_expression_node.token_t {
             TokenType::Number => self.add_code(&literal_expression_node.value.to_string()),
-            TokenType::SuperString => {
-                // Handle SuperString with proper indentation for each line
-                let content = &literal_expression_node.value;
-                
-                // Check if this looks like an index operation that shouldn't have a newline
-                // This handles: [str(task_id)] = value
-                let trimmed = content.trim_start();
-                let is_index_operation = trimmed.starts_with('[') && 
-                                        (trimmed.contains("] =") || 
-                                         (trimmed.contains(']') && !trimmed.contains('=')));
-                
-                if is_index_operation {
-                    // Don't add any newlines for index operations
-                    self.add_code(content);
-                } else {
-                    // Normal SuperString handling
-                    let lines: Vec<&str> = content.lines().collect();
-                    
-                    for (i, line) in lines.iter().enumerate() {
-                        if i == 0 {
-                            // First line - just add the content (already has proper indentation from newline)
-                            self.add_code(line);
-                        } else {
-                            // Subsequent lines - add newline with current indentation, then the line content
-                            // Only add line content if it's not empty (preserve empty lines)
-                            if line.trim().is_empty() {
-                                self.code.push('\n');
-                            } else {
-                                self.newline();
-                                self.add_code(line);
-                            }
-                        }
-                    }
-                }
-            },
+            // SuperString removed - backticks no longer supported
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::True => self.add_code("True"),
             TokenType::False => self.add_code("False"),
@@ -8195,9 +8133,7 @@ impl AstVisitor for PythonVisitor {
             TokenType::None_ => {
                 output.push_str("None");
             }
-            TokenType::SuperString => {
-                output.push_str(&literal_expression_node.value.to_string());
-            }
+            // SuperString removed - backticks no longer supported
             _ => self
                 .errors
                 .push("TODO: visit_literal_expression_node_to_string".to_string()),

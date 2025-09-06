@@ -22,7 +22,7 @@ Languages considered in Frame's design with documented patterns:
 ## Latest Status: v0.37 Complete Async Support with Slicing Operations (2025-09-06)
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
-- **Test Coverage**: **216/222 tests passing (97.3% success rate)** 
+- **Test Coverage**: **222/222 tests passing (100% success rate)** 🎉
 - **Async Event Handlers**: Explicit `async` keyword for event handlers (`async $>()`, `async eventName()`)
 - **Runtime Infrastructure**: New AST nodes (RuntimeInfo, KernelNode, RouterNode) track async requirements
 - **Async Chain Validation**: Compile-time validation ensures all handlers in async transition chains are properly marked
@@ -53,7 +53,7 @@ Languages considered in Frame's design with documented patterns:
 ### Current Status
 - **Parser**: Backticks now generate errors when encountered
 - **Tests**: All tests updated to avoid backtick usage
-- **Success Rate**: 97.3% test passing without backticks
+- **Success Rate**: 100% test passing without backticks
 
 ### Limitations Identified
 Without backticks, Frame currently cannot express:

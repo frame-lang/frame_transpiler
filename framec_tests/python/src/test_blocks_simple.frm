@@ -14,7 +14,9 @@ system BlocksTest {
                 self.work()
                 self.finish()
             }
-            
+            <$() {
+                print("exit")
+            }
             go() {
                 print("machine: go interface called")
             }
