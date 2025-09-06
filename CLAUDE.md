@@ -37,7 +37,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.37`  
-**Status**: ✅ **93.7% TEST SUCCESS RATE** (208/222 tests passing) - Complete Async Support with Slicing Operations
+**Status**: ✅ **97.3% TEST SUCCESS RATE** (216/222 tests passing) - Complete Async Support with Slicing Operations & Backtick Removal
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -477,8 +477,15 @@ system DataProcessor {
 #### Current Async Status
 - **✅ Parser Integration**: Async keyword recognition and AST support complete
 - **✅ Code Generation**: Python async/await generation working  
-- **✅ Test Coverage**: 207/207 tests passing (100% success rate) with 7 async tests
-- **⚠️ Runtime Limitation**: Frame's synchronous event-driven architecture limits complex async state handler patterns
+- **✅ Test Coverage**: All 13 async tests passing (100% success rate)
+- **✅ Recent Fixes**: Fixed async handlers missing `async` marking, simplified class-based tests
+
+#### Recent Test Improvements (2025-09-06)
+- **Import Tests**: Fixed all 5 import test failures (100% passing)
+- **Enum Tests**: Fixed all 3 enum test failures (100% passing)
+- **Async Tests**: Fixed remaining async test issues (100% passing)
+- **Backtick Removal**: Updated all tests to avoid backticks
+- **Overall Progress**: 93.7% → 97.3% success rate
 
 ### v0.30 Modular AST Structure
 

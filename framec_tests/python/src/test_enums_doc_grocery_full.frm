@@ -1,5 +1,4 @@
-`from enum import Enum`
-`import random`
+import random
 
 fn main() {
     var grocery = Grocery()

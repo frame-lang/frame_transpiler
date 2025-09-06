@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.37)
 
 **Last Updated**: 2025-09-06  
-**Status**: Complete with async/await support, slicing operations, with statements, and runtime async infrastructure with 93.7% test coverage (208/222 tests passing)
+**Status**: Complete with async/await support, slicing operations, with statements, and runtime async infrastructure with 97.3% test coverage (216/222 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -170,7 +170,29 @@ system Calculator {
 }
 ```
 
-**Note**: For languages other than Python, backticks can still be used for language-specific import syntax.
+## Backtick Expressions (Deprecated in v0.37)
+
+**Status**: Being phased out in favor of native Frame syntax
+
+Backtick expressions (`\`expression\``) were previously used for embedding target language code directly. As of v0.37, Frame is moving away from backticks:
+
+### Current Limitations Without Backticks
+- **Module member access**: `math.pi`, `json.dumps()` not yet supported natively
+- **Complex indexing**: Dictionary assignment, chained indexing
+- **Method chaining**: Complex method call chains
+
+### Workarounds
+```frame
+// Instead of: var pi = `math.pi`
+import math
+var pi = 3.14159  // Use literal value for now
+
+// Instead of: var result = `dict[key]`
+// Use simplified approach until native support added
+```
+
+### Future Direction
+The goal is to support all common patterns natively without backticks. Module member access syntax (`module.member`) is planned for a future release.
 
 ## Native Python Functions (v0.31)
 

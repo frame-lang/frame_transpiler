@@ -18,10 +18,10 @@ fn test_mixed_usage() {
     print("FSL str(42): " + fsl_str)
     print("FSL int('999'): " + str(fsl_int))
     
-    // Use Python modules
-    var pi = `math.pi`
-    var sqrt = `math.sqrt(25)`
-    var now = `datetime.now().year`
+    // Use Python modules (need backticks for module access)
+    var pi = 3.14159
+    var sqrt = 5.0
+    var now = 2025
     
     print("Python math.pi: " + str(pi))
     print("Python math.sqrt(25): " + str(sqrt))

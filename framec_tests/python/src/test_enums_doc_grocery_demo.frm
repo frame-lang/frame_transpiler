@@ -1,4 +1,4 @@
-`import random`
+import random
 
 fn main() {
     var grocery = Grocery()

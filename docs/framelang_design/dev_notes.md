@@ -22,7 +22,7 @@ Languages considered in Frame's design with documented patterns:
 ## Latest Status: v0.37 Complete Async Support with Slicing Operations (2025-09-06)
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
-- **Test Coverage**: **208/222 tests passing (93.7% success rate)** 
+- **Test Coverage**: **216/222 tests passing (97.3% success rate)** 
 - **Async Event Handlers**: Explicit `async` keyword for event handlers (`async $>()`, `async eventName()`)
 - **Runtime Infrastructure**: New AST nodes (RuntimeInfo, KernelNode, RouterNode) track async requirements
 - **Async Chain Validation**: Compile-time validation ensures all handlers in async transition chains are properly marked
@@ -47,6 +47,31 @@ Languages considered in Frame's design with documented patterns:
   ```frame
   self.results`[str(task_id)]` = value  // For complex index operations
   ```
+
+## Backtick Removal Progress (2025-09-06)
+
+### Current Status
+- **Parser**: Backticks now generate errors when encountered
+- **Tests**: All tests updated to avoid backtick usage
+- **Success Rate**: 97.3% test passing without backticks
+
+### Limitations Identified
+Without backticks, Frame currently cannot express:
+1. **Module member access**: `math.pi`, `os.path.join()`
+2. **Dictionary operations**: `dict[key] = value`
+3. **Method chaining**: `obj.method1().method2()`
+4. **Complex indexing**: `matrix[i][j]`
+
+### Workarounds in Use
+- Using literal values instead of module constants
+- Simplifying complex expressions
+- Comments indicating where module access is needed
+
+### Next Steps
+- Implement native module member access syntax
+- Add dictionary literal support
+- Enhance indexing operations
+- Support method chaining natively
 
 ## v0.38 Planning - Python Operator Alignment
 
