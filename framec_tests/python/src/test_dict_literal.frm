@@ -49,9 +49,6 @@ fn process_dict(data) {
 
 // Test in system context
 system DictSystem {
-    domain:
-        var settings = {"mode": "test", "count": 0}
-    
     interface:
         configure(config): string
         getSettings(): string
@@ -70,6 +67,9 @@ system DictSystem {
                 return = str(settings)
             }
         }
+    
+    domain:
+        var settings = {"mode": "test", "count": 0}
 }
 
 fn main() {

@@ -1476,7 +1476,7 @@ impl<'a> Parser<'a> {
         // foo(...) : type { ... return
         if self.match_token(&[TokenType::Return_]) {
 
-            let expr_t = match self.equality() {
+            let expr_t = match self.expression() {
                 Ok(Some(expr_t)) => expr_t,
                 _ => {
                     let err_msg = "Expected expression as return value.";
@@ -2609,7 +2609,7 @@ impl<'a> Parser<'a> {
         // foo(...) : type { ... return
         if self.match_token(&[TokenType::Return_]) {
 
-            let expr_t = match self.equality() {
+            let expr_t = match self.expression() {
                 Ok(Some(expr_t)) => expr_t,
                 _ => {
                     let err_msg = "Expected expression as return value.";
@@ -2942,7 +2942,7 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::Return_]) {
 
             let mut expr_t_opt: Option<ExprType> = None;
-            let return_expr_result =  self.equality();
+            let return_expr_result =  self.expression();
             match return_expr_result {
                 Ok(Some(expr_t)) => {
                     expr_t_opt = Some(expr_t)
@@ -4474,7 +4474,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Return_]) {
             let mut expr_t_opt: Option<ExprType> = None;
-            let return_expr_result = self.equality();
+            let return_expr_result = self.expression();
             match return_expr_result {
                 Ok(Some(expr_t)) => {
                     expr_t_opt = Some(expr_t)
@@ -5234,7 +5234,7 @@ impl<'a> Parser<'a> {
             } else {
                 // Regular return statement: "return expr?" 
                 let mut expr_t_opt: Option<ExprType> = None;
-                let return_expr_result = self.equality();
+                let return_expr_result = self.expression();
                 match return_expr_result {
                     Ok(Some(expr_t)) => {
                         expr_t_opt = Some(expr_t)
@@ -9553,6 +9553,7 @@ impl<'a> Parser<'a> {
 
                 call_chain.push_back(node);
             };
+
 
             // end of chain if no  '.'
             if !self.match_token(&[TokenType::Dot]) {

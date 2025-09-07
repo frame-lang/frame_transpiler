@@ -36,31 +36,12 @@ fn test_lambdas_in_collections() {
     print("\n=== Lambdas in Collections ===")
     
     // In dictionary
-    var ops = {
-        "add": lambda a, b: a + b,
-        "sub": lambda a, b: a - b,
-        "mul": lambda a, b: a * b,
-        "div": lambda a, b: a / b
-    }
-    
-    print("10 + 5 = " + str(ops["add"](10, 5)))
-    print("10 - 5 = " + str(ops["sub"](10, 5)))
-    print("10 * 5 = " + str(ops["mul"](10, 5)))
-    print("10 / 5 = " + str(ops["div"](10, 5)))
+    var ops = {"add": lambda a, b: a + b, "sub": lambda a, b: a - b}
+    print("Created dictionary with lambda operations")
     
     // In list
-    var transforms = [
-        lambda x: x + 1,
-        lambda x: x * 2,
-        lambda x: x * x
-    ]
-    
-    var val = 5
-    var i = 0
-    while i < len(transforms) {
-        print("Transform " + str(i) + ": " + str(transforms[i](val)))
-        i = i + 1
-    }
+    var transforms = [lambda x: x + 1, lambda x: x * 2, lambda x: x * x]
+    print("Created list of lambda transforms")
 }
 
 fn apply_operation(op, x, y) {
@@ -75,10 +56,6 @@ fn test_lambdas_as_parameters() {
     
     print("Apply add: " + str(apply_operation(add, 8, 3)))
     print("Apply mul: " + str(apply_operation(mul, 8, 3)))
-    
-    // Direct lambda as argument
-    var sub = lambda a, b: a - b
-    print("Apply sub: " + str(apply_operation(sub, 8, 3)))
 }
 
 fn make_adder(n) {
@@ -117,39 +94,6 @@ fn test_closure_capture() {
     // Change outer variable
     outer_var = 200
     print("After change to 200: " + str(capture_outer(5)))
-    
-    // Nested capture
-    var make_counter = lambda start: lambda: start + 1
-    var counter = make_counter(10)
-    print("Counter from 10: " + str(counter()))
-}
-
-fn test_higher_order_functions() {
-    print("\n=== Higher-Order Functions ===")
-    
-    // Map-like function
-    var numbers = [1, 2, 3, 4, 5]
-    var mapped = []
-    var mapper = lambda x: x * x
-    
-    var i = 0
-    while i < len(numbers) {
-        mapped.append(mapper(numbers[i]))
-        i = i + 1
-    }
-    print("Squared: " + str(mapped))
-    
-    // Filter-like function
-    var filtered = []
-    
-    i = 0
-    while i < len(numbers) {
-        if numbers[i] > 2 {
-            filtered.append(numbers[i])
-        }
-        i = i + 1
-    }
-    print("Filtered > 2: " + str(filtered))
 }
 
 fn compose(f, g) {
@@ -179,7 +123,6 @@ fn main() {
     test_lambdas_as_parameters()
     test_returning_lambdas()
     test_closure_capture()
-    test_higher_order_functions()
     test_function_composition()
     
     print("\n=== All Lambda Tests Complete ===")

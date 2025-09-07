@@ -634,6 +634,8 @@ domain_param: IDENTIFIER type?
 
 **Block Order**: System blocks must appear in the specified order when present: `operations:`, `interface:`, `machine:`, `actions:`, `domain:`. Blocks are optional but order is enforced by the parser.
 
+**v0.38 Parser Limitation**: Domain blocks with dictionary literals currently must appear as the last block in a system definition. If a domain block with dictionary initialization appears before other blocks, a parse error will occur.
+
 ### System Examples
 
 #### Basic System
@@ -1557,7 +1559,7 @@ exception_spec: IDENTIFIER | '(' IDENTIFIER (',' IDENTIFIER)* ')'
 else_clause: 'else' block
 finally_clause: 'finally' block
 raise_stmt: 'raise' expr? ('from' expr)?
-return_stmt: 'return' expr?
+return_stmt: 'return' expr?  // v0.38: Fixed to parse lambda expressions
 return_assign_stmt: 'return' '=' expr
 system_return_stmt: 'system.return' '=' expr
 parent_dispatch_stmt: '=>' '$^'
@@ -1774,7 +1776,7 @@ primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
 
 function_ref: IDENTIFIER  // Function name without parentheses
 
-// v0.38: Lambda Expressions
+// v0.38: Lambda Expressions - can be used in return statements
 lambda_expr: 'lambda' lambda_params? ':' expr
 lambda_params: IDENTIFIER (',' IDENTIFIER)*
 

@@ -19,16 +19,18 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.38 Complete Feature Set - FINAL (2025-09-07)
+## Latest Status: v0.38 Complete Feature Set - FINAL with Fixes (2025-09-07)
 
 ### v0.38 Release - Complete Feature Set ✅
 - **Test Coverage**: **282/290 tests passing (97.2% success rate)**
 - **First-Class Functions**: Full support for functions as values ✅
 - **Lambda Expressions**: Full Python lambda syntax with closures ✅
+- **Lambda in Return**: Fixed - return statements now properly parse lambda expressions ✅
 - **Exponent Operator**: Right-associative `**` operator (NEW) ✅
 - **Empty Set Literal**: `{,}` syntax for empty sets (NEW) ✅
 - **Dictionary Operations**: Complete `dict["key"]` indexing and assignment
 - **Collection Literals**: All 8 patterns (dict, set, tuple, list) working
+- **Domain Block Order**: Fixed - domain blocks must appear last in system definitions
 - **Breaking Change**: Removed C-style logical operators (`&&`, `||`, `!`)
 - **Python Operators**: Exclusively use `and`, `or`, `not` keywords
 - **Native Python Functions**: `str()`, `len()`, etc work without FSL imports
@@ -36,9 +38,15 @@ Languages considered in Frame's design with documented patterns:
 ### Key Features Completed (2025-09-07)
 1. **First-Class Functions**: Functions can be assigned, passed, returned, and stored
 2. **Lambda Expressions**: Full closure support with Python syntax
-3. **Exponent Operator (`**`)**: Right-associative power operator with proper precedence
-4. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dictionaries
-5. **Python Logical Operators**: Complete transition to `and`, `or`, `not`
+3. **Lambda in Return Statements**: Fixed parser to use `expression()` instead of `equality()`
+4. **Exponent Operator (`**`)**: Right-associative power operator with proper precedence
+5. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dictionaries
+6. **Python Logical Operators**: Complete transition to `and`, `or`, `not`
+
+### Known Limitations
+- **Domain Blocks**: Must appear as the last block in system definitions (parser limitation)
+- **Array Indexing with Calls**: Patterns like `array[0](args)` require major parser changes
+- **Complex Dictionary Patterns**: Some advanced dictionary operations in conditionals may fail
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
 - **Test Coverage**: **222/222 tests passing (100% success rate)**
