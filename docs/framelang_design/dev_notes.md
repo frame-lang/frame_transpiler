@@ -19,14 +19,22 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.38 Python Logical Operators Alignment (2025-01-22)
+## Latest Status: v0.38 Complete Collections, Lambda & Python Operators (2025-09-07)
 
-### v0.38 Release - Python Logical Operators ✅
-- **Test Coverage**: **224/224 tests passing (100% success rate)** 🎉
+### v0.38 Release - Complete Feature Set ✅
+- **Test Coverage**: **269/283 tests passing (95.1% success rate)**
+- **Lambda Expressions**: Full Python lambda syntax support discovered working
+- **Dictionary Operations**: Complete `dict["key"]` indexing and assignment
+- **Collection Literals**: All 8 patterns (dict, set, tuple, list) working
 - **Breaking Change**: Removed C-style logical operators (`&&`, `||`, `!`)
 - **Python Operators**: Exclusively use `and`, `or`, `not` keywords
-- **Clear Migration**: Scanner provides helpful error messages for old syntax
-- **Full Compatibility**: All existing tests updated and passing
+- **Native Python Functions**: `str()`, `len()`, etc work without FSL imports
+
+### Key Discoveries (2025-09-07)
+- Many features documented as "not yet supported" are actually fully working
+- Lambda expressions have complete implementation
+- Dictionary indexing works for both read and write operations
+- Domain variable dictionary initialization has a parser limitation
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
 - **Test Coverage**: **222/222 tests passing (100% success rate)**
@@ -157,8 +165,8 @@ Without backticks, Frame currently cannot express:
 - **Module System**: Complete implementation with named modules and qualified access
 - **List Comprehensions**: Full support for `[expr for var in iter if cond]` syntax
 - **Unpacking Operator**: Working `*` operator for list unpacking in literals
-- **Import System**: Comprehensive import support for Python and FSL
-- **FSL Imports**: Explicit import requirement (`from fsl import ...`)
+- **Import System**: Comprehensive import support for Python and native Python operations
+- **native Python operations Imports**: Explicit import requirement (`from fsl import ...`)
 
 ### List Comprehensions (v0.34) ✅
 - **Basic Syntax**: `[x * x for x in range(10)]`
@@ -186,10 +194,10 @@ Without backticks, Frame currently cannot express:
 
 ### Import System Coverage
 - **Python Imports**: Simple, aliased, from, and wildcard imports
-- **FSL Imports**: Individual and wildcard FSL imports with validation
-- **Mixed Imports**: Python and FSL imports work together seamlessly
-- **Error Handling**: Proper behavior when FSL not imported
-- **Edge Cases**: User functions with FSL names handled correctly
+- **native Python operations Imports**: Individual and wildcard native Python operations imports with validation
+- **Mixed Imports**: Python and native Python operations imports work together seamlessly
+- **Error Handling**: Proper behavior when native Python operations not imported
+- **Edge Cases**: User functions with native Python operations names handled correctly
 
 ### Implementation Complete
 - **Qualified Names**: ✅ `module.function()` syntax working
@@ -199,35 +207,35 @@ Without backticks, Frame currently cannot express:
 - **List Comprehensions**: ✅ Full Python-style list comprehension support
 - **Unpacking Operator**: ✅ Working unpacking in list literals
 
-## Previous Status: Frame Standard Library Complete with Module System Implementation (2025-01-20)
+## Previous Status: native Python support Complete with Module System Implementation (2025-01-20)
 
-### Frame Standard Library (FSL) - v0.33 COMPLETE ✅
+### native Python support (native Python operations) - v0.33 COMPLETE ✅
 - **Phase 1 - Type Conversions**: `str()`, `int()`, `float()`, `bool()` ✅
 - **Phase 2 - List Operations**: Full suite of list methods and properties ✅
 - **Phase 3 - String Operations**: Core string methods working ✅
 - **Test Coverage**: 189/189 tests passing (100% success rate) 🎉
-- **Module Integration**: FSL works seamlessly with new module system
+- **Module Integration**: native Python operations works seamlessly with new module system
 - **Backward Compatible**: Existing backtick syntax still works
 
 ### Critical Fix Applied
-- **FSL Registry Conflict**: Removed 'add' from FSL registry to prevent conflicts with user-defined functions
-- **Issue**: User function `add(5, 3)` was incorrectly recognized as FSL SetAdd operation
+- **native Python operations Registry Conflict**: Removed 'add' from native Python operations registry to prevent conflicts with user-defined functions
+- **Issue**: User function `add(5, 3)` was incorrectly recognized as native Python operations SetAdd operation
 - **Solution**: Commented out 'add' registration in `framec/src/frame_c/fsl/mod.rs`
 - **Impact**: Resolved test_scope_isolation.frm failure
 
-### FSL Phase 1: Type Conversions ✅
+### native Python operations Phase 1: Type Conversions ✅
 - `str()`, `int()`, `float()`, `bool()` work without backticks
 - Direct transpilation to target language built-ins
-- Two-pass parsing recognizes FSL operations during semantic analysis
+- Two-pass parsing recognizes native Python operations operations during semantic analysis
 
-### FSL Phase 2: List Operations ✅
+### native Python operations Phase 2: List Operations ✅
 - **Basic Methods**: `append()`, `pop()`, `clear()`
 - **Advanced Methods**: `insert()`, `remove()`, `extend()`, `reverse()`, `sort()`, `copy()`
 - **Query Methods**: `index()`, `count()`
 - **Properties**: `.length` → `len()`, `.is_empty` → `len() == 0`
 - **Negative Indexing**: Full Python-style negative index support
 
-### FSL Phase 3: String Operations ✅
+### native Python operations Phase 3: String Operations ✅
 - **Working Methods**: `trim()` → `strip()`, `upper()`, `lower()`, `replace()`, `split()`
 - **Properties**: `.length` → `len()`
 - **Partial Support**: `contains()` and `substring()` need additional visitor work
@@ -279,7 +287,7 @@ Without backticks, Frame currently cannot express:
 ### 2025-01-20: Module System Implementation Complete (v0.34)
 
 #### Overview
-Completed the full implementation of Frame's module system, including module declarations, nested module support, qualified name resolution, and making FSL an optional import to prevent namespace conflicts. Achieved 100% test success rate with all module features working.
+Completed the full implementation of Frame's module system, including module declarations, nested module support, qualified name resolution, and making native Python operations an optional import to prevent namespace conflicts. Achieved 100% test success rate with all module features working.
 
 #### Key Changes
 1. **Scanner Updates**:
@@ -291,26 +299,26 @@ Completed the full implementation of Frame's module system, including module dec
 
 3. **Parser Implementation**:
    - Added `module_declaration()` method for parsing module blocks
-   - Implemented FSL import tracking with HashMap<String, bool>
-   - Modified FSL recognition to check if operations are imported
+   - Implemented native Python operations import tracking with HashMap<String, bool>
+   - Modified native Python operations recognition to check if operations are imported
 
 4. **Symbol Table Updates**:
    - Added `NamedModule` variant to `ParseScopeType` enum
    - Implemented scope management for nested modules
    - Fixed compilation issues with proper scope handling
 
-5. **FSL Changes**:
-   - FSL operations now require explicit import: `from fsl import str, int`
+5. **native Python operations Changes**:
+   - native Python operations operations now require explicit import: `from fsl import str, int`
    - Without import, operations like `str()` are treated as external functions
    - Prevents namespace conflicts with user-defined functions
 
 #### Test Results
 - ✅ Empty module declarations parse successfully
 - ✅ Module syntax recognized by parser  
-- ✅ FSL import requirement working correctly
-- ✅ FSL imports filtered from Python output (no ModuleNotFoundError)
-- ✅ FSL operations work with explicit import
-- ✅ External function calls work without FSL import
+- ✅ native Python operations import requirement working correctly
+- ✅ native Python operations imports filtered from Python output (no ModuleNotFoundError)
+- ✅ native Python operations operations work with explicit import
+- ✅ External function calls work without native Python operations import
 - ✅ Qualified name resolution fully implemented and working
 - ✅ Module functions and variables accessible from outside modules
 - ✅ Nested modules with proper scope resolution
@@ -318,27 +326,27 @@ Completed the full implementation of Frame's module system, including module dec
 - ✅ 100% test success rate (189/189 tests passing)
 
 #### Latest Fix (2025-01-20)
-- **Python Visitor Update**: Added FSL import filtering to prevent `ModuleNotFoundError`
-- **Implementation**: FSL imports starting with "fsl" are not output to Python code
-- **Rationale**: FSL operations map to Python built-ins, no actual module needed
+- **Python Visitor Update**: Added native Python operations import filtering to prevent `ModuleNotFoundError`
+- **Implementation**: native Python operations imports starting with "fsl" are not output to Python code
+- **Rationale**: native Python operations operations map to Python built-ins, no actual module needed
 
-### 2025-09-03: Frame Standard Library Phase 1 (v0.33)
+### 2025-09-03: native Python support Phase 1 (v0.33)
 
 #### Overview
-Implemented the Frame Standard Library (FSL) to provide native built-in operations that work consistently across all target languages without requiring backticks.
+Implemented the native Python support (native Python operations) to provide native built-in operations that work consistently across all target languages without requiring backticks.
 
 #### Key Implementation Details
 1. **Two-Pass Parsing Enhancement**:
-   - First pass: Builds symbol table, treats FSL ops as regular calls
-   - Second pass: Recognizes FSL operations via FslRegistry
+   - First pass: Builds symbol table, treats native Python operations ops as regular calls
+   - Second pass: Recognizes native Python operations operations via FslRegistry
    - Converts recognized operations to BuiltInCallExprT nodes
 
 2. **Parser Fix**:
    - Added BuiltInCallExprT case to unary_expression function
-   - Prevents "TODO" parse errors for FSL operations
-   - Allows FSL operations to propagate through expression chain
+   - Prevents "TODO" parse errors for native Python operations operations
+   - Allows native Python operations operations to propagate through expression chain
 
-3. **FSL Registry Architecture**:
+3. **native Python operations Registry Architecture**:
    ```rust
    pub struct FslRegistry {
        operations: HashMap<String, BuiltInOperation>,

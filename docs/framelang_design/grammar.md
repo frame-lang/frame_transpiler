@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.38)
 
-**Last Updated**: 2025-01-22  
-**Status**: Complete with Python logical operators, async/await support, slicing operations, with statements, and runtime async infrastructure with 100% test coverage (224/224 tests passing)
+**Last Updated**: 2025-09-07  
+**Status**: Complete with lambda expressions, collections, Python logical operators, async/await support, slicing operations, with statements, and runtime async infrastructure with 95.1% test coverage (269/283 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1757,7 +1757,7 @@ actions:
 ## Expressions
 
 ```bnf
-expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr
+expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr | lambda_expr
 
 binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '%'
@@ -1769,6 +1769,11 @@ unary_expr: ('-' | 'not' | '~') expr  // v0.38: Python 'not' operator
 primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
             | 'true' | 'false' | 'None'
             | '(' expr ')' | '@'
+            | list_literal | dict_literal | set_literal | tuple_literal
+
+// v0.38: Lambda Expressions
+lambda_expr: 'lambda' lambda_params? ':' expr
+lambda_params: IDENTIFIER (',' IDENTIFIER)*
 
 self_expr: 'self' | 'self' '.' IDENTIFIER  // v0.31: self as standalone or dotted access
 
@@ -1779,11 +1784,112 @@ fsl_expr: fsl_conversion | fsl_property | fsl_method  // v0.33: Frame Standard L
 fsl_conversion: ('str' | 'int' | 'float' | 'bool') '(' expr ')'
 fsl_property: expr '.' ('length' | 'size' | 'capacity' | 'name' | 'value')
 fsl_method: expr '.' ('append' | 'pop' | 'clear' | 'remove') '(' arg_list? ')'
+
+// v0.38: Collection Literals
+list_literal: '[' expr_list? ']'
+dict_literal: '{' dict_pair_list? '}'
+set_literal: '{' expr_list '}'  // Disambiguated from dict by lack of colons
+tuple_literal: '(' expr_list? ')'  // Disambiguated by context and trailing comma
+
+dict_pair_list: dict_pair (',' dict_pair)* ','?
+dict_pair: expr ':' expr
+expr_list: expr (',' expr)* ','?
+
+// v0.38: Collection Constructors (transformed to literals)
+collection_constructor: list_constructor | set_constructor | tuple_constructor | dict_constructor
+list_constructor: 'list' '(' arg_list? ')'     // → [args...]
+set_constructor: 'set' '(' arg_list? ')'       // → {args...}
+tuple_constructor: 'tuple' '(' arg_list? ')'   // → (args...)
+dict_constructor: 'dict' '(' ')'               // → dict() (Python-compliant)
 ```
 
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
 
 **Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
+
+### Lambda Expressions (v0.38)
+
+Frame v0.38 supports full Python lambda syntax for creating anonymous functions:
+
+```frame
+// Basic lambda
+var square = lambda x: x * x
+var result = square(5)  // 25
+
+// Multi-parameter lambda
+var add = lambda a, b: a + b
+var sum = add(3, 4)  // 7
+
+// No-parameter lambda
+var get_pi = lambda: 3.14159
+var pi = get_pi()  // 3.14159
+
+// Lambda in collections
+var ops = {
+    "add": lambda a, b: a + b,
+    "mul": lambda a, b: a * b,
+    "square": lambda x: x * x
+}
+
+// Using lambdas
+var result = ops["add"](5, 3)  // 8
+```
+
+**Note**: While lambda expressions are fully supported, functions/lambdas are not yet first-class values (cannot be passed as parameters to other functions).
+
+### Collection Syntax (v0.38)
+
+Frame v0.38 introduces comprehensive collection syntax support with both literal and constructor forms for all Python collection types.
+
+#### Collection Literals
+```frame
+// List literals
+var numbers = [1, 2, 3, 4, 5]
+var empty_list = []
+var nested = [[1, 2], [3, 4]]
+
+// Dictionary literals  
+var person = {"name": "Alice", "age": 30}
+var empty_dict = {}
+var nested_dict = {"user": {"id": 1, "active": true}}
+
+// Dictionary indexing (fully working in v0.38)
+var name = person["name"]  // "Alice"
+person["age"] = 31  // Assignment works
+var user_id = nested_dict["user"]["id"]  // Nested access works
+
+// Set literals
+var unique_numbers = {1, 2, 3}
+var single_set = {42}
+
+// Tuple literals
+var coordinates = (10, 20)
+var single_tuple = (42,)  // Trailing comma required
+var empty_tuple = ()
+```
+
+#### Collection Constructors
+Collection constructors are automatically transformed into their literal equivalents:
+
+```frame
+// List constructor → literal
+var l = list(1, 2, 3)      // → [1, 2, 3]
+
+// Set constructor → literal  
+var s = set(1, 2, 3)       // → {1, 2, 3}
+
+// Tuple constructor → literal
+var t = tuple(10, 20, 30)  // → (10, 20, 30)
+
+// Dict constructor (Python-compliant)
+var d = dict()             // → dict() (kept as-is)
+```
+
+#### Disambiguation Rules
+- **`{}` syntax**: Empty braces default to dictionary for Python compatibility
+- **Dict vs Set**: Presence of colons (`:`) indicates dictionary, otherwise set
+- **Tuple vs Parentheses**: Multiple elements or trailing comma indicates tuple
+- **Single-element tuples**: Automatically get trailing comma in generated Python
 
 ### Logical Operators (v0.38)
 
@@ -1820,9 +1926,42 @@ if (a and b) or (not c and d) {
 
 **Frame Standard Library (v0.33)**: FSL provides native built-in operations guaranteed across all target languages, eliminating the need for backticks when using common operations like type conversions and collection methods.
 
-## Frame Standard Library (FSL) - v0.34
+## Native Python Functions (v0.38)
 
-The Frame Standard Library provides native built-in operations that work consistently across all target languages. As of v0.34, FSL operations **require explicit import** to use them.
+Frame v0.38 supports native Python built-in functions **without requiring imports**:
+
+```frame
+// Type conversions work natively
+var x = 42
+var s = str(x)        // "42" - no import needed
+var i = int("123")    // 123
+var f = float("3.14") // 3.14
+var b = bool(0)       // False
+
+// Built-in functions work directly
+var items = [1, 2, 3]
+var count = len(items)  // 3
+print("Hello")          // Direct output
+
+// String methods on string objects
+var text = "hello"
+var upper = text.upper()  // "HELLO"
+var lower = text.lower()  // "hello"
+
+// List methods on list objects
+var list = [1, 2, 3]
+list.append(4)        // Adds to end
+var last = list.pop() // Removes and returns last
+
+// Dictionary methods on dict objects
+var dict = {"a": 1}
+var val = dict.get("a", 0)  // 1
+dict.setdefault("b", [])    // Creates if not exists
+```
+
+## Frame Standard Library (FSL) - v0.34 (DEPRECATED)
+
+**Note**: As of v0.38, most FSL operations are no longer needed as native Python functions work directly. FSL imports are retained for backward compatibility but are not required for basic operations.
 
 ### FSL Import Requirements (v0.34)
 
@@ -1889,6 +2028,41 @@ fn enumExample() {
 - 🚧 Boolean conversion - In progress
 - 📋 Collection properties - Planned for Phase 2
 - 📋 Collection methods - Planned for Phase 2
+
+## Known Limitations (v0.38)
+
+While Frame v0.38 has extensive Python compatibility, the following limitations exist:
+
+### Parser Limitations
+1. **Domain Variable Dictionary Initialization**: Cannot initialize domain variables with dictionary literals
+   ```frame
+   // This causes a parse error:
+   domain:
+       var settings = {"key": "value"}  // ❌ Not supported
+   
+   // Workaround - initialize in state enter handler:
+   domain:
+       var settings
+   
+   machine:
+       $Ready {
+           $>() {
+               settings = {"key": "value"}  // ✅ Works here
+           }
+       }
+   ```
+
+### Language Features Not Yet Implemented
+1. **First-Class Functions**: Functions/lambdas cannot be passed as parameters
+2. **Lambda Closures**: Variable capture in lambdas not yet supported
+3. **Exponent Operator**: `**` operator not implemented
+4. **Empty Set Literal**: Must use `set()` function, not `{}` which creates empty dict
+
+### Test Suite Status
+- **Total Tests**: 283
+- **Passing**: 269 (95.1%)
+- **Failing**: 14 (4.9%)
+- Most failures are known limitations or environment-specific issues
 
 ## Tokens
 

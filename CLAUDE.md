@@ -8,7 +8,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), and v0.38 (Python logical operators alignment).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (built-in operations), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), and v0.38 (complete collection syntax & Python logical operators alignment).
 
 ## File Locations
 
@@ -29,7 +29,7 @@ Frame is a state machine language that transpiles to multiple target languages. 
 **Standard test validation command:**
 ```bash
 cd framec_tests
-# Use release build for FSL features
+# Use release build for all features
 python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Users/marktruluck/projects/frame_transpiler/target/release/framec
 ```
 
@@ -37,7 +37,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.38`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (224/224 tests passing) - Python Logical Operators Alignment
+**Status**: ✅ **95.1% TEST SUCCESS RATE** (269/283 tests passing) - Complete Collection Syntax, Lambda Support & Python Logical Operators
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -140,8 +140,6 @@ fn main() {
 
 #### List Comprehensions (NEW in v0.34)
 ```frame
-from fsl import str
-
 fn examples() {
     // Basic comprehension
     var squares = [x * x for x in range(10)]
@@ -172,27 +170,20 @@ fn unpacking() {
 }
 ```
 
-### v0.34 Frame Standard Library (FSL) - Import Required ✅
+### Native Python Operations Support ✅
 
-The Frame Standard Library provides native built-in operations that work consistently across all target languages. As of v0.34, FSL requires explicit imports to prevent namespace conflicts.
+Frame v0.38 supports native Python operations directly, without requiring special imports:
 
-```frame
-// v0.34: Must import FSL operations explicitly
-from fsl import str, int, float, bool
-```
-
-**Critical Fix**: Removed 'add' from FSL registry to prevent conflicts with user-defined functions.
-
-#### Phase 1 - Type Conversions ✅
+#### Type Conversions
 ```frame
 var x = 42
-var s = str(x)        // "42" - no backticks needed!
+var s = str(x)        // "42" - works natively
 var i = int("123")    // 123
 var f = float("3.14") // 3.14
-var b = bool(0)       // false
+var b = bool(0)       // False
 ```
 
-#### Phase 2 - List Operations ✅
+#### List Operations
 ```frame
 // All list methods work natively
 var list = [1, 2, 3]
@@ -210,34 +201,27 @@ var idx = list.index(3)  // Find index
 var cnt = list.count(2)  // Count occurrences
 var copy = list.copy()   // Shallow copy
 
-// Properties
-var len = list.length    // Converts to len(list)
-var empty = list.is_empty // Converts to len(list) == 0
+// Properties work directly
+var len = len(list)      // Length function
 
 // Negative indexing works!
 var last_item = list[-1]
 ```
 
-#### Phase 3 - String Operations ✅
+#### String Operations
 ```frame
 var text = "  Hello World  "
 var upper = text.upper()     // "  HELLO WORLD  "
 var lower = text.lower()     // "  hello world  "
-var trimmed = text.trim()    // "Hello World" (→ strip())
+var trimmed = text.strip()   // "Hello World"
 var replaced = text.replace("World", "Frame")
 var parts = text.split(" ")
-var len = text.length        // Converts to len(text)
+var len = len(text)         // Length function
 
-// Pending (need visitor work):
-// text.contains("world")    // Will convert to "world" in text
-// text.substring(0, 5)      // Will convert to text[0:5]
+// Direct Python syntax
+var contains = "world" in text
+var substring = text[0:5]
 ```
-
-#### Implementation Details
-- **Two-Pass Parsing**: FSL operations recognized in semantic analysis pass
-- **Parser Fix**: Added BuiltInCallExprT handling in unary_expression
-- **Visitor Transformations**: Properties like `.length` converted during code generation
-- **Debug Control**: `FRAME_TRANSPILER_DEBUG=1` environment variable for debug output
 
 ### v0.32 Features
 
@@ -347,7 +331,69 @@ system AsyncPipeline {
 }
 ```
 
-### v0.38 Python Logical Operators (NEW)
+### v0.38 Complete Collection Syntax, Lambda Support & Python Logical Operators (NEW)
+
+Frame v0.38 delivers three major improvements: complete collection syntax support, full lambda expressions, and Python logical operator alignment.
+
+#### All 8 Collection Patterns Now Supported
+
+Frame v0.38 implements comprehensive collection syntax with both literal and constructor forms:
+
+```frame
+fn collection_examples() {
+    // Set constructor with arguments → Set literal
+    var s = set(1, 2, 3)           // → {1, 2, 3}
+    var s_set = {1, 2, 3}          // Set literal syntax
+    
+    // List constructor with arguments → List literal  
+    var l = list(1, 2, 3)          // → [1, 2, 3]
+    var l2 = [1, 2, 3]             // List literal syntax
+    
+    // Dict constructor (Python-compliant)
+    var d = dict()                 // → dict() (kept as-is)
+    var d2 = {"a": 1, "b": 2}      // Dictionary literal syntax
+    
+    // Tuple constructor with arguments → Tuple literal
+    var t = tuple(10, 20, 30)      // → (10, 20, 30)
+    var t2 = (10, 20, 30)          // Tuple literal syntax
+    
+    // Complex nested collections
+    var mixed = {
+        "numbers": [1, 2, 3],
+        "coordinates": [(0, 0), (1, 1)],
+        "unique": {1, 2, 3}
+    }
+}
+```
+
+#### Lambda Expressions (NEW in v0.38) ✅
+Frame now supports full Python lambda syntax:
+
+```frame
+fn examples() {
+    // Basic lambda
+    var square = lambda x: x * x
+    
+    // Multi-parameter lambda
+    var add = lambda a, b: a + b
+    
+    // No-parameter lambda
+    var get_pi = lambda: 3.14159
+    
+    // Lambda in dictionary
+    var ops = {"add": lambda a,b: a+b, "mul": lambda a,b: a*b}
+    
+    print("5 squared: " + str(square(5)))
+}
+```
+
+#### Key Features:
+- **Full lambda syntax**: Complete Python lambda expression support
+- **Dictionary indexing**: `dict["key"]` read/write operations work
+- **Smart disambiguation**: `{}` syntax distinguishes dict vs set by colon presence
+- **Constructor transformation**: `list(1,2,3)` → `[1,2,3]` for optimal Python code
+- **Single-element tuples**: Automatic trailing comma in Python output
+- **Python compliance**: `dict()` kept as proper Python syntax
 
 #### Breaking Change: C-Style Operators Removed
 - **Removed**: `&&`, `||`, `!` operators no longer supported
@@ -400,10 +446,10 @@ fn examples() {
 - **Module functions**: Functions inside modules fully accessible
 - **Module variables**: Variables inside modules with proper scoping
 
-#### FSL as Optional Import (IMPLEMENTED in v0.34)
-- **Explicit import required**: FSL operations no longer available by default
-- **Import tracking**: Parser tracks which FSL operations are imported
-- **Namespace protection**: Prevents conflicts with user-defined functions
+#### Native Python Support (v0.38)
+- **No special imports needed**: Python built-in functions work directly
+- **Type conversions**: `str()`, `int()`, `float()`, `bool()` work natively
+- **Collection operations**: All Python list, dict, set methods work directly
 
 #### Qualified Names (IMPLEMENTED in v0.34)
 - **Function calls**: `module.function()` syntax working
@@ -412,9 +458,6 @@ fn examples() {
 - **Cross-module access**: Functions in modules accessible from outside
 
 ```frame
-// Must import FSL operations explicitly
-from fsl import str, int, float
-
 // Define modules with functions and variables
 module calculator {
     fn add(a, b) {
@@ -428,7 +471,7 @@ module calculator {
 fn main() {
     var result = calculator.add(5, 3)  // Qualified function call
     var ver = calculator.version       // Qualified variable access
-    var s = str(result)               // FSL with explicit import
+    var s = str(result)               // Native Python str() function
 }
 ```
 
@@ -440,8 +483,6 @@ fn main() {
 
 #### Example Module Usage
 ```frame
-from fsl import str, int, list  // Must explicitly import FSL
-
 // Define modules with functions and variables
 module utils {
     fn helper() {
@@ -470,7 +511,7 @@ fn main() {
     var result = utils.helper()          // Call module function
     var num = utils.increment()          // Call function that modifies module variable
     var product = math.basic.multiply(3, 4)  // Call nested module function
-    var s = str(result)                  // FSL with explicit import
+    var s = str(result)                  // Native Python str() function
     print("Count: " + str(utils.count))  // Access module variable
 }
 ```
@@ -899,7 +940,7 @@ cargo build && ./target/debug/framec -l python_3 test_file.frm
 ### v0.35 Test Success - All Tests Passing
 - **Total Tests**: 207/207 (100% success rate) 🎉
 - **Module System Tests**: All passing (preserved from v0.34)
-- **FSL Integration Tests**: All passing
+- **Native Python Operation Tests**: All passing
 - **Async Function Tests**: All 7 async tests passing
 - **Async Interface Tests**: All passing
 - **Mixed Async/Sync Tests**: All passing
