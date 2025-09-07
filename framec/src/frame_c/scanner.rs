@@ -50,6 +50,7 @@ impl Scanner {
             ("module".to_string(), TokenType::Module),
             ("async".to_string(), TokenType::Async),
             ("await".to_string(), TokenType::Await),
+            ("lambda".to_string(), TokenType::Lambda),
             ("try".to_string(), TokenType::Try),
             ("except".to_string(), TokenType::Except),
             ("finally".to_string(), TokenType::Finally),
@@ -58,6 +59,7 @@ impl Scanner {
             ("and".to_string(), TokenType::And),
             ("or".to_string(), TokenType::Or),
             ("not".to_string(), TokenType::Not),
+            ("xor".to_string(), TokenType::LogicalXor),
         ]
         .iter()
         .cloned()
@@ -179,7 +181,13 @@ impl Scanner {
                     self.add_token(TokenType::Pipe)
                 }
             }
-            '*' => self.add_token(TokenType::Star),
+            '*' => {
+                if self.match_char('*') {
+                    self.add_token(TokenType::StarStar);
+                } else {
+                    self.add_token(TokenType::Star);
+                }
+            }
             '+' => {
                 if self.match_char('+') {
                     self.add_token(TokenType::PlusPlus);
@@ -265,7 +273,8 @@ impl Scanner {
                     // && is no longer supported - use 'and' keyword instead
                     self.error(self.line, "Operator '&&' has been removed. Use 'and' keyword instead.");
                 } else if self.match_char('|') {
-                    self.add_token(TokenType::LogicalXor)  // &| is still used for XOR
+                    // &| operator has been removed - use 'xor' keyword instead
+                    self.error(self.line, "Operator '&|' has been removed. Use 'xor' keyword instead.");
                 } else {
                     self.add_token(TokenType::Ampersand)
                 }
@@ -705,6 +714,7 @@ pub enum TokenType {
     Dash,         // -
     DashDash,     // --
     Star,         // *
+    StarStar,     // **
     EqualEqual,   // ==
     Bang,         // !
     BangEqual,    // !=
@@ -719,7 +729,7 @@ pub enum TokenType {
     // REMOVED: Caret (^) - use 'return' keyword
     // REMOVED: ReturnAssign (^=) - use 'return = value'
     LogicalAnd,                   // &&
-    LogicalXor,                   // &|
+    LogicalXor,                   // xor keyword
     System,                       // 'system' keyword for modern syntax (reserved)
     SystemReturn,                 // 'system.return' for setting interface return value
     Self_,                        // self
@@ -762,6 +772,7 @@ pub enum TokenType {
     Module,   // 'module' keyword
     Async,    // 'async' keyword
     Await,    // 'await' keyword
+    Lambda,   // 'lambda' keyword
     Try,      // 'try' keyword
     Except,   // 'except' keyword
     Finally,  // 'finally' keyword

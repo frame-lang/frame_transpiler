@@ -1,4 +1,3 @@
-from fsl import str, int
 
 // Proof of Concept: Event-handlers-as-functions architecture
 // This demonstrates the proposed v0.36 architecture where each event

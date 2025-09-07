@@ -1,7 +1,6 @@
 // Test unpacking operator (*args) support - v0.34
 // Expected: Unpacking operators work in list literals
 
-from fsl import str
 
 fn test_list_unpacking() {
     var list1 = [1, 2, 3]

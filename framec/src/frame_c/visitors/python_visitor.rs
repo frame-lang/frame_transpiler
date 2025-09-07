@@ -13,7 +13,7 @@ use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::rc::Rc;
 
 // use yaml_rust::{YamlLoader, Yaml};
@@ -1498,7 +1498,7 @@ impl PythonVisitor {
                                     }
                                 }
                             }
-                            ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+                            ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node: _ } => {
                                 eprintln!("DEBUG: Found CallChainStmtT - might be assignment!");
                                 // CallChainStmtT can also contain assignments
                                 // Need to check if this is an assignment expression
@@ -1517,7 +1517,6 @@ impl PythonVisitor {
                 // Local variable declarations are handled in the first pass
                 // to detect shadowing
             }
-            _ => {}
         }
     }
     
@@ -2293,7 +2292,7 @@ impl PythonVisitor {
             self.add_code("if __name__ == '__main__':");
             self.indent();
             self.newline();
-            let mut arg_cnt: usize = 0;
+            let arg_cnt: usize = 0;
             // v0.30: Functions moved to module level - get from Arcanum
             // if let Some(functions) = &self
             //     .system_node_rcref_opt
@@ -2436,10 +2435,6 @@ impl PythonVisitor {
                                 },
                                 ExprStmtType::BinaryStmtT { binary_stmt_node } => {
                                     binary_stmt_node.accept(self)
-                                }
-                                _ => {
-                                    self.debug_print("STMT_DEBUG: Processing UNHANDLED ExprStmtType - this might be the print() issue!");
-                                    // Unhandled ExprStmtType
                                 }
                             }
                         }
@@ -3609,7 +3604,7 @@ impl PythonVisitor {
                 let domain_symbol_table = domain_block_symbol.symtab_rcref.borrow();
                 
                 // Iterate through all symbols in the domain block
-                for (name, symbol_type_rcref) in &domain_symbol_table.symbols {
+                for (_name, symbol_type_rcref) in &domain_symbol_table.symbols {
                     let symbol_type = symbol_type_rcref.borrow();
                     match &*symbol_type {
                         SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
@@ -3644,6 +3639,11 @@ impl PythonVisitor {
                                     }
                                     
                                     self.outdent();
+                                    self.newline();
+                                    
+                                    // Generate alias for easier access: EnumName = SystemName_EnumName
+                                    let enum_name = &enum_decl_node.name;
+                                    self.add_code(&format!("{} = {}", enum_name, full_enum_name));
                                     self.newline();
                                 }
                             }
@@ -3739,7 +3739,7 @@ impl PythonVisitor {
         self.generate_system_constructor(system_symbol, domain_vec);
         
         // Generate interface methods - use proper visitor methods instead of stubs
-        if let Some(interface_block_symbol_rcref) = &system_symbol.interface_block_symbol_opt {
+        if let Some(_interface_block_symbol_rcref) = &system_symbol.interface_block_symbol_opt {
             // TODO: Need to convert from symbol back to AST node to call proper visitor
             // For now, generate basic interface structure
             self.newline();
@@ -3749,7 +3749,7 @@ impl PythonVisitor {
         }
         
         // Generate machine states - use proper visitor methods instead of stubs  
-        if let Some(machine_block_symbol_rcref) = &system_symbol.machine_block_symbol_opt {
+        if let Some(_machine_block_symbol_rcref) = &system_symbol.machine_block_symbol_opt {
             // TODO: Need to convert from symbol back to AST node to call proper visitor
             // For now, generate basic machine structure
             self.newline();
@@ -3880,7 +3880,7 @@ impl PythonVisitor {
         
         
         // Generate each operation method
-        for (name, symbol_type_rcref) in symbol_table.symbols.iter() {
+        for (_name, symbol_type_rcref) in symbol_table.symbols.iter() {
             let symbol_type = symbol_type_rcref.borrow();
             self.newline();
             
@@ -4088,6 +4088,116 @@ impl PythonVisitor {
     
     //* --------------------------------------------------------------------- *//
     // ===================== Frame v0.31 Explicit Self/System Context =====================
+    
+    /// Handle collection constructor calls - transform into Python literals
+    fn handle_collection_constructor(&mut self, method_call: &CallExprNode) {
+        let method_name = &method_call.identifier.name.lexeme;
+        
+        match method_name.as_str() {
+            "list" => {
+                self.add_code("[");
+                let expr_list = &method_call.call_expr_list.exprs_t;
+                for (i, expr) in expr_list.iter().enumerate() {
+                    if i > 0 {
+                        self.add_code(",");
+                    }
+                    expr.accept(self);
+                }
+                self.add_code("]");
+            }
+            "set" => {
+                self.add_code("{");
+                let expr_list = &method_call.call_expr_list.exprs_t;
+                for (i, expr) in expr_list.iter().enumerate() {
+                    if i > 0 {
+                        self.add_code(", ");
+                    }
+                    expr.accept(self);
+                }
+                self.add_code("}");
+            }
+            "tuple" => {
+                self.add_code("(");
+                let expr_list = &method_call.call_expr_list.exprs_t;
+                for (i, expr) in expr_list.iter().enumerate() {
+                    if i > 0 {
+                        self.add_code(", ");
+                    }
+                    expr.accept(self);
+                }
+                // Single element tuples need trailing comma in Python
+                if expr_list.len() == 1 {
+                    self.add_code(",");
+                }
+                self.add_code(")");
+            }
+            "dict" => {
+                // Keep dict() as-is - it's valid Python
+                self.add_code("dict");
+                method_call.call_expr_list.accept(self);
+            }
+            _ => {
+                // Should not reach here based on the check in visit_call_expression_node
+                self.add_code(&method_call.identifier.name.lexeme);
+                method_call.call_expr_list.accept(self);
+            }
+        }
+    }
+    
+    /// Handle collection constructor calls for string output
+    fn handle_collection_constructor_to_string(&mut self, method_call: &CallExprNode, output: &mut String) {
+        let method_name = &method_call.identifier.name.lexeme;
+        
+        match method_name.as_str() {
+            "list" => {
+                output.push('[');
+                let expr_list = &method_call.call_expr_list.exprs_t;
+                for (i, expr) in expr_list.iter().enumerate() {
+                    if i > 0 {
+                        output.push(',');
+                    }
+                    expr.accept_to_string(self, output);
+                }
+                output.push(']');
+            }
+            "set" => {
+                output.push('{');
+                let expr_list = &method_call.call_expr_list.exprs_t;
+                for (i, expr) in expr_list.iter().enumerate() {
+                    if i > 0 {
+                        output.push_str(", ");
+                    }
+                    expr.accept_to_string(self, output);
+                }
+                output.push('}');
+            }
+            "tuple" => {
+                output.push('(');
+                let expr_list = &method_call.call_expr_list.exprs_t;
+                for (i, expr) in expr_list.iter().enumerate() {
+                    if i > 0 {
+                        output.push_str(", ");
+                    }
+                    expr.accept_to_string(self, output);
+                }
+                // Single element tuples need trailing comma in Python
+                if expr_list.len() == 1 {
+                    output.push(',');
+                }
+                output.push(')');
+            }
+            "dict" => {
+                // Keep dict() as-is - it's valid Python
+                output.push_str("dict");
+                method_call.call_expr_list.accept_to_string(self, output);
+            }
+            _ => {
+                // Should not reach here based on the check in visit_call_expression_node_to_string
+                output.push_str(&method_call.identifier.name.lexeme);
+                method_call.call_expr_list.accept_to_string(self, output);
+            }
+        }
+    }
     
     /// Handle self.method() calls - explicit action/operation calls
     fn handle_self_call(&mut self, method_call: &CallExprNode) {
@@ -5437,7 +5547,7 @@ impl AstVisitor for PythonVisitor {
         if let Some(call_chain) = &method_call.call_chain {
             eprintln!("DEBUG visit_call_expression_node: method={}, call_chain length={}, context={:?}", 
                 method_call.identifier.name.lexeme, call_chain.len(), method_call.context);
-            for (i, callable) in call_chain.iter().enumerate() {
+            for (i, _callable) in call_chain.iter().enumerate() {
                 eprintln!("  Call chain[{}]: <callable>", i);
             }
         } else {
@@ -5538,8 +5648,15 @@ impl AstVisitor for PythonVisitor {
                 }
                 
                 // Only treat as true external call if not an action or operation
-                self.add_code(&method_call.identifier.name.lexeme);
-                method_call.call_expr_list.accept(self);
+                // Special handling for collection constructors with arguments
+                let method_name = &method_call.identifier.name.lexeme;
+                if method_name == "list" || method_name == "set" || method_name == "tuple" || method_name == "dict" {
+                    // Transform constructor calls into literals
+                    self.handle_collection_constructor(method_call);
+                } else {
+                    self.add_code(&method_call.identifier.name.lexeme);
+                    method_call.call_expr_list.accept(self);
+                }
                 self.debug_exit("visit_call_expression_node");
                 return;
             }
@@ -5635,8 +5752,15 @@ impl AstVisitor for PythonVisitor {
             }
             
             // Only treat as true external call if not an action or operation
-            output.push_str(&method_call.identifier.name.lexeme);
-            method_call.call_expr_list.accept_to_string(self, output);
+            // Special handling for collection constructors with arguments
+            let method_name = &method_call.identifier.name.lexeme;
+            if method_name == "list" || method_name == "set" || method_name == "tuple" || method_name == "dict" {
+                // Transform constructor calls into literals
+                self.handle_collection_constructor_to_string(method_call, output);
+            } else {
+                output.push_str(&method_call.identifier.name.lexeme);
+                method_call.call_expr_list.accept_to_string(self, output);
+            }
             return;
         }
         
@@ -6004,7 +6128,7 @@ impl AstVisitor for PythonVisitor {
                 Some(CallChainNodeType::VariableNodeT { .. }));
         
         // Check if this is a static method call on a system (SystemName.method())
-        let is_static_system_call = call_l_chain_expression_node.call_chain.len() >= 2 &&
+        let _is_static_system_call = call_l_chain_expression_node.call_chain.len() >= 2 &&
             matches!(call_l_chain_expression_node.call_chain.get(0),
                 Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node })
                     if id_node.name.lexeme.chars().next().map_or(false, |c| c.is_uppercase()));
@@ -6521,7 +6645,7 @@ impl AstVisitor for PythonVisitor {
                 Some(CallChainNodeType::VariableNodeT { .. }));
         
         // Check if this is a static method call on a system (SystemName.method())
-        let is_static_system_call = call_chain_expression_node.call_chain.len() >= 2 &&
+        let _is_static_system_call = call_chain_expression_node.call_chain.len() >= 2 &&
             matches!(call_chain_expression_node.call_chain.get(0),
                 Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node })
                     if id_node.name.lexeme.chars().next().map_or(false, |c| c.is_uppercase()));
@@ -6550,7 +6674,7 @@ impl AstVisitor for PythonVisitor {
                 }
             }
             
-            let node_desc = match &node {
+            let _node_desc = match &node {
                 CallChainNodeType::SelfT { .. } => "Self".to_string(),
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => 
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme),
@@ -7950,6 +8074,120 @@ impl AstVisitor for PythonVisitor {
     
     //* --------------------------------------------------------------------- *//
     
+    fn visit_dict_literal_node(&mut self, dict: &DictLiteralNode) {
+        self.add_code("{");
+        
+        let mut separator = "";
+        for (key, value) in &dict.pairs {
+            self.add_code(separator);
+            
+            // Check if this is a dict unpacking (key is DictUnpackExprT and value is NilExprT)
+            if matches!(key, ExprType::DictUnpackExprT { .. }) && matches!(value, ExprType::NilExprT) {
+                // For dict unpacking, just visit the key which contains the unpacking expression
+                key.accept(self);
+            } else {
+                // Regular key-value pair
+                key.accept(self);
+                self.add_code(": ");
+                value.accept(self);
+            }
+            separator = ", ";
+        }
+        
+        self.add_code("}");
+    }
+    
+    fn visit_dict_literal_node_to_string(&mut self, dict: &DictLiteralNode, output: &mut String) {
+        output.push('{');
+        
+        let mut separator = "";
+        for (key, value) in &dict.pairs {
+            output.push_str(separator);
+            
+            // Check if this is a dict unpacking (key is DictUnpackExprT and value is NilExprT)
+            if matches!(key, ExprType::DictUnpackExprT { .. }) && matches!(value, ExprType::NilExprT) {
+                // For dict unpacking, just visit the key which contains the unpacking expression
+                key.accept_to_string(self, output);
+            } else {
+                // Regular key-value pair
+                key.accept_to_string(self, output);
+                output.push_str(": ");
+                value.accept_to_string(self, output);
+            }
+            separator = ", ";
+        }
+        
+        output.push('}');
+    }
+    
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_set_literal_node(&mut self, set: &SetLiteralNode) {
+        self.add_code("{");
+        
+        let mut separator = "";
+        for element in &set.elements {
+            self.add_code(separator);
+            element.accept(self);
+            separator = ", ";
+        }
+        
+        self.add_code("}");
+    }
+    
+    fn visit_set_literal_node_to_string(&mut self, set: &SetLiteralNode, output: &mut String) {
+        output.push('{');
+        
+        let mut separator = "";
+        for element in &set.elements {
+            output.push_str(separator);
+            element.accept_to_string(self, output);
+            separator = ", ";
+        }
+        
+        output.push('}');
+    }
+    
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_tuple_literal_node(&mut self, tuple: &TupleLiteralNode) {
+        self.add_code("(");
+        
+        let mut separator = "";
+        for element in &tuple.elements {
+            self.add_code(separator);
+            element.accept(self);
+            separator = ", ";
+        }
+        
+        // Single element tuples need trailing comma in Python
+        if tuple.elements.len() == 1 {
+            self.add_code(",");
+        }
+        
+        self.add_code(")");
+    }
+    
+    fn visit_tuple_literal_node_to_string(&mut self, tuple: &TupleLiteralNode, output: &mut String) {
+        output.push('(');
+        
+        let mut separator = "";
+        for element in &tuple.elements {
+            output.push_str(separator);
+            element.accept_to_string(self, output);
+            separator = ", ";
+        }
+        
+        // Single element tuples need trailing comma in Python
+        if tuple.elements.len() == 1 {
+            output.push(',');
+        }
+        
+        output.push(')');
+    }
+    
+    //* --------------------------------------------------------------------- *//
+    
     // v0.34: Visit unpacking expression node
     fn visit_unpack_expr_node(&mut self, unpack: &UnpackExprNode) {
         self.add_code("*");
@@ -8000,10 +8238,74 @@ impl AstVisitor for PythonVisitor {
         output.push(']');
     }
     
+    // v0.38: Visit dictionary comprehension node
+    fn visit_dict_comprehension_node(&mut self, comp: &DictComprehensionNode) {
+        self.add_code("{");
+        
+        // Generate the key expression
+        comp.key_expr.accept(self);
+        self.add_code(": ");
+        
+        // Generate the value expression
+        comp.value_expr.accept(self);
+        
+        // Generate 'for target in iterable'
+        self.add_code(" for ");
+        self.add_code(&comp.target);
+        self.add_code(" in ");
+        comp.iter.accept(self);
+        
+        // Optional 'if' condition
+        if let Some(ref condition) = comp.condition {
+            self.add_code(" if ");
+            condition.accept(self);
+        }
+        
+        self.add_code("}");
+    }
+    
+    // v0.38: Visit dictionary comprehension node to string
+    fn visit_dict_comprehension_node_to_string(&mut self, comp: &DictComprehensionNode, output: &mut String) {
+        output.push('{');
+        
+        // Generate the key expression
+        comp.key_expr.accept_to_string(self, output);
+        output.push_str(": ");
+        
+        // Generate the value expression
+        comp.value_expr.accept_to_string(self, output);
+        
+        // Generate 'for target in iterable'
+        output.push_str(" for ");
+        output.push_str(&comp.target);
+        output.push_str(" in ");
+        comp.iter.accept_to_string(self, output);
+        
+        // Optional 'if' condition
+        if let Some(ref condition) = comp.condition {
+            output.push_str(" if ");
+            condition.accept_to_string(self, output);
+        }
+        
+        output.push('}');
+    }
+    
     // v0.34: Visit unpacking expression node to string  
     fn visit_unpack_expr_node_to_string(&mut self, unpack: &UnpackExprNode, output: &mut String) {
         output.push('*');
         unpack.expr.accept_to_string(self, output);
+    }
+    
+    // v0.38: Visit dict unpacking expression node
+    fn visit_dict_unpack_expr_node(&mut self, dict_unpack: &DictUnpackExprNode) {
+        self.add_code("**");
+        dict_unpack.expr.accept(self);
+    }
+    
+    // v0.38: Visit dict unpacking expression node to string
+    fn visit_dict_unpack_expr_node_to_string(&mut self, dict_unpack: &DictUnpackExprNode, output: &mut String) {
+        output.push_str("**");
+        dict_unpack.expr.accept_to_string(self, output);
     }
     
     // v0.35: Visit await expression node
@@ -8016,6 +8318,54 @@ impl AstVisitor for PythonVisitor {
     fn visit_await_expr_node_to_string(&mut self, await_expr: &AwaitExprNode, output: &mut String) {
         output.push_str("await ");
         await_expr.expr.accept_to_string(self, output);
+    }
+    
+    // v0.38: Visit lambda expression node
+    fn visit_lambda_expr_node(&mut self, lambda_expr: &LambdaExprNode) {
+        self.add_code("lambda ");
+        
+        // Add parameters
+        for (i, param) in lambda_expr.params.iter().enumerate() {
+            if i > 0 {
+                self.add_code(", ");
+            }
+            self.add_code(param);
+        }
+        
+        self.add_code(": ");
+        
+        // Add body expression
+        lambda_expr.body.accept(self);
+    }
+    
+    // v0.38: Visit lambda expression node to string
+    fn visit_lambda_expr_node_to_string(&mut self, lambda_expr: &LambdaExprNode, output: &mut String) {
+        output.push_str("lambda ");
+        
+        // Add parameters
+        for (i, param) in lambda_expr.params.iter().enumerate() {
+            if i > 0 {
+                output.push_str(", ");
+            }
+            output.push_str(param);
+        }
+        
+        output.push_str(": ");
+        
+        // Add body expression
+        lambda_expr.body.accept_to_string(self, output);
+    }
+    
+    // v0.38: Visit function reference node (first-class functions)
+    fn visit_function_ref_node(&mut self, name: &str) {
+        // In Python, function references are just the function name without parentheses
+        self.add_code(name);
+    }
+    
+    // v0.38: Visit function reference node to string
+    fn visit_function_ref_node_to_string(&mut self, name: &str, output: &mut String) {
+        // In Python, function references are just the function name without parentheses
+        output.push_str(name);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -8187,7 +8537,7 @@ impl AstVisitor for PythonVisitor {
         identifier_node: &IdentifierNode,
         output: &mut String,
     ) {
-        let name = &identifier_node.name.lexeme;
+        let _name = &identifier_node.name.lexeme;
         output.push_str(&identifier_node.name.lexeme.to_string());
     }
 
@@ -8804,9 +9154,49 @@ impl AstVisitor for PythonVisitor {
             binary_expr_node.right_rcref.borrow().accept(self);
             self.add_code("))");
         } else {
-            binary_expr_node.left_rcref.borrow().accept(self);
+            // Check if left side is a unary not expression that needs parentheses
+            let left_needs_parens = matches!(
+                &*binary_expr_node.left_rcref.borrow(),
+                ExprType::UnaryExprT { unary_expr_node } 
+                    if unary_expr_node.operator == OperatorType::Not
+            ) && matches!(
+                binary_expr_node.operator,
+                OperatorType::EqualEqual | OperatorType::NotEqual | 
+                OperatorType::Less | OperatorType::LessEqual |
+                OperatorType::Greater | OperatorType::GreaterEqual |
+                OperatorType::LogicalAnd | OperatorType::LogicalOr
+            );
+            
+            // Check if right side is a unary not expression that needs parentheses
+            let right_needs_parens = matches!(
+                &*binary_expr_node.right_rcref.borrow(),
+                ExprType::UnaryExprT { unary_expr_node } 
+                    if unary_expr_node.operator == OperatorType::Not
+            ) && matches!(
+                binary_expr_node.operator,
+                OperatorType::EqualEqual | OperatorType::NotEqual | 
+                OperatorType::Less | OperatorType::LessEqual |
+                OperatorType::Greater | OperatorType::GreaterEqual |
+                OperatorType::LogicalAnd | OperatorType::LogicalOr
+            );
+            
+            if left_needs_parens {
+                self.add_code("(");
+                binary_expr_node.left_rcref.borrow().accept(self);
+                self.add_code(")");
+            } else {
+                binary_expr_node.left_rcref.borrow().accept(self);
+            }
+            
             binary_expr_node.operator.accept(self);
-            binary_expr_node.right_rcref.borrow().accept(self);
+            
+            if right_needs_parens {
+                self.add_code("(");
+                binary_expr_node.right_rcref.borrow().accept(self);
+                self.add_code(")");
+            } else {
+                binary_expr_node.right_rcref.borrow().accept(self);
+            }
         }
     }
 
@@ -8840,15 +9230,61 @@ impl AstVisitor for PythonVisitor {
                 .accept_to_string(self, output);
             output.push_str("))");
         } else {
-            binary_expr_node
-                .left_rcref
-                .borrow()
-                .accept_to_string(self, output);
+            // Check if left side is a unary not expression that needs parentheses
+            let left_needs_parens = matches!(
+                &*binary_expr_node.left_rcref.borrow(),
+                ExprType::UnaryExprT { unary_expr_node } 
+                    if unary_expr_node.operator == OperatorType::Not
+            ) && matches!(
+                binary_expr_node.operator,
+                OperatorType::EqualEqual | OperatorType::NotEqual | 
+                OperatorType::Less | OperatorType::LessEqual |
+                OperatorType::Greater | OperatorType::GreaterEqual |
+                OperatorType::LogicalAnd | OperatorType::LogicalOr
+            );
+            
+            // Check if right side is a unary not expression that needs parentheses
+            let right_needs_parens = matches!(
+                &*binary_expr_node.right_rcref.borrow(),
+                ExprType::UnaryExprT { unary_expr_node } 
+                    if unary_expr_node.operator == OperatorType::Not
+            ) && matches!(
+                binary_expr_node.operator,
+                OperatorType::EqualEqual | OperatorType::NotEqual | 
+                OperatorType::Less | OperatorType::LessEqual |
+                OperatorType::Greater | OperatorType::GreaterEqual |
+                OperatorType::LogicalAnd | OperatorType::LogicalOr
+            );
+            
+            if left_needs_parens {
+                output.push('(');
+                binary_expr_node
+                    .left_rcref
+                    .borrow()
+                    .accept_to_string(self, output);
+                output.push(')');
+            } else {
+                binary_expr_node
+                    .left_rcref
+                    .borrow()
+                    .accept_to_string(self, output);
+            }
+            
             binary_expr_node.operator.accept_to_string(self, output);
-            binary_expr_node
-                .right_rcref
-                .borrow()
-                .accept_to_string(self, output);
+            
+            if right_needs_parens {
+                output.push('(');
+                binary_expr_node
+                    .right_rcref
+                    .borrow()
+                    .accept_to_string(self, output);
+                output.push(')');
+            } else {
+                binary_expr_node
+                    .right_rcref
+                    .borrow()
+                    .accept_to_string(self, output);
+            }
         }
     }
 
@@ -8872,6 +9308,7 @@ impl AstVisitor for PythonVisitor {
             OperatorType::LogicalOr => self.add_code(" or "),
             OperatorType::LogicalXor => self.add_code(" ^ "),
             OperatorType::Percent => self.add_code(" % "),
+            OperatorType::BitwiseOr => self.add_code(" | "),
             OperatorType::Unknown => self.add_code(" <Unknown> "),
         }
     }
@@ -8896,247 +9333,8 @@ impl AstVisitor for PythonVisitor {
             OperatorType::LogicalOr => output.push_str(" or "),
             OperatorType::LogicalXor => output.push_str(" ^ "),
             OperatorType::Percent => output.push_str(" % "),
+            OperatorType::BitwiseOr => output.push_str(" | "),
             OperatorType::Unknown => output.push_str(" <Unknown> "),
         }
     }
-    
-    //* --------------------------------------------------------------------- *//
-    // FSL Built-in operations (v0.33)
-    
-    fn visit_builtin_call_expr_node(&mut self, node: &crate::frame_c::fsl::BuiltInCallNode) {
-        use crate::frame_c::fsl::{BuiltInOperation, ConversionOperation, StringOperation};
-        
-        eprintln!("DEBUG visit_builtin_call_expr_node: Processing FSL operation {:?}", node.operation);
-        
-        match &node.operation {
-            BuiltInOperation::Conversion(conversion_op) => {
-                // Handle type conversion operations (str, int, float, bool)
-                match conversion_op {
-                    ConversionOperation::ToString => {
-                        self.add_code("str(");
-                        node.target.accept(self);
-                        self.add_code(")");
-                    }
-                    ConversionOperation::ToInt => {
-                        self.add_code("int(");
-                        node.target.accept(self);
-                        self.add_code(")");
-                    }
-                    ConversionOperation::ToFloat => {
-                        self.add_code("float(");
-                        node.target.accept(self);
-                        self.add_code(")");
-                    }
-                    ConversionOperation::ToBool => {
-                        self.add_code("bool(");
-                        node.target.accept(self);
-                        self.add_code(")");
-                    }
-                }
-            }
-            BuiltInOperation::String(string_op) => {
-                // Handle string operations (v0.33 Phase 3)
-                match string_op {
-                    StringOperation::StringUpper => {
-                        node.target.accept(self);
-                        self.add_code(".upper()");
-                    }
-                    StringOperation::StringLower => {
-                        node.target.accept(self);
-                        self.add_code(".lower()");
-                    }
-                    StringOperation::StringTrim => {
-                        node.target.accept(self);
-                        self.add_code(".strip()");  // Python uses strip() for trim()
-                    }
-                    StringOperation::StringContains => {
-                        // For contains, we need the argument
-                        if !node.arguments.is_empty() {
-                            self.add_code("(");
-                            node.arguments[0].accept(self);
-                            self.add_code(" in ");
-                            node.target.accept(self);
-                            self.add_code(")");
-                        }
-                    }
-                    StringOperation::StringReplace => {
-                        // replace(old, new)
-                        if node.arguments.len() >= 2 {
-                            node.target.accept(self);
-                            self.add_code(".replace(");
-                            node.arguments[0].accept(self);
-                            self.add_code(",");
-                            node.arguments[1].accept(self);
-                            self.add_code(")");
-                        }
-                    }
-                    StringOperation::StringSplit => {
-                        // split(delimiter)
-                        node.target.accept(self);
-                        self.add_code(".split(");
-                        if !node.arguments.is_empty() {
-                            node.arguments[0].accept(self);
-                        }
-                        self.add_code(")");
-                    }
-                    StringOperation::StringSubstring => {
-                        // Python uses slicing: string[start:end]
-                        if node.arguments.len() >= 2 {
-                            node.target.accept(self);
-                            self.add_code("[");
-                            node.arguments[0].accept(self);
-                            self.add_code(":");
-                            node.arguments[1].accept(self);
-                            self.add_code("]");
-                        }
-                    }
-                    _ => {
-                        self.add_code(&format!("/* Unimplemented string operation: {:?} */", string_op));
-                    }
-                }
-            }
-            _ => {
-                // Other FSL operations will be implemented in future phases
-                self.add_code(&format!("/* Unimplemented FSL operation: {:?} */", node.operation));
-            }
-        }
-    }
-    
-    fn visit_builtin_call_expr_node_to_string(&mut self, node: &crate::frame_c::fsl::BuiltInCallNode, output: &mut String) {
-        use crate::frame_c::fsl::{BuiltInOperation, ConversionOperation, StringOperation};
-        
-        match &node.operation {
-            BuiltInOperation::Conversion(conversion_op) => {
-                match conversion_op {
-                    ConversionOperation::ToString => {
-                        output.push_str("str(");
-                        node.target.accept_to_string(self, output);
-                        output.push_str(")");
-                    }
-                    ConversionOperation::ToInt => {
-                        output.push_str("int(");
-                        node.target.accept_to_string(self, output);
-                        output.push_str(")");
-                    }
-                    ConversionOperation::ToFloat => {
-                        output.push_str("float(");
-                        node.target.accept_to_string(self, output);
-                        output.push_str(")");
-                    }
-                    ConversionOperation::ToBool => {
-                        output.push_str("bool(");
-                        node.target.accept_to_string(self, output);
-                        output.push_str(")");
-                    }
-                }
-            }
-            BuiltInOperation::String(string_op) => {
-                // Handle string operations (v0.33 Phase 3)
-                match string_op {
-                    StringOperation::StringUpper => {
-                        node.target.accept_to_string(self, output);
-                        output.push_str(".upper()");
-                    }
-                    StringOperation::StringLower => {
-                        node.target.accept_to_string(self, output);
-                        output.push_str(".lower()");
-                    }
-                    StringOperation::StringTrim => {
-                        node.target.accept_to_string(self, output);
-                        output.push_str(".strip()");  // Python uses strip() for trim()
-                    }
-                    StringOperation::StringContains => {
-                        // For contains, we need the argument
-                        if !node.arguments.is_empty() {
-                            output.push_str("(");
-                            node.arguments[0].accept_to_string(self, output);
-                            output.push_str(" in ");
-                            node.target.accept_to_string(self, output);
-                            output.push_str(")");
-                        }
-                    }
-                    StringOperation::StringReplace => {
-                        // replace(old, new)
-                        if node.arguments.len() >= 2 {
-                            node.target.accept_to_string(self, output);
-                            output.push_str(".replace(");
-                            node.arguments[0].accept_to_string(self, output);
-                            output.push_str(",");
-                            node.arguments[1].accept_to_string(self, output);
-                            output.push_str(")");
-                        }
-                    }
-                    StringOperation::StringSplit => {
-                        // split(delimiter)
-                        node.target.accept_to_string(self, output);
-                        output.push_str(".split(");
-                        if !node.arguments.is_empty() {
-                            node.arguments[0].accept_to_string(self, output);
-                        }
-                        output.push_str(")");
-                    }
-                    StringOperation::StringSubstring => {
-                        // Python uses slicing: string[start:end]
-                        if node.arguments.len() >= 2 {
-                            node.target.accept_to_string(self, output);
-                            output.push_str("[");
-                            node.arguments[0].accept_to_string(self, output);
-                            output.push_str(":");
-                            node.arguments[1].accept_to_string(self, output);
-                            output.push_str("]");
-                        }
-                    }
-                    _ => {
-                        output.push_str(&format!("/* Unimplemented string operation: {:?} */", string_op));
-                    }
-                }
-            }
-            _ => {
-                output.push_str(&format!("/* Unimplemented FSL operation: {:?} */", node.operation));
-            }
-        }
-    }
-    
-    fn visit_builtin_property_expr_node(&mut self, node: &crate::frame_c::fsl::BuiltInPropertyNode) {
-        use crate::frame_c::fsl::BuiltInProperty;
-        
-        // Transform the property access
-        match &node.property {
-            BuiltInProperty::Length => {
-                self.add_code("len(");
-                node.target.accept(self);
-                self.add_code(")");
-            }
-            BuiltInProperty::IsEmpty => {
-                self.add_code("len(");
-                node.target.accept(self);
-                self.add_code(") == 0");
-            }
-            _ => {
-                self.add_code("/* Unsupported FSL property */");
-            }
-        }
-    }
-    
-    fn visit_builtin_property_expr_node_to_string(&mut self, node: &crate::frame_c::fsl::BuiltInPropertyNode, output: &mut String) {
-        use crate::frame_c::fsl::BuiltInProperty;
-        
-        // Transform the property access
-        match &node.property {
-            BuiltInProperty::Length => {
-                output.push_str("len(");
-                node.target.accept_to_string(self, output);
-                output.push_str(")");
-            }
-            BuiltInProperty::IsEmpty => {
-                output.push_str("len(");
-                node.target.accept_to_string(self, output);
-                output.push_str(") == 0");
-            }
-            _ => {
-                output.push_str("/* Unsupported FSL property */");
-            }
-        }
-    }
-    
 }

@@ -2,7 +2,6 @@
 // Expected: Both FSL and Python imports work together
 
 // Mix of FSL and regular Python imports
-from fsl import str, int
 import math
 from datetime import datetime
 

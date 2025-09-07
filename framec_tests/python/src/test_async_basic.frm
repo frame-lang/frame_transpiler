@@ -1,4 +1,3 @@
-from fsl import str, int, float
 
 // Test basic async/await functionality in Frame v0.35
 // This tests async functions, async operations, and async interface methods

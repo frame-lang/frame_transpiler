@@ -1,6 +1,5 @@
 // Exhaustive test for self.variable as lvalue, rvalue, and in nested expressions
 
-from fsl import str
 
 fn main() {
     var test = SelfVariableExhaustive()

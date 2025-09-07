@@ -1,4 +1,3 @@
-from fsl import str
 
 fn main() {
     var text = "Hello, World!"

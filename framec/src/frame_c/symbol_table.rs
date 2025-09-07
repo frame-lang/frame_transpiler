@@ -720,7 +720,7 @@ impl SymbolTable {
                 // They are managed directly by the Arcanum
                 return;
             }
-            ParseScopeType::NamedModule { ref module_name } => {
+            ParseScopeType::NamedModule { module_name: _ } => {
                 // v0.34: Named modules need to be inserted as symbols so they can be found later
                 // This should only be called during the first pass
                 // The module's own symbol table will be created in enter_scope
@@ -2455,7 +2455,7 @@ impl Arcanum {
         let mut searched_scopes = Vec::new();
         
         loop {
-            let (scope_name_for_debug, available_symbols, found_symbol, parent_opt) = {
+            let (scope_name_for_debug, _available_symbols, found_symbol, parent_opt) = {
                 let symbol_table = current_scope.borrow();
                 let scope_name_for_debug = symbol_table.name.clone();
                 let symbols_map = &symbol_table.symbols;

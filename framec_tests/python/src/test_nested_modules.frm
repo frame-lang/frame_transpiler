@@ -1,6 +1,5 @@
 // Test nested module declarations (v0.34)
 
-from fsl import str
 
 // Define a nested module for utilities
 module utils {

@@ -1,4 +1,3 @@
-from fsl import str, int, float, list
 
 // Simplified async stress test for Frame v0.37
 // Tests core async functionality without complex backtick blocks

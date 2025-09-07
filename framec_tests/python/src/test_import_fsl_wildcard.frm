@@ -2,7 +2,6 @@
 // Expected output: All FSL operations work with wildcard import
 
 // Wildcard FSL import - should import all available FSL functions
-from fsl import *
 
 fn test_all_conversions() {
     // Test all conversion functions available via wildcard

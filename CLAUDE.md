@@ -37,7 +37,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.38`  
-**Status**: ✅ **95.1% TEST SUCCESS RATE** (269/283 tests passing) - Complete Collection Syntax, Lambda Support & Python Logical Operators
+**Status**: ✅ **95.1% TEST SUCCESS RATE** (272/286 tests passing) - Complete Collection Syntax, First-Class Functions, Lambda Support & Python Logical Operators
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -331,9 +331,9 @@ system AsyncPipeline {
 }
 ```
 
-### v0.38 Complete Collection Syntax, Lambda Support & Python Logical Operators (NEW)
+### v0.38 Complete Collection Syntax, First-Class Functions, Lambda Support & Python Logical Operators (NEW)
 
-Frame v0.38 delivers three major improvements: complete collection syntax support, full lambda expressions, and Python logical operator alignment.
+Frame v0.38 delivers four major improvements: complete collection syntax support, full first-class function support, lambda expressions, and Python logical operator alignment.
 
 #### All 8 Collection Patterns Now Supported
 
@@ -387,8 +387,45 @@ fn examples() {
 }
 ```
 
+#### First-Class Functions (NEW in v0.38) ✅
+Frame now supports both named functions and lambdas as first-class values:
+
+```frame
+// Functions as values
+fn add(a, b) { return a + b }
+fn multiply(a, b) { return a * b }
+
+fn examples() {
+    // Assign function to variable
+    var my_func = add
+    var result = my_func(3, 4)  // 7
+    
+    // Pass function as parameter
+    fn apply_op(op, x, y) {
+        return op(x, y)
+    }
+    result = apply_op(multiply, 5, 3)  // 15
+    
+    // Return function from function
+    fn get_operation(name) {
+        if name == "add" {
+            return add
+        } else {
+            return multiply
+        }
+    }
+    
+    // Store functions in collections
+    var operations = [add, multiply]
+    var ops_dict = {"plus": add, "times": multiply}
+}
+```
+
 #### Key Features:
 - **Full lambda syntax**: Complete Python lambda expression support
+- **First-class functions**: Both named functions and lambdas are first-class values
+- **Function references**: Function names without parentheses become function values
+- **Higher-order functions**: Functions can accept and return other functions
 - **Dictionary indexing**: `dict["key"]` read/write operations work
 - **Smart disambiguation**: `{}` syntax distinguishes dict vs set by colon presence
 - **Constructor transformation**: `list(1,2,3)` → `[1,2,3]` for optimal Python code

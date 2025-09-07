@@ -1,7 +1,6 @@
 // Test simple module qualified names (v0.34)
 // This is a simplified test to check basic module.function() syntax
 
-from fsl import str
 
 // Simple module with a function
 module utils {

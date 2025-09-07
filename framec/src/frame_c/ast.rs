@@ -1505,6 +1505,15 @@ pub enum ExprType {
     ListT {
         list_node: ListNode,
     },
+    DictLiteralT {
+        dict_literal_node: DictLiteralNode,
+    },
+    SetLiteralT {
+        set_literal_node: SetLiteralNode,
+    },
+    TupleLiteralT {
+        tuple_literal_node: TupleLiteralNode,
+    },
     ExprListT {
         expr_list_node: ExprListNode,
     },
@@ -1543,24 +1552,33 @@ pub enum ExprType {
     SelfExprT {
         self_expr_node: SelfExprNode,
     },
-    // FSL Built-in operations (v0.33)
-    BuiltInCallExprT {
-        builtin_call_node: Box<crate::frame_c::fsl::BuiltInCallNode>,
-    },
-    BuiltInPropertyExprT {
-        builtin_property_node: Box<crate::frame_c::fsl::BuiltInPropertyNode>,
-    },
     // Unpacking operator (v0.34)
     UnpackExprT {
         unpack_expr_node: UnpackExprNode,
+    },
+    // Dict unpacking operator (v0.38)
+    DictUnpackExprT {
+        dict_unpack_expr_node: DictUnpackExprNode,
     },
     // List comprehension (v0.34)
     ListComprehensionExprT {
         list_comprehension_node: ListComprehensionNode,
     },
+    // Dictionary comprehension (v0.38)
+    DictComprehensionExprT {
+        dict_comprehension_node: DictComprehensionNode,
+    },
     // Await expression (v0.35)
     AwaitExprT {
         await_expr_node: AwaitExprNode,
+    },
+    // Lambda expression (v0.38)
+    LambdaExprT {
+        lambda_expr_node: LambdaExprNode,
+    },
+    // Function reference (v0.38) - for first-class functions
+    FunctionRefT {
+        name: String,
     },
     // TODO:
     // NilExprT is a new ExprType used atm to hack around
@@ -1602,8 +1620,6 @@ impl ExprType {
             ExprType::TransitionExprT { .. } => false,
             ExprType::StateStackOperationExprT { .. } => false,
             ExprType::CallExprListT { .. } => false, // this shouldn't happen
-            ExprType::BuiltInCallExprT { .. } => true, // FSL calls can be r-values
-            ExprType::BuiltInPropertyExprT { .. } => true, // FSL properties can be r-values
             _ => true,
         }
     }
@@ -1642,6 +1658,9 @@ impl ExprType {
             ExprType::CallExprT { .. } => "CallExprT",
             ExprType::CallExprListT { .. } => "CallExprListT",
             ExprType::ListT { .. } => "ListT",
+            ExprType::DictLiteralT { .. } => "DictLiteralT",
+            ExprType::SetLiteralT { .. } => "SetLiteralT",
+            ExprType::TupleLiteralT { .. } => "TupleLiteralT",
             ExprType::ExprListT { .. } => "ExprListT",
             ExprType::VariableExprT { .. } => "VariableExprT",
             ExprType::LiteralExprT { .. } => "LiteralExprT",
@@ -1656,11 +1675,13 @@ impl ExprType {
             ExprType::TransitionExprT { .. } => "TransitionExprT",
             ExprType::NilExprT { .. } => "NilExprT",
             ExprType::SelfExprT { .. } => "SelfExprT",
-            ExprType::BuiltInCallExprT { .. } => "BuiltInCallExprT",
-            ExprType::BuiltInPropertyExprT { .. } => "BuiltInPropertyExprT",
             ExprType::UnpackExprT { .. } => "UnpackExprT",
+            ExprType::DictUnpackExprT { .. } => "DictUnpackExprT",
             ExprType::ListComprehensionExprT { .. } => "ListComprehensionExprT",
+            ExprType::DictComprehensionExprT { .. } => "DictComprehensionExprT",
             ExprType::AwaitExprT { .. } => "AwaitExprT",
+            ExprType::LambdaExprT { .. } => "LambdaExprT",
+            ExprType::FunctionRefT { .. } => "FunctionRefT",
         }
     }
 
@@ -1695,6 +1716,10 @@ impl ExprType {
                 print!("*");
                 unpack_expr_node.expr.debug_print();
             }
+            ExprType::DictUnpackExprT { dict_unpack_expr_node } => {
+                print!("**");
+                dict_unpack_expr_node.expr.debug_print();
+            }
             ExprType::ListComprehensionExprT { list_comprehension_node } => {
                 print!("[");
                 list_comprehension_node.expr.debug_print();
@@ -1705,6 +1730,19 @@ impl ExprType {
                     cond.debug_print();
                 }
                 print!("]");
+            }
+            ExprType::DictComprehensionExprT { dict_comprehension_node } => {
+                print!("{{");
+                dict_comprehension_node.key_expr.debug_print();
+                print!(": ");
+                dict_comprehension_node.value_expr.debug_print();
+                print!(" for {} in ", dict_comprehension_node.target);
+                dict_comprehension_node.iter.debug_print();
+                if let Some(ref cond) = dict_comprehension_node.condition {
+                    print!(" if ");
+                    cond.debug_print();
+                }
+                print!("}}");
             }
             ExprType::AwaitExprT { await_expr_node } => {
                 print!("await ");
@@ -1748,6 +1786,15 @@ impl NodeElement for ExprType {
             }
             ExprType::ListT { list_node } => {
                 ast_visitor.visit_list_node(list_node);
+            }
+            ExprType::DictLiteralT { dict_literal_node } => {
+                ast_visitor.visit_dict_literal_node(dict_literal_node);
+            }
+            ExprType::SetLiteralT { set_literal_node } => {
+                ast_visitor.visit_set_literal_node(set_literal_node);
+            }
+            ExprType::TupleLiteralT { tuple_literal_node } => {
+                ast_visitor.visit_tuple_literal_node(tuple_literal_node);
             }
             ExprType::ExprListT { expr_list_node } => {
                 ast_visitor.visit_expression_list_node(expr_list_node);
@@ -1794,20 +1841,26 @@ impl NodeElement for ExprType {
             ExprType::DefaultLiteralValueForTypeExprT => {
                 panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
             }
-            ExprType::BuiltInCallExprT { builtin_call_node } => {
-                ast_visitor.visit_builtin_call_expr_node(builtin_call_node);
-            }
-            ExprType::BuiltInPropertyExprT { builtin_property_node } => {
-                ast_visitor.visit_builtin_property_expr_node(builtin_property_node);
-            }
             ExprType::UnpackExprT { unpack_expr_node } => {
                 ast_visitor.visit_unpack_expr_node(unpack_expr_node);
+            }
+            ExprType::DictUnpackExprT { dict_unpack_expr_node } => {
+                ast_visitor.visit_dict_unpack_expr_node(dict_unpack_expr_node);
             }
             ExprType::ListComprehensionExprT { list_comprehension_node } => {
                 ast_visitor.visit_list_comprehension_node(list_comprehension_node);
             }
+            ExprType::DictComprehensionExprT { dict_comprehension_node } => {
+                ast_visitor.visit_dict_comprehension_node(dict_comprehension_node);
+            }
             ExprType::AwaitExprT { await_expr_node } => {
                 ast_visitor.visit_await_expr_node(await_expr_node);
+            }
+            ExprType::LambdaExprT { lambda_expr_node } => {
+                ast_visitor.visit_lambda_expr_node(lambda_expr_node);
+            }
+            ExprType::FunctionRefT { name } => {
+                ast_visitor.visit_function_ref_node(name);
             }
         }
     }
@@ -1846,6 +1899,15 @@ impl NodeElement for ExprType {
             }
             ExprType::ListT { list_node } => {
                 ast_visitor.visit_list_node_to_string(list_node, output);
+            }
+            ExprType::DictLiteralT { dict_literal_node } => {
+                ast_visitor.visit_dict_literal_node_to_string(dict_literal_node, output);
+            }
+            ExprType::SetLiteralT { set_literal_node } => {
+                ast_visitor.visit_set_literal_node_to_string(set_literal_node, output);
+            }
+            ExprType::TupleLiteralT { tuple_literal_node } => {
+                ast_visitor.visit_tuple_literal_node_to_string(tuple_literal_node, output);
             }
             ExprType::ExprListT { expr_list_node } => {
                 ast_visitor.visit_expression_list_node_to_string(expr_list_node, output);
@@ -1893,20 +1955,26 @@ impl NodeElement for ExprType {
             ExprType::DefaultLiteralValueForTypeExprT => {
                 panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
             }
-            ExprType::BuiltInCallExprT { builtin_call_node } => {
-                ast_visitor.visit_builtin_call_expr_node_to_string(builtin_call_node, output);
-            }
-            ExprType::BuiltInPropertyExprT { builtin_property_node } => {
-                ast_visitor.visit_builtin_property_expr_node_to_string(builtin_property_node, output);
-            }
             ExprType::UnpackExprT { unpack_expr_node } => {
                 ast_visitor.visit_unpack_expr_node_to_string(unpack_expr_node, output);
+            }
+            ExprType::DictUnpackExprT { dict_unpack_expr_node } => {
+                ast_visitor.visit_dict_unpack_expr_node_to_string(dict_unpack_expr_node, output);
             }
             ExprType::ListComprehensionExprT { list_comprehension_node } => {
                 ast_visitor.visit_list_comprehension_node_to_string(list_comprehension_node, output);
             }
+            ExprType::DictComprehensionExprT { dict_comprehension_node } => {
+                ast_visitor.visit_dict_comprehension_node_to_string(dict_comprehension_node, output);
+            }
             ExprType::AwaitExprT { await_expr_node } => {
                 ast_visitor.visit_await_expr_node_to_string(await_expr_node, output);
+            }
+            ExprType::LambdaExprT { lambda_expr_node } => {
+                ast_visitor.visit_lambda_expr_node_to_string(lambda_expr_node, output);
+            }
+            ExprType::FunctionRefT { name } => {
+                ast_visitor.visit_function_ref_node_to_string(name, output);
             }
         }
     }
@@ -3327,6 +3395,7 @@ pub enum OperatorType {
     LogicalXor,
     Negated,
     Percent,
+    BitwiseOr,  // For dict union operator |
     Unknown,
 }
 
@@ -3359,6 +3428,7 @@ impl OperatorType {
             TokenType::Or => OperatorType::LogicalOr,  // Python 'or' keyword only
             TokenType::LogicalXor => OperatorType::LogicalXor,
             TokenType::Percent => OperatorType::Percent,
+            TokenType::Pipe => OperatorType::BitwiseOr,  // Dict union operator
             _ => OperatorType::Unknown,
         }
     }
@@ -4268,6 +4338,75 @@ impl NodeElement for ListNode {
 
 //-----------------------------------------------------//
 
+// Dictionary literal node for {key: value, ...} syntax
+pub struct DictLiteralNode {
+    pub pairs: Vec<(ExprType, ExprType)>, // (key, value) pairs
+}
+
+impl DictLiteralNode {
+    pub fn new(pairs: Vec<(ExprType, ExprType)>) -> DictLiteralNode {
+        DictLiteralNode { pairs }
+    }
+}
+
+impl NodeElement for DictLiteralNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_dict_literal_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_dict_literal_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// Set literal node for {1, 2, 3} syntax
+pub struct SetLiteralNode {
+    pub elements: Vec<ExprType>,
+}
+
+impl SetLiteralNode {
+    pub fn new(elements: Vec<ExprType>) -> SetLiteralNode {
+        SetLiteralNode { elements }
+    }
+}
+
+impl NodeElement for SetLiteralNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_set_literal_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_set_literal_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// Tuple literal node for (1, 2, 3) syntax
+pub struct TupleLiteralNode {
+    pub elements: Vec<ExprType>,
+}
+
+impl TupleLiteralNode {
+    pub fn new(elements: Vec<ExprType>) -> TupleLiteralNode {
+        TupleLiteralNode { elements }
+    }
+}
+
+impl NodeElement for TupleLiteralNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_tuple_literal_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_tuple_literal_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
 // ListElementNode captures list elements such as
 // x[0], zoo["lion"], bar[foo()] etc.
 pub struct ListElementNode {
@@ -4365,6 +4504,31 @@ impl NodeElement for UnpackExprNode {
 
 //-----------------------------------------------------//
 
+// DictUnpackExprNode for **kwargs unpacking (v0.38)
+pub struct DictUnpackExprNode {
+    pub expr: Box<ExprType>,
+}
+
+impl DictUnpackExprNode {
+    pub fn new(expr: ExprType) -> DictUnpackExprNode {
+        DictUnpackExprNode {
+            expr: Box::new(expr),
+        }
+    }
+}
+
+impl NodeElement for DictUnpackExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_dict_unpack_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_dict_unpack_expr_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
 // AwaitExprNode for await expressions (v0.35)
 pub struct AwaitExprNode {
     pub expr: Box<ExprType>,
@@ -4385,6 +4549,33 @@ impl NodeElement for AwaitExprNode {
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_await_expr_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// LambdaExprNode for lambda expressions (v0.38)
+pub struct LambdaExprNode {
+    pub params: Vec<String>,           // Parameter names
+    pub body: Box<ExprType>,           // Lambda body expression
+}
+
+impl LambdaExprNode {
+    pub fn new(params: Vec<String>, body: ExprType) -> LambdaExprNode {
+        LambdaExprNode {
+            params,
+            body: Box::new(body),
+        }
+    }
+}
+
+impl NodeElement for LambdaExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_lambda_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_lambda_expr_node_to_string(self, output);
     }
 }
 
@@ -4421,6 +4612,45 @@ impl NodeElement for ListComprehensionNode {
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_list_comprehension_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// DictComprehensionNode for {key: value for var in iterable if condition} (v0.38)
+pub struct DictComprehensionNode {
+    pub key_expr: Box<ExprType>,        // The key expression to evaluate
+    pub value_expr: Box<ExprType>,      // The value expression to evaluate
+    pub target: String,                 // Loop variable name
+    pub iter: Box<ExprType>,            // The iterable to loop over
+    pub condition: Option<Box<ExprType>>, // Optional filter condition
+}
+
+impl DictComprehensionNode {
+    pub fn new(
+        key_expr: ExprType,
+        value_expr: ExprType,
+        target: String,
+        iter: ExprType,
+        condition: Option<ExprType>,
+    ) -> DictComprehensionNode {
+        DictComprehensionNode {
+            key_expr: Box::new(key_expr),
+            value_expr: Box::new(value_expr),
+            target,
+            iter: Box::new(iter),
+            condition: condition.map(Box::new),
+        }
+    }
+}
+
+impl NodeElement for DictComprehensionNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_dict_comprehension_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_dict_comprehension_node_to_string(self, output);
     }
 }
 

@@ -135,7 +135,6 @@ pub struct Parser<'a> {
     pub generate_enter_args: bool,
     pub generate_exit_args: bool,
     pub generate_state_context: bool,
-    pub fsl_imports: HashMap<String, bool>,  // v0.34: Track FSL imports
     pub generate_state_stack: bool,
     pub generate_change_state: bool,
     pub generate_transition_state: bool,
@@ -182,7 +181,6 @@ impl<'a> Parser<'a> {
             generate_enter_args: false,
             generate_exit_args: false,
             generate_state_context: false,
-            fsl_imports: HashMap::new(),  // v0.34: Initialize FSL import tracker
             generate_state_stack: false,
             generate_change_state: false,
             generate_transition_state: false,
@@ -2563,7 +2561,7 @@ impl<'a> Parser<'a> {
         };
 
         let mut type_opt: Option<TypeNode> = None;
-        let mut default_return_expr_opt: Option<ExprType> = None;
+        let mut _default_return_expr_opt: Option<ExprType> = None;
 
         // foo(...) : type
         if self.match_token(&[TokenType::Colon]) {
@@ -2577,7 +2575,7 @@ impl<'a> Parser<'a> {
                 let return_expr_result = self.expression();
                 match return_expr_result {
                     Ok(Some(expr_type)) => {
-                        default_return_expr_opt = Some(expr_type);
+                        _default_return_expr_opt = Some(expr_type);
                     }
                     Ok(None) => {}
                     Err(err) => {
@@ -2894,7 +2892,7 @@ impl<'a> Parser<'a> {
         };
 
         let mut type_opt: Option<TypeNode> = None;
-        let mut default_return_expr_opt: Option<ExprType> = None;
+        let mut _default_return_expr_opt: Option<ExprType> = None;
 
         // foo(...) : type
         if self.match_token(&[TokenType::Colon]) {
@@ -2908,7 +2906,7 @@ impl<'a> Parser<'a> {
                 let return_expr_result = self.expression();
                 match return_expr_result {
                     Ok(Some(expr_type)) => {
-                        default_return_expr_opt = Some(expr_type);
+                        _default_return_expr_opt = Some(expr_type);
                     }
                     Ok(None) => {}
                     Err(err) => {
@@ -3251,7 +3249,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Equals]) {
             // eprintln!("DEBUG: Parsing initializer for variable '{}'", name);
-            match self.equality() {
+            match self.assignment() {
                 Ok(Some(LiteralExprT { literal_expr_node })) => {
                     value = Rc::new(LiteralExprT { literal_expr_node })
                 }
@@ -3272,23 +3270,6 @@ impl<'a> Parser<'a> {
                     // eprintln!("DEBUG: Found CallChainExprT as initializer for variable '{}'", name);
                     value = Rc::new(CallChainExprT {
                         call_chain_expr_node,
-                    })
-                }
-                Ok(Some(BuiltInCallExprT {
-                    builtin_call_node,
-                })) => {
-                    // FSL operation as initializer (v0.33)
-                    // eprintln!("DEBUG: Found BuiltInCallExprT as initializer for variable '{}'", name);
-                    value = Rc::new(BuiltInCallExprT {
-                        builtin_call_node,
-                    })
-                }
-                Ok(Some(BuiltInPropertyExprT {
-                    builtin_property_node,
-                })) => {
-                    // FSL property as initializer (v0.33)
-                    value = Rc::new(BuiltInPropertyExprT {
-                        builtin_property_node,
                     })
                 }
                 Ok(Some(UnaryExprT { unary_expr_node })) => {
@@ -3326,14 +3307,30 @@ impl<'a> Parser<'a> {
                 Ok(Some(NilExprT)) => value = Rc::new(NilExprT),
                 Ok(Some(SelfExprT { self_expr_node })) => value = Rc::new(SelfExprT { self_expr_node }),
                 Ok(Some(ListT { list_node })) => value = Rc::new(ListT { list_node }),
+                Ok(Some(DictLiteralT { dict_literal_node })) => value = Rc::new(DictLiteralT { dict_literal_node }),
+                Ok(Some(SetLiteralT { set_literal_node })) => value = Rc::new(SetLiteralT { set_literal_node }),
+                Ok(Some(TupleLiteralT { tuple_literal_node })) => value = Rc::new(TupleLiteralT { tuple_literal_node }),
                 Ok(Some(ListComprehensionExprT { list_comprehension_node })) => {
                     value = Rc::new(ListComprehensionExprT { list_comprehension_node })
                 }
                 Ok(Some(UnpackExprT { unpack_expr_node })) => {
                     value = Rc::new(UnpackExprT { unpack_expr_node })
                 }
+                Ok(Some(DictUnpackExprT { dict_unpack_expr_node })) => {
+                    value = Rc::new(DictUnpackExprT { dict_unpack_expr_node })
+                }
                 Ok(Some(AwaitExprT { await_expr_node })) => {
                     value = Rc::new(AwaitExprT { await_expr_node })
+                }
+                Ok(Some(LambdaExprT { lambda_expr_node })) => {
+                    value = Rc::new(LambdaExprT { lambda_expr_node })
+                }
+                Ok(Some(DictComprehensionExprT { dict_comprehension_node })) => {
+                    value = Rc::new(DictComprehensionExprT { dict_comprehension_node })
+                }
+                Ok(Some(FunctionRefT { name })) => {
+                    // v0.38: Function reference as value (first-class function)
+                    value = Rc::new(FunctionRefT { name })
                 }
                 Ok(Some(ExprListT { expr_list_node })) => {
                     let err_msg =
@@ -4899,6 +4896,21 @@ impl<'a> Parser<'a> {
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                         // }
                     }
+                    DictLiteralT { .. } => {
+                        // Dictionary literals are not valid as statements on their own
+                        self.error_at_previous("Dictionary literal expressions not allowed as statements.");
+                        return Err(ParseError::new("Dictionary literal must be part of an assignment or expression"));
+                    }
+                    SetLiteralT { .. } => {
+                        // Set literals are not valid as statements on their own
+                        self.error_at_previous("Set literal expressions not allowed as statements.");
+                        return Err(ParseError::new("Set literal must be part of an assignment or expression"));
+                    }
+                    TupleLiteralT { .. } => {
+                        // Tuple literals are not valid as statements on their own
+                        self.error_at_previous("Tuple literal expressions not allowed as statements.");
+                        return Err(ParseError::new("Tuple literal must be part of an assignment or expression"));
+                    }
                     ExprListT { expr_list_node } => {
                         // path for transitions **with** an exit params group
                         if self.match_token(&[TokenType::Transition]) {
@@ -4990,7 +5002,7 @@ impl<'a> Parser<'a> {
                             ExprStmtType::BinaryStmtT { binary_stmt_node };
                         return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
                     }
-                    LiteralExprT { literal_expr_node } => {
+                    LiteralExprT { literal_expr_node: _ } => {
                         // Superstring is the only permitted literal type to be a statement.
                         // SuperString/backtick support removed - no longer create SuperStringStmt
                         self.error_at_previous("Literal statements not allowed.");
@@ -5022,18 +5034,7 @@ impl<'a> Parser<'a> {
                     ExprType::DefaultLiteralValueForTypeExprT => {
                         panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
                     }
-                    ExprType::BuiltInCallExprT { .. } => {
-                        // FSL built-in calls are not valid as statements on their own
-                        // They're part of expressions or call chains
-                        self.error_at_previous("Built-in call expressions not allowed as statements.");
-                        return Err(ParseError::new("Built-in call must be part of an assignment or expression"));
-                    }
-                    ExprType::BuiltInPropertyExprT { .. } => {
-                        // FSL built-in properties are not valid as statements on their own
-                        self.error_at_previous("Built-in property expressions not allowed as statements.");
-                        return Err(ParseError::new("Built-in property must be part of an assignment or expression"));
-                    }
-                    ExprType::UnpackExprT { .. } => {
+                    ExprType::UnpackExprT { .. } | ExprType::DictUnpackExprT { .. } => {
                         // Unpacking expressions are not valid as statements on their own
                         self.error_at_previous("Unpacking expressions not allowed as statements.");
                         return Err(ParseError::new("Unpacking must be part of an assignment or function call"));
@@ -5052,6 +5053,21 @@ impl<'a> Parser<'a> {
                             },
                         };
                         return Ok(Some(stmt));
+                    }
+                    ExprType::DictComprehensionExprT { .. } => {
+                        // Dictionary comprehensions are not valid as statements on their own
+                        self.error_at_previous("Dictionary comprehension expressions not allowed as statements.");
+                        return Err(ParseError::new("Dictionary comprehension must be part of an assignment or expression"));
+                    }
+                    ExprType::LambdaExprT { .. } => {
+                        // Lambda expressions are not valid as statements on their own
+                        self.error_at_previous("Lambda expressions not allowed as statements.");
+                        return Err(ParseError::new("Lambda expression must be part of an assignment or expression"));
+                    }
+                    ExprType::FunctionRefT { .. } => {
+                        // Function references are not valid as statements on their own
+                        self.error_at_previous("Function reference expressions not allowed as statements.");
+                        return Err(ParseError::new("Function reference must be part of an assignment or call"));
                     }
                 }
             }
@@ -5348,8 +5364,8 @@ impl<'a> Parser<'a> {
 
     // bool_test -> ('?' | '?!') bool_test_true_branch (':' bool_test_else_branch)? '::'
 
-    fn bool_test(&mut self, expr_t: ExprType) -> Result<BoolTestNode, ParseError> {
-        let is_negated: bool;
+    fn bool_test(&mut self, _expr_t: ExprType) -> Result<BoolTestNode, ParseError> {
+        let _is_negated: bool;
 
         // self.sync_tokens_from_error_context = vec![TokenType::ColonBar]; // Removed with ternary syntax
 
@@ -5399,12 +5415,12 @@ impl<'a> Parser<'a> {
     fn bool_test_else_continue_branch(
         &mut self,
     ) -> Result<BoolTestConditionalBranchNode, ParseError> {
-        let expr_t: ExprType;
+        let _expr_t: ExprType;
         let result = self.expression();
         match result {
             Ok(expression_opt) => match expression_opt {
                 Some(et) => {
-                    expr_t = et;
+                    _expr_t = et;
                 }
                 None => {
                     return Err(ParseError::new("TODO"));
@@ -5413,7 +5429,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         }
 
-        let is_negated: bool;
+        let _is_negated: bool;
 
         // REMOVED: Deprecated ternary test syntax
         // '?' and '?!' tokens removed in v0.30
@@ -5701,6 +5717,18 @@ impl<'a> Parser<'a> {
                     ExprType::ExprListT { expr_list_node } => {
                         Ok(Some(ExprType::ExprListT { expr_list_node }))
                     }
+                    ExprType::ListT { list_node } => {
+                        Ok(Some(ExprType::ListT { list_node }))
+                    }
+                    ExprType::DictLiteralT { dict_literal_node } => {
+                        Ok(Some(ExprType::DictLiteralT { dict_literal_node }))
+                    }
+                    ExprType::SetLiteralT { set_literal_node } => {
+                        Ok(Some(ExprType::SetLiteralT { set_literal_node }))
+                    }
+                    ExprType::TupleLiteralT { tuple_literal_node } => {
+                        Ok(Some(ExprType::TupleLiteralT { tuple_literal_node }))
+                    }
                     _ => {
                         // Log error but pass expression through to complete parse.
                         // TODO: be more specific about the id of the list identifier.
@@ -5780,8 +5808,50 @@ impl<'a> Parser<'a> {
 
     // expression -> TODO
 
+    fn parse_lambda(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // Parse parameters (optional)
+        let mut params = Vec::new();
+        
+        // Check if we have parameters before the colon
+        if !self.check(TokenType::Colon) {
+            loop {
+                if self.check(TokenType::Identifier) {
+                    let param_token = self.advance();
+                    params.push(param_token.lexeme.clone());
+                    
+                    if !self.match_token(&[TokenType::Comma]) {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        // Consume the colon
+        self.consume(TokenType::Colon, "Expected ':' after lambda parameters")?;
+        
+        // Parse the body expression - use assignment() to allow nested lambdas
+        let body_result = self.assignment()?;
+        if let Some(body) = body_result {
+            let lambda_expr_node = LambdaExprNode::new(params, body);
+            return Ok(Some(LambdaExprT { lambda_expr_node }));
+        } else {
+            return Err(ParseError::new("Expected expression as lambda body"));
+        }
+    }
+
     fn assignment(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.equality() {
+        self.assignment_or_lambda()
+    }
+    
+    fn assignment_or_lambda(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // Check for lambda first (lowest precedence except for assignment)
+        if self.match_token(&[TokenType::Lambda]) {
+            return self.parse_lambda();
+        }
+        
+        let mut l_value = match self.logical_xor() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -5793,7 +5863,7 @@ impl<'a> Parser<'a> {
             self.is_parsing_rhs = true;
 
             let line = self.previous().line;
-            let r_value = match self.equality() {
+            let r_value = match self.logical_xor() {
                 Ok(Some(expr_type)) => {
                     self.is_parsing_rhs = false;
                     expr_type
@@ -5837,7 +5907,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn equality(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.comparison() {
+        let mut l_value = match self.bitwise_or() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -5847,7 +5917,7 @@ impl<'a> Parser<'a> {
             //           let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
-            let r_value = match self.comparison() {
+            let r_value = match self.bitwise_or() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
@@ -5861,6 +5931,40 @@ impl<'a> Parser<'a> {
             //     let err_msg = "rvalue expr is not a valid binary expression type.";
             //     self.error_at_current(err_msg);
             // }
+
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
+            l_value = BinaryExprT { binary_expr_node };
+        }
+
+        Ok(Some(l_value))
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn bitwise_or(&mut self) -> Result<Option<ExprType>, ParseError> {
+        let mut l_value = match self.comparison() {
+            Ok(Some(expr_type)) => expr_type,
+            Ok(None) => return Ok(None),
+            Err(parse_error) => return Err(parse_error),
+        };
+
+        while self.match_token(&[TokenType::Pipe]) {
+            let operator_token = self.previous();
+            let op_type = self.get_operator_type(&operator_token.clone());
+            let r_value = match self.comparison() {
+                Ok(Some(expr_type)) => expr_type,
+                Ok(None) => return Ok(None),
+                Err(parse_error) => return Err(parse_error),
+            };
+
+            if !l_value.is_valid_binary_expr_type() {
+                let err_msg = "lvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+            if !r_value.is_valid_binary_expr_type() {
+                let err_msg = "rvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
 
             let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
@@ -5954,7 +6058,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn factor(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.logical_xor() {
+        let mut l_value = match self.unary_expression() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -5963,7 +6067,7 @@ impl<'a> Parser<'a> {
         while self.match_token(&[TokenType::ForwardSlash, TokenType::Star]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
-            let r_value = match self.logical_xor() {
+            let r_value = match self.unary_expression() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
@@ -6047,7 +6151,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn logical_and(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.unary_expression() {
+        let mut l_value = match self.equality() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -6056,7 +6160,7 @@ impl<'a> Parser<'a> {
         while self.match_token(&[TokenType::And]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
-            let r_value = match self.unary_expression() {
+            let r_value = match self.equality() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
@@ -6226,7 +6330,7 @@ impl<'a> Parser<'a> {
     // unary_expression -> TODO
 
     fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
-        use crate::frame_c::ast::ExprType::{BuiltInCallExprT, BuiltInPropertyExprT, AwaitExprT};
+        use crate::frame_c::ast::ExprType::AwaitExprT;
         
         // v0.35: Handle await expressions
         if self.match_token(&[TokenType::Await]) {
@@ -6238,6 +6342,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new("Expected expression after 'await'"));
             }
         }
+        
         
         if self.match_token(&[TokenType::Not, TokenType::Dash]) {
             let token = self.previous();
@@ -6258,26 +6363,18 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // Check for nested groups
-        // '(' ')' | '(' expr+ ')'
+        // Check for nested groups or tuples
+        // '(' ')' | '(' expr+ ')' | '(expr,)' | '(expr, expr, ...)'
         if self.match_token(&[TokenType::LParen]) {
-            match self.expr_list() {
-                Ok(Some(ExprListT {
-                    expr_list_node: expr_node,
-                })) => {
-                    return Ok(Some(ExprListT {
-                        expr_list_node: expr_node,
-                    }))
-                }
-                Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
+            match self.expr_list_or_tuple() {
+                Ok(Some(expr_type)) => return Ok(Some(expr_type)),
                 Err(parse_error) => return Err(parse_error),
                 Ok(None) => {
-                    // v0.20: Allow empty expression lists '()'
+                    // v0.20: Allow empty expression lists '()' - treat as empty tuple
                     let _ = self.consume(TokenType::RParen, "Expected ')'");
-                    // Return empty expression list for v0.20 compatibility
-                    let empty_expr_list = ExprListNode::new(Vec::new());
-                    return Ok(Some(ExprListT {
-                        expr_list_node: empty_expr_list,
+                    // Return empty tuple for consistency with Python
+                    return Ok(Some(TupleLiteralT {
+                        tuple_literal_node: TupleLiteralNode::new(Vec::new()),
                     }))
                 }
             }
@@ -6639,13 +6736,9 @@ impl<'a> Parser<'a> {
                 Ok(Some(EnumeratorExprT { enum_expr_node })) => {
                     return Ok(Some(EnumeratorExprT { enum_expr_node }))
                 }
-                Ok(Some(BuiltInCallExprT { builtin_call_node })) => {
-                    // FSL operations (v0.33)
-                    return Ok(Some(BuiltInCallExprT { builtin_call_node }))
-                }
-                Ok(Some(BuiltInPropertyExprT { builtin_property_node })) => {
-                    // FSL properties (v0.33)
-                    return Ok(Some(BuiltInPropertyExprT { builtin_property_node }))
+                Ok(Some(FunctionRefT { name })) => {
+                    // v0.38: Function reference as value (first-class function)
+                    return Ok(Some(FunctionRefT { name }))
                 }
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
@@ -6686,6 +6779,14 @@ impl<'a> Parser<'a> {
                 Ok(list_node) => return Ok(Some(ListT { list_node })),
                 //                Ok(None) => self.error_at_current("Empty list '()' not allowed "), // continue
                 //                Ok(Some(_)) => return Err(ParseError::new("TODO")), // TODO
+                Err(parse_error) => return Err(parse_error),
+            }
+        }
+
+        // Dictionary or Set literals {key: value} or {1, 2, 3}
+        if self.match_token(&[TokenType::OpenBrace]) {
+            match self.dict_or_set_literal() {
+                Ok(expr_type) => return Ok(Some(expr_type)),
                 Err(parse_error) => return Err(parse_error),
             }
         }
@@ -7160,7 +7261,7 @@ impl<'a> Parser<'a> {
         // for i = 0; i < 10; i = i + 1 { ... }
         
         let mut init_stmt = LoopFirstStmt::None;
-        let mut is_c_style = false;
+        let mut _is_c_style = false;
         
         if self.match_token(&[TokenType::Var]) {
             // Try parsing var declaration
@@ -7168,7 +7269,7 @@ impl<'a> Parser<'a> {
                 Ok(var_decl_t_rc_ref) => {
                     if self.match_token(&[TokenType::Semicolon]) {
                         // This is C-style for loop
-                        is_c_style = true;
+                        _is_c_style = true;
                         init_stmt = LoopFirstStmt::VarDecl {
                             var_decl_node_rcref: var_decl_t_rc_ref,
                         };
@@ -7193,7 +7294,7 @@ impl<'a> Parser<'a> {
                 Ok(Some(expr_type)) => {
                     if self.match_token(&[TokenType::Semicolon]) {
                         // C-style for loop with expression init
-                        is_c_style = true;
+                        _is_c_style = true;
                         init_stmt = match expr_type {
                             VariableExprT { var_node } => LoopFirstStmt::Var { var_node },
                             AssignmentExprT {
@@ -7219,7 +7320,7 @@ impl<'a> Parser<'a> {
                 Ok(None) => {
                     // Empty init clause in C-style loop
                     if self.match_token(&[TokenType::Semicolon]) {
-                        is_c_style = true;
+                        _is_c_style = true;
                     } else {
                         self.error_at_current("Expected expression or variable declaration after 'for'.");
                         return Err(ParseError::new("Invalid for loop syntax."));
@@ -7229,7 +7330,7 @@ impl<'a> Parser<'a> {
             }
         }
         
-        if is_c_style {
+        if _is_c_style {
             // Continue parsing C-style for loop
             // We've already consumed init and first semicolon
             // Now parse condition
@@ -7803,6 +7904,229 @@ impl<'a> Parser<'a> {
     // expression_list -> (unpack_expr | expression) (',' (unpack_expr | expression))*
     // unpack_expr -> '*' expression
 
+    // Parse dictionary or set literal: {key: value} or {1, 2, 3}
+    fn dict_or_set_literal(&mut self) -> Result<ExprType, ParseError> {
+        // Handle empty {} - default to empty dict
+        if self.peek().token_type == TokenType::CloseBrace {
+            self.advance(); // consume '}'
+            return Ok(ExprType::DictLiteralT { 
+                dict_literal_node: DictLiteralNode::new(Vec::new())
+            });
+        }
+        
+        // Check for dict unpacking (**expr)
+        if self.match_token(&[TokenType::StarStar]) {
+            // This is a dict with unpacking
+            let mut pairs = Vec::new();
+            
+            // Parse unpacked expression
+            match self.expression() {
+                Ok(Some(expr)) => {
+                    // For dict unpacking, we only need to store it once as a key
+                    // The visitor will recognize this pattern
+                    let dict_unpack = DictUnpackExprNode::new(expr);
+                    pairs.push((
+                        ExprType::DictUnpackExprT { dict_unpack_expr_node: dict_unpack },
+                        ExprType::NilExprT  // Placeholder value for unpacking
+                    ));
+                }
+                Ok(None) => return Err(ParseError::new("Expected expression after '**'")),
+                Err(e) => return Err(e),
+            };
+            
+            // Parse remaining items (could be more unpacking or regular pairs)
+            while !self.match_token(&[TokenType::CloseBrace]) {
+                if !self.match_token(&[TokenType::Comma]) {
+                    return Err(ParseError::new("Expected ',' or '}' in dictionary"));
+                }
+                
+                // Allow trailing comma
+                if self.peek().token_type == TokenType::CloseBrace {
+                    self.advance();
+                    break;
+                }
+                
+                // Check for another unpacking
+                if self.match_token(&[TokenType::StarStar]) {
+                    match self.expression() {
+                        Ok(Some(expr)) => {
+                            let dict_unpack = DictUnpackExprNode::new(expr);
+                            pairs.push((
+                                ExprType::DictUnpackExprT { dict_unpack_expr_node: dict_unpack },
+                                ExprType::NilExprT  // Placeholder value for unpacking
+                            ));
+                        }
+                        Ok(None) => return Err(ParseError::new("Expected expression after '**'")),
+                        Err(e) => return Err(e),
+                    };
+                } else {
+                    // Regular key-value pair
+                    // For keys, we don't want lambda expressions, so use equality() instead of expression()
+                    let key = match self.equality() {
+                        Ok(Some(expr)) => expr,
+                        Ok(None) => return Err(ParseError::new("Expected key in dictionary")),
+                        Err(e) => return Err(e),
+                    };
+                    
+                    if !self.match_token(&[TokenType::Colon]) {
+                        return Err(ParseError::new("Expected ':' after dictionary key"));
+                    }
+                    
+                    // For values, we want full expressions including lambda
+                    let value = match self.expression() {
+                        Ok(Some(expr)) => expr,
+                        Ok(None) => return Err(ParseError::new("Expected value in dictionary")),
+                        Err(e) => return Err(e),
+                    };
+                    
+                    pairs.push((key, value));
+                }
+            }
+            
+            return Ok(ExprType::DictLiteralT { 
+                dict_literal_node: DictLiteralNode::new(pairs)
+            });
+        }
+        
+        // Parse first element (regular, not unpacking)
+        // Use equality() here to avoid parsing lambda as a key
+        let first_expr = match self.equality() {
+            Ok(Some(expr)) => expr,
+            Ok(None) => {
+                if self.peek().token_type == TokenType::CloseBrace {
+                    // Empty dict
+                    self.advance();
+                    return Ok(ExprType::DictLiteralT { 
+                        dict_literal_node: DictLiteralNode::new(Vec::new())
+                    });
+                }
+                return Err(ParseError::new("Expected expression in literal"));
+            }
+            Err(e) => return Err(e),
+        };
+        
+        // Check if it's a dictionary (has colon) or set (has comma or closing brace)
+        if self.match_token(&[TokenType::Colon]) {
+            // It's a dictionary
+            let mut pairs = Vec::new();
+            
+            // Parse first value
+            let value = match self.expression() {
+                Ok(Some(expr)) => expr,
+                Ok(None) => return Err(ParseError::new("Expected value after ':' in dictionary")),
+                Err(e) => return Err(e),
+            };
+            
+            // Check if it's a dictionary comprehension (has 'for' keyword)
+            if self.peek().token_type == TokenType::For {
+                // It's a dictionary comprehension
+                let comp_result = self.dict_comprehension(first_expr, value)?;
+                // Consume the closing brace
+                if !self.match_token(&[TokenType::CloseBrace]) {
+                    return Err(ParseError::new("Expected '}' after dictionary comprehension"));
+                }
+                return Ok(comp_result);
+            }
+            
+            pairs.push((first_expr, value));
+            
+            // Parse remaining pairs
+            while !self.match_token(&[TokenType::CloseBrace]) {
+                if !self.match_token(&[TokenType::Comma]) {
+                    return Err(ParseError::new("Expected ',' or '}' in dictionary"));
+                }
+                
+                // Allow trailing comma
+                if self.peek().token_type == TokenType::CloseBrace {
+                    self.advance();
+                    break;
+                }
+                
+                // Check for dict unpacking
+                if self.match_token(&[TokenType::StarStar]) {
+                    // Dict unpacking in the middle
+                    match self.expression() {
+                        Ok(Some(expr)) => {
+                            let dict_unpack = DictUnpackExprNode::new(expr);
+                            pairs.push((
+                                ExprType::DictUnpackExprT { dict_unpack_expr_node: dict_unpack },
+                                ExprType::NilExprT  // Placeholder value for unpacking
+                            ));
+                        }
+                        Ok(None) => return Err(ParseError::new("Expected expression after '**'")),
+                        Err(e) => return Err(e),
+                    };
+                } else {
+                    // Parse next key - don't allow lambda as key
+                    let key = match self.equality() {
+                        Ok(Some(expr)) => expr,
+                        Ok(None) => return Err(ParseError::new("Expected key in dictionary")),
+                        Err(e) => return Err(e),
+                    };
+                    
+                    if !self.match_token(&[TokenType::Colon]) {
+                        return Err(ParseError::new("Expected ':' after dictionary key"));
+                    }
+                    
+                    // Parse value - allow full expressions including lambda
+                    let value = match self.expression() {
+                        Ok(Some(expr)) => expr,
+                        Ok(None) => return Err(ParseError::new("Expected value in dictionary")),
+                        Err(e) => return Err(e),
+                    };
+                    
+                    pairs.push((key, value));
+                }
+            }
+            
+            Ok(ExprType::DictLiteralT { 
+                dict_literal_node: DictLiteralNode::new(pairs)
+            })
+        } else {
+            // It's a set
+            let mut elements = vec![first_expr];
+            
+            // Check for single element set
+            if self.match_token(&[TokenType::CloseBrace]) {
+                return Ok(ExprType::SetLiteralT { 
+                    set_literal_node: SetLiteralNode::new(elements)
+                });
+            }
+            
+            // Parse remaining elements
+            if !self.match_token(&[TokenType::Comma]) {
+                return Err(ParseError::new("Expected ',' or '}' in set literal"));
+            }
+            
+            loop {
+                // Allow trailing comma
+                if self.peek().token_type == TokenType::CloseBrace {
+                    self.advance();
+                    break;
+                }
+                
+                // Parse next element
+                match self.expression() {
+                    Ok(Some(expr)) => elements.push(expr),
+                    Ok(None) => return Err(ParseError::new("Expected element in set")),
+                    Err(e) => return Err(e),
+                }
+                
+                if self.match_token(&[TokenType::CloseBrace]) {
+                    break;
+                }
+                
+                if !self.match_token(&[TokenType::Comma]) {
+                    return Err(ParseError::new("Expected ',' or '}' in set"));
+                }
+            }
+            
+            Ok(ExprType::SetLiteralT { 
+                set_literal_node: SetLiteralNode::new(elements)
+            })
+        }
+    }
+
     fn list(&mut self) -> Result<ListNode, ParseError> {
         // First, check if this is a list comprehension by looking ahead
         // We need to look for the pattern: expr 'for' ... 
@@ -7867,6 +8191,64 @@ impl<'a> Parser<'a> {
         Ok(ListNode::new(expressions))
     }
     
+    // Parse dictionary comprehension: {key: value for var in iterable if condition}
+    fn dict_comprehension(&mut self, key_expr: ExprType, value_expr: ExprType) -> Result<ExprType, ParseError> {
+        // Consume 'for' keyword
+        if !self.match_token(&[TokenType::For]) {
+            return Err(ParseError::new("Expected 'for' in dictionary comprehension"));
+        }
+        
+        // Parse target variable(s) - could be k, v for unpacking
+        let mut targets = Vec::new();
+        
+        // Parse first target
+        if !self.match_token(&[TokenType::Identifier]) {
+            return Err(ParseError::new("Expected identifier after 'for' in dictionary comprehension"));
+        }
+        targets.push(self.previous().lexeme.clone());
+        
+        // Check for comma (for multiple targets like k, v)
+        if self.match_token(&[TokenType::Comma]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                return Err(ParseError::new("Expected identifier after ',' in dictionary comprehension"));
+            }
+            targets.push(self.previous().lexeme.clone());
+        }
+        
+        // Join targets with comma for Python code generation
+        let target = targets.join(", ");
+        
+        // Consume 'in' keyword
+        if !self.match_token(&[TokenType::In]) {
+            return Err(ParseError::new("Expected 'in' after variable in dictionary comprehension"));
+        }
+        
+        // Parse iterable expression
+        let iter = match self.expression() {
+            Ok(Some(e)) => e,
+            Ok(None) => return Err(ParseError::new("Expected iterable in dictionary comprehension")),
+            Err(e) => return Err(e),
+        };
+        
+        // Parse optional condition
+        let condition = if self.match_token(&[TokenType::If]) {
+            match self.expression() {
+                Ok(Some(e)) => Some(e),
+                Ok(None) => return Err(ParseError::new("Expected condition after 'if' in dictionary comprehension")),
+                Err(e) => return Err(e),
+            }
+        } else {
+            None
+        };
+        
+        // DO NOT consume closing brace - let dict_or_set_literal handle it
+        
+        let comprehension_node = DictComprehensionNode::new(key_expr, value_expr, target, iter, condition);
+        Ok(ExprType::DictComprehensionExprT { 
+            dict_comprehension_node: comprehension_node 
+        })
+    }
+
     // Parse list comprehension: [expr for var in iterable if condition]
     fn list_comprehension(&mut self) -> Result<ListNode, ParseError> {
         // Parse the expression part
@@ -7982,6 +8364,94 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // Parse expression list or tuple - returns tuple if has trailing comma or multiple elements
+    fn expr_list_or_tuple(&mut self) -> Result<Option<ExprType>, ParseError> {
+        let mut expressions: Vec<ExprType> = Vec::new();
+        let mut has_trailing_comma = false;
+
+        // Handle empty case
+        if self.peek().token_type == TokenType::RParen {
+            self.advance();
+            // Empty () is an empty tuple
+            return Ok(Some(TupleLiteralT {
+                tuple_literal_node: TupleLiteralNode::new(Vec::new()),
+            }));
+        }
+
+        // Parse first expression
+        match self.expression() {
+            Ok(Some(expr)) => expressions.push(expr),
+            Ok(None) => {
+                // No expression, just close paren
+                if self.match_token(&[TokenType::RParen]) {
+                    return Ok(Some(TupleLiteralT {
+                        tuple_literal_node: TupleLiteralNode::new(Vec::new()),
+                    }));
+                }
+                return Err(ParseError::new("Expected expression in parentheses"));
+            }
+            Err(e) => return Err(e),
+        }
+
+        // Check for comma (which makes it a tuple) or close paren
+        if self.match_token(&[TokenType::RParen]) {
+            // Single expression without comma - just a parenthesized expression
+            if expressions.len() == 1 {
+                return Ok(Some(expressions.into_iter().next().unwrap()));
+            }
+        } else if self.match_token(&[TokenType::Comma]) {
+            has_trailing_comma = true;
+            
+            // Parse remaining elements
+            loop {
+                // Check for trailing comma before close paren
+                if self.peek().token_type == TokenType::RParen {
+                    self.advance();
+                    break;
+                }
+                
+                // Check for unpacking in tuple
+                if self.match_token(&[TokenType::Star]) {
+                    match self.expression() {
+                        Ok(Some(expr)) => {
+                            let unpack_node = UnpackExprNode::new(expr);
+                            expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
+                        }
+                        Ok(None) => return Err(ParseError::new("Expected expression after '*'")),
+                        Err(e) => return Err(e),
+                    }
+                } else {
+                    // Regular expression
+                    match self.expression() {
+                        Ok(Some(expr)) => expressions.push(expr),
+                        Ok(None) => break,
+                        Err(e) => return Err(e),
+                    }
+                }
+                
+                if self.match_token(&[TokenType::RParen]) {
+                    break;
+                }
+                
+                if !self.match_token(&[TokenType::Comma]) {
+                    return Err(ParseError::new("Expected ',' or ')' in tuple"));
+                }
+            }
+        } else {
+            return Err(ParseError::new("Expected ',' or ')' after expression"));
+        }
+
+        // If we have multiple expressions or a trailing comma, it's a tuple
+        if expressions.len() > 1 || has_trailing_comma {
+            Ok(Some(TupleLiteralT {
+                tuple_literal_node: TupleLiteralNode::new(expressions),
+            }))
+        } else {
+            // Single expression without comma - return the expression itself
+            Ok(Some(expressions.into_iter().next().unwrap()))
+        }
+    }
+
     /* --------------------------------------------------------------------- */
 
     // expr_list -> '(' expression* ')'
@@ -8055,7 +8525,7 @@ impl<'a> Parser<'a> {
         &mut self,
         explicit_scope: IdentifierDeclScope,
     ) -> Result<Option<ExprType>, ParseError> {
-        use crate::frame_c::ast::ExprType::{BuiltInCallExprT, CallChainExprT};
+        use crate::frame_c::ast::ExprType::CallChainExprT;
         let mut scope: IdentifierDeclScope = explicit_scope.clone();
         let mut call_chain: std::collections::VecDeque<CallChainNodeType> =
             std::collections::VecDeque::new();
@@ -8317,28 +8787,11 @@ impl<'a> Parser<'a> {
                 // v0.30: Try the new simplified call chain method for external functions ONLY
                 // Use V2 only for: External functions (first node, empty chain)
                 // Do NOT use V2 for method calls as it breaks the object-method relationship
-                if (is_first_node && call_chain.is_empty()) {
+                if is_first_node && call_chain.is_empty() {
                     // Rewind the LParen token since build_call_chain_v2 expects to parse it
                     self.current -= 1;
                     // eprintln!("DEBUG: Calling build_call_chain_v2_with_existing from call() for: {}", id_node.name.lexeme);
                     let result = self.build_call_chain_v2_with_existing(id_node, call_chain);
-                    match &result {
-                        Ok(Some(BuiltInCallExprT { .. })) => {
-                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: BuiltInCallExprT");
-                        }
-                        Ok(Some(CallChainExprT { .. })) => {
-                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: CallChainExprT");
-                        }
-                        Ok(Some(_)) => {
-                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: Other ExprType");
-                        }
-                        Ok(None) => {
-                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: None");
-                        }
-                        Err(_) => {
-                            // eprintln!("DEBUG: build_call_chain_v2_with_existing returned: Error");
-                        }
-                    }
                     return result;
                 }
                 
@@ -8577,7 +9030,7 @@ impl<'a> Parser<'a> {
                                 call_chain.push_back(call_t);
                             } else {
                                 // is first or only node in a call chain. For simple external calls, just add as UndeclaredCallT
-                                let method_name = call_expr_node.identifier.name.lexeme.clone();
+                                let _method_name = call_expr_node.identifier.name.lexeme.clone();
                                 // eprintln!("DEBUG PARSER: Creating UndeclaredCallT for simple function call '{}'", method_name);
                                 let call_t = CallChainNodeType::UndeclaredCallT {
                                     call_node: call_expr_node,
@@ -8858,7 +9311,7 @@ impl<'a> Parser<'a> {
                                     SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
                                         let enum_symbol = enum_symbol_rcref.borrow();
 
-                                        let enum_decl_node =
+                                        let _enum_decl_node =
                                             enum_symbol.ast_node_opt.as_ref().unwrap().borrow();
                                         
                                         // Check if there's a dot for enum member access
@@ -9019,6 +9472,8 @@ impl<'a> Parser<'a> {
                                         Err(err) => return Err(err),
                                     }
                                 } else {
+                                    // v0.38: During both passes, allow undeclared identifiers here
+                                    // They could be function references which we'll check later
                                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                                 }
                             }
@@ -9078,6 +9533,22 @@ impl<'a> Parser<'a> {
         }
 
         
+        // v0.38: Check if this is a single function reference (first-class function)
+        // If we have a single UndeclaredIdentifierNodeT that's actually a function,
+        // return it as FunctionRefT instead of CallChainExprT
+        // Check in second pass only to avoid errors during symbol table building
+        if call_chain.len() == 1 && !self.is_building_symbol_table {
+            if let Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node }) = call_chain.get(0) {
+                let function_symbol_opt = self.arcanum.lookup_function(&id_node.name.lexeme);
+                if function_symbol_opt.is_some() {
+                    // This is a function being used as a value - return FunctionRefT
+                    return Ok(Some(ExprType::FunctionRefT {
+                        name: id_node.name.lexeme.clone(),
+                    }));
+                }
+            }
+        }
+        
         let call_chain_expr_node = CallChainExprNode::new(call_chain);
         Ok(Some(CallChainExprT {
             call_chain_expr_node,
@@ -9089,7 +9560,7 @@ impl<'a> Parser<'a> {
     // v0.30 Improved call chain parsing method
     // This method provides a cleaner, more maintainable approach to parsing call chains
     fn build_call_chain_v2(&mut self, base_id: IdentifierNode) -> Result<Option<ExprType>, ParseError> {
-        use crate::frame_c::ast::{CallChainNodeTypeV2, IdentifierScope, CallTargetType};
+        use crate::frame_c::ast::CallChainNodeTypeV2;
         use std::collections::VecDeque;
         
         let mut chain: VecDeque<CallChainNodeTypeV2> = VecDeque::new();
@@ -9205,8 +9676,7 @@ impl<'a> Parser<'a> {
 
     // v0.30: Modified build_call_chain_v2 that can append to existing call chain for method calls
     fn build_call_chain_v2_with_existing(&mut self, base_id: IdentifierNode, mut existing_chain: VecDeque<CallChainNodeType>) -> Result<Option<ExprType>, ParseError> {
-        use crate::frame_c::ast::{CallChainNodeTypeV2, IdentifierScope, ExprType::{ExprListT, BuiltInCallExprT}};
-        use crate::frame_c::fsl::{FslRegistry, BuiltInCallNode, ConversionOperation, BuiltInOperation};
+        use crate::frame_c::ast::{CallChainNodeTypeV2, ExprType::ExprListT};
         
         // Debug dump when starting V2 call chain building
         if std::env::var("FRAME_DEBUG").is_ok() {
@@ -9245,7 +9715,7 @@ impl<'a> Parser<'a> {
                 
                 // Create the FSL built-in call node
                 // For conversion operations, we need to extract the first argument
-                let target_expr = if args.is_empty() {
+                let _target_expr = if args.is_empty() {
                     // Should not happen due to validation above, but handle gracefully
                     return Err(ParseError::new("Missing argument for conversion operation"));
                 } else {
@@ -9362,6 +9832,10 @@ impl<'a> Parser<'a> {
                         // scope = loop_variable_symbol_rcref.borrow().scope.clone();
                     }
                     SymbolType::System { .. } => {
+                        scope = IdentifierDeclScope::UnknownScope;
+                    }
+                    SymbolType::FunctionScope { .. } => {
+                        // v0.38: Functions can be used as values (first-class functions)
                         scope = IdentifierDeclScope::UnknownScope;
                     }
                     _ => {
@@ -9866,44 +10340,6 @@ impl<'a> Parser<'a> {
         // NumberMatchStart token was removed in v0.31
         self.error_at_current("Number pattern matching has been removed. Use if/else statements instead.");
         return Err(ParseError::new("Number pattern matching removed"));
-
-        let mut match_numbers = Vec::new();
-
-        if !self.match_token(&[TokenType::Number]) {
-            return Err(ParseError::new("TODO"));
-        }
-
-        //        let token = self.previous();
-        let match_number_tok = self.previous();
-        let match_pattern_number = match_number_tok.lexeme.clone();
-        let number_match_pattern_node = NumberMatchTestPatternNode::new(match_pattern_number);
-        match_numbers.push(number_match_pattern_node);
-
-        while self.match_token(&[TokenType::Pipe]) {
-            if !self.match_token(&[TokenType::Number]) {
-                return Err(ParseError::new("TODO"));
-            }
-
-            //            let token = self.previous();
-            let match_number_tok = self.previous();
-            let match_pattern_number = match_number_tok.lexeme.clone();
-            let number_match_pattern_node = NumberMatchTestPatternNode::new(match_pattern_number);
-            match_numbers.push(number_match_pattern_node);
-        }
-
-        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
-            return Err(parse_error);
-        }
-        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
-        let result = self.branch_terminator();
-        match result {
-            Ok(branch_terminator_t_opt) => Ok(NumberMatchTestMatchBranchNode::new(
-                match_numbers,
-                statements,
-                branch_terminator_t_opt,
-            )),
-            Err(parse_error) => Err(parse_error),
-        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -10045,84 +10481,13 @@ impl<'a> Parser<'a> {
 
     fn enum_match_test_match_branch(
         &mut self,
-        enum_symbol_rcref_opt: &Option<Rc<RefCell<EnumSymbol>>>,
+        _enum_symbol_rcref_opt: &Option<Rc<RefCell<EnumSymbol>>>,
     ) -> Result<EnumMatchTestMatchBranchNode, ParseError> {
         // EnumMatchStart token was removed in v0.31
         // Enum pattern matching has been removed - use if/else instead
         let err_msg = "Enum pattern matching has been removed. Use if/else statements instead.";
         self.error_at_current(&err_msg);
         return Err(ParseError::new(err_msg));
-
-        let mut enum_match_pattern_nodes = Vec::new();
-
-        if !self.match_token(&[TokenType::Identifier]) {
-            return Err(ParseError::new("TODO"));
-        }
-
-        // Add first enum identifier to the vec.
-        let match_enum_tok = self.previous();
-        let match_pattern_enum = match_enum_tok.lexeme.clone();
-        let enum_match_pattern_node = EnumMatchTestPatternNode::new(match_pattern_enum.clone());
-        enum_match_pattern_nodes.push(enum_match_pattern_node);
-
-        let mut enum_type_name = String::new();
-
-        while self.match_token(&[TokenType::Pipe]) {
-            if !self.match_token(&[TokenType::Identifier]) {
-                return Err(ParseError::new("TODO"));
-            }
-
-            let match_enum_tok = self.previous();
-            let match_pattern_enum = match_enum_tok.lexeme.clone();
-            let enum_match_pattern_node = EnumMatchTestPatternNode::new(match_pattern_enum);
-            enum_match_pattern_nodes.push(enum_match_pattern_node);
-        }
-
-        if let Err(parse_error) = self.consume(TokenType::ForwardSlash, "Expected '/'.") {
-            return Err(parse_error);
-        }
-
-        if !self.is_building_symbol_table {
-            let enum_symbol_rcref = enum_symbol_rcref_opt.as_ref().unwrap();
-            let clone_enum_symbol_rcref = Rc::clone(enum_symbol_rcref);
-            let enum_symbol = clone_enum_symbol_rcref.borrow();
-            let enum_decl_node_rcref = enum_symbol.ast_node_opt.as_ref().unwrap();
-            enum_type_name = enum_decl_node_rcref.borrow().name.clone();
-
-            let enum_decl_node = enum_decl_node_rcref.borrow();
-
-            for enum_match_pattern_node in &enum_match_pattern_nodes {
-                let mut found_match = false;
-                for enumerator_decl_node_rc in &enum_decl_node.enums {
-                    let enum_value = &enumerator_decl_node_rc.name;
-                    let match_pattern = &enum_match_pattern_node.match_pattern;
-                    if *match_pattern == *enum_value {
-                        found_match = true;
-                        break;
-                    }
-                }
-                if !found_match {
-                    let err_msg = format!(
-                        "'{}' is not an enumeration in enum type {}",
-                        match_pattern_enum, enum_decl_node.name
-                    );
-                    self.error_at_current(&err_msg);
-                    // return Err(ParseError::new(&err_msg));
-                }
-            }
-        }
-
-        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
-        let result = self.branch_terminator();
-        match result {
-            Ok(branch_terminator_t_opt) => Ok(EnumMatchTestMatchBranchNode::new(
-                enum_type_name,
-                enum_match_pattern_nodes,
-                statements,
-                branch_terminator_t_opt,
-            )),
-            Err(parse_error) => Err(parse_error),
-        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -10817,34 +11182,6 @@ impl<'a> Parser<'a> {
     // ===================== Frame v0.31 Import Support =====================
     
     // v0.34: Helper methods for FSL import tracking
-    fn track_fsl_import(&mut self, module_name: &str) {
-        if module_name.starts_with("fsl.") {
-            let operation = module_name.strip_prefix("fsl.").unwrap();
-            self.track_fsl_operation(operation);
-        } else if module_name == "fsl" {
-            self.track_all_fsl_imports();
-        }
-    }
-    
-    fn track_fsl_operation(&mut self, operation: &str) {
-        self.fsl_imports.insert(operation.to_string(), true);
-    }
-    
-    fn track_all_fsl_imports(&mut self) {
-        // Track all standard FSL operations
-        let operations = vec![
-            "str", "int", "float", "bool",
-            "list", "map", "set",
-            "abs", "min", "max", "round", "floor", "ceil",
-        ];
-        for op in operations {
-            self.fsl_imports.insert(op.to_string(), true);
-        }
-    }
-    
-    fn is_fsl_imported(&self, operation: &str) -> bool {
-        self.fsl_imports.contains_key(operation)
-    }
     
     /// Parse import statement: import module [as alias]
     fn parse_import_statement(&mut self) -> Result<ImportNode, ParseError> {
@@ -10929,10 +11266,6 @@ impl<'a> Parser<'a> {
         
         // Check for wildcard import
         if self.match_token(&[TokenType::Star]) {
-            // v0.34: Track FSL wildcard imports
-            if module_name == "fsl" {
-                self.track_all_fsl_imports();
-            }
             return Ok(ImportNode::new(
                 ImportType::FromImportAll { 
                     module: module_name 
@@ -10954,7 +11287,7 @@ impl<'a> Parser<'a> {
         
         // v0.34: Track specific FSL imports
         if module_name == "fsl" {
-            let operation_name = self.previous().lexeme.clone();
+            let _operation_name = self.previous().lexeme.clone();
             // self.track_fsl_operation(&operation_name);  // v0.37: FSL removed
         }
         
@@ -10969,7 +11302,7 @@ impl<'a> Parser<'a> {
             
             // v0.34: Track specific FSL imports  
             if module_name == "fsl" {
-                let operation_name = self.previous().lexeme.clone();
+                let _operation_name = self.previous().lexeme.clone();
                 // self.track_fsl_operation(&operation_name);  // v0.37: FSL removed
             }
         }
@@ -11139,12 +11472,12 @@ impl<'a> Parser<'a> {
             ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
                 self.expr_contains_await(&assignment_stmt_node.assignment_expr_node.r_value_rc)
             }
-            ExprStmtType::CallStmtT { call_stmt_node } => {
+            ExprStmtType::CallStmtT { call_stmt_node: _ } => {
                 // Check if the call expression might contain await
                 // This is a simplified check - just returns false for now
                 false
             }
-            ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+            ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node: _ } => {
                 // Check each node in the chain for an expression that might contain await
                 false
             }
@@ -11216,7 +11549,6 @@ impl<'a> Parser<'a> {
     
     // Parse bracket expressions to distinguish between indexing and slicing
     fn parse_bracket_expression(&mut self) -> Result<BracketExpressionType, ParseError> {
-        use super::ast::SliceNode;
         
         // Check if we have a colon (indicating a slice)
         // We need to look ahead to see if there's a colon before the closing bracket

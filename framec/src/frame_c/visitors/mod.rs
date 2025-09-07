@@ -163,6 +163,12 @@ pub trait AstVisitor {
 
     fn visit_list_node(&mut self, _list: &ListNode) {}
     fn visit_list_node_to_string(&mut self, _list: &ListNode, _output: &mut String) {}
+    fn visit_dict_literal_node(&mut self, _dict: &DictLiteralNode) {}
+    fn visit_dict_literal_node_to_string(&mut self, _dict: &DictLiteralNode, _output: &mut String) {}
+    fn visit_set_literal_node(&mut self, _set: &SetLiteralNode) {}
+    fn visit_set_literal_node_to_string(&mut self, _set: &SetLiteralNode, _output: &mut String) {}
+    fn visit_tuple_literal_node(&mut self, _tuple: &TupleLiteralNode) {}
+    fn visit_tuple_literal_node_to_string(&mut self, _tuple: &TupleLiteralNode, _output: &mut String) {}
 
     fn visit_list_elem_node(&mut self, _list_elem: &ListElementNode) {}
     fn visit_list_elem_node_to_string(&mut self, _list_elem: &ListElementNode, _output: &mut String) {}
@@ -174,10 +180,24 @@ pub trait AstVisitor {
     fn visit_unpack_expr_node_to_string(&mut self, _unpack_expr: &UnpackExprNode, _output: &mut String) {}
     fn visit_list_comprehension_node(&mut self, _comprehension: &ListComprehensionNode) {}
     fn visit_list_comprehension_node_to_string(&mut self, _comprehension: &ListComprehensionNode, _output: &mut String) {}
+    fn visit_dict_comprehension_node(&mut self, _comprehension: &DictComprehensionNode) {}
+    fn visit_dict_comprehension_node_to_string(&mut self, _comprehension: &DictComprehensionNode, _output: &mut String) {}
+    
+    // v0.38: Dict unpacking
+    fn visit_dict_unpack_expr_node(&mut self, _dict_unpack_expr: &DictUnpackExprNode) {}
+    fn visit_dict_unpack_expr_node_to_string(&mut self, _dict_unpack_expr: &DictUnpackExprNode, _output: &mut String) {}
     
     // v0.35: Async/await support
     fn visit_await_expr_node(&mut self, _await_expr: &AwaitExprNode) {}
     fn visit_await_expr_node_to_string(&mut self, _await_expr: &AwaitExprNode, _output: &mut String) {}
+    
+    // v0.38: Lambda expressions
+    fn visit_lambda_expr_node(&mut self, _lambda_expr: &LambdaExprNode) {}
+    fn visit_lambda_expr_node_to_string(&mut self, _lambda_expr: &LambdaExprNode, _output: &mut String) {}
+    
+    // v0.38: Function references for first-class functions
+    fn visit_function_ref_node(&mut self, _name: &str) {}
+    fn visit_function_ref_node_to_string(&mut self, _name: &str, _output: &mut String) {}
 
     fn visit_list_stmt_node(&mut self, _list: &ListStmtNode) {}
 
@@ -273,9 +293,4 @@ pub trait AstVisitor {
     fn visit_self_expr_node(&mut self, _self_expr_node: &SelfExprNode) {}
     fn visit_self_expr_node_to_string(&mut self, _self_expr_node: &SelfExprNode, _output: &mut String) {}
 
-    // FSL Built-in operations (v0.33)
-    fn visit_builtin_call_expr_node(&mut self, _node: &crate::frame_c::fsl::BuiltInCallNode) {}
-    fn visit_builtin_call_expr_node_to_string(&mut self, _node: &crate::frame_c::fsl::BuiltInCallNode, _output: &mut String) {}
-    fn visit_builtin_property_expr_node(&mut self, _node: &crate::frame_c::fsl::BuiltInPropertyNode) {}
-    fn visit_builtin_property_expr_node_to_string(&mut self, _node: &crate::frame_c::fsl::BuiltInPropertyNode, _output: &mut String) {}
 }

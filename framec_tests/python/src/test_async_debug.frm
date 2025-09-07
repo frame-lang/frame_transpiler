@@ -1,4 +1,3 @@
-from fsl import str
 
 // Debug test for async interface methods
 system AsyncDebug {

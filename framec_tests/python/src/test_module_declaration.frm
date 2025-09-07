@@ -2,7 +2,6 @@
 // This tests that module declarations parse correctly
 // but doesn't use qualified names yet
 
-from fsl import str
 
 // A simple module that contains functions
 module utils {

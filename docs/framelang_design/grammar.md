@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.38)
 
 **Last Updated**: 2025-09-07  
-**Status**: Complete with lambda expressions, collections, Python logical operators, async/await support, slicing operations, with statements, and runtime async infrastructure with 95.1% test coverage (269/283 tests passing)
+**Status**: Complete with first-class functions, lambda expressions, collections, Python logical operators, async/await support, slicing operations, with statements, and runtime async infrastructure with 95.1% test coverage (272/286 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1770,6 +1770,9 @@ primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
             | 'true' | 'false' | 'None'
             | '(' expr ')' | '@'
             | list_literal | dict_literal | set_literal | tuple_literal
+            | function_ref  // v0.38: Function reference
+
+function_ref: IDENTIFIER  // Function name without parentheses
 
 // v0.38: Lambda Expressions
 lambda_expr: 'lambda' lambda_params? ':' expr
@@ -1835,7 +1838,40 @@ var ops = {
 var result = ops["add"](5, 3)  // 8
 ```
 
-**Note**: While lambda expressions are fully supported, functions/lambdas are not yet first-class values (cannot be passed as parameters to other functions).
+### First-Class Functions (v0.38)
+
+Frame v0.38 supports both named functions and lambdas as first-class values:
+
+```frame
+// Functions as values
+fn add(a, b) { return a + b }
+fn multiply(a, b) { return a * b }
+
+// Assign function to variable
+var my_func = add
+var result = my_func(3, 4)  // 7
+
+// Pass function as parameter
+fn apply_op(op, x, y) {
+    return op(x, y)
+}
+result = apply_op(multiply, 5, 3)  // 15
+
+// Return function from function
+fn get_operation(name) {
+    if name == "add" {
+        return add
+    } else {
+        return multiply
+    }
+}
+
+// Store functions in collections
+var operations = [add, multiply]
+var ops_dict = {"plus": add, "times": multiply}
+```
+
+**Function References**: When a function name appears without parentheses, it's treated as a function reference (first-class value) that can be assigned, passed, or returned.
 
 ### Collection Syntax (v0.38)
 

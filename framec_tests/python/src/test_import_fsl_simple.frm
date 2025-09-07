@@ -1,5 +1,4 @@
 // Simple FSL import test
-from fsl import str, int
 
 fn test_fsl() {
     var number = 42

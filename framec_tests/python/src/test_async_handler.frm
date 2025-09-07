@@ -1,5 +1,4 @@
 // Test async interface methods with proper event handlers
-from fsl import str
 
 system AsyncHandler {
     interface:

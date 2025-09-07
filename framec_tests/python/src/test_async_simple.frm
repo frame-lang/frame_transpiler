@@ -1,4 +1,3 @@
-from fsl import str
 
 async fn fetch_data(url) {
     print("Fetching from " + url)

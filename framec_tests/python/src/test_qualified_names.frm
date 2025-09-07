@@ -1,7 +1,6 @@
 // Test qualified name access (v0.34)
 // This tests module.function() syntax (currently not working)
 
-from fsl import str
 
 module utils {
     fn helper() {

@@ -1,7 +1,6 @@
 // Test list comprehension support - v0.34
 // Expected: List comprehensions work with Frame syntax
 
-from fsl import str
 
 fn test_basic_comprehension() {
     // Basic list comprehension

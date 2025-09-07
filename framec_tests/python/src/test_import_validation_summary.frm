@@ -29,7 +29,6 @@ from typing import *
 // ========================================
 
 // 6. Individual FSL imports
-from fsl import str, int, float
 
 // Note: Wildcard FSL also supported in other test
 // from fsl import *

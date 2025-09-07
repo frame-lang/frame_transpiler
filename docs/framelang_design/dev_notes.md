@@ -19,10 +19,11 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.38 Complete Collections, Lambda & Python Operators (2025-09-07)
+## Latest Status: v0.38 Complete Collections, First-Class Functions, Lambda & Python Operators (2025-09-07)
 
 ### v0.38 Release - Complete Feature Set ✅
-- **Test Coverage**: **269/283 tests passing (95.1% success rate)**
+- **Test Coverage**: **272/286 tests passing (95.1% success rate)**
+- **First-Class Functions**: Full support for functions as values (NEW) ✅
 - **Lambda Expressions**: Full Python lambda syntax support discovered working
 - **Dictionary Operations**: Complete `dict["key"]` indexing and assignment
 - **Collection Literals**: All 8 patterns (dict, set, tuple, list) working
@@ -35,6 +36,7 @@ Languages considered in Frame's design with documented patterns:
 - Lambda expressions have complete implementation
 - Dictionary indexing works for both read and write operations
 - Domain variable dictionary initialization has a parser limitation
+- **First-class functions fully implemented**: Functions can be assigned to variables, passed as parameters, returned from functions, and stored in collections
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
 - **Test Coverage**: **222/222 tests passing (100% success rate)**

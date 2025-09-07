@@ -1,4 +1,3 @@
-from fsl import str
 
 // Simple async validation test for Frame v0.37
 import asyncio

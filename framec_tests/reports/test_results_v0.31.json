@@ -1,19 +1,33 @@
 {
-  "timestamp": "2025-09-06T15:25:31.225082",
+  "timestamp": "2025-09-07T13:54:41.857614",
   "version": "v0.31",
   "summary": {
-    "total": 224,
-    "transpile_success": 224,
-    "execute_success": 224,
-    "complete_success": 224,
-    "success_rate": "100.0%"
+    "total": 288,
+    "transpile_success": 279,
+    "execute_success": 277,
+    "complete_success": 277,
+    "success_rate": "96.2%"
   },
   "results": [
+    {
+      "file": "test_all_8_collection_patterns.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing All 8 Collection Patterns ===\n\n1. var s = set(1,2,3)\n   Result: {1, 2, 3}\n\n2. var s_set = {1,2,3}\n   Result: {1, 2, 3}\n\n3. var l = list(1,2,3)\n   Result: [1, 2, 3]\n\n4. var l2 = [1,2,3]\n   ",
+      "error": null
+    },
     {
       "file": "test_all_blocks_comprehensive.frm",
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_all_constructors.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Empty list: []\nEmpty dict: {}\nEmpty set: {}\nEmpty tuple: ()\n",
       "error": null
     },
     {
@@ -101,6 +115,13 @@
       "error": null
     },
     {
+      "file": "test_backtick_removal.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Backtick Removal Limitations ===\n\n1. Module member access:\nPi value: 3.14159\nPath: dir/file.txt\n\n2. Dictionary operations:\nDict value: value\n\n3. Method chaining:\nChained result: JELLO\n\n4. ",
+      "error": null
+    },
+    {
       "file": "test_basic_scope.frm",
       "transpile": true,
       "execute": true,
@@ -143,6 +164,41 @@
       "error": null
     },
     {
+      "file": "test_chaining.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Result: JELLO\n",
+      "error": null
+    },
+    {
+      "file": "test_collection_constructors.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Collection Constructors ===\nlist(1,2,3): [1, 2, 3]\nset(1,2,3): {1, 2, 3}\ntuple(10,20,30): (10, 20, 30)\ndict([('key1', 'value1'), ('key2', 'value2')]): {'key1': 'value1', 'key2': 'value2'}\n",
+      "error": null
+    },
+    {
+      "file": "test_collections.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Collection Syntax ===\nList literal works: [1, 2, 3]\nEmpty list works: []\nCollection syntax not yet implemented\n",
+      "error": null
+    },
+    {
+      "file": "test_collections_all.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing All Collection Types in Frame v0.38\n=============================================\n=== Testing Lists ===\nList literal: [1, 2, 3]\nEmpty list: []\nNested list: [[1, 2], [3, 4]]\n\n=== Testing Dictio",
+      "error": null
+    },
+    {
+      "file": "test_compound.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "x = 8\n",
+      "error": null
+    },
+    {
       "file": "test_comprehensive_scope_validation.frm",
       "transpile": true,
       "execute": true,
@@ -161,6 +217,13 @@
       "transpile": true,
       "execute": true,
       "output": "3.14159\n0\n",
+      "error": null
+    },
+    {
+      "file": "test_constructors.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "List constructor: [1, 2, 3]\n",
       "error": null
     },
     {
@@ -185,6 +248,13 @@
       "error": null
     },
     {
+      "file": "test_current_limitations.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Current Limitations ===\nNeed to implement module member access\nDictionary indexing works: {'key': 'value'}\nMethod chaining not yet supported\nSingle index works: [1, 2]\nNested indexing work",
+      "error": null
+    },
+    {
       "file": "test_debug.frm",
       "transpile": true,
       "execute": true,
@@ -196,6 +266,193 @@
       "transpile": true,
       "execute": true,
       "output": "Testing\n",
+      "error": null
+    },
+    {
+      "file": "test_dict.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Dict: {'name': 'Frame', 'version': '0.39'}\nName: Frame\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_advanced_patterns.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'elif'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+    },
+    {
+      "file": "test_dict_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "{0: 0, 1: 1, 2: 4, 3: 9, 4: 16}\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_comp_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Basic Dictionary Comprehensions ===\nSquares: {0: 0, 1: 1, 2: 4, 3: 9, 4: 16, 5: 25}\nEven squares: {0: 0, 2: 4, 4: 16, 6: 36, 8: 64}\nWord lengths: {'apple': 5, 'banana': 6, 'cherry': 6}\nString mapp",
+      "error": null
+    },
+    {
+      "file": "test_dict_comp_patterns.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "{0: 0, 1: 1, 2: 4, 3: 9, 4: 16}\n{0: 0, 2: 4, 4: 16, 6: 36, 8: 64}\n{'hello': 5, 'world': 5, 'python': 6, 'frame': 5}\n{'3': 7, '4': 9, '5': 11}\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_comp_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "{0: 0, 1: 1, 2: 4, 3: 9, 4: 16}\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_comprehensions.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "{0: 0, 1: 1, 2: 4, 3: 9, 4: 16}\n{'a': 1, 'b': 2, 'c': 3}\n{0: 0, 2: 4, 4: 16, 6: 36, 8: 64}\n{'hello': 5, 'world': 5, 'python': 6, 'frame': 5}\n{0: {0: 0, 1: 0, 2: 0}, 1: {0: 0, 1: 1, 2: 2}, 2: {0: 0, 1:",
+      "error": null
+    },
+    {
+      "file": "test_dict_comprehensive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Comprehensive Dictionary Syntax Test\n==================================================\n\n=== 1. Literal Syntax (Most Common) ===\nEmpty dict literal: {} -> {}\nPerson dict: {'name': 'Alice",
+      "error": null
+    },
+    {
+      "file": "test_dict_conditional.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "{0: 0, 2: 4, 4: 16, 6: 36, 8: 64}\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_constructor_patterns.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Dict Constructor Patterns ===\n\n1. dict() -> {}\n2. dict([('name', 'Alice'), ('age', 30), ('city', 'NYC')]) -> {'name': 'Alice', 'age': 30, 'city': 'NYC'}\n3. dict([['key1', 'value1'], ['key2",
+      "error": null
+    },
+    {
+      "file": "test_dict_from_sequences.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Dict From Sequences Test\n==================================================\n\n=== Dict From Sequences Test ===\n\n1. From list of tuples:\n   dict([('a', 1), ('b', 2), ('c', 3)]) -> {'a': 1,",
+      "error": null
+    },
+    {
+      "file": "test_dict_fromkeys.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "dict.fromkeys(['a', 'b', 'c'], 0):\n{'a': 0, 'b': 0, 'c': 0}\ndict.fromkeys(['x', 'y', 'z']):\n{'x': None, 'y': None, 'z': None}\ndict.fromkeys('abc', 1):\n{'a': 1, 'b': 1, 'c': 1}\ndict.fromkeys(range(3), ",
+      "error": null
+    },
+    {
+      "file": "test_dict_in_system.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing dictionary in system...\nReceived config: {'mode': 'production', 'debug': False}\nConfigure response: {'status': 'ok', 'data': {'mode': 'production', 'debug': False}}\nSettings: {'mode': 'test', ",
+      "error": null
+    },
+    {
+      "file": "test_dict_lambda.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Test\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_lambda2.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Test\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_lambda3.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Before dict\nAfter dict\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_literal.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 55] Error at 'interface:' : Expected '}' - found 'interface:'.\n\n"
+    },
+    {
+      "file": "test_dict_merge.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing dict.update() ===\nBefore update:\nd1 = {'a': 1, 'b': 2}\nAfter d1.update(d2) and d1.update(d3):\nd1 = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}\n\nNote: Keyword arguments in update() not yet sup",
+      "error": null
+    },
+    {
+      "file": "test_dict_merge_complete.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Dictionary Merging Methods\n==================================================\n\n1. dict.update() - Mutates Original\n   Before: d1 = {'a': 1, 'b': 2}\n   After d1.update(d2) and d1.update(d",
+      "error": null
+    },
+    {
+      "file": "test_dict_setdefault.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Dynamic Dictionary Creation with setdefault\n============================================================\n=== Testing dict.setdefault() ===\n\n1. Traditional approach:\n\n2. Using setdefault:",
+      "error": null
+    },
+    {
+      "file": "test_dict_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Dict: {'a': 1, 'b': 2}\nEmpty: {}\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_simple2.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "{0: 0, 1: 1, 2: 4, 3: 9, 4: 16}\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_support.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Empty list: []\nDictionary literals ({}) are not yet supported\nThis is the main remaining limitation\n",
+      "error": null
+    },
+    {
+      "file": "test_dict_switch.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Dictionary as Switch Statement\n==================================================\n=== Basic Dictionary Switch ===\n\nTesting case2:\nSecond case\nReturned: Result from case 2\n\nTesting case1:",
+      "error": null
+    },
+    {
+      "file": "test_dict_union.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing union operator (|) ===\nd1 = {'a': 1, 'b': 2}\nd2 = {'c': 3, 'd': 4}\nmerged = d1 | d2\nResult: {'a': 1, 'b': 2, 'c': 3, 'd': 4}\n\nd3 = {'e': 5, 'b': 99}\nmerged2 = d1 | d2 | d3\nResult: {'a': 1,",
+      "error": null
+    },
+    {
+      "file": "test_dict_unpacking.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Dict Unpacking Operator Test\n==================================================\n\n=== Testing Dict Unpacking Operator (**) ===\n\n1. Basic unpacking:\n   {**base} -> {'a': 1, 'b': 2}\n\n2. Com",
+      "error": null
+    },
+    {
+      "file": "test_dict_update.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing dict.update() ===\nBefore update:\nd1 = {'a': 1, 'b': 2}\nAfter d1.update(d2) and d1.update(d3):\nd1 = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}\n\n=== Testing unpacking merge ===\nmerged = {**d1,",
       "error": null
     },
     {
@@ -217,6 +474,13 @@
       "transpile": true,
       "execute": true,
       "output": "test\n",
+      "error": null
+    },
+    {
+      "file": "test_dynamic_dict_creation.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Comprehensive Dynamic Dictionary Creation\n============================================================\n=== Comparing Traditional vs setdefault ===\n\n1. Traditional approach (verbose):\nTra",
       "error": null
     },
     {
@@ -246,6 +510,13 @@
       "execute": true,
       "output": null,
       "error": null
+    },
+    {
+      "file": "test_enum_compliance.frm",
+      "transpile": true,
+      "execute": false,
+      "output": null,
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enum_compliance.py\", line 67, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/mark"
     },
     {
       "file": "test_enum_custom_values.frm",
@@ -307,14 +578,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -357,6 +628,27 @@
       "transpile": true,
       "execute": true,
       "output": "Logging task: task1\nPublic operation\nHash: 210\nInternal helper called\nPublic operation\nTotal updated to: 40\n",
+      "error": null
+    },
+    {
+      "file": "test_exponent_operator.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "5 * 5 (simulating 5**2) = 25\n",
+      "error": null
+    },
+    {
+      "file": "test_external_loading.frm",
+      "transpile": true,
+      "execute": false,
+      "output": "Frame v0.38 - Loading from External Sources\n==================================================\n=== JSON Operations ===\nFrom JSON string: {'name': 'Alice', 'age': 30}\nTo JSON string: {\"user\": \"Bob\", \"s",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_external_loading.py\", line 95, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/mar"
+    },
+    {
+      "file": "test_features.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Features ===\n1. math.pi works: 3.141592653589793\n2. os.path.join works: dir/file.txt\n3. Dict assignment works: {'name': 'Frame', 'version': '0.39'}\n4. Dict access works: Frame\n5. Method ch",
       "error": null
     },
     {
@@ -444,6 +736,18 @@
       "error": null
     },
     {
+      "file": "test_func_ref_simple.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 10] Error at 'print' : Error - unknown scope identifier TODO add TODO.\n\n"
+    },
+    {
+      "file": "test_func_ref_use.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'print'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+    },
+    {
       "file": "test_function_call.frm",
       "transpile": true,
       "execute": true,
@@ -456,6 +760,19 @@
       "execute": true,
       "output": "=== Function Isolation Test ===\nPublic interface called\nInternal operation\nIn test_isolation function\nPublic interface called\nInternal operation\nCan only use public interfaces\nFunction isolation test ",
       "error": null
+    },
+    {
+      "file": "test_function_refs_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Function Reference Test Suite ===\n\n=== Testing Direct Function References ===\nWrapped add result: 7\n\n=== Testing Passing Functions ===\nApply with lambda: 8\n\n=== Tests Complete ===\n",
+      "error": null
+    },
+    {
+      "file": "test_function_refs_complete.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'print'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_function_scope_isolation.frm",
@@ -626,6 +943,19 @@
       "error": null
     },
     {
+      "file": "test_json_file.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:\nbyte index 2671 is not a char boundary; it is inside '\u2713' (bytes 2670..2673) of `// Test JSON-like data handling (import and file I/O not"
+    },
+    {
+      "file": "test_json_loading.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - JSON Loading Test\n==================================================\n=== Testing JSON from String ===\nJSON string: {\"name\": \"Alice\", \"age\": 30}\nParsed dict: {'name': 'Alice', 'age': 30}\n",
+      "error": null
+    },
+    {
       "file": "test_just_return_assign.frm",
       "transpile": true,
       "execute": true,
@@ -651,6 +981,26 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_lambda.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Lambda-like Patterns\n=============================================\n=== Lambda-like Functions (regular functions) ===\nPi value: 3.14159\nSquare of 5: 25\n10 + 20 = 30\n2 * 3 * 4 = 24\n\n=== Fu",
+      "error": null
+    },
+    {
+      "file": "test_lambda_complete.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'lambda'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+    },
+    {
+      "file": "test_lambda_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Basic Lambda ===\nSquare of 5: 25\n10 + 20 = 30\nPi value: 3.14159\n",
       "error": null
     },
     {
@@ -752,6 +1102,13 @@
       "error": null
     },
     {
+      "file": "test_missing_features.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Missing Features ===\nTODO: math.pi access\nTODO: os.path.join() access\nTODO: dict[key] = value assignment\nTODO: method chaining\nTODO: matrix[i][j] access\n=== End ===\n",
+      "error": null
+    },
+    {
       "file": "test_mixed_entities.frm",
       "transpile": true,
       "execute": true,
@@ -777,6 +1134,13 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_module_access.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Pi = 3.141592653589793\n",
       "error": null
     },
     {
@@ -920,6 +1284,13 @@
       "error": null
     },
     {
+      "file": "test_nested_index.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Value at [1][2]: 6\n",
+      "error": null
+    },
+    {
       "file": "test_nested_modules.frm",
       "transpile": true,
       "execute": true,
@@ -959,6 +1330,13 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_os_path.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Path: dir/file.txt\n",
       "error": null
     },
     {
@@ -1039,6 +1417,13 @@
       "error": null
     },
     {
+      "file": "test_safe_dict_parsing.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Safe Dictionary Parsing\n==================================================\n=== Safe JSON Parsing (Recommended) ===\nParsed from JSON: {'name': 'Alice', 'age': 30, 'active': True}\nName: Al",
+      "error": null
+    },
+    {
       "file": "test_scope_isolation.frm",
       "transpile": true,
       "execute": true,
@@ -1099,6 +1484,13 @@
       "transpile": true,
       "execute": true,
       "output": "=== EXHAUSTIVE self.variable TESTS ===\n\n--- LVALUE TESTS ---\nL1: self.x = 100 -> 100\nL2: self.x = 50 + 25 -> 75\nL3: self.x = temp -> 200\nL4: self.x = self.y -> 300\nL5: self.x = self.y + 100 -> 400\nL6:",
+      "error": null
+    },
+    {
+      "file": "test_set_literal.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Set: {1, 2, 3}\n",
       "error": null
     },
     {
@@ -1253,6 +1645,19 @@
       "transpile": true,
       "execute": true,
       "output": "Hel\n",
+      "error": null
+    },
+    {
+      "file": "test_special_dicts.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 19] Error at 'not' : Expected ':' or '{' after if condition.\n\n"
+    },
+    {
+      "file": "test_special_dicts_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Special Dictionary Types\n==================================================\n=== Testing defaultdict ===\ndd_int['count'] = 1\ndd_int['new'] = 0\ndd_list['items'] = ['apple', 'banana']\ndd_li",
       "error": null
     },
     {
@@ -1417,6 +1822,13 @@
       "error": null
     },
     {
+      "file": "test_tuple_literal.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Tuple: (10, 20, 30)\n",
+      "error": null
+    },
+    {
       "file": "test_two_systems_no_function.frm",
       "transpile": true,
       "execute": true,
@@ -1543,6 +1955,12 @@
       "error": null
     },
     {
+      "file": "test_v039_features.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:\nbyte index 2700 is not a char boundary; it is inside '\u2713' (bytes 2699..2702) of `// Test current Frame v0.38 capabilities (v0.39 features"
+    },
+    {
       "file": "test_validation_comprehensive.frm",
       "transpile": true,
       "execute": true,
@@ -1568,6 +1986,27 @@
       "transpile": true,
       "execute": true,
       "output": "==================================================\nTesting with statement support in Frame v0.37\n==================================================\n\nTest 1: Basic with statement\n----------------------",
+      "error": null
+    },
+    {
+      "file": "test_working_features.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Working Features ===\n1. math.pi = 3.141592653589793\n2. os.path.join = dir/file.txt\n3. Method chain = JELLO\n4. matrix[1][1] = 4\n5. List ops = [10, 2, 3, 4]\n\nConclusion: Most features work W",
+      "error": null
+    },
+    {
+      "file": "test_xor_operator.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing XOR Operator ===\nXOR: a is true XOR b is true\nManual: exactly one is true\nXOR is false when both are true\nXOR is false when both are false\nComplex XOR: exactly one condition is true\n\n=== T",
+      "error": null
+    },
+    {
+      "file": "test_xor_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing XOR Operator ===\nXOR: exactly one is true\nXOR is false when both are true\nXOR is false when both are false\n=== XOR Test Complete ===\n",
       "error": null
     },
     {

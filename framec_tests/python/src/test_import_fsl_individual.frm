@@ -2,7 +2,6 @@
 // Expected output: All FSL operations work correctly with individual imports
 
 // Individual FSL imports - specific functions only
-from fsl import str, int, float
 
 fn test_str_operations() {
     var num = 42
