@@ -8123,29 +8123,39 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
     
     fn visit_set_literal_node(&mut self, set: &SetLiteralNode) {
-        self.add_code("{");
-        
-        let mut separator = "";
-        for element in &set.elements {
-            self.add_code(separator);
-            element.accept(self);
-            separator = ", ";
+        // v0.38: Empty set requires set() in Python, not {}
+        if set.elements.is_empty() {
+            self.add_code("set()");
+        } else {
+            self.add_code("{");
+            
+            let mut separator = "";
+            for element in &set.elements {
+                self.add_code(separator);
+                element.accept(self);
+                separator = ", ";
+            }
+            
+            self.add_code("}");
         }
-        
-        self.add_code("}");
     }
     
     fn visit_set_literal_node_to_string(&mut self, set: &SetLiteralNode, output: &mut String) {
-        output.push('{');
-        
-        let mut separator = "";
-        for element in &set.elements {
-            output.push_str(separator);
-            element.accept_to_string(self, output);
-            separator = ", ";
+        // v0.38: Empty set requires set() in Python, not {}
+        if set.elements.is_empty() {
+            output.push_str("set()");
+        } else {
+            output.push('{');
+            
+            let mut separator = "";
+            for element in &set.elements {
+                output.push_str(separator);
+                element.accept_to_string(self, output);
+                separator = ", ";
+            }
+            
+            output.push('}');
         }
-        
-        output.push('}');
     }
     
     //* --------------------------------------------------------------------- *//
@@ -9297,6 +9307,7 @@ impl AstVisitor for PythonVisitor {
             OperatorType::Negated => self.add_code("-"),
             OperatorType::Multiply => self.add_code(" * "),
             OperatorType::Divide => self.add_code(" / "),
+            OperatorType::Power => self.add_code(" ** "),
             OperatorType::Greater => self.add_code(" > "),
             OperatorType::GreaterEqual => self.add_code(" >= "),
             OperatorType::Less => self.add_code(" < "),
@@ -9322,6 +9333,7 @@ impl AstVisitor for PythonVisitor {
             OperatorType::Negated => output.push('-'),
             OperatorType::Multiply => output.push_str(" * "),
             OperatorType::Divide => output.push_str(" / "),
+            OperatorType::Power => output.push_str(" ** "),
             OperatorType::Greater => output.push_str(" > "),
             OperatorType::GreaterEqual => output.push_str(" >= "),
             OperatorType::Less => output.push_str(" < "),

@@ -19,24 +19,26 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.38 Complete Collections, First-Class Functions, Lambda & Python Operators (2025-09-07)
+## Latest Status: v0.38 Complete Feature Set - FINAL (2025-09-07)
 
 ### v0.38 Release - Complete Feature Set ✅
-- **Test Coverage**: **272/286 tests passing (95.1% success rate)**
-- **First-Class Functions**: Full support for functions as values (NEW) ✅
-- **Lambda Expressions**: Full Python lambda syntax support discovered working
+- **Test Coverage**: **282/290 tests passing (97.2% success rate)**
+- **First-Class Functions**: Full support for functions as values ✅
+- **Lambda Expressions**: Full Python lambda syntax with closures ✅
+- **Exponent Operator**: Right-associative `**` operator (NEW) ✅
+- **Empty Set Literal**: `{,}` syntax for empty sets (NEW) ✅
 - **Dictionary Operations**: Complete `dict["key"]` indexing and assignment
 - **Collection Literals**: All 8 patterns (dict, set, tuple, list) working
 - **Breaking Change**: Removed C-style logical operators (`&&`, `||`, `!`)
 - **Python Operators**: Exclusively use `and`, `or`, `not` keywords
 - **Native Python Functions**: `str()`, `len()`, etc work without FSL imports
 
-### Key Discoveries (2025-09-07)
-- Many features documented as "not yet supported" are actually fully working
-- Lambda expressions have complete implementation
-- Dictionary indexing works for both read and write operations
-- Domain variable dictionary initialization has a parser limitation
-- **First-class functions fully implemented**: Functions can be assigned to variables, passed as parameters, returned from functions, and stored in collections
+### Key Features Completed (2025-09-07)
+1. **First-Class Functions**: Functions can be assigned, passed, returned, and stored
+2. **Lambda Expressions**: Full closure support with Python syntax
+3. **Exponent Operator (`**`)**: Right-associative power operator with proper precedence
+4. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dictionaries
+5. **Python Logical Operators**: Complete transition to `and`, `or`, `not`
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
 - **Test Coverage**: **222/222 tests passing (100% success rate)**

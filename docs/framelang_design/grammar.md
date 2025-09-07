@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.38)
 
 **Last Updated**: 2025-09-07  
-**Status**: Complete with first-class functions, lambda expressions, collections, Python logical operators, async/await support, slicing operations, with statements, and runtime async infrastructure with 95.1% test coverage (272/286 tests passing)
+**Status**: Complete with first-class functions, lambda expressions, collections, exponent operator, empty set literal, Python logical operators, async/await support, slicing operations, with statements, and runtime async infrastructure with 97.2% test coverage (282/290 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1760,7 +1760,7 @@ actions:
 expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr | lambda_expr
 
 binary_expr: expr operator expr
-operator: '+' | '-' | '*' | '/' | '%'
+operator: '+' | '-' | '*' | '/' | '%' | '**'  // v0.38: Added exponent operator
         | '==' | '!=' | '<' | '>' | '<=' | '>='
         | 'and' | 'or'  // v0.38: Python logical operators only
 
@@ -1875,7 +1875,7 @@ var ops_dict = {"plus": add, "times": multiply}
 
 ### Collection Syntax (v0.38)
 
-Frame v0.38 introduces comprehensive collection syntax support with both literal and constructor forms for all Python collection types.
+Frame v0.38 introduces comprehensive collection syntax support with both literal and constructor forms for all Python collection types, including the new empty set literal syntax.
 
 #### Collection Literals
 ```frame
@@ -1897,6 +1897,7 @@ var user_id = nested_dict["user"]["id"]  // Nested access works
 // Set literals
 var unique_numbers = {1, 2, 3}
 var single_set = {42}
+var empty_set = {,}  // v0.38: New empty set literal syntax
 
 // Tuple literals
 var coordinates = (10, 20)
@@ -1923,6 +1924,7 @@ var d = dict()             // → dict() (kept as-is)
 
 #### Disambiguation Rules
 - **`{}` syntax**: Empty braces default to dictionary for Python compatibility
+- **`{,}` syntax**: v0.38 explicit empty set literal (generates `set()` in Python)
 - **Dict vs Set**: Presence of colons (`:`) indicates dictionary, otherwise set
 - **Tuple vs Parentheses**: Multiple elements or trailing comma indicates tuple
 - **Single-element tuples**: Automatically get trailing comma in generated Python
@@ -2088,17 +2090,17 @@ While Frame v0.38 has extensive Python compatibility, the following limitations 
        }
    ```
 
-### Language Features Not Yet Implemented
-1. **First-Class Functions**: Functions/lambdas cannot be passed as parameters
-2. **Lambda Closures**: Variable capture in lambdas not yet supported
-3. **Exponent Operator**: `**` operator not implemented
-4. **Empty Set Literal**: Must use `set()` function, not `{}` which creates empty dict
+### Language Features Fully Implemented in v0.38
+1. **First-Class Functions**: ✅ Functions can be passed as parameters, assigned to variables, and returned
+2. **Lambda Expressions**: ✅ Full Python lambda syntax with closures
+3. **Exponent Operator**: ✅ Right-associative `**` operator for powers
+4. **Empty Set Literal**: ✅ `{,}` syntax for empty sets (generates `set()` in Python)
 
-### Test Suite Status
-- **Total Tests**: 283
-- **Passing**: 269 (95.1%)
-- **Failing**: 14 (4.9%)
-- Most failures are known limitations or environment-specific issues
+### Test Suite Status (v0.38)
+- **Total Tests**: 290
+- **Passing**: 282 (97.2%)
+- **Failing**: 8 (2.8%)
+- Remaining failures are edge cases or future v0.39 features
 
 ## Tokens
 

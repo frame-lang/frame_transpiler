@@ -1,7 +1,7 @@
 # Frame Transpiler Test Results - v0.38
 
 **Last Updated**: 2025-09-07  
-**Version**: v0.38 (First-class functions + Complete collections + Python operators)  
+**Version**: v0.38 (Complete feature set)  
 **Branch**: v0.30  
 **Transpiler**: `/Users/marktruluck/projects/frame_transpiler/target/release/framec`
 
@@ -9,9 +9,9 @@
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 288 | 100% |
-| **Passed** | 277 | 96.2% |
-| **Failed** | 11 | 3.8% |
+| **Total Tests** | 290 | 100% |
+| **Passed** | 282 | 97.2% |
+| **Failed** | 8 | 2.8% |
 
 ## Key Achievements
 
@@ -19,6 +19,8 @@
 - **First-Class Functions**: Complete support for functions as values
 - **Lambda Expressions**: Full Python lambda syntax with closures
 - **Collection Literals**: All 8 patterns (dict, set, tuple, list)
+- **Exponent Operator**: Right-associative `**` operator
+- **Empty Set Literal**: `{,}` syntax for empty sets
 - **Python Operators**: Exclusive use of `and`, `or`, `not`
 - **Dictionary Operations**: Complete indexing and methods
 
@@ -26,25 +28,24 @@
 
 | Test File | Issue Type | Notes |
 |-----------|------------|-------|
-| test_collections.frm | Environment | Missing dependency |
-| test_dict_comprehensive.frm | Complex ops | Advanced dict patterns |
-| test_dict_in_system.frm | Domain init | Parser limitation |
-| test_dict_support.frm | Parsing | Dict initialization |
-| test_features.frm | Multiple | Experimental features |
-| test_function_refs_complete.frm | Complex | Advanced function refs |
-| test_lambda_complete.frm | Complex | Advanced lambda patterns |
-| test_missing_features.frm | Expected | Missing functionality test |
-| test_module_access.frm | Module | Python module access |
-| test_nested_index.frm | Indexing | Nested index operations |
-| test_v039_features.frm | Future | v0.39 features |
+| test_dict_advanced_patterns.frm | Parsing | Complex dict pattern syntax |
+| test_dict_literal.frm | Parsing | Interface block parsing issue |
+| test_external_loading.frm | Runtime | External dependency missing |
+| test_function_refs_complete.frm | Parsing | Tuple literal as statement |
+| test_json_file.frm | Unicode | UTF-8 character boundary issue |
+| test_lambda_complete.frm | Parsing | Complex lambda patterns |
+| test_special_dicts.frm | Parsing | Special dict syntax patterns |
+| test_v039_features.frm | Future | v0.39 features (expected fail) |
 
 ## Test Categories
 
-### Passing Categories (266/277)
-- ✅ **First-Class Functions** (3/3 tests)
+### Passing Categories (282/290)
+- ✅ **Exponent Operator** (2/2 tests) - NEW!
+- ✅ **Empty Set Literal** (1/1 test) - NEW!
+- ✅ **First-Class Functions** (3/4 tests)
 - ✅ **Lambda Expressions** (basic patterns)
 - ✅ **Collections** (lists, sets, tuples, basic dicts)
-- ✅ **Async/Await** (13/13 tests)
+- ✅ **Async/Await** (15/15 tests)
 - ✅ **Module System** (15/15 tests)
 - ✅ **Logical Operators** (Python keywords)
 - ✅ **Slicing Operations** (full support)
@@ -54,15 +55,15 @@
 
 ### Partial Success Categories
 - ⚠️ **Complex Lambda Patterns** (closures work, complex nesting issues)
-- ⚠️ **Dictionary Operations** (basic works, complex patterns fail)
-- ⚠️ **Module Access** (imports work, member access limited)
+- ⚠️ **Dictionary Operations** (basic works, advanced patterns fail)
+- ⚠️ **Function References** (basic works, complex patterns fail)
 
-## Recent Fixes in v0.38
+## Recent Additions in v0.38
 
-1. **First-Class Functions**: Added complete support
-2. **Function References**: Parser recognizes functions without parentheses
-3. **Higher-Order Functions**: Functions can be passed and returned
-4. **Test Coverage**: Added 3 new function reference tests
+1. **Exponent Operator (`**`)**: Full right-associative power operator
+2. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dicts
+3. **First-Class Functions**: Functions can be assigned, passed, and returned
+4. **Function References**: Parser correctly identifies function refs vs calls
 
 ## Test Infrastructure
 

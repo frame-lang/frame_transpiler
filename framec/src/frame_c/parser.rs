@@ -6058,7 +6058,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn factor(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.unary_expression() {
+        let mut l_value = match self.power() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -6067,7 +6067,34 @@ impl<'a> Parser<'a> {
         while self.match_token(&[TokenType::ForwardSlash, TokenType::Star]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
-            let r_value = match self.unary_expression() {
+            let r_value = match self.power() {
+                Ok(Some(expr_type)) => expr_type,
+                Ok(None) => return Ok(None),
+                Err(parse_error) => return Err(parse_error),
+            };
+
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
+            l_value = BinaryExprT { binary_expr_node };
+        }
+
+        Ok(Some(l_value))
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn power(&mut self) -> Result<Option<ExprType>, ParseError> {
+        let mut l_value = match self.unary_expression() {
+            Ok(Some(expr_type)) => expr_type,
+            Ok(None) => return Ok(None),
+            Err(parse_error) => return Err(parse_error),
+        };
+
+        // Right associative - use if instead of while
+        if self.match_token(&[TokenType::StarStar]) {
+            let operator_token = self.previous();
+            let op_type = self.get_operator_type(&operator_token.clone());
+            // Recursive call for right associativity
+            let r_value = match self.power() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
                 Err(parse_error) => return Err(parse_error),
@@ -7907,11 +7934,25 @@ impl<'a> Parser<'a> {
     // Parse dictionary or set literal: {key: value} or {1, 2, 3}
     fn dict_or_set_literal(&mut self) -> Result<ExprType, ParseError> {
         // Handle empty {} - default to empty dict
+        // v0.38: Use {,} for empty set (single comma inside)
         if self.peek().token_type == TokenType::CloseBrace {
             self.advance(); // consume '}'
             return Ok(ExprType::DictLiteralT { 
                 dict_literal_node: DictLiteralNode::new(Vec::new())
             });
+        }
+        
+        // v0.38: Check for {,} pattern for empty set
+        if self.peek().token_type == TokenType::Comma {
+            self.advance(); // consume ','
+            if self.peek().token_type == TokenType::CloseBrace {
+                self.advance(); // consume '}'
+                return Ok(ExprType::SetLiteralT {
+                    set_literal_node: SetLiteralNode::new(Vec::new())
+                });
+            } else {
+                return Err(ParseError::new("Expected '}' after ',' for empty set literal"));
+            }
         }
         
         // Check for dict unpacking (**expr)

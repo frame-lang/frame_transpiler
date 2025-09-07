@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-07 13:54  
-**Total Tests**: 288  
+**Generated**: 2025-09-07 14:14  
+**Total Tests**: 290  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 288 | 100% |
-| **Transpilation Success** | 279 | 96.9% |
-| **Execution Success** | 277 | 96.2% |
-| **Complete Success** | 277 | 96.2% |
+| **Total Tests** | 290 | 100% |
+| **Transpilation Success** | 283 | 97.6% |
+| **Execution Success** | 282 | 97.2% |
+| **Complete Success** | 282 | 97.2% |
 
 ## v0.31 Features
 
@@ -35,33 +35,15 @@ First pass parsing errors:
 [line 55] Error at 'interface:' : Expected '}' - found 'interface:'.
 
  |
-| test_enum_compliance.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enum_compliance.py", line 67, in <module>
-    main()
-    ~~~~^^
-  File "/Users/mark |
 | test_external_loading.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_external_loading.py", line 95, in <module>
     main()
     ~~~~^^
   File "/Users/mar |
-| test_func_ref_simple.frm | ❌ | ❌ | Framec failed with an error:
-First pass parsing errors:
-[line 10] Error at 'print' : Error - unknown scope identifier TODO add TODO.
-
- |
-| test_func_ref_use.frm | ❌ | ❌ | Framec failed with an error:
-First pass parse error:
-Expected '}' - found 'print'
-
-Symbol table construction failed. Please check your Frame syntax.
- |
 | test_function_refs_complete.frm | ❌ | ❌ | Framec failed with an error:
-First pass parse error:
-Expected '}' - found 'print'
-
-Symbol table construction failed. Please check your Frame syntax.
- |
+First pass parsing errors:
+[line 58] Error at ')' : Tuple literal expressions not allowed as statements.
+[line 61] Error at ')' : Tuple literal expressions not allowed as  |
 | test_json_file.frm | ❌ | ❌ | thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:
 byte index 2671 is not a char boundary; it is inside '✓' (bytes 2670..2673) of `// Test JSON-like data handling (import and file I/O not |
 | test_lambda_complete.frm | ❌ | ❌ | Framec failed with an error:
@@ -153,8 +135,9 @@ byte index 2700 is not a char boundary; it is inside '✓' (bytes 2699..2702) of
 | test_elif_with_return.frm | ✅ | ✅ | ✅ PASS |
 | test_empty_module.frm | ✅ | ✅ | ✅ PASS |
 | test_empty_params.frm | ✅ | ✅ | ✅ PASS |
+| test_empty_set_literal.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_basic.frm | ✅ | ✅ | ✅ PASS |
-| test_enum_compliance.frm | ✅ | ❌ | ❌ FAIL |
+| test_enum_compliance.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_custom_values.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_iteration.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_module_scope.frm | ✅ | ✅ | ✅ PASS |
@@ -172,6 +155,7 @@ byte index 2700 is not a char boundary; it is inside '✓' (bytes 2699..2702) of
 | test_explicit_self_syntax.frm | ✅ | ✅ | ✅ PASS |
 | test_explicit_self_system_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_exponent_operator.frm | ✅ | ✅ | ✅ PASS |
+| test_exponent_operator_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_external_loading.frm | ✅ | ❌ | ❌ FAIL |
 | test_features.frm | ✅ | ✅ | ✅ PASS |
 | test_first_plus_simple.frm | ✅ | ✅ | ✅ PASS |
@@ -186,8 +170,8 @@ byte index 2700 is not a char boundary; it is inside '✓' (bytes 2699..2702) of
 | test_fsl_no_import_error.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_string_operations.frm | ✅ | ✅ | ✅ PASS |
-| test_func_ref_simple.frm | ❌ | ❌ | ❌ FAIL |
-| test_func_ref_use.frm | ❌ | ❌ | ❌ FAIL |
+| test_func_ref_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_func_ref_use.frm | ✅ | ✅ | ✅ PASS |
 | test_function_call.frm | ✅ | ✅ | ✅ PASS |
 | test_function_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_function_refs_basic.frm | ✅ | ✅ | ✅ PASS |

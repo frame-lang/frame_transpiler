@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-07T13:54:41.857614",
+  "timestamp": "2025-09-07T14:14:14.061100",
   "version": "v0.31",
   "summary": {
-    "total": 288,
-    "transpile_success": 279,
-    "execute_success": 277,
-    "complete_success": 277,
-    "success_rate": "96.2%"
+    "total": 290,
+    "transpile_success": 283,
+    "execute_success": 282,
+    "complete_success": 282,
+    "success_rate": "97.2%"
   },
   "results": [
     {
@@ -505,6 +505,13 @@
       "error": null
     },
     {
+      "file": "test_empty_set_literal.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Empty Set Literal Test ===\nEmpty dict: {}\nType: <class 'dict'>\nEmpty set: set()\nType: <class 'set'>\nNon-empty set: {1, 2, 3}\nAfter adding 42: {42}\n=== Empty Set Literal Test ===\nEmpty dict: {}\nTyp",
+      "error": null
+    },
+    {
       "file": "test_enum_basic.frm",
       "transpile": true,
       "execute": true,
@@ -514,9 +521,9 @@
     {
       "file": "test_enum_compliance.frm",
       "transpile": true,
-      "execute": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_enum_compliance.py\", line 67, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/mark"
+      "execute": true,
+      "output": "Color is red\nPriority is high\nColor value: 1\nPriority value: high\nColor name: RED\nPriority name: HIGH\nAll colors:\n - RED = 1\n - GREEN = 2\n - BLUE = 3\nAll priorities:\n - LOW = low\n - MEDIUM = medium\n -",
+      "error": null
     },
     {
       "file": "test_enum_custom_values.frm",
@@ -550,7 +557,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -578,14 +585,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -635,6 +642,13 @@
       "transpile": true,
       "execute": true,
       "output": "5 * 5 (simulating 5**2) = 25\n",
+      "error": null
+    },
+    {
+      "file": "test_exponent_operator_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Frame v0.38 Exponent Operator Test ===\n\n=== Basic Exponent Tests ===\n2 ** 3 = 8\n5 ** 2 = 25\n3 ** 3 = 27\n2.5 ** 2 = 6.25\n10 ** 0 = 1\n(-2) ** 3 = -8\n\n=== Right Associativity Test ===\n2 ** 3 ** 2 = 5",
       "error": null
     },
     {
@@ -737,15 +751,17 @@
     },
     {
       "file": "test_func_ref_simple.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 10] Error at 'print' : Error - unknown scope identifier TODO add TODO.\n\n"
+      "transpile": true,
+      "execute": true,
+      "output": "Test complete\n",
+      "error": null
     },
     {
       "file": "test_func_ref_use.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'print'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "3 + 4 = 7\n5 + 3 = 8\n5 * 3 = 15\nAll tests passed!\n",
+      "error": null
     },
     {
       "file": "test_function_call.frm",
@@ -772,7 +788,7 @@
       "file": "test_function_refs_complete.frm",
       "transpile": false,
       "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'print'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 58] Error at ')' : Tuple literal expressions not allowed as statements.\n[line 61] Error at ')' : Tuple literal expressions not allowed as "
     },
     {
       "file": "test_function_scope_isolation.frm",

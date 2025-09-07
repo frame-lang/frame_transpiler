@@ -3383,6 +3383,7 @@ pub enum OperatorType {
     Minus,
     Multiply,
     Divide,
+    Power,  // For exponent operator **
     Greater,
     GreaterEqual,
     EqualEqual,
@@ -3413,14 +3414,15 @@ impl NodeElement for OperatorType {
 impl OperatorType {
     pub fn get_operator_type(token_type: &TokenType) -> OperatorType {
         match token_type {
-            TokenType::Plus => Plus,
-            TokenType::Dash => Minus,
-            TokenType::Star => Multiply,
-            TokenType::ForwardSlash => Divide,
-            TokenType::GT => Greater,
-            TokenType::GreaterEqual => GreaterEqual,
+            TokenType::Plus => OperatorType::Plus,
+            TokenType::Dash => OperatorType::Minus,
+            TokenType::Star => OperatorType::Multiply,
+            TokenType::StarStar => OperatorType::Power,  // Exponent operator **
+            TokenType::ForwardSlash => OperatorType::Divide,
+            TokenType::GT => OperatorType::Greater,
+            TokenType::GreaterEqual => OperatorType::GreaterEqual,
             TokenType::LT => OperatorType::Less,
-            TokenType::LessEqual => LessEqual,
+            TokenType::LessEqual => OperatorType::LessEqual,
             TokenType::Not => OperatorType::Not,  // Python 'not' keyword only
             TokenType::EqualEqual => OperatorType::EqualEqual,
             TokenType::BangEqual => OperatorType::NotEqual,

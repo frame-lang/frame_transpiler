@@ -8,7 +8,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (built-in operations), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), and v0.38 (complete collection syntax & Python logical operators alignment).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), and v0.38 (Python logical operators alignment).
 
 ## File Locations
 
@@ -37,7 +37,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.38`  
-**Status**: ✅ **95.1% TEST SUCCESS RATE** (272/286 tests passing) - Complete Collection Syntax, First-Class Functions, Lambda Support & Python Logical Operators
+**Status**: ✅ **97.2% TEST SUCCESS RATE** (282/290 tests passing) - Python Logical Operators Alignment
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -331,106 +331,7 @@ system AsyncPipeline {
 }
 ```
 
-### v0.38 Complete Collection Syntax, First-Class Functions, Lambda Support & Python Logical Operators (NEW)
-
-Frame v0.38 delivers four major improvements: complete collection syntax support, full first-class function support, lambda expressions, and Python logical operator alignment.
-
-#### All 8 Collection Patterns Now Supported
-
-Frame v0.38 implements comprehensive collection syntax with both literal and constructor forms:
-
-```frame
-fn collection_examples() {
-    // Set constructor with arguments → Set literal
-    var s = set(1, 2, 3)           // → {1, 2, 3}
-    var s_set = {1, 2, 3}          // Set literal syntax
-    
-    // List constructor with arguments → List literal  
-    var l = list(1, 2, 3)          // → [1, 2, 3]
-    var l2 = [1, 2, 3]             // List literal syntax
-    
-    // Dict constructor (Python-compliant)
-    var d = dict()                 // → dict() (kept as-is)
-    var d2 = {"a": 1, "b": 2}      // Dictionary literal syntax
-    
-    // Tuple constructor with arguments → Tuple literal
-    var t = tuple(10, 20, 30)      // → (10, 20, 30)
-    var t2 = (10, 20, 30)          // Tuple literal syntax
-    
-    // Complex nested collections
-    var mixed = {
-        "numbers": [1, 2, 3],
-        "coordinates": [(0, 0), (1, 1)],
-        "unique": {1, 2, 3}
-    }
-}
-```
-
-#### Lambda Expressions (NEW in v0.38) ✅
-Frame now supports full Python lambda syntax:
-
-```frame
-fn examples() {
-    // Basic lambda
-    var square = lambda x: x * x
-    
-    // Multi-parameter lambda
-    var add = lambda a, b: a + b
-    
-    // No-parameter lambda
-    var get_pi = lambda: 3.14159
-    
-    // Lambda in dictionary
-    var ops = {"add": lambda a,b: a+b, "mul": lambda a,b: a*b}
-    
-    print("5 squared: " + str(square(5)))
-}
-```
-
-#### First-Class Functions (NEW in v0.38) ✅
-Frame now supports both named functions and lambdas as first-class values:
-
-```frame
-// Functions as values
-fn add(a, b) { return a + b }
-fn multiply(a, b) { return a * b }
-
-fn examples() {
-    // Assign function to variable
-    var my_func = add
-    var result = my_func(3, 4)  // 7
-    
-    // Pass function as parameter
-    fn apply_op(op, x, y) {
-        return op(x, y)
-    }
-    result = apply_op(multiply, 5, 3)  // 15
-    
-    // Return function from function
-    fn get_operation(name) {
-        if name == "add" {
-            return add
-        } else {
-            return multiply
-        }
-    }
-    
-    // Store functions in collections
-    var operations = [add, multiply]
-    var ops_dict = {"plus": add, "times": multiply}
-}
-```
-
-#### Key Features:
-- **Full lambda syntax**: Complete Python lambda expression support
-- **First-class functions**: Both named functions and lambdas are first-class values
-- **Function references**: Function names without parentheses become function values
-- **Higher-order functions**: Functions can accept and return other functions
-- **Dictionary indexing**: `dict["key"]` read/write operations work
-- **Smart disambiguation**: `{}` syntax distinguishes dict vs set by colon presence
-- **Constructor transformation**: `list(1,2,3)` → `[1,2,3]` for optimal Python code
-- **Single-element tuples**: Automatic trailing comma in Python output
-- **Python compliance**: `dict()` kept as proper Python syntax
+### v0.38 Python Logical Operators (NEW)
 
 #### Breaking Change: C-Style Operators Removed
 - **Removed**: `&&`, `||`, `!` operators no longer supported
@@ -438,6 +339,122 @@ fn examples() {
 - **Error Messages**: Scanner provides clear migration guidance
 
 #### Python Logical Operators
+```frame
+fn examples() {
+    // Boolean AND
+    if a and b {
+        print("Both are true")
+    }
+    
+    // Boolean OR
+    if x or y {
+        print("At least one is true")
+    }
+    
+    // Boolean NOT
+    if not condition {
+        print("Condition is false")
+    }
+    
+    // Complex expressions
+    if (a and b) or (not c) {
+        print("Complex logic")
+    }
+    
+    // In state machines
+    machine:
+        $State {
+            check(x, y) {
+                if x > 0 and y > 0 {
+                    -> $Valid
+                } elif not x or not y {
+                    -> $Invalid
+                }
+            }
+        }
+}
+```
+
+### v0.38 Additional Features Completed
+
+#### First-Class Functions (COMPLETE) ✅
+```frame
+fn add(a, b) { return a + b }
+fn multiply(a, b) { return a * b }
+
+fn examples() {
+    // Functions as values
+    var op = add
+    var result = op(5, 3)  // 8
+    
+    // Pass functions as parameters
+    fn apply(func, x, y) {
+        return func(x, y)
+    }
+    result = apply(multiply, 4, 5)  // 20
+    
+    // Return functions from functions
+    fn get_operation(name) {
+        if name == "add" {
+            return add
+        } else {
+            return multiply
+        }
+    }
+}
+```
+
+#### Lambda Expressions (COMPLETE) ✅
+```frame
+fn examples() {
+    // Simple lambda
+    var square = lambda x: x * x
+    print(str(square(5)))  // 25
+    
+    // Multi-parameter lambda
+    var add = lambda x, y: x + y
+    print(str(add(3, 4)))  // 7
+    
+    // Lambda with closures
+    var multiplier = 10
+    var scale = lambda x: x * multiplier
+    print(str(scale(5)))  // 50
+}
+```
+
+#### Exponent Operator (COMPLETE) ✅
+```frame
+fn examples() {
+    // Basic exponentiation
+    var result = 2 ** 3  // 8
+    
+    // Right associativity
+    var tower = 2 ** 3 ** 2  // 512 (2 ** 9)
+    
+    // Precedence (higher than multiplication)
+    var expr = 2 * 3 ** 2  // 18 (2 * 9)
+}
+```
+
+#### Empty Set Literal (COMPLETE) ✅
+```frame
+fn examples() {
+    // Empty dictionary (unchanged)
+    var empty_dict = {}
+    
+    // Empty set (new syntax)
+    var empty_set = {,}
+    
+    // Non-empty set (unchanged)
+    var numbers = {1, 2, 3}
+    
+    // Operations
+    empty_set.add(42)
+    var has_42 = 42 in empty_set  // true
+}
+```
+
+
 ```frame
 fn examples() {
     // Boolean AND
