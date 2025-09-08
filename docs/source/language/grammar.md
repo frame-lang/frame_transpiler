@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.37)
+# Frame Language Grammar (v0.38)
 
-**Last Updated**: 2025-01-22  
-**Status**: Async event handlers and runtime infrastructure implemented with comprehensive async chain validation. Slicing operations for strings and lists fully supported.
+**Last Updated**: 2025-09-08  
+**Status**: Python logical operators (`and`, `or`, `not`), membership operators (`in`, `not in`), and nested dictionary indexing fully supported.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1843,11 +1843,12 @@ expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr
     | list_expr | list_comprehension | unpack_expr | index_expr | slice_expr  // v0.37: Added index_expr and slice_expr
 
 binary_expr: expr operator expr
-operator: '+' | '-' | '*' | '/' | '%'
+operator: '+' | '-' | '*' | '/' | '%' | '**'  // v0.38: Added exponent operator
         | '==' | '!=' | '<' | '>' | '<=' | '>='
-        | '&&' | '||'
+        | 'and' | 'or'  // v0.38: Python logical operators (replaced && and ||)
+        | 'in' | 'not in'  // v0.38: Membership operators
 
-unary_expr: ('-' | '!' | '~') expr
+unary_expr: ('-' | 'not' | '~') expr  // v0.38: 'not' replaces '!'
 
 primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
             | 'true' | 'false' | 'None'
@@ -1858,11 +1859,11 @@ self_expr: 'self' | 'self' '.' IDENTIFIER  // v0.31: self as standalone or dotte
 call_expr: IDENTIFIER '(' arg_list? ')' | '_' IDENTIFIER '(' arg_list? ')'
 arg_list: expr (',' expr)*
 
-// v0.37: Index and slice operations
-index_expr: (IDENTIFIER | self_expr) '[' expr ']'  // Simple indexing support
-slice_expr: (IDENTIFIER | self_expr) '[' slice_notation ']'  // Slicing support
+// v0.38: Index and slice operations with nested support
+index_expr: (IDENTIFIER | self_expr | index_expr) '[' expr ']'  // Nested indexing supported
+slice_expr: (IDENTIFIER | self_expr | index_expr) '[' slice_notation ']'  // Slicing support
 slice_notation: (expr)? ':' (expr)? (':' (expr)?)?  // [start:end:step]
-          // Note: Complex patterns like method()[index] or chained[i][j] not yet supported
+          // v0.38: Chained indexing like dict[key1][key2] now fully supported
 
 // v0.34: List expressions and comprehensions
 list_expr: '[' list_elements? ']'
@@ -1884,57 +1885,47 @@ fsl_string_method: expr '.' ('trim' | 'upper' | 'lower' | 'replace' | 'split' |
 
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
 
-### Index Operations (Improved Support in v0.37)
+### Index Operations (Full Support in v0.38)
 
-⚠️ **Important**: Frame v0.37 has improved but still partial support for index operations (subscript notation with square brackets).
+✅ **Frame v0.38 has full support for nested dictionary and list indexing operations**.
 
-#### Current Support (v0.37)
+#### Current Support (v0.38)
 
-The parser now recognizes index operations `[expression]` after identifiers and variables in call chains, creating a `ListElementNode` in the AST:
+The parser now fully supports nested index operations including chained bracket notation:
 
-**Working patterns**:
+**All patterns now working**:
 ```frame
-// Simple indexing now works:
+// Simple indexing:
 var item = mylist[0]                   // ✅ Simple list indexing
 var value = self.data[index]           // ✅ Self variable indexing  
 var element = array[i]                 // ✅ Variable as index
+
+// Nested/chained indexing (NEW in v0.38):
+matrix[i][j] = value                   // ✅ Chained indexing
+dict["key1"]["key2"] = value           // ✅ Nested dictionary access
+config["database"]["port"] = 3306      // ✅ Deep nesting
+var val = data[section][field]         // ✅ Variable keys
+
+// Complex expressions:
+self.results[str(task_id)] = value     // ✅ Function call in index
+dict["key"] = value                    // ✅ Literal keys
 ```
 
-**Still problematic patterns**:
+**Still unsupported patterns**:
 ```frame
-// Complex expressions in brackets may still fail:
-self.results[str(task_id)] = value     // ❌ Function call in index
+// Method call followed by indexing:
 var item = getArray()[0]               // ❌ Index after method call
-matrix[i][j] = value                   // ❌ Chained indexing
-dict["key"] = value                    // ⚠️ May not work with literals
 ```
 
-#### Parser Implementation Details
+#### Parser Implementation Details (v0.38)
 
-The v0.37 parser enhancement in the `call()` function checks for `LBracket` tokens after completing the call chain dot notation parsing. When found, it:
-1. Extracts the last node from the call chain
-2. Creates a `ListElementNode` with the index expression
-3. Pushes it back as an `UndeclaredListElementT` node
+The v0.38 parser enhancement handles consecutive bracket operations by:
+1. Detecting multiple `[` tokens after an identifier
+2. Creating synthetic `@chain_index` nodes for each bracket pair
+3. Building a proper call chain with these synthetic nodes
+4. The visitor recognizes synthetic nodes and generates correct Python without extra dots
 
-This works for simple cases but doesn't handle all complex expressions or chained operations.
-
-#### Workarounds for Complex Cases
-
-For patterns not yet supported, use backtick expressions:
-
-```frame
-// Use backticks for complex index operations:
-self.results`[str(task_id)]` = value   // Function call in index
-var item = `getArray()[0]`             // Index after method call
-`matrix[i][j]` = value                  // Chained indexing
-
-// For complex operations, use full backtick blocks:
-`
-    self.results[str(task_id)] = value
-    item = my_list[index]
-    my_dict[key] = new_value
-`
-```
+This provides full support for nested dictionary and list operations.
 
 #### Negative Indexing
 
@@ -1982,6 +1973,92 @@ fn slicingExamples() {
 - `[::-1]` - Reverse the sequence
 
 **Note**: Full native support for all index operation patterns is planned for future Frame versions.
+
+### Operators (v0.38)
+
+Frame v0.38 aligns with Python's operator syntax, replacing C-style operators with Python keywords:
+
+#### Logical Operators
+```frame
+// Boolean AND (replaces &&)
+if x > 0 and y > 0 {
+    print("Both positive")
+}
+
+// Boolean OR (replaces ||)
+if name == "admin" or hasPermission {
+    allowAccess()
+}
+
+// Boolean NOT (replaces !)
+if not isValid {
+    print("Invalid input")
+}
+
+// Complex expressions
+if (a and b) or (not c and d) {
+    processData()
+}
+```
+
+#### Membership Operators (NEW in v0.38)
+```frame
+// Check if item in collection
+var fruits = ["apple", "banana", "orange"]
+if "banana" in fruits {
+    print("Found banana!")
+}
+
+// Check if key in dictionary
+var config = {"debug": true, "port": 8080}
+if "debug" in config {
+    print("Debug mode: " + str(config["debug"]))
+}
+
+// Not in operator
+if "grape" not in fruits {
+    fruits.append("grape")
+}
+
+// Works with strings too
+if "world" in "hello world" {
+    print("Found substring")
+}
+```
+
+#### Arithmetic Operators
+```frame
+// Standard arithmetic
+var sum = a + b
+var diff = a - b
+var product = a * b
+var quotient = a / b
+var remainder = a % b
+
+// Exponent operator (NEW in v0.38)
+var square = x ** 2
+var cube = x ** 3
+var power = 2 ** 10  // 1024
+
+// Right associativity for exponent
+var tower = 2 ** 3 ** 2  // 512 (evaluates as 2 ** (3 ** 2))
+```
+
+#### Comparison Operators
+```frame
+// All comparison operators unchanged
+if x == y { }  // Equal
+if x != y { }  // Not equal
+if x < y { }   // Less than
+if x > y { }   // Greater than
+if x <= y { }  // Less than or equal
+if x >= y { }  // Greater than or equal
+```
+
+#### Breaking Changes from v0.37
+- **Removed**: `&&`, `||`, `!` operators no longer supported
+- **Migration**: Replace `&&` with `and`, `||` with `or`, `!` with `not`
+- **Error Messages**: Scanner provides clear migration guidance for old operators
 
 **Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
 

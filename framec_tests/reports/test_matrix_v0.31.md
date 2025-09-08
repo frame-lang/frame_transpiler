@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-07 19:59  
-**Total Tests**: 290  
+**Generated**: 2025-09-08 07:30  
+**Total Tests**: 299  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 290 | 100% |
-| **Transpilation Success** | 286 | 98.6% |
-| **Execution Success** | 285 | 98.3% |
-| **Complete Success** | 285 | 98.3% |
+| **Total Tests** | 299 | 100% |
+| **Transpilation Success** | 282 | 94.3% |
+| **Execution Success** | 280 | 93.6% |
+| **Complete Success** | 280 | 93.6% |
 
 ## v0.31 Features
 
@@ -24,22 +24,70 @@
 
 | Test File | Transpile | Execute | Error |
 |-----------|-----------|---------|-------|
-| test_dict_advanced_patterns.frm | ❌ | ❌ | Framec failed with an error:
-First pass parse error:
-Expected '}' - found 'elif'
+| test_all_8_collection_patterns.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_all_8_collection_patterns.py", line 65, in <module>
+    main()
+    ~~~~^^
+  File "/ |
+| test_async_stress.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 33] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
 
-Symbol table construction failed. Please check your Frame syntax.
+ |
+| test_async_stress_fixed.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 39] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+
+ |
+| test_async_stress_simple.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 20] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+
+ |
+| test_async_with_real.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 92] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+[line 96] Error at 'print' : Expected 'except' after try block.
+[l |
+| test_comprehensive_scope_validation.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 43] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+
+ |
+| test_comprehensive_v0_20_features.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 21] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+
+ |
+| test_enum_compliance.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 46] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+
+ |
+| test_enum_iteration.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 25] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+[line 30] Error at 'return' : Expected '}'
+[line 30] Error at 'ret |
+| test_enum_module_scope.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 35] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+
  |
 | test_external_loading.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_external_loading.py", line 95, in <module>
     main()
     ~~~~^^
   File "/Users/mar |
-| test_json_file.frm | ❌ | ❌ | Framec failed with an error:
-First pass parse error:
-Expected '}' - found 'print'
+| test_functions_with_system.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 6] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
 
-Symbol table construction failed. Please check your Frame syntax.
+ |
+| test_if_elif_returns.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 10] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+
  |
 | test_lambda_complete.frm | ❌ | ❌ | Framec failed with an error:
 First pass parse error:
@@ -47,17 +95,41 @@ Expected '}' - found 'lambda'
 
 Symbol table construction failed. Please check your Frame syntax.
  |
-| test_special_dicts.frm | ❌ | ❌ | Framec failed with an error:
-First pass parsing errors:
-[line 19] Error at 'not' : Expected ':' or '{' after if condition.
+| test_lambda_complete_fixed.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'lambda'
 
+Symbol table construction failed. Please check your Frame syntax.
+ |
+| test_legb_scope_resolution.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 108] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+[line 116] Error at 'LOOP_SHADOW' : redeclaration of outer
+
+ |
+| test_list_features.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 15] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+
+ |
+| test_mixed_returns.frm | ❌ | ❌ | Framec failed with an error:
+First pass parsing errors:
+[line 67] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.
+[line 70] Error at 'return' : Expected '}' - found 'return'.
+
+ |
+| test_special_dicts.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'fn'
+
+Symbol table construction failed. Please check your Frame syntax.
  |
 
 ## Test Details
 
 | Test File | Transpile | Execute | Status |
 |-----------|-----------|---------|--------|
-| test_all_8_collection_patterns.frm | ✅ | ✅ | ✅ PASS |
+| test_all_8_collection_patterns.frm | ✅ | ❌ | ❌ FAIL |
 | test_all_blocks_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_all_constructors.frm | ✅ | ✅ | ✅ PASS |
 | test_async_basic.frm | ✅ | ✅ | ✅ PASS |
@@ -66,12 +138,12 @@ First pass parsing errors:
 | test_async_interface.frm | ✅ | ✅ | ✅ PASS |
 | test_async_minimal.frm | ✅ | ✅ | ✅ PASS |
 | test_async_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_async_stress.frm | ✅ | ✅ | ✅ PASS |
-| test_async_stress_fixed.frm | ✅ | ✅ | ✅ PASS |
-| test_async_stress_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_async_stress.frm | ❌ | ❌ | ❌ FAIL |
+| test_async_stress_fixed.frm | ❌ | ❌ | ❌ FAIL |
+| test_async_stress_simple.frm | ❌ | ❌ | ❌ FAIL |
 | test_async_validate.frm | ✅ | ✅ | ✅ PASS |
 | test_async_with_proper.frm | ✅ | ✅ | ✅ PASS |
-| test_async_with_real.frm | ✅ | ✅ | ✅ PASS |
+| test_async_with_real.frm | ❌ | ❌ | ❌ FAIL |
 | test_backtick_removal.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope_working.frm | ✅ | ✅ | ✅ PASS |
@@ -84,8 +156,8 @@ First pass parsing errors:
 | test_collections.frm | ✅ | ✅ | ✅ PASS |
 | test_collections_all.frm | ✅ | ✅ | ✅ PASS |
 | test_compound.frm | ✅ | ✅ | ✅ PASS |
-| test_comprehensive_scope_validation.frm | ✅ | ✅ | ✅ PASS |
-| test_comprehensive_v0_20_features.frm | ✅ | ✅ | ✅ PASS |
+| test_comprehensive_scope_validation.frm | ❌ | ❌ | ❌ FAIL |
+| test_comprehensive_v0_20_features.frm | ❌ | ❌ | ❌ FAIL |
 | test_const.frm | ✅ | ✅ | ✅ PASS |
 | test_constructors.frm | ✅ | ✅ | ✅ PASS |
 | test_controlled_hsm_loop.frm | ✅ | ✅ | ✅ PASS |
@@ -95,7 +167,8 @@ First pass parsing errors:
 | test_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_debug_nil.frm | ✅ | ✅ | ✅ PASS |
 | test_dict.frm | ✅ | ✅ | ✅ PASS |
-| test_dict_advanced_patterns.frm | ❌ | ❌ | ❌ FAIL |
+| test_dict_advanced_patterns.frm | ✅ | ✅ | ✅ PASS |
+| test_dict_advanced_patterns_fixed.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_comp_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_comp_patterns.frm | ✅ | ✅ | ✅ PASS |
@@ -113,6 +186,7 @@ First pass parsing errors:
 | test_dict_literal.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_merge.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_merge_complete.frm | ✅ | ✅ | ✅ PASS |
+| test_dict_nested_indexing_workaround.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_setdefault.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_simple2.frm | ✅ | ✅ | ✅ PASS |
@@ -130,10 +204,10 @@ First pass parsing errors:
 | test_empty_params.frm | ✅ | ✅ | ✅ PASS |
 | test_empty_set_literal.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_basic.frm | ✅ | ✅ | ✅ PASS |
-| test_enum_compliance.frm | ✅ | ✅ | ✅ PASS |
+| test_enum_compliance.frm | ❌ | ❌ | ❌ FAIL |
 | test_enum_custom_values.frm | ✅ | ✅ | ✅ PASS |
-| test_enum_iteration.frm | ✅ | ✅ | ✅ PASS |
-| test_enum_module_scope.frm | ✅ | ✅ | ✅ PASS |
+| test_enum_iteration.frm | ❌ | ❌ | ❌ FAIL |
+| test_enum_module_scope.frm | ❌ | ❌ | ❌ FAIL |
 | test_enum_string_values.frm | ✅ | ✅ | ✅ PASS |
 | test_enums.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_doc_calendar.frm | ✅ | ✅ | ✅ PASS |
@@ -150,6 +224,7 @@ First pass parsing errors:
 | test_exponent_operator.frm | ✅ | ✅ | ✅ PASS |
 | test_exponent_operator_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_external_loading.frm | ✅ | ❌ | ❌ FAIL |
+| test_external_loading_fixed.frm | ✅ | ✅ | ✅ PASS |
 | test_features.frm | ✅ | ✅ | ✅ PASS |
 | test_first_plus_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_first_system_only.frm | ✅ | ✅ | ✅ PASS |
@@ -173,10 +248,10 @@ First pass parsing errors:
 | test_functions_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_event_handler.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_functions_with_system.frm | ✅ | ✅ | ✅ PASS |
+| test_functions_with_system.frm | ❌ | ❌ | ❌ FAIL |
 | test_handlers_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_history.frm | ✅ | ✅ | ✅ PASS |
-| test_if_elif_returns.frm | ✅ | ✅ | ✅ PASS |
+| test_if_elif_returns.frm | ❌ | ❌ | ❌ FAIL |
 | test_if_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_if_with_simple_stmt.frm | ✅ | ✅ | ✅ PASS |
 | test_import_conflicts.frm | ✅ | ✅ | ✅ PASS |
@@ -190,10 +265,12 @@ First pass parsing errors:
 | test_import_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_import_statements.frm | ✅ | ✅ | ✅ PASS |
 | test_import_validation_summary.frm | ✅ | ✅ | ✅ PASS |
+| test_in_operator.frm | ✅ | ✅ | ✅ PASS |
 | test_instantiation_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_instantiation_fix.frm | ✅ | ✅ | ✅ PASS |
 | test_interface_type_annotation.frm | ✅ | ✅ | ✅ PASS |
-| test_json_file.frm | ❌ | ❌ | ❌ FAIL |
+| test_json_file.frm | ✅ | ✅ | ✅ PASS |
+| test_json_file_fixed.frm | ✅ | ✅ | ✅ PASS |
 | test_json_loading.frm | ✅ | ✅ | ✅ PASS |
 | test_just_return_assign.frm | ✅ | ✅ | ✅ PASS |
 | test_just_transition.frm | ✅ | ✅ | ✅ PASS |
@@ -201,13 +278,14 @@ First pass parsing errors:
 | test_keyword.frm | ✅ | ✅ | ✅ PASS |
 | test_lambda.frm | ✅ | ✅ | ✅ PASS |
 | test_lambda_complete.frm | ❌ | ❌ | ❌ FAIL |
+| test_lambda_complete_fixed.frm | ❌ | ❌ | ❌ FAIL |
 | test_lambda_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_legb_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_legb_resolution.frm | ✅ | ✅ | ✅ PASS |
-| test_legb_scope_resolution.frm | ✅ | ✅ | ✅ PASS |
+| test_legb_scope_resolution.frm | ❌ | ❌ | ❌ FAIL |
 | test_list_comprehensions.frm | ✅ | ✅ | ✅ PASS |
 | test_list_comprehensions_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_list_features.frm | ✅ | ✅ | ✅ PASS |
+| test_list_features.frm | ❌ | ❌ | ❌ FAIL |
 | test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
 | test_method_call_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_call.frm | ✅ | ✅ | ✅ PASS |
@@ -219,7 +297,7 @@ First pass parsing errors:
 | test_missing_features.frm | ✅ | ✅ | ✅ PASS |
 | test_mixed_entities.frm | ✅ | ✅ | ✅ PASS |
 | test_mixed_function_system.frm | ✅ | ✅ | ✅ PASS |
-| test_mixed_returns.frm | ✅ | ✅ | ✅ PASS |
+| test_mixed_returns.frm | ❌ | ❌ | ❌ FAIL |
 | test_mixed_system_states.frm | ✅ | ✅ | ✅ PASS |
 | test_module_access.frm | ✅ | ✅ | ✅ PASS |
 | test_module_declaration.frm | ✅ | ✅ | ✅ PASS |
@@ -242,9 +320,11 @@ First pass parsing errors:
 | test_multiple_systems_valid.frm | ✅ | ✅ | ✅ PASS |
 | test_native_print.frm | ✅ | ✅ | ✅ PASS |
 | test_negative_indexing.frm | ✅ | ✅ | ✅ PASS |
+| test_nested_dict_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_nested_index.frm | ✅ | ✅ | ✅ PASS |
 | test_nested_modules.frm | ✅ | ✅ | ✅ PASS |
 | test_none_keyword.frm | ✅ | ✅ | ✅ PASS |
+| test_not_in_operator.frm | ✅ | ✅ | ✅ PASS |
 | test_operations.frm | ✅ | ✅ | ✅ PASS |
 | test_operations_call_bug.frm | ✅ | ✅ | ✅ PASS |
 | test_operations_simple.frm | ✅ | ✅ | ✅ PASS |
@@ -295,6 +375,7 @@ First pass parsing errors:
 | test_slicing_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_slicing_simple2.frm | ✅ | ✅ | ✅ PASS |
 | test_special_dicts.frm | ❌ | ❌ | ❌ FAIL |
+| test_special_dicts_fixed.frm | ✅ | ✅ | ✅ PASS |
 | test_special_dicts_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_state_parameters.frm | ✅ | ✅ | ✅ PASS |
 | test_state_var.frm | ✅ | ✅ | ✅ PASS |

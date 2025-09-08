@@ -3397,6 +3397,8 @@ pub enum OperatorType {
     Negated,
     Percent,
     BitwiseOr,  // For dict union operator |
+    In,  // For membership test operator 'in'
+    NotIn,  // For negated membership test 'not in'
     Unknown,
 }
 
@@ -3431,6 +3433,7 @@ impl OperatorType {
             TokenType::LogicalXor => OperatorType::LogicalXor,
             TokenType::Percent => OperatorType::Percent,
             TokenType::Pipe => OperatorType::BitwiseOr,  // Dict union operator
+            TokenType::In => OperatorType::In,  // Membership test operator
             _ => OperatorType::Unknown,
         }
     }

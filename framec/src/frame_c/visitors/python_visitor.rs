@@ -1043,6 +1043,13 @@ impl PythonVisitor {
     fn format_list_element_expr(&mut self, list_element_node: &ListElementNode) -> String {
         let mut code = String::new();
 
+        // Check if this is a synthetic identifier for chained indexing
+        if list_element_node.identifier.name.lexeme == "@chain_index" || 
+           list_element_node.identifier.name.lexeme == "@chain_slice" {
+            // Don't output anything for synthetic identifiers
+            return code;
+        }
+
         match list_element_node.scope {
             IdentifierDeclScope::SystemScope => {
                 // For system-scoped variables (system instances), use the variable name
@@ -5650,8 +5657,11 @@ impl AstVisitor for PythonVisitor {
                 // Only treat as true external call if not an action or operation
                 // Special handling for collection constructors with arguments
                 let method_name = &method_call.identifier.name.lexeme;
-                if method_name == "list" || method_name == "set" || method_name == "tuple" || method_name == "dict" {
-                    // Transform constructor calls into literals
+                // Note: Removed "list", "set", and "tuple" from this check
+                // These should remain as function calls to properly convert iterables
+                // Only dict() gets special handling since dict() is valid Python
+                if method_name == "dict" {
+                    // Keep dict() as-is since it's valid Python
                     self.handle_collection_constructor(method_call);
                 } else {
                     self.add_code(&method_call.identifier.name.lexeme);
@@ -5754,8 +5764,11 @@ impl AstVisitor for PythonVisitor {
             // Only treat as true external call if not an action or operation
             // Special handling for collection constructors with arguments
             let method_name = &method_call.identifier.name.lexeme;
-            if method_name == "list" || method_name == "set" || method_name == "tuple" || method_name == "dict" {
-                // Transform constructor calls into literals
+            // Note: Removed "list", "set", and "tuple" from this check
+            // These should remain as function calls to properly convert iterables
+            // Only dict() gets special handling since dict() is valid Python
+            if method_name == "dict" {
+                // Keep dict() as-is since it's valid Python
                 self.handle_collection_constructor_to_string(method_call, output);
             } else {
                 output.push_str(&method_call.identifier.name.lexeme);
@@ -6196,17 +6209,26 @@ impl AstVisitor for PythonVisitor {
                 }
             }
             
-            // Check if this is the synthetic @indexed_call node - if so, don't add separator
-            let is_indexed_call = if let CallChainNodeType::UndeclaredCallT { call_node } = &node {
-                call_node.identifier.name.lexeme == "@indexed_call"
-            } else {
-                false
+            // Check if this is a synthetic node - if so, don't add separator
+            let is_synthetic = match &node {
+                CallChainNodeType::UndeclaredCallT { call_node } => {
+                    call_node.identifier.name.lexeme == "@indexed_call"
+                }
+                CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
+                    list_elem_node.identifier.name.lexeme == "@chain_index" ||
+                    list_elem_node.identifier.name.lexeme == "@chain_slice"
+                }
+                CallChainNodeType::UndeclaredSliceT { slice_node } => {
+                    slice_node.identifier.name.lexeme == "@chain_index" ||
+                    slice_node.identifier.name.lexeme == "@chain_slice"
+                }
+                _ => false
             };
             
-            if !is_indexed_call {
+            if !is_synthetic {
                 self.add_code(separator);
+                separator = ".";
             }
-            separator = ".";
             
             match &node {
                 CallChainNodeType::SelfT { .. } => {
@@ -6697,14 +6719,23 @@ impl AstVisitor for PythonVisitor {
                 _ => "Other".to_string()
             };
             
-            // Check if this is the synthetic @indexed_call node - if so, don't add separator
-            let is_indexed_call = if let CallChainNodeType::UndeclaredCallT { call_node } = &node {
-                call_node.identifier.name.lexeme == "@indexed_call"
-            } else {
-                false
+            // Check if this is a synthetic node - if so, don't add separator
+            let is_synthetic = match &node {
+                CallChainNodeType::UndeclaredCallT { call_node } => {
+                    call_node.identifier.name.lexeme == "@indexed_call"
+                }
+                CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
+                    list_elem_node.identifier.name.lexeme == "@chain_index" ||
+                    list_elem_node.identifier.name.lexeme == "@chain_slice"
+                }
+                CallChainNodeType::UndeclaredSliceT { slice_node } => {
+                    slice_node.identifier.name.lexeme == "@chain_index" ||
+                    slice_node.identifier.name.lexeme == "@chain_slice"
+                }
+                _ => false
             };
             
-            if !is_indexed_call {
+            if !is_synthetic {
                 output.push_str(separator);
             }
             match &node {
@@ -9354,6 +9385,8 @@ impl AstVisitor for PythonVisitor {
             OperatorType::LogicalXor => self.add_code(" ^ "),
             OperatorType::Percent => self.add_code(" % "),
             OperatorType::BitwiseOr => self.add_code(" | "),
+            OperatorType::In => self.add_code(" in "),
+            OperatorType::NotIn => self.add_code(" not in "),
             OperatorType::Unknown => self.add_code(" <Unknown> "),
         }
     }
@@ -9380,6 +9413,8 @@ impl AstVisitor for PythonVisitor {
             OperatorType::LogicalXor => output.push_str(" ^ "),
             OperatorType::Percent => output.push_str(" % "),
             OperatorType::BitwiseOr => output.push_str(" | "),
+            OperatorType::In => output.push_str(" in "),
+            OperatorType::NotIn => output.push_str(" not in "),
             OperatorType::Unknown => output.push_str(" <Unknown> "),
         }
     }

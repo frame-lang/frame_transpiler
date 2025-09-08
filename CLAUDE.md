@@ -1,5 +1,8 @@
 # Frame Transpiler - Claude Context
 
+⚠️ **CRITICAL RULE: NO WORKAROUNDS WITHOUT EXPLICIT APPROVAL**
+**NEVER create workarounds for parser/transpiler issues. Always fix the actual problem in the codebase unless explicitly told to create a workaround.**
+
 ⚠️ **IMPORTANT: When starting a new session, ALWAYS read these documents first:**
 1. This file (CLAUDE.md) - Project structure and conventions
 2. `docs/framelang_design/dev_notes.md` - Latest development status
@@ -37,7 +40,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.38`  
-**Status**: ✅ **97.2% TEST SUCCESS RATE** (282/290 tests passing) - Python Logical Operators Alignment with Fixes
+**Status**: ✅ **93.6% TEST SUCCESS RATE** (280/299 tests passing) - Enhanced with Membership Operators and Nested Indexing
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -218,9 +221,42 @@ var replaced = text.replace("World", "Frame")
 var parts = text.split(" ")
 var len = len(text)         // Length function
 
-// Direct Python syntax
-var contains = "world" in text
-var substring = text[0:5]
+// Direct Python syntax (v0.38)
+var contains = "world" in text   // Membership operator
+var substring = text[0:5]        // Slicing
+```
+
+### v0.38 Enhanced Features (Session 3 - 2025-09-08)
+
+#### Membership Operators (NEW)
+```frame
+// Check if item in collection
+if "banana" in fruits {
+    print("Found banana!")
+}
+
+// Check if key in dictionary
+if "debug" in config {
+    enableDebug()
+}
+
+// Not in operator
+if "error" not in messages {
+    messages.append("No errors")
+}
+```
+
+#### Nested Dictionary Indexing (FIXED)
+```frame
+// Deep nesting now works!
+config["database"]["host"] = "localhost"
+config["database"]["port"] = 3306
+var user = config["database"]["credentials"]["username"]
+
+// Variable keys work too
+var section = "database"
+var field = "host"
+var value = config[section][field]
 ```
 
 ### v0.32 Features
@@ -331,9 +367,9 @@ system AsyncPipeline {
 }
 ```
 
-### v0.38 Python Logical Operators (NEW)
+### v0.38 Complete Feature Set
 
-#### Breaking Change: C-Style Operators Removed
+#### Breaking Changes
 - **Removed**: `&&`, `||`, `!` operators no longer supported
 - **Required**: Use Python-style `and`, `or`, `not` keywords exclusively
 - **Error Messages**: Scanner provides clear migration guidance

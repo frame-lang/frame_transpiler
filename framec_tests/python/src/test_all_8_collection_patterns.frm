@@ -18,9 +18,9 @@ fn test_all_patterns() {
     print("   Result: " + str(s_set))
     print("")
     
-    // Pattern 3: List constructor with arguments  
-    var l = list(1, 2, 3)
-    print("3. var l = list(1,2,3)")
+    // Pattern 3: List constructor with iterable
+    var l = list([1, 2, 3])
+    print("3. var l = list([1,2,3])")
     print("   Result: " + str(l))
     print("")
     
@@ -42,9 +42,9 @@ fn test_all_patterns() {
     print("   Result: " + str(d2))
     print("")
     
-    // Pattern 7: Tuple constructor with arguments
-    var t = tuple(10, 20, 30)
-    print("7. var t = tuple(10,20,30)")
+    // Pattern 7: Tuple constructor with iterable
+    var t = tuple([10, 20, 30])
+    print("7. var t = tuple([10,20,30])")
     print("   Result: " + str(t))
     print("")
     

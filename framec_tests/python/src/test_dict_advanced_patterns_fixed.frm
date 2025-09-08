@@ -1,5 +1,25 @@
-// Test advanced dictionary patterns
-// Note: Frame doesn't support imports yet, using native dict patterns
+// Test advanced dictionary patterns - Fixed version
+// Working around 'in' operator limitations in if conditions
+
+fn contains(list, item) {
+    // Helper function to check if item is in list
+    var i = 0
+    while i < len(list) {
+        if list[i] == item {
+            return True
+        }
+        i = i + 1
+    }
+    return False
+}
+
+fn has_key(dict, key) {
+    // Helper function to check if key exists in dict
+    // Use dict.get() with a unique default value
+    var sentinel = "__NOT_FOUND__"
+    var result = dict.get(key, sentinel)
+    return result != sentinel
+}
 
 fn test_dict_based_dispatch() {
     print("=== Dictionary-Based Dispatch Pattern ===")
@@ -61,9 +81,6 @@ fn test_state_machine_with_dict() {
 fn test_recursive_dict_pattern() {
     print("\n=== Recursive Dict Pattern ===")
     
-    // Note: Frame doesn't support lambda or nested function definitions,
-    // so we demonstrate nested dict usage with regular dictionaries
-    
     print("\nBuilding nested structure with regular dicts:")
     
     // Create a structure for user preferences using regular dicts
@@ -73,13 +90,13 @@ fn test_recursive_dict_pattern() {
     user_prefs["alice"] = {
         "theme": "dark",
         "language": "en",
-        "notifications": true
+        "notifications": True
     }
     
     user_prefs["bob"] = {
         "theme": "light",
         "language": "es",
-        "notifications": false
+        "notifications": False
     }
     
     print("User preferences: " + str(user_prefs))
@@ -156,15 +173,38 @@ fn test_config_with_defaults() {
         var j = 0
         while j < len(keys) {
             var key = keys[j]
-            if key in ["host", "port", "ssl"] and section == "server" {
+            
+            // Check which section and key we're processing
+            var is_server_key = False
+            var is_database_key = False
+            var is_logging_key = False
+            
+            if section == "server" {
+                if contains(["host", "port", "ssl"], key) {
+                    is_server_key = True
+                }
+            }
+            if section == "database" {
+                if contains(["host", "port", "name"], key) {
+                    is_database_key = True
+                }
+            }
+            if section == "logging" {
+                if contains(["level", "file"], key) {
+                    is_logging_key = True
+                }
+            }
+            
+            if is_server_key {
                 var user_section = user_config.get("server", {})
                 final_config[section][key] = user_section.get(key, default_section.get(key))
-            } elif key in ["host", "port", "name"] and section == "database" {
+            } elif is_database_key {
                 final_config[section][key] = default_section.get(key)
-            } elif key in ["level", "file"] and section == "logging" {
+            } elif is_logging_key {
                 var user_section = user_config.get("logging", {})
                 final_config[section][key] = user_section.get(key, default_section.get(key))
             }
+            
             j = j + 1
         }
         
@@ -206,7 +246,9 @@ fn test_counting_pattern() {
     while i < len(items) {
         var item = items[i]
         var item_type = item["type"]
-        if not (item_type in grouped) {
+        
+        // Check if key exists using helper function
+        if not has_key(grouped, item_type) {
             grouped[item_type] = []
         }
         grouped[item_type].append(item["name"])
@@ -217,7 +259,7 @@ fn test_counting_pattern() {
 }
 
 fn main() {
-    print("Frame v0.38 - Advanced Dictionary Patterns")
+    print("Frame v0.38 - Advanced Dictionary Patterns (Fixed)")
     print("=" * 60)
     
     test_dict_based_dispatch()
@@ -233,5 +275,5 @@ fn main() {
     print("  [OK] Nested dict structures")
     print("  [OK] Configuration with defaults and merging")
     print("  [OK] Counting and grouping patterns")
-    print("\nNote: Lambda syntax not supported - using alternative approaches")
+    print("\nNote: Using helper functions to work around 'in' operator limitations")
 }

@@ -1,20 +1,20 @@
 {
-  "timestamp": "2025-09-07T19:59:48.510191",
+  "timestamp": "2025-09-08T07:30:58.775186",
   "version": "v0.31",
   "summary": {
-    "total": 290,
-    "transpile_success": 286,
-    "execute_success": 285,
-    "complete_success": 285,
-    "success_rate": "98.3%"
+    "total": 299,
+    "transpile_success": 282,
+    "execute_success": 280,
+    "complete_success": 280,
+    "success_rate": "93.6%"
   },
   "results": [
     {
       "file": "test_all_8_collection_patterns.frm",
       "transpile": true,
-      "execute": true,
-      "output": "=== Testing All 8 Collection Patterns ===\n\n1. var s = set(1,2,3)\n   Result: {1, 2, 3}\n\n2. var s_set = {1,2,3}\n   Result: {1, 2, 3}\n\n3. var l = list(1,2,3)\n   Result: [1, 2, 3]\n\n4. var l2 = [1,2,3]\n   ",
-      "error": null
+      "execute": false,
+      "output": "=== Testing All 8 Collection Patterns ===\n\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_all_8_collection_patterns.py\", line 65, in <module>\n    main()\n    ~~~~^^\n  File \"/"
     },
     {
       "file": "test_all_blocks_comprehensive.frm",
@@ -27,7 +27,7 @@
       "file": "test_all_constructors.frm",
       "transpile": true,
       "execute": true,
-      "output": "Empty list: []\nEmpty dict: {}\nEmpty set: {}\nEmpty tuple: ()\n",
+      "output": "Empty list: []\nEmpty dict: {}\nEmpty set: set()\nEmpty tuple: ()\n",
       "error": null
     },
     {
@@ -74,24 +74,21 @@
     },
     {
       "file": "test_async_stress.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Frame v0.37 Async Stress Test Suite\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------\nConfigu",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 33] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_async_stress_fixed.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Frame v0.37 Async Stress Test Suite - Fixed\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 39] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_async_stress_simple.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Frame v0.37 Async Stress Test\n========================================\n\n",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 20] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_async_validate.frm",
@@ -109,10 +106,9 @@
     },
     {
       "file": "test_async_with_real.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Starting REAL async with validation (requires internet)...\n============================================================\nFrame v0.37 Async With - REAL TESTS (No Mocking!)\n==============================",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 92] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n[line 96] Error at 'print' : Expected 'except' after try block.\n[l"
     },
     {
       "file": "test_backtick_removal.frm",
@@ -174,7 +170,7 @@
       "file": "test_collection_constructors.frm",
       "transpile": true,
       "execute": true,
-      "output": "=== Testing Collection Constructors ===\nlist(1,2,3): [1, 2, 3]\nset(1,2,3): {1, 2, 3}\ntuple(10,20,30): (10, 20, 30)\ndict([('key1', 'value1'), ('key2', 'value2')]): {'key1': 'value1', 'key2': 'value2'}\n",
+      "output": "=== Testing Collection Constructors ===\nlist([1,2,3]): [1, 2, 3]\nset([1,2,3]): {1, 2, 3}\ntuple([10,20,30]): (10, 20, 30)\ndict([('key1', 'value1'), ('key2', 'value2')]): {'key1': 'value1', 'key2': 'val",
       "error": null
     },
     {
@@ -200,17 +196,15 @@
     },
     {
       "file": "test_comprehensive_scope_validation.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Module Level (main function) ===\n=== Function Scope ===\nfunction_variable\nif_block_variable\nnested_if_variable\nloop_variable\nLoop iteration\nloop_variable\nLoop iteration\nloop_variable\nLoop iteratio",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 43] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_comprehensive_v0_20_features.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Frame v0.20 Comprehensive Feature Test ===\nProcessor ready in Idle state\nProcessing: test\nProcessor ready in Idle state\nProcessing: ERROR\nProcessor ready in Idle state\nProcessing: Hello World\nProc",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 21] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_const.frm",
@@ -223,7 +217,7 @@
       "file": "test_constructors.frm",
       "transpile": true,
       "execute": true,
-      "output": "List constructor: [1, 2, 3]\n",
+      "output": "List constructor: [1, 2, 3]\nDict constructor: {'a': 1, 'b': 2}\nSet constructor: {1, 2, 3}\nTuple constructor: (10, 20, 30)\n",
       "error": null
     },
     {
@@ -277,9 +271,17 @@
     },
     {
       "file": "test_dict_advanced_patterns.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'elif'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Advanced Dictionary Patterns\n============================================================\n=== Dictionary-Based Dispatch Pattern ===\n\nSimple value dispatch:\nInput: 'yes' -> Processing you",
+      "error": null
+    },
+    {
+      "file": "test_dict_advanced_patterns_fixed.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Advanced Dictionary Patterns (Fixed)\n============================================================\n=== Dictionary-Based Dispatch Pattern ===\n\nSimple value dispatch:\nInput: 'yes' -> Proces",
+      "error": null
     },
     {
       "file": "test_dict_basic.frm",
@@ -398,6 +400,13 @@
       "transpile": true,
       "execute": true,
       "output": "Frame v0.38 - Dictionary Merging Methods\n==================================================\n\n1. dict.update() - Mutates Original\n   Before: d1 = {'a': 1, 'b': 2}\n   After d1.update(d2) and d1.update(d",
+      "error": null
+    },
+    {
+      "file": "test_dict_nested_indexing_workaround.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Nested Dict Indexing Workaround\n==================================================\n=== Testing Nested Dict Access (Workaround) ===\nAlice's age: 30\nBob's city: London\nTheme: dark\nAlice's ",
       "error": null
     },
     {
@@ -521,10 +530,9 @@
     },
     {
       "file": "test_enum_compliance.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Color is red\nPriority is high\nColor value: 1\nPriority value: high\nColor name: RED\nPriority name: HIGH\nAll colors:\n - RED = 1\n - GREEN = 2\n - BLUE = 3\nAll priorities:\n - LOW = low\n - MEDIUM = medium\n -",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 46] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_enum_custom_values.frm",
@@ -535,17 +543,15 @@
     },
     {
       "file": "test_enum_iteration.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Menu Options ===\n1. NewFile\n2. OpenFile\n3. SaveFile\n4. SaveAs\n5. Exit\nSaveFile is a valid menu option\nInvalidOption is NOT a valid menu option\n=== Processing All Statuses ===\nStatus: Error (code: ",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 25] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n[line 30] Error at 'return' : Expected '}'\n[line 30] Error at 'ret"
     },
     {
       "file": "test_enum_module_scope.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Global status: Active\nPriority value: 10\nEnvironment: prod\nAll environments:\n  - Development: dev\n  - Staging: staging\n  - Production: prod\nSystem checking status: Active\nStatus is ACTIVE\nSetting prio",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 35] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_enum_string_values.frm",
@@ -558,7 +564,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -586,14 +592,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -658,6 +664,13 @@
       "execute": false,
       "output": "Frame v0.38 - Loading from External Sources\n==================================================\n=== JSON Operations ===\nFrom JSON string: {'name': 'Alice', 'age': 30}\nTo JSON string: {\"user\": \"Bob\", \"s",
       "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_external_loading.py\", line 95, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/mar"
+    },
+    {
+      "file": "test_external_loading_fixed.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - External Loading (Fixed)\n==================================================\n=== JSON Operations ===\nFrom JSON string: {'name': 'Alice', 'age': 30}\nTo JSON string: {\"user\": \"Bob\", \"score\"",
+      "error": null
     },
     {
       "file": "test_features.frm",
@@ -822,10 +835,9 @@
     },
     {
       "file": "test_functions_with_system.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Final count: 3\n",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 6] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_handlers_simple.frm",
@@ -843,10 +855,9 @@
     },
     {
       "file": "test_if_elif_returns.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Grade System Tests ===\nScore 95 -> Grade: A+\nScore 85 -> Grade: B\nScore 75 -> Grade: C\nScore 65 -> Grade: D\nScore 55 -> Grade: F\nScore -5 -> Grade: Invalid: negative score\nScore 105 -> Grade: Inva",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 10] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_if_simple.frm",
@@ -940,6 +951,13 @@
       "error": null
     },
     {
+      "file": "test_in_operator.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - 'in' Operator Test\n==================================================\n=== Testing 'in' with lists ===\n\u2713 3 is in the list\n\u2713 1 is in the list\n\u2713 10 is not in the list\n\u2713 4 is in the list\n\n==",
+      "error": null
+    },
+    {
       "file": "test_instantiation_debug.frm",
       "transpile": true,
       "execute": true,
@@ -962,9 +980,17 @@
     },
     {
       "file": "test_json_file.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'print'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - JSON-like Data Handling\n=============================================\n=== Testing JSON-like Data Handling ===\nSimulated JSON data:\nUser info: {'id': 123, 'name': 'Alice', 'email': 'alice",
+      "error": null
+    },
+    {
+      "file": "test_json_file_fixed.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - JSON-like Data Handling (Fixed)\n==================================================\n=== Testing JSON-like Data Handling ===\nSimulated JSON data:\nUser info: {'id': 123, 'name': 'Alice', 'e",
+      "error": null
     },
     {
       "file": "test_json_loading.frm",
@@ -1015,6 +1041,12 @@
       "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'lambda'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
+      "file": "test_lambda_complete_fixed.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'lambda'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+    },
+    {
       "file": "test_lambda_simple.frm",
       "transpile": true,
       "execute": true,
@@ -1037,10 +1069,9 @@
     },
     {
       "file": "test_legb_scope_resolution.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== LEGB Scope Resolution Test ===\nModule scope: name=MODULE\n\n=== Function Scope Test ===\nFunction scope: name=FUNCTION\nFunction local: LOCAL_VAR\nBlock scope: name=BLOCK\nBlock local: BLOCK_VAR\nNested ",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 108] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n[line 116] Error at 'LOOP_SHADOW' : redeclaration of outer\n\n"
     },
     {
       "file": "test_list_comprehensions.frm",
@@ -1058,10 +1089,9 @@
     },
     {
       "file": "test_list_features.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "First number: 1\nLast string: frame\n\n=== Iterating numbers ===\nNumber: 1\nNumber: 2\nNumber: 3\nNumber: 4\nNumber: 5\n\n=== Iterating strings ===\nString: hello\nString: world\nString: frame\n\n=== Matrix ===\nRow",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 15] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n\n"
     },
     {
       "file": "test_list_native_methods.frm",
@@ -1142,10 +1172,9 @@
     },
     {
       "file": "test_mixed_returns.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "Empty: empty input\nCategory from action: short\nhello: short text: hello\nCategory from action: caps\nHELLO WORLD: LOUD TEXT: HELLO WORLD\nCategory from action: normal\nFrame v0.20 is great!: normal text: ",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 67] Error at '{' : Expected ';' for C-style loop or 'in' for iteration.\n[line 70] Error at 'return' : Expected '}' - found 'return'.\n\n"
     },
     {
       "file": "test_mixed_system_states.frm",
@@ -1302,6 +1331,13 @@
       "error": null
     },
     {
+      "file": "test_nested_dict_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "value\n",
+      "error": null
+    },
+    {
       "file": "test_nested_index.frm",
       "transpile": true,
       "execute": true,
@@ -1320,6 +1356,13 @@
       "transpile": true,
       "execute": true,
       "output": "x is None\nFunction returned None\nReceived None\nReceived value: 42\nSystem returned None\nTest complete\nx is None\nFunction returned None\nReceived None\nReceived value: 42\nSystem returned None\nTest complet",
+      "error": null
+    },
+    {
+      "file": "test_not_in_operator.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - 'not in' Operator Test\n==================================================\nDirect 'not in' syntax now works!\n\n=== Testing 'not in' with lists ===\n\u2713 10 is not in the list\n\u2713 3 is in the lis",
       "error": null
     },
     {
@@ -1669,7 +1712,14 @@
       "file": "test_special_dicts.frm",
       "transpile": false,
       "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parsing errors:\n[line 19] Error at 'not' : Expected ':' or '{' after if condition.\n\n"
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'fn'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+    },
+    {
+      "file": "test_special_dicts_fixed.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Special Dictionary Patterns (Fixed)\n==================================================\n=== Testing defaultdict-like pattern ===\ndd_int['count'] = 1\ndd_int['new'] = 0\ndd_list['items'] = [",
+      "error": null
     },
     {
       "file": "test_special_dicts_simple.frm",

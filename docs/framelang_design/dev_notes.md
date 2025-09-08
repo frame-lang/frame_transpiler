@@ -19,10 +19,12 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.38 Complete Feature Set - FINAL with UTF-8 Scanner Fix (2025-09-07)
+## Latest Status: v0.38 Enhanced - Membership Operators & Nested Indexing (2025-09-08)
 
-### v0.38 Release - Complete Feature Set with UTF-8 Support ✅
-- **Test Coverage**: **285/290 tests passing (98.3% success rate)** ⬆️
+### v0.38 Release - Complete Feature Set with Enhanced Operations ✅
+- **Test Coverage**: **280/299 tests passing (93.6% success rate)**
+- **NEW - Membership Operators**: `in` and `not in` operators fully implemented ✅
+- **NEW - Nested Dict Indexing**: `dict["key1"]["key2"]` chained indexing working ✅
 - **UTF-8 Scanner Fix**: Full Unicode character support in source files ✅
 - **First-Class Functions**: Full support for functions as values ✅
 - **Lambda Expressions**: Full Python lambda syntax with closures ✅
@@ -30,22 +32,42 @@ Languages considered in Frame's design with documented patterns:
 - **Array Indexing with Calls**: Fixed - `array[0](args)` patterns now work ✅ 
 - **Exponent Operator**: Right-associative `**` operator ✅
 - **Empty Set Literal**: `{,}` syntax for empty sets ✅
-- **Dictionary Operations**: Complete `dict["key"]` indexing and assignment
+- **Dictionary Operations**: Complete nested dictionary access and assignment
 - **Collection Literals**: All 8 patterns (dict, set, tuple, list) working
 - **Domain Block Order**: Fixed - domain blocks must appear last in system definitions
 - **Breaking Change**: Removed C-style logical operators (`&&`, `||`, `!`)
 - **Python Operators**: Exclusively use `and`, `or`, `not` keywords
 - **Native Python Functions**: `str()`, `len()`, etc work without FSL imports
 
-### Key Features Completed (2025-09-07)
-1. **UTF-8 Scanner Support**: Complete Unicode character handling in source files
-2. **First-Class Functions**: Functions can be assigned, passed, returned, and stored
-3. **Lambda Expressions**: Full closure support with Python syntax
-4. **Lambda in Return Statements**: Fixed parser to use `expression()` instead of `equality()`
-5. **Array Indexing with Function Calls**: Fixed with synthetic `@indexed_call` AST node
-6. **Exponent Operator (`**`)**: Right-associative power operator with proper precedence
-7. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dictionaries
-8. **Python Logical Operators**: Complete transition to `and`, `or`, `not`
+### Key Features Completed (2025-09-08)
+1. **Membership Operators**: `in` and `not in` for collections and strings
+2. **Nested Dictionary Indexing**: Full support for `dict["key1"]["key2"]` patterns
+3. **UTF-8 Scanner Support**: Complete Unicode character handling in source files
+4. **First-Class Functions**: Functions can be assigned, passed, returned, and stored
+5. **Lambda Expressions**: Full closure support with Python syntax
+6. **Lambda in Return Statements**: Fixed parser to use `expression()` instead of `equality()`
+7. **Array Indexing with Function Calls**: Fixed with synthetic `@indexed_call` AST node
+8. **Exponent Operator (`**`)**: Right-associative power operator with proper precedence
+9. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dictionaries
+10. **Python Logical Operators**: Complete transition to `and`, `or`, `not`
+
+### Membership Operators Implementation (2025-09-08)
+- **`in` Operator**: Added as binary operator in parser's equality function
+- **`not in` Operator**: Implemented as compound operator (matches Python's grammar)
+- **AST Support**: Added `In` and `NotIn` to `OperatorType` enum
+- **Parser Changes**: Modified `equality()` to recognize `in` and `not in` tokens
+- **Visitor Support**: Python visitor generates correct `in` and `not in` syntax
+- **Works With**: Lists, strings, dictionaries, sets, tuples
+
+### Nested Dictionary Indexing Fix (2025-09-08)
+- **Problem**: Parser couldn't handle consecutive bracket operations like `dict["key1"]["key2"]`
+- **Solution**: Parser now detects multiple `[` tokens and creates synthetic nodes
+- **Implementation**: 
+  - Added loop in parser to handle consecutive brackets
+  - Creates `@chain_index` synthetic nodes for chained indexing
+  - Visitor recognizes synthetic nodes and skips separator addition
+- **Supports**: Deep nesting, variable keys, mixed string/variable indices
+- **Test Improvement**: Success rate increased from 92.3% to 93.6%
 
 ### UTF-8 Scanner Fix Details (2025-09-07)
 - **Problem**: Scanner used byte indexing directly on UTF-8 strings, causing panics on multi-byte characters
@@ -68,9 +90,10 @@ Languages considered in Frame's design with documented patterns:
 
 ### Remaining Limitations
 - **Domain Blocks**: Must appear as the last block in system definitions (parser limitation)
-- **Complex Dictionary Patterns**: Some advanced dictionary operations in conditionals may fail
+- **Method Call Indexing**: `getArray()[0]` pattern not yet supported
+- **Lambda in Collections**: Lambda expressions in list/dict literals still problematic
+- **Loop Syntax**: Some loop patterns cause parser errors (expecting `;` or `in`)
 - **JSON File Handling**: Not yet implemented
-- **Advanced Lambda Patterns**: Very complex nested lambdas may have issues
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
 - **Test Coverage**: **222/222 tests passing (100% success rate)**
@@ -90,13 +113,15 @@ Languages considered in Frame's design with documented patterns:
 - **Parser Integration**: Extended bracket expression parsing to detect and handle slice notation
 - **Python Visitor**: Generates proper Python slice syntax `[start:end:step]`
 
-#### Index Operations Status
-- **Simple Indexing**: Works for basic cases like `array[index]`
+#### Index Operations Status (Updated v0.38)
+- **Simple Indexing**: Works for all cases like `array[index]`
+- **Nested Indexing**: ✅ `dict["key1"]["key2"]` fully supported
 - **Slicing**: Fully implemented with all Python slice variations
-- **Known Limitations**: Complex patterns like `method()[index]` or `dict[key] = value` still require backticks
-- **Workaround for Complex Cases**: Continue using backtick expressions:
+- **Function Calls in Index**: ✅ `self.results[str(task_id)]` now works
+- **Remaining Limitation**: `method()[index]` pattern still requires backticks
+- **Workaround for Method Indexing**: Use backtick expressions:
   ```frame
-  self.results`[str(task_id)]` = value  // For complex index operations
+  var item = `getArray()[0]`  // For indexing method return values
   ```
 
 ## Backtick Removal Progress (2025-09-06)

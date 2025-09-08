@@ -5959,10 +5959,21 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual]) {
+        while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual, TokenType::In, TokenType::Not]) {
             //           let line = self.previous().line;
             let operator_token = self.previous();
-            let op_type = self.get_operator_type(&operator_token.clone());
+            let op_type = if operator_token.token_type == TokenType::Not {
+                // Check if the next token is 'in' for 'not in' operator
+                if self.check(TokenType::In) {
+                    self.advance(); // consume the 'in' token
+                    OperatorType::NotIn
+                } else {
+                    // It's a regular 'not' - this shouldn't happen in equality context
+                    return Err(ParseError::new("Unexpected 'not' in comparison context"));
+                }
+            } else {
+                self.get_operator_type(&operator_token.clone())
+            };
             let r_value = match self.bitwise_or() {
                 Ok(Some(expr_type)) => expr_type,
                 Ok(None) => return Ok(None),
@@ -9600,64 +9611,133 @@ impl<'a> Parser<'a> {
                 call_chain.push_back(node);
             };
 
-            // Check if the last node was a list element or slice and the next token is '('
-            // This handles patterns like array[0](args) or dict["key"](params)
-            if let Some(last_node) = call_chain.back() {
-                match last_node {
-                    CallChainNodeType::ListElementNodeT { .. } |
-                    CallChainNodeType::SliceNodeT { .. } |
-                    CallChainNodeType::UndeclaredListElementT { .. } |
-                    CallChainNodeType::UndeclaredSliceT { .. } => {
-                        if self.match_token(&[TokenType::LParen]) {
-                            // The indexed value is being called as a function
-                            // Create a synthetic call node for this
-                            let mut args = Vec::new();
-                            
-                            // Parse arguments
-                            if !self.check(TokenType::RParen) {
-                                loop {
-                                    match self.expression() {
-                                        Ok(Some(expr)) => args.push(expr),
-                                        Ok(None) => return Err(ParseError::new("Expected expression in function call")),
-                                        Err(e) => return Err(e),
+            // Check if the last node was a list element or slice and the next token is '(' or '['
+            // This handles patterns like array[0](args), dict["key"](params), or dict["key1"]["key2"]
+            loop {
+                if let Some(last_node) = call_chain.back() {
+                    match last_node {
+                        CallChainNodeType::ListElementNodeT { .. } |
+                        CallChainNodeType::SliceNodeT { .. } |
+                        CallChainNodeType::UndeclaredListElementT { .. } |
+                        CallChainNodeType::UndeclaredSliceT { .. } => {
+                            // Check for consecutive bracket indexing first
+                            if self.match_token(&[TokenType::LBracket]) {
+                                // Another indexing operation on the result
+                                let bracket_result = self.parse_bracket_expression();
+                                match bracket_result {
+                                    Ok(BracketExpressionType::Index(expr)) => {
+                                        // Create a synthetic identifier for the chained indexing
+                                        let synthetic_id = IdentifierNode::new(
+                                            Token::new(
+                                                TokenType::Identifier,
+                                                "@chain_index".to_string(),
+                                                TokenLiteral::None,
+                                                self.previous().line,
+                                                0,
+                                                0
+                                            ),
+                                            None,
+                                            IdentifierDeclScope::UnknownScope,
+                                            false,
+                                            self.previous().line,
+                                        );
+                                        let list_elem_node = ListElementNode::new(
+                                            synthetic_id,
+                                            scope.clone(),
+                                            expr,
+                                        );
+                                        call_chain.push_back(CallChainNodeType::UndeclaredListElementT { 
+                                            list_elem_node 
+                                        });
+                                        // Continue checking for more operations
+                                        continue;
                                     }
-                                    
-                                    if !self.match_token(&[TokenType::Comma]) {
-                                        break;
+                                    Ok(BracketExpressionType::Slice { start, end, step }) => {
+                                        // Handle slice on the result
+                                        let synthetic_id = IdentifierNode::new(
+                                            Token::new(
+                                                TokenType::Identifier,
+                                                "@chain_slice".to_string(),
+                                                TokenLiteral::None,
+                                                self.previous().line,
+                                                0,
+                                                0
+                                            ),
+                                            None,
+                                            IdentifierDeclScope::UnknownScope,
+                                            false,
+                                            self.previous().line,
+                                        );
+                                        let slice_node = SliceNode {
+                                            identifier: synthetic_id,
+                                            scope: scope.clone(),
+                                            start_expr: start,
+                                            end_expr: end,
+                                            step_expr: step,
+                                        };
+                                        call_chain.push_back(CallChainNodeType::UndeclaredSliceT {
+                                            slice_node,
+                                        });
+                                        // Continue checking for more operations
+                                        continue;
+                                    }
+                                    Err(err) => return Err(err),
+                                }
+                            } else if self.match_token(&[TokenType::LParen]) {
+                                // The indexed value is being called as a function
+                                // Create a synthetic call node for this
+                                let mut args = Vec::new();
+                                
+                                // Parse arguments
+                                if !self.check(TokenType::RParen) {
+                                    loop {
+                                        match self.expression() {
+                                            Ok(Some(expr)) => args.push(expr),
+                                            Ok(None) => return Err(ParseError::new("Expected expression in function call")),
+                                            Err(e) => return Err(e),
+                                        }
+                                        
+                                        if !self.match_token(&[TokenType::Comma]) {
+                                            break;
+                                        }
                                     }
                                 }
-                            }
-                            
-                            self.consume(TokenType::RParen, "Expected ')' after arguments")?;
-                            
-                            // Create a call expression node for the indexed call
-                            let call_expr_list = CallExprListNode::new(args);
-                            let call_expr_node = CallExprNode::new(
-                                IdentifierNode::new(
-                                    Token::new(
-                                        TokenType::Identifier, 
-                                        "@indexed_call".to_string(), 
-                                        TokenLiteral::None,
+                                
+                                self.consume(TokenType::RParen, "Expected ')' after arguments")?;
+                                
+                                // Create a call expression node for the indexed call
+                                let call_expr_list = CallExprListNode::new(args);
+                                let call_expr_node = CallExprNode::new(
+                                    IdentifierNode::new(
+                                        Token::new(
+                                            TokenType::Identifier, 
+                                            "@indexed_call".to_string(), 
+                                            TokenLiteral::None,
+                                            self.previous().line,
+                                            0,
+                                            0
+                                        ),
+                                        None,
+                                        IdentifierDeclScope::UnknownScope,
+                                        false,
                                         self.previous().line,
-                                        0,
-                                        0
                                     ),
-                                    None,
-                                    IdentifierDeclScope::UnknownScope,
-                                    false,
-                                    self.previous().line,
-                                ),
-                                call_expr_list,
-                                None,  // No call chain for the synthetic call
-                            );
-                            
-                            // Add the call to the chain
-                            call_chain.push_back(CallChainNodeType::UndeclaredCallT {
-                                call_node: call_expr_node,
-                            });
+                                    call_expr_list,
+                                    None,  // No call chain for the synthetic call
+                                );
+                                
+                                // Add the call to the chain
+                                call_chain.push_back(CallChainNodeType::UndeclaredCallT {
+                                    call_node: call_expr_node,
+                                });
+                            } else {
+                                break;  // No more operations to handle
+                            }
                         }
+                        _ => break,  // No more operations on list element
                     }
-                    _ => {}
+                } else {
+                    break;  // No more nodes in chain
                 }
             }
 
