@@ -40,7 +40,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.38`  
-**Status**: ✅ **93.6% TEST SUCCESS RATE** (280/299 tests passing) - Enhanced with Membership Operators and Nested Indexing
+**Status**: ✅ **93.7% TEST SUCCESS RATE** (281/300 tests passing) - Complete Collection Support
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -226,7 +226,7 @@ var contains = "world" in text   // Membership operator
 var substring = text[0:5]        // Slicing
 ```
 
-### v0.38 Enhanced Features (Session 3 - 2025-09-08)
+### v0.38 Complete Features (Session 3 - 2025-09-08)
 
 #### Membership Operators (NEW)
 ```frame
@@ -257,6 +257,32 @@ var user = config["database"]["credentials"]["username"]
 var section = "database"
 var field = "host"
 var value = config[section][field]
+```
+
+#### Lambda Expressions in Collections (WORKING)
+```frame
+// Dictionary with lambda functions
+var operations = {
+    "add": lambda x, y: x + y,
+    "multiply": lambda x, y: x * y
+}
+var result = operations["add"](5, 3)  // 8
+
+// List with lambda functions
+var transforms = [
+    lambda n: n + 1,
+    lambda n: n * 2,
+    lambda n: n ** 2
+]
+var squared = transforms[2](5)  // 25
+
+// Complex nested structures
+var validators = {
+    "rules": [
+        lambda x: x > 0,
+        lambda x: x < 100
+    ]
+}
 ```
 
 ### v0.32 Features

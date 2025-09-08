@@ -1,0 +1,5 @@
+Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'lambda'
+
+Symbol table construction failed. Please check your Frame syntax.

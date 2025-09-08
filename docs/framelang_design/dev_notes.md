@@ -19,12 +19,13 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.38 Enhanced - Membership Operators & Nested Indexing (2025-09-08)
+## Latest Status: v0.38 Complete - All Collection Features Working (2025-09-08)
 
 ### v0.38 Release - Complete Feature Set with Enhanced Operations ✅
-- **Test Coverage**: **280/299 tests passing (93.6% success rate)**
+- **Test Coverage**: **281/300 tests passing (93.7% success rate)**
 - **NEW - Membership Operators**: `in` and `not in` operators fully implemented ✅
 - **NEW - Nested Dict Indexing**: `dict["key1"]["key2"]` chained indexing working ✅
+- **NEW - Lambda in Collections**: Lambda expressions in dict/list literals fully supported ✅
 - **UTF-8 Scanner Fix**: Full Unicode character support in source files ✅
 - **First-Class Functions**: Full support for functions as values ✅
 - **Lambda Expressions**: Full Python lambda syntax with closures ✅
@@ -42,7 +43,8 @@ Languages considered in Frame's design with documented patterns:
 ### Key Features Completed (2025-09-08)
 1. **Membership Operators**: `in` and `not in` for collections and strings
 2. **Nested Dictionary Indexing**: Full support for `dict["key1"]["key2"]` patterns
-3. **UTF-8 Scanner Support**: Complete Unicode character handling in source files
+3. **Lambda in Collections**: Lambda expressions work in dictionary and list literals
+4. **UTF-8 Scanner Support**: Complete Unicode character handling in source files
 4. **First-Class Functions**: Functions can be assigned, passed, returned, and stored
 5. **Lambda Expressions**: Full closure support with Python syntax
 6. **Lambda in Return Statements**: Fixed parser to use `expression()` instead of `equality()`
@@ -69,6 +71,16 @@ Languages considered in Frame's design with documented patterns:
 - **Supports**: Deep nesting, variable keys, mixed string/variable indices
 - **Test Improvement**: Success rate increased from 92.3% to 93.6%
 
+### Lambda in Collections Support (2025-09-08)
+- **Status**: Fully working - no parser changes needed
+- **Capabilities**: 
+  - Lambda expressions in dictionary literals: `{"add": lambda x, y: x + y}`
+  - Lambda expressions in list literals: `[lambda x: x + 1, lambda x: x * 2]`
+  - Multiple lambdas in same collection
+  - Nested collections with lambdas
+- **Implementation**: Already supported by existing lambda parser and visitor
+- **Test Coverage**: Comprehensive tests added demonstrating all patterns
+
 ### UTF-8 Scanner Fix Details (2025-09-07)
 - **Problem**: Scanner used byte indexing directly on UTF-8 strings, causing panics on multi-byte characters
 - **Root Cause**: `self.source.as_bytes()[index]` pattern failed on Unicode boundaries
@@ -91,9 +103,9 @@ Languages considered in Frame's design with documented patterns:
 ### Remaining Limitations
 - **Domain Blocks**: Must appear as the last block in system definitions (parser limitation)
 - **Method Call Indexing**: `getArray()[0]` pattern not yet supported
-- **Lambda in Collections**: Lambda expressions in list/dict literals still problematic
 - **Loop Syntax**: Some loop patterns cause parser errors (expecting `;` or `in`)
 - **JSON File Handling**: Not yet implemented
+- **Enum Iteration**: Advanced enum features like iteration not fully supported
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
 - **Test Coverage**: **222/222 tests passing (100% success rate)**

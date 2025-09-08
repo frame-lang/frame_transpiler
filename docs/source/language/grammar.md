@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.38)
 
 **Last Updated**: 2025-09-08  
-**Status**: Python logical operators (`and`, `or`, `not`), membership operators (`in`, `not in`), and nested dictionary indexing fully supported.
+**Status**: Python logical operators (`and`, `or`, `not`), membership operators (`in`, `not in`), nested dictionary indexing, and lambda expressions in collection literals fully supported.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1840,7 +1840,7 @@ actions:
 
 ```bnf
 expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr 
-    | list_expr | list_comprehension | unpack_expr | index_expr | slice_expr  // v0.37: Added index_expr and slice_expr
+    | list_expr | list_comprehension | unpack_expr | index_expr | slice_expr | lambda_expr  // v0.38: Added lambda_expr
 
 binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '%' | '**'  // v0.38: Added exponent operator
@@ -1873,6 +1873,10 @@ list_element: expr | unpack_expr
 list_comprehension: '[' expr 'for' IDENTIFIER 'in' expr ('if' expr)? ']'
 
 unpack_expr: '*' expr  // v0.34: Unpacking operator for lists
+
+// v0.38: Lambda expressions with full support in collections
+lambda_expr: 'lambda' param_list? ':' expr
+param_list: IDENTIFIER (',' IDENTIFIER)*
 
 fsl_expr: fsl_conversion | fsl_property | fsl_method  // v0.33: Frame Standard Library
 fsl_conversion: ('str' | 'int' | 'float' | 'bool') '(' expr ')'
@@ -2059,6 +2063,97 @@ if x >= y { }  // Greater than or equal
 - **Removed**: `&&`, `||`, `!` operators no longer supported
 - **Migration**: Replace `&&` with `and`, `||` with `or`, `!` with `not`
 - **Error Messages**: Scanner provides clear migration guidance for old operators
+
+### Lambda Expressions (v0.38)
+
+Frame v0.38 has full support for Python-style lambda expressions, including use in collection literals:
+
+#### Basic Lambda Syntax
+```frame
+// Simple lambda
+var square = lambda x: x * x
+
+// Multi-parameter lambda
+var add = lambda a, b: a + b
+
+// No-parameter lambda
+var get_value = lambda: 42
+
+// Using lambdas
+print(str(square(5)))      // 25
+print(str(add(3, 4)))      // 7
+print(str(get_value()))    // 42
+```
+
+#### Lambdas in Collections (FULLY SUPPORTED in v0.38)
+```frame
+// Dictionary with lambda values
+var operations = {
+    "add": lambda x, y: x + y,
+    "subtract": lambda x, y: x - y,
+    "multiply": lambda x, y: x * y,
+    "divide": lambda x, y: x / y
+}
+
+// Using dictionary lambdas
+var result = operations["add"](10, 5)  // 15
+
+// List of lambda functions
+var transforms = [
+    lambda n: n + 1,
+    lambda n: n * 2,
+    lambda n: n ** 2
+]
+
+// Using list lambdas
+var value = transforms[0](5)  // 6
+```
+
+#### Lambda Closures
+```frame
+// Lambda capturing outer variables
+var multiplier = 10
+var scale = lambda x: x * multiplier
+
+print(str(scale(5)))  // 50
+
+// Function returning lambda
+fn make_adder(n) {
+    return lambda x: x + n
+}
+
+var add5 = make_adder(5)
+print(str(add5(10)))  // 15
+```
+
+#### Lambda as Function Arguments
+```frame
+fn apply_operation(func, a, b) {
+    return func(a, b)
+}
+
+var result = apply_operation(lambda x, y: x + y, 10, 20)  // 30
+```
+
+#### Nested Collections with Lambdas
+```frame
+// Complex data structure with lambdas
+var config = {
+    "validators": {
+        "positive": lambda x: x > 0,
+        "even": lambda x: x % 2 == 0
+    },
+    "formatters": [
+        lambda s: s.upper(),
+        lambda s: s.lower()
+    ]
+}
+
+// Using nested lambdas
+if config["validators"]["positive"](5) {
+    print("Value is positive")
+}
+```
 
 **Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
 
