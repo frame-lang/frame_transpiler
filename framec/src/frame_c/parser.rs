@@ -2814,7 +2814,7 @@ impl<'a> Parser<'a> {
             // Comments are dealt with in match_token().
             // As we do peek() checks next we need to consume any
             // comments that preceed them.
-            self.match_token(&[TokenType::SingleLineComment, TokenType::MultiLineComment]);
+            self.match_token(&[TokenType::SingleLineComment, TokenType::MultiLineComment, TokenType::CStyleMultiLineComment]);
 
             if matches!(
                 self.peek().token_type,
@@ -10802,7 +10802,7 @@ impl<'a> Parser<'a> {
 
     fn match_token(&mut self, token_types: &[TokenType]) -> bool {
         // cache off comments
-        while self.check(TokenType::SingleLineComment) || self.check(TokenType::MultiLineComment) {
+        while self.check(TokenType::SingleLineComment) || self.check(TokenType::MultiLineComment) || self.check(TokenType::CStyleMultiLineComment) {
             let comment = self.peek().clone();
             self.comments.push(comment);
             self.advance();
@@ -10964,7 +10964,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let vec_comments = &vec![TokenType::SingleLineComment, TokenType::MultiLineComment];
+        let vec_comments = &vec![TokenType::SingleLineComment, TokenType::MultiLineComment, TokenType::CStyleMultiLineComment];
         for comment_token_type in vec_comments {
             if *comment_token_type == token.token_type {
                 return true;

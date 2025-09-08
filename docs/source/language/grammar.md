@@ -2422,6 +2422,42 @@ fn enumExample() {
 - ⚠️ Phase 3: String operations - Partial (trim, upper, lower, replace, split working)
 - 📋 Phase 4: Additional string operations (contains, substring) - Planned
 
+## Comments
+
+Frame supports multiple comment styles:
+
+### Single-line Comments
+```frame
+// This is a single-line comment
+var x = 42  // Comment at end of line
+```
+
+### C-style Multiline Comments (v0.38)
+```frame
+/* This is a C-style multiline comment
+   It can span multiple lines
+   and contain any text */
+
+var y = /* inline comment */ 100
+
+/* 
+ * Star-box style comment
+ * commonly used in C/Java
+ */
+```
+
+### Frame-style Multiline Comments (Legacy)
+```frame
+{-- This is a Frame-style multiline comment
+    using the legacy syntax --}
+```
+
+**Comment Rules**:
+- Comments are preserved during parsing but not included in generated code
+- C-style comments cannot be nested (`/* /* nested */ */` is invalid)
+- Comments can appear anywhere whitespace is allowed
+- Line count is maintained across multiline comments for accurate error reporting
+
 ## Tokens
 
 ```bnf
@@ -2429,6 +2465,7 @@ IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*
 NUMBER: [0-9]+ ('.' [0-9]+)?
 STRING: '"' (ESC | ~["])* '"'
 SUPERSTRING: '`' ~[`]* '`' | '```' ~* '```'
+COMMENT: '//' ~[\n]* | '/*' ~* '*/' | '{--' ~* '--}'
 ```
 
 ## Keywords

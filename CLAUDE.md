@@ -40,7 +40,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.38`  
-**Status**: ✅ **99.3% TEST SUCCESS RATE** (299/301 tests passing) - Visitor Cleanup & Parser Fixes
+**Status**: ✅ **99.3% TEST SUCCESS RATE** (299/301 tests passing) - C-style Comments, Visitor Cleanup & Parser Fixes
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)

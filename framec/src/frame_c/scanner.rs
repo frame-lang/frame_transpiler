@@ -383,6 +383,8 @@ impl Scanner {
             '/' => {
                 if self.match_char('/') {
                     self.single_line_comment();
+                } else if self.match_char('*') {
+                    self.c_style_multiline_comment();
                 } else {
                     self.add_token(TokenType::ForwardSlash);
                 }
@@ -569,6 +571,31 @@ impl Scanner {
             self.add_token(TokenType::MultiLineComment);
             return;
         }
+    }
+
+    // Handle C-style multiline comments /* ... */
+    fn c_style_multiline_comment(&mut self) {
+        // We've already consumed '/*', now look for '*/'
+        while !self.is_at_end() {
+            // Check for nested line breaks to maintain line count
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            
+            // Look for the closing */
+            if self.peek() == '*' && self.peek_next() == '/' {
+                // Consume the '*'
+                self.advance();
+                // Consume the '/'
+                self.advance();
+                self.add_token(TokenType::CStyleMultiLineComment);
+                return;
+            }
+            self.advance();
+        }
+        
+        // If we reach here, we hit EOF without finding the closing */
+        self.error(self.line, "Unterminated C-style comment. Expected '*/' before end of file.");
     }
 
     // Scan the string looking for the end of the match test ('/')
@@ -785,6 +812,7 @@ pub enum TokenType {
     Not,      // 'not' keyword (Python logical NOT)
     // SingleLineComment, // --- comment
     MultiLineComment, // {-- comments --}
+    CStyleMultiLineComment, // /* C-style comments */
     OpenBrace,        // {
     CloseBrace,       // }
     True,             // true

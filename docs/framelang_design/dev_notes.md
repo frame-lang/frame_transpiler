@@ -23,6 +23,18 @@ Languages considered in Frame's design with documented patterns but no visitor i
 - **Simplified codebase**: Only Python and GraphViz visitors remain
 - **Maintained compatibility**: No impact on functionality (99.3% test success rate preserved)
 
+### C-style Multiline Comments (2025-09-08)
+- **Added**: Full support for `/* ... */` C-style multiline comments
+- **Scanner Enhancement**: New `CStyleMultiLineComment` token type with proper scanning logic
+- **Parser Updates**: Handles new comment token alongside existing comment types
+- **Features Supported**:
+  - Multiline comments spanning any number of lines
+  - Inline comments within expressions (e.g., `var x = /* comment */ 42`)
+  - Star-box style comments for documentation
+  - Proper line counting maintained across multiline spans
+- **Error Handling**: Detects unterminated comments with clear error messages
+- **Compatibility**: Works alongside existing `//` single-line and `{-- --}` Frame-style comments
+
 ## Latest Status: v0.38 Complete - All Collection Features Working (2025-09-08)
 
 ### v0.38 Release - Complete Feature Set with Enhanced Operations ✅
