@@ -5657,10 +5657,40 @@ impl AstVisitor for PythonVisitor {
                 // Only treat as true external call if not an action or operation
                 // Special handling for collection constructors with arguments
                 let method_name = &method_call.identifier.name.lexeme;
-                // Note: Removed "list", "set", and "tuple" from this check
-                // These should remain as function calls to properly convert iterables
-                // Only dict() gets special handling since dict() is valid Python
-                if method_name == "dict" {
+                
+                // Special handling for Python collection constructors
+                // set(), list(), tuple() need special handling when called with multiple arguments
+                // because Python's constructors expect a single iterable, not multiple args
+                if method_name == "set" || method_name == "list" || method_name == "tuple" {
+                    self.add_code(method_name);
+                    self.add_code("(");
+                    
+                    let expr_count = method_call.call_expr_list.exprs_t.len();
+                    
+                    if expr_count > 1 {
+                        // Multiple arguments: wrap them in a list
+                        // set(1, 2, 3) -> set([1, 2, 3])
+                        self.add_code("[");
+                        let mut separator = "";
+                        for expr in &method_call.call_expr_list.exprs_t {
+                            self.add_code(separator);
+                            expr.accept(self);
+                            separator = ",";
+                        }
+                        self.add_code("]");
+                    } else if expr_count == 1 {
+                        // Single argument: check if it's already an iterable (list, tuple, etc.)
+                        // or if it needs wrapping (for set with non-iterable)
+                        let arg = &method_call.call_expr_list.exprs_t[0];
+                        
+                        // For all constructors, just pass the argument as-is
+                        // Python will handle the type checking
+                        arg.accept(self);
+                    }
+                    // expr_count == 0 case: empty constructor like set()
+                    
+                    self.add_code(")");
+                } else if method_name == "dict" {
                     // Keep dict() as-is since it's valid Python
                     self.handle_collection_constructor(method_call);
                 } else {
@@ -5764,10 +5794,40 @@ impl AstVisitor for PythonVisitor {
             // Only treat as true external call if not an action or operation
             // Special handling for collection constructors with arguments
             let method_name = &method_call.identifier.name.lexeme;
-            // Note: Removed "list", "set", and "tuple" from this check
-            // These should remain as function calls to properly convert iterables
-            // Only dict() gets special handling since dict() is valid Python
-            if method_name == "dict" {
+            
+            // Special handling for Python collection constructors
+            // set(), list(), tuple() need special handling when called with multiple arguments
+            // because Python's constructors expect a single iterable, not multiple args
+            if method_name == "set" || method_name == "list" || method_name == "tuple" {
+                output.push_str(method_name);
+                output.push_str("(");
+                
+                let expr_count = method_call.call_expr_list.exprs_t.len();
+                
+                if expr_count > 1 {
+                    // Multiple arguments: wrap them in a list
+                    // set(1, 2, 3) -> set([1, 2, 3])
+                    output.push_str("[");
+                    let mut separator = "";
+                    for expr in &method_call.call_expr_list.exprs_t {
+                        output.push_str(separator);
+                        expr.accept_to_string(self, output);
+                        separator = ",";
+                    }
+                    output.push_str("]");
+                } else if expr_count == 1 {
+                    // Single argument: check if it's already an iterable (list, tuple, etc.)
+                    // or if it needs wrapping (for set with non-iterable)
+                    let arg = &method_call.call_expr_list.exprs_t[0];
+                    
+                    // For all constructors, just pass the argument as-is
+                    // Python will handle the type checking
+                    arg.accept_to_string(self, output);
+                }
+                // expr_count == 0 case: empty constructor like set()
+                
+                output.push_str(")");
+            } else if method_name == "dict" {
                 // Keep dict() as-is since it's valid Python
                 self.handle_collection_constructor_to_string(method_call, output);
             } else {

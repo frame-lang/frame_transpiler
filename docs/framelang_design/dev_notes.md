@@ -22,11 +22,12 @@ Languages considered in Frame's design with documented patterns:
 ## Latest Status: v0.38 Complete - All Collection Features Working (2025-09-08)
 
 ### v0.38 Release - Complete Feature Set with Enhanced Operations ✅
-- **Test Coverage**: **296/301 tests passing (98.3% success rate)**
+- **Test Coverage**: **298/301 tests passing (99.0% success rate)**
 - **NEW - Membership Operators**: `in` and `not in` operators fully implemented ✅
 - **NEW - Nested Dict Indexing**: `dict["key1"]["key2"]` chained indexing working ✅
 - **NEW - Lambda in Collections**: Lambda expressions in dict/list literals fully supported ✅
 - **NEW - Loop Syntax Fixed**: Parser conflict between `in` operator and for-in loops resolved ✅
+- **NEW - Lambda Assignment Fixed**: Lambda expressions now work in variable assignments ✅
 - **UTF-8 Scanner Fix**: Full Unicode character support in source files ✅
 - **First-Class Functions**: Full support for functions as values ✅
 - **Lambda Expressions**: Full Python lambda syntax with closures ✅
@@ -79,6 +80,16 @@ Languages considered in Frame's design with documented patterns:
   - If pattern detected, route to `for_in_statement()` directly
   - Otherwise, proceed with normal expression parsing
 - **Impact**: Fixed 4 async stress tests, improved success rate to 98.3%
+
+### Lambda Assignment Fix (2025-09-08 Session 5)
+- **Problem**: Lambda expressions couldn't be assigned to existing variables
+- **Symptom**: `variable = lambda x: x + 1` caused parser error "Expected '}' - found 'lambda'"
+- **Solution**: Modified assignment parsing to check for lambda on RHS
+- **Implementation**:
+  - In `assignment()` function, check for lambda token after equals
+  - Parse lambda expression if found, otherwise parse normal expression
+  - Properly handle is_parsing_rhs flag for both cases
+- **Impact**: Fixed 2 lambda complete tests, improved success rate to 99.0%
 - **Supports**: Deep nesting, variable keys, mixed string/variable indices
 - **Test Improvement**: Success rate increased from 92.3% to 93.6%
 

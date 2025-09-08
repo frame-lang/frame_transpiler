@@ -1,20 +1,20 @@
 {
-  "timestamp": "2025-09-08T11:28:05.394247",
+  "timestamp": "2025-09-08T14:02:54.973858",
   "version": "v0.31",
   "summary": {
     "total": 301,
-    "transpile_success": 298,
-    "execute_success": 296,
-    "complete_success": 296,
-    "success_rate": "98.3%"
+    "transpile_success": 300,
+    "execute_success": 299,
+    "complete_success": 299,
+    "success_rate": "99.3%"
   },
   "results": [
     {
       "file": "test_all_8_collection_patterns.frm",
       "transpile": true,
-      "execute": false,
-      "output": "=== Testing All 8 Collection Patterns ===\n\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_all_8_collection_patterns.py\", line 65, in <module>\n    main()\n    ~~~~^^\n  File \"/"
+      "execute": true,
+      "output": "=== Testing All 8 Collection Patterns ===\n\n1. var s = set(1,2,3)\n   Result: {1, 2, 3}\n\n2. var s_set = {1,2,3}\n   Result: {1, 2, 3}\n\n3. var l = list([1,2,3])\n   Result: [1, 2, 3]\n\n4. var l2 = [1,2,3]\n ",
+      "error": null
     },
     {
       "file": "test_all_blocks_comprehensive.frm",
@@ -573,7 +573,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -601,14 +601,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1047,15 +1047,17 @@
     },
     {
       "file": "test_lambda_complete.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'lambda'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== Complete Lambda Test Suite ===\n\n=== Basic Lambda Tests ===\nSquare of 5: 25\nAdd 3 + 4: 7\nPi: 3.14159\n\n=== Lambda Reassignment ===\nDouble 5: 10\nVia another: 14\nNow triple: 21\n\n=== Lambdas in Collect",
+      "error": null
     },
     {
       "file": "test_lambda_complete_fixed.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'lambda'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== Complete Lambda Test Suite (Fixed) ===\n\n=== Basic Lambda Tests ===\nSquare of 5: 25\nAdd 3 + 4: 7\nPi: 3.14159\n\n=== Lambda Reassignment ===\nDouble 5: 10\nVia another: 14\nNow triple: 21\n\n=== Lambdas in",
+      "error": null
     },
     {
       "file": "test_lambda_simple.frm",

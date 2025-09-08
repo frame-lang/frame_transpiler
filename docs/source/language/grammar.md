@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.38)
 
 **Last Updated**: 2025-09-08  
-**Status**: Python logical operators (`and`, `or`, `not`), membership operators (`in`, `not in`), nested dictionary indexing, lambda expressions in collection literals, and for-in loop syntax fully supported.
+**Status**: Python logical operators (`and`, `or`, `not`), membership operators (`in`, `not in`), nested dictionary indexing, lambda expressions in collection literals, for-in loop syntax, and lambda assignments fully supported.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -2085,6 +2085,16 @@ var get_value = lambda: 42
 print(str(square(5)))      // 25
 print(str(add(3, 4)))      // 7
 print(str(get_value()))    // 42
+```
+
+#### Lambda Assignment (FIXED in v0.38)
+```frame
+// Variable declaration with lambda
+var square = lambda x: x * x
+
+// Assignment to existing variable (now works!)
+var func = lambda x: x + 1
+func = lambda x: x * 2     // ✅ Reassignment now works
 ```
 
 #### Lambdas in Collections (FULLY SUPPORTED in v0.38)

@@ -5909,18 +5909,36 @@ impl<'a> Parser<'a> {
             self.is_parsing_rhs = true;
 
             let line = self.previous().line;
-            let r_value = match self.logical_xor() {
-                Ok(Some(expr_type)) => {
-                    self.is_parsing_rhs = false;
-                    expr_type
+            // Check for lambda in assignment RHS
+            let r_value = if self.match_token(&[TokenType::Lambda]) {
+                match self.parse_lambda() {
+                    Ok(Some(expr_type)) => {
+                        self.is_parsing_rhs = false;
+                        expr_type
+                    }
+                    Ok(None) => {
+                        self.is_parsing_rhs = false;
+                        return Ok(None);
+                    }
+                    Err(parse_error) => {
+                        self.is_parsing_rhs = false;
+                        return Err(parse_error);
+                    }
                 }
-                Ok(None) => {
-                    self.is_parsing_rhs = false;
-                    return Ok(None);
-                }
-                Err(parse_error) => {
-                    self.is_parsing_rhs = false;
-                    return Err(parse_error);
+            } else {
+                match self.logical_xor() {
+                    Ok(Some(expr_type)) => {
+                        self.is_parsing_rhs = false;
+                        expr_type
+                    }
+                    Ok(None) => {
+                        self.is_parsing_rhs = false;
+                        return Ok(None);
+                    }
+                    Err(parse_error) => {
+                        self.is_parsing_rhs = false;
+                        return Err(parse_error);
+                    }
                 }
             };
 
