@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-07 14:14  
+**Generated**: 2025-09-07 16:38  
 **Total Tests**: 290  
 **Current Branch**: v0.31  
 
@@ -9,9 +9,9 @@
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Tests** | 290 | 100% |
-| **Transpilation Success** | 283 | 97.6% |
-| **Execution Success** | 282 | 97.2% |
-| **Complete Success** | 282 | 97.2% |
+| **Transpilation Success** | 285 | 98.3% |
+| **Execution Success** | 283 | 97.6% |
+| **Complete Success** | 283 | 97.6% |
 
 ## v0.31 Features
 
@@ -30,20 +30,15 @@ Expected '}' - found 'elif'
 
 Symbol table construction failed. Please check your Frame syntax.
  |
-| test_dict_literal.frm | ❌ | ❌ | Framec failed with an error:
-First pass parsing errors:
-[line 55] Error at 'interface:' : Expected '}' - found 'interface:'.
-
- |
 | test_external_loading.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_external_loading.py", line 95, in <module>
     main()
     ~~~~^^
   File "/Users/mar |
-| test_function_refs_complete.frm | ❌ | ❌ | Framec failed with an error:
-First pass parsing errors:
-[line 58] Error at ')' : Tuple literal expressions not allowed as statements.
-[line 61] Error at ')' : Tuple literal expressions not allowed as  |
+| test_function_refs_complete.frm | ✅ | ❌ |   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_function_refs_complete.py", line 60
+    result = operations[0].@indexed_call(10,5)
+                           ^
+Syntax |
 | test_json_file.frm | ❌ | ❌ | thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:
 byte index 2671 is not a char boundary; it is inside '✓' (bytes 2670..2673) of `// Test JSON-like data handling (import and file I/O not |
 | test_lambda_complete.frm | ❌ | ❌ | Framec failed with an error:
@@ -117,7 +112,7 @@ byte index 2700 is not a char boundary; it is inside '✓' (bytes 2699..2702) of
 | test_dict_lambda.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_lambda2.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_lambda3.frm | ✅ | ✅ | ✅ PASS |
-| test_dict_literal.frm | ❌ | ❌ | ❌ FAIL |
+| test_dict_literal.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_merge.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_merge_complete.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_setdefault.frm | ✅ | ✅ | ✅ PASS |
@@ -175,7 +170,7 @@ byte index 2700 is not a char boundary; it is inside '✓' (bytes 2699..2702) of
 | test_function_call.frm | ✅ | ✅ | ✅ PASS |
 | test_function_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_function_refs_basic.frm | ✅ | ✅ | ✅ PASS |
-| test_function_refs_complete.frm | ❌ | ❌ | ❌ FAIL |
+| test_function_refs_complete.frm | ✅ | ❌ | ❌ FAIL |
 | test_function_scope_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_event_handler.frm | ✅ | ✅ | ✅ PASS |

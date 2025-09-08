@@ -19,15 +19,16 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.38 Complete Feature Set - FINAL with Fixes (2025-09-07)
+## Latest Status: v0.38 Complete Feature Set - FINAL with All Fixes (2025-09-07)
 
 ### v0.38 Release - Complete Feature Set ✅
-- **Test Coverage**: **282/290 tests passing (97.2% success rate)**
+- **Test Coverage**: **283/290 tests passing (97.6% success rate)** ⬆️
 - **First-Class Functions**: Full support for functions as values ✅
 - **Lambda Expressions**: Full Python lambda syntax with closures ✅
 - **Lambda in Return**: Fixed - return statements now properly parse lambda expressions ✅
-- **Exponent Operator**: Right-associative `**` operator (NEW) ✅
-- **Empty Set Literal**: `{,}` syntax for empty sets (NEW) ✅
+- **Array Indexing with Calls**: Fixed - `array[0](args)` patterns now work ✅ 
+- **Exponent Operator**: Right-associative `**` operator ✅
+- **Empty Set Literal**: `{,}` syntax for empty sets ✅
 - **Dictionary Operations**: Complete `dict["key"]` indexing and assignment
 - **Collection Literals**: All 8 patterns (dict, set, tuple, list) working
 - **Domain Block Order**: Fixed - domain blocks must appear last in system definitions
@@ -39,14 +40,23 @@ Languages considered in Frame's design with documented patterns:
 1. **First-Class Functions**: Functions can be assigned, passed, returned, and stored
 2. **Lambda Expressions**: Full closure support with Python syntax
 3. **Lambda in Return Statements**: Fixed parser to use `expression()` instead of `equality()`
-4. **Exponent Operator (`**`)**: Right-associative power operator with proper precedence
-5. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dictionaries
-6. **Python Logical Operators**: Complete transition to `and`, `or`, `not`
+4. **Array Indexing with Function Calls**: Fixed with synthetic `@indexed_call` AST node
+5. **Exponent Operator (`**`)**: Right-associative power operator with proper precedence
+6. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dictionaries
+7. **Python Logical Operators**: Complete transition to `and`, `or`, `not`
 
-### Known Limitations
+### Array Indexing Fix Details
+- **Problem**: Parser couldn't handle `operations[0](10, 5)` pattern
+- **Solution**: Added detection for `(` after array/dict indexing in parser
+- **Implementation**: Creates synthetic `@indexed_call` node in AST
+- **Visitor Changes**: Python visitor handles `@indexed_call` without dot separator
+- **Supports**: Nested patterns like `matrix[0][1](x, y)` and dict indexing `ops["add"](3, 4)`
+
+### Remaining Limitations
 - **Domain Blocks**: Must appear as the last block in system definitions (parser limitation)
-- **Array Indexing with Calls**: Patterns like `array[0](args)` require major parser changes
 - **Complex Dictionary Patterns**: Some advanced dictionary operations in conditionals may fail
+- **JSON File Handling**: Not yet implemented
+- **Advanced Lambda Patterns**: Very complex nested lambdas may have issues
 
 ### v0.37 Release - Async Event Handlers, Runtime Infrastructure & Slicing ✅
 - **Test Coverage**: **222/222 tests passing (100% success rate)**

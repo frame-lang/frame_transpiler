@@ -9554,6 +9554,66 @@ impl<'a> Parser<'a> {
                 call_chain.push_back(node);
             };
 
+            // Check if the last node was a list element or slice and the next token is '('
+            // This handles patterns like array[0](args) or dict["key"](params)
+            if let Some(last_node) = call_chain.back() {
+                match last_node {
+                    CallChainNodeType::ListElementNodeT { .. } |
+                    CallChainNodeType::SliceNodeT { .. } |
+                    CallChainNodeType::UndeclaredListElementT { .. } |
+                    CallChainNodeType::UndeclaredSliceT { .. } => {
+                        if self.match_token(&[TokenType::LParen]) {
+                            // The indexed value is being called as a function
+                            // Create a synthetic call node for this
+                            let mut args = Vec::new();
+                            
+                            // Parse arguments
+                            if !self.check(TokenType::RParen) {
+                                loop {
+                                    match self.expression() {
+                                        Ok(Some(expr)) => args.push(expr),
+                                        Ok(None) => return Err(ParseError::new("Expected expression in function call")),
+                                        Err(e) => return Err(e),
+                                    }
+                                    
+                                    if !self.match_token(&[TokenType::Comma]) {
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            self.consume(TokenType::RParen, "Expected ')' after arguments")?;
+                            
+                            // Create a call expression node for the indexed call
+                            let call_expr_list = CallExprListNode::new(args);
+                            let call_expr_node = CallExprNode::new(
+                                IdentifierNode::new(
+                                    Token::new(
+                                        TokenType::Identifier, 
+                                        "@indexed_call".to_string(), 
+                                        TokenLiteral::None,
+                                        self.previous().line,
+                                        0,
+                                        0
+                                    ),
+                                    None,
+                                    IdentifierDeclScope::UnknownScope,
+                                    false,
+                                    self.previous().line,
+                                ),
+                                call_expr_list,
+                                None,  // No call chain for the synthetic call
+                            );
+                            
+                            // Add the call to the chain
+                            call_chain.push_back(CallChainNodeType::UndeclaredCallT {
+                                call_node: call_expr_node,
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+            }
 
             // end of chain if no  '.'
             if !self.match_token(&[TokenType::Dot]) {

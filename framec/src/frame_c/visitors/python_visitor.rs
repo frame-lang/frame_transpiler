@@ -6196,7 +6196,16 @@ impl AstVisitor for PythonVisitor {
                 }
             }
             
-            self.add_code(separator);
+            // Check if this is the synthetic @indexed_call node - if so, don't add separator
+            let is_indexed_call = if let CallChainNodeType::UndeclaredCallT { call_node } = &node {
+                call_node.identifier.name.lexeme == "@indexed_call"
+            } else {
+                false
+            };
+            
+            if !is_indexed_call {
+                self.add_code(separator);
+            }
             separator = ".";
             
             match &node {
@@ -6314,6 +6323,11 @@ impl AstVisitor for PythonVisitor {
                                 // Transform substring(start, end) to [start:end]
                                 // This needs special handling - for now just output substring
                                 self.add_code("substring");
+                                call.call_expr_list.accept(self);
+                            }
+                            "@indexed_call" => {
+                                // This is our synthetic node for array[index](args)
+                                // Just output the arguments, no method name
                                 call.call_expr_list.accept(self);
                             }
                             _ => {
@@ -6682,7 +6696,17 @@ impl AstVisitor for PythonVisitor {
                     format!("UndeclaredCall({})", call_node.identifier.name.lexeme),
                 _ => "Other".to_string()
             };
-            output.push_str(separator);
+            
+            // Check if this is the synthetic @indexed_call node - if so, don't add separator
+            let is_indexed_call = if let CallChainNodeType::UndeclaredCallT { call_node } = &node {
+                call_node.identifier.name.lexeme == "@indexed_call"
+            } else {
+                false
+            };
+            
+            if !is_indexed_call {
+                output.push_str(separator);
+            }
             match &node {
                 CallChainNodeType::SelfT { .. } => {
                     // v0.37: Handle 'self' as the base of a call chain
@@ -6710,13 +6734,23 @@ impl AstVisitor for PythonVisitor {
                                 output.push_str("strip");
                                 call.call_expr_list.accept_to_string(self, output);
                             }
+                            "@indexed_call" => {
+                                // This is our synthetic node for array[index](args)
+                                // Just output the arguments, no method name
+                                call.call_expr_list.accept_to_string(self, output);
+                            }
                             _ => {
                                 // Default behavior for other methods
                                 call.accept_to_string(self, output);
                             }
                         }
                     } else {
-                        call.accept_to_string(self, output);
+                        // Also check for @indexed_call when not in call chain
+                        if call.identifier.name.lexeme == "@indexed_call" {
+                            call.call_expr_list.accept_to_string(self, output);
+                        } else {
+                            call.accept_to_string(self, output);
+                        }
                     }
                 }
                 CallChainNodeType::InterfaceMethodCallT {

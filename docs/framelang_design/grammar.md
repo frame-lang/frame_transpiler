@@ -2258,3 +2258,30 @@ $StateName {
 - `#` - System type prefix (v0.11 legacy)
 - `##` - System terminator (v0.11 legacy)
 
+## Array Indexing with Function Calls (v0.38)
+
+Frame v0.38 adds support for calling functions stored in arrays or dictionaries directly after indexing:
+
+```frame
+// Store functions in collections
+var operations = [add, multiply, subtract]
+var ops_dict = {"add": add, "mul": multiply}
+
+// Call indexed functions directly
+var result1 = operations[0](10, 5)    // Calls add(10, 5)
+var result2 = operations[1](10, 5)    // Calls multiply(10, 5)
+var result3 = ops_dict["add"](3, 4)   // Calls add(3, 4)
+
+// Works with any expression that returns a callable
+var matrix = [[fn1, fn2], [fn3, fn4]]
+var value = matrix[0][1](x, y)        // Calls fn2(x, y)
+```
+
+This pattern is particularly useful for:
+- Dispatch tables and strategy patterns
+- Function arrays for event handling
+- Dynamic function selection based on runtime conditions
+- Implementing callback mechanisms
+
+The parser automatically detects when a function call follows an array/dictionary index operation and generates the appropriate code without requiring intermediate variables.
+

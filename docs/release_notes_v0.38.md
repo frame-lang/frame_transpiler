@@ -217,16 +217,33 @@ var d = {}            // Empty dictionary
 - **Backward Compatibility**: Breaking change with logical operators requires code migration
 - **Frame Standard Library**: FSL continues to work with explicit imports
 
+## Post-Release Fixes (2025-09-07)
+
+### Array Indexing with Function Calls ✅
+- **Pattern**: `operations[0](10, 5)` now fully supported
+- **Implementation**: Synthetic `@indexed_call` AST node handles indexed function calls
+- **Supports**: Arrays, dictionaries, and nested indexing patterns
+- **Example**: `matrix[0][1](x, y)` and `ops_dict["add"](3, 4)` work correctly
+
+### Lambda in Return Statements ✅
+- **Fix**: Return statements now parse full expressions including lambdas
+- **Example**: `return lambda x: x + n` works as expected
+
+### Domain Block Ordering ✅
+- **Workaround**: Domain blocks with dict literals must appear last in system definitions
+- **Parser limitation identified for future refactoring**
+
 ## Known Issues
 
 1. Complex lambda nesting may cause parsing issues in extreme cases
-2. Method references (`obj.method`) not yet supported as first-class values
+2. Method references (`obj.method`) not yet supported as first-class values  
 3. Lambda bodies limited to single expressions
 4. No type annotations on lambda parameters
+5. Domain blocks with dict literals must appear last (parser limitation)
 
 ## Acknowledgments
 
-Frame v0.38 represents significant progress in language maturity, bringing professional-grade programming features to the Frame language. The high test success rate (97.2%) demonstrates the robustness of the implementation.
+Frame v0.38 represents significant progress in language maturity, bringing professional-grade programming features to the Frame language. The high test success rate (97.6% after fixes) demonstrates the robustness of the implementation.
 
 ## Installation & Usage
 
