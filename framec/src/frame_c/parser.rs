@@ -7372,7 +7372,17 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
             }
         } else {
-            // Check if identifier or expression
+            // Check if this is a simple identifier followed by 'in' (for-in loop)
+            // We need to check this BEFORE parsing as expression to avoid consuming 'in' as operator
+            if self.check(TokenType::Identifier) {
+                let next_token_idx = self.current + 1;
+                if next_token_idx < self.tokens.len() && self.tokens[next_token_idx].token_type == TokenType::In {
+                    // This is definitely a for-in loop with identifier
+                    return self.for_in_statement();
+                }
+            }
+            
+            // Otherwise try to parse as expression (for C-style loop)
             let first_expr_result = self.expression();
             match first_expr_result {
                 Ok(Some(expr_type)) => {

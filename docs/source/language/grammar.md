@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.38)
 
 **Last Updated**: 2025-09-08  
-**Status**: Python logical operators (`and`, `or`, `not`), membership operators (`in`, `not in`), nested dictionary indexing, and lambda expressions in collection literals fully supported.
+**Status**: Python logical operators (`and`, `or`, `not`), membership operators (`in`, `not in`), nested dictionary indexing, lambda expressions in collection literals, and for-in loop syntax fully supported.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1654,6 +1654,8 @@ for i in range(5, 10):
 Similar to if/elif/else statements:
 - After `:` only single statements are allowed (no `{` blocks)
 - After condition/iterable without `:`, braces `{` are required
+
+**Parser Note (v0.38)**: The parser uses lookahead to correctly distinguish for-in loops from binary `in` expressions. When it encounters an identifier followed by `in`, it recognizes this as a for-in loop pattern rather than treating it as a membership test expression.
 
 ## Statements
 

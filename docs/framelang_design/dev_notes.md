@@ -22,10 +22,11 @@ Languages considered in Frame's design with documented patterns:
 ## Latest Status: v0.38 Complete - All Collection Features Working (2025-09-08)
 
 ### v0.38 Release - Complete Feature Set with Enhanced Operations ✅
-- **Test Coverage**: **281/300 tests passing (93.7% success rate)**
+- **Test Coverage**: **296/301 tests passing (98.3% success rate)**
 - **NEW - Membership Operators**: `in` and `not in` operators fully implemented ✅
 - **NEW - Nested Dict Indexing**: `dict["key1"]["key2"]` chained indexing working ✅
 - **NEW - Lambda in Collections**: Lambda expressions in dict/list literals fully supported ✅
+- **NEW - Loop Syntax Fixed**: Parser conflict between `in` operator and for-in loops resolved ✅
 - **UTF-8 Scanner Fix**: Full Unicode character support in source files ✅
 - **First-Class Functions**: Full support for functions as values ✅
 - **Lambda Expressions**: Full Python lambda syntax with closures ✅
@@ -68,6 +69,16 @@ Languages considered in Frame's design with documented patterns:
   - Added loop in parser to handle consecutive brackets
   - Creates `@chain_index` synthetic nodes for chained indexing
   - Visitor recognizes synthetic nodes and skips separator addition
+
+### Loop Syntax Parser Fix (2025-09-08 Session 4)
+- **Problem**: Parser conflict between `in` membership operator and for-in loop syntax
+- **Symptom**: `for x in list` was being parsed as binary expression `x in list`
+- **Solution**: Added lookahead logic to detect for-in patterns before expression parsing
+- **Implementation**:
+  - Check if current token is identifier and next token is `in`
+  - If pattern detected, route to `for_in_statement()` directly
+  - Otherwise, proceed with normal expression parsing
+- **Impact**: Fixed 4 async stress tests, improved success rate to 98.3%
 - **Supports**: Deep nesting, variable keys, mixed string/variable indices
 - **Test Improvement**: Success rate increased from 92.3% to 93.6%
 
@@ -103,7 +114,6 @@ Languages considered in Frame's design with documented patterns:
 ### Remaining Limitations
 - **Domain Blocks**: Must appear as the last block in system definitions (parser limitation)
 - **Method Call Indexing**: `getArray()[0]` pattern not yet supported
-- **Loop Syntax**: Some loop patterns cause parser errors (expecting `;` or `in`)
 - **JSON File Handling**: Not yet implemented
 - **Enum Iteration**: Advanced enum features like iteration not fully supported
 

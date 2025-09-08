@@ -40,7 +40,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.38`  
-**Status**: ✅ **93.7% TEST SUCCESS RATE** (281/300 tests passing) - Complete Collection Support
+**Status**: ✅ **98.3% TEST SUCCESS RATE** (296/301 tests passing) - Complete Collection Support & Loop Syntax Fixed
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
