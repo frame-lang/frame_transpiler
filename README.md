@@ -14,11 +14,15 @@ This project contains the code for building the Frame Language Transpiler - the 
 
 ### Modern Syntax (v0.35-v0.38)
 - **Python Logical Operators**: `and`, `or`, `not` keywords (v0.38 - C-style removed)
+- **First-Class Functions**: Functions as values - pass, return, and store functions
+- **Lambda Expressions**: Anonymous functions with closure support `lambda x: x * 2`
 - **Async/Await**: Full async function and event handler support
 - **Slicing**: Python-style slicing for strings and lists (`text[:5]`, `list[::2]`)
 - **With Statements**: Context manager support (`with`/`async with`)
 - **Import Statements**: Native Python imports without backticks
 - **List Comprehensions**: Python-style comprehensions `[x*2 for x in list]`
+- **Exponent Operator**: Right-associative `**` for power operations
+- **Empty Set Literal**: `{,}` syntax for empty sets
 
 ### Frame Standard Library (FSL)
 - **Type Conversions**: `str()`, `int()`, `float()`, `bool()`
@@ -32,8 +36,9 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Interface Methods**: Public system interfaces with async support
 
 ### Test Coverage
-- **100% Success Rate**: All 224 tests passing 🎉
-- **Complete Feature Coverage**: All language features fully tested and operational
+- **98.3% Success Rate**: 285/290 tests passing 🎉
+- **UTF-8 Support**: Full Unicode character support in source files
+- **Complete Feature Coverage**: All core language features fully tested and operational
 
 ## Explore Frame
 

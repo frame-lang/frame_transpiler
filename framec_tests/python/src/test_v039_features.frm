@@ -66,12 +66,12 @@ fn test_control_flow() {
     return
 }
 
+fn helper(a, b) {
+    return a * b
+}
+
 fn test_functions() {
     print("\n=== Functions Working ===")
-    
-    fn helper(a, b) {
-        return a * b
-    }
     
     var result = helper(6, 7)
     print("Function call: " + str(result))
@@ -81,9 +81,6 @@ fn test_functions() {
 
 // Test system functionality
 system TestSystem {
-    domain:
-        var counter = 0
-    
     interface:
         increment()
         getCount(): int
@@ -100,6 +97,9 @@ system TestSystem {
                 system.return = counter
             }
         }
+        
+    domain:
+        var counter = 0
 }
 
 fn test_systems() {

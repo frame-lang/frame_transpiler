@@ -6,6 +6,7 @@ use std::fmt::Display;
 
 pub(crate) struct Scanner {
     source: String,
+    chars: Vec<char>,
     tokens: Vec<Token>,
     start: usize,
     current: usize,
@@ -65,8 +66,10 @@ impl Scanner {
         .cloned()
         .collect();
 
+        let chars: Vec<char> = source.chars().collect();
         Scanner {
             source,
+            chars,
             tokens: Vec::new(),
             start: 0,
             current: 0,
@@ -158,7 +161,7 @@ impl Scanner {
     }
 
     fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
+        self.current >= self.chars.len()
     }
 
     fn scan_token(&mut self) {
@@ -411,7 +414,7 @@ impl Scanner {
         if self.is_at_end() {
             return false;
         }
-        let c = self.source.as_bytes()[self.current] as char;
+        let c = self.chars[self.current];
         if c == 'i' {
             let _debug = 1;
         }
@@ -419,16 +422,16 @@ impl Scanner {
             return false;
         }
         self.current += 1;
-        self.token_str = String::from(&self.source[self.start..self.current]);
+        self.token_str = self.chars[self.start..self.current].iter().collect();
 
         true
     }
 
-    // TODO: beware - mixing UTF-8 strings and chars here
+    // Fixed: now properly handles UTF-8 characters
     fn advance(&mut self) -> char {
+        let c = self.chars[self.current];
         self.current += 1;
-        self.token_str = String::from(&self.source[self.start..self.current]);
-        let c: char = self.source.as_bytes()[self.current - 1] as char;
+        self.token_str = self.chars[self.start..self.current].iter().collect();
         if c == '\n' {
             self.line += 1;
         }
@@ -440,15 +443,14 @@ impl Scanner {
             return '\0';
         }
 
-        let c: char = self.source.as_bytes()[self.current] as char;
-        c
+        self.chars[self.current]
     }
 
     fn peek_next(&self) -> char {
-        if self.current + 1 >= self.source.len() {
+        if self.current + 1 >= self.chars.len() {
             return '\0';
         }
-        return self.source.as_bytes()[self.current + 1] as char;
+        return self.chars[self.current + 1];
     }
 
     fn is_digit(&self, c: char) -> bool {
@@ -475,7 +477,7 @@ impl Scanner {
         }
 
         if is_integer {
-            let s = &self.source[self.start..self.current];
+            let s: String = self.chars[self.start..self.current].iter().collect();
             let result = s.parse::<i32>();
             match result {
                 Ok(number) => {
@@ -487,7 +489,7 @@ impl Scanner {
             }
         } else {
             // is float
-            let s = &self.source[self.start..self.current];
+            let s: String = self.chars[self.start..self.current].iter().collect();
             let result = s.parse::<f32>();
             match result {
                 Ok(number) => {
@@ -505,7 +507,7 @@ impl Scanner {
             self.advance();
         }
         // See if the identifier is a reserved word.
-        let text = &self.source[self.start..self.current].to_owned();
+        let text: String = self.chars[self.start..self.current].iter().collect();
 
         // Special handling for "system" keyword
         if text == "system" {
@@ -519,7 +521,7 @@ impl Scanner {
                     while self.is_alpha_numeric(self.peek()) {
                         self.advance();
                     }
-                    let next_word = &self.source[start_of_return..self.current];
+                    let next_word: String = self.chars[start_of_return..self.current].iter().collect();
                     if next_word == "return" {
                         // This is "system.return" - make it a single token
                         self.add_token(TokenType::SystemReturn);
@@ -531,7 +533,7 @@ impl Scanner {
             }
             // Just "system" by itself
             self.add_token(TokenType::System);
-        } else if let Some(keyword) = self.keywords.get(text) {
+        } else if let Some(keyword) = self.keywords.get(&text) {
             let tok_type = *keyword;
             self.add_token(tok_type);
         } else {
@@ -648,7 +650,7 @@ impl Scanner {
     }
 
     fn add_token_literal(&mut self, tok_type: TokenType, literal: TokenLiteral) {
-        let lex = self.source[self.start..self.current].to_owned();
+        let lex = self.chars[self.start..self.current].iter().collect::<String>();
         let len = self.current - self.start;
         self.tokens.push(Token::new(
             tok_type, lex, literal, self.line, self.start, len,
@@ -656,7 +658,7 @@ impl Scanner {
     }
 
     fn add_string_token_literal(&mut self, tok_type: TokenType, literal: TokenLiteral) {
-        let lex = self.source[self.start + 1..self.current - 1].to_owned();
+        let lex = self.chars[self.start + 1..self.current - 1].iter().collect::<String>();
         let len = self.current - self.start;
         self.tokens.push(Token::new(
             tok_type, lex, literal, self.line, self.start, len,

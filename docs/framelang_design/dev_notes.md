@@ -19,10 +19,11 @@ Languages considered in Frame's design with documented patterns:
 - Other languages via AI generation
 - No formal support or guarantees
 
-## Latest Status: v0.38 Complete Feature Set - FINAL with All Fixes (2025-09-07)
+## Latest Status: v0.38 Complete Feature Set - FINAL with UTF-8 Scanner Fix (2025-09-07)
 
-### v0.38 Release - Complete Feature Set ✅
-- **Test Coverage**: **283/290 tests passing (97.6% success rate)** ⬆️
+### v0.38 Release - Complete Feature Set with UTF-8 Support ✅
+- **Test Coverage**: **285/290 tests passing (98.3% success rate)** ⬆️
+- **UTF-8 Scanner Fix**: Full Unicode character support in source files ✅
 - **First-Class Functions**: Full support for functions as values ✅
 - **Lambda Expressions**: Full Python lambda syntax with closures ✅
 - **Lambda in Return**: Fixed - return statements now properly parse lambda expressions ✅
@@ -37,13 +38,26 @@ Languages considered in Frame's design with documented patterns:
 - **Native Python Functions**: `str()`, `len()`, etc work without FSL imports
 
 ### Key Features Completed (2025-09-07)
-1. **First-Class Functions**: Functions can be assigned, passed, returned, and stored
-2. **Lambda Expressions**: Full closure support with Python syntax
-3. **Lambda in Return Statements**: Fixed parser to use `expression()` instead of `equality()`
-4. **Array Indexing with Function Calls**: Fixed with synthetic `@indexed_call` AST node
-5. **Exponent Operator (`**`)**: Right-associative power operator with proper precedence
-6. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dictionaries
-7. **Python Logical Operators**: Complete transition to `and`, `or`, `not`
+1. **UTF-8 Scanner Support**: Complete Unicode character handling in source files
+2. **First-Class Functions**: Functions can be assigned, passed, returned, and stored
+3. **Lambda Expressions**: Full closure support with Python syntax
+4. **Lambda in Return Statements**: Fixed parser to use `expression()` instead of `equality()`
+5. **Array Indexing with Function Calls**: Fixed with synthetic `@indexed_call` AST node
+6. **Exponent Operator (`**`)**: Right-associative power operator with proper precedence
+7. **Empty Set Literal (`{,}`)**: Distinguishes empty sets from empty dictionaries
+8. **Python Logical Operators**: Complete transition to `and`, `or`, `not`
+
+### UTF-8 Scanner Fix Details (2025-09-07)
+- **Problem**: Scanner used byte indexing directly on UTF-8 strings, causing panics on multi-byte characters
+- **Root Cause**: `self.source.as_bytes()[index]` pattern failed on Unicode boundaries
+- **Solution**: Added `chars: Vec<char>` field to Scanner struct
+- **Implementation**: 
+  - Convert source string to character vector on initialization
+  - All character access methods (`advance`, `peek`, `peek_next`) use character indices
+  - String slicing operations work with character vector
+  - `is_at_end()` uses character length instead of byte length
+- **Impact**: Eliminated byte boundary panics, proper Unicode support throughout
+- **Test Recovery**: `test_v039_features.frm` now passing after fix
 
 ### Array Indexing Fix Details
 - **Problem**: Parser couldn't handle `operations[0](10, 5)` pattern

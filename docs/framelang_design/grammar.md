@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.38)
 
 **Last Updated**: 2025-09-07  
-**Status**: Complete with first-class functions, lambda expressions, collections, exponent operator, empty set literal, Python logical operators, async/await support, slicing operations, with statements, and runtime async infrastructure with 97.2% test coverage (282/290 tests passing)
+**Status**: Complete with first-class functions, lambda expressions, collections, exponent operator, empty set literal, Python logical operators, async/await support, slicing operations, with statements, runtime async infrastructure, and full UTF-8 support with 98.3% test coverage (285/290 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -2098,19 +2098,52 @@ While Frame v0.38 has extensive Python compatibility, the following limitations 
 3. **Exponent Operator**: ✅ Right-associative `**` operator for powers
 4. **Empty Set Literal**: ✅ `{,}` syntax for empty sets (generates `set()` in Python)
 
-### Test Suite Status (v0.38)
+### Test Suite Status (v0.38 with UTF-8 Fix)
 - **Total Tests**: 290
-- **Passing**: 282 (97.2%)
-- **Failing**: 8 (2.8%)
-- Remaining failures are edge cases or future v0.39 features
+- **Passing**: 285 (98.3%)
+- **Failing**: 5 (1.7%)
+- UTF-8 scanner fix resolved Unicode character handling issues
+- Remaining failures are parse errors in test files or unimplemented features
 
-## Tokens
+## Lexical Structure
+
+### Character Encoding
+
+Frame v0.38 fully supports UTF-8 encoded source files:
+
+- **Full Unicode Support**: All Unicode characters are properly handled in strings and comments
+- **UTF-8 Source Files**: Source files can contain any valid UTF-8 characters
+- **Character-based Scanning**: Scanner uses character indices, not byte indices
+- **Multi-byte Characters**: Properly handles emoji, accented characters, and all Unicode symbols
+
+### Comments
+
+```bnf
+LINE_COMMENT: '//' ~[\n]* \n
+MULTI_LINE_COMMENT: '/*' ~* '*/'
+```
+
+Comments can contain any UTF-8 characters:
+```frame
+// This is a comment with Unicode: ✓ ✗ 你好 🎉
+/* Multi-line comment
+   with Unicode symbols: ○ ● ★ ☆
+   and emojis: 😀 🚀 💻 */
+```
+
+### Tokens
 
 ```bnf
 IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*
 NUMBER: [0-9]+ ('.' [0-9]+)?
 STRING: '"' (ESC | ~["])* '"'
 SUPERSTRING: '`' ~[`]* '`' | '```' ~* '```'
+```
+
+**String Literals**: Can contain any UTF-8 characters:
+```frame
+var greeting = "Hello, 世界! 🌍"
+var message = "Unicode works: ✓ ✗ ★ ☆"
 ```
 
 ## Keywords

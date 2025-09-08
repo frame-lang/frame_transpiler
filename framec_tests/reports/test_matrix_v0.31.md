@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-07 17:39  
+**Generated**: 2025-09-07 19:59  
 **Total Tests**: 290  
 **Current Branch**: v0.31  
 
@@ -9,9 +9,9 @@
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Tests** | 290 | 100% |
-| **Transpilation Success** | 285 | 98.3% |
-| **Execution Success** | 284 | 97.9% |
-| **Complete Success** | 284 | 97.9% |
+| **Transpilation Success** | 286 | 98.6% |
+| **Execution Success** | 285 | 98.3% |
+| **Complete Success** | 285 | 98.3% |
 
 ## v0.31 Features
 
@@ -35,8 +35,12 @@ Symbol table construction failed. Please check your Frame syntax.
     main()
     ~~~~^^
   File "/Users/mar |
-| test_json_file.frm | ❌ | ❌ | thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:
-byte index 2671 is not a char boundary; it is inside '✓' (bytes 2670..2673) of `// Test JSON-like data handling (import and file I/O not |
+| test_json_file.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'print'
+
+Symbol table construction failed. Please check your Frame syntax.
+ |
 | test_lambda_complete.frm | ❌ | ❌ | Framec failed with an error:
 First pass parse error:
 Expected '}' - found 'lambda'
@@ -48,8 +52,6 @@ First pass parsing errors:
 [line 19] Error at 'not' : Expected ':' or '{' after if condition.
 
  |
-| test_v039_features.frm | ❌ | ❌ | thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:
-byte index 2707 is not a char boundary; it is inside '✓' (bytes 2706..2709) of `// Test current Frame v0.38 capabilities (v0.39 features |
 
 ## Test Details
 
@@ -336,7 +338,7 @@ byte index 2707 is not a char boundary; it is inside '✓' (bytes 2706..2709) of
 | test_v030_system_with_functions.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_three_systems.frm | ✅ | ✅ | ✅ PASS |
 | test_v031_comprehensive.frm | ✅ | ✅ | ✅ PASS |
-| test_v039_features.frm | ❌ | ❌ | ❌ FAIL |
+| test_v039_features.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_with_statement.frm | ✅ | ✅ | ✅ PASS |

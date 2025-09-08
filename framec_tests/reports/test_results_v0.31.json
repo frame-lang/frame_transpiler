@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-07T17:39:04.089746",
+  "timestamp": "2025-09-07T19:59:48.510191",
   "version": "v0.31",
   "summary": {
     "total": 290,
-    "transpile_success": 285,
-    "execute_success": 284,
-    "complete_success": 284,
-    "success_rate": "97.9%"
+    "transpile_success": 286,
+    "execute_success": 285,
+    "complete_success": 285,
+    "success_rate": "98.3%"
   },
   "results": [
     {
@@ -558,7 +558,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -586,14 +586,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -964,7 +964,7 @@
       "file": "test_json_file.frm",
       "transpile": false,
       "execute": false,
-      "error": "thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:\nbyte index 2671 is not a char boundary; it is inside '\u2713' (bytes 2670..2673) of `// Test JSON-like data handling (import and file I/O not"
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'print'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_json_loading.frm",
@@ -1974,9 +1974,10 @@
     },
     {
       "file": "test_v039_features.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:\nbyte index 2707 is not a char boundary; it is inside '\u2713' (bytes 2706..2709) of `// Test current Frame v0.38 capabilities (v0.39 features"
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Current Capability Showcase\n==================================================\n=== Basic Frame Features Working ===\nBasic math: 10 + 20 = 30\nString concat: Hello Frame\n\n=== Collections W",
+      "error": null
     },
     {
       "file": "test_validation_comprehensive.frm",
