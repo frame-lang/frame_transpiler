@@ -1,16 +1,15 @@
 # Frame v0.38 Development Notes
 
-## Language Support Classification (Updated 2025-01-22)
+## Language Support Classification (Updated 2025-09-08)
 
-### 1st Class Language (Full Visitor Implementation)
-- **Python**: Complete transpiler with visitor pattern
-- All Frame features directly supported
-- Primary development and testing target
+### 1st Class Languages (Full Visitor Implementation)
+- **Python**: Complete transpiler with visitor pattern - all Frame features directly supported
+- **GraphViz**: Visualization support for state machine diagrams
 
-### 2nd Class Languages (Generation Guides Only)
-Languages considered in Frame's design with documented patterns:
+### 2nd Class Languages (Design Guides Only - No Visitor)
+Languages considered in Frame's design with documented patterns but no visitor implementation:
 - **Rust**: State machine and module patterns
-- **JavaScript**: Prototype and ES6 module patterns
+- **JavaScript**: Prototype and ES6 module patterns  
 - **C#/Java**: Object-oriented patterns
 - **Go**: Composition and interface patterns
 - **C/C++**: Procedural and function pointer patterns
@@ -18,6 +17,11 @@ Languages considered in Frame's design with documented patterns:
 ### 3rd Class Languages (LLM-Generated)
 - Other languages via AI generation
 - No formal support or guarantees
+
+### Visitor Cleanup (2025-09-08)
+- **Removed 11 unused visitors**: cpp, cs, cs_for_bob, gdscript, golang, java_8, javascript, plantuml, rust, smcat, xtate
+- **Simplified codebase**: Only Python and GraphViz visitors remain
+- **Maintained compatibility**: No impact on functionality (99.3% test success rate preserved)
 
 ## Latest Status: v0.38 Complete - All Collection Features Working (2025-09-08)
 

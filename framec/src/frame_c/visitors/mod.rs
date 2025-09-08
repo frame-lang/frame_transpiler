@@ -3,35 +3,14 @@ use std::convert::TryFrom;
 /// An enumeration of the target languages currently supported by Frame.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum TargetLanguage {
-    // Cpp,
-    // CSharp,
-    //   CSharpForBob,
-    //   GdScript,
-    // GoLang,
-    // Java8,
-    // JavaScript,
-    // PlantUml,
     Python3,
-    // Rust,
-    // Smcat,
     Graphviz,
-    // XState,
 }
 
 impl TargetLanguage {
     pub fn file_extension(&self) -> &'static str {
         match self {
-            // TargetLanguage::Cpp => "cpp",
-            // TargetLanguage::CSharp => "cs",
-            //       TargetLanguage::CSharpForBob => "cs",
-            //       TargetLanguage::GdScript => "gd",
-            // TargetLanguage::GoLang => "go",
-            // TargetLanguage::Java8 => "java",
-            // TargetLanguage::JavaScript => "js",
-            // TargetLanguage::PlantUml => "puml",
             TargetLanguage::Python3 => "py",
-            // TargetLanguage::Rust => "rs",
-            // TargetLanguage::Smcat => "smcat",
             TargetLanguage::Graphviz => "graphviz",
         }
     }
@@ -40,36 +19,12 @@ impl TargetLanguage {
 impl TryFrom<&str> for TargetLanguage {
     type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        // if value == "cpp" {
-        //     Ok(TargetLanguage::Cpp)
-        // } else if value == "c_sharp" {
-        //     Ok(TargetLanguage::CSharp)
-        // } else if value == "c_sharp_bob" {
-        //     Ok(TargetLanguage::CSharpForBob)
-        // } else if value == "gdscript" {
-        //     Ok(TargetLanguage::GdScript)
-        // } else if value == "golang" {
-        //     Ok(TargetLanguage::GoLang)
-        // } else if value == "java_8" {
-        //     Ok(TargetLanguage::Java8)
-        // } else if value == "javascript" {
-        //     Ok(TargetLanguage::JavaScript)
-        // } else
-        // if value == "plantuml" {
-        //     Ok(TargetLanguage::PlantUml)
-        // } else
         if value == "python_3" {
             Ok(TargetLanguage::Python3)
-        // } else if value == "rust" {
-        //     Ok(TargetLanguage::Rust)
-        // } else if value == "smcat" {
-        //     Ok(TargetLanguage::Smcat)
-        // } else if value == "xstate" {
-        //     Ok(TargetLanguage::XState)
         } else if value == "graphviz" {
             Ok(TargetLanguage::Graphviz)
         } else {
-            Err(format!("Unrecognized target language {}", value))
+            Err(format!("Unrecognized target language: {}. Supported languages are: python_3, graphviz", value))
         }
     }
 }
@@ -81,20 +36,8 @@ impl TryFrom<String> for TargetLanguage {
     }
 }
 
-// pub mod cpp_visitor;
-// pub mod cs_visitor;
-// //pub mod cs_visitor_for_bob;
-// //pub mod gdscript_3_2_visitor;
-// pub mod golang_visitor;
-// pub mod java_8_visitor;
-// pub mod javascript_visitor;
 pub mod graphviz_visitor;
-// pub mod plantuml_visitor;
 pub mod python_visitor;
-// pub mod rust_visitor;
-// pub mod smcat_visitor;
-
-//pub mod xtate_visitor;
 
 use super::ast::*;
 
