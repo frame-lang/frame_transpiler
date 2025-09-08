@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-08 11:28  
+**Generated**: 2025-09-08 14:11  
 **Total Tests**: 301  
 **Current Branch**: v0.31  
 
@@ -9,9 +9,9 @@
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Tests** | 301 | 100% |
-| **Transpilation Success** | 298 | 99.0% |
-| **Execution Success** | 296 | 98.3% |
-| **Complete Success** | 296 | 98.3% |
+| **Transpilation Success** | 300 | 99.7% |
+| **Execution Success** | 299 | 99.3% |
+| **Complete Success** | 299 | 99.3% |
 
 ## v0.31 Features
 
@@ -24,28 +24,11 @@
 
 | Test File | Transpile | Execute | Error |
 |-----------|-----------|---------|-------|
-| test_all_8_collection_patterns.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_all_8_collection_patterns.py", line 65, in <module>
-    main()
-    ~~~~^^
-  File "/ |
 | test_external_loading.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_external_loading.py", line 95, in <module>
     main()
     ~~~~^^
   File "/Users/mar |
-| test_lambda_complete.frm | ❌ | ❌ | Framec failed with an error:
-First pass parse error:
-Expected '}' - found 'lambda'
-
-Symbol table construction failed. Please check your Frame syntax.
- |
-| test_lambda_complete_fixed.frm | ❌ | ❌ | Framec failed with an error:
-First pass parse error:
-Expected '}' - found 'lambda'
-
-Symbol table construction failed. Please check your Frame syntax.
- |
 | test_special_dicts.frm | ❌ | ❌ | Framec failed with an error:
 First pass parse error:
 Expected '}' - found 'fn'
@@ -57,7 +40,7 @@ Symbol table construction failed. Please check your Frame syntax.
 
 | Test File | Transpile | Execute | Status |
 |-----------|-----------|---------|--------|
-| test_all_8_collection_patterns.frm | ✅ | ❌ | ❌ FAIL |
+| test_all_8_collection_patterns.frm | ✅ | ✅ | ✅ PASS |
 | test_all_blocks_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_all_constructors.frm | ✅ | ✅ | ✅ PASS |
 | test_async_basic.frm | ✅ | ✅ | ✅ PASS |
@@ -205,8 +188,8 @@ Symbol table construction failed. Please check your Frame syntax.
 | test_just_transition_v2.frm | ✅ | ✅ | ✅ PASS |
 | test_keyword.frm | ✅ | ✅ | ✅ PASS |
 | test_lambda.frm | ✅ | ✅ | ✅ PASS |
-| test_lambda_complete.frm | ❌ | ❌ | ❌ FAIL |
-| test_lambda_complete_fixed.frm | ❌ | ❌ | ❌ FAIL |
+| test_lambda_complete.frm | ✅ | ✅ | ✅ PASS |
+| test_lambda_complete_fixed.frm | ✅ | ✅ | ✅ PASS |
 | test_lambda_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_lambda_simple_collections.frm | ✅ | ✅ | ✅ PASS |
 | test_lambda_working.frm | ✅ | ✅ | ✅ PASS |
