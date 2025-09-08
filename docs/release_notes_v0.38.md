@@ -113,6 +113,12 @@ if (a and b) or (not c and d) {
 
 The scanner will provide clear error messages guiding migration to the new syntax.
 
+### Removed `return = value` Syntax (2025-09-07)
+- **`return = value`** → Use **`system.return = value`**
+- The `return = ` syntax for setting interface return values has been removed
+- Use `system.return = value` to set the interface method return value from event handlers or actions
+- The parser provides a helpful error message guiding migration to the correct syntax
+
 ## Complete Collection Support
 
 Frame v0.38 now supports all 8 collection literal patterns:

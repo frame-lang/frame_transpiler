@@ -320,7 +320,7 @@ system AsyncPipeline {
             // Explicit async handler
             async processBatch(id) {
                 var result = await process_item(self.data[id])
-                return = result
+                system.return = result
             }
             
             // Async enter handler (required due to async chain)
@@ -603,7 +603,7 @@ system DataProcessor {
             processData(data) {
                 // State handler automatically async (handles async interface method)
                 print("Processing: " + data)
-                return = "processed_" + data
+                system.return = "processed_" + data
             }
             
             normalMethod(x) {
@@ -670,8 +670,7 @@ FrameModule (Top-Level)
 #### Return Statements
 - **Simple**: `return`
 - **With Value**: `return value`
-- **Interface Return Assignment**: `return = value` (sets return value directly in event handler)
-- **System Return Variable**: `system.return = value` (sets interface return value from anywhere)
+- **System Return Variable**: `system.return = value` (sets interface return value from anywhere in event handlers or actions)
 
 #### Event Forwarding
 - **To Parent State**: `=> $^` (statement - can appear anywhere in event handler)
@@ -698,7 +697,7 @@ The following v0.11 syntax has been **completely removed** and will cause compil
 
 ##### Removed Tokens
 - `^` and `^(value)` - Old return syntax → Use `return` or `return value`
-- `^=` - Old return assignment → Use `return = value`
+- `^=` - Old return assignment → Use `system.return = value`
 - `#SystemName ... ##` - Old system declaration → Use `system Name { }`
 - `?`, `?!`, `?~`, `?#`, `?:` - Ternary operators → Use if/elif/else
 - `:|` and `::` - Test terminators → No longer needed
@@ -951,11 +950,11 @@ After EVERY test run, you MUST:
 - **Rationale**: Simpler, more conventional syntax
 - **Migration**: `System($(a), $>(b), c)` → `System(a, b, c)`
 
-### Interface Return Assignment (2025-01-17)
-- **Decision**: Replace `^=` with `return = value` syntax
-- **Rationale**: More conventional and readable syntax
-- **Implementation**: Parser recognizes `return =` as interface return assignment
-- **Migration**: `^= expr` → `return = expr`
+### Interface Return Assignment (2025-01-17 - Updated 2025-09-07)
+- **Decision**: Originally replaced `^=` with `return = value`, now only `system.return = value`
+- **Rationale**: Clearer distinction between regular returns and interface return values
+- **Implementation**: Parser rejects `return = ` with helpful error message
+- **Migration**: `^= expr` → `system.return = expr`
 - **Codegen**: Generates assignment to return stack/field in target language
 
 ## Files to Never Edit

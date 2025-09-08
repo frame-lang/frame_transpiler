@@ -69,15 +69,15 @@ system HttpClient {
                     
                     if self.last_status == 200 {
                         print("  Fetch successful")
-                        return = "success"
+                        system.return = "success"
                     } else {
                         print("  Fetch failed with status: " + str(self.last_status))
-                        return = "failed"
+                        system.return = "failed"
                     }
                 } except {
                     print("  Network error in system")
                     self.last_status = 0
-                    return = "error"
+                    system.return = "error"
                 }
             }
             
@@ -98,11 +98,11 @@ system HttpClient {
                     print("  Error fetching URLs")
                 }
                 
-                return = self.fetch_count
+                system.return = self.fetch_count
             }
             
             getLastStatus() {
-                return = self.last_status
+                system.return = self.last_status
             }
         }
     

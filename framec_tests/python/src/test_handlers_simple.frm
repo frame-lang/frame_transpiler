@@ -13,7 +13,7 @@ system SimpleHandlers {
             }
             
             getState() {
-                return = "idle"
+                system.return = "idle"
             }
         }
         
@@ -28,11 +28,11 @@ system SimpleHandlers {
                 if self.workCount >= 3 {
                     -> $Idle
                 }
-                return = "processed"
+                system.return = "processed"
             }
             
             getState() {
-                return = "working"
+                system.return = "working"
             }
         }
         

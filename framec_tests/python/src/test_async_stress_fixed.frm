@@ -91,11 +91,11 @@ system AsyncDataPipeline {
             configure(settings) {
                 print("Configuring pipeline: " + str(settings))
                 self.config = settings
-                return = "configured"
+                system.return = "configured"
             }
             
             async getStatus() {
-                return = "idle"
+                system.return = "idle"
             }
             
             async runPipeline(config) {
@@ -115,7 +115,7 @@ system AsyncDataPipeline {
             }
             
             async getStatus() {
-                return = "downloading"
+                system.return = "downloading"
             }
         }
         
@@ -137,11 +137,11 @@ system AsyncDataPipeline {
                 print("Processing batch: " + str(batch_id))
                 // Simulate batch processing with timeout
                 var result = await with_timeout(compute_heavy(1000), 2.0)
-                return = "Batch " + str(batch_id) + " result: " + str(result)
+                system.return = "Batch " + str(batch_id) + " result: " + str(result)
             }
             
             async getStatus() {
-                return = "processing"
+                system.return = "processing"
             }
         }
         
@@ -151,7 +151,7 @@ system AsyncDataPipeline {
             }
             
             async getStatus() {
-                return = "complete: " + str(len(self.processed_data)) + " items"
+                system.return = "complete: " + str(len(self.processed_data)) + " items"
             }
             
             async fetchBatch(urls) {
@@ -165,7 +165,7 @@ system AsyncDataPipeline {
                 print("Processing batch: " + str(batch_id) + " (in complete state)")
                 // Can still process batches even when complete
                 var result = await with_timeout(compute_heavy(500), 2.0)
-                return = "Batch " + str(batch_id) + " result: " + str(result)
+                system.return = "Batch " + str(batch_id) + " result: " + str(result)
             }
         }
         
@@ -196,7 +196,7 @@ system AsyncDataPipeline {
             }
             
             async getStatus() {
-                return = "pipeline running"
+                system.return = "pipeline running"
             }
         }
         

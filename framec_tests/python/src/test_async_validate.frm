@@ -22,7 +22,7 @@ system AsyncTest {
                 var data = await fetch_data(id)
                 print("Received: " + data)
                 self.last_data = data
-                return = data
+                system.return = data
             }
             
             setStatus(status) {

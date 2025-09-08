@@ -6,7 +6,7 @@ system SystemA {
         $Start {
             next() {
                 print("SystemA next")
-                return = true
+                system.return = true
             }
         }
 }
@@ -19,7 +19,7 @@ system SystemB {
         $Start {
             next() {
                 print("SystemB next")  
-                return = false
+                system.return = false
             }
         }
 }

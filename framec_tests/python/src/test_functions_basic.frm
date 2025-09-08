@@ -21,21 +21,21 @@ system Calculator {
     machine:
         $Ready {
             add(x: int, y: int): int {
-                return = x + y
+                system.return = x + y
                 return
             }
             
             categorizeNumber(num: int): str {
                 if num < 0 {
-                    return = "negative"
+                    system.return = "negative"
                 } elif num == 0 {
-                    return = "zero"
+                    system.return = "zero"
                 } elif num < 10 {
-                    return = "single digit"
+                    system.return = "single digit"
                 } elif num < 100 {
-                    return = "double digit"
+                    system.return = "double digit"
                 } else {
-                    return = "large number"
+                    system.return = "large number"
                 }
                 return
             }

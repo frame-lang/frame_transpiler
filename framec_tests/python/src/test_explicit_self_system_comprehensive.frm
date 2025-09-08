@@ -55,7 +55,7 @@ system ComprehensiveSystem {
                 // Test action that modifies domain
                 self.updateTotal(doubled + b)
                 
-                return = total
+                system.return = total
             }
         }
         

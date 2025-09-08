@@ -15,12 +15,12 @@ system DictSystem {
                 
                 // Create and return a new dict
                 var result = {"status": "ok", "data": config}
-                return = result
+                system.return = result
             }
             
             getSettings() {
                 // Return a dictionary literal
-                return = {"mode": "test", "version": "1.0"}
+                system.return = {"mode": "test", "version": "1.0"}
             }
         }
 }

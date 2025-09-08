@@ -64,7 +64,7 @@ system CounterSystem {
             }
             
             get_count() : int {
-                return = count
+                system.return = count
             }
             
             reset() {

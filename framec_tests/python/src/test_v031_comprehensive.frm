@@ -35,7 +35,7 @@ system TestSystem {
             }
             
             get_value(): string {
-                return = "Test value from interface"
+                system.return = "Test value from interface"
             }
         }
         

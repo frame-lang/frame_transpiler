@@ -25,7 +25,7 @@ system SingleSystem {
             
             next() {
                 print("Start.next() -> Working")
-                return = true
+                system.return = true
                 -> $Working
             }
         }
@@ -41,7 +41,7 @@ system SingleSystem {
             
             next() {
                 print("Working.next() -> End")
-                return = true
+                system.return = true
                 -> $End
             }
         }
@@ -57,7 +57,7 @@ system SingleSystem {
             
             next() {
                 print("End.next() - complete")
-                return = false
+                system.return = false
             }
         }
 }

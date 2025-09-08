@@ -25,7 +25,7 @@ system TextAnalyzer {
             analyze(text: str): str {
                 // Use early returns with return = for interface value
                 if text == "" {
-                    return = "empty input"
+                    system.return = "empty input"
                     return  // Exit handler
                 }
                 
@@ -35,11 +35,11 @@ system TextAnalyzer {
                 
                 // Set final interface return based on category
                 if category == "short" {
-                    return = "short text: " + text
+                    system.return = "short text: " + text
                 } elif category == "caps" {
-                    return = "LOUD TEXT: " + text
+                    system.return = "LOUD TEXT: " + text
                 } else {
-                    return = "normal text: " + text
+                    system.return = "normal text: " + text
                 }
                 
                 return  // Exit handler

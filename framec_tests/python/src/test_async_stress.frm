@@ -85,11 +85,11 @@ system AsyncDataPipeline {
             configure(settings) {
                 print("Configuring pipeline: " + str(settings))
                 self.config = settings
-                return = "configured"
+                system.return = "configured"
             }
             
             getStatus() {
-                return = "idle"
+                system.return = "idle"
             }
             
             runPipeline(config) {
@@ -109,7 +109,7 @@ system AsyncDataPipeline {
             }
             
             getStatus() {
-                return = "downloading"
+                system.return = "downloading"
             }
         }
         
@@ -132,11 +132,11 @@ system AsyncDataPipeline {
                 print("Processing batch: " + str(batch_id))
                 // Simulate batch processing with timeout
                 var result = await with_timeout(compute_heavy(1000), 2.0)
-                return = "Batch " + str(batch_id) + " result: " + str(result)
+                system.return = "Batch " + str(batch_id) + " result: " + str(result)
             }
             
             getStatus() {
-                return = "processing"
+                system.return = "processing"
             }
         }
         
@@ -146,7 +146,7 @@ system AsyncDataPipeline {
             }
             
             getStatus() {
-                return = "complete: " + str(len(self.processed_data)) + " items"
+                system.return = "complete: " + str(len(self.processed_data)) + " items"
             }
             
             fetchBatch(urls) {
@@ -160,7 +160,7 @@ system AsyncDataPipeline {
                 print("Processing batch: " + str(batch_id) + " (in complete state)")
                 // Can still process batches even when complete
                 var result = await with_timeout(compute_heavy(500), 2.0)
-                return = "Batch " + str(batch_id) + " result: " + str(result)
+                system.return = "Batch " + str(batch_id) + " result: " + str(result)
             }
         }
         
@@ -191,7 +191,7 @@ system AsyncDataPipeline {
             }
             
             getStatus() {
-                return = "pipeline running"
+                system.return = "pipeline running"
             }
         }
         
@@ -237,7 +237,7 @@ system AsyncWorkerPool {
                 var result = await compute_heavy(work_amount)
                 // TODO: Store result - self.results[str(task_id)] = result
                 
-                return = "Task " + str(task_id) + " complete"
+                system.return = "Task " + str(task_id) + " complete"
             }
             
             async submitBatch(task_ids) {
@@ -246,12 +246,12 @@ system AsyncWorkerPool {
                 // Process all tasks in parallel
                 await self._process_batch(task_ids)
                 
-                return = "Batch complete: " + str(len(task_ids)) + " tasks"
+                system.return = "Batch complete: " + str(len(task_ids)) + " tasks"
             }
             
             getResults() {
                 // Return a simple string describing results
-                return = "6 tasks completed"
+                system.return = "6 tasks completed"
             }
             
             shutdown() {
@@ -267,7 +267,7 @@ system AsyncWorkerPool {
             }
             
             getResults() {
-                return = "Pool is shut down"
+                system.return = "Pool is shut down"
             }
         }
         
@@ -312,10 +312,10 @@ system AsyncErrorHandler {
                 
                 if result == None {
                     self.error_count = self.error_count + 1
-                    return = "Failed after " + str(max_retries) + " attempts"
+                    system.return = "Failed after " + str(max_retries) + " attempts"
                     -> $ErrorState
                 } else {
-                    return = result
+                    system.return = result
                 }
             }
             
@@ -327,19 +327,19 @@ system AsyncErrorHandler {
                 if self.error_count > 3 {
                     -> $ErrorState
                 }
-                return = "Error handled"
+                system.return = "Error handled"
             }
             
             async processWithFallback(data) {
                 try {
                     // Try primary processing
                     var result = await mock_process(data)
-                    return = result
+                    system.return = result
                 } except {
                     // Fallback processing
                     print("Primary processing failed, using fallback")
                     await asyncio.sleep(0.1)
-                    return = "Fallback: " + data
+                    system.return = "Fallback: " + data
                 }
             }
         }
@@ -358,7 +358,7 @@ system AsyncErrorHandler {
             
             handleError(error_type) {
                 print("Already in error state. New error: " + error_type)
-                return = "In error recovery"
+                system.return = "In error recovery"
             }
         }
         

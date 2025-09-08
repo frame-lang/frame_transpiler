@@ -42,7 +42,7 @@ system AsyncStressTest {
             }
             
             getStatus() {
-                return = "idle"
+                system.return = "idle"
             }
             
             processItems(items) {
@@ -61,7 +61,7 @@ system AsyncStressTest {
             }
             
             getStatus() {
-                return = "running test " + str(self.current_test)
+                system.return = "running test " + str(self.current_test)
             }
         }
         
@@ -80,7 +80,7 @@ system AsyncStressTest {
             }
             
             getStatus() {
-                return = "processing"
+                system.return = "processing"
             }
         }
         
@@ -90,7 +90,7 @@ system AsyncStressTest {
             }
             
             getStatus() {
-                return = "complete"
+                system.return = "complete"
             }
             
             runTest(test_id) {
@@ -120,7 +120,7 @@ system AsyncErrorTest {
                 } else {
                     var result = await async_work(1, 0.2)
                     self.last_success = result
-                    return = result
+                    system.return = result
                 }
             }
             
@@ -146,7 +146,7 @@ system AsyncErrorTest {
             }
             
             handleError(error_msg) {
-                return = "Already in error state"
+                system.return = "Already in error state"
             }
         }
         

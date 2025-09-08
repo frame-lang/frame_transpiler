@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-07T16:38:55.082267",
+  "timestamp": "2025-09-07T17:39:04.089746",
   "version": "v0.31",
   "summary": {
     "total": 290,
     "transpile_success": 285,
-    "execute_success": 283,
-    "complete_success": 283,
-    "success_rate": "97.6%"
+    "execute_success": 284,
+    "complete_success": 284,
+    "success_rate": "97.9%"
   },
   "results": [
     {
@@ -558,7 +558,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -586,14 +586,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -788,9 +788,9 @@
     {
       "file": "test_function_refs_complete.frm",
       "transpile": true,
-      "execute": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_function_refs_complete.py\", line 60\n    result = operations[0].@indexed_call(10,5)\n                           ^\nSyntax"
+      "execute": true,
+      "output": "=== Complete Function Reference Test Suite ===\n\n=== Testing Function References ===\nDirect ref: 3 + 4 = 7\nPass as param: 5 + 3 = 8\nPass as param: 5 * 3 = 15\nReturned func: 6 * 7 = 42\nFrom list[0]: 10 ",
+      "error": null
     },
     {
       "file": "test_function_scope_isolation.frm",
@@ -1976,7 +1976,7 @@
       "file": "test_v039_features.frm",
       "transpile": false,
       "execute": false,
-      "error": "thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:\nbyte index 2700 is not a char boundary; it is inside '\u2713' (bytes 2699..2702) of `// Test current Frame v0.38 capabilities (v0.39 features"
+      "error": "thread 'main' panicked at framec/src/frame_c/scanner.rs:430:51:\nbyte index 2707 is not a char boundary; it is inside '\u2713' (bytes 2706..2709) of `// Test current Frame v0.38 capabilities (v0.39 features"
     },
     {
       "file": "test_validation_comprehensive.frm",

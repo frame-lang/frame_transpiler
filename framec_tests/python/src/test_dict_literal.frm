@@ -59,12 +59,12 @@ system DictSystem {
                 // Update settings with config dict
                 settings = config
                 print("Settings updated: " + str(settings))
-                return = "configured"
+                system.return = "configured"
             }
             
             getSettings() {
                 print("Current settings: " + str(settings))
-                return = str(settings)
+                system.return = str(settings)
             }
         }
     

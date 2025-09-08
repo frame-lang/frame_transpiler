@@ -27,17 +27,17 @@ system DataProcessor {
         validateAndProcess(data: str): str {
             // Validate input
             if data == "" {
-                return = "error: empty input"  // Set interface return
+                system.return = "error: empty input"  // Set interface return
                 return "validation_failed"     // Return to event handler
             }
             
             if data == "test" {
-                return = "success: processed test data"  // Set interface return
+                system.return = "success: processed test data"  // Set interface return
                 return "validation_passed"               // Return to event handler
             }
             
             // Default case
-            return = "processed: " + data  // Set interface return
+            system.return = "processed: " + data  // Set interface return
             return "processed_default"     // Return to event handler
         }
 }

@@ -44,7 +44,7 @@ system AdvancedProcessor {
             processData(input: str): str {
                 // Early validation with return = 
                 if input == "" {
-                    return = "error: empty input"
+                    system.return = "error: empty input"
                     return
                 }
                 
@@ -80,15 +80,15 @@ system AdvancedProcessor {
                 var result = processText(data)
                 
                 if result == "error" {
-                    return = "processing failed"
+                    system.return = "processing failed"
                     -> $Idle
                     return
                 } elif result == "warning" {
-                    return = "processed with warnings"
+                    system.return = "processed with warnings"
                     -> $Idle  
                     return
                 } else {
-                    return = "success: " + result
+                    system.return = "success: " + result
                     -> $Idle
                     return
                 }
@@ -111,11 +111,11 @@ system AdvancedProcessor {
                 print("DEBUG: Processing '" + input + "'")
                 
                 if input == "debug test" {
-                    return = "debug: test successful"
+                    system.return = "debug: test successful"
                     return
                 }
                 
-                return = "debug: " + input
+                system.return = "debug: " + input
                 return
             }
             
@@ -128,7 +128,7 @@ system AdvancedProcessor {
         
         $FastProcessing {
             processData(input: str): str {
-                return = "fast: " + input
+                system.return = "fast: " + input
                 -> $Idle
                 return
             }

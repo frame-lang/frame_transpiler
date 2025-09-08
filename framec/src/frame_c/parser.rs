@@ -511,6 +511,13 @@ impl<'a> Parser<'a> {
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
         }
+        
+        // Check for blocks appearing after interface in wrong order
+        if self.peek().token_type == TokenType::OperationsBlock {
+            let err_msg = "Block ordering error: 'operations:' block must come before 'interface:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
 
         if self.match_token(&[TokenType::MachineBlock]) {
             self.arcanum
@@ -518,6 +525,18 @@ impl<'a> Parser<'a> {
             machine_block_node_opt = Option::Some(self.machine_block());
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
+        }
+        
+        // Check for blocks appearing after machine in wrong order
+        if self.peek().token_type == TokenType::InterfaceBlock {
+            let err_msg = "Block ordering error: 'interface:' block must come before 'machine:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::OperationsBlock {
+            let err_msg = "Block ordering error: 'operations:' block must come before 'machine:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
         }
 
         if !self.is_building_symbol_table {
@@ -676,6 +695,23 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::ActionsBlock]) {
             actions_block_node_opt = Option::Some(self.actions_block());
         }
+        
+        // Check for blocks appearing after actions (wrong order)
+        if self.peek().token_type == TokenType::MachineBlock {
+            let err_msg = "Block ordering error: 'machine:' block must come before 'actions:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::InterfaceBlock {
+            let err_msg = "Block ordering error: 'interface:' block must come before 'actions:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::OperationsBlock {
+            let err_msg = "Block ordering error: 'operations:' block must come before 'actions:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
 
         if self.match_token(&[TokenType::DomainBlock]) {
             self.arcanum
@@ -683,6 +719,28 @@ impl<'a> Parser<'a> {
             domain_block_node_opt = Option::Some(self.domain_block());
             self.arcanum
                 .debug_print_current_symbols(self.arcanum.get_current_symtab());
+        }
+        
+        // Check for blocks appearing after domain (wrong order - domain must be last)
+        if self.peek().token_type == TokenType::MachineBlock {
+            let err_msg = "Block ordering error: 'machine:' block must come before 'domain:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::InterfaceBlock {
+            let err_msg = "Block ordering error: 'interface:' block must come before 'domain:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::OperationsBlock {
+            let err_msg = "Block ordering error: 'operations:' block must come before 'domain:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::ActionsBlock {
+            let err_msg = "Block ordering error: 'actions:' block must come before 'domain:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
         }
 
         if !self.match_token(&[TokenType::CloseBrace]) {
@@ -5213,24 +5271,12 @@ impl<'a> Parser<'a> {
         }
         
         if self.match_token(&[TokenType::Return_]) {
-            // Check if this is a return assignment: "return = expr"
-            if self.match_token(&[TokenType::Equals]) {
-                // This is "return = expr" syntax for interface return assignment
-                match self.return_assign_expression() {
-                    Ok(Some(expr_type)) => {
-                        let return_assign_stmt_node = ReturnAssignStmtNode::new(expr_type);
-                        return Ok(Some(StatementType::ReturnAssignStmt {
-                            return_assign_stmt_node,
-                        }));
-                    }
-                    Ok(None) => {
-                        let err_msg = &format!("Error - invalid return assignment expression.");
-                        return Err(ParseError::new(err_msg));
-                    }
-                    Err(parse_error) => {
-                        return Err(parse_error);
-                    }
-                }
+            // Check if this is an incorrect return assignment: "return = expr"
+            if self.check(TokenType::Equals) {
+                // This is the deprecated "return = expr" syntax - provide helpful error
+                let err_msg = "Syntax error: 'return = value' is not valid. Use 'system.return = value' to set the interface method return value, or use 'return value' for a regular return statement.";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
             } else {
                 // Regular return statement: "return expr?" 
                 let mut expr_t_opt: Option<ExprType> = None;

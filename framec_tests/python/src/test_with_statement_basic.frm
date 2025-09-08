@@ -86,7 +86,7 @@ system FileProcessor {
             }
             
             getResult() {
-                return = "Not processed yet"
+                system.return = "Not processed yet"
             }
         }
         
@@ -98,7 +98,7 @@ system FileProcessor {
             }
             
             getResult() {
-                return = "Processing: " + self.content
+                system.return = "Processing: " + self.content
             }
         }
         
@@ -108,7 +108,7 @@ system FileProcessor {
             }
             
             getResult() {
-                return = "Done: " + self.processed
+                system.return = "Done: " + self.processed
             }
         }
         

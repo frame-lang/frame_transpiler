@@ -42,7 +42,7 @@ system MixedHandlerDemo {
                 print("Sync handler: getData")
                 self.lastId = id
                 self.data = "cached_" + str(id)
-                return = self.data
+                system.return = self.data
             }
             
             // Async event handler - needs async due to await
@@ -57,13 +57,13 @@ system MixedHandlerDemo {
             async processData(data) {
                 print("Async handler: processData")
                 var result = await process_async(data)
-                return = result
+                system.return = result
             }
             
             // Sync handler without await
             getStatus() {
                 print("Sync handler: getStatus")
-                return = "ready"
+                system.return = "ready"
             }
         }
         
@@ -79,7 +79,7 @@ system MixedHandlerDemo {
             // Sync handler in Processing state
             getStatus() {
                 print("Sync handler in Processing: getStatus")
-                return = "processing"
+                system.return = "processing"
             }
         }
         

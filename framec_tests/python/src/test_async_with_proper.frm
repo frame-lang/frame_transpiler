@@ -121,7 +121,7 @@ system AsyncResourceManager {
             }
             
             getStatus() {
-                return = "idle"
+                system.return = "idle"
             }
         }
         
@@ -140,7 +140,7 @@ system AsyncResourceManager {
             }
             
             getStatus() {
-                return = "resource acquired: " + self.resource_name
+                system.return = "resource acquired: " + self.resource_name
             }
         }
         
@@ -150,7 +150,7 @@ system AsyncResourceManager {
             }
             
             getStatus() {
-                return = "complete: " + self.result
+                system.return = "complete: " + self.result
             }
         }
     

@@ -5,14 +5,14 @@ system TestSystem {
     machine:
         $StateA {
             next() {
-                return = true
+                system.return = true
                 -> $StateB
             }
         }
         
         $StateB {
             next() {
-                return = false
+                system.return = false
             }
         }
 }

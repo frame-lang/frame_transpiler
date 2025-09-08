@@ -92,7 +92,7 @@ system AsyncDataFetcher {
                 
                 print("Fetched " + str(len(self.data)) + " bytes")
                 print("Status: " + str(self.status_code))
-                return = self.data
+                system.return = self.data
             }
         }
         

@@ -13,7 +13,7 @@ system SimpleAsync {
             getData(id) {
                 print("Getting data for id: " + str(id))
                 self.result = "data_" + str(id)
-                return = self.result
+                system.return = self.result
             }
         }
     

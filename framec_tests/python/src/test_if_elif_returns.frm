@@ -26,52 +26,52 @@ system GradeSystem {
             calculateGrade(score: int): str {
                 // Complex nested if/elif/else with returns - this was broken before v0.20
                 if score < 0 {
-                    return = "Invalid: negative score"
+                    system.return = "Invalid: negative score"
                     return
                 } elif score > 100 {
-                    return = "Invalid: score too high"
+                    system.return = "Invalid: score too high"
                     return
                 }
                 
                 // Grade calculation with exhaustive if/elif/else
                 if score >= 90 {
                     if score >= 95 {
-                        return = "A+"
+                        system.return = "A+"
                         return
                     } elif score >= 93 {
-                        return = "A"
+                        system.return = "A"
                         return
                     } else {
-                        return = "A-"
+                        system.return = "A-"
                         return
                     }
                 } elif score >= 80 {
                     if score >= 87 {
-                        return = "B+"
+                        system.return = "B+"
                         return
                     } elif score >= 83 {
-                        return = "B"
+                        system.return = "B"
                         return
                     } else {
-                        return = "B-"
+                        system.return = "B-"
                         return
                     }
                 } elif score >= 70 {
                     if score >= 77 {
-                        return = "C+"
+                        system.return = "C+"
                         return
                     } elif score >= 73 {
-                        return = "C"
+                        system.return = "C"
                         return
                     } else {
-                        return = "C-"
+                        system.return = "C-"
                         return
                     }
                 } elif score >= 60 {
-                    return = "D"
+                    system.return = "D"
                     return
                 } else {
-                    return = "F"
+                    system.return = "F"
                     return
                 }
             }

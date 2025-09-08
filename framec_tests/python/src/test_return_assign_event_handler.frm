@@ -28,24 +28,24 @@ system Calculator {
         $Ready {
             getDefault(): str {
                 // Should return the default "default_value"
-                return = "default_value"
+                system.return = "default_value"
                 return
             }
             
             calculate(a: int, b: int): int {
                 // Set interface return value
-                return = a + b
+                system.return = a + b
                 print("Calculated sum: " + str(a + b))
                 return
             }
             
             divide(a: int, b: int) {
                 if b == 0 {
-                    return = "error: division by zero"
+                    system.return = "error: division by zero"
                     return
                 }
                 
-                return = a / b
+                system.return = a / b
                 return
             }
         }

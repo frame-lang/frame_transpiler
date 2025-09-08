@@ -47,7 +47,7 @@ system AllBlocksTest {
         
         get_result() : string {
             print("Machine: get_result interface called")
-            return = self.test_result
+            system.return = self.test_result
         }
     }
 

@@ -360,11 +360,11 @@ system DataProcessor {
             // Handler automatically async due to interface method
             async processData(data) {
                 var result = await process_item(data)
-                return = result
+                system.return = result
             }
             
             getStatus() {
-                return = "ready"
+                system.return = "ready"
             }
         }
 }
@@ -382,7 +382,7 @@ system AsyncMachine {
             // Async event handler
             async handleRequest(id) {
                 var result = await fetch_item(id)
-                return = result
+                system.return = result
             }
         }
 }
@@ -811,7 +811,7 @@ system Counter {
             }
             
             getValue(): int {
-                return = self.count  // self.variable in return assignment
+                system.return = self.count  // self.variable in system.return assignment
             }
         }
 }
@@ -2169,8 +2169,8 @@ The following v0.11 syntax has been **completely removed** from the language as 
    - Use: `return` and `return value`
 
 6. **Return assignment**:
-   - **REMOVED**: `^=`
-   - Use: `return = value`
+   - **REMOVED**: `^=` and `return = value`
+   - Use: `system.return = value`
 
 7. **Ternary test operators**:
    - **REMOVED**: `?`, `?!`, `?~`, `?#`, `?:`

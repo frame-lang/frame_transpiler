@@ -106,21 +106,21 @@ system SystemA {
     machine:
         $Start {
             next() {
-                return = true  // Continue processing
+                system.return = true  // Continue processing
                 -> $Working
             }
         }
         
         $Working {
             next() {
-                return = true  // Continue processing
+                system.return = true  // Continue processing
                 -> $End
             }
         }
         
         $End {
             next() {
-                return = false  // Processing complete
+                system.return = false  // Processing complete
             }
         }
 }
@@ -133,21 +133,21 @@ system SystemB {
     machine:
         $Start {
             next() {
-                return = true
+                system.return = true
                 -> $Working
             }
         }
         
         $Working {
             next() {
-                return = true
+                system.return = true
                 -> $End
             }
         }
         
         $End {
             next() {
-                return = false
+                system.return = false
             }
         }
 }

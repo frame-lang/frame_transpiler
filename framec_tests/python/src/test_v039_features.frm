@@ -97,7 +97,7 @@ system TestSystem {
             }
             
             getCount() {
-                return = counter
+                system.return = counter
             }
         }
 }

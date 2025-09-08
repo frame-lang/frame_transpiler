@@ -99,7 +99,7 @@ system SystemA {
             
             next() {
                 print("SystemA: Start.next() -> Working (returning true)")
-                return = true
+                system.return = true
                 -> $Working
             }
         }
@@ -115,7 +115,7 @@ system SystemA {
             
             next() {
                 print("SystemA: Working.next() -> End (returning true)")
-                return = true
+                system.return = true
                 -> $End
             }
         }
@@ -131,7 +131,7 @@ system SystemA {
             
             next() {
                 print("SystemA: End.next() - complete (returning false)")
-                return = false
+                system.return = false
             }
         }
 }
@@ -152,7 +152,7 @@ system SystemB {
             
             next() {
                 print("SystemB: Start.next() -> Working (returning true)")
-                return = true
+                system.return = true
                 -> $Working
             }
         }
@@ -168,7 +168,7 @@ system SystemB {
             
             next() {
                 print("SystemB: Working.next() -> End (returning true)")
-                return = true
+                system.return = true
                 -> $End
             }
         }
@@ -184,7 +184,7 @@ system SystemB {
             
             next() {
                 print("SystemB: End.next() - complete (returning false)")
-                return = false
+                system.return = false
             }
         }
 }

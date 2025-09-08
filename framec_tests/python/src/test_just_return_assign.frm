@@ -5,7 +5,7 @@ system TestSystem {
     machine:
         $StateA {
             next() {
-                return = true
+                system.return = true
             }
         }
 }
