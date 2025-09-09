@@ -35,6 +35,17 @@ Languages considered in Frame's design with documented patterns but no visitor i
 - **Error Handling**: Detects unterminated comments with clear error messages
 - **Compatibility**: Works alongside existing `//` single-line and `{-- --}` Frame-style comments
 
+### Slicing Expression Enhancement (2025-09-09)
+- **Enhanced**: Full expression support in slice positions (e.g., `text[start+1:end-1]`)
+- **Scanner Fix**: Removed automatic negative number scanning for `-` followed by digit
+- **Parser Improvements**: 
+  - New token collection approach for bounded expression parsing
+  - Added `collect_tokens_until()` helper for gathering tokens until stop tokens
+  - Added `parse_token_sequence_as_expr()` for isolated expression parsing
+  - Simplified `parse_bracket_expression()` with clean decision tree logic
+- **Compatibility**: Negative literals still work via unary expression parsing (e.g., `var x = -1`)
+- **Benefits**: Allows complex arithmetic in slice indices without parser conflicts
+
 ## Latest Status: v0.38 Complete - All Collection Features Working (2025-09-08)
 
 ### v0.38 Release - Complete Feature Set with Enhanced Operations ✅

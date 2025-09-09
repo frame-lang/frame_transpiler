@@ -318,9 +318,10 @@ impl Scanner {
             '-' => {
                 if self.match_char('>') {
                     self.add_token(TokenType::Transition);
-                } else if self.is_digit(self.peek()) {
-                    self.number(true);
+                } else if self.match_char('-') {
+                    self.add_token(TokenType::DashDash);
                 } else {
+                    // Always emit Dash token, let parser handle negative numbers in context
                     self.add_token(TokenType::Dash);
                 }
             }

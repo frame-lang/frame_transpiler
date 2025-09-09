@@ -395,7 +395,7 @@ Frame v0.37 validates async chains at compile time:
 - Enter/exit handlers in async transition chains must be async
 - Clear error messages explain which handlers need async marking
 
-## Slicing Operations (v0.37)
+## Slicing Operations (v0.37, enhanced v0.38)
 
 Frame v0.37 adds full Python-style slicing support for strings and lists:
 
@@ -410,6 +410,7 @@ slice_component: expr
 - **Basic Slices**: `text[:5]`, `list[2:8]`, `data[7:]`
 - **Step Parameter**: `list[::2]`, `data[::-1]`, `nums[1:8:2]`
 - **Negative Indices**: `text[-5:]`, `list[:-2]`
+- **Expression Support**: Complex expressions in slice positions `text[start+1:end-1]`
 - **String Slicing**: Full support for string slicing
 - **List Slicing**: Full support for list slicing
 
@@ -435,6 +436,13 @@ fn demonstrateSlicing() {
     print(text[-6:])        // "World!"
     print(nums[-3:])        // [7, 8, 9]
     print(nums[:-5])        // [0, 1, 2, 3, 4]
+    
+    // Expressions in slices (v0.38)
+    var start = 2
+    var end = 8
+    print(nums[start:end])       // [2, 3, 4, 5, 6, 7]
+    print(nums[start+1:end-1])   // [3, 4, 5, 6]
+    print(text[len(text)-6:])    // "World!"
 }
 ```
 

@@ -3390,6 +3390,10 @@ impl<'a> Parser<'a> {
                     // v0.38: Function reference as value (first-class function)
                     value = Rc::new(FunctionRefT { name })
                 }
+                Ok(Some(SliceExprT { slice_node })) => {
+                    // v0.39: String/list slicing as value
+                    value = Rc::new(SliceExprT { slice_node })
+                }
                 Ok(Some(ExprListT { expr_list_node })) => {
                     let err_msg =
                         &format!("Expr type 'ExprList' is not a valid rvalue assignment type.");
@@ -5126,6 +5130,11 @@ impl<'a> Parser<'a> {
                         // Function references are not valid as statements on their own
                         self.error_at_previous("Function reference expressions not allowed as statements.");
                         return Err(ParseError::new("Function reference must be part of an assignment or call"));
+                    }
+                    ExprType::SliceExprT { .. } => {
+                        // Slice expressions are not valid as statements on their own
+                        self.error_at_previous("Slice expressions not allowed as statements.");
+                        return Err(ParseError::new("Slice expression must be part of an assignment or expression"));
                     }
                 }
             }
@@ -11803,71 +11812,203 @@ impl<'a> Parser<'a> {
         Ok(())
     }
     
-    // Parse bracket expressions to distinguish between indexing and slicing
-    fn parse_bracket_expression(&mut self) -> Result<BracketExpressionType, ParseError> {
+    
+    // Collect tokens until we hit one of the stop tokens (at the same nesting level)
+    fn collect_tokens_until(&mut self, stop_tokens: &[TokenType]) -> Vec<Token> {
+        let mut tokens = Vec::new();
+        let mut paren_depth = 0;
+        let mut bracket_depth = 0;
+        let mut brace_depth = 0;
         
-        // Check if we have a colon (indicating a slice)
-        // We need to look ahead to see if there's a colon before the closing bracket
-        let mut is_slice = false;
-        let mut expr_opt: Option<ExprType> = None;
-        
-        // First, check if we immediately have a colon (e.g., [:10])
-        if self.check(TokenType::Colon) {
-            is_slice = true;
-        } else {
-            // Try to parse an expression
-            expr_opt = self.expression()?;
+        while !self.is_at_end() {
+            let token = self.peek();
             
-            // Check if we have a colon after the expression (e.g., [5:] or [1:10])
-            if self.check(TokenType::Colon) {
-                is_slice = true;
-            }
-        }
-        
-        if is_slice {
-            // Parse slice: [start:end:step]
-            let start_expr = expr_opt.map(Box::new);
-            
-            // Consume the colon
-            self.advance();
-            
-            // Parse end expression (optional)
-            let mut end_expr: Option<Box<ExprType>> = None;
-            if !self.check(TokenType::Colon) && !self.check(TokenType::RBracket) {
-                end_expr = self.expression()?.map(Box::new);
-            }
-            
-            // Check for step (optional)
-            let mut step_expr: Option<Box<ExprType>> = None;
-            if self.match_token(&[TokenType::Colon]) {
-                if !self.check(TokenType::RBracket) {
-                    step_expr = self.expression()?.map(Box::new);
+            // Check if we should stop (only at depth 0)
+            if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 {
+                if stop_tokens.contains(&token.token_type) {
+                    break;
                 }
             }
             
-            // Consume the closing bracket
-            if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
-                return Err(parse_error);
+            // Track nesting depth
+            match token.token_type {
+                TokenType::LParen => paren_depth += 1,
+                TokenType::RParen => {
+                    paren_depth -= 1;
+                    if paren_depth < 0 {
+                        break; // Mismatched parenthesis
+                    }
+                }
+                TokenType::LBracket => bracket_depth += 1,
+                TokenType::RBracket => {
+                    bracket_depth -= 1;
+                    if bracket_depth < 0 {
+                        break; // This is our closing bracket
+                    }
+                }
+                TokenType::OpenBrace => brace_depth += 1,
+                TokenType::CloseBrace => {
+                    brace_depth -= 1;
+                    if brace_depth < 0 {
+                        break;
+                    }
+                }
+                _ => {}
             }
             
+            tokens.push(self.advance().clone());
+        }
+        
+        tokens
+    }
+    
+    // Parse a sequence of tokens as an expression
+    fn parse_token_sequence_as_expr(&mut self, tokens: Vec<Token>) -> Result<Option<ExprType>, ParseError> {
+        if tokens.is_empty() {
+            return Ok(None);
+        }
+        
+        // Save current position
+        let saved_pos = self.current;
+        let saved_tok_ref = self.current_tok_ref;
+        
+        // Create a temporary parser state for these tokens
+        // We'll insert the tokens at the current position and parse them
+        let mut temp_tokens = Vec::new();
+        
+        // Add tokens before current position
+        for i in 0..saved_pos {
+            temp_tokens.push(self.tokens[i].clone());
+        }
+        
+        // Add our tokens to parse
+        let parse_start = temp_tokens.len();
+        for token in tokens {
+            temp_tokens.push(token);
+        }
+        
+        // Add an EOF token to ensure parsing stops
+        temp_tokens.push(Token {
+            token_type: TokenType::Eof,
+            lexeme: String::new(),
+            literal: TokenLiteral::None,
+            line: self.peek().line,
+            start: 0,
+            length: 0,
+        });
+        
+        // Store the original tokens reference
+        let original_tokens = self.tokens;
+        
+        // Temporarily replace tokens
+        // SAFETY: This is safe because we restore it before returning
+        let temp_tokens_ref: &'a [Token] = unsafe {
+            std::mem::transmute(temp_tokens.as_slice())
+        };
+        self.tokens = temp_tokens_ref;
+        self.current = parse_start;
+        
+        // Parse the expression
+        let result = self.expression();
+        
+        // Restore original state
+        self.tokens = original_tokens;
+        self.current = saved_pos;
+        self.current_tok_ref = saved_tok_ref;
+        
+        result
+    }
+    
+    // Parse bracket expressions to distinguish between indexing and slicing
+    fn parse_bracket_expression(&mut self) -> Result<BracketExpressionType, ParseError> {
+        // Simple decision tree approach
+        
+        // Look at what comes first: expression, colon, or bracket
+        if self.check(TokenType::Colon) {
+            // Starts with colon: slice like [:end] or [:end:step]
+            self.advance(); // consume ':'
+            
+            let mut end_expr: Option<Box<ExprType>> = None;
+            let mut step_expr: Option<Box<ExprType>> = None;
+            
+            // Parse end if not another colon or bracket
+            if !self.check(TokenType::Colon) && !self.check(TokenType::RBracket) {
+                let tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
+                end_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
+            }
+            
+            // Check for step
+            if self.match_token(&[TokenType::Colon]) {
+                if !self.check(TokenType::RBracket) {
+                    let tokens = self.collect_tokens_until(&[TokenType::RBracket]);
+                    step_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
+                }
+            }
+            
+            self.consume(TokenType::RBracket, "Expected ']'")?;
+            
             Ok(BracketExpressionType::Slice {
-                start: start_expr,
+                start: None,
                 end: end_expr,
                 step: step_expr,
             })
+            
+        } else if self.check(TokenType::RBracket) {
+            // Empty brackets - error
+            let err_msg = "Empty brackets not allowed";
+            self.error_at_current(err_msg);
+            Err(ParseError::new(err_msg))
+            
         } else {
-            // Regular index expression
-            if let Some(expr) = expr_opt {
-                // Consume the closing bracket
-                if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
-                    return Err(parse_error);
+            // Starts with expression
+            let first_tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
+            let first_expr = self.parse_token_sequence_as_expr(first_tokens)?;
+            
+            if self.check(TokenType::RBracket) {
+                // Just an index: expr]
+                self.advance(); // consume ']'
+                
+                if let Some(expr) = first_expr {
+                    Ok(BracketExpressionType::Index(expr))
+                } else {
+                    let err_msg = "Missing index expression";
+                    self.error_at_previous(err_msg);
+                    Err(ParseError::new(err_msg))
                 }
-                Ok(BracketExpressionType::Index(expr))
+                
+            } else if self.check(TokenType::Colon) {
+                // It's a slice: expr:...
+                self.advance(); // consume ':'
+                
+                let mut end_expr: Option<Box<ExprType>> = None;
+                let mut step_expr: Option<Box<ExprType>> = None;
+                
+                // Parse end if present
+                if !self.check(TokenType::Colon) && !self.check(TokenType::RBracket) {
+                    let tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
+                    end_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
+                }
+                
+                // Check for step
+                if self.match_token(&[TokenType::Colon]) {
+                    if !self.check(TokenType::RBracket) {
+                        let tokens = self.collect_tokens_until(&[TokenType::RBracket]);
+                        step_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
+                    }
+                }
+                
+                self.consume(TokenType::RBracket, "Expected ']'")?;
+                
+                Ok(BracketExpressionType::Slice {
+                    start: first_expr.map(Box::new),
+                    end: end_expr,
+                    step: step_expr,
+                })
+                
             } else {
-                // No expression provided
-                let err_msg = "Error - missing expression for list element.";
-                self.error_at_previous(err_msg);
-                Err(ParseError::new(err_msg))
+                let err_msg = format!("Expected ':' or ']' but found '{}'", self.peek().lexeme);
+                self.error_at_current(&err_msg);
+                Err(ParseError::new(&err_msg))
             }
         }
     }
