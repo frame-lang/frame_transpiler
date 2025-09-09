@@ -1,6 +1,6 @@
 # Frame Transpiler Test Status Report
 
-**Last Updated**: 2025-09-09 (Parser Refactoring - call() Phases 2-3)
+**Last Updated**: 2025-09-09 (Parser Refactoring - call() Phases 2-4)
 **Branch**: v0.30  
 **Version**: v0.38 (Parser Simplification)
 
@@ -11,6 +11,22 @@
 - **Success Rate**: 99.0%
 
 ## Recent Work: Parser Refactoring
+
+### ✅ call() Function - Phase 4 Complete (2025-09-09)
+Completed Phase 4 of systematic refactoring:
+
+**Phase 4 Results** (Action call helpers):
+- **Extracted**: 2 additional helper functions
+- **Helper 4**: `create_action_call_node()` - Creates action calls with validation
+- **Helper 5**: `parse_dot_continuation()` - Handles dot-separated continuations
+- **Simplified**: Replaced more duplicate interface method validation
+- **Reduction**: 970 → 970 lines (55 lines total removed in Phase 4)
+
+**Overall Progress**:
+- **Original call() function**: 1373 lines
+- **After Phases 2-4**: 970 lines
+- **Total reduction**: 403 lines (29% reduction)
+- **Test validation**: ✅ 99.0% success rate maintained
 
 ### ✅ call() Function - Phases 2-3 Complete (2025-09-09)
 Continued systematic refactoring of the massive `call()` function:
@@ -26,18 +42,6 @@ Continued systematic refactoring of the massive `call()` function:
 - **Replaced**: Massive duplicate validation blocks (lines 8940-9060)
 - **Impact**: Replaced 120+ lines of duplicate validation with helper calls
 - **Reduction**: 1161 → 1025 lines (136 lines removed)
-- **Total reduction**: 1373 → 1025 lines (25% reduction so far)
-
-**Test validation**: 99.0% success rate maintained throughout
-
-### ✅ call() Function - Phase 1 Complete (2025-09-09)
-Successfully extracted self-reference handling from the massive `call()` function:
-
-**Phase 1 Results**:
-- **Extracted**: `parse_self_reference_helper()` - 130 lines
-- **call() reduction**: 1167 → 937 lines (20% reduction)
-- **Test validation**: 99.0% success rate maintained
-- **No regressions**: Same 3 pre-existing failures
 
 ### ✅ Parser Simplification (COMPLETED - 2025-09-09)
 Successfully refactored 6 major parser functions:
@@ -68,7 +72,7 @@ Successfully refactored 6 major parser functions:
 - ✅ System Operations (25/25)
 - ✅ String Operations & Slicing (15/15)
 - ✅ Control Flow (20/20)
-- ✅ Self-Reference Patterns (10/10) - Validated after Phase 1
+- ✅ Self-Reference Patterns (10/10)
 - ✅ Most Other Features (19/22)
 
 ### Failed Tests (3)
@@ -80,11 +84,10 @@ Successfully refactored 6 major parser functions:
 | test_special_dicts.frm | Special dictionary pattern | Known Issue |
 
 ## Notes
-- Parser refactoring Phases 2-3 (call() function) completed successfully
-- Extracted 3 helper functions for validation and node creation
+- Parser refactoring Phases 2-4 (call() function) completed successfully
+- Extracted 5 helper functions for validation and node creation
 - Eliminated 120+ lines of duplicate validation logic
 - No regressions introduced by refactoring
 - The 3 failing tests are pre-existing issues unrelated to parser changes
 - Overall system stability maintained at 99.0% success rate
-- `call()` function reduced from 1373 → 1025 lines (348 lines removed, 25% reduction)
-- 2 more phases remaining for complete call() refactoring
+- `call()` function reduced from 1373 → 970 lines (403 lines removed, 29% reduction)

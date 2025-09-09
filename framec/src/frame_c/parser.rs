@@ -9127,78 +9127,23 @@ impl<'a> Parser<'a> {
                                             self.arcanum.lookup_interface_method(&method_name);
 
                                         eprintln!("DEBUG PARSER: Looking up interface method '{}', result: {:?}", method_name, interface_method_symbol_opt.is_some());
-                                        match interface_method_symbol_opt {
-                                            Some(interface_method_symbol) => {
-                                                eprintln!("DEBUG PARSER: Found interface method, processing...");
-                                                // first node is an interface call.
-                                                if self.is_action_scope {
-                                                    // iface calls disallowed in actions.
-                                                    let err_msg = format!("Interface calls disallowed inside of actions.");
-                                                    self.error_at_current(&err_msg);
-                                                    // let parse_error =
-                                                    //     ParseError::new(err_msg.as_str());
-                                                    // return Err(parse_error);
-                                                }
-
-                                                // validate signature
-
-                                                let a = interface_method_symbol.borrow();
-                                                let b = a.ast_node_opt.as_ref().unwrap();
-                                                let c = &b.borrow().params;
-                                                // check if difference in the existance of parameters
-                                                if (!c.is_none()
-                                                    && call_expr_node
-                                                        .call_expr_list
-                                                        .exprs_t
-                                                        .is_empty())
-                                                    || (c.is_none()
-                                                        && !call_expr_node
-                                                            .call_expr_list
-                                                            .exprs_t
-                                                            .is_empty())
-                                                {
-                                                    let err_msg = format!("Incorrect number of arguments for interface '{}'.", method_name);
-                                                    self.error_at_previous(&err_msg);
-                                                    let parse_error =
-                                                        ParseError::new(err_msg.as_str());
-                                                    return Err(parse_error);
-                                                }
-
-                                                // check parameter count equals argument count
-                                                match &b.borrow().params {
-                                                    Some(symbol_params) => {
-                                                        if symbol_params.len()
-                                                            != call_expr_node
-                                                                .call_expr_list
-                                                                .exprs_t
-                                                                .len()
-                                                        {
-                                                            let err_msg = format!("Number of arguments does not match parameters for interface call '{}'.", method_name);
-                                                            self.error_at_previous(&err_msg);
-                                                            let parse_error =
-                                                                ParseError::new(err_msg.as_str());
-                                                            return Err(parse_error);
-                                                        }
-                                                    }
-                                                    None => {}
-                                                }
-
-                                                let mut interface_method_call_expr_node =
-                                                    InterfaceMethodCallExprNode::new(
-                                                        call_expr_node,
-                                                        CallOrigin::Internal,
-                                                    );
-                                                interface_method_call_expr_node
-                                                    .set_interface_symbol(&Rc::clone(
-                                                        &interface_method_symbol,
-                                                    ));
-                                                call_chain.push_back(
-                                                    CallChainNodeType::InterfaceMethodCallT {
-                                                        interface_method_call_expr_node,
-                                                    },
-                                                );
+                                        if let Some(interface_method_symbol) = interface_method_symbol_opt {
+                                            eprintln!("DEBUG PARSER: Found interface method, processing...");
+                                            // first node is an interface call.
+                                            if self.is_action_scope {
+                                                // iface calls disallowed in actions.
+                                                let err_msg = format!("Interface calls disallowed inside of actions.");
+                                                self.error_at_current(&err_msg);
                                             }
-                                            None => {
+                                            
+                                            // Use helper to create interface method call with validation
+                                            let node = self.create_interface_method_call_node(
+                                                call_expr_node,
+                                                &interface_method_symbol,
+                                                CallOrigin::Internal,
+                                            );
+                                            call_chain.push_back(node);
+                                        } else {
                                                 // first node is not an action or interface call.
                                                 let call_t = CallChainNodeType::UndeclaredCallT {
                                                     call_node: call_expr_node,
@@ -9749,6 +9694,60 @@ impl<'a> Parser<'a> {
         CallChainNodeType::OperationCallT {
             operation_call_expr_node,
         }
+    }
+
+    // Helper function to validate and create action call node
+    fn create_action_call_node(
+        &mut self,
+        call_expr_node: CallExprNode,
+        action_symbol_rcref: &Rc<RefCell<ActionScopeSymbol>>,
+    ) -> CallChainNodeType {
+        // Validate arguments
+        let action_symbol = action_symbol_rcref.borrow();
+        let action_decl_node_rcref = action_symbol.ast_node_opt.as_ref().unwrap();
+        let parameter_node_vec_opt = &action_decl_node_rcref.borrow().params;
+        
+        self.validate_call_arguments(&call_expr_node, parameter_node_vec_opt, "action");
+        
+        let mut action_call_expr_node = ActionCallExprNode::new(call_expr_node);
+        action_call_expr_node.set_action_symbol(action_symbol_rcref);
+        
+        CallChainNodeType::ActionCallT {
+            action_call_expr_node,
+        }
+    }
+
+    // Helper function to parse and add a dot-separated continuation
+    fn parse_dot_continuation(&mut self, call_chain: &mut std::collections::VecDeque<CallChainNodeType>) -> Result<bool, ParseError> {
+        if !self.match_token(&[TokenType::Dot]) {
+            return Ok(false);  // No continuation
+        }
+        
+        if !self.match_token(&[TokenType::Identifier]) {
+            return Err(ParseError::new("Expected identifier after '.'"));
+        }
+        
+        let next_id = IdentifierNode::new(
+            self.previous().clone(),
+            None,
+            IdentifierDeclScope::UnknownScope,
+            false,
+            self.previous().line,
+        );
+        
+        // Check if this is a method call
+        if self.match_token(&[TokenType::LParen]) {
+            let call_expr_node = self.finish_call(next_id)?;
+            call_chain.push_back(CallChainNodeType::UndeclaredCallT {
+                call_node: call_expr_node,
+            });
+        } else {
+            call_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT {
+                id_node: next_id,
+            });
+        }
+        
+        Ok(true)  // Continuation found and processed
     }
 
     fn build_call_chain_v2(&mut self, base_id: IdentifierNode) -> Result<Option<ExprType>, ParseError> {
