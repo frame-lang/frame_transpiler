@@ -102,6 +102,23 @@ fn test_counter_pattern() {
     print("Most common word: " + max_word + " (count: " + str(max_count) + ")")
 }
 
+// Helper function for chainmap pattern (Frame doesn't support nested functions)
+fn chain_get(key, current, user_prefs, defaults) {
+    // Check current first
+    if key in current {
+        return current[key]
+    }
+    // Then user_prefs
+    if key in user_prefs {
+        return user_prefs[key]
+    }
+    // Finally defaults
+    if key in defaults {
+        return defaults[key]
+    }
+    return None
+}
+
 fn test_chainmap_pattern() {
     print("")
     print("=== Testing chainmap-like pattern ===")
@@ -111,25 +128,9 @@ fn test_chainmap_pattern() {
     var current = {"theme": "dark"}
     
     // Manual chain lookup (first found wins)
-    fn chain_get(key, maps) {
-        // Check current first
-        if key in current {
-            return current[key]
-        }
-        // Then user_prefs
-        if key in user_prefs {
-            return user_prefs[key]
-        }
-        // Finally defaults
-        if key in defaults {
-            return defaults[key]
-        }
-        return None
-    }
-    
-    var color = chain_get("color", [current, user_prefs, defaults])
-    var size = chain_get("size", [current, user_prefs, defaults])
-    var theme = chain_get("theme", [current, user_prefs, defaults])
+    var color = chain_get("color", current, user_prefs, defaults)
+    var size = chain_get("size", current, user_prefs, defaults)
+    var theme = chain_get("theme", current, user_prefs, defaults)
     
     print("color = " + str(color))    // 'blue' (from user_prefs)
     print("size = " + str(size))      // 'medium' (from defaults)

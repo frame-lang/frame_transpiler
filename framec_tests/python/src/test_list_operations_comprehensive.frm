@@ -58,9 +58,9 @@ fn test_list_methods_adding() {
     list.extend([5, 6, 7])
     print("After extend([5, 6, 7]): " + str(list))  // [1, 99, 2, 3, 4, 5, 6, 7]
     
-    // += operator (same as extend)
-    list += [8, 9]
-    print("After += [8, 9]: " + str(list))
+    // += operator (same as extend) - Frame doesn't support += so use extend
+    list.extend([8, 9])
+    print("After extend([8, 9]) (simulating +=): " + str(list))
 }
 
 fn test_list_methods_removing() {

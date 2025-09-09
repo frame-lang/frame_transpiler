@@ -25,6 +25,26 @@ fn test_json_operations() {
 fn test_config_file() {
     print("\n=== Configuration File Loading ===")
     
+    // First create a test config file if it doesn't exist
+    var config_exists = os.path.exists("config.ini")
+    if not config_exists {
+        print("Creating test config.ini file...")
+        var f = open("config.ini", "w")
+        f.write("[database]\n")
+        f.write("host = localhost\n")
+        f.write("port = 5432\n")
+        f.write("user = admin\n")
+        f.write("password = secret123\n")
+        f.write("\n[application]\n")
+        f.write("debug = true\n")
+        f.write("log_level = INFO\n")
+        f.write("max_connections = 100\n")
+        f.write("\n[paths]\n")
+        f.write("data = /var/data\n")
+        f.write("logs = /var/logs\n")
+        f.close()
+    }
+    
     // Create config parser
     var config = configparser.ConfigParser()
     config.read("config.ini")

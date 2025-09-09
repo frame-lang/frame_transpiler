@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-09T05:59:08.586377",
+  "timestamp": "2025-09-09T09:21:41.233178",
   "version": "v0.31",
   "summary": {
     "total": 307,
-    "transpile_success": 305,
-    "execute_success": 304,
-    "complete_success": 304,
-    "success_rate": "99.0%"
+    "transpile_success": 307,
+    "execute_success": 306,
+    "complete_success": 306,
+    "success_rate": "99.7%"
   },
   "results": [
     {
@@ -587,7 +587,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -615,14 +615,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1145,9 +1145,10 @@
     },
     {
       "file": "test_list_operations_comprehensive.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'print'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== COMPREHENSIVE LIST OPERATIONS TEST ===\n\n=== List Creation ===\nEmpty list: []\nNumber list: [1, 2, 3, 4, 5]\nMixed list: [1, 'hello', 3.14, True, None]\nNested list: [[1, 2], [3, 4], [5, 6]]\nFrom rang",
+      "error": null
     },
     {
       "file": "test_method_call_simple.frm",
@@ -1760,9 +1761,10 @@
     },
     {
       "file": "test_special_dicts.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'fn'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "Frame v0.38 - Special Dictionary Patterns\n==================================================\n=== Testing defaultdict-like pattern ===\ndd_int['count'] = 1\ndd_int['new'] = 0\ndd_list['items'] = ['apple',",
+      "error": null
     },
     {
       "file": "test_special_dicts_fixed.frm",

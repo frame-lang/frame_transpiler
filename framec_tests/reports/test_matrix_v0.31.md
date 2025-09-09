@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-09 05:59  
+**Generated**: 2025-09-09 09:21  
 **Total Tests**: 307  
 **Current Branch**: v0.31  
 
@@ -9,9 +9,9 @@
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Tests** | 307 | 100% |
-| **Transpilation Success** | 305 | 99.3% |
-| **Execution Success** | 304 | 99.0% |
-| **Complete Success** | 304 | 99.0% |
+| **Transpilation Success** | 307 | 100.0% |
+| **Execution Success** | 306 | 99.7% |
+| **Complete Success** | 306 | 99.7% |
 
 ## v0.31 Features
 
@@ -29,18 +29,6 @@
     main()
     ~~~~^^
   File "/Users/mar |
-| test_list_operations_comprehensive.frm | ❌ | ❌ | Framec failed with an error:
-First pass parse error:
-Expected '}' - found 'print'
-
-Symbol table construction failed. Please check your Frame syntax.
- |
-| test_special_dicts.frm | ❌ | ❌ | Framec failed with an error:
-First pass parse error:
-Expected '}' - found 'fn'
-
-Symbol table construction failed. Please check your Frame syntax.
- |
 
 ## Test Details
 
@@ -208,7 +196,7 @@ Symbol table construction failed. Please check your Frame syntax.
 | test_list_comprehensions_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_list_features.frm | ✅ | ✅ | ✅ PASS |
 | test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
-| test_list_operations_comprehensive.frm | ❌ | ❌ | ❌ FAIL |
+| test_list_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_method_call_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_call.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_scope.frm | ✅ | ✅ | ✅ PASS |
@@ -296,7 +284,7 @@ Symbol table construction failed. Please check your Frame syntax.
 | test_slicing_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_slicing_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_slicing_simple2.frm | ✅ | ✅ | ✅ PASS |
-| test_special_dicts.frm | ❌ | ❌ | ❌ FAIL |
+| test_special_dicts.frm | ✅ | ✅ | ✅ PASS |
 | test_special_dicts_fixed.frm | ✅ | ✅ | ✅ PASS |
 | test_special_dicts_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_state_parameters.frm | ✅ | ✅ | ✅ PASS |
