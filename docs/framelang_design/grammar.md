@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.40)
 
 **Last Updated**: 2025-09-09  
-**Status**: Complete with Python-aligned operators including bitwise XOR, compound assignments, floor division, Python-style comments, and numeric literal support with 100% test coverage (309/309 tests passing)
+**Status**: Complete with Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, and numeric literal support with 100% test coverage (314/314 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1728,7 +1728,7 @@ stmt: expr_stmt
 expr_stmt: expr
 var_decl: 'var' IDENTIFIER type? '=' expr
 assignment: lvalue assignment_op expr
-assignment_op: '=' | '+=' | '-=' | '*=' | '/=' | '//=' | '%=' | '**='  // v0.39-40
+assignment_op: '=' | '+=' | '-=' | '*=' | '/=' | '//=' | '%=' | '**=' | '@='  // v0.39-40
              | '&=' | '|=' | '^=' | '<<=' | '>>='  // v0.39-40: Bitwise compound
 try_stmt: 'try' block except_clause+ else_clause? finally_clause?
 except_clause: 'except' exception_spec? ('as' IDENTIFIER)? block
@@ -1939,7 +1939,7 @@ actions:
 expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr | lambda_expr
 
 binary_expr: expr operator expr
-operator: '+' | '-' | '*' | '/' | '//' | '%' | '**'  // v0.40: Added floor division
+operator: '+' | '-' | '*' | '/' | '//' | '%' | '**' | '@'  // v0.40: Added floor division and matrix multiplication
         | '==' | '!=' | '<' | '>' | '<=' | '>='
         | '&' | '|' | '^' | '<<' | '>>'  // v0.39-40: Bitwise operators
         | 'and' | 'or' | 'xor'  // v0.38: Python logical operators
@@ -2519,6 +2519,12 @@ The parser automatically detects when a function call follows an array/dictionar
 - **Compound Assignment**: `^=` for XOR with assignment
 - **Precedence**: Between bitwise AND and OR operations
 
+##### Matrix Multiplication Operator
+- **Operator**: `@` for matrix multiplication (requires NumPy or similar)
+- **Compound Assignment**: `@=` for matrix multiplication with assignment
+- **Precedence**: Same as multiplication and division
+- **Use Case**: Scientific computing with NumPy arrays
+
 ##### Floor Division
 - **Operator**: `//` for integer division (enabled by comment syntax change)
 - **Compound Assignment**: `//=` for floor division with assignment
@@ -2535,6 +2541,13 @@ fn test_new_operators() {
     # Bitwise XOR
     var flags = 0b1010
     flags ^= 0b0011  # Toggle bits
+    
+    # Matrix multiplication (requires NumPy)
+    import numpy as np
+    var a = np.array([[1, 2], [3, 4]])
+    var b = np.array([[5, 6], [7, 8]])
+    var result = a @ b  # Matrix multiplication
+    a @= b              # In-place matrix multiplication
     
     # Floor division
     var result = 10 // 3  # Result: 3

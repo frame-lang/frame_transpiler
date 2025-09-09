@@ -358,6 +358,7 @@ pub enum AssignmentOperator {
     LeftShiftEquals,  // <<=
     RightShiftEquals, // >>=
     XorEquals,      // ^= (v0.40)
+    MatMulEquals,   // @= (v0.40)
 }
 
 // e.g. generate_frame_event
@@ -3432,6 +3433,7 @@ pub enum OperatorType {
     BitwiseNot,  // Bitwise NOT ~
     LeftShift,   // Left shift <<
     RightShift,  // Right shift >>
+    MatMul,      // Matrix multiplication @ (v0.40)
     In,  // For membership test operator 'in'
     NotIn,  // For negated membership test 'not in'
     Is,  // Identity operator 'is'
@@ -3476,6 +3478,7 @@ impl OperatorType {
             TokenType::Tilde => OperatorType::BitwiseNot,  // Bitwise NOT ~
             TokenType::LeftShift => OperatorType::LeftShift,  // Left shift <<
             TokenType::RightShift => OperatorType::RightShift,  // Right shift >>
+            TokenType::At => OperatorType::MatMul,  // Matrix multiplication @
             TokenType::In => OperatorType::In,  // Membership test operator
             TokenType::Is => OperatorType::Is,  // Identity operator 'is'
             _ => OperatorType::Unknown,

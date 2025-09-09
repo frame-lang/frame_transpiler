@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), and v0.40 (Python comment syntax and bitwise XOR).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), and v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication).
 
 ## File Locations
 
@@ -40,7 +40,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.40`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (309/309 tests passing) - Python Operator Alignment Complete
+**Status**: ✅ **100% TEST SUCCESS RATE** (314/314 tests passing) - Python Operator Alignment Complete with Matrix Multiplication
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -637,9 +637,9 @@ if list1 is list3 { }  // True - same reference
 if list1 is not list2 { }  // True - different objects
 ```
 
-### v0.40 Python Comments and Bitwise XOR (COMPLETE) ✅
+### v0.40 Python Comments, Bitwise XOR, and Matrix Multiplication (COMPLETE) ✅
 
-Frame v0.40 completes Python operator alignment with bitwise XOR and transitions to Python-style comments.
+Frame v0.40 completes Python operator alignment with bitwise XOR, matrix multiplication, and transitions to Python-style comments.
 
 #### Breaking Change: Python-Style Comments
 ```frame
@@ -674,6 +674,30 @@ fn xor_operations() {
     var decrypted = encrypted ^ key  # Returns to 42
 }
 ```
+
+#### Matrix Multiplication Operator ✅
+```frame
+import numpy as np
+
+fn matrix_operations() {
+    # Matrix multiplication with NumPy
+    var a = np.array([[1, 2], [3, 4]])
+    var b = np.array([[5, 6], [7, 8]])
+    
+    # Matrix multiplication
+    var result = a @ b      # [[19, 22], [43, 50]]
+    
+    # In-place matrix multiplication
+    a @= b
+    
+    # Dot product with vectors
+    var v1 = np.array([1, 2, 3])
+    var v2 = np.array([4, 5, 6])
+    var dot = v1 @ v2      # 32
+}
+```
+
+**Note**: The `@` operator requires objects with `__matmul__` method (like NumPy arrays).
 
 #### Floor Division ✅
 ```frame

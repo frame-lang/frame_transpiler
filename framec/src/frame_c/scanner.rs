@@ -329,7 +329,10 @@ impl Scanner {
                 }
             }
             '@' => {
-                if self.peek() == '@' {
+                if self.peek() == '=' {
+                    self.advance(); // consume '='
+                    self.add_token(TokenType::AtEqual);
+                } else if self.peek() == '@' {
                     // Found @@ - consume second @
                     self.advance(); // consume second '@'
                     self.add_token(TokenType::AtAt);
@@ -874,8 +877,9 @@ pub enum TokenType {
     StateStackOperationPop,  // $$[-]
     ParentState,             // $^ - parent state reference
     Dot,                     // .
-    At,                      // @
-    AtAt,                    // @@
+    At,                      // @ - matrix multiplication (v0.40)
+    AtEqual,                 // @= - matrix multiplication compound assignment (v0.40)
+    AtAt,                    // @@ - reserved for future use
     DollarAt,                // $@ - current event reference
     PipePipe,                // ||
     PipePipeDot,             // ||.

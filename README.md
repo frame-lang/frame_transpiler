@@ -3,7 +3,7 @@ be
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-## Current Features (v0.38)
+## Current Features (v0.40)
 
 ### Core Language
 - **State Machines**: Hierarchical state machines with enter/exit handlers
@@ -12,8 +12,18 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Event Handlers**: Named events, enter (`$>`), and exit (`<$`) handlers
 - **Transitions**: State transitions with parameters and event forwarding
 
-### Modern Syntax (v0.35-v0.38)
-- **Python Logical Operators**: `and`, `or`, `not` keywords (v0.38 - C-style removed)
+### Python Operator Alignment (v0.38-v0.40)
+- **Python Comments**: `#` for single-line comments (v0.40 - C-style removed)
+- **Matrix Multiplication**: `@` and `@=` operators for NumPy arrays (v0.40)
+- **Bitwise XOR**: `^` and `^=` operators (v0.40)
+- **Floor Division**: `//` and `//=` operators (v0.40)
+- **Python Numeric Literals**: Binary (`0b`), octal (`0o`), hex (`0x`) notation (v0.40)
+- **Python Logical Operators**: `and`, `or`, `not` keywords (v0.38)
+- **All Compound Assignments**: `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `&=`, `|=`, `^=`, `<<=`, `>>=`, `//=`, `@=`
+- **Bitwise Operators**: `&`, `|`, `~`, `<<`, `>>`, `^`
+- **Identity/Membership**: `is`, `is not`, `in`, `not in` operators
+
+### Modern Syntax Features
 - **First-Class Functions**: Functions as values - pass, return, and store functions
 - **Lambda Expressions**: Anonymous functions with closure support `lambda x: x * 2`
 - **Async/Await**: Full async function and event handler support
@@ -21,8 +31,9 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **With Statements**: Context manager support (`with`/`async with`)
 - **Import Statements**: Native Python imports without backticks
 - **List Comprehensions**: Python-style comprehensions `[x*2 for x in list]`
+- **Dictionary Comprehensions**: `{k: v for k, v in items}`
 - **Exponent Operator**: Right-associative `**` for power operations
-- **Empty Set Literal**: `{,}` syntax for empty sets
+- **Collection Literals**: Lists `[]`, dicts `{}`, sets `{1,2}`, tuples `()`, empty set `{,}`
 
 ### Frame Standard Library (FSL)
 - **Type Conversions**: `str()`, `int()`, `float()`, `bool()`
@@ -36,9 +47,10 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Interface Methods**: Public system interfaces with async support
 
 ### Test Coverage
-- **98.3% Success Rate**: 285/290 tests passing 🎉
+- **100% Success Rate**: 314/314 tests passing 🎉
 - **UTF-8 Support**: Full Unicode character support in source files
-- **Complete Feature Coverage**: All core language features fully tested and operational
+- **Complete Feature Coverage**: All Python operators and core language features fully tested
+- **Virtual Environment**: Test suite includes NumPy support for matrix multiplication
 
 ## Explore Frame
 

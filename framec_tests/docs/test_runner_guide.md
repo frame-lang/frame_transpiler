@@ -45,7 +45,26 @@ The Frame Test Runner is the standard testing tool for the Frame language transp
 
 ## Installation
 
-The test runner requires Python 3.6+ and the Frame transpiler to be built:
+The test runner requires Python 3.8+ and the Frame transpiler to be built.
+
+### Virtual Environment Setup (Recommended)
+
+For tests requiring external dependencies (e.g., NumPy for matrix multiplication):
+
+```bash
+cd framec_tests
+./setup_test_env.sh  # Automated setup
+# or manually:
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+See [test_environment_setup.md](test_environment_setup.md) for detailed environment configuration.
+
+### Basic Setup
+
+For running tests without external dependencies:
 
 ```bash
 # Build the Frame transpiler

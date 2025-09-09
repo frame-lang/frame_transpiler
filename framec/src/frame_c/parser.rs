@@ -5928,6 +5928,8 @@ impl<'a> Parser<'a> {
             Some(AssignmentOperator::RightShiftEquals)
         } else if self.match_token(&[TokenType::CaretEqual]) {
             Some(AssignmentOperator::XorEquals)
+        } else if self.match_token(&[TokenType::AtEqual]) {
+            Some(AssignmentOperator::MatMulEquals)
         } else {
             None
         };
@@ -6273,7 +6275,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&[TokenType::ForwardSlash, TokenType::Star, TokenType::FloorDivide]) {
+        while self.match_token(&[TokenType::ForwardSlash, TokenType::Star, TokenType::FloorDivide, TokenType::At]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.power() {

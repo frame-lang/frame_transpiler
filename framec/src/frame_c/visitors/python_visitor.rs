@@ -9182,6 +9182,7 @@ impl AstVisitor for PythonVisitor {
             AssignmentOperator::LeftShiftEquals => self.add_code(" <<= "),
             AssignmentOperator::RightShiftEquals => self.add_code(" >>= "),
             AssignmentOperator::XorEquals => self.add_code(" ^= "),
+            AssignmentOperator::MatMulEquals => self.add_code(" @= "),
         }
         
         //self.add_code(&*output);
@@ -9223,6 +9224,7 @@ impl AstVisitor for PythonVisitor {
             AssignmentOperator::LeftShiftEquals => output.push_str(" <<= "),
             AssignmentOperator::RightShiftEquals => output.push_str(" >>= "),
             AssignmentOperator::XorEquals => output.push_str(" ^= "),
+            AssignmentOperator::MatMulEquals => output.push_str(" @= "),
         }
         
         assignment_expr_node
@@ -9484,6 +9486,7 @@ impl AstVisitor for PythonVisitor {
             OperatorType::BitwiseXor => self.add_code(" ^ "),
             OperatorType::BitwiseNot => self.add_code("~"),
             OperatorType::LeftShift => self.add_code(" << "),
+            OperatorType::MatMul => self.add_code(" @ "),
             OperatorType::RightShift => self.add_code(" >> "),
             OperatorType::In => self.add_code(" in "),
             OperatorType::NotIn => self.add_code(" not in "),
@@ -9520,6 +9523,7 @@ impl AstVisitor for PythonVisitor {
             OperatorType::BitwiseXor => output.push_str(" ^ "),
             OperatorType::BitwiseNot => output.push_str("~"),
             OperatorType::LeftShift => output.push_str(" << "),
+            OperatorType::MatMul => output.push_str(" @ "),
             OperatorType::RightShift => output.push_str(" >> "),
             OperatorType::In => output.push_str(" in "),
             OperatorType::NotIn => output.push_str(" not in "),

@@ -37,6 +37,16 @@ Languages considered in Frame's design with documented patterns but no visitor i
 - **Parser**: Activated existing `bitwise_xor()` precedence function
 - **Visitor**: Added code generation for XOR operations
 
+### Matrix Multiplication Implementation (v0.40 - 2025-09-09)
+- **Operator**: `@` for matrix multiplication (PEP 465 compliant)
+- **Compound**: `@=` for matrix multiplication with assignment
+- **Scanner**: Added `AtEqual` token type, modified `@` handling
+- **Parser**: Added `@` to `factor()` function (same precedence as `*`)
+- **AST**: Added `MatMul` and `MatMulEquals` operators
+- **Visitor**: Generates Python `@` and `@=` operators
+- **Requirements**: NumPy or similar library for actual execution
+- **Test Environment**: Virtual environment setup with NumPy documented
+
 ### Python Numeric Literals (v0.40 - 2025-09-09)
 - **Binary**: `0b1010` notation support added
 - **Octal**: `0o755` notation support added
@@ -73,12 +83,14 @@ Languages considered in Frame's design with documented patterns but no visitor i
 
 ## Latest Status: v0.40 Complete - Python Operator Alignment (2025-09-09)
 
-### v0.40 Release - Python Comments and Bitwise XOR ✅
-- **Test Coverage**: **309/309 tests passing (100% success rate)** 🎉
+### v0.40 Release - Python Comments, Bitwise XOR, and Matrix Multiplication ✅
+- **Test Coverage**: **314/314 tests passing (100% success rate)** 🎉
 - **Breaking Change**: Replaced C-style comments with Python-style `#` comments
 - **NEW - Bitwise XOR**: `^` operator and `^=` compound assignment fully implemented
+- **NEW - Matrix Multiplication**: `@` operator and `@=` compound assignment (PEP 465)
 - **NEW - Floor Division**: `//` operator enabled by comment syntax change
 - **NEW - Numeric Literals**: Binary (`0b`), octal (`0o`), hex (`0x`) notation support
+- **Test Environment**: Virtual environment setup with NumPy for matrix operations
 
 ### v0.39 Release - Python Operators Complete ✅
 - **Test Coverage**: **308/308 tests passing (100% success rate)**

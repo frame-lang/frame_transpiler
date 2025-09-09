@@ -1,6 +1,9 @@
 # Python dependencies for Frame transpiler tests
 # Install with: pip install -r requirements.txt
 
+# Matrix multiplication operator (@) support (v0.40+)
+numpy>=1.24.0
+
 # Async support
 aiohttp>=3.8.0
 asyncio

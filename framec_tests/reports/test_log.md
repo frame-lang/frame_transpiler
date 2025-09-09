@@ -1,87 +1,60 @@
 # Frame Test Results Log
 
-## Last Run: 2025-09-09 11:24
+## Last Run: 2025-09-09 12:29
 
 **Branch**: v0.30  
 **Version**: v0.40  
-**Total Tests**: 309  
-**Passed**: 309  
+**Total Tests**: 314  
+**Passed**: 314  
 **Failed**: 0  
 **Success Rate**: 100.0% 🎉
 
 ## Summary
 
-Frame v0.40 achieves complete Python operator alignment with 100% test coverage. All operators including bitwise XOR, floor division, and Python numeric literals are fully functional.
+All tests are passing with complete v0.40 implementation including:
+- ✅ Bitwise XOR operator (^) and compound assignment (^=)
+- ✅ Matrix multiplication operator (@) and compound assignment (@=)  
+- ✅ Python-style comments (# only, C-style removed)
+- ✅ Floor division operator (//)
+- ✅ Binary, octal, and hexadecimal literals (0b, 0o, 0x)
 
-## Test Categories (All Passing)
+## Test Categories Summary
 
-✅ **Core Language Features** (100%)
-- Functions and systems
-- State machines and transitions
-- Event handlers and actions
-- Domain variables and operations
+| Category | Tests | Status |
+|----------|-------|--------|
+| Core Syntax | 50+ | ✅ All Pass |
+| State Machines | 40+ | ✅ All Pass |
+| Module System | 30+ | ✅ All Pass |
+| Async/Await | 15 | ✅ All Pass |
+| Collections | 50+ | ✅ All Pass |
+| Operators | 20+ | ✅ All Pass |
+| Enums | 15 | ✅ All Pass |
+| Imports | 15 | ✅ All Pass |
+| Functions | 30+ | ✅ All Pass |
+| Systems | 40+ | ✅ All Pass |
 
-✅ **Python Operators** (100%)
-- All arithmetic operators including floor division (`//`)
-- All bitwise operators including XOR (`^`)
-- All compound assignments (`+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `**=`, `&=`, `|=`, `^=`, `<<=`, `>>=`)
-- Identity operators (`is`, `is not`)
-- Membership operators (`in`, `not in`)
-- Python logical operators (`and`, `or`, `not`)
+## v0.40 Specific Tests
 
-✅ **Advanced Features** (100%)
-- Module system with qualified names
-- Async/await support
-- First-class functions and lambdas
-- List comprehensions and unpacking
-- Dictionary comprehensions
-- Enums with custom values
+| Test | Purpose | Status |
+|------|---------|--------|
+| test_bitwise_xor.frm | XOR operator comprehensive test | ✅ Pass |
+| test_xor_operator.frm | XOR basic functionality | ✅ Pass |
+| test_xor_simple.frm | Simple XOR test | ✅ Pass |
+| test_matmul_with_numpy.frm | Matrix multiplication with NumPy | ✅ Pass |
+| test_matmul_syntax_only.frm | @ operator syntax validation | ✅ Pass |
+| test_matmul_transpile.frm | @ transpilation documentation | ✅ Pass |
+| test_v040_comments_floor_div.frm | Python comments & floor division | ✅ Pass |
 
-✅ **Collections** (100%)
-- Lists, dictionaries, sets, tuples
-- Nested collections
-- Collection methods and operations
-- Slicing with complex expressions
+## Test Environment
 
-✅ **Import System** (100%)
-- Python module imports
-- Frame Standard Library (FSL)
-- Qualified imports and aliases
+- **Python Version**: 3.13
+- **NumPy Version**: 2.3.3 (in virtual environment)
+- **Test Runner**: frame_test_runner.py
+- **Virtual Environment**: Configured with all dependencies
 
-## Recent Fixes (v0.40)
+## Notes
 
-### Implemented Features
-1. **Bitwise XOR Operator**: `^` and `^=` fully working
-2. **Floor Division**: `//` and `//=` enabled by comment syntax change
-3. **Python Numeric Literals**: Binary (`0b`), octal (`0o`), hex (`0x`) notation
-4. **Python Comments**: Migrated all tests to `#` syntax
-
-### Breaking Changes
-- Removed C-style comments (`//`, `/* */`)
-- Now use Python-style `#` for single-line comments
-- Frame documentation comments `{-- --}` retained
-
-## Test Files Added (v0.40)
-- `test_bitwise_xor.frm` - Comprehensive XOR testing
-- `test_v040_comments_floor_div.frm` - Comment syntax and floor division
-- Updated 264 test files to new comment syntax
-
-## Performance Metrics
-- **Test Suite Runtime**: ~15 seconds
-- **Average Test Time**: 0.05 seconds
-- **Memory Usage**: Minimal
-- **Build Time**: Release build in ~16 seconds
-
-## Version History
-
-| Version | Tests | Passed | Failed | Success Rate |
-|---------|-------|--------|--------|--------------|
-| v0.38 | 290 | 285 | 5 | 98.3% |
-| v0.39 | 308 | 308 | 0 | 100% |
-| v0.40 | 309 | 309 | 0 | 100% |
-
-## Next Steps
-- Continue maintaining 100% test coverage
-- Add tests for edge cases as discovered
-- Performance optimization where needed
-- Documentation updates for all new features
+- Virtual environment setup documented in `test_environment_setup.md`
+- Automated setup script available: `setup_test_env.sh`
+- All dependencies listed in `requirements.txt`
+- Matrix multiplication tests require NumPy but gracefully handle its absence

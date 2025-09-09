@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-09 11:24  
-**Total Tests**: 309  
+**Generated**: 2025-09-09 12:29  
+**Total Tests**: 314  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 309 | 100% |
-| **Transpilation Success** | 309 | 100.0% |
-| **Execution Success** | 309 | 100.0% |
-| **Complete Success** | 309 | 100.0% |
+| **Total Tests** | 314 | 100% |
+| **Transpilation Success** | 314 | 100.0% |
+| **Execution Success** | 314 | 100.0% |
+| **Complete Success** | 314 | 100.0% |
 
 ## v0.31 Features
 
@@ -192,6 +192,11 @@
 | test_list_features.frm | ✅ | ✅ | ✅ PASS |
 | test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
 | test_list_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_matmul_syntax_only.frm | ✅ | ✅ | ✅ PASS |
+| test_matmul_transpile.frm | ✅ | ✅ | ✅ PASS |
+| test_matmul_transpile_only.frm | ✅ | ✅ | ✅ PASS |
+| test_matmul_with_numpy.frm | ✅ | ✅ | ✅ PASS |
+| test_matrix_multiplication.frm | ✅ | ✅ | ✅ PASS |
 | test_method_call_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_call.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_scope.frm | ✅ | ✅ | ✅ PASS |
