@@ -465,292 +465,31 @@ impl<'a> Parser<'a> {
         // SystemHierarchy is used in the GraphViz visitor rather than the AST
         self.system_hierarchy_opt = Some(SystemHierarchy::new(system_name.clone()));
 
-        let system_start_state_state_params_opt;
-        let system_enter_params_opt;
-        let domain_params_opt;
-
-        if self.is_building_symbol_table {
-            //           let st = self.get_current_symtab();
-            let mut system_symbol = SystemSymbol::new(system_name.clone());
-
-            (
-                system_start_state_state_params_opt,
-                system_enter_params_opt,
-                domain_params_opt,
-            ) = self.system_params();
-            // cache off param count for instance arg verification
-            if let Some(system_start_state_state_params) = &system_start_state_state_params_opt {
-                system_symbol.start_state_params_cnt = system_start_state_state_params.len();
-            }
-            if let Some(system_enter_params) = &system_enter_params_opt {
-                system_symbol.state_enter_params_cnt = system_enter_params.len();
-            }
-            if let Some(domain_params) = &domain_params_opt {
-                system_symbol.domain_params_cnt = domain_params.len();
-            }
-            let system_symbol_rcref = Rc::new(RefCell::new(system_symbol));
-            // TODO: it would be better to find some way to bake the identifier scope into the SystemScope type
-            self.arcanum.enter_scope(ParseScopeType::System {
-                system_symbol: system_symbol_rcref,
-            });
-        } else {
-            if let Err(err) = self.arcanum.set_parse_scope(&system_name) {
-                return Err(ParseError::new(&format!("Failed to set system scope '{}': {}", system_name, err)));
-            }
-            (
-                system_start_state_state_params_opt,
-                system_enter_params_opt,
-                domain_params_opt,
-            ) = self.system_params();
-        }
+        // Parse system parameters and set up scope
+        let (system_start_state_state_params_opt, system_enter_params_opt, domain_params_opt) = 
+            self.parse_system_params_and_setup_scope(&system_name)?;
 
         if self.consume(TokenType::OpenBrace, "Expected '{'").is_err() {
             self.error_at_current("Expected '{'.");
         }
 
-        if self.match_token(&[TokenType::OperationsBlock]) {
-            operations_block_node_opt = Option::Some(self.operations_block());
-        }
+        // Parse system blocks in the correct order
+        operations_block_node_opt = self.parse_operations_block()?;
+        interface_block_node_opt = self.parse_interface_block()?;
+        machine_block_node_opt = self.parse_machine_block()?;
 
-        if self.match_token(&[TokenType::InterfaceBlock]) {
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            let x = self.interface_block();
-            interface_block_node_opt = Option::Some(x);
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
-        }
-        
-        // Check for blocks appearing after interface in wrong order
-        if self.peek().token_type == TokenType::OperationsBlock {
-            let err_msg = "Block ordering error: 'operations:' block must come before 'interface:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-
-        if self.match_token(&[TokenType::MachineBlock]) {
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            machine_block_node_opt = Option::Some(self.machine_block());
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
-        }
-        
-        // Check for blocks appearing after machine in wrong order
-        if self.peek().token_type == TokenType::InterfaceBlock {
-            let err_msg = "Block ordering error: 'interface:' block must come before 'machine:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-        if self.peek().token_type == TokenType::OperationsBlock {
-            let err_msg = "Block ordering error: 'operations:' block must come before 'machine:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-
+        // Validate start state parameters
         if !self.is_building_symbol_table {
-            // validate system start state params
-            if let Some(machine_block_node) = machine_block_node_opt.as_ref() {
-                if machine_block_node.states.is_empty() {
-                    if system_start_state_state_params_opt.is_none() {
-                        // ok - no states or start state params
-                    } else {
-                        // error - no start state but start state params exist
-                        self.error_at_current(
-                            "System start state parameters declared but no start state exists.",
-                        );
-                    }
-
-                    if system_enter_params_opt.is_none() {
-                        // ok - no states or enter event params
-                    } else {
-                        // error - no start state but enter event params exist
-                        self.error_at_current("System start state enter parameters declared but no start state exists.");
-                    }
-                } else {
-                    // there are states
-                    let start_state_rcref_opt = machine_block_node.states.get(0);
-                    if let Some(start_state_rcref) = start_state_rcref_opt {
-                        let start_state = start_state_rcref.borrow();
-
-                        if start_state.params_opt.is_none()
-                            && system_start_state_state_params_opt.is_none()
-                        {
-                            // ok
-                        } else if start_state.params_opt.is_some()
-                            && system_start_state_state_params_opt.is_none()
-                        {
-                            // error - mismatched params
-                            self.error_at_current("Start state parameters declared but no system start state parameters are declared.");
-                        } else if start_state.params_opt.is_none()
-                            && system_start_state_state_params_opt.is_some()
-                        {
-                            self.error_at_current(
-                                "System start state parameters declared but no start state exists.",
-                            );
-                        } else {
-                            // both state and system have params. verify they match
-                            let system_start_state_state_params =
-                                system_start_state_state_params_opt.as_ref().unwrap();
-                            let start_state_params_vec = start_state.params_opt.as_ref().unwrap();
-                            //  if let Some(start_state_params_vec) = &start_state.params_opt {
-                            if start_state_params_vec.len() != system_start_state_state_params.len()
-                            {
-                                // error
-                                self.error_at_current("System start state parameters do not match actual start state parameters.");
-                            } else {
-                                // loop through parameter lists and confirm identical
-                                // let mut i = 0;
-                                for (i, state_param) in start_state_params_vec.iter().enumerate() {
-                                    let system_start_state_state_param =
-                                        system_start_state_state_params.get(i).unwrap();
-                                    if system_start_state_state_param != state_param {
-                                        // error
-                                        self.error_at_current("System start state parameters do not match actual start state parameters.");
-                                    }
-                                    // i += 1;
-                                }
-                            }
-                        }
-
-                        // validate start state enter params.
-                        // start state and system enter params must be identical.
-
-                        if let Some(enter_event_handler) = &start_state.enter_event_handler_opt {
-                            let y = enter_event_handler.as_ref().borrow();
-                            let z = &y.event_symbol_rcref;
-                            let a = z.borrow();
-                            let enter_event_handler_params_opt = &a.event_symbol_params_opt;
-                            if enter_event_handler_params_opt.is_none() {
-                                if system_enter_params_opt.is_none() {
-                                    // ok
-                                } else {
-                                    // error
-                                    self.error_at_current("System has enter parameters but start state enter handler does not.");
-                                }
-                            } else {
-                                // enter_event_handler_params_opt.is_some()
-
-                                if system_enter_params_opt.is_none() {
-                                    // error
-                                    self.error_at_current("Start state has enter parameters but system does not define any.");
-                                } else {
-                                    // system_enter_params_opt.is_some()
-                                    // compare system enter params w/ start state enter params
-                                    let system_enter_params =
-                                        system_enter_params_opt.as_ref().unwrap();
-                                    let enter_event_handler_params =
-                                        &enter_event_handler_params_opt.as_ref().unwrap();
-                                    if system_enter_params.len() != enter_event_handler_params.len()
-                                    {
-                                        // error
-                                        self.error_at_current("Start state and system enter parameters are different.");
-                                    } else {
-                                        // let mut i = 0;
-                                        for (i, param) in system_enter_params.iter().enumerate() {
-                                            let parameter_symbol =
-                                                enter_event_handler_params.get(i).unwrap();
-                                            if parameter_symbol.name.ne(&param.param_name) {
-                                                // error
-                                                self.error_at_current("Start state and system enter parameters are different.");
-                                            } else if parameter_symbol.param_type_opt.is_none()
-                                                && param.param_type_opt.is_none()
-                                            {
-                                                // ok
-                                            } else if (parameter_symbol.param_type_opt.is_none()
-                                                && param.param_type_opt.is_some())
-                                                || (parameter_symbol.param_type_opt.is_some()
-                                                    && param.param_type_opt.is_none())
-                                            {
-                                                // error
-                                                self.error_at_current("Start state and system enter parameters are different.");
-                                            } else {
-                                                // parameter_symbol.param_type_opt.is_some() && param.param_type_opt.is_some()
-                                                let param_symbol_type = parameter_symbol
-                                                    .param_type_opt
-                                                    .as_ref()
-                                                    .unwrap();
-                                                let param_type =
-                                                    param.param_type_opt.as_ref().unwrap();
-                                                if param_symbol_type != param_type {
-                                                    // error
-                                                    self.error_at_current("System enter params do not match start state enter params.");
-                                                }
-                                            }
-                                            // i = i + 1;
-                                        }
-                                    }
-                                }
-                            }
-                        } else if system_enter_params_opt.is_some() {
-                            // error - no event handlers but there are system enter event params
-                            self.error_at_current("System has enter parameters but the start state does not have an enter event handler.");
-                        } else {
-                            // ok - no system enter event params
-                        }
-                    }
-                }
-            } else {
-                // no machine block therefore no states therefore no start state
-                if system_start_state_state_params_opt.is_some() {
-                    // error - system start state params specified but no machine block
-                    self.error_at_current(
-                        "System start state parameters declared but no start state exists.",
-                    );
-                }
-            }
+            self.validate_start_state_params(
+                &machine_block_node_opt,
+                &system_start_state_state_params_opt,
+                &system_enter_params_opt,
+            );
         }
 
-        if self.match_token(&[TokenType::ActionsBlock]) {
-            actions_block_node_opt = Option::Some(self.actions_block());
-        }
-        
-        // Check for blocks appearing after actions (wrong order)
-        if self.peek().token_type == TokenType::MachineBlock {
-            let err_msg = "Block ordering error: 'machine:' block must come before 'actions:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-        if self.peek().token_type == TokenType::InterfaceBlock {
-            let err_msg = "Block ordering error: 'interface:' block must come before 'actions:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-        if self.peek().token_type == TokenType::OperationsBlock {
-            let err_msg = "Block ordering error: 'operations:' block must come before 'actions:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-
-        if self.match_token(&[TokenType::DomainBlock]) {
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            domain_block_node_opt = Option::Some(self.domain_block());
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
-        }
-        
-        // Check for blocks appearing after domain (wrong order - domain must be last)
-        if self.peek().token_type == TokenType::MachineBlock {
-            let err_msg = "Block ordering error: 'machine:' block must come before 'domain:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-        if self.peek().token_type == TokenType::InterfaceBlock {
-            let err_msg = "Block ordering error: 'interface:' block must come before 'domain:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-        if self.peek().token_type == TokenType::OperationsBlock {
-            let err_msg = "Block ordering error: 'operations:' block must come before 'domain:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
-        if self.peek().token_type == TokenType::ActionsBlock {
-            let err_msg = "Block ordering error: 'actions:' block must come before 'domain:' block";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        }
+        // Parse actions and domain blocks
+        actions_block_node_opt = self.parse_actions_block()?;
+        domain_block_node_opt = self.parse_domain_block()?;
 
         if !self.match_token(&[TokenType::CloseBrace]) {
             if self.peek().lexeme == "$" {
@@ -799,6 +538,314 @@ impl<'a> Parser<'a> {
         Ok(system_node)
     }
 
+    /* --------------------------------------------------------------------- */
+    // Helper function to parse system parameters and set up scope
+    
+    fn parse_system_params_and_setup_scope(
+        &mut self,
+        system_name: &str,
+    ) -> Result<(Option<Vec<ParameterNode>>, Option<Vec<ParameterNode>>, Option<Vec<ParameterNode>>), ParseError> {
+        if self.is_building_symbol_table {
+            let mut system_symbol = SystemSymbol::new(system_name.to_string());
+            
+            let (system_start_state_state_params_opt, system_enter_params_opt, domain_params_opt) = 
+                self.system_params();
+            
+            // Cache off param count for instance arg verification
+            if let Some(system_start_state_state_params) = &system_start_state_state_params_opt {
+                system_symbol.start_state_params_cnt = system_start_state_state_params.len();
+            }
+            if let Some(system_enter_params) = &system_enter_params_opt {
+                system_symbol.state_enter_params_cnt = system_enter_params.len();
+            }
+            if let Some(domain_params) = &domain_params_opt {
+                system_symbol.domain_params_cnt = domain_params.len();
+            }
+            
+            let system_symbol_rcref = Rc::new(RefCell::new(system_symbol));
+            self.arcanum.enter_scope(ParseScopeType::System {
+                system_symbol: system_symbol_rcref,
+            });
+            
+            Ok((system_start_state_state_params_opt, system_enter_params_opt, domain_params_opt))
+        } else {
+            if let Err(err) = self.arcanum.set_parse_scope(system_name) {
+                return Err(ParseError::new(&format!("Failed to set system scope '{}': {}", system_name, err)));
+            }
+            Ok(self.system_params())
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to parse operations block with ordering check
+    
+    fn parse_operations_block(&mut self) -> Result<Option<OperationsBlockNode>, ParseError> {
+        if self.match_token(&[TokenType::OperationsBlock]) {
+            Ok(Some(self.operations_block()))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to parse interface block with ordering check
+    
+    fn parse_interface_block(&mut self) -> Result<Option<InterfaceBlockNode>, ParseError> {
+        // Check for operations block appearing after interface (wrong order)
+        if self.peek().token_type == TokenType::OperationsBlock {
+            let err_msg = "Block ordering error: 'operations:' block must come before 'interface:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        if self.match_token(&[TokenType::InterfaceBlock]) {
+            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            let interface_block = self.interface_block();
+            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            Ok(Some(interface_block))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to parse machine block with ordering check
+    
+    fn parse_machine_block(&mut self) -> Result<Option<MachineBlockNode>, ParseError> {
+        // Check for blocks appearing after machine in wrong order
+        if self.peek().token_type == TokenType::InterfaceBlock {
+            let err_msg = "Block ordering error: 'interface:' block must come before 'machine:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::OperationsBlock {
+            let err_msg = "Block ordering error: 'operations:' block must come before 'machine:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        if self.match_token(&[TokenType::MachineBlock]) {
+            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            let machine_block = self.machine_block();
+            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            Ok(Some(machine_block))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to parse actions block with ordering check
+    
+    fn parse_actions_block(&mut self) -> Result<Option<ActionsBlockNode>, ParseError> {
+        // Check for blocks appearing after actions (wrong order)
+        if self.peek().token_type == TokenType::MachineBlock {
+            let err_msg = "Block ordering error: 'machine:' block must come before 'actions:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::InterfaceBlock {
+            let err_msg = "Block ordering error: 'interface:' block must come before 'actions:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::OperationsBlock {
+            let err_msg = "Block ordering error: 'operations:' block must come before 'actions:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        if self.match_token(&[TokenType::ActionsBlock]) {
+            Ok(Some(self.actions_block()))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to parse domain block with ordering check
+    
+    fn parse_domain_block(&mut self) -> Result<Option<DomainBlockNode>, ParseError> {
+        // Check for blocks appearing after domain (wrong order - domain must be last)
+        if self.peek().token_type == TokenType::MachineBlock {
+            let err_msg = "Block ordering error: 'machine:' block must come before 'domain:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::InterfaceBlock {
+            let err_msg = "Block ordering error: 'interface:' block must come before 'domain:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::OperationsBlock {
+            let err_msg = "Block ordering error: 'operations:' block must come before 'domain:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        if self.peek().token_type == TokenType::ActionsBlock {
+            let err_msg = "Block ordering error: 'actions:' block must come before 'domain:' block";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        if self.match_token(&[TokenType::DomainBlock]) {
+            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            let domain_block = self.domain_block();
+            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            Ok(Some(domain_block))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to validate start state parameters
+    
+    fn validate_start_state_params(
+        &mut self,
+        machine_block_node_opt: &Option<MachineBlockNode>,
+        system_start_state_state_params_opt: &Option<Vec<ParameterNode>>,
+        system_enter_params_opt: &Option<Vec<ParameterNode>>,
+    ) {
+        if let Some(machine_block_node) = machine_block_node_opt.as_ref() {
+            if machine_block_node.states.is_empty() {
+                self.validate_empty_states(system_start_state_state_params_opt, system_enter_params_opt);
+            } else {
+                self.validate_start_state_with_states(
+                    &machine_block_node.states[0],
+                    system_start_state_state_params_opt,
+                    system_enter_params_opt,
+                );
+            }
+        } else if system_start_state_state_params_opt.is_some() {
+            self.error_at_current("System start state parameters declared but no start state exists.");
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper to validate when there are no states
+    
+    fn validate_empty_states(
+        &mut self,
+        system_start_state_state_params_opt: &Option<Vec<ParameterNode>>,
+        system_enter_params_opt: &Option<Vec<ParameterNode>>,
+    ) {
+        if system_start_state_state_params_opt.is_some() {
+            self.error_at_current("System start state parameters declared but no start state exists.");
+        }
+        if system_enter_params_opt.is_some() {
+            self.error_at_current("System start state enter parameters declared but no start state exists.");
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper to validate start state when states exist
+    
+    fn validate_start_state_with_states(
+        &mut self,
+        start_state_rcref: &Rc<RefCell<StateNode>>,
+        system_start_state_state_params_opt: &Option<Vec<ParameterNode>>,
+        system_enter_params_opt: &Option<Vec<ParameterNode>>,
+    ) {
+        let start_state = start_state_rcref.borrow();
+        
+        // Validate state parameters
+        self.validate_state_parameters(&start_state, system_start_state_state_params_opt);
+        
+        // Validate enter event parameters
+        self.validate_enter_event_parameters(&start_state, system_enter_params_opt);
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper to validate state parameters match system parameters
+    
+    fn validate_state_parameters(
+        &mut self,
+        start_state: &StateNode,
+        system_start_state_state_params_opt: &Option<Vec<ParameterNode>>,
+    ) {
+        match (&start_state.params_opt, system_start_state_state_params_opt) {
+            (None, None) => {}, // Both None - ok
+            (Some(_), None) => {
+                self.error_at_current("Start state parameters declared but no system start state parameters are declared.");
+            }
+            (None, Some(_)) => {
+                self.error_at_current("System start state parameters declared but no start state exists.");
+            }
+            (Some(start_state_params), Some(system_params)) => {
+                if start_state_params.len() != system_params.len() {
+                    self.error_at_current("System start state parameters do not match actual start state parameters.");
+                } else {
+                    for (i, state_param) in start_state_params.iter().enumerate() {
+                        let system_param = &system_params[i];
+                        if system_param != state_param {
+                            self.error_at_current("System start state parameters do not match actual start state parameters.");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper to validate enter event parameters
+    
+    fn validate_enter_event_parameters(
+        &mut self,
+        start_state: &StateNode,
+        system_enter_params_opt: &Option<Vec<ParameterNode>>,
+    ) {
+        if let Some(enter_event_handler) = &start_state.enter_event_handler_opt {
+            let event_handler = enter_event_handler.borrow();
+            let event_symbol = event_handler.event_symbol_rcref.borrow();
+            let enter_event_handler_params_opt = &event_symbol.event_symbol_params_opt;
+            
+            match (enter_event_handler_params_opt, system_enter_params_opt) {
+                (None, None) => {}, // Both None - ok
+                (None, Some(_)) => {
+                    self.error_at_current("System has enter parameters but start state enter handler does not.");
+                }
+                (Some(_), None) => {
+                    self.error_at_current("Start state has enter parameters but system does not define any.");
+                }
+                (Some(enter_params), Some(system_params)) => {
+                    self.validate_matching_enter_params(enter_params, system_params);
+                }
+            }
+        } else if system_enter_params_opt.is_some() {
+            self.error_at_current("System has enter parameters but the start state does not have an enter event handler.");
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper to validate that enter parameters match
+    
+    fn validate_matching_enter_params(
+        &mut self,
+        enter_event_handler_params: &Vec<ParameterSymbol>,
+        system_enter_params: &Vec<ParameterNode>,
+    ) {
+        if system_enter_params.len() != enter_event_handler_params.len() {
+            self.error_at_current("Start state and system enter parameters are different.");
+            return;
+        }
+        
+        for (i, param) in system_enter_params.iter().enumerate() {
+            let parameter_symbol = &enter_event_handler_params[i];
+            
+            if parameter_symbol.name != param.param_name {
+                self.error_at_current("Start state and system enter parameters are different.");
+            } else if let (Some(param_symbol_type), Some(param_type)) = 
+                (&parameter_symbol.param_type_opt, &param.param_type_opt) {
+                if param_symbol_type != param_type {
+                    self.error_at_current("System enter params do not match start state enter params.");
+                }
+            } else if parameter_symbol.param_type_opt.is_some() != param.param_type_opt.is_some() {
+                self.error_at_current("Start state and system enter parameters are different.");
+            }
+        }
+    }
+    
     /* --------------------------------------------------------------------- */
     // Parse optional system args.
     // [ $(start_state_param), >(start_state_enter_param), #(domain_param) ]
@@ -3316,147 +3363,7 @@ impl<'a> Parser<'a> {
 
         if self.match_token(&[TokenType::Equals]) {
             // eprintln!("DEBUG: Parsing initializer for variable '{}'", name);
-            match self.assignment() {
-                Ok(Some(LiteralExprT { literal_expr_node })) => {
-                    value = Rc::new(LiteralExprT { literal_expr_node })
-                }
-                Ok(Some(VariableExprT { var_node: id_node })) => {
-                    value = Rc::new(VariableExprT { var_node: id_node })
-                }
-                Ok(Some(ActionCallExprT {
-                    action_call_expr_node,
-                })) => {
-                    // TODO this may be dead code. CallChainLiteralExprT may do it all
-                    value = Rc::new(ActionCallExprT {
-                        action_call_expr_node,
-                    })
-                }
-                Ok(Some(CallChainExprT {
-                    call_chain_expr_node,
-                })) => {
-                    // eprintln!("DEBUG: Found CallChainExprT as initializer for variable '{}'", name);
-                    value = Rc::new(CallChainExprT {
-                        call_chain_expr_node,
-                    })
-                }
-                Ok(Some(UnaryExprT { unary_expr_node })) => {
-                    value = Rc::new(UnaryExprT { unary_expr_node })
-                }
-                Ok(Some(BinaryExprT { binary_expr_node })) => {
-                    value = Rc::new(BinaryExprT { binary_expr_node })
-                }
-                Ok(Some(FrameEventExprT { frame_event_part })) => {
-                    value = Rc::new(FrameEventExprT { frame_event_part })
-                }
-                Ok(Some(EnumeratorExprT { enum_expr_node })) => {
-                    value = Rc::new(EnumeratorExprT { enum_expr_node })
-                }
-                Ok(Some(SystemInstanceExprT {
-                    system_instance_expr_node,
-                })) => {
-                    value = Rc::new(SystemInstanceExprT {
-                        system_instance_expr_node,
-                    })
-                }
-                Ok(Some(SystemTypeExprT {
-                    system_type_expr_node,
-                })) => {
-                    value = Rc::new(SystemTypeExprT {
-                        system_type_expr_node,
-                    })
-                }
-                Ok(Some(CallExprT { call_expr_node })) => {
-                    value = Rc::new(CallExprT { call_expr_node })
-                }
-                Ok(Some(DefaultLiteralValueForTypeExprT)) => {
-                    value = Rc::new(DefaultLiteralValueForTypeExprT)
-                }
-                Ok(Some(NilExprT)) => value = Rc::new(NilExprT),
-                Ok(Some(SelfExprT { self_expr_node })) => value = Rc::new(SelfExprT { self_expr_node }),
-                Ok(Some(ListT { list_node })) => value = Rc::new(ListT { list_node }),
-                Ok(Some(DictLiteralT { dict_literal_node })) => value = Rc::new(DictLiteralT { dict_literal_node }),
-                Ok(Some(SetLiteralT { set_literal_node })) => value = Rc::new(SetLiteralT { set_literal_node }),
-                Ok(Some(TupleLiteralT { tuple_literal_node })) => value = Rc::new(TupleLiteralT { tuple_literal_node }),
-                Ok(Some(ListComprehensionExprT { list_comprehension_node })) => {
-                    value = Rc::new(ListComprehensionExprT { list_comprehension_node })
-                }
-                Ok(Some(UnpackExprT { unpack_expr_node })) => {
-                    value = Rc::new(UnpackExprT { unpack_expr_node })
-                }
-                Ok(Some(DictUnpackExprT { dict_unpack_expr_node })) => {
-                    value = Rc::new(DictUnpackExprT { dict_unpack_expr_node })
-                }
-                Ok(Some(AwaitExprT { await_expr_node })) => {
-                    value = Rc::new(AwaitExprT { await_expr_node })
-                }
-                Ok(Some(LambdaExprT { lambda_expr_node })) => {
-                    value = Rc::new(LambdaExprT { lambda_expr_node })
-                }
-                Ok(Some(DictComprehensionExprT { dict_comprehension_node })) => {
-                    value = Rc::new(DictComprehensionExprT { dict_comprehension_node })
-                }
-                Ok(Some(FunctionRefT { name })) => {
-                    // v0.38: Function reference as value (first-class function)
-                    value = Rc::new(FunctionRefT { name })
-                }
-                // Removed SliceExprT - slicing is handled through call chains
-                Ok(Some(ExprListT { expr_list_node })) => {
-                    let err_msg =
-                        &format!("Expr type 'ExprList' is not a valid rvalue assignment type.");
-                    self.error_at_current(err_msg);
-                    value = Rc::new(ExprListT { expr_list_node })
-                }
-                Ok(Some(TransitionExprT {
-                    transition_expr_node,
-                })) => {
-                    let err_msg = &format!(
-                        "Expr type 'TransitionExpr' is not a valid rvalue assignment type."
-                    );
-                    self.error_at_current(err_msg);
-                    value = Rc::new(TransitionExprT {
-                        transition_expr_node,
-                    })
-                }
-                Ok(Some(AssignmentExprT {
-                    assignment_expr_node,
-                })) => {
-                    let err_msg = &format!(
-                        "Expr type 'AssignmentExpr' is not a valid rvalue assignment type."
-                    );
-                    self.error_at_current(err_msg);
-                    value = Rc::new(AssignmentExprT {
-                        assignment_expr_node,
-                    })
-                }
-                Ok(Some(StateStackOperationExprT {
-                    state_stack_op_node,
-                })) => {
-                    let err_msg = &format!("Expr type 'StateStackOperationExpr' is not a valid rvalue assignment type.");
-                    self.error_at_current(err_msg);
-                    value = Rc::new(StateStackOperationExprT {
-                        state_stack_op_node,
-                    })
-                }
-                Ok(Some(CallExprListT {
-                    call_expr_list_node,
-                })) => {
-                    let err_msg =
-                        &format!("Expr type 'CallExprList' is not a valid rvalue assignment type.");
-                    self.error_at_current(err_msg);
-                    value = Rc::new(CallExprListT {
-                        call_expr_list_node,
-                    })
-                }
-                Ok(None) => {
-                    // eprintln!("DEBUG: Got None from equality() for variable '{}'", name);
-                    let err_msg = "Unexpected assignment expression value.";
-                    self.error_at_current(err_msg);
-                    return Err(ParseError::new(err_msg));
-                }
-                Err(parse_err) => {
-                    return Err(parse_err);
-                }
-            }
+            value = self.parse_variable_initializer(&name)?;
         } else if matches!(self.peek().token_type, TokenType::In) {
             // TODO!! - develop for-in statement
             // pass
@@ -3483,93 +3390,13 @@ impl<'a> Parser<'a> {
         let variable_decl_node_rcref = Rc::new(RefCell::new(variable_decl_node));
 
         if self.is_building_symbol_table {
-            // lexical pass
-            // add variable to current symbol table
-            let scope = self.arcanum.get_current_identifier_scope();
-            // Create variable symbol and set value to the intializer expression.
-            let variable_symbol =
-                VariableSymbol::new(name, type_node_opt, scope, variable_decl_node_rcref.clone());
-            let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
-            let variable_symbol_t = match identifier_decl_scope {
-                IdentifierDeclScope::DomainBlockScope => SymbolType::DomainVariable {
-                    domain_variable_symbol_rcref: variable_symbol_rcref,
-                },
-                IdentifierDeclScope::StateVarScope => SymbolType::StateVariable {
-                    state_variable_symbol_rcref: variable_symbol_rcref,
-                },
-                IdentifierDeclScope::EventHandlerVarScope => SymbolType::EventHandlerVariable {
-                    event_handler_variable_symbol_rcref: variable_symbol_rcref,
-                },
-                IdentifierDeclScope::LoopVarScope => SymbolType::LoopVar {
-                    loop_variable_symbol_rcref: variable_symbol_rcref,
-                },
-                IdentifierDeclScope::BlockVarScope => SymbolType::BlockVar {
-                    block_variable_symbol_rcref: variable_symbol_rcref,
-                },
-                IdentifierDeclScope::ModuleScope => SymbolType::ModuleVariable {
-                    module_variable_symbol_rcref: variable_symbol_rcref,
-                },
-                _ => {
-                    let err_msg = "Unrecognized variable scope.";
-                    self.error_at_current(err_msg);
-                    return Err(ParseError::new(err_msg));
-                }
-            };
-            // TODO: make current_symtab private
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
-            let ret = self
-                .arcanum
-                .current_symtab
-                .borrow_mut()
-                .define(&variable_symbol_t);
-            match ret {
-                Ok(()) => {}
-                Err(err_msg) => {
-                    self.error_at_previous(err_msg.as_str());
-                    return Err(ParseError::new(err_msg.as_str()));
-                }
-            }
-            self.arcanum
-                .debug_print_current_symbols(self.arcanum.get_current_symtab());
+            // lexical pass - add variable to current symbol table
+            self.create_variable_symbol(name, type_node_opt, &identifier_decl_scope, variable_decl_node_rcref.clone())?;
         } else {
             // semantic pass
             
             // Check for variable shadowing in functions/event handlers
-            // This is a limitation for Python code generation where module variables
-            // cannot be shadowed by local variables due to Python's scoping rules
-            match identifier_decl_scope {
-                IdentifierDeclScope::EventHandlerVarScope | 
-                IdentifierDeclScope::BlockVarScope | 
-                IdentifierDeclScope::LoopVarScope => {
-                    // Check if this shadows a module-level variable
-                    // Try looking up with UnknownScope to search all parent scopes
-                    let lookup_result = self.arcanum.lookup(&name, &IdentifierDeclScope::UnknownScope);
-                    
-                    // If found, check if it's a module variable
-                    let shadows_module_var = if let Some(symbol_rcref) = lookup_result {
-                        let symbol = symbol_rcref.borrow();
-                        match &*symbol {
-                            SymbolType::ModuleVariable { .. } => true,
-                            _ => false
-                        }
-                    } else {
-                        false
-                    };
-                    
-                    if shadows_module_var {
-                        let err_msg = format!(
-                            "Cannot shadow module-level variable '{}' with local variable. \
-                            Module variables cannot be shadowed in functions or event handlers. \
-                            Please use a different variable name.", 
-                            name
-                        );
-                        self.error_at_previous(&err_msg);
-                        return Err(ParseError::new(&err_msg));
-                    }
-                }
-                _ => {}
-            }
+            self.check_variable_shadowing(&name, &identifier_decl_scope)?;
 
             // TODO
             self.arcanum
@@ -3633,13 +3460,163 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
-
-    // TODO return result
-    //    fn state(&mut self) -> Rc<RefCell<StateNode>> {
-    fn state(&mut self) -> Result<Rc<RefCell<StateNode>>, ParseError> {
-        let line = self.previous().line;
-
-        // TODO
+    // Helper function to parse variable initializer value
+    
+    fn parse_variable_initializer(&mut self, _name: &str) -> Result<Rc<ExprType>, ParseError> {
+        match self.assignment() {
+            Ok(Some(expr)) => {
+                let value = match expr {
+                    LiteralExprT { literal_expr_node } => Rc::new(LiteralExprT { literal_expr_node }),
+                    VariableExprT { var_node } => Rc::new(VariableExprT { var_node }),
+                    ActionCallExprT { action_call_expr_node } => Rc::new(ActionCallExprT { action_call_expr_node }),
+                    CallChainExprT { call_chain_expr_node } => Rc::new(CallChainExprT { call_chain_expr_node }),
+                    UnaryExprT { unary_expr_node } => Rc::new(UnaryExprT { unary_expr_node }),
+                    BinaryExprT { binary_expr_node } => Rc::new(BinaryExprT { binary_expr_node }),
+                    FrameEventExprT { frame_event_part } => Rc::new(FrameEventExprT { frame_event_part }),
+                    EnumeratorExprT { enum_expr_node } => Rc::new(EnumeratorExprT { enum_expr_node }),
+                    SystemInstanceExprT { system_instance_expr_node } => Rc::new(SystemInstanceExprT { system_instance_expr_node }),
+                    SystemTypeExprT { system_type_expr_node } => Rc::new(SystemTypeExprT { system_type_expr_node }),
+                    CallExprT { call_expr_node } => Rc::new(CallExprT { call_expr_node }),
+                    DefaultLiteralValueForTypeExprT => Rc::new(DefaultLiteralValueForTypeExprT),
+                    NilExprT => Rc::new(NilExprT),
+                    SelfExprT { self_expr_node } => Rc::new(SelfExprT { self_expr_node }),
+                    ListT { list_node } => Rc::new(ListT { list_node }),
+                    DictLiteralT { dict_literal_node } => Rc::new(DictLiteralT { dict_literal_node }),
+                    SetLiteralT { set_literal_node } => Rc::new(SetLiteralT { set_literal_node }),
+                    TupleLiteralT { tuple_literal_node } => Rc::new(TupleLiteralT { tuple_literal_node }),
+                    ListComprehensionExprT { list_comprehension_node } => Rc::new(ListComprehensionExprT { list_comprehension_node }),
+                    UnpackExprT { unpack_expr_node } => Rc::new(UnpackExprT { unpack_expr_node }),
+                    DictUnpackExprT { dict_unpack_expr_node } => Rc::new(DictUnpackExprT { dict_unpack_expr_node }),
+                    AwaitExprT { await_expr_node } => Rc::new(AwaitExprT { await_expr_node }),
+                    LambdaExprT { lambda_expr_node } => Rc::new(LambdaExprT { lambda_expr_node }),
+                    DictComprehensionExprT { dict_comprehension_node } => Rc::new(DictComprehensionExprT { dict_comprehension_node }),
+                    FunctionRefT { name } => Rc::new(FunctionRefT { name }),
+                    
+                    // Invalid assignment types
+                    ExprListT { expr_list_node } => {
+                        self.error_at_current("Expr type 'ExprList' is not a valid rvalue assignment type.");
+                        Rc::new(ExprListT { expr_list_node })
+                    }
+                    TransitionExprT { transition_expr_node } => {
+                        self.error_at_current("Expr type 'TransitionExpr' is not a valid rvalue assignment type.");
+                        Rc::new(TransitionExprT { transition_expr_node })
+                    }
+                    AssignmentExprT { assignment_expr_node } => {
+                        self.error_at_current("Expr type 'AssignmentExpr' is not a valid rvalue assignment type.");
+                        Rc::new(AssignmentExprT { assignment_expr_node })
+                    }
+                    StateStackOperationExprT { state_stack_op_node } => {
+                        self.error_at_current("Expr type 'StateStackOperationExpr' is not a valid rvalue assignment type.");
+                        Rc::new(StateStackOperationExprT { state_stack_op_node })
+                    }
+                    CallExprListT { call_expr_list_node } => {
+                        self.error_at_current("Expr type 'CallExprList' is not a valid rvalue assignment type.");
+                        Rc::new(CallExprListT { call_expr_list_node })
+                    }
+                };
+                Ok(value)
+            }
+            Ok(None) => {
+                let err_msg = "Unexpected assignment expression value.";
+                self.error_at_current(err_msg);
+                Err(ParseError::new(err_msg))
+            }
+            Err(parse_err) => Err(parse_err),
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to check for variable shadowing
+    
+    fn check_variable_shadowing(&mut self, name: &str, identifier_decl_scope: &IdentifierDeclScope) -> Result<(), ParseError> {
+        match identifier_decl_scope {
+            IdentifierDeclScope::EventHandlerVarScope | 
+            IdentifierDeclScope::BlockVarScope | 
+            IdentifierDeclScope::LoopVarScope => {
+                // Check if this shadows a module-level variable
+                let lookup_result = self.arcanum.lookup(&name, &IdentifierDeclScope::UnknownScope);
+                
+                // If found, check if it's a module variable
+                let shadows_module_var = if let Some(symbol_rcref) = lookup_result {
+                    let symbol = symbol_rcref.borrow();
+                    matches!(&*symbol, SymbolType::ModuleVariable { .. })
+                } else {
+                    false
+                };
+                
+                if shadows_module_var {
+                    let err_msg = format!(
+                        "Cannot shadow module-level variable '{}' with local variable. \
+                        Module variables cannot be shadowed in functions or event handlers. \
+                        Please use a different variable name.", 
+                        name
+                    );
+                    self.error_at_previous(&err_msg);
+                    return Err(ParseError::new(&err_msg));
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to create and register variable symbol
+    
+    fn create_variable_symbol(
+        &mut self,
+        name: String,
+        type_node_opt: Option<TypeNode>,
+        identifier_decl_scope: &IdentifierDeclScope,
+        variable_decl_node_rcref: Rc<RefCell<VariableDeclNode>>,
+    ) -> Result<(), ParseError> {
+        let scope = self.arcanum.get_current_identifier_scope();
+        let variable_symbol = VariableSymbol::new(name, type_node_opt, scope, variable_decl_node_rcref.clone());
+        let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
+        
+        let variable_symbol_t = match identifier_decl_scope {
+            IdentifierDeclScope::DomainBlockScope => SymbolType::DomainVariable {
+                domain_variable_symbol_rcref: variable_symbol_rcref,
+            },
+            IdentifierDeclScope::StateVarScope => SymbolType::StateVariable {
+                state_variable_symbol_rcref: variable_symbol_rcref,
+            },
+            IdentifierDeclScope::EventHandlerVarScope => SymbolType::EventHandlerVariable {
+                event_handler_variable_symbol_rcref: variable_symbol_rcref,
+            },
+            IdentifierDeclScope::LoopVarScope => SymbolType::LoopVar {
+                loop_variable_symbol_rcref: variable_symbol_rcref,
+            },
+            IdentifierDeclScope::BlockVarScope => SymbolType::BlockVar {
+                block_variable_symbol_rcref: variable_symbol_rcref,
+            },
+            IdentifierDeclScope::ModuleScope => SymbolType::ModuleVariable {
+                module_variable_symbol_rcref: variable_symbol_rcref,
+            },
+            _ => {
+                let err_msg = "Unrecognized variable scope.";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+        };
+        
+        self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+        let ret = self.arcanum.current_symtab.borrow_mut().define(&variable_symbol_t);
+        match ret {
+            Ok(()) => {}
+            Err(err_msg) => {
+                self.error_at_previous(err_msg.as_str());
+                return Err(ParseError::new(err_msg.as_str()));
+            }
+        }
+        self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+        Ok(())
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to parse state name and setup scope
+    
+    fn parse_state_name_and_scope(&mut self, line: usize) -> Result<(String, Rc<RefCell<StateSymbol>>), ParseError> {
         if !self.match_token(&[TokenType::Identifier]) {
             // error message and synchronize
             self.error_at_current("Expected state name.");
@@ -3660,141 +3637,170 @@ impl<'a> Parser<'a> {
                 Option::None,
                 Option::None,
                 None,
-                0,
+                line,
             );
-            let state_node_rcref = Rc::new(RefCell::new(state_node));
-            return Ok(state_node_rcref);
+            let _state_node_rcref = Rc::new(RefCell::new(state_node));
+            return Err(ParseError::new("Expected state name"));
         }
+        
         let id = self.previous();
         let state_name = id.lexeme.clone();
-
         self.state_name_opt = Some(state_name.clone());
 
-        let state_symbol_rcref;
-        if self.is_building_symbol_table {
+        let state_symbol_rcref = if self.is_building_symbol_table {
             if self.arcanum.get_state(&state_name).is_some() {
                 self.error_at_previous(&format!("Duplicate state name {}.", &state_name));
             }
             let state_symbol = StateSymbol::new(&state_name, self.arcanum.get_current_symtab());
-            state_symbol_rcref = Rc::new(RefCell::new(state_symbol));
+            let state_symbol_rcref = Rc::new(RefCell::new(state_symbol));
             self.arcanum.enter_scope(ParseScopeType::State {
                 state_symbol: state_symbol_rcref.clone(),
             });
+            state_symbol_rcref
         } else {
             if let Err(err) = self.arcanum.set_parse_scope(&state_name) {
                 return Err(ParseError::new(&format!("Failed to set state scope '{}': {}", state_name, err)));
             }
-            state_symbol_rcref = self.arcanum.get_state(&state_name).unwrap();
+            self.arcanum.get_state(&state_name).unwrap()
+        };
+        
+        Ok((state_name, state_symbol_rcref))
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to parse state parameters
+    
+    fn parse_state_parameters(&mut self, state_name: &str) -> Result<(Option<Vec<ParameterNode>>, bool), ParseError> {
+        if !self.match_token(&[TokenType::LParen]) {
+            return Ok((None, false));
         }
-
-        let mut pop_state_params_scope = false;
-        let mut params_opt = None;
-
-        if self.match_token(&[TokenType::LParen]) {
-            // generate StateContext mechanism for state parameter support
-            self.generate_state_context = true;
-            match self.parameters() {
-                Ok(Some(parameters)) => {
-                    pop_state_params_scope = true;
-                    if self.is_building_symbol_table {
-                        match self.arcanum.get_state(&state_name) {
-                            Some(state_symbol) => {
-                                let state_params_scope_symbol = StateParamsScopeSymbol::new();
-                                let state_params_scope_symbol_rcref =
-                                    Rc::new(RefCell::new(state_params_scope_symbol));
-                                self.arcanum.enter_scope(ParseScopeType::StateParams {
-                                    state_params_scope_symbol_rcref,
-                                });
-                                for param in &parameters {
-                                    let scope = self.arcanum.get_current_identifier_scope();
-                                    let symbol_t = state_symbol.borrow_mut().add_parameter(
-                                        param.param_name.clone(),
-                                        param.param_type_opt.clone(),
-                                        scope,
-                                    );
-                                    let ret = self.arcanum.insert_symbol(symbol_t);
-                                    match ret {
-                                        Ok(()) => {}
-                                        Err(err_msg) => {
-                                            self.error_at_previous(err_msg.as_str());
-                                            return Err(ParseError::new(err_msg.as_str()));
-                                        }
+        
+        // generate StateContext mechanism for state parameter support
+        self.generate_state_context = true;
+        
+        match self.parameters() {
+            Ok(Some(parameters)) => {
+                let pop_state_params_scope = true;
+                
+                if self.is_building_symbol_table {
+                    match self.arcanum.get_state(&state_name) {
+                        Some(state_symbol) => {
+                            let state_params_scope_symbol = StateParamsScopeSymbol::new();
+                            let state_params_scope_symbol_rcref = 
+                                Rc::new(RefCell::new(state_params_scope_symbol));
+                            self.arcanum.enter_scope(ParseScopeType::StateParams {
+                                state_params_scope_symbol_rcref,
+                            });
+                            for param in &parameters {
+                                let scope = self.arcanum.get_current_identifier_scope();
+                                let symbol_t = state_symbol.borrow_mut().add_parameter(
+                                    param.param_name.clone(),
+                                    param.param_type_opt.clone(),
+                                    scope,
+                                );
+                                let ret = self.arcanum.insert_symbol(symbol_t);
+                                match ret {
+                                    Ok(()) => {}
+                                    Err(err_msg) => {
+                                        self.error_at_previous(err_msg.as_str());
+                                        return Err(ParseError::new(err_msg.as_str()));
                                     }
                                 }
                             }
-                            None => {
-                                return Err(ParseError::new(&format!(
-                                    "Fatal error: unable to find state {}.",
-                                    state_name.clone()
-                                )));
-                            }
                         }
-                    } else {
-                        if let Err(err) = self.arcanum.set_parse_scope(StateParamsScopeSymbol::scope_name()) {
-                            return Err(ParseError::new(&format!("Failed to set state params scope: {}", err)));
+                        None => {
+                            return Err(ParseError::new(&format!(
+                                "Fatal error: unable to find state {}.",
+                                state_name
+                            )));
                         }
                     }
-                    params_opt = Some(parameters.clone());
-                    
-                    // v0.20: Validate start state parameters match system parameters
-                    // This validation happens during the second pass
-                    if state_name == "Start" && !self.is_building_symbol_table {
-                        // TODO: Need to access system symbol to validate parameter counts
-                        // The system symbol should be available through the arcanum
-                        // but we need to track the current system name
+                } else {
+                    if let Err(err) = self.arcanum.set_parse_scope(StateParamsScopeSymbol::scope_name()) {
+                        return Err(ParseError::new(&format!("Failed to set state params scope: {}", err)));
                     }
                 }
-                Err(parse_error) => return Err(parse_error),
-                Ok(None) => {}
-            }
-
-            if self.consume(TokenType::RParen, "Expected ')'").is_err() {
-                let sync_tokens = vec![
-                    TokenType::Colon,
-                    TokenType::Dispatch,
-                    TokenType::OpenBrace,
-                ];
-                self.synchronize(&sync_tokens);
-                if !self.follows(
-                    self.peek(),
-                    &[
+                
+                // Consume closing paren
+                if self.consume(TokenType::RParen, "Expected ')'").is_err() {
+                    let sync_tokens = vec![
                         TokenType::Colon,
                         TokenType::Dispatch,
-                        TokenType::OpenBrace,],
-                ) {
-                    return Err(ParseError::new(&format!("Unparseable state {}",state_name)));
-                }
-            }
-        }
-
-
-        let mut dispatch_opt: Option<DispatchNode> = None;
-
-        // Dispatch clause.
-        // '=>' '$' state_id
-        if self.match_token(&[TokenType::Dispatch]) {
-            match self.consume(TokenType::State, "Expected '$'") {
-                Ok(_) => {
-                    if self.match_token(&[TokenType::Identifier]) {
-                        let id = self.previous();
-                        let target_state_name = id.lexeme.clone();
-
-                        let target_state_ref = StateRefNode::new(target_state_name);
-                        dispatch_opt = Some(DispatchNode::new(target_state_ref, id.line));
-                    } else {
-                        self.error_at_current("Expected dispatch target state identifier.");
-                        let sync_tokens = vec![
-                            TokenType::Pipe,
-                            TokenType::State,
-                            TokenType::ActionsBlock,
-                            TokenType::DomainBlock,
-                            TokenType::CloseBrace,
-                        ];
-                        self.synchronize(&sync_tokens);
+                        TokenType::OpenBrace,
+                    ];
+                    self.synchronize(&sync_tokens);
+                    if !self.follows(
+                        self.peek(),
+                        &[
+                            TokenType::Colon,
+                            TokenType::Dispatch,
+                            TokenType::OpenBrace,
+                        ],
+                    ) {
+                        return Err(ParseError::new(&format!("Unparseable state {}", state_name)));
                     }
                 }
-                Err(_) => {
-                    // synchronize to next event handler, state, remaining blocks or the end token
+                
+                Ok((Some(parameters), pop_state_params_scope))
+            }
+            Err(parse_error) => Err(parse_error),
+            Ok(None) => {
+                // Consume closing paren
+                if self.consume(TokenType::RParen, "Expected ')'").is_err() {
+                    let sync_tokens = vec![
+                        TokenType::Colon,
+                        TokenType::Dispatch,
+                        TokenType::OpenBrace,
+                    ];
+                    self.synchronize(&sync_tokens);
+                }
+                Ok((None, false))
+            }
+        }
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to parse dispatch clause
+    
+    fn parse_state_dispatch(&mut self, state_name: &str) -> Result<Option<DispatchNode>, ParseError> {
+        if !self.match_token(&[TokenType::Dispatch]) {
+            // Update hierarchy without dispatch
+            match &mut self.system_hierarchy_opt {
+                Some(system_hierarchy) => {
+                    system_hierarchy.add_node(state_name.to_string(), String::new());
+                }
+                None => {
+                    return Err(ParseError::new("System Hierarchy should always be here."));
+                }
+            }
+            return Ok(None);
+        }
+        
+        match self.consume(TokenType::State, "Expected '$'") {
+            Ok(_) => {
+                if self.match_token(&[TokenType::Identifier]) {
+                    let id = self.previous();
+                    let target_state_name = id.lexeme.clone();
+                    
+                    let target_state_ref = StateRefNode::new(target_state_name.clone());
+                    let dispatch_node = DispatchNode::new(target_state_ref, id.line);
+                    
+                    // Update hierarchy with dispatch
+                    match &mut self.system_hierarchy_opt {
+                        Some(system_hierarchy) => {
+                            system_hierarchy.add_node(state_name.to_string(), target_state_name);
+                        }
+                        None => {
+                            return Err(ParseError::new("System Hierarchy should always be here."));
+                        }
+                    }
+                    
+                    // Track parent state for => $^ validation
+                    self.state_parent_opt = Some(dispatch_node.target_state_ref.name.clone());
+                    
+                    Ok(Some(dispatch_node))
+                } else {
+                    self.error_at_current("Expected dispatch target state identifier.");
                     let sync_tokens = vec![
                         TokenType::Pipe,
                         TokenType::State,
@@ -3803,40 +3809,30 @@ impl<'a> Parser<'a> {
                         TokenType::CloseBrace,
                     ];
                     self.synchronize(&sync_tokens);
+                    Ok(None)
                 }
             }
+            Err(_) => {
+                // synchronize to next event handler, state, remaining blocks or the end token
+                let sync_tokens = vec![
+                    TokenType::Pipe,
+                    TokenType::State,
+                    TokenType::ActionsBlock,
+                    TokenType::DomainBlock,
+                    TokenType::CloseBrace,
+                ];
+                self.synchronize(&sync_tokens);
+                Ok(None)
+            }
         }
-
-        // Track parent state for => $^ validation
-        self.state_parent_opt = match &dispatch_opt {
-            Some(dispatch_node) => Some(dispatch_node.target_state_ref.name.clone()),
-            None => None,
-        };
-
-        // add to hierarchy
-
-        match &dispatch_opt {
-            Some(dispatch_node) => match &mut self.system_hierarchy_opt {
-                Some(system_hierarchy) => {
-                    let target_state_name = dispatch_node.target_state_ref.name.clone();
-                    system_hierarchy.add_node(state_name.clone(), target_state_name);
-                }
-                None => {
-                    return Err(ParseError::new("System Hierarchy should always be here."));
-                }
-            },
-            None => match &mut self.system_hierarchy_opt {
-                Some(system_hierarchy) => {
-                    system_hierarchy.add_node(state_name.clone(), String::new());
-                }
-                None => {
-                    return Err(ParseError::new("System Hierarchy should always be here."));
-                }
-            },
-        }
-
+    }
+    
+    /* --------------------------------------------------------------------- */
+    // Helper function to setup state local scope
+    
+    fn setup_state_local_scope(&mut self) -> Result<(), ParseError> {
         let _ = self.consume(TokenType::OpenBrace, "Expected '{'");
-
+        
         if self.is_building_symbol_table {
             let state_local_scope_struct = StateLocalScopeSymbol::new();
             let state_local_scope_symbol_rcref = Rc::new(RefCell::new(state_local_scope_struct));
@@ -3849,48 +3845,74 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(&format!("Failed to set state local scope: {}", err)));
             }
         }
+        Ok(())
+    }
+    
+    /* --------------------------------------------------------------------- */
 
+    // TODO return result
+    //    fn state(&mut self) -> Rc<RefCell<StateNode>> {
+    fn state(&mut self) -> Result<Rc<RefCell<StateNode>>, ParseError> {
+        let line = self.previous().line;
+        
+        // Parse state name and setup scope
+        let (state_name, state_symbol_rcref) = self.parse_state_name_and_scope(line)?;
+
+        // Parse state parameters
+        let (params_opt, pop_state_params_scope) = self.parse_state_parameters(&state_name)?;
+
+
+        // Parse dispatch clause
+        let dispatch_opt = self.parse_state_dispatch(&state_name)?;
+        
+        // Setup state local scope
+        self.setup_state_local_scope()?;
+
+        // Parse state local variables
+        let vars_opt = self.parse_state_variables()?;
+
+        // Parse state calls (currently unused)
+        let calls_opt = self.parse_state_calls()?;
+
+        // Parse event handlers
+        let state_event_handlers = self.parse_state_event_handlers(&state_name)?;
+
+
+        let _ = self.consume(TokenType::CloseBrace, "Expected '}'")? ;
+
+        // Create state node and update symbol table
+        let state_node_rcref = self.create_and_register_state_node(
+            state_name,
+            params_opt,
+            vars_opt,
+            calls_opt,
+            state_event_handlers,
+            dispatch_opt,
+            line,
+            &state_symbol_rcref,
+        )?;
+
+        // Cleanup scopes and state
+        self.cleanup_state_parsing(pop_state_params_scope)?;
+
+        Ok(state_node_rcref)
+    }
+
+    fn parse_state_variables(&mut self) -> Result<Option<Vec<Rc<RefCell<VariableDeclNode>>>>, ParseError> {
         // state local variables
         // $S1 {
         //    var a = 1
         // }
+        self.state_variables()
+    }
 
-        let mut vars_opt = None;
-
-        match self.state_variables() {
-            Ok(Some(variables)) => {
-                vars_opt = Some(variables);
-            }
-            Ok(None) => {}
-            Err(parse_error) => return Err(parse_error),
-        }
-
+    fn parse_state_calls(&mut self) -> Result<Option<Vec<CallChainExprNode>>, ParseError> {
         // TODO: I don't know what state calls are.
-        // State Calls
-        let mut calls_opt = None;
-        let calls = Vec::new();
-        //
-        // // @TODO - add reference syntax
-        // while self.match_token(&[TokenType::Identifier]) {
-        //     match self.call(IdentifierDeclScope::UnknownScope) {
-        //         Ok(Some(CallChainExprT {
-        //             call_chain_expr_node,
-        //         })) => calls.push(call_chain_expr_node),
-        //         Ok(Some(_)) => return Err(ParseError::new("TODO")),
-        //         Err(parse_error) => return Err(parse_error),
-        //         Ok(None) => {} // continue
-        //     }
-        // }
+        // State Calls - currently unused
+        Ok(None)
+    }
 
-        if !calls.is_empty() {
-            calls_opt = Some(calls);
-        }
-
-        // Parse event handlers.
-
-        // TODO: make this Option?
-        let _evt_handlers: Vec<Rc<RefCell<EventHandlerNode>>> = Vec::new();
-
+    fn parse_state_event_handlers(&mut self, state_name: &str) -> Result<StateEventHandlers, ParseError> {
         let mut state_event_handlers = StateEventHandlers {
             enter_event_handler_opt: None,
             exit_event_handler_opt: None,
@@ -3905,18 +3927,23 @@ impl<'a> Parser<'a> {
         let is_async_handler = self.match_token(&[TokenType::Async]);
         
         if self.match_token(&[TokenType::Identifier,TokenType::EnterStateMsg,TokenType::ExitStateMsg]) {
-            match self.event_handlers(&state_name, is_async_handler) {
-                Ok(seh) => {
-                    state_event_handlers = seh;
-                },
-                Err(parse_error) => return Err(parse_error),
-
-            }
+            state_event_handlers = self.event_handlers(&state_name.to_string(), is_async_handler)?;
         }
+        
+        Ok(state_event_handlers)
+    }
 
-
-        let _ = self.consume(TokenType::CloseBrace, "Expected '}'");
-
+    fn create_and_register_state_node(
+        &mut self,
+        state_name: String,
+        params_opt: Option<Vec<ParameterNode>>,
+        vars_opt: Option<Vec<Rc<RefCell<VariableDeclNode>>>>,
+        calls_opt: Option<Vec<CallChainExprNode>>,
+        state_event_handlers: StateEventHandlers,
+        dispatch_opt: Option<DispatchNode>,
+        line: usize,
+        state_symbol_rcref: &Rc<RefCell<StateSymbol>>,
+    ) -> Result<Rc<RefCell<StateNode>>, ParseError> {
         // TODO: Moved this down here as I think is a bug to hve it above but not sure.
         self.arcanum.exit_scope(); // state block scope (StateBlockScopeSymbol)
 
@@ -3959,6 +3986,10 @@ impl<'a> Parser<'a> {
                 .set_state_node(Rc::clone(&state_node_rcref));
         }
 
+        Ok(state_node_rcref)
+    }
+
+    fn cleanup_state_parsing(&mut self, pop_state_params_scope: bool) -> Result<(), ParseError> {
         self.state_name_opt = None;
         self.state_parent_opt = None;
 
@@ -3966,8 +3997,8 @@ impl<'a> Parser<'a> {
             self.arcanum.exit_scope(); // state params scope
         }
         self.arcanum.exit_scope(); // state scope
-
-        Ok(state_node_rcref)
+        
+        Ok(())
     }
 
     /* --------------------------------------------------------------------- */
@@ -4098,13 +4129,8 @@ impl<'a> Parser<'a> {
 
     // TODO: This is a mess and needs to be cleaned up.
 
-    fn event_handler(&mut self, is_async: bool) -> Result<Option<EventHandlerNode>, ParseError> {
-        // Variables initialized at point of use - see line 3632-3635
-        self.interface_method_called = false;
-
-        self.event_handler_has_transition = false;
-
-        // consume single line comments
+    // Helper: Consume single line comments before event handler
+    fn consume_event_handler_comments(&mut self) {
         while self.match_token(&[TokenType::SingleLineComment]) {
             // consume
             // @TODO: fix this. see https://app.asana.com/0/1199651557660024/1199953268166075/f
@@ -4120,6 +4146,346 @@ impl<'a> Parser<'a> {
 
              */
         }
+    }
+
+    // Helper: Parse and validate event message
+    fn parse_event_message(&mut self) -> Result<(MessageType, String, usize), ParseError> {
+        let tt = self.previous().token_type;
+        let message_node = match tt {
+            TokenType::Identifier
+            | TokenType::EnterStateMsg
+            | TokenType::ExitStateMsg => {
+                self.create_message_node(tt)
+            },
+            _ => {
+                let token_str = self.previous().lexeme.clone();
+                let err_msg = &format!("Invalid event type. Found {}. ", token_str);
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+        };
+        
+        let message_type = MessageType::CustomMessage { message_node };
+        let id = self.previous();
+        let msg = id.lexeme.clone();
+        let line_number = id.line;
+        
+        Ok((message_type, msg, line_number))
+    }
+
+    // Helper: Set up event handler scope and symbol
+    fn setup_event_handler_scope(&mut self, msg: &str) -> Result<bool, ParseError> {
+        let mut is_declaring_event = false;
+
+        if self.is_building_symbol_table {
+            let event_symbol_rcref;
+
+            // get or create the event symbol for the message we found
+            match self.arcanum.get_event(msg, &self.state_name_opt) {
+                Some(x) => {
+                    event_symbol_rcref = Rc::clone(&x);
+                }
+                None => {
+                    let event_symbol = EventSymbol::new(
+                        &self.arcanum.symbol_config,
+                        msg,
+                        None,
+                        None,
+                        None,
+                        self.state_name_opt.clone(),
+                    );
+                    event_symbol_rcref = Rc::new(RefCell::new(event_symbol));
+                    self.arcanum.declare_event(Rc::clone(&event_symbol_rcref));
+
+                    // This is the first time we are seeing this event.
+                    // Set flag so parameters and return type are added to event symbol
+                    // during this parse.
+                    is_declaring_event = true;
+                }
+            }
+
+            // create the event handler symbol and enter the event handler scope
+            let event_handler_symbol =
+                EventHandlerScopeSymbol::new(msg, Rc::clone(&event_symbol_rcref));
+            let event_handler_scope_symbol_rcref = Rc::new(RefCell::new(event_handler_symbol));
+
+            self.arcanum.enter_scope(ParseScopeType::EventHandler {
+                event_handler_scope_symbol_rcref,
+            });
+        } else {
+            if let Err(err) = self.arcanum.set_parse_scope(msg) {
+                return Err(ParseError::new(&format!("Failed to set event handler scope '{}': {}", msg, err)));
+            }
+        }
+
+        Ok(is_declaring_event)
+    }
+
+    // Helper: Parse event handler parameters
+    fn parse_event_handler_parameters(&mut self, msg: &str, is_declaring_event: bool) -> Result<bool, ParseError> {
+        let mut pop_params_scope = false;
+
+        if self.match_token(&[TokenType::LParen]) {
+            if msg == self.arcanum.symbol_config.enter_msg_symbol {
+                self.generate_state_context = true;
+            }
+
+            match self.parameters() {
+                Ok(Some(parameters)) => {
+                    pop_params_scope = true;
+                    
+                    if self.is_building_symbol_table {
+                        self.process_event_handler_parameters_symbol_table(msg, &parameters, is_declaring_event)?;
+                    } else {
+                        if let Err(err) = self.arcanum.set_parse_scope(EventHandlerParamsScopeSymbol::scope_name()) {
+                            return Err(ParseError::new(&format!("Failed to set event handler params scope: {}", err)));
+                        }
+                    }
+                }
+                Ok(None) => { },
+                Err(parse_error) => return Err(parse_error),
+            }
+        } else {
+            // no parameter list - validate no parameters expected
+            let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
+            if event_symbol_rcref.borrow().event_symbol_params_opt.is_some() {
+                self.error_at_current(&format!(
+                    "Event handler {} parameters do not match a previous declaration.",
+                    msg
+                ));
+            }
+        }
+
+        Ok(pop_params_scope)
+    }
+
+    // Helper: Process event handler parameters for symbol table
+    fn process_event_handler_parameters_symbol_table(
+        &mut self,
+        msg: &str,
+        parameters: &Vec<ParameterNode>,
+        is_declaring_event: bool
+    ) -> Result<(), ParseError> {
+        let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
+
+        if is_declaring_event {
+            // First time seeing this event - add parameters to symbol
+            let mut vec = Vec::new();
+            for param_node in parameters {
+                let param_symbol = ParameterSymbol::new(
+                    param_node.param_name.clone(),
+                    param_node.param_type_opt.clone(),
+                    IdentifierDeclScope::UnknownScope,
+                );
+                vec.push(param_symbol);
+            }
+            event_symbol_rcref.borrow_mut().event_symbol_params_opt = Some(vec);
+        } else {
+            // Validate parameters match previous declaration
+            if event_symbol_rcref.borrow().event_symbol_params_opt.is_none() && !parameters.is_empty() {
+                self.error_at_current(&format!(
+                    "Event handler {} parameters do not match a previous declaration.",
+                    msg
+                ));
+            }
+        }
+
+        // Set up parameter scope
+        let event_handler_params_scope_struct = EventHandlerParamsScopeSymbol::new(event_symbol_rcref);
+        let event_handler_params_scope_symbol_rcref = Rc::new(RefCell::new(event_handler_params_scope_struct));
+        let event_handler_params_scope = ParseScopeType::EventHandlerParams {
+            event_handler_params_scope_symbol_rcref,
+        };
+        self.arcanum.enter_scope(event_handler_params_scope);
+
+        // Process and validate individual parameters
+        self.process_individual_parameters(msg, parameters)?;
+
+        Ok(())
+    }
+
+    // Helper: Process individual parameters
+    fn process_individual_parameters(
+        &mut self,
+        msg: &str,
+        parameters: &Vec<ParameterNode>
+    ) -> Result<(), ParseError> {
+        let event_symbol_rcref = match self.arcanum.get_event(msg, &self.state_name_opt) {
+            Some(x) => x,
+            None => {
+                return Err(ParseError::new(&format!(
+                    "Fatal error - could not find event {}.",
+                    msg
+                )));
+            }
+        };
+
+        let mut event_handler_params_scope_symbol = EventHandlerParamsScopeSymbol::new(Rc::clone(&event_symbol_rcref));
+        let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
+        
+        let mut event_symbol_params_opt: Option<Vec<ParameterSymbol>> = None;
+
+        match &event_symbol_rcref.borrow().event_symbol_params_opt {
+            Some(symbol_params) => {
+                // Compare existing event symbol params with parsed ones
+                for (i, x) in symbol_params.iter().enumerate() {
+                    match parameters.get(i) {
+                        Some(parameter_node) => {
+                            if x.is_eq(parameter_node) {
+                                let scope = self.arcanum.get_current_identifier_scope();
+                                let symbol_type = event_handler_params_scope_symbol.add_parameter(
+                                    parameter_node.param_name.clone(),
+                                    parameter_node.param_type_opt.clone(),
+                                    scope,
+                                );
+                                self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+                                let ret = self.arcanum.insert_symbol(symbol_type);
+                                self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+                                if let Err(err_msg) = ret {
+                                    self.error_at_previous(err_msg.as_str());
+                                    return Err(ParseError::new(err_msg.as_str()));
+                                }
+                            } else {
+                                self.error_at_current(
+                                    "Parameters for event handler do not match declaration in interface or a previous event handler for the message.",
+                                );
+                            }
+                        }
+                        None => {
+                            self.error_at_current("Incorrect number of parameters");
+                        }
+                    }
+                }
+            }
+            None => {
+                // First time seeing parameters for this event
+                let mut event_symbol_params = Vec::new();
+
+                for param in parameters {
+                    let param_name = &param.param_name.clone();
+                    let mut param_type_opt: Option<TypeNode> = None;
+                    if param.param_type_opt.is_some() {
+                        let pt = &param.param_type_opt.as_ref().unwrap().clone();
+                        param_type_opt = Some(pt.clone());
+                    }
+                    let scope = self.arcanum.get_current_identifier_scope();
+                    let b = ParameterSymbol::new(
+                        param_name.clone(),
+                        param_type_opt.clone(),
+                        scope,
+                    );
+                    event_symbol_params.push(b);
+
+                    // Add to event handler scope symbol for scope chain lookups
+                    let scope = self.arcanum.get_current_identifier_scope();
+                    let x = event_handler_params_scope_symbol.add_parameter(
+                        param_name.clone(),
+                        param_type_opt.clone(),
+                        scope,
+                    );
+                    if let Err(err_msg) = self.arcanum.insert_symbol(x) {
+                        self.error_at_previous(err_msg.as_str());
+                        return Err(ParseError::new(err_msg.as_str()));
+                    }
+                }
+                event_symbol_params_opt = Some(event_symbol_params);
+            }
+        }
+
+        if let Some(parameter_symbols) = event_symbol_params_opt {
+            event_symbol_rcref.borrow_mut().event_symbol_params_opt = Some(parameter_symbols);
+        }
+
+        Ok(())
+    }
+
+    // Helper: Consume closing paren with error synchronization
+    fn consume_rparen_with_sync(&mut self) -> Result<(), ParseError> {
+        if self.consume(TokenType::RParen, "Expected ')'").is_err() {
+            let sync_tokens = vec![
+                TokenType::Colon,
+                TokenType::OpenBrace,
+            ];
+            self.synchronize(&sync_tokens);
+        }
+        Ok(())
+    }
+
+    // Helper: Parse event handler return type
+    fn parse_event_handler_return_type(&mut self, msg: &str, is_declaring_event: bool) -> Result<(), ParseError> {
+        if self.match_token(&[TokenType::Colon]) {
+            let return_type_opt = match self.type_decl() {
+                Ok(type_node) => Some(type_node),
+                Err(parse_error) => return Err(parse_error),
+            };
+            
+            if is_declaring_event {
+                // declaring event so add return type to event symbol
+                let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
+                event_symbol_rcref.borrow_mut().ret_type_opt = return_type_opt;
+            }
+            // Event handlers can have their own return type declarations
+        }
+        Ok(())
+    }
+
+    // Helper: Parse event handler return initialization
+    fn parse_event_handler_return_init(&mut self) -> Result<Option<ExprType>, ParseError> {
+        if self.match_token(&[TokenType::Equals]) {
+            match self.expression() {
+                Ok(Some(expr_type)) => Ok(Some(expr_type)),
+                Ok(None) => Ok(None),
+                Err(err) => Err(err),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    // Helper: Enter event handler local scope
+    fn enter_event_handler_local_scope(&mut self) -> Result<(), ParseError> {
+        if self.is_building_symbol_table {
+            let event_handler_local_scope_struct = EventHandlerLocalScopeSymbol::new();
+            let event_handler_local_scope_symbol_rcref =
+                Rc::new(RefCell::new(event_handler_local_scope_struct));
+            let event_handler_local_scope = ParseScopeType::EventHandlerLocal {
+                event_handler_local_scope_symbol_rcref,
+            };
+            self.arcanum.enter_scope(event_handler_local_scope);
+        } else {
+            if let Err(err) = self.arcanum.set_parse_scope(EventHandlerLocalScopeSymbol::scope_name()) {
+                return Err(ParseError::new(&format!("Failed to set event handler local scope: {}", err)));
+            }
+        }
+        Ok(())
+    }
+
+    // Helper: Parse event handler terminator
+    fn parse_event_handler_terminator(&mut self) -> Result<Option<TerminatorExpr>, ParseError> {
+        if self.match_token(&[TokenType::Return_]) {
+            let expr_t_opt = match self.expression() {
+                Ok(Some(expr_t)) => Some(expr_t),
+                Ok(None) => None,
+                Err(parse_error) => return Err(parse_error),
+            };
+
+            Ok(Some(TerminatorExpr::new(
+                Return,
+                expr_t_opt,
+                self.previous().line,
+            )))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn event_handler(&mut self, is_async: bool) -> Result<Option<EventHandlerNode>, ParseError> {
+        // Variables initialized at point of use - see line 3632-3635
+        self.interface_method_called = false;
+        self.event_handler_has_transition = false;
+
+        // consume single line comments
+        self.consume_event_handler_comments();
 
         //    let a = self.message();
 
@@ -4173,344 +4539,26 @@ impl<'a> Parser<'a> {
         //         }
         //     }
         // }
-        let message_node;
-        let tt = self.previous().token_type;
-        match tt {
-            TokenType::Identifier
-            | TokenType::EnterStateMsg
-            | TokenType::ExitStateMsg
+        // Parse and validate the event message
+        let (message_type, msg, line_number) = self.parse_event_message()?;
+        // Set up event symbol and scope
+        let is_declaring_event = self.setup_event_handler_scope(&msg)?;
 
-            => {
-                message_node = self.create_message_node(tt)
-            },
-            _ => {
-                let token_str = self.previous().lexeme.clone();
-                let err_msg = &format!("Invalid event type. Found {}. ", token_str);
-                self.error_at_current(err_msg);
-                return Err(ParseError::new(err_msg));
-            }
-        }
-        let message_type = MessageType::CustomMessage { message_node };
-        let id = self.previous();
-        let msg = id.lexeme.clone();
-        let line_number = id.line;
-        let mut is_declaring_event = false;
+        // Parse event handler parameters and handle scoping
+        let pop_params_scope = self.parse_event_handler_parameters(&msg, is_declaring_event)?;
 
-        if self.is_building_symbol_table {
-            let event_symbol_rcref;
-
-            // get or create the event symbol for the message we found
-            match self.arcanum.get_event(&*msg, &self.state_name_opt) {
-                Some(x) => {
-                    event_symbol_rcref = Rc::clone(&x);
-                }
-                None => {
-                    let event_symbol = EventSymbol::new(
-                        &self.arcanum.symbol_config,
-                        &msg,
-                        None,
-                        None,
-                        None,
-                        self.state_name_opt.clone(),
-                    );
-                    event_symbol_rcref = Rc::new(RefCell::new(event_symbol));
-                    self.arcanum.declare_event(Rc::clone(&event_symbol_rcref));
-
-                    // This is the first time we are seeing this event.
-                    // Set flag so parameters and return type are added to event symbol
-                    // during this parse.
-                    is_declaring_event = true;
-                }
-            }
-
-            // create the event handler symbol and enter the event handler scope
-            let event_handler_symbol =
-                EventHandlerScopeSymbol::new(&msg, Rc::clone(&event_symbol_rcref));
-            let event_handler_scope_symbol_rcref = Rc::new(RefCell::new(event_handler_symbol));
-
-            self.arcanum.enter_scope(ParseScopeType::EventHandler {
-                event_handler_scope_symbol_rcref,
-            });
-        } else {
-            if let Err(err) = self.arcanum.set_parse_scope(&msg) {
-                return Err(ParseError::new(&format!("Failed to set event handler scope '{}': {}", msg, err)));
-            }
-        }
-
-        // Remember to pop param scope at end if it is entered.
-        let mut pop_params_scope = false;
-
-        // Parse event handler parameters
-        if self.match_token(&[TokenType::LParen]) {
-            if msg == self.arcanum.symbol_config.enter_msg_symbol {
-                self.generate_state_context = true;
-            }
-
-            match self.parameters() {
-                Ok(Some(parameters)) => {
-                    // have parsed params - make sure they match w/ symbol
-                    // pop scope at end.
-                    pop_params_scope = true;
-                    if self.is_building_symbol_table {
-                        let event_symbol_rcref =
-                            self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
-
-                        // if this is the first encounter w/ this event
-                        // then add parameters to the event symbol.
-                        // TODO: Not sure how this overlaps w/ the symbol table
-                        // having an event parameter scope but maybe (probably is)
-                        // duplicative.
-
-                        if is_declaring_event {
-                            // add the parameters to the symbol
-                            let mut vec = Vec::new();
-                            for param_node in &parameters {
-                                let param_symbol = ParameterSymbol::new(
-                                    param_node.param_name.clone(),
-                                    param_node.param_type_opt.clone(),
-                                    IdentifierDeclScope::UnknownScope,
-                                );
-                                vec.push(param_symbol);
-                            }
-                            event_symbol_rcref.borrow_mut().event_symbol_params_opt = Some(vec);
-                        } else {
-                            // validate event handler's parameters match the event symbol's parameters
-                            if event_symbol_rcref
-                                .borrow()
-                                .event_symbol_params_opt
-                                .is_none()
-                                && !parameters.is_empty()
-                            {
-                                self.error_at_current(&format!("Event handler {} parameters do not match a previous declaration."
-                                                               , msg
-                                ));
-                            }
-                        }
-
-                        let event_handler_params_scope_struct =
-                            EventHandlerParamsScopeSymbol::new(event_symbol_rcref);
-                        let event_handler_params_scope_symbol_rcref =
-                            Rc::new(RefCell::new(event_handler_params_scope_struct));
-                        let event_handler_params_scope = ParseScopeType::EventHandlerParams {
-                            event_handler_params_scope_symbol_rcref,
-                        };
-                        self.arcanum.enter_scope(event_handler_params_scope);
-                        let mut event_symbol_params_opt: Option<Vec<ParameterSymbol>> = None;
-
-                        let event_symbol_rcref =
-                            match self.arcanum.get_event(&msg, &self.state_name_opt) {
-                                Some(x) => x,
-                                None => {
-                                    return Err(ParseError::new(&format!(
-                                        "Fatal error - could not find event {}.",
-                                        msg
-                                    )));
-                                }
-                            };
-
-                        let mut event_handler_params_scope_symbol =
-                            EventHandlerParamsScopeSymbol::new(Rc::clone(&event_symbol_rcref));
-                        let event_symbol_rcref =
-                            self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
-                        {
-                            match &event_symbol_rcref.borrow().event_symbol_params_opt {
-                                Some(symbol_params) => {
-                                    // compare existing event symbol params w/ parsed ones
-                                    for (i, x) in symbol_params.iter().enumerate() {
-                                        match parameters.get(i) {
-                                            Some(parameter_node) => {
-                                                if x.is_eq(parameter_node) {
-                                                    let scope =
-                                                        self.arcanum.get_current_identifier_scope();
-                                                    let symbol_type =
-                                                        event_handler_params_scope_symbol
-                                                            .add_parameter(
-                                                                parameter_node.param_name.clone(),
-                                                                parameter_node
-                                                                    .param_type_opt
-                                                                    .clone(),
-                                                                scope,
-                                                            );
-                                                    self.arcanum.debug_print_current_symbols(
-                                                        self.arcanum.get_current_symtab(),
-                                                    );
-                                                    let ret =
-                                                        self.arcanum.insert_symbol(symbol_type);
-                                                    self.arcanum.debug_print_current_symbols(
-                                                        self.arcanum.get_current_symtab(),
-                                                    );
-                                                    match ret {
-                                                        Ok(()) => {}
-                                                        Err(err_msg) => {
-                                                            self.error_at_previous(
-                                                                err_msg.as_str(),
-                                                            );
-                                                            return Err(ParseError::new(
-                                                                err_msg.as_str(),
-                                                            ));
-                                                        }
-                                                    }
-                                                } else {
-                                                    // TODO
-                                                    self.error_at_current(
-                                                        "Parameters for event handler do not match declaration in interface or a previous event handler for the message.",
-                                                    );
-                                                }
-                                            }
-                                            None => {
-                                                self.error_at_current(
-                                                    "Incorrect number of parameters",
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                                None => {
-                                    // this is the first time we've seen parameters for this event.
-                                    // Take them as the definitive list.
-                                    let mut event_symbol_params = Vec::new();
-
-                                    for param in &parameters {
-                                        let param_name = &param.param_name.clone();
-                                        let mut param_type_opt: Option<TypeNode> = None;
-                                        if param.param_type_opt.is_some() {
-                                            let pt =
-                                                &param.param_type_opt.as_ref().unwrap().clone();
-                                            param_type_opt = Some(pt.clone());
-                                        }
-                                        let scope = self.arcanum.get_current_identifier_scope();
-                                        let b = ParameterSymbol::new(
-                                            param_name.clone(),
-                                            param_type_opt.clone(),
-                                            scope,
-                                        );
-                                        // add to Arcanum event symbol
-                                        event_symbol_params.push(b);
-
-                                        // add to event handler scope symbol (needed for lookups using the scope chain)
-                                        let scope = self.arcanum.get_current_identifier_scope();
-                                        let x = event_handler_params_scope_symbol.add_parameter(
-                                            param_name.clone(),
-                                            param_type_opt.clone(),
-                                            scope,
-                                        );
-                                        let ret = self.arcanum.insert_symbol(x);
-                                        match ret {
-                                            Ok(()) => {}
-                                            Err(err_msg) => {
-                                                self.error_at_previous(err_msg.as_str());
-                                                return Err(ParseError::new(err_msg.as_str()));
-                                            }
-                                        }
-                                    }
-                                    event_symbol_params_opt = Some(event_symbol_params);
-                                }
-                            }
-                        }
-                        if let Some(parameter_symbols) = event_symbol_params_opt {
-                            event_symbol_rcref.borrow_mut().event_symbol_params_opt =
-                                Some(parameter_symbols)
-                        }
-                    } else {
-                        // leave these comments to show how to debug scope errors.
-                        //                       self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
-                        if let Err(err) = self.arcanum.set_parse_scope(EventHandlerParamsScopeSymbol::scope_name()) {
-                            return Err(ParseError::new(&format!("Failed to set event handler params scope: {}", err)));
-                        }
-                        //                       self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
-                    }
-                }
-                Ok(None) => { },
-                Err(parse_error) => return Err(parse_error),
-            }
-        } else {
-            // no parameter list
-            let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
-            if event_symbol_rcref
-                .borrow()
-                .event_symbol_params_opt
-                .is_some()
-            {
-                self.error_at_current(&format!(
-                    "Event handler {} parameters do not match a previous declaration.",
-                    msg
-                ));
-            }
-        }
-
-        if self.consume(TokenType::RParen, "Expected ')'").is_err() {
-            let sync_tokens = vec![
-                TokenType::Colon,
-                TokenType::OpenBrace,
-            ];
-            self.synchronize(&sync_tokens);
-            // TODO: Look how to readd these:
-            // if !self.follows(
-            //     self.peek(),
-            //     &[
-            //         TokenType::Colon,
-            //         TokenType::OpenBrace,],
-            // ) {
-            //     return Err(ParseError::new(&format!("Unparseable state {}",state_name)));
-            // }
-        }
-
-        // Parse return type
-        if self.match_token(&[TokenType::Colon]) {
-            let return_type_opt;
-            match self.type_decl() {
-                Ok(type_node) => return_type_opt = Some(type_node),
-                Err(parse_error) => return Err(parse_error),
-            }
-            if is_declaring_event {
-                // declaring event so add return type to event symbol
-                // let id = self.previous();
-                // let return_type = id.lexeme.clone();
-
-                let event_symbol_rcref =
-                    self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
-                event_symbol_rcref.borrow_mut().ret_type_opt = return_type_opt;
-            } else {
-                // Event handlers can have their own return type declarations for overriding
-                // the default system.return value, so we don't need to match interface types
-                // Just store the return type for the event handler
-            }
-        } else {
-            // no declared return type - this is OK for event handlers
-            // Event handlers work with system.return, they don't need to match interface return types
-        }
+        // Consume closing paren and handle return type
+        self.consume_rparen_with_sync()?;
+        self.parse_event_handler_return_type(&msg, is_declaring_event)?;
         
         // Parse default return value for event handler: = value
-        let mut event_handler_return_init_expr_opt: Option<ExprType> = None;
-        if self.match_token(&[TokenType::Equals]) {
-            let return_expr_result = self.expression();
-            match return_expr_result {
-                Ok(Some(expr_type)) => {
-                    event_handler_return_init_expr_opt = Some(expr_type);
-                }
-                Ok(None) => {}
-                Err(err) => {
-                    return Err(err);
-                }
-            }
-        }
+        let event_handler_return_init_expr_opt = self.parse_event_handler_return_init()?;
 
         let _ = self.consume(TokenType::OpenBrace, "Expected '{'");
 
-        if self.is_building_symbol_table {
-            let event_handler_local_scope_struct = EventHandlerLocalScopeSymbol::new();
-            let event_handler_local_scope_symbol_rcref =
-                Rc::new(RefCell::new(event_handler_local_scope_struct));
-            let event_handler_local_scope = ParseScopeType::EventHandlerLocal {
-                event_handler_local_scope_symbol_rcref,
-            };
-            self.arcanum.enter_scope(event_handler_local_scope);
-        } else {
-            if let Err(err) = self.arcanum.set_parse_scope(EventHandlerLocalScopeSymbol::scope_name()) {
-                return Err(ParseError::new(&format!("Failed to set event handler local scope: {}", err)));
-            }
-        }
-
+        // Set up local scope and parse body
+        self.enter_event_handler_local_scope()?;
+        
         let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
@@ -4537,28 +4585,8 @@ impl<'a> Parser<'a> {
         //     }
         // };
 
-        // Check for optional terminators
-        let mut terminator_node_opt: Option<TerminatorExpr> = None;
-
-        if self.match_token(&[TokenType::Return_]) {
-            let mut expr_t_opt: Option<ExprType> = None;
-            let return_expr_result = self.expression();
-            match return_expr_result {
-                Ok(Some(expr_t)) => {
-                    expr_t_opt = Some(expr_t)
-                },
-                Ok(None) => {},
-                Err(parse_error) => {
-                    return Err(parse_error);
-                }
-            }
-
-            terminator_node_opt = Some(TerminatorExpr::new(
-                Return,
-                expr_t_opt,
-                self.previous().line,
-            ));
-        }
+        // Parse optional terminator
+        let terminator_node_opt = self.parse_event_handler_terminator()?;
 
         let _ = self.consume(TokenType::CloseBrace, "Expected '}'");
 
@@ -4813,28 +4841,14 @@ impl<'a> Parser<'a> {
 
     // statement ->
 
-    fn statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-        let mut expr_t_opt: Option<ExprType> = None;
-
-        // Due to Frame test and transition syntax, we need to get the first expression
-        // and then see if it is an expression in the "first set" of expressions for tests
-        // and transitions.
-
+    // Helper: Parse initial expression for statement processing
+    fn parse_statement_expression(&mut self) -> Option<ExprType> {
         match self.expression() {
-            Ok(Some(expr_t)) => {
-                match expr_t {
-                    _ => {
-                        // TODO - remove
-                        // let debug = 1;
-                    }
-                }
-                expr_t_opt = Some(expr_t)
-            }
-            Ok(None) => expr_t_opt = None,
+            Ok(Some(expr_t)) => Some(expr_t),
+            Ok(None) => None,
             Err(_) => {
                 let sync_tokens = vec![
                     TokenType::CloseBrace,
-                    // TokenType::Caret, // Removed - old return syntax
                     TokenType::Identifier,
                     TokenType::Pipe,
                     TokenType::State,
@@ -4843,8 +4857,293 @@ impl<'a> Parser<'a> {
                     TokenType::CloseBrace,
                 ];
                 self.synchronize(&sync_tokens);
+                None
             }
         }
+    }
+
+    // Helper: Parse control flow statements (if, for, while, etc.)
+    fn parse_control_flow_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        if self.match_token(&[TokenType::If]) {
+            return match self.if_statement() {
+                Ok(Some(if_stmt_t)) => Ok(Some(if_stmt_t)),
+                Ok(None) => Err(ParseError::new("TODO")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::Try]) {
+            return match self.try_statement() {
+                Ok(Some(try_stmt_t)) => Ok(Some(try_stmt_t)),
+                Ok(None) => Err(ParseError::new("Expected try statement")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::Raise]) {
+            return match self.raise_statement() {
+                Ok(Some(raise_stmt_t)) => Ok(Some(raise_stmt_t)),
+                Ok(None) => Err(ParseError::new("Expected raise statement")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        // Check for 'async with' or 'with' statements
+        if self.match_token(&[TokenType::Async]) {
+            if self.match_token(&[TokenType::With]) {
+                return match self.with_statement(true) {
+                    Ok(Some(with_stmt_t)) => Ok(Some(with_stmt_t)),
+                    Ok(None) => Err(ParseError::new("Expected async with statement")),
+                    Err(parse_error) => Err(parse_error),
+                };
+            } else {
+                // If we matched 'async' but not 'with', it's an error
+                return Err(ParseError::new("Expected 'with' after 'async' keyword"));
+            }
+        }
+
+        if self.match_token(&[TokenType::With]) {
+            return match self.with_statement(false) {
+                Ok(Some(with_stmt_t)) => Ok(Some(with_stmt_t)),
+                Ok(None) => Err(ParseError::new("Expected with statement")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::For]) {
+            return match self.for_statement() {
+                Ok(Some(for_stmt_t)) => Ok(Some(for_stmt_t)),
+                Ok(None) => Err(ParseError::new("TODO")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::While]) {
+            return match self.while_statement() {
+                Ok(Some(while_stmt_t)) => Ok(Some(while_stmt_t)),
+                Ok(None) => Err(ParseError::new("TODO")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::Loop]) {
+            // Emit deprecation warning
+            eprintln!("Warning: 'loop' keyword is deprecated. Use 'while true' instead.");
+            return match self.loop_statement_scope() {
+                Ok(Some(loop_stmt_t)) => Ok(Some(loop_stmt_t)),
+                Ok(None) => Err(ParseError::new("TODO")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::OpenBrace]) {
+            return match self.block_scope() {
+                Ok(block_stmt_t) => Ok(Some(block_stmt_t)),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
+        if self.match_token(&[TokenType::Continue]) {
+            let continue_stmt_node = ContinueStmtNode::new();
+            return Ok(Some(StatementType::ContinueStmt { continue_stmt_node }));
+        }
+        
+        if self.match_token(&[TokenType::Break]) {
+            let break_stmt_node = BreakStmtNode::new();
+            return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
+        }
+        
+        if self.match_token(&[TokenType::Return_]) {
+            return self.parse_return_statement();
+        }
+
+        Ok(None)
+    }
+
+    // Helper: Parse return statement
+    fn parse_return_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Check if this is an incorrect return assignment: "return = expr"
+        if self.check(TokenType::Equals) {
+            // This is the deprecated "return = expr" syntax - provide helpful error
+            let err_msg = "Syntax error: 'return = value' is not valid. Use 'system.return = value' to set the interface method return value, or use 'return value' for a regular return statement.";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // Regular return statement: "return expr?"
+        let expr_t_opt = match self.expression() {
+            Ok(Some(expr_t)) => Some(expr_t),
+            Ok(None) => None,
+            Err(parse_error) => return Err(parse_error),
+        };
+        
+        let return_stmt_node = ReturnStmtNode::new(expr_t_opt);
+        Ok(Some(StatementType::ReturnStmt { return_stmt_node }))
+    }
+
+    // Helper: Convert expression to statement
+    fn convert_expression_to_statement(&mut self, expr_t: ExprType) -> Result<Option<StatementType>, ParseError> {
+        use ExprType::*;
+        
+        match expr_t {
+            SystemInstanceExprT { system_instance_expr_node } => {
+                let system_instance_stmt_node = SystemInstanceStmtNode::new(system_instance_expr_node);
+                let expr_stmt_t = SystemInstanceStmtT { system_instance_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            SystemTypeExprT { system_type_expr_node } => {
+                let system_type_stmt_node = SystemTypeStmtNode::new(system_type_expr_node);
+                let expr_stmt_t = SystemTypeStmtT { system_type_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            ListT { list_node } => {
+                let list_stmt_node = ListStmtNode::new(list_node);
+                let expr_stmt_t = ListStmtT { list_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            DictLiteralT { .. } => {
+                self.error_at_previous("Dictionary literal expressions not allowed as statements.");
+                Err(ParseError::new("Dictionary literal must be part of an assignment or expression"))
+            }
+            SetLiteralT { .. } => {
+                self.error_at_previous("Set literal expressions not allowed as statements.");
+                Err(ParseError::new("Set literal must be part of an assignment or expression"))
+            }
+            TupleLiteralT { .. } => {
+                self.error_at_previous("Tuple literal expressions not allowed as statements.");
+                Err(ParseError::new("Tuple literal must be part of an assignment or expression"))
+            }
+            ExprListT { expr_list_node } => {
+                // path for transitions **with** an exit params group
+                if self.match_token(&[TokenType::Transition]) {
+                    match self.transition(Some(expr_list_node)) {
+                        Ok(transition_statement_node) => {
+                            let statement_type = StatementType::TransitionStmt {
+                                transition_statement_node,
+                            };
+                            Ok(Some(statement_type))
+                        }
+                        Err(parse_err) => Err(parse_err),
+                    }
+                } else {
+                    // Just a group not associated with a transition.
+                    let expr_list_stmt_node = ExprListStmtNode::new(expr_list_node);
+                    let expr_stmt_t = ExprListStmtT { expr_list_stmt_node };
+                    Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+                }
+            }
+            CallExprT { call_expr_node } => {
+                let call_stmt_node = CallStmtNode::new(call_expr_node);
+                let expr_stmt_t = CallStmtT { call_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            CallExprListT { .. } => {
+                // this should never happen as it is the () in a call like foo()
+                Err(ParseError::new("TODO"))
+            }
+            VariableExprT { var_node } => {
+                let variable_stmt_node = VariableStmtNode::new(var_node);
+                let expr_stmt_t = VariableStmtT { variable_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            ActionCallExprT { action_call_expr_node } => {
+                let action_call_stmt_node = ActionCallStmtNode::new(action_call_expr_node);
+                let expr_stmt_t = ActionCallStmtT { action_call_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            CallChainExprT { call_chain_expr_node } => {
+                let call_chain_literal_stmt_node = CallChainStmtNode::new(call_chain_expr_node);
+                let expr_stmt_t = CallChainStmtT { call_chain_literal_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            StateStackOperationExprT { state_stack_op_node } => {
+                let state_stack_operation_statement_node =
+                    StateStackOperationStatementNode::new(state_stack_op_node);
+                Ok(Some(StatementType::StateStackStmt {
+                    state_stack_operation_statement_node,
+                }))
+            }
+            AssignmentExprT { assignment_expr_node } => {
+                let assignment_stmt_node = AssignmentStmtNode::new(assignment_expr_node);
+                let expr_stmt_t = AssignmentStmtT { assignment_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            EnumeratorExprT { enum_expr_node } => {
+                let enumerator_stmt_node = EnumeratorStmtNode::new(enum_expr_node);
+                let expr_stmt_t = EnumeratorStmtT { enumerator_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            BinaryExprT { binary_expr_node } => {
+                let binary_stmt_node = BinaryStmtNode::new(binary_expr_node);
+                let expr_stmt_t = BinaryStmtT { binary_stmt_node };
+                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+            }
+            LiteralExprT { .. } => {
+                self.error_at_previous("Literal statements not allowed.");
+                Err(ParseError::new("TODO"))
+            }
+            TransitionExprT { transition_expr_node } => {
+                let transition_statement_node =
+                    TransitionStatementNode::new(transition_expr_node, None);
+                Ok(Some(StatementType::TransitionStmt {
+                    transition_statement_node,
+                }))
+            }
+            FrameEventExprT { .. } => {
+                self.error_at_previous("Frame Event statements not allowed.");
+                Err(ParseError::new("TODO"))
+            }
+            UnaryExprT { .. } => {
+                self.error_at_previous("Unary expression statements not allowed.");
+                Err(ParseError::new("TODO"))
+            }
+            NilExprT => {
+                panic!("Unexpected use of ExprType::NilExprT");
+            }
+            SelfExprT { .. } => {
+                panic!("Unexpected use of ExprType::SelfExprT");
+            }
+            DefaultLiteralValueForTypeExprT => {
+                panic!("Unexpected use of ExprType::DefaultLiteralValueForTypeExprT");
+            }
+            UnpackExprT { .. } | DictUnpackExprT { .. } => {
+                self.error_at_previous("Unpacking expressions not allowed as statements.");
+                Err(ParseError::new("Unpacking must be part of an assignment or function call"))
+            }
+            ListComprehensionExprT { .. } => {
+                self.error_at_previous("List comprehension expressions not allowed as statements.");
+                Err(ParseError::new("List comprehension must be part of an assignment or expression"))
+            }
+            AwaitExprT { await_expr_node } => {
+                // Await expressions can be statements (like await some_async_call())
+                let expr_list_node = ExprListNode::new(vec![AwaitExprT { await_expr_node }]);
+                let stmt = StatementType::ExpressionStmt {
+                    expr_stmt_t: ExprListStmtT {
+                        expr_list_stmt_node: ExprListStmtNode::new(expr_list_node),
+                    },
+                };
+                Ok(Some(stmt))
+            }
+            DictComprehensionExprT { .. } => {
+                self.error_at_previous("Dictionary comprehension expressions not allowed as statements.");
+                Err(ParseError::new("Dictionary comprehension must be part of an assignment or expression"))
+            }
+            LambdaExprT { .. } => {
+                self.error_at_previous("Lambda expressions not allowed as statements.");
+                Err(ParseError::new("Lambda expression must be part of an assignment or expression"))
+            }
+            FunctionRefT { .. } => {
+                self.error_at_previous("Function reference expressions not allowed as statements.");
+                Err(ParseError::new("Function reference must be part of an assignment or call"))
+            }
+        }
+    }
+
+    fn statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Due to Frame test and transition syntax, we need to get the first expression
+        // and then see if it is an expression in the "first set" of expressions for tests
+        // and transitions.
+        let expr_t_opt = self.parse_statement_expression();
 
         // if there was an expression found, now see if it is valid to start a test.
 
@@ -4936,209 +5235,7 @@ impl<'a> Parser<'a> {
                 */
 
                 // Not a test statement. Now see if we are at an expression statement.
-
-                match expr_t {
-                    SystemInstanceExprT {
-                        system_instance_expr_node,
-                    } => {
-                        let system_instance_stmt_node =
-                            SystemInstanceStmtNode::new(system_instance_expr_node);
-                        let expr_stmt_t: ExprStmtType = SystemInstanceStmtT {
-                            system_instance_stmt_node,
-                        };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
-                    SystemTypeExprT {
-                        system_type_expr_node,
-                    } => {
-                        let system_type_stmt_node = SystemTypeStmtNode::new(system_type_expr_node);
-                        let expr_stmt_t: ExprStmtType = SystemTypeStmtT {
-                            system_type_stmt_node,
-                        };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
-                    ListT { list_node } => {
-                        // Just a group not associated with a transition.
-                        let list_stmt_node = ListStmtNode::new(list_node);
-                        let expr_stmt_t = ListStmtT { list_stmt_node };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                        // }
-                    }
-                    DictLiteralT { .. } => {
-                        // Dictionary literals are not valid as statements on their own
-                        self.error_at_previous("Dictionary literal expressions not allowed as statements.");
-                        return Err(ParseError::new("Dictionary literal must be part of an assignment or expression"));
-                    }
-                    SetLiteralT { .. } => {
-                        // Set literals are not valid as statements on their own
-                        self.error_at_previous("Set literal expressions not allowed as statements.");
-                        return Err(ParseError::new("Set literal must be part of an assignment or expression"));
-                    }
-                    TupleLiteralT { .. } => {
-                        // Tuple literals are not valid as statements on their own
-                        self.error_at_previous("Tuple literal expressions not allowed as statements.");
-                        return Err(ParseError::new("Tuple literal must be part of an assignment or expression"));
-                    }
-                    ExprListT { expr_list_node } => {
-                        // path for transitions **with** an exit params group
-                        if self.match_token(&[TokenType::Transition]) {
-                            match self.transition(Some(expr_list_node)) {
-                                Ok(transition_statement_node) => {
-                                    let statement_type = StatementType::TransitionStmt {
-                                        transition_statement_node,
-                                    };
-                                    return Ok(Some(statement_type));
-                                }
-                                Err(parse_err) => return Err(parse_err),
-                            }
-                        } else {
-                            // Just a group not associated with a transition.
-                            let expr_list_stmt_node = ExprListStmtNode::new(expr_list_node);
-                            let expr_stmt_t = ExprListStmtT {
-                                expr_list_stmt_node,
-                            };
-                            return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                        }
-                    }
-                    CallExprT { call_expr_node } => {
-                        let call_stmt_node = CallStmtNode::new(call_expr_node);
-                        let expr_stmt_t: ExprStmtType = CallStmtT { call_stmt_node };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
-                    CallExprListT { .. } => {
-                        // this should never happen as it is the () in a call like foo()
-                        return Err(ParseError::new("TODO"));
-                    }
-                    VariableExprT { var_node } => {
-                        // @TODO this doesn't seem to ever be triggered.
-                        // The callChain seems to superseed it.
-                        let variable_stmt_node = VariableStmtNode::new(var_node);
-                        let expr_stmt_t: ExprStmtType =
-                            ExprStmtType::VariableStmtT { variable_stmt_node };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
-                    // TODO: remove this - doesn't make any sense
-                    ActionCallExprT {
-                        action_call_expr_node,
-                    } => {
-                        let action_call_stmt_node = ActionCallStmtNode::new(action_call_expr_node);
-                        let expr_stmt_t: ExprStmtType = ActionCallStmtT {
-                            action_call_stmt_node,
-                        };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
-                    CallChainExprT {
-                        call_chain_expr_node,
-                    } => {
-                        let call_chain_literal_stmt_node =
-                            CallChainStmtNode::new(call_chain_expr_node);
-                        let expr_stmt_t: ExprStmtType = ExprStmtType::CallChainStmtT {
-                            call_chain_literal_stmt_node,
-                        };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
-                    // TODO: $$[+] isn't a true expression as there is no return value defined (yet)
-                    // Could define it to return the pushed context.
-                    StateStackOperationExprT {
-                        state_stack_op_node,
-                    } => {
-                        let state_stack_operation_statement_node =
-                            StateStackOperationStatementNode::new(state_stack_op_node);
-                        return Ok(Some(StatementType::StateStackStmt {
-                            state_stack_operation_statement_node,
-                        }));
-                    }
-                    AssignmentExprT {
-                        assignment_expr_node,
-                    } => {
-                        let assignment_stmt_node = AssignmentStmtNode::new(assignment_expr_node);
-                        let expr_stmt_t: ExprStmtType = ExprStmtType::AssignmentStmtT {
-                            assignment_stmt_node,
-                        };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
-                    EnumeratorExprT { enum_expr_node } => {
-                        let enumerator_stmt_node = EnumeratorStmtNode::new(enum_expr_node);
-                        let expr_stmt_t: ExprStmtType = ExprStmtType::EnumeratorStmtT {
-                            enumerator_stmt_node,
-                        };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
-                    BinaryExprT { binary_expr_node } => {
-                        let binary_stmt_node = BinaryStmtNode::new(binary_expr_node);
-                        let expr_stmt_t: ExprStmtType =
-                            ExprStmtType::BinaryStmtT { binary_stmt_node };
-                        return Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }));
-                    }
-                    LiteralExprT { literal_expr_node: _ } => {
-                        // Superstring is the only permitted literal type to be a statement.
-                        // SuperString/backtick support removed - no longer create SuperStringStmt
-                        self.error_at_previous("Literal statements not allowed.");
-                        return Err(ParseError::new("TODO"));
-                    }
-                    TransitionExprT {
-                        transition_expr_node,
-                    } => {
-                        let transition_statement_node =
-                            TransitionStatementNode::new(transition_expr_node, None);
-                        return Ok(Some(StatementType::TransitionStmt {
-                            transition_statement_node,
-                        }));
-                    }
-                    FrameEventExprT { .. } => {
-                        self.error_at_previous("Frame Event statements not allowed.");
-                        return Err(ParseError::new("TODO"));
-                    }
-                    UnaryExprT { .. } => {
-                        self.error_at_previous("Unary expression statements not allowed.");
-                        return Err(ParseError::new("TODO"));
-                    }
-                    ExprType::NilExprT => {
-                        panic!("Unexpect use of ExprType::NilExprT");
-                    }
-                    ExprType::SelfExprT{..} => {
-                        panic!("Unexpect use of ExprType::SelfExprT");
-                    }
-                    ExprType::DefaultLiteralValueForTypeExprT => {
-                        panic!("Unexpect use of ExprType::DefaultLiteralValueForTypeExprT");
-                    }
-                    ExprType::UnpackExprT { .. } | ExprType::DictUnpackExprT { .. } => {
-                        // Unpacking expressions are not valid as statements on their own
-                        self.error_at_previous("Unpacking expressions not allowed as statements.");
-                        return Err(ParseError::new("Unpacking must be part of an assignment or function call"));
-                    }
-                    ExprType::ListComprehensionExprT { .. } => {
-                        // List comprehensions are not valid as statements on their own
-                        self.error_at_previous("List comprehension expressions not allowed as statements.");
-                        return Err(ParseError::new("List comprehension must be part of an assignment or expression"));
-                    }
-                    ExprType::AwaitExprT { await_expr_node } => {
-                        // Await expressions can be statements (like await some_async_call())
-                        let expr_list_node = ExprListNode::new(vec![ExprType::AwaitExprT { await_expr_node }]);
-                        let stmt = StatementType::ExpressionStmt {
-                            expr_stmt_t: ExprStmtType::ExprListStmtT {
-                                expr_list_stmt_node: ExprListStmtNode::new(expr_list_node),
-                            },
-                        };
-                        return Ok(Some(stmt));
-                    }
-                    ExprType::DictComprehensionExprT { .. } => {
-                        // Dictionary comprehensions are not valid as statements on their own
-                        self.error_at_previous("Dictionary comprehension expressions not allowed as statements.");
-                        return Err(ParseError::new("Dictionary comprehension must be part of an assignment or expression"));
-                    }
-                    ExprType::LambdaExprT { .. } => {
-                        // Lambda expressions are not valid as statements on their own
-                        self.error_at_previous("Lambda expressions not allowed as statements.");
-                        return Err(ParseError::new("Lambda expression must be part of an assignment or expression"));
-                    }
-                    ExprType::FunctionRefT { .. } => {
-                        // Function references are not valid as statements on their own
-                        self.error_at_previous("Function reference expressions not allowed as statements.");
-                        return Err(ParseError::new("Function reference must be part of an assignment or call"));
-                    }
-                    // Removed SliceExprT check - slicing is handled through call chains
-                }
+                return self.convert_expression_to_statement(expr_t);
             }
             None => {
                 // This path is for transitions w/o an exit params group
@@ -5191,120 +5288,9 @@ impl<'a> Parser<'a> {
         // }
 
 
-        // Removed: ^= expr syntax (replaced with "return = expr" in v0.20)
-
-        if self.match_token(&[TokenType::If]) {
-            return match self.if_statement() {
-                Ok(Some(if_stmt_t)) => Ok(Some(if_stmt_t)),
-                Ok(None) => Err(ParseError::new("TODO")),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
-
-        if self.match_token(&[TokenType::Try]) {
-            return match self.try_statement() {
-                Ok(Some(try_stmt_t)) => Ok(Some(try_stmt_t)),
-                Ok(None) => Err(ParseError::new("Expected try statement")),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
-
-        if self.match_token(&[TokenType::Raise]) {
-            return match self.raise_statement() {
-                Ok(Some(raise_stmt_t)) => Ok(Some(raise_stmt_t)),
-                Ok(None) => Err(ParseError::new("Expected raise statement")),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
-
-        // Check for 'async with' or 'with' statements
-        if self.match_token(&[TokenType::Async]) {
-            if self.match_token(&[TokenType::With]) {
-                return match self.with_statement(true) {
-                    Ok(Some(with_stmt_t)) => Ok(Some(with_stmt_t)),
-                    Ok(None) => Err(ParseError::new("Expected async with statement")),
-                    Err(parse_error) => Err(parse_error),
-                };
-            } else {
-                // If we matched 'async' but not 'with', it's an error
-                return Err(ParseError::new("Expected 'with' after 'async' keyword"));
-            }
-        }
-
-        if self.match_token(&[TokenType::With]) {
-            return match self.with_statement(false) {
-                Ok(Some(with_stmt_t)) => Ok(Some(with_stmt_t)),
-                Ok(None) => Err(ParseError::new("Expected with statement")),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
-
-        if self.match_token(&[TokenType::For]) {
-            return match self.for_statement() {
-                Ok(Some(for_stmt_t)) => Ok(Some(for_stmt_t)),
-                Ok(None) => Err(ParseError::new("TODO")),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
-
-        if self.match_token(&[TokenType::While]) {
-            return match self.while_statement() {
-                Ok(Some(while_stmt_t)) => Ok(Some(while_stmt_t)),
-                Ok(None) => Err(ParseError::new("TODO")),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
-
-        if self.match_token(&[TokenType::Loop]) {
-            // Emit deprecation warning
-            eprintln!("Warning: 'loop' keyword is deprecated. Use 'while true' instead.");
-            return match self.loop_statement_scope() {
-                Ok(Some(loop_stmt_t)) => Ok(Some(loop_stmt_t)),
-                Ok(None) => Err(ParseError::new("TODO")),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
-
-        if self.match_token(&[TokenType::OpenBrace]) {
-            return match self.block_scope() {
-                Ok(block_stmt_t) => Ok(Some(block_stmt_t)),
-                Err(parse_error) => Err(parse_error),
-            };
-        }
-
-        if self.match_token(&[TokenType::Continue]) {
-            let continue_stmt_node = ContinueStmtNode::new();
-            return Ok(Some(StatementType::ContinueStmt { continue_stmt_node }));
-        }
-        if self.match_token(&[TokenType::Break]) {
-            let break_stmt_node = BreakStmtNode::new();
-            return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
-        }
-        
-        if self.match_token(&[TokenType::Return_]) {
-            // Check if this is an incorrect return assignment: "return = expr"
-            if self.check(TokenType::Equals) {
-                // This is the deprecated "return = expr" syntax - provide helpful error
-                let err_msg = "Syntax error: 'return = value' is not valid. Use 'system.return = value' to set the interface method return value, or use 'return value' for a regular return statement.";
-                self.error_at_current(err_msg);
-                return Err(ParseError::new(err_msg));
-            } else {
-                // Regular return statement: "return expr?" 
-                let mut expr_t_opt: Option<ExprType> = None;
-                let return_expr_result = self.expression();
-                match return_expr_result {
-                    Ok(Some(expr_t)) => {
-                        expr_t_opt = Some(expr_t)
-                    },
-                    Ok(None) => {},
-                    Err(parse_error) => {
-                        return Err(parse_error);
-                    }
-                }
-                
-                let return_stmt_node = ReturnStmtNode::new(expr_t_opt);
-                return Ok(Some(StatementType::ReturnStmt { return_stmt_node }));
-            }
+        // Check for control flow statements
+        if let Some(stmt) = self.parse_control_flow_statement()? {
+            return Ok(Some(stmt));
         }
         
         // if self.match_token(&[TokenType::OpenBrace]) {
@@ -6442,38 +6428,202 @@ impl<'a> Parser<'a> {
 
     // unary_expression -> TODO
 
-    fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+    // Helper: Parse await expression
+    fn parse_await_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         use crate::frame_c::ast::ExprType::AwaitExprT;
         
-        // v0.35: Handle await expressions
-        if self.match_token(&[TokenType::Await]) {
-            let expr_result = self.unary_expression()?;
-            if let Some(expr) = expr_result {
-                let await_expr_node = AwaitExprNode::new(expr);
-                return Ok(Some(AwaitExprT { await_expr_node }));
-            } else {
-                return Err(ParseError::new("Expected expression after 'await'"));
-            }
+        let expr_result = self.unary_expression()?;
+        if let Some(expr) = expr_result {
+            let await_expr_node = AwaitExprNode::new(expr);
+            Ok(Some(AwaitExprT { await_expr_node }))
+        } else {
+            Err(ParseError::new("Expected expression after 'await'"))
+        }
+    }
+
+    // Helper: Parse unary operators (!, -)
+    fn parse_unary_operator(&mut self) -> Result<Option<ExprType>, ParseError> {
+        let token = self.previous();
+        let mut operator_type = self.get_operator_type(&token.clone());
+        if operator_type == OperatorType::Minus {
+            // change this so the code gen doesn't have a space between the - and ID
+            // -x rather than - x
+            operator_type = OperatorType::Negated;
         }
         
-        
-        if self.match_token(&[TokenType::Not, TokenType::Dash]) {
-            let token = self.previous();
-            let mut operator_type = self.get_operator_type(&token.clone());
-            if operator_type == OperatorType::Minus {
-                // change this so the code gen doesn't have a space between the - and ID
-                // -x rather than - x
-                operator_type = OperatorType::Negated;
+        match self.unary_expression() {
+            Ok(Some(x)) => {
+                let unary_expr_node = UnaryExprNode::new(operator_type, x);
+                Ok(Some(UnaryExprT { unary_expr_node }))
             }
-            let right_expr_t = self.unary_expression();
-            match right_expr_t {
-                Ok(Some(x)) => {
-                    let unary_expr_node = UnaryExprNode::new(operator_type, x);
-                    return Ok(Some(UnaryExprT { unary_expr_node }));
+            Err(parse_error) => Err(parse_error),
+            Ok(None) => Ok(None)
+        }
+    }
+
+    // Helper: Parse special keywords (self, system, state, transition)
+    fn parse_special_keywords(&mut self) -> Result<Option<ExprType>, ParseError> {
+        if self.match_token(&[TokenType::Transition]) {
+            match self.transition_expr() {
+                Ok(transition_expr_node) => {
+                    return Ok(Some(TransitionExprT {
+                        transition_expr_node,
+                    }));
                 }
-                Err(parse_error) => return Err(parse_error),
-                Ok(None) => {} // continue
+                Err(parse_err) => return Err(parse_err),
             }
+        } else if self.match_token(&[TokenType::Self_]) {
+            // Frame v0.31: Handle explicit self.method() and self.variable syntax
+            return self.parse_self_context();
+        } else if self.match_token(&[TokenType::SystemReturn]) {
+            // Frame v0.31: Handle system.return special variable
+            return Ok(Some(self.create_system_return_variable()));
+        } else if self.match_token(&[TokenType::System]) {
+            // Bare 'system' keyword is not allowed - reserved for future use
+            let err_msg = "The 'system' keyword is reserved. Only 'system.return' is currently supported for setting interface return values.";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        } else if self.match_token(&[TokenType::State]) {
+            return self.parse_state_context();
+        } else if self.match_token(&[TokenType::PipePipeLBracket]) {
+            return self.parse_event_handler_param();
+        } else if self.match_token(&[TokenType::PipePipeDot]) {
+            return self.parse_event_handler_var();
+        }
+
+        Ok(None)
+    }
+
+    // Helper: Create system.return variable
+    fn create_system_return_variable(&mut self) -> ExprType {
+        let system_return_token = self.previous().clone();
+        let line_number = system_return_token.line;
+        
+        let system_return_node = VariableNode::new(
+            IdentifierNode::new(
+                Token {
+                    token_type: system_return_token.token_type,
+                    lexeme: "system.return".to_string(),
+                    literal: system_return_token.literal,
+                    line: line_number,
+                    start: system_return_token.start,
+                    length: "system.return".len(),
+                },
+                None,
+                IdentifierDeclScope::UnknownScope,
+                false,
+                line_number,
+            ),
+            IdentifierDeclScope::UnknownScope,
+            None,
+        );
+        
+        ExprType::VariableExprT { 
+            var_node: system_return_node 
+        }
+    }
+
+    // Helper: Parse state context ($[param] or $.var)
+    fn parse_state_context(&mut self) -> Result<Option<ExprType>, ParseError> {
+        if self.match_token(&[TokenType::LBracket]) {
+            if self.match_token(&[TokenType::Identifier]) {
+                let id_node = IdentifierNode::new(
+                    self.previous().clone(),
+                    None,
+                    IdentifierDeclScope::StateParamScope,
+                    false,
+                    self.previous().line,
+                );
+                let var_scope = id_node.scope.clone();
+                let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
+
+                let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
+                if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                    return Err(parse_error);
+                }
+                Ok(Some(VariableExprT { var_node }))
+            } else {
+                self.error_at_current("Expected identifier.");
+                Err(ParseError::new("TODO"))
+            }
+        } else if self.match_token(&[TokenType::Dot]) {
+            if self.match_token(&[TokenType::Identifier]) {
+                let id_node = IdentifierNode::new(
+                    self.previous().clone(),
+                    None,
+                    IdentifierDeclScope::StateVarScope,
+                    false,
+                    self.previous().line,
+                );
+                let var_scope = id_node.scope.clone();
+                let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
+                let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
+                Ok(Some(VariableExprT { var_node }))
+            } else {
+                self.error_at_current("Expected identifier.");
+                Err(ParseError::new("TODO"))
+            }
+        } else {
+            self.error_at_current("Unexpected token.");
+            Err(ParseError::new("TODO"))
+        }
+    }
+
+    // Helper: Parse event handler parameter (||[param])
+    fn parse_event_handler_param(&mut self) -> Result<Option<ExprType>, ParseError> {
+        if self.match_token(&[TokenType::Identifier]) {
+            let id_node = IdentifierNode::new(
+                self.previous().clone(),
+                None,
+                IdentifierDeclScope::EventHandlerParamScope,
+                false,
+                self.previous().line,
+            );
+            let var_scope = id_node.scope.clone();
+            let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
+            let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
+            
+            if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
+                return Err(parse_error);
+            }
+            Ok(Some(VariableExprT { var_node }))
+        } else {
+            self.error_at_current("Expected identifier.");
+            Err(ParseError::new("TODO"))
+        }
+    }
+
+    // Helper: Parse event handler variable (||.var)
+    fn parse_event_handler_var(&mut self) -> Result<Option<ExprType>, ParseError> {
+        if self.match_token(&[TokenType::Identifier]) {
+            let id_tok = self.previous().clone();
+            let id_node = IdentifierNode::new(
+                id_tok,
+                None,
+                IdentifierDeclScope::EventHandlerVarScope,
+                false,
+                self.previous().line,
+            );
+            
+            let var_scope = id_node.scope.clone();
+            let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
+            let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
+            Ok(Some(VariableExprT { var_node }))
+        } else {
+            self.error_at_current("Expected identifier.");
+            Err(ParseError::new("TODO"))
+        }
+    }
+
+    fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // v0.35: Handle await expressions
+        if self.match_token(&[TokenType::Await]) {
+            return self.parse_await_expression();
+        }
+        
+        // Handle unary operators (!, -)
+        if self.match_token(&[TokenType::Not, TokenType::Dash]) {
+            return self.parse_unary_operator();
         }
 
         // Check for nested groups or tuples
@@ -6493,57 +6643,10 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let scope = IdentifierDeclScope::UnknownScope;
-
-        if self.match_token(&[TokenType::Transition]) {
-            match self.transition_expr() {
-                Ok(transition_expr_node) => {
-                    return Ok(Some(TransitionExprT {
-                        transition_expr_node,
-                    }));
-                }
-                Err(parse_err) => return Err(parse_err),
-            }
-        } else if self.match_token(&[TokenType::Self_]) {
-            // Frame v0.31: Handle explicit self.method() and self.variable syntax
-            return self.parse_self_context();
-        } else if self.match_token(&[TokenType::SystemReturn]) {
-            // Frame v0.31: Handle system.return special variable
-            // Create a special variable node for system.return
-            let system_return_token = self.previous().clone();
-            let line_number = system_return_token.line;
-            
-            let system_return_node = VariableNode::new(
-                IdentifierNode::new(
-                    Token {
-                        token_type: system_return_token.token_type,
-                        lexeme: "system.return".to_string(),
-                        literal: system_return_token.literal,
-                        line: line_number,
-                        start: system_return_token.start,
-                        length: "system.return".len(),
-                    },
-                    None,
-                    IdentifierDeclScope::UnknownScope,  // Special scope for system.return
-                    false,
-                    line_number,
-                ),
-                IdentifierDeclScope::UnknownScope,
-                None,
-            );
-            return Ok(Some(ExprType::VariableExprT { 
-                var_node: system_return_node 
-            }));
-        } else if self.match_token(&[TokenType::System]) {
-            // Bare 'system' keyword is not allowed - reserved for future use
-            let err_msg = "The 'system' keyword is reserved. Only 'system.return' is currently supported for setting interface return values.";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
-        
-        //     // self.
-        //     if self.match_token(&[TokenType::Dot]) {
-        //         // #.foo expression
-        //         scope = IdentifierDeclScope::SystemScope;
+        // Check for special keywords and transitions
+        if let Some(special_expr) = self.parse_special_keywords()? {
+            return Ok(Some(special_expr));
+        }
         //
         //         // self.a
         //         if !self.match_token(&[TokenType::Identifier]) {
@@ -6679,121 +6782,6 @@ impl<'a> Parser<'a> {
             //     return Ok(Some(VariableExprT { var_node }));
             // }
 
-            //           scope_override = true;
-        } else if self.match_token(&[TokenType::State]) {
-            if self.match_token(&[TokenType::LBracket]) {
-                return if self.match_token(&[TokenType::Identifier]) {
-                    //                    let id = self.previous().lexeme.clone();
-                    let id_node = IdentifierNode::new(
-                        self.previous().clone(),
-                        None,
-                        IdentifierDeclScope::StateParamScope,
-                        false,
-                        self.previous().line,
-                    );
-                    let var_scope = id_node.scope.clone();
-                    let symbol_type_rcref_opt =
-                        self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-
-                    let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
-                    if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
-                        return Err(parse_error); // TODO
-                    }
-                    Ok(Some(VariableExprT { var_node }))
-                } else {
-                    self.error_at_current("Expected identifier.");
-                    Err(ParseError::new("TODO")) // TODO
-                };
-            } else if self.match_token(&[TokenType::Dot]) {
-                return if self.match_token(&[TokenType::Identifier]) {
-                    let id_node = IdentifierNode::new(
-                        self.previous().clone(),
-                        None,
-                        IdentifierDeclScope::StateVarScope,
-                        false,
-                        self.previous().line,
-                    );
-                    let var_scope = id_node.scope.clone();
-                    let symbol_type_rcref_opt =
-                        self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-                    let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
-                    Ok(Some(VariableExprT { var_node }))
-                } else {
-                    self.error_at_current("Expected identifier.");
-                    Err(ParseError::new("TODO"))
-                };
-            } else {
-                self.error_at_current("Unexpected token.");
-                return Err(ParseError::new("TODO"));
-            }
-        } else if self.match_token(&[TokenType::PipePipeLBracket]) {
-            let id_node;
-            let var_node;
-            if self.match_token(&[TokenType::Identifier]) {
-                id_node = IdentifierNode::new(
-                    self.previous().clone(),
-                    None,
-                    IdentifierDeclScope::EventHandlerParamScope,
-                    false,
-                    self.previous().line,
-                );
-                let var_scope = id_node.scope.clone();
-                let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-                var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
-            } else {
-                self.error_at_current("Expected identifier.");
-                return Err(ParseError::new("TODO"));
-            }
-            if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
-                return Err(parse_error);
-            }
-            return Ok(Some(VariableExprT { var_node }));
-        } else if self.match_token(&[TokenType::PipePipeDot]) {
-            let id_node;
-            if self.match_token(&[TokenType::Identifier]) {
-                let id_tok = self.previous().clone();
-                id_node = IdentifierNode::new(
-                    id_tok,
-                    None,
-                    IdentifierDeclScope::EventHandlerVarScope,
-                    false,
-                    self.previous().line,
-                );
-            } else {
-                self.error_at_current("Expected identifier.");
-                return Err(ParseError::new("TODO"));
-            }
-
-            let var_scope = id_node.scope.clone();
-            let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-            let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
-            return Ok(Some(VariableExprT { var_node }));
-        // } else if self.match_token(&[TokenType::New]) {
-        //     // TODO: New should be removed.
-        //     if self.match_token(&[TokenType::Identifier]) {
-        //         match self.call(IdentifierDeclScope::UnknownScope) {
-        //             Ok(Some(CallChainExprT {
-        //                 mut call_chain_expr_node,
-        //             })) => {
-        //                 call_chain_expr_node.is_new_expr = true;
-        //                 return Ok(Some(CallChainExprT {
-        //                     call_chain_expr_node,
-        //                 }));
-        //             }
-        //             Ok(Some(_)) => return Err(ParseError::new("TODO")),
-        //             Err(parse_error) => return Err(parse_error),
-        //             Ok(None) => {} // continue
-        //         }
-        //     } else {
-        //         self.error_at_current("Expected class.");
-        //         return Err(ParseError::new("TODO"));
-        //     }
-        } else {
-            // self.error_at_current("Expected identifier.");
-            // return Err(ParseError::new("TODO"));
-        }
-        //     }
-        // }
 
         // @TODO need to determine if this is the best way to
         // deal w/ references. We can basically put & in front
@@ -6809,7 +6797,7 @@ impl<'a> Parser<'a> {
             // let debug_current_token = self.current_token.clone();
             // let debug_processed_tokens = self.processed_tokens.clone();
             // let x = self.arcanum.lookup_system_symbol()
-            match self.call(scope) {
+            match self.call(IdentifierDeclScope::UnknownScope) {
                 Ok(Some(VariableExprT { mut var_node })) => {
                     var_node.id_node.is_reference = is_reference;
                     return Ok(Some(VariableExprT { var_node }));

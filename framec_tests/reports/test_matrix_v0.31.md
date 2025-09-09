@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-08 15:34  
-**Total Tests**: 301  
+**Generated**: 2025-09-09 05:59  
+**Total Tests**: 307  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 301 | 100% |
-| **Transpilation Success** | 300 | 99.7% |
-| **Execution Success** | 299 | 99.3% |
-| **Complete Success** | 299 | 99.3% |
+| **Total Tests** | 307 | 100% |
+| **Transpilation Success** | 305 | 99.3% |
+| **Execution Success** | 304 | 99.0% |
+| **Complete Success** | 304 | 99.0% |
 
 ## v0.31 Features
 
@@ -29,6 +29,12 @@
     main()
     ~~~~^^
   File "/Users/mar |
+| test_list_operations_comprehensive.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'print'
+
+Symbol table construction failed. Please check your Frame syntax.
+ |
 | test_special_dicts.frm | ❌ | ❌ | Framec failed with an error:
 First pass parse error:
 Expected '}' - found 'fn'
@@ -60,6 +66,8 @@ Symbol table construction failed. Please check your Frame syntax.
 | test_basic_scope_working.frm | ✅ | ✅ | ✅ PASS |
 | test_blocks_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_builtin_access.frm | ✅ | ✅ | ✅ PASS |
+| test_c_style_comments.frm | ✅ | ✅ | ✅ PASS |
+| test_c_style_comments_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_call_chain_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_call_chain_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_chaining.frm | ✅ | ✅ | ✅ PASS |
@@ -200,6 +208,7 @@ Symbol table construction failed. Please check your Frame syntax.
 | test_list_comprehensions_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_list_features.frm | ✅ | ✅ | ✅ PASS |
 | test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
+| test_list_operations_comprehensive.frm | ❌ | ❌ | ❌ FAIL |
 | test_method_call_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_call.frm | ✅ | ✅ | ✅ PASS |
 | test_minimal_scope.frm | ✅ | ✅ | ✅ PASS |
@@ -298,6 +307,9 @@ Symbol table construction failed. Please check your Frame syntax.
 | test_states_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_static_calls.frm | ✅ | ✅ | ✅ PASS |
 | test_static_operations.frm | ✅ | ✅ | ✅ PASS |
+| test_string_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_string_slicing_phase1.frm | ✅ | ✅ | ✅ PASS |
+| test_string_slicing_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_system_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_system_no_function.frm | ✅ | ✅ | ✅ PASS |
 | test_system_only_operations.frm | ✅ | ✅ | ✅ PASS |

@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-08T15:34:54.520119",
+  "timestamp": "2025-09-09T05:59:08.586377",
   "version": "v0.31",
   "summary": {
-    "total": 301,
-    "transpile_success": 300,
-    "execute_success": 299,
-    "complete_success": 299,
-    "success_rate": "99.3%"
+    "total": 307,
+    "transpile_success": 305,
+    "execute_success": 304,
+    "complete_success": 304,
+    "success_rate": "99.0%"
   },
   "results": [
     {
@@ -147,6 +147,20 @@
       "transpile": true,
       "execute": true,
       "output": "=== Built-in Access Test ===\nFunction can access built-ins\nBlock can access built-ins\nNested block can access built-ins\nSystem can access built-ins\nSystem block can access built-ins\nAction can access ",
+      "error": null
+    },
+    {
+      "file": "test_c_style_comments.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Value: 42\nResult: 142\nFinal: 142\n",
+      "error": null
+    },
+    {
+      "file": "test_c_style_comments_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "X is: 42\n",
       "error": null
     },
     {
@@ -573,7 +587,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -601,14 +615,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1128,6 +1142,12 @@
       "execute": true,
       "output": "After append: [1, 2, 3, 4, 5]\nLength: 5\nEmpty list is_empty: True\nNumbers is_empty: False\nAfter clear: []\nPopped: 40\nAfter pop: [10, 20, 30]\nPopped at 1: 20\nAfter pop(1): [10, 30]\nChain test: [1, 2, 3",
       "error": null
+    },
+    {
+      "file": "test_list_operations_comprehensive.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'print'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_method_call_simple.frm",
@@ -1812,6 +1832,27 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_string_operations_comprehensive.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== COMPREHENSIVE STRING OPERATIONS TEST ===\n\n=== String Search Methods ===\nfind('World'): 7\nfind('xyz'): -1\nrfind('Hello'): 14\nindex('Frame'): 21\nrindex('Hello'): 14\ncount('Hello'): 2\ncount('l'): 5\n\n",
+      "error": null
+    },
+    {
+      "file": "test_string_slicing_phase1.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Basic Slicing ===\nSlice [0:5]: Hello\nSlice [7:13]: World!\nSlice [5:]: , World!\nSlice [:5]: Hello\nSlice [:]: Hello, World!\n\n=== Negative Indexing ===\nSlice [-5:]: Frame\nSlice [:-6]: Python\nSlice [-",
+      "error": null
+    },
+    {
+      "file": "test_string_slicing_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Basic Slicing ===\nSlice [0:5]: Hello\nSlice [7:13]: World!\nSlice [5:]: , World!\nSlice [:5]: Hello\nSlice [:]: Hello, World!\n\n=== Step Slicing ===\nSlice [::2]: 02468\nSlice [1::2]: 13579\nSlice [::3]: ",
       "error": null
     },
     {
