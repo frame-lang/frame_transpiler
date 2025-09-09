@@ -1,4 +1,4 @@
-# Frame v0.38 Development Notes
+# Frame v0.39 Development Notes
 
 ## Language Support Classification (Updated 2025-09-08)
 
@@ -228,9 +228,9 @@ Without backticks, Frame currently cannot express:
 ## v0.38 Planning - Python Operator Alignment
 
 ### Planning Documents Created (2025-01-22)
-- **[Python Operator Alignment Plan](../plan/python_operator_alignment.md)**: Comprehensive roadmap for aligning Frame's operators with Python
-- **[Conditional Operators Analysis](../plan/conditional_operators_analysis.md)**: Analysis of Frame's conditional syntax and proposed improvements
-- **[Event Syntax Migration](../plan/event_syntax_migration.md)**: Analysis showing no changes needed for `@` operator
+- **[Python Operator Alignment Plan](../plans/python_operator_alignment.md)**: Comprehensive roadmap for aligning Frame's operators with Python
+- **[Conditional Operators Analysis](../plans/conditional_operators_analysis.md)**: Analysis of Frame's conditional syntax and proposed improvements
+- **[Event Syntax Migration](../plans/event_syntax_migration.md)**: Analysis showing no changes needed for `@` operator
 
 ### Key Proposals
 1. **Python Operators to Add**:

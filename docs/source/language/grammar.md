@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.38)
+# Frame Language Grammar (v0.39)
 
-**Last Updated**: 2025-09-08  
-**Status**: Python logical operators (`and`, `or`, `not`), membership operators (`in`, `not in`), nested dictionary indexing, lambda expressions in collection literals, for-in loop syntax, lambda assignments, and collection constructors fully supported. **99.3% test success rate (299/301 tests passing)**.
+**Last Updated**: 2025-09-09  
+**Status**: Complete Python operator alignment including compound assignments (+=, -=, etc.), bitwise operators (~, &, <<, >>), identity operators (is, is not), plus all v0.38 features. **100% test success rate (307/307 tests passing)**.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1679,7 +1679,9 @@ stmt: expr_stmt
 
 expr_stmt: expr
 var_decl: 'var' IDENTIFIER type? '=' expr
-assignment: lvalue '=' expr
+assignment: lvalue assignment_op expr
+assignment_op: '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**='  // v0.39: Compound assignments
+             | '&=' | '|=' | '<<=' | '>>='  // v0.39: Bitwise compound assignments
 with_stmt: ('async')? 'with' expr ('as' IDENTIFIER)? '{' stmt* '}'  // v0.37
 return_stmt: 'return' expr?
 return_assign_stmt: 'return' '=' expr
@@ -1849,8 +1851,10 @@ operator: '+' | '-' | '*' | '/' | '%' | '**'  // v0.38: Added exponent operator
         | '==' | '!=' | '<' | '>' | '<=' | '>='
         | 'and' | 'or'  // v0.38: Python logical operators (replaced && and ||)
         | 'in' | 'not in'  // v0.38: Membership operators
+        | '&' | '|' | '<<' | '>>'  // v0.39: Bitwise operators
+        | 'is' | 'is not'  // v0.39: Identity operators
 
-unary_expr: ('-' | 'not' | '~') expr  // v0.38: 'not' replaces '!'
+unary_expr: ('-' | 'not' | '~') expr  // v0.38: 'not' replaces '!', v0.39: Added '~' bitwise NOT
 
 primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
             | 'true' | 'false' | 'None'
@@ -2065,6 +2069,115 @@ if x >= y { }  // Greater than or equal
 - **Removed**: `&&`, `||`, `!` operators no longer supported
 - **Migration**: Replace `&&` with `and`, `||` with `or`, `!` with `not`
 - **Error Messages**: Scanner provides clear migration guidance for old operators
+
+### Operators (v0.39 - NEW)
+
+Frame v0.39 completes the Python operator alignment by adding compound assignments, bitwise operators, and identity operators:
+
+#### Compound Assignment Operators
+```frame
+// Arithmetic compound assignments
+var x = 10
+x += 5       // x = x + 5 → 15
+x -= 3       // x = x - 3 → 12
+x *= 2       // x = x * 2 → 24
+x /= 4       // x = x / 4 → 6
+x %= 4       // x = x % 4 → 2
+x **= 3      // x = x ** 3 → 8
+
+// Bitwise compound assignments
+var a = 12   // 1100 in binary
+a &= 5       // a = a & 5 → 4 (0100)
+a |= 8       // a = a | 8 → 12 (1100)
+a <<= 2      // a = a << 2 → 48
+a >>= 1      // a = a >> 1 → 24
+
+// Works with collections
+var list1 = [1, 2, 3]
+var list2 = [4, 5, 6]
+list1 += list2  // list1 = [1, 2, 3, 4, 5, 6]
+
+var text = "Hello"
+text += " World"  // text = "Hello World"
+```
+
+#### Bitwise Operators
+```frame
+// Bitwise NOT (unary)
+var x = 7     // 0111 in binary
+var y = ~x    // -8 (two's complement)
+
+// Bitwise AND
+var a = 5     // 0101
+var b = 3     // 0011
+var c = a & b // 0001 = 1
+
+// Bitwise OR (already existed for dict union, now also bitwise)
+var d = a | b // 0111 = 7
+
+// Left shift
+var e = 5 << 2  // 20 (shift left by 2 positions)
+
+// Right shift
+var f = 20 >> 2 // 5 (shift right by 2 positions)
+
+// Practical examples
+var flags = 0b1010
+if flags & 0b0010 {  // Check if second bit is set
+    print("Flag 2 is set")
+}
+
+var mask = 0xFF
+var lowByte = value & mask  // Extract low byte
+```
+
+#### Identity Operators
+```frame
+// 'is' operator - checks object identity
+var x = None
+if x is None {
+    print("x is None")
+}
+
+// 'is not' operator - negated identity check
+var y = 42
+if y is not None {
+    print("y has a value")
+}
+
+// Identity vs equality
+var list1 = [1, 2, 3]
+var list2 = [1, 2, 3]
+var list3 = list1
+
+// Equality checks values
+if list1 == list2 {  // True - same values
+    print("Equal values")
+}
+
+// Identity checks if same object
+if list1 is list2 {  // False - different objects
+    print("Same object")
+}
+
+if list1 is list3 {  // True - same object reference
+    print("list1 and list3 are the same object")
+}
+```
+
+#### Operator Precedence (Python-aligned)
+Frame follows Python's operator precedence (highest to lowest):
+1. `**` (exponentiation - right associative)
+2. `~` (bitwise NOT), unary `-`, `not`
+3. `*`, `/`, `%`
+4. `+`, `-`
+5. `<<`, `>>` (bitwise shifts)
+6. `&` (bitwise AND)
+7. `|` (bitwise OR)
+8. `in`, `not in`, `is`, `is not`, `<`, `<=`, `>`, `>=`, `!=`, `==`
+9. `and`
+10. `or`
+11. `=`, `+=`, `-=`, etc. (assignments - right associative)
 
 ### Lambda Expressions (v0.38)
 

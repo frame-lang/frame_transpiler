@@ -1,6 +1,7 @@
 #![allow(clippy::unnecessary_wraps)]
 
 use super::ast::AssignmentExprNode;
+use super::ast::AssignmentOperator;
 use super::ast::CallChainNodeType;
 use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
@@ -5900,7 +5901,34 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        if self.match_token(&[TokenType::Equals]) {
+        // Check for assignment operators (including compound assignments)
+        let assignment_op = if self.match_token(&[TokenType::Equals]) {
+            Some(AssignmentOperator::Equals)
+        } else if self.match_token(&[TokenType::PlusEqual]) {
+            Some(AssignmentOperator::PlusEquals)
+        } else if self.match_token(&[TokenType::DashEqual]) {
+            Some(AssignmentOperator::MinusEquals)
+        } else if self.match_token(&[TokenType::StarEqual]) {
+            Some(AssignmentOperator::StarEquals)
+        } else if self.match_token(&[TokenType::SlashEqual]) {
+            Some(AssignmentOperator::SlashEquals)
+        } else if self.match_token(&[TokenType::PercentEqual]) {
+            Some(AssignmentOperator::PercentEquals)
+        } else if self.match_token(&[TokenType::StarStarEqual]) {
+            Some(AssignmentOperator::PowerEquals)
+        } else if self.match_token(&[TokenType::AmpersandEqual]) {
+            Some(AssignmentOperator::AndEquals)
+        } else if self.match_token(&[TokenType::PipeEqual]) {
+            Some(AssignmentOperator::OrEquals)
+        } else if self.match_token(&[TokenType::LeftShiftEqual]) {
+            Some(AssignmentOperator::LeftShiftEquals)
+        } else if self.match_token(&[TokenType::RightShiftEqual]) {
+            Some(AssignmentOperator::RightShiftEquals)
+        } else {
+            None
+        };
+        
+        if let Some(op) = assignment_op {
             // this changes the tokens generated for expression lists
             // like (a) and (a,b,c)
             self.is_parsing_rhs = true;
@@ -5956,7 +5984,11 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let assignment_expr_node = AssignmentExprNode::new(l_value, r_value_rc.clone(), line);
+            let assignment_expr_node = if op == AssignmentOperator::Equals {
+                AssignmentExprNode::new(l_value, r_value_rc.clone(), line)
+            } else {
+                AssignmentExprNode::new_with_op(l_value, r_value_rc.clone(), op, line)
+            };
             return Ok(Some(AssignmentExprT {
                 assignment_expr_node,
             }));
@@ -5974,7 +6006,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual, TokenType::In, TokenType::Not]) {
+        while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual, TokenType::In, TokenType::Not, TokenType::Is]) {
             //           let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = if operator_token.token_type == TokenType::Not {
@@ -5985,6 +6017,14 @@ impl<'a> Parser<'a> {
                 } else {
                     // It's a regular 'not' - this shouldn't happen in equality context
                     return Err(ParseError::new("Unexpected 'not' in comparison context"));
+                }
+            } else if operator_token.token_type == TokenType::Is {
+                // Check if the next token is 'not' for 'is not' operator
+                if self.check(TokenType::Not) {
+                    self.advance(); // consume the 'not' token
+                    OperatorType::IsNot
+                } else {
+                    OperatorType::Is
                 }
             } else {
                 self.get_operator_type(&operator_token.clone())
@@ -6014,13 +6054,63 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn bitwise_or(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.comparison() {
+        let mut l_value = match self.bitwise_xor() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
         };
 
         while self.match_token(&[TokenType::Pipe]) {
+            let operator_token = self.previous();
+            let op_type = self.get_operator_type(&operator_token.clone());
+            let r_value = match self.bitwise_xor() {
+                Ok(Some(expr_type)) => expr_type,
+                Ok(None) => return Ok(None),
+                Err(parse_error) => return Err(parse_error),
+            };
+
+            if !l_value.is_valid_binary_expr_type() {
+                let err_msg = "lvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+            if !r_value.is_valid_binary_expr_type() {
+                let err_msg = "rvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
+            l_value = BinaryExprT { binary_expr_node };
+        }
+
+        Ok(Some(l_value))
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn bitwise_xor(&mut self) -> Result<Option<ExprType>, ParseError> {
+        let mut l_value = match self.bitwise_and() {
+            Ok(Some(expr_type)) => expr_type,
+            Ok(None) => return Ok(None),
+            Err(parse_error) => return Err(parse_error),
+        };
+
+        // XOR is not currently implemented as a binary operator in Frame
+        // This is a placeholder for future XOR operator support
+        // For now, just pass through to bitwise_and
+        
+        Ok(Some(l_value))
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn bitwise_and(&mut self) -> Result<Option<ExprType>, ParseError> {
+        let mut l_value = match self.comparison() {
+            Ok(Some(expr_type)) => expr_type,
+            Ok(None) => return Ok(None),
+            Err(parse_error) => return Err(parse_error),
+        };
+
+        while self.match_token(&[TokenType::Ampersand]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.comparison() {
@@ -6048,7 +6138,7 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn comparison(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.term() {
+        let mut l_value = match self.bitwise_shift() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -6060,6 +6150,40 @@ impl<'a> Parser<'a> {
             TokenType::LT,
             TokenType::LessEqual,
         ]) {
+            let operator_token = self.previous();
+            let op_type = self.get_operator_type(&operator_token.clone());
+            let r_value = match self.bitwise_shift() {
+                Ok(Some(expr_type)) => expr_type,
+                Ok(None) => return Ok(None),
+                Err(parse_error) => return Err(parse_error),
+            };
+
+            if !l_value.is_valid_binary_expr_type() {
+                let err_msg = "lvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+            if !r_value.is_valid_binary_expr_type() {
+                let err_msg = "rvalue expr is not a valid binary expression type.";
+                self.error_at_current(err_msg);
+            }
+
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
+            l_value = BinaryExprT { binary_expr_node };
+        }
+
+        Ok(Some(l_value))
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn bitwise_shift(&mut self) -> Result<Option<ExprType>, ParseError> {
+        let mut l_value = match self.term() {
+            Ok(Some(expr_type)) => expr_type,
+            Ok(None) => return Ok(None),
+            Err(parse_error) => return Err(parse_error),
+        };
+
+        while self.match_token(&[TokenType::LeftShift, TokenType::RightShift]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.term() {
@@ -6621,8 +6745,8 @@ impl<'a> Parser<'a> {
             return self.parse_await_expression();
         }
         
-        // Handle unary operators (!, -)
-        if self.match_token(&[TokenType::Not, TokenType::Dash]) {
+        // Handle unary operators (!, -, ~)
+        if self.match_token(&[TokenType::Not, TokenType::Dash, TokenType::Tilde]) {
             return self.parse_unary_operator();
         }
 

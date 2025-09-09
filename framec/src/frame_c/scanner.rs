@@ -61,6 +61,7 @@ impl Scanner {
             ("or".to_string(), TokenType::Or),
             ("not".to_string(), TokenType::Not),
             ("xor".to_string(), TokenType::LogicalXor),
+            ("is".to_string(), TokenType::Is),
         ]
         .iter()
         .cloned()
@@ -180,13 +181,21 @@ impl Scanner {
                     } else {
                         self.error(self.line, "Operator '||' has been removed. Use 'or' keyword instead.");
                     }
+                } else if self.match_char('=') {
+                    self.add_token(TokenType::PipeEqual);  // |= bitwise OR compound assignment
                 } else {
                     self.add_token(TokenType::Pipe)
                 }
             }
             '*' => {
                 if self.match_char('*') {
-                    self.add_token(TokenType::StarStar);
+                    if self.match_char('=') {
+                        self.add_token(TokenType::StarStarEqual);  // **= compound assignment
+                    } else {
+                        self.add_token(TokenType::StarStar);
+                    }
+                } else if self.match_char('=') {
+                    self.add_token(TokenType::StarEqual);  // *= compound assignment
                 } else {
                     self.add_token(TokenType::Star);
                 }
@@ -194,6 +203,8 @@ impl Scanner {
             '+' => {
                 if self.match_char('+') {
                     self.add_token(TokenType::PlusPlus);
+                } else if self.match_char('=') {
+                    self.add_token(TokenType::PlusEqual);  // += compound assignment
                 } else {
                     self.add_token(TokenType::Plus);
                 }
@@ -258,6 +269,12 @@ impl Scanner {
             '>' => {
                 if self.match_char('=') {
                     self.add_token(TokenType::GreaterEqual);
+                } else if self.match_char('>') {
+                    if self.match_char('=') {
+                        self.add_token(TokenType::RightShiftEqual);  // >>= right shift compound assignment
+                    } else {
+                        self.add_token(TokenType::RightShift);  // >> right shift
+                    }
                 } else {
                     self.add_token(TokenType::GT);
                 }
@@ -267,6 +284,12 @@ impl Scanner {
                     self.add_token(TokenType::ExitStateMsg);
                 } else if self.match_char('=') {
                     self.add_token(TokenType::LessEqual);
+                } else if self.match_char('<') {
+                    if self.match_char('=') {
+                        self.add_token(TokenType::LeftShiftEqual);  // <<= left shift compound assignment
+                    } else {
+                        self.add_token(TokenType::LeftShift);  // << left shift
+                    }
                 } else {
                     self.add_token(TokenType::LT);
                 }
@@ -278,6 +301,8 @@ impl Scanner {
                 } else if self.match_char('|') {
                     // &| operator has been removed - use 'xor' keyword instead
                     self.error(self.line, "Operator '&|' has been removed. Use 'xor' keyword instead.");
+                } else if self.match_char('=') {
+                    self.add_token(TokenType::AmpersandEqual);  // &= bitwise AND compound assignment
                 } else {
                     self.add_token(TokenType::Ampersand)
                 }
@@ -296,8 +321,8 @@ impl Scanner {
                         self.error(self.line, "String match syntax '~/' has been removed. Use if/elif/else statements instead.");
                     }
                 } else {
-                    self.error(self.line, &format!("Found unexpected character '{}'.", c));
-                    //self.add_token(TokenType::Error);
+                    // Bitwise NOT operator
+                    self.add_token(TokenType::Tilde);
                 }
             }
             '@' => {
@@ -320,6 +345,8 @@ impl Scanner {
                     self.add_token(TokenType::Transition);
                 } else if self.match_char('-') {
                     self.add_token(TokenType::DashDash);
+                } else if self.match_char('=') {
+                    self.add_token(TokenType::DashEqual);  // -= compound assignment
                 } else {
                     // Always emit Dash token, let parser handle negative numbers in context
                     self.add_token(TokenType::Dash);
@@ -386,6 +413,8 @@ impl Scanner {
                     self.single_line_comment();
                 } else if self.match_char('*') {
                     self.c_style_multiline_comment();
+                } else if self.match_char('=') {
+                    self.add_token(TokenType::SlashEqual);  // /= compound assignment
                 } else {
                     self.add_token(TokenType::ForwardSlash);
                 }
@@ -397,7 +426,13 @@ impl Scanner {
                     self.add_token(TokenType::Dot);
                 }
             }
-            '%' => self.add_token(TokenType::Percent),
+            '%' => {
+                if self.match_char('=') {
+                    self.add_token(TokenType::PercentEqual);  // %= compound assignment
+                } else {
+                    self.add_token(TokenType::Percent);
+                }
+            }
             ',' => self.add_token(TokenType::Comma),
             _ => {
                 if !self.block_keyword(c) {
@@ -846,6 +881,28 @@ pub enum TokenType {
     PipePipeDot,             // ||.
     PipePipeLBracket,        // ||[
     // REMOVED: Hash (#) - old system syntax removed
+    
+    // Compound assignment operators (v0.39)
+    PlusEqual,               // +=
+    DashEqual,               // -=
+    StarEqual,               // *=
+    SlashEqual,              // /=
+    PercentEqual,            // %=
+    StarStarEqual,           // **=
+    AmpersandEqual,          // &=
+    PipeEqual,               // |=
+    LeftShiftEqual,          // <<=
+    RightShiftEqual,         // >>=
+    
+    // Bitwise operators (v0.39)
+    Tilde,                   // ~ (bitwise NOT)
+    LeftShift,               // <<
+    RightShift,              // >>
+    
+    // Identity operators (v0.39)
+    Is,                      // 'is' keyword
+    IsNot,                   // 'is not' (handled as two tokens)
+    
     Error,
 }
 

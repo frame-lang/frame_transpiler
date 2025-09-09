@@ -342,6 +342,22 @@ pub enum AttributeAffinity {
     Outer,
 }
 
+// Assignment operators for compound assignments (v0.39)
+#[derive(Clone, Debug, PartialEq)]
+pub enum AssignmentOperator {
+    Equals,         // =
+    PlusEquals,     // +=
+    MinusEquals,    // -=
+    StarEquals,     // *=
+    SlashEquals,    // /=
+    PercentEquals,  // %=
+    PowerEquals,    // **=
+    AndEquals,      // &=
+    OrEquals,       // |=
+    LeftShiftEquals,  // <<=
+    RightShiftEquals, // >>=
+}
+
 // e.g. generate_frame_event
 pub struct AttributeMetaWord {
     pub name: String,
@@ -2319,6 +2335,7 @@ impl NodeElement for AssignmentStmtNode {
 pub struct AssignmentExprNode {
     pub l_value_box: Box<ExprType>,
     pub r_value_rc: Rc<ExprType>,
+    pub assignment_op: AssignmentOperator,
     //    pub is_decl: bool,
     pub line: usize,
 }
@@ -2328,7 +2345,17 @@ impl AssignmentExprNode {
         AssignmentExprNode {
             l_value_box: Box::new(l_value),
             r_value_rc: r_value.clone(),
+            assignment_op: AssignmentOperator::Equals,  // Default to simple assignment
             //            is_decl,
+            line,
+        }
+    }
+    
+    pub fn new_with_op(l_value: ExprType, r_value: Rc<ExprType>, op: AssignmentOperator, line: usize) -> AssignmentExprNode {
+        AssignmentExprNode {
+            l_value_box: Box::new(l_value),
+            r_value_rc: r_value.clone(),
+            assignment_op: op,
             line,
         }
     }
@@ -3397,8 +3424,15 @@ pub enum OperatorType {
     Negated,
     Percent,
     BitwiseOr,  // For dict union operator |
+    BitwiseAnd,  // Bitwise AND &
+    BitwiseXor,  // Bitwise XOR ^
+    BitwiseNot,  // Bitwise NOT ~
+    LeftShift,   // Left shift <<
+    RightShift,  // Right shift >>
     In,  // For membership test operator 'in'
     NotIn,  // For negated membership test 'not in'
+    Is,  // Identity operator 'is'
+    IsNot,  // Identity operator 'is not'
     Unknown,
 }
 
@@ -3432,8 +3466,13 @@ impl OperatorType {
             TokenType::Or => OperatorType::LogicalOr,  // Python 'or' keyword only
             TokenType::LogicalXor => OperatorType::LogicalXor,
             TokenType::Percent => OperatorType::Percent,
-            TokenType::Pipe => OperatorType::BitwiseOr,  // Dict union operator
+            TokenType::Pipe => OperatorType::BitwiseOr,  // Bitwise OR |
+            TokenType::Ampersand => OperatorType::BitwiseAnd,  // Bitwise AND &
+            TokenType::Tilde => OperatorType::BitwiseNot,  // Bitwise NOT ~
+            TokenType::LeftShift => OperatorType::LeftShift,  // Left shift <<
+            TokenType::RightShift => OperatorType::RightShift,  // Right shift >>
             TokenType::In => OperatorType::In,  // Membership test operator
+            TokenType::Is => OperatorType::Is,  // Identity operator 'is'
             _ => OperatorType::Unknown,
         }
     }

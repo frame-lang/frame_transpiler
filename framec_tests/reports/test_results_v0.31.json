@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-09T09:21:41.233178",
+  "timestamp": "2025-09-09T10:13:52.632929",
   "version": "v0.31",
   "summary": {
     "total": 307,
     "transpile_success": 307,
-    "execute_success": 306,
-    "complete_success": 306,
-    "success_rate": "99.7%"
+    "execute_success": 307,
+    "complete_success": 307,
+    "success_rate": "100.0%"
   },
   "results": [
     {
@@ -587,7 +587,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -615,14 +615,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -684,9 +684,9 @@
     {
       "file": "test_external_loading.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "output": "Frame v0.38 - Loading from External Sources\n==================================================\n=== JSON Operations ===\nFrom JSON string: {'name': 'Alice', 'age': 30}\nTo JSON string: {\"user\": \"Bob\", \"s",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_external_loading.py\", line 95, in <module>\n    main()\n    ~~~~^^\n  File \"/Users/mar"
+      "error": null
     },
     {
       "file": "test_external_loading_fixed.frm",

@@ -9166,7 +9166,22 @@ impl AstVisitor for PythonVisitor {
         // assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         // now generate assignment expression
         assignment_expr_node.l_value_box.accept(self);
-        self.add_code(" = ");
+        
+        // Handle different assignment operators
+        match assignment_expr_node.assignment_op {
+            AssignmentOperator::Equals => self.add_code(" = "),
+            AssignmentOperator::PlusEquals => self.add_code(" += "),
+            AssignmentOperator::MinusEquals => self.add_code(" -= "),
+            AssignmentOperator::StarEquals => self.add_code(" *= "),
+            AssignmentOperator::SlashEquals => self.add_code(" /= "),
+            AssignmentOperator::PercentEquals => self.add_code(" %= "),
+            AssignmentOperator::PowerEquals => self.add_code(" **= "),
+            AssignmentOperator::AndEquals => self.add_code(" &= "),
+            AssignmentOperator::OrEquals => self.add_code(" |= "),
+            AssignmentOperator::LeftShiftEquals => self.add_code(" <<= "),
+            AssignmentOperator::RightShiftEquals => self.add_code(" >>= "),
+        }
+        
         //self.add_code(&*output);
         //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         let mut output = String::new();
@@ -9190,7 +9205,22 @@ impl AstVisitor for PythonVisitor {
         assignment_expr_node
             .l_value_box
             .accept_to_string(self, output);
-        output.push_str(" = ");
+        
+        // Handle different assignment operators
+        match assignment_expr_node.assignment_op {
+            AssignmentOperator::Equals => output.push_str(" = "),
+            AssignmentOperator::PlusEquals => output.push_str(" += "),
+            AssignmentOperator::MinusEquals => output.push_str(" -= "),
+            AssignmentOperator::StarEquals => output.push_str(" *= "),
+            AssignmentOperator::SlashEquals => output.push_str(" /= "),
+            AssignmentOperator::PercentEquals => output.push_str(" %= "),
+            AssignmentOperator::PowerEquals => output.push_str(" **= "),
+            AssignmentOperator::AndEquals => output.push_str(" &= "),
+            AssignmentOperator::OrEquals => output.push_str(" |= "),
+            AssignmentOperator::LeftShiftEquals => output.push_str(" <<= "),
+            AssignmentOperator::RightShiftEquals => output.push_str(" >>= "),
+        }
+        
         assignment_expr_node
             .r_value_rc
             .accept_to_string(self, output);
@@ -9445,8 +9475,15 @@ impl AstVisitor for PythonVisitor {
             OperatorType::LogicalXor => self.add_code(" ^ "),
             OperatorType::Percent => self.add_code(" % "),
             OperatorType::BitwiseOr => self.add_code(" | "),
+            OperatorType::BitwiseAnd => self.add_code(" & "),
+            OperatorType::BitwiseXor => self.add_code(" ^ "),
+            OperatorType::BitwiseNot => self.add_code("~"),
+            OperatorType::LeftShift => self.add_code(" << "),
+            OperatorType::RightShift => self.add_code(" >> "),
             OperatorType::In => self.add_code(" in "),
             OperatorType::NotIn => self.add_code(" not in "),
+            OperatorType::Is => self.add_code(" is "),
+            OperatorType::IsNot => self.add_code(" is not "),
             OperatorType::Unknown => self.add_code(" <Unknown> "),
         }
     }
@@ -9473,8 +9510,15 @@ impl AstVisitor for PythonVisitor {
             OperatorType::LogicalXor => output.push_str(" ^ "),
             OperatorType::Percent => output.push_str(" % "),
             OperatorType::BitwiseOr => output.push_str(" | "),
+            OperatorType::BitwiseAnd => output.push_str(" & "),
+            OperatorType::BitwiseXor => output.push_str(" ^ "),
+            OperatorType::BitwiseNot => output.push_str("~"),
+            OperatorType::LeftShift => output.push_str(" << "),
+            OperatorType::RightShift => output.push_str(" >> "),
             OperatorType::In => output.push_str(" in "),
             OperatorType::NotIn => output.push_str(" not in "),
+            OperatorType::Is => output.push_str(" is "),
+            OperatorType::IsNot => output.push_str(" is not "),
             OperatorType::Unknown => output.push_str(" <Unknown> "),
         }
     }
