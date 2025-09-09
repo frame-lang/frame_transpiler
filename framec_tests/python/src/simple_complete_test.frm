@@ -1,6 +1,6 @@
 fn main() {
     var sys = Simple()
-    // Trigger enter event
+    # Trigger enter event
     sys._sStart(FrameEvent("$>", []))
 }
 

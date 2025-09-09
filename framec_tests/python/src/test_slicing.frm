@@ -3,7 +3,7 @@ fn main() {
     var text = "Hello, World!"
     var numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
-    // Test basic slicing
+    # Test basic slicing
     var first_5 = text[:5]
     print("First 5 chars: " + first_5)
     
@@ -13,7 +13,7 @@ fn main() {
     var middle = text[2:8]
     print("Middle chars: " + middle)
     
-    // Test list slicing
+    # Test list slicing
     var first_half = numbers[:5]
     print("First half: " + str(first_half))
     
@@ -23,7 +23,7 @@ fn main() {
     var middle_section = numbers[3:7]
     print("Middle section: " + str(middle_section))
     
-    // Test step parameter
+    # Test step parameter
     var every_other = numbers[::2]
     print("Every other: " + str(every_other))
     

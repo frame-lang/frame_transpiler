@@ -1,4 +1,4 @@
-// Comprehensive test for dynamic dictionary creation
+# Comprehensive test for dynamic dictionary creation
 
 import json
 import ast
@@ -6,16 +6,16 @@ import ast
 fn test_setdefault_vs_traditional() {
     print("=== Comparing Traditional vs setdefault ===")
     
-    // Traditional approach with try-except
+    # Traditional approach with try-except
     print("\n1. Traditional approach (verbose):")
     var d1 = {}
     
-    // Note: Since 'in' operator not supported, showing conceptual approach
-    // if "fruits" not in d1:
-    //     d1["fruits"] = []
-    // d1["fruits"].append("apple")
+    # Note: Since 'in' operator not supported, showing conceptual approach
+    # if "fruits" not in d1:
+    #     d1["fruits"] = []
+    # d1["fruits"].append("apple")
     
-    // Using get() with default
+    # Using get() with default
     var fruits = d1.get("fruits", [])
     fruits.append("apple")
     d1["fruits"] = fruits
@@ -26,7 +26,7 @@ fn test_setdefault_vs_traditional() {
     
     print("Traditional result: " + str(d1))
     
-    // Using setdefault (concise)
+    # Using setdefault (concise)
     print("\n2. setdefault approach (concise):")
     var d2 = {}
     d2.setdefault("fruits", []).append("apple")
@@ -39,7 +39,7 @@ fn test_setdefault_vs_traditional() {
 fn build_category_index() {
     print("\n=== Building Category Index ===")
     
-    // Simulate products with categories
+    # Simulate products with categories
     var products = [
         {"name": "iPhone", "category": "Electronics", "price": 999},
         {"name": "Laptop", "category": "Electronics", "price": 1299},
@@ -50,7 +50,7 @@ fn build_category_index() {
         {"name": "Headphones", "category": "Electronics", "price": 149}
     ]
     
-    // Build category index using setdefault
+    # Build category index using setdefault
     var index = {}
     
     var i = 0
@@ -58,7 +58,7 @@ fn build_category_index() {
         var product = products[i]
         var category = product["category"]
         
-        // This creates the list if it doesn't exist, then appends
+        # This creates the list if it doesn't exist, then appends
         index.setdefault(category, []).append(product)
         
         i = i + 1
@@ -73,7 +73,7 @@ fn build_category_index() {
         j = j + 1
     }
     
-    // Calculate totals per category
+    # Calculate totals per category
     var totals = {}
     j = 0
     while j < len(categories) {
@@ -97,10 +97,10 @@ fn build_category_index() {
 fn test_dynamic_config_building() {
     print("\n=== Dynamic Configuration Building ===")
     
-    // Build configuration from various sources
+    # Build configuration from various sources
     var config = {}
     
-    // Set defaults
+    # Set defaults
     var db_config = config.setdefault("database", {})
     db_config["host"] = "localhost"
     db_config["port"] = 5432
@@ -115,11 +115,11 @@ fn test_dynamic_config_building() {
     
     print("Initial config: " + str(config))
     
-    // Override from "environment" (simulated)
+    # Override from "environment" (simulated)
     var env_overrides = "{\"database\": {\"host\": \"prod-db.example.com\"}, \"app\": {\"debug\": false}}"
     var overrides = json.loads(env_overrides)
     
-    // Merge overrides
+    # Merge overrides
     var override_db = overrides["database"]
     var override_app = overrides["app"]
     
@@ -135,17 +135,17 @@ fn test_dynamic_config_building() {
 fn test_safe_string_to_dict() {
     print("\n=== Safe String to Dictionary Conversion ===")
     
-    // JSON format (most portable)
+    # JSON format (most portable)
     var json_config = "{\"server\": \"api.example.com\", \"port\": 443, \"ssl\": true}"
     var config1 = json.loads(json_config)
     print("From JSON: " + str(config1))
     
-    // Python literal format (Python-specific)
+    # Python literal format (Python-specific)
     var py_config = "{'server': 'api.example.com', 'port': 443, 'ssl': True}"
     var config2 = ast.literal_eval(py_config)
     print("From Python literal: " + str(config2))
     
-    // Custom format parsing
+    # Custom format parsing
     var custom = "server=api.example.com;port=443;ssl=true"
     var config3 = {}
     
@@ -157,14 +157,14 @@ fn test_safe_string_to_dict() {
             var key = kv[0]
             var value = kv[1]
             
-            // Convert string "true"/"false" to boolean
+            # Convert string "true"/"false" to boolean
             if value == "true" {
                 config3[key] = True
             } elif value == "false" {
                 config3[key] = False
             } else {
-                // Try to convert to int if possible
-                // Note: Would need try-except in real code
+                # Try to convert to int if possible
+                # Note: Would need try-except in real code
                 config3[key] = value
             }
         }

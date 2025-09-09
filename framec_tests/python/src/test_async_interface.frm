@@ -1,4 +1,4 @@
-// Minimal test for async interface methods
+# Minimal test for async interface methods
 system AsyncInterface {
     interface:
         async getData(id)

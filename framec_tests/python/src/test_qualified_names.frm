@@ -1,5 +1,5 @@
-// Test qualified name access (v0.34)
-// This tests module.function() syntax (currently not working)
+# Test qualified name access (v0.34)
+# This tests module.function() syntax (currently not working)
 
 
 module utils {
@@ -15,10 +15,10 @@ module utils {
 }
 
 fn main() {
-    // These qualified names should work but don't yet:
-    // var result = utils.helper()
-    // var sum = utils.math.add(3, 4)
+    # These qualified names should work but don't yet:
+    # var result = utils.helper()
+    # var sum = utils.math.add(3, 4)
     
-    // For now, just test that the module parses
+    # For now, just test that the module parses
     print("Qualified names test - parsing only")
 }

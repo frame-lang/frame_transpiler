@@ -1,27 +1,27 @@
-// Test for => $^ parent dispatch syntax
-// This test validates:
-// 1. => $^ as a statement (not terminator) - can appear anywhere in event handler
-// 2. Parent dispatch functionality
-// 3. Transition detection after dispatch
-// 4. Statements can follow => $^ dispatch
-// 5. Event handlers without explicit return work correctly
+# Test for => $^ parent dispatch syntax
+# This test validates:
+# 1. => $^ as a statement (not terminator) - can appear anywhere in event handler
+# 2. Parent dispatch functionality
+# 3. Transition detection after dispatch
+# 4. Statements can follow => $^ dispatch
+# 5. Event handlers without explicit return work correctly
 
 fn main() {
     var hsm = ParentDispatchTest()
     
-    // Test basic parent dispatch
+    # Test basic parent dispatch
     hsm.test1()
     
-    // Test parent dispatch with statements after
+    # Test parent dispatch with statements after
     hsm.test2() 
     
-    // Test parent dispatch with transition in parent
+    # Test parent dispatch with transition in parent
     hsm.test3()
     
-    // Test parent dispatch in enter/exit handlers
+    # Test parent dispatch in enter/exit handlers
     hsm.next()
     
-    // Test event handler without explicit return
+    # Test event handler without explicit return
     hsm.test4()
 }
 
@@ -36,7 +36,7 @@ system ParentDispatchTest {
     
     machine:
         
-        // Parent state with shared behavior
+        # Parent state with shared behavior
         $Parent {
             test1() {
                 print("test1 handled in parent")
@@ -59,36 +59,36 @@ system ParentDispatchTest {
             }
         }
         
-        // Child state that demonstrates => $^ dispatch
+        # Child state that demonstrates => $^ dispatch
         $Child1 => $Parent {
             
-            // Test 1: Simple parent dispatch (like old @:> behavior)
+            # Test 1: Simple parent dispatch (like old @:> behavior)
             test1() {
                 => $^
             }
             
-            // Test 2: Parent dispatch with statements after
+            # Test 2: Parent dispatch with statements after
             test2() {
                 print("test2 in child before dispatch")
                 => $^
                 print("test2 in child after dispatch - should execute")
             }
             
-            // Test 3: Parent dispatch where parent transitions
+            # Test 3: Parent dispatch where parent transitions
             test3() {
                 print("test3 in child before dispatch")
                 => $^
                 print("test3 in child after dispatch - should NOT execute due to transition")
             }
             
-            // Test 4: Event handler without explicit return after parent dispatch
+            # Test 4: Event handler without explicit return after parent dispatch
             test4() {
                 print("test4 in child")
                 => $^
                 print("test4 continues after parent dispatch")
             }
             
-            // Test enter/exit handlers with parent dispatch
+            # Test enter/exit handlers with parent dispatch
             $>() {
                 print("enter child1")
                 => $^

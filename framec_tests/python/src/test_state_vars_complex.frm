@@ -1,4 +1,4 @@
-// Complex state variable test - multiple states with different variables
+# Complex state variable test - multiple states with different variables
 fn main() {
     var manager = StateManager()
     manager.start()

@@ -20,14 +20,14 @@ system TestSystem {
     machine:
         $Start {
             run_test() {
-                // Test self.operation() calls
+                # Test self.operation() calls
                 self.do_work()
                 var result = self.calculate(42)
                 
-                // Test self.domainVar access
+                # Test self.domainVar access
                 print("Counter: " + str(self.counter))
                 
-                // Test interface method calls (with self. prefix)
+                # Test interface method calls (with self. prefix)
                 var msg = self.get_value()
                 print("Got: " + msg)
                 

@@ -1,5 +1,5 @@
-// Test: Mixed entities with complex interactions (v0.30)
-// Functions, multiple systems, parameters, operations
+# Test: Mixed entities with complex interactions (v0.30)
+# Functions, multiple systems, parameters, operations
 
 fn main() {
     var worker = Worker("task1")

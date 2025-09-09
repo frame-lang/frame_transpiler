@@ -1,5 +1,5 @@
-// Test loading dictionaries from external sources - Fixed version
-// Handles missing config file gracefully
+# Test loading dictionaries from external sources - Fixed version
+# Handles missing config file gracefully
 
 import json
 import os
@@ -7,17 +7,17 @@ import os
 fn test_json_operations() {
     print("=== JSON Operations ===")
     
-    // From JSON string
+    # From JSON string
     var json_str = "{\"name\": \"Alice\", \"age\": 30}"
     var d = json.loads(json_str)
     print("From JSON string: " + str(d))
     
-    // To JSON string
+    # To JSON string
     var data = {"user": "Bob", "score": 95}
     var json_output = json.dumps(data)
     print("To JSON string: " + json_output)
     
-    // Pretty printing with named parameter
+    # Pretty printing with named parameter
     var pretty = json.dumps(data, indent=2)
     print("Pretty JSON:\n" + pretty)
 }
@@ -25,7 +25,7 @@ fn test_json_operations() {
 fn test_json_file_operations() {
     print("\n=== JSON File Operations ===")
     
-    // Write JSON to file
+    # Write JSON to file
     var test_data = {
         "project": "Frame v0.38",
         "features": ["json", "config", "env"],
@@ -37,7 +37,7 @@ fn test_json_file_operations() {
     f.close()
     print("Wrote test data to /tmp/frame_test_data.json")
     
-    // Read JSON from file
+    # Read JSON from file
     var f2 = open("/tmp/frame_test_data.json", "r")
     var loaded_data = json.load(f2)
     f2.close()
@@ -48,19 +48,19 @@ fn test_json_file_operations() {
 fn test_environment_variables() {
     print("\n=== Environment Variables ===")
     
-    // Get single environment variable
+    # Get single environment variable
     var path = os.environ.get("PATH", "not set")
     print("PATH length: " + str(len(path)) + " chars")
     
-    // Get HOME directory
+    # Get HOME directory
     var home = os.environ.get("HOME", "not set")
     print("HOME: " + home)
     
-    // Convert all env vars to dictionary
+    # Convert all env vars to dictionary
     var env_dict = dict(os.environ)
     print("Total environment variables: " + str(len(env_dict)))
     
-    // Get some common ones
+    # Get some common ones
     var user = os.environ.get("USER", "unknown")
     var shell = os.environ.get("SHELL", "unknown")
     print("Current user: " + user)
@@ -70,12 +70,12 @@ fn test_environment_variables() {
 fn test_dict_from_json() {
     print("\n=== Dictionary from JSON ===")
     
-    // Complex nested structure from JSON
+    # Complex nested structure from JSON
     var json_complex = "{\"users\": [{\"id\": 1, \"name\": \"Alice\"}, {\"id\": 2, \"name\": \"Bob\"}], \"meta\": {\"version\": \"1.0\", \"count\": 2}}"
     var complex_data = json.loads(json_complex)
     print("Complex structure: " + str(complex_data))
     
-    // Access nested values
+    # Access nested values
     var users = complex_data["users"]
     print("Users: " + str(users))
     var first_user = users[0]

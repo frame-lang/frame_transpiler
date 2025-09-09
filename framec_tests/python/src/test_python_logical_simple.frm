@@ -1,11 +1,11 @@
-// Simple test for Python logical operators: and, or, not
+# Simple test for Python logical operators: and, or, not
 
 fn test_logical_operators() {
     var a = true
     var b = false
     var c = true
     
-    // Test 'and' operator
+    # Test 'and' operator
     if a and c {
         print("a and c is true")
     }
@@ -16,7 +16,7 @@ fn test_logical_operators() {
         print("a and b is false")
     }
     
-    // Test 'or' operator
+    # Test 'or' operator
     if a or b {
         print("a or b is true")
     }
@@ -27,7 +27,7 @@ fn test_logical_operators() {
         print("b or false is false")
     }
     
-    // Test 'not' operator
+    # Test 'not' operator
     if not b {
         print("not b is true")
     }
@@ -38,7 +38,7 @@ fn test_logical_operators() {
         print("not a is false")
     }
     
-    // Mixed operators
+    # Mixed operators
     if (a and c) or b {
         print("(a and c) or b is true")
     }

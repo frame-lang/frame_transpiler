@@ -1,7 +1,7 @@
 `import time`
 
 fn main() {
-    var looper = Looper(10)  // Small test with 10 loops
+    var looper = Looper(10)  # Small test with 10 loops
 }
 
 system Looper ($>(loops)) {

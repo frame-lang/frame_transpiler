@@ -1,7 +1,7 @@
 fn main() {
     var counter = Counter()
     
-    // Demonstrate system interaction  
+    # Demonstrate system interaction  
     var iterations = [1, 2, 3]
     for i in iterations {
         counter.increment()

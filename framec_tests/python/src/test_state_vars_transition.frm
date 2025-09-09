@@ -1,4 +1,4 @@
-// Test state variable transition issue - simple two-state machine  
+# Test state variable transition issue - simple two-state machine  
 fn main() {
     var fsm = TwoState()
     fsm.go()

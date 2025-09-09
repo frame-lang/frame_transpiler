@@ -1,5 +1,5 @@
-// Demonstration of system lifecycle management concept
-// This test shows the architecture without relying on event handler code generation
+# Demonstration of system lifecycle management concept
+# This test shows the architecture without relying on event handler code generation
 
 fn main() {
     print("=== System Lifecycle Management Demo ===")
@@ -27,14 +27,14 @@ fn main() {
     print("3. Cycle repeats as needed")
     print("")
     
-    // Demonstrate the structure
+    # Demonstrate the structure
     print("System Structure:")
     print("- MainSystem: Orchestrator with StateA and StateB")
     print("- SystemA: Worker with Start, Working, End states")
     print("- SystemB: Worker with Start, Working, End states")
     print("")
     
-    // Show the multi-entity file structure
+    # Show the multi-entity file structure
     print("v0.30 Features Demonstrated:")
     print("- Multiple systems in single file")
     print("- Multiple functions in single file")
@@ -46,59 +46,59 @@ fn main() {
     print("=== Demo Complete ===")
 }
 
-// Helper function demonstrating multi-function support
+# Helper function demonstrating multi-function support
 fn logTransition(fromState, toState) {
     print("Transition: " + fromState + " -> " + toState)
 }
 
-// Main orchestrator system
+# Main orchestrator system
 system MainSystem {
     interface:
         next()
         
     machine:
-        // StateA manages SystemA lifecycle
+        # StateA manages SystemA lifecycle
         $StateA {
-            var sysA = None  // State-scoped variable
+            var sysA = None  # State-scoped variable
             
             $>() {
-                // Would create SystemA here
+                # Would create SystemA here
                 logTransition("", "StateA")
             }
             
             <$() {
-                // Would destroy SystemA here
+                # Would destroy SystemA here
                 logTransition("StateA", "")
             }
             
             next() {
-                // Would drive SystemA and check return value
+                # Would drive SystemA and check return value
                 -> $StateB
             }
         }
         
-        // StateB manages SystemB lifecycle
+        # StateB manages SystemB lifecycle
         $StateB {
-            var sysB = None  // State-scoped variable
+            var sysB = None  # State-scoped variable
             
             $>() {
-                // Would create SystemB here
+                # Would create SystemB here
                 logTransition("", "StateB")
             }
             
             <$() {
-                // Would destroy SystemB here
+                # Would destroy SystemB here
                 logTransition("StateB", "")
             }
             
             next() {
-                // Would drive SystemB and check return value
+                # Would drive SystemB and check return value
                 -> $StateA
             }
         }
 }
 
-// Worker system A
+# Worker system A
 system SystemA {
     interface:
         next()
@@ -106,26 +106,26 @@ system SystemA {
     machine:
         $Start {
             next() {
-                system.return = true  // Continue processing
+                system.return = true  # Continue processing
                 -> $Working
             }
         }
         
         $Working {
             next() {
-                system.return = true  // Continue processing
+                system.return = true  # Continue processing
                 -> $End
             }
         }
         
         $End {
             next() {
-                system.return = false  // Processing complete
+                system.return = false  # Processing complete
             }
         }
 }
 
-// Worker system B (similar structure)
+# Worker system B (similar structure)
 system SystemB {
     interface:
         next()

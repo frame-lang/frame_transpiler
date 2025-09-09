@@ -1,12 +1,12 @@
-// Simplified seat booking test
+# Simplified seat booking test
 
 fn main() {
     print("=== CultureTicks Seat Booking Workflow Test ===")
     
-    // Create seat management system  
+    # Create seat management system  
     var seat_manager = SeatManager()
     
-    // Test the scope fix
+    # Test the scope fix
     seat_manager.test_seat_state_management()
     
     print("=== Workflow Test Complete ===")

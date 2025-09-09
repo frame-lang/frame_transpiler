@@ -1,6 +1,6 @@
-// Test dictionary as switch statement pattern
+# Test dictionary as switch statement pattern
 
-// Note: Frame doesn't support lambda syntax yet, so we'll use regular functions
+# Note: Frame doesn't support lambda syntax yet, so we'll use regular functions
 
 fn case1_handler() {
     print("First case")
@@ -23,8 +23,8 @@ fn default_handler() {
 }
 
 fn switch_example(option) {
-    // Since Frame doesn't support functions as values directly,
-    // we'll use a different approach with if-elif-else
+    # Since Frame doesn't support functions as values directly,
+    # we'll use a different approach with if-elif-else
     
     if option == "case1" {
         return case1_handler()
@@ -53,7 +53,7 @@ fn test_basic_switch() {
     print("Returned: " + result)
 }
 
-// More complex example with parameters
+# More complex example with parameters
 fn add_operation(a, b) {
     return a + b
 }
@@ -74,7 +74,7 @@ fn divide_operation(a, b) {
 }
 
 fn calculator(operation, a, b) {
-    // Simulate dictionary switch with if-elif chain (function refs not supported)
+    # Simulate dictionary switch with if-elif chain (function refs not supported)
     if operation == "+" {
         return add_operation(a, b)
     } elif operation == "-" {
@@ -99,7 +99,7 @@ fn test_calculator_dispatch() {
     print("10 % 5 = " + str(calculator("%", 10, 5)))
 }
 
-// Command pattern with dictionary
+# Command pattern with dictionary
 fn cmd_help() {
     print("Available commands: help, status, run, exit")
 }
@@ -118,7 +118,7 @@ fn cmd_exit() {
 }
 
 fn command_processor(command) {
-    // Simulate dictionary switch with if-elif chain (function refs not supported)
+    # Simulate dictionary switch with if-elif chain (function refs not supported)
     if command == "help" {
         cmd_help()
     } elif command == "status" {

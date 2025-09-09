@@ -1,4 +1,4 @@
-// Basic LEGB scope resolution test - simplified syntax
+# Basic LEGB scope resolution test - simplified syntax
 
 fn main() {
     print("=== Basic LEGB Test ===")

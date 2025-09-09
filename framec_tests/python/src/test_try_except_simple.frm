@@ -1,4 +1,4 @@
-// Test exception handling - simple version that works
+# Test exception handling - simple version that works
 
 fn main() {
     testBasicTryCatch()
@@ -8,12 +8,12 @@ fn main() {
     testRaiseException()
 }
 
-// Test 1: Basic try-catch
+# Test 1: Basic try-catch
 fn testBasicTryCatch() {
     print("Test 1: Basic try-catch")
     try {
         print("  In try block")
-        // Force an error
+        # Force an error
         var x = 1 / 0
         print("  Result: " + str(x))
     }
@@ -23,7 +23,7 @@ fn testBasicTryCatch() {
     print("  After try-catch")
 }
 
-// Test 2: Specific exception type with actual error
+# Test 2: Specific exception type with actual error
 fn testSpecificException() {
     print("Test 2: Specific exception")
     try {
@@ -38,7 +38,7 @@ fn testSpecificException() {
     }
 }
 
-// Test 3: Else clause (runs if no exception)
+# Test 3: Else clause (runs if no exception)
 fn testElseClause() {
     print("Test 3: Else clause")
     try {
@@ -53,7 +53,7 @@ fn testElseClause() {
     }
 }
 
-// Test 4: Finally clause
+# Test 4: Finally clause
 fn testFinallyClause() {
     print("Test 4: Finally clause")
     try {
@@ -67,7 +67,7 @@ fn testFinallyClause() {
         print("  Finally - always runs")
     }
     
-    // With exception
+    # With exception
     try {
         var y = 1 / 0
     }
@@ -79,7 +79,7 @@ fn testFinallyClause() {
     }
 }
 
-// Test 5: Raise exceptions
+# Test 5: Raise exceptions
 fn testRaiseException() {
     print("Test 5: Raise exceptions")
     
@@ -91,7 +91,7 @@ fn testRaiseException() {
         print("  Caught ValueError: " + str(e))
     }
     
-    // Test bare raise
+    # Test bare raise
     try {
         try {
             raise RuntimeError("Original error")

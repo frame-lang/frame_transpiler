@@ -1,4 +1,4 @@
-// EXPECTED_OUTPUT: started
+# EXPECTED_OUTPUT: started
 fn main() {
     var sys = NoParamsSystem()
 }

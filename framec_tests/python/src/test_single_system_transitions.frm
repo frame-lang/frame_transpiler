@@ -1,5 +1,5 @@
 fn main() {
-    // Test with max_loops=2 to allow Init->A->B->A->B then stop
+    # Test with max_loops=2 to allow Init->A->B->A->B then stop
     var service = TestSystem(2)
     print("Test completed - system initialized with max_loops=2")
 }
@@ -41,6 +41,6 @@ system TestSystem (max_loops) {
     }
     
     domain:
-        var max_loops = 0  // Default value, will be overridden by constructor parameter
+        var max_loops = 0  # Default value, will be overridden by constructor parameter
         var total_loops = 0
 }

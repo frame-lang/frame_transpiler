@@ -1,4 +1,4 @@
-// Test string enum values
+# Test string enum values
 
 fn main() {
     var config = ConfigManager()
@@ -12,7 +12,7 @@ system ConfigManager {
     machine:
         $Ready {
             testStringEnums() {
-                // Test explicit string values
+                # Test explicit string values
                 var red = Color.Red
                 var green = Color.Green
                 var blue = Color.Blue
@@ -25,7 +25,7 @@ system ConfigManager {
                     print("Red value is correctly 'red'")
                 }
                 
-                // Test auto string values (uses member name)
+                # Test auto string values (uses member name)
                 var debug = LogLevel.Debug
                 var info = LogLevel.Info
                 var error = LogLevel.Error
@@ -38,7 +38,7 @@ system ConfigManager {
                     print("Debug auto-value is correctly 'Debug'")
                 }
                 
-                // Test database states
+                # Test database states
                 var disconnected = DbState.Disconnected
                 var connected = DbState.Connected
                 
@@ -50,28 +50,28 @@ system ConfigManager {
         }
     
     domain:
-        // String enum with explicit values
+        # String enum with explicit values
         enum Color : string {
             Red = "red"
             Green = "green"
             Blue = "blue"
         }
         
-        // String enum with auto values (uses member name)
+        # String enum with auto values (uses member name)
         enum LogLevel : string {
-            Debug    // "Debug"
-            Info     // "Info"
-            Warning  // "Warning"
-            Error    // "Error"
-            Critical // "Critical"
+            Debug    # "Debug"
+            Info     # "Info"
+            Warning  # "Warning"
+            Error    # "Error"
+            Critical # "Critical"
         }
         
-        // Mixed explicit and auto string values
+        # Mixed explicit and auto string values
         enum DbState : string {
             Disconnected = "disconnected"
-            Connecting   // "Connecting" (auto)
+            Connecting   # "Connecting" (auto)
             Connected = "connected"
             Error = "error"
-            Retrying     // "Retrying" (auto)
+            Retrying     # "Retrying" (auto)
         }
 }

@@ -1,14 +1,14 @@
-// Real test for async with statement in Frame v0.37
-// Tests actual async with functionality without mocking
+# Real test for async with statement in Frame v0.37
+# Tests actual async with functionality without mocking
 import asyncio
 import aiohttp
 
-// Test real async with for HTTP operations
+# Test real async with for HTTP operations
 async fn test_github_api() {
     print("Testing real async with statement with GitHub API...")
     
     try {
-        // Simplified to avoid parser issues with nested async with
+        # Simplified to avoid parser issues with nested async with
         print("  Simulating HTTP session...")
         await asyncio.sleep(0.1)
         print("  Making API call...")
@@ -20,12 +20,12 @@ async fn test_github_api() {
     }
 }
 
-// Test nested async with statements
+# Test nested async with statements
 async fn test_nested_async_with() {
     print("\nTesting nested async with statements...")
     
     try {
-        // Simplified to avoid parser issues
+        # Simplified to avoid parser issues
         print("  Outer context: Session created")
         await asyncio.sleep(0.05)
         
@@ -44,7 +44,7 @@ async fn test_nested_async_with() {
     }
 }
 
-// Test async with in a Frame system
+# Test async with in a Frame system
 system HttpClient {
     interface:
         async fetchUrl(url)
@@ -56,7 +56,7 @@ system HttpClient {
             async fetchUrl(url) {
                 print("Fetching: " + url)
                 
-                // Simplified to avoid parser issues
+                # Simplified to avoid parser issues
                 try {
                     print("  Creating session...")
                     await asyncio.sleep(0.05)
@@ -85,10 +85,10 @@ system HttpClient {
                 print("Fetching multiple URLs...")
                 self.fetch_count = 0
                 
-                // Simplified approach without nested async with in try block
+                # Simplified approach without nested async with in try block
                 try {
-                    // Frame parser has issues with nested async with in try blocks
-                    // So we'll simulate the functionality
+                    # Frame parser has issues with nested async with in try blocks
+                    # So we'll simulate the functionality
                     for url in urls {
                         print("  Fetching: " + url)
                         self.fetch_count = self.fetch_count + 1
@@ -113,28 +113,28 @@ system HttpClient {
         var fetch_count = 0
 }
 
-// Main test runner
+# Main test runner
 async fn run_tests() {
     print("=" * 60)
     print("Frame v0.37 Async With - REAL TESTS (No Mocking!)")
     print("=" * 60)
     print()
     
-    // Test 1: Real async with
+    # Test 1: Real async with
     await test_github_api()
     
-    // Test 2: Nested async with
+    # Test 2: Nested async with
     await test_nested_async_with()
     
-    // Test 3: Async with in Frame systems
+    # Test 3: Async with in Frame systems
     print("\nTesting async with in Frame systems...")
     var client = HttpClient()
     
-    // Test single fetch
+    # Test single fetch
     var result1 = await client.fetchUrl("https://api.github.com/zen")
     print("  Single fetch result: " + result1)
     
-    // Test multiple fetches
+    # Test multiple fetches
     var urls = [
         "https://api.github.com",
         "https://api.github.com/users/torvalds",
@@ -150,7 +150,7 @@ async fn run_tests() {
     print("=" * 60)
 }
 
-// Entry point
+# Entry point
 fn main() {
     print("Starting REAL async with validation (requires internet)...")
     asyncio.run(run_tests())

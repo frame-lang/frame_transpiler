@@ -1,4 +1,4 @@
-// Simplified system lifecycle test to verify basic functionality
+# Simplified system lifecycle test to verify basic functionality
 
 fn main() {
     print("Starting simple lifecycle test")

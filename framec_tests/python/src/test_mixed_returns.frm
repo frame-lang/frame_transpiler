@@ -1,8 +1,8 @@
-// Test: Mixed usage of return and return = in different contexts
+# Test: Mixed usage of return and return = in different contexts
 fn main() {
     var analyzer = TextAnalyzer()
     
-    // Test different text inputs
+    # Test different text inputs
     var result1 = analyzer.analyze("")
     print("Empty: " + result1)
     
@@ -23,17 +23,17 @@ system TextAnalyzer {
     machine:
         $Analyzing {
             analyze(text: str): str {
-                // Use early returns with return = for interface value
+                # Use early returns with return = for interface value
                 if text == "" {
                     system.return = "empty input"
-                    return  // Exit handler
+                    return  # Exit handler
                 }
                 
-                // Call action for processing
+                # Call action for processing
                 var category = categorizeText(text)
                 print("Category from action: " + category)
                 
-                // Set final interface return based on category
+                # Set final interface return based on category
                 if category == "short" {
                     system.return = "short text: " + text
                 } elif category == "caps" {
@@ -42,27 +42,27 @@ system TextAnalyzer {
                     system.return = "normal text: " + text
                 }
                 
-                return  // Exit handler
+                return  # Exit handler
             }
         }
         
     actions:
         categorizeText(text: str): str {
-            // This action uses regular returns
+            # This action uses regular returns
             if len(text) < 10 {
-                return "short"  // Return to caller
+                return "short"  # Return to caller
             }
             
             if text == text.upper() and text != text.lower() {
-                return "caps"   // Return to caller
+                return "caps"   # Return to caller
             }
             
-            return "normal"     // Return to caller
+            return "normal"     # Return to caller
         }
         
-        // Helper action
+        # Helper action
         len(s: str): int {
-            // Simple return of computed value
+            # Simple return of computed value
             var count = 0
             for c in s {
                 count = count + 1

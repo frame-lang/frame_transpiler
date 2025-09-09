@@ -11,14 +11,14 @@ system GradeProcessor {
     machine:
         $Start {
             processScore(score: int): string {
-                // Validate input
+                # Validate input
                 if score < 0 {
                     return "Invalid"
                 } elif score > 100 {
                     return "Invalid"
                 }
                 
-                // Calculate letter grade
+                # Calculate letter grade
                 if score >= 90 {
                     return "A"
                 } elif score >= 80 {

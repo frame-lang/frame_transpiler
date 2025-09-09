@@ -1,9 +1,9 @@
-// Test JSON-like data handling (import and file I/O not yet supported)
+# Test JSON-like data handling (import and file I/O not yet supported)
 
 fn test_json_like_parsing() {
     print("=== Testing JSON-like Data Handling ===")
     
-    // Simulate JSON data as Frame dictionaries
+    # Simulate JSON data as Frame dictionaries
     var json_data = {
         "user": {
             "id": 123,
@@ -49,7 +49,7 @@ fn test_nested_data_access() {
         }
     }
     
-    // Access nested values
+    # Access nested values
     var db_host = config["database"]["host"]
     var db_user = config["database"]["credentials"]["username"]
     var api_url = config["api"]["base_url"]
@@ -72,14 +72,14 @@ fn test_data_manipulation() {
         ]
     }
     
-    // Access array elements
+    # Access array elements
     var first_item = data["items"][0]
     var item_name = first_item["name"]
     var item_price = first_item["price"]
     
     print("First item: " + item_name + " - $" + str(item_price))
     
-    // Calculate total
+    # Calculate total
     var total = 0.0
     var items = data["items"]
     var i = 0

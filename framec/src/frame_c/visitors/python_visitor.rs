@@ -9174,12 +9174,14 @@ impl AstVisitor for PythonVisitor {
             AssignmentOperator::MinusEquals => self.add_code(" -= "),
             AssignmentOperator::StarEquals => self.add_code(" *= "),
             AssignmentOperator::SlashEquals => self.add_code(" /= "),
+            AssignmentOperator::FloorDivideEquals => self.add_code(" //= "),
             AssignmentOperator::PercentEquals => self.add_code(" %= "),
             AssignmentOperator::PowerEquals => self.add_code(" **= "),
             AssignmentOperator::AndEquals => self.add_code(" &= "),
             AssignmentOperator::OrEquals => self.add_code(" |= "),
             AssignmentOperator::LeftShiftEquals => self.add_code(" <<= "),
             AssignmentOperator::RightShiftEquals => self.add_code(" >>= "),
+            AssignmentOperator::XorEquals => self.add_code(" ^= "),
         }
         
         //self.add_code(&*output);
@@ -9213,12 +9215,14 @@ impl AstVisitor for PythonVisitor {
             AssignmentOperator::MinusEquals => output.push_str(" -= "),
             AssignmentOperator::StarEquals => output.push_str(" *= "),
             AssignmentOperator::SlashEquals => output.push_str(" /= "),
+            AssignmentOperator::FloorDivideEquals => output.push_str(" //= "),
             AssignmentOperator::PercentEquals => output.push_str(" %= "),
             AssignmentOperator::PowerEquals => output.push_str(" **= "),
             AssignmentOperator::AndEquals => output.push_str(" &= "),
             AssignmentOperator::OrEquals => output.push_str(" |= "),
             AssignmentOperator::LeftShiftEquals => output.push_str(" <<= "),
             AssignmentOperator::RightShiftEquals => output.push_str(" >>= "),
+            AssignmentOperator::XorEquals => output.push_str(" ^= "),
         }
         
         assignment_expr_node
@@ -9462,6 +9466,7 @@ impl AstVisitor for PythonVisitor {
             OperatorType::Negated => self.add_code("-"),
             OperatorType::Multiply => self.add_code(" * "),
             OperatorType::Divide => self.add_code(" / "),
+            OperatorType::FloorDivide => self.add_code(" // "),
             OperatorType::Power => self.add_code(" ** "),
             OperatorType::Greater => self.add_code(" > "),
             OperatorType::GreaterEqual => self.add_code(" >= "),
@@ -9497,6 +9502,7 @@ impl AstVisitor for PythonVisitor {
             OperatorType::Negated => output.push('-'),
             OperatorType::Multiply => output.push_str(" * "),
             OperatorType::Divide => output.push_str(" / "),
+            OperatorType::FloorDivide => output.push_str(" // "),
             OperatorType::Power => output.push_str(" ** "),
             OperatorType::Greater => output.push_str(" > "),
             OperatorType::GreaterEqual => output.push_str(" >= "),

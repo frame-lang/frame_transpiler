@@ -1,5 +1,5 @@
-// Test: System with functions (v0.30)
-// Validates interaction between systems and functions
+# Test: System with functions (v0.30)
+# Validates interaction between systems and functions
 
 fn main() {
     var sys = TestSystem()

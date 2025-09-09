@@ -1,4 +1,4 @@
-// Test that systems cannot access each other's internals
+# Test that systems cannot access each other's internals
 
 fn main() {
     print("=== System Isolation Test ===")
@@ -28,12 +28,12 @@ system SystemOne {
             test_public() {
                 print("SystemOne public method")
                 
-                // Can call own internals
+                # Can call own internals
                 self.internal_one()
                 self.action_one()
                 
-                // Don't call SystemTwo to avoid recursion
-                // Test passes if we get here without errors
+                # Don't call SystemTwo to avoid recursion
+                # Test passes if we get here without errors
                 return
             }
         }
@@ -60,14 +60,14 @@ system SystemTwo {
             test_public() {
                 print("SystemTwo public method")
                 
-                // Can call own internals
+                # Can call own internals
                 self.internal_two()
                 self.action_two()
                 
-                // Prevent infinite recursion in test
+                # Prevent infinite recursion in test
                 call_count = call_count + 1
                 if call_count <= 1 {
-                    // Test cross-system call
+                    # Test cross-system call
                     var other = SystemOne()
                     other.test_public()
                 }

@@ -1,30 +1,30 @@
-// Test system return semantics and default values
+# Test system return semantics and default values
 
 system SystemReturnTest {
     interface:
-        // Interface with default return value
+        # Interface with default return value
         getValue() : int = 42
         check() : bool = false
         process()
         
     machine:
         $Start {
-            // Event handler overrides default system.return
+            # Event handler overrides default system.return
             getValue() : int = 100 {
-                callAction()  // Action might modify system.return
+                callAction()  # Action might modify system.return
                 if true {
-                    system.return = 200  // Explicit override
+                    system.return = 200  # Explicit override
                 }
                 return
             }
             
-            // Handler uses interface default
+            # Handler uses interface default
             check() {
-                // Implicit system.return = false from interface
+                # Implicit system.return = false from interface
                 return
             }
             
-            // Handler sets system.return explicitly
+            # Handler sets system.return explicitly
             process() {
                 callAction()
                 return
@@ -32,10 +32,10 @@ system SystemReturnTest {
         }
         
     actions:
-        // Action that sets system.return
+        # Action that sets system.return
         callAction() : string {
-            system.return = 100  // Set interface return
-            return "action_done"  // Return to handler
+            system.return = 100  # Set interface return
+            return "action_done"  # Return to handler
         }
 }
 

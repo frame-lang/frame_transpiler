@@ -1,24 +1,24 @@
-// Proper test for async with statement in Frame v0.37
-// This test actually validates async context manager functionality
+# Proper test for async with statement in Frame v0.37
+# This test actually validates async context manager functionality
 import asyncio
 import aiohttp
 import tempfile
 import os
 import json
 
-// Test async with for real network operations
+# Test async with for real network operations
 async fn test_real_async_with() {
     print("Testing real async with statement...")
     
-    // Test 1: Real HTTP request using async with
+    # Test 1: Real HTTP request using async with
     try {
         async with aiohttp.ClientSession() as session {
-            // Make a real API call
+            # Make a real API call
             async with session.get("https://api.github.com/zen") as response {
                 var status = response.status
                 var text = await response.text()
                 
-                // Verify we got a real response
+                # Verify we got a real response
                 if status == 200 {
                     print("SUCCESS: Got GitHub zen: " + text)
                 } else {
@@ -32,8 +32,8 @@ async fn test_real_async_with() {
     }
 }
 
-// Mock async context manager (Frame doesn't support classes)
-// We'll simulate context manager behavior with a simple function
+# Mock async context manager (Frame doesn't support classes)
+# We'll simulate context manager behavior with a simple function
 async fn mock_async_context(name) {
     print("  -> Entering async context: " + name)
     await asyncio.sleep(0.01)
@@ -43,16 +43,16 @@ async fn mock_async_context(name) {
     return "Work done by " + name
 }
 
-// Test custom async context manager
+# Test custom async context manager
 async fn test_custom_async_context() {
     print("\nTesting custom async context manager...")
     
-    // Simulate context manager with async function
+    # Simulate context manager with async function
     var result = await mock_async_context("ctx1")
     print("  Work result: " + result)
     
-    // Since we can't actually test context manager lifecycle without classes,
-    // we'll just verify the function worked
+    # Since we can't actually test context manager lifecycle without classes,
+    # we'll just verify the function worked
     if result == "Work done by ctx1" {
         print("SUCCESS: Async context simulation worked")
     } else {
@@ -60,11 +60,11 @@ async fn test_custom_async_context() {
     }
 }
 
-// Test nested async with statements
+# Test nested async with statements
 async fn test_nested_async_with() {
     print("\nTesting nested async with statements...")
     
-    // Simulate nested context managers with nested function calls
+    # Simulate nested context managers with nested function calls
     print("  In outer context")
     var result1 = await mock_async_context("outer")
     print("    In inner context")
@@ -72,7 +72,7 @@ async fn test_nested_async_with() {
     print("    Results: " + result1 + ", " + result2)
     print("  Back in outer context")
     
-    // Verify both worked
+    # Verify both worked
     if result1 == "Work done by outer" and result2 == "Work done by inner" {
         print("SUCCESS: Nested async simulation worked")
     } else {
@@ -80,7 +80,7 @@ async fn test_nested_async_with() {
     }
 }
 
-// Test exception handling in async with
+# Test exception handling in async with
 async fn test_async_with_exception() {
     print("\nTesting async with exception handling...")
     
@@ -90,14 +90,14 @@ async fn test_async_with_exception() {
         print("  Simulating context with exception")
         await asyncio.sleep(0.01)
         print("  Inside context, about to raise exception")
-        // Frame doesn't support throw, simulate with division by zero
+        # Frame doesn't support throw, simulate with division by zero
         var x = 1 / 0
     } except {
         exception_caught = true
         print("  Exception caught as expected")
     }
     
-    // Verify exception was caught
+    # Verify exception was caught
     if exception_caught {
         print("SUCCESS: Exception handling worked")
     } else {
@@ -105,7 +105,7 @@ async fn test_async_with_exception() {
     }
 }
 
-// Test async with in a Frame system
+# Test async with in a Frame system
 system AsyncResourceManager {
     interface:
         async acquireResource(resource_name)
@@ -129,7 +129,7 @@ system AsyncResourceManager {
             async processWithResource(data) {
                 print("Processing with async context manager...")
                 
-                // Simulate async context manager in state handler
+                # Simulate async context manager in state handler
                 print("  Resource acquired in state handler: " + self.resource_name)
                 await asyncio.sleep(0.01)
                 self.result = await mock_async_context(self.resource_name)
@@ -160,44 +160,44 @@ system AsyncResourceManager {
         var processed_data = ""
 }
 
-// Test file operations with async context
+# Test file operations with async context
 async fn test_async_file_operations() {
     print("\nTesting async file operations with context manager...")
     
-    // Since Frame doesn't support classes or with statements for files,
-    // we'll simulate async file operations
+    # Since Frame doesn't support classes or with statements for files,
+    # we'll simulate async file operations
     print("  Simulating async file write...")
     await asyncio.sleep(0.01)
     
-    // Mock file operation
+    # Mock file operation
     print("  Data written asynchronously")
     await asyncio.sleep(0.01)
     
-    // Mock verification
+    # Mock verification
     print("SUCCESS: Async file operations simulated")
 }
 
-// Main test runner
+# Main test runner
 async fn run_all_tests() {
     print("=" * 70)
     print("Frame v0.37 Async With Statement Tests - PROPER VALIDATION")
     print("=" * 70)
     
-    // Run all test cases
+    # Run all test cases
     await test_real_async_with()
     await test_custom_async_context()
     await test_nested_async_with()
     await test_async_with_exception()
     await test_async_file_operations()
     
-    // Test async with in systems
+    # Test async with in systems
     print("\nTesting async with in Frame systems...")
     var manager = AsyncResourceManager()
     await manager.acquireResource("database_connection")
     await manager.processWithResource("test_data")
     var status = manager.getStatus()
-    // Check if status starts with "complete:"
-    var is_complete = True  // Simplified check
+    # Check if status starts with "complete:"
+    var is_complete = True  # Simplified check
     if is_complete {
         print("SUCCESS: System async with works correctly (status: " + status + ")")
     } else {
@@ -209,7 +209,7 @@ async fn run_all_tests() {
     print("=" * 70)
 }
 
-// Entry point
+# Entry point
 fn main() {
     print("Starting proper async with validation...")
     asyncio.run(run_all_tests())

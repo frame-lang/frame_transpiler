@@ -1,39 +1,39 @@
-// Comprehensive async stress test for Frame v0.37 - Fixed version
-// Tests parallel processing, error handling, timeouts with mock functions
+# Comprehensive async stress test for Frame v0.37 - Fixed version
+# Tests parallel processing, error handling, timeouts with mock functions
 
 import asyncio
 from time import time
 
-// Mock async functions for testing without actual web calls
+# Mock async functions for testing without actual web calls
 async fn mock_download(url) {
     print("Mock downloading: " + url)
-    await asyncio.sleep(0.1)  // Simulate network delay
+    await asyncio.sleep(0.1)  # Simulate network delay
     return "{'data': 'Mock response from " + url + "'}"
 }
 
 async fn mock_process(data) {
-    await asyncio.sleep(0.05)  // Simulate processing time
+    await asyncio.sleep(0.05)  # Simulate processing time
     return "Processed: " + data
 }
 
-// Async download function - now could use async with!
+# Async download function - now could use async with!
 async fn download_data(url) {
     try {
-        // With async with support, we could now do:
-        // async with aiohttp.ClientSession() as session {
-        //     async with session.get(url) as response {
-        //         return await response.text()
-        //     }
-        // }
-        // But for testing without network, using mock:
+        # With async with support, we could now do:
+        # async with aiohttp.ClientSession() as session {
+        #     async with session.get(url) as response {
+        #         return await response.text()
+        #     }
+        # }
+        # But for testing without network, using mock:
         return await mock_download(url)
     } except {
-        // Fallback to mock for testing
+        # Fallback to mock for testing
         return await mock_download(url)
     }
 }
 
-// Parallel download function
+# Parallel download function
 async fn download_parallel(urls) {
     var tasks = []
     for url in urls {
@@ -43,7 +43,7 @@ async fn download_parallel(urls) {
     return results
 }
 
-// CPU-intensive async work simulation
+# CPU-intensive async work simulation
 async fn compute_heavy(n) {
     print("Starting heavy computation for n=" + str(n))
     var result = 0
@@ -57,7 +57,7 @@ async fn compute_heavy(n) {
     return result
 }
 
-// Async timeout wrapper
+# Async timeout wrapper
 async fn with_timeout(coro, timeout_sec) {
     try {
         var result = await asyncio.wait_for(coro, timeout=timeout_sec)
@@ -67,16 +67,16 @@ async fn with_timeout(coro, timeout_sec) {
     }
 }
 
-// Simple async data pipeline system for testing
+# Simple async data pipeline system for testing
 system AsyncDataPipeline {
     interface:
-        // Async methods for data processing pipeline
+        # Async methods for data processing pipeline
         async fetchBatch(urls)
         async processBatch(batch_id)
         async getStatus()
         async runPipeline(config)
         
-        // Sync method that needs to work with async runtime
+        # Sync method that needs to work with async runtime
         configure(settings)
         
     machine:
@@ -105,8 +105,8 @@ system AsyncDataPipeline {
         }
         
         $Downloading {
-            async $>() {  // Explicitly mark as async handler
-                // Parallel download on enter
+            async $>() {  # Explicitly mark as async handler
+                # Parallel download on enter
                 var start_time = time()
                 self.batch_data = await download_parallel(self.current_urls)
                 var elapsed = time() - start_time
@@ -120,8 +120,8 @@ system AsyncDataPipeline {
         }
         
         $Processing {
-            async $>() {  // Explicitly mark as async handler
-                // Process each downloaded item
+            async $>() {  # Explicitly mark as async handler
+                # Process each downloaded item
                 self.processed_data = []
                 
                 for item in self.batch_data {
@@ -133,9 +133,9 @@ system AsyncDataPipeline {
                 -> $Complete
             }
             
-            async processBatch(batch_id) {  // Mark as async since it uses await
+            async processBatch(batch_id) {  # Mark as async since it uses await
                 print("Processing batch: " + str(batch_id))
-                // Simulate batch processing with timeout
+                # Simulate batch processing with timeout
                 var result = await with_timeout(compute_heavy(1000), 2.0)
                 system.return = "Batch " + str(batch_id) + " result: " + str(result)
             }
@@ -146,7 +146,7 @@ system AsyncDataPipeline {
         }
         
         $Complete {
-            async $>() {  // Must be async - entered from async PipelineRunning state
+            async $>() {  # Must be async - entered from async PipelineRunning state
                 print("Pipeline complete. Processed " + str(len(self.processed_data)) + " items")
             }
             
@@ -155,36 +155,36 @@ system AsyncDataPipeline {
             }
             
             async fetchBatch(urls) {
-                // Can start new batch
+                # Can start new batch
                 self.current_urls = urls
                 self.batch_data = []
                 -> $Downloading
             }
             
-            async processBatch(batch_id) {  // Mark as async since it uses await
+            async processBatch(batch_id) {  # Mark as async since it uses await
                 print("Processing batch: " + str(batch_id) + " (in complete state)")
-                // Can still process batches even when complete
+                # Can still process batches even when complete
                 var result = await with_timeout(compute_heavy(500), 2.0)
                 system.return = "Batch " + str(batch_id) + " result: " + str(result)
             }
         }
         
         $PipelineRunning {
-            async $>() {  // Explicitly mark as async handler
-                // Complex pipeline with multiple async stages
+            async $>() {  # Explicitly mark as async handler
+                # Complex pipeline with multiple async stages
                 print("Running full pipeline")
                 
-                // Stage 1: Fetch multiple data sources in parallel (config is now urls directly)
+                # Stage 1: Fetch multiple data sources in parallel (config is now urls directly)
                 var urls = self.pipeline_config
                 var data = await download_parallel(urls)
                 print("Stage 1 complete: " + str(len(data)) + " sources fetched")
                 
-                // Stage 2: Process data with concurrency limit
+                # Stage 2: Process data with concurrency limit
                 var processed = await self._process_with_limit(data)
                 self.pipeline_result = processed
                 print("Stage 2 complete: " + str(len(processed)) + " items processed")
                 
-                // Stage 3: Heavy computation with timeout
+                # Stage 3: Heavy computation with timeout
                 var compute_tasks = []
                 for i in [1000, 2000, 3000] {
                     var result = await with_timeout(compute_heavy(i), 1.0)
@@ -202,7 +202,7 @@ system AsyncDataPipeline {
         
     actions:
         async _process_with_limit(data) {
-            // Need semaphore support - temporary simplified version
+            # Need semaphore support - temporary simplified version
             var results = []
             for item in data {
                 var result = await mock_process(str(item))
@@ -220,7 +220,7 @@ system AsyncDataPipeline {
         var pipeline_result = None
 }
 
-// Main async stress test - simplified version
+# Main async stress test - simplified version
 async fn stress_test_async() {
     print("=== Starting Async Stress Test ===")
     print("")
@@ -229,11 +229,11 @@ async fn stress_test_async() {
     print("-" * 40)
     var pipeline = AsyncDataPipeline()
     
-    // Test sync method with async runtime (simplified - no dict literal)
+    # Test sync method with async runtime (simplified - no dict literal)
     var config_result = pipeline.configure("max_batch_10")
     print("Config result: " + str(config_result))
     
-    // Test parallel downloads
+    # Test parallel downloads
     var test_urls = [
         "https://api.github.com/users/github",
         "https://api.github.com/users/torvalds", 
@@ -241,31 +241,31 @@ async fn stress_test_async() {
     ]
     await pipeline.fetchBatch(test_urls)
     
-    // Process batch
+    # Process batch
     var batch_result = await pipeline.processBatch(1)
     print("Batch result: " + str(batch_result))
     
-    // Get status
+    # Get status
     var status = await pipeline.getStatus()
     print("Pipeline status: " + str(status))
     
-    // Run full pipeline (passing urls directly - no dict literal)
+    # Run full pipeline (passing urls directly - no dict literal)
     await pipeline.runPipeline(test_urls)
     print("")
     
     print("=== Async Stress Test Complete ===")
 }
 
-// Performance benchmark
+# Performance benchmark
 async fn benchmark_async() {
     print("=== Async Performance Benchmark ===")
     
     var start = time()
     
-    // Run multiple async operations in parallel
+    # Run multiple async operations in parallel
     var tasks = []
     
-    // Create 100 async tasks
+    # Create 100 async tasks
     for i in range(100) {
         if i % 3 == 0 {
             tasks.append(mock_download("url_" + str(i)))
@@ -276,7 +276,7 @@ async fn benchmark_async() {
         }
     }
     
-    // Run all tasks in parallel
+    # Run all tasks in parallel
     var results = await asyncio.gather(*tasks, return_exceptions=True)
     
     var elapsed = time() - start
@@ -287,10 +287,10 @@ fn main() {
     print("Frame v0.37 Async Stress Test Suite - Fixed")
     print("=" * 50)
     
-    // Run async stress test
+    # Run async stress test
     asyncio.run(stress_test_async())
     
-    // Run performance benchmark
+    # Run performance benchmark
     print("")
     asyncio.run(benchmark_async())
 }

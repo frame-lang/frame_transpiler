@@ -11,10 +11,10 @@ system DomainTest {
     machine:
         $Start {
             run_test() {
-                // Test domain variable read access (already working)
+                # Test domain variable read access (already working)
                 print("Initial counter: " + str(self.counter))
                 
-                // Test domain variable assignment (needs implementation)
+                # Test domain variable assignment (needs implementation)
                 self.counter = 25
                 print("Updated counter: " + str(self.counter))
                 

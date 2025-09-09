@@ -1,4 +1,4 @@
-// Test controlled HSM loop with counter
+# Test controlled HSM loop with counter
 fn main() {
     var hsm = SimpleHSM()
     hsm.trigger()

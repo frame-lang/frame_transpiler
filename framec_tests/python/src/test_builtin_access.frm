@@ -1,4 +1,4 @@
-// Test that built-in functions are accessible from all scopes
+# Test that built-in functions are accessible from all scopes
 
 fn main() {
     print("=== Built-in Access Test ===")

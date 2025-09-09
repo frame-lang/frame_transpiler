@@ -15,7 +15,7 @@ system HelloWorldSystem {
 
         $Hello {
             sayHello() {
-                actionWriteHello() // call action
+                actionWriteHello() # call action
                 -> $World
                 return
             }
@@ -23,7 +23,7 @@ system HelloWorldSystem {
         
         $World {
             sayWorld() {
-                actionWriteWorld() // call action
+                actionWriteWorld() # call action
                 -> $Done
                 return
             }

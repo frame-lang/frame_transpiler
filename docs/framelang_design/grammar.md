@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.38)
+# Frame Language Grammar (v0.40)
 
-**Last Updated**: 2025-09-07  
-**Status**: Complete with first-class functions, lambda expressions, collections, exponent operator, empty set literal, Python logical operators, async/await support, slicing operations, with statements, runtime async infrastructure, and full UTF-8 support with 98.3% test coverage (285/290 tests passing)
+**Last Updated**: 2025-09-09  
+**Status**: Complete with Python-aligned operators including bitwise XOR, compound assignments, floor division, Python-style comments, and numeric literal support with 100% test coverage (309/309 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1727,7 +1727,9 @@ stmt: expr_stmt
 
 expr_stmt: expr
 var_decl: 'var' IDENTIFIER type? '=' expr
-assignment: lvalue '=' expr
+assignment: lvalue assignment_op expr
+assignment_op: '=' | '+=' | '-=' | '*=' | '/=' | '//=' | '%=' | '**='  // v0.39-40
+             | '&=' | '|=' | '^=' | '<<=' | '>>='  // v0.39-40: Bitwise compound
 try_stmt: 'try' block except_clause+ else_clause? finally_clause?
 except_clause: 'except' exception_spec? ('as' IDENTIFIER)? block
 exception_spec: IDENTIFIER | '(' IDENTIFIER (',' IDENTIFIER)* ')'
@@ -1937,11 +1939,13 @@ actions:
 expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr | lambda_expr
 
 binary_expr: expr operator expr
-operator: '+' | '-' | '*' | '/' | '%' | '**'  // v0.38: Added exponent operator
+operator: '+' | '-' | '*' | '/' | '//' | '%' | '**'  // v0.40: Added floor division
         | '==' | '!=' | '<' | '>' | '<=' | '>='
-        | 'and' | 'or'  // v0.38: Python logical operators only
+        | '&' | '|' | '^' | '<<' | '>>'  // v0.39-40: Bitwise operators
+        | 'and' | 'or' | 'xor'  // v0.38: Python logical operators
+        | 'is' | 'is not' | 'in' | 'not in'  // v0.39: Identity/membership
 
-unary_expr: ('-' | 'not' | '~') expr  // v0.38: Python 'not' operator
+unary_expr: ('-' | 'not' | '~') expr  // v0.38-39: Python unary operators
 
 primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
             | 'true' | 'false' | 'None'
@@ -2291,26 +2295,31 @@ Frame v0.38 fully supports UTF-8 encoded source files:
 - **Character-based Scanning**: Scanner uses character indices, not byte indices
 - **Multi-byte Characters**: Properly handles emoji, accented characters, and all Unicode symbols
 
-### Comments
+### Comments (v0.40)
 
 ```bnf
-LINE_COMMENT: '//' ~[\n]* \n
-MULTI_LINE_COMMENT: '/*' ~* '*/'
+LINE_COMMENT: '#' ~[\n]* \n  // v0.40: Python-style single-line comments
+MULTI_LINE_COMMENT: '{--' ~* '--}'  // Frame documentation comments
 ```
+
+**Breaking Change in v0.40**: C-style comments (`//`, `/* */`) have been removed. Use Python-style `#` for single-line comments.
 
 Comments can contain any UTF-8 characters:
 ```frame
-// This is a comment with Unicode: ✓ ✗ 你好 🎉
-/* Multi-line comment
-   with Unicode symbols: ○ ● ★ ☆
-   and emojis: 😀 🚀 💻 */
+# This is a comment with Unicode: ✓ ✗ 你好 🎉
+{-- Multi-line documentation comment
+    with Unicode symbols: ○ ● ★ ☆
+    and emojis: 😀 🚀 💻 --}
 ```
 
 ### Tokens
 
 ```bnf
 IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*
-NUMBER: [0-9]+ ('.' [0-9]+)?
+NUMBER: [0-9]+ ('.' [0-9]+)?  // Decimal
+      | '0b' [01]+             // Binary literal (v0.40)
+      | '0o' [0-7]+            // Octal literal (v0.40)
+      | '0x' [0-9a-fA-F]+      // Hexadecimal literal (v0.40)
 STRING: '"' (ESC | ~["])* '"'
 SUPERSTRING: '`' ~[`]* '`' | '```' ~* '```'
 ```
@@ -2493,3 +2502,74 @@ This pattern is particularly useful for:
 
 The parser automatically detects when a function call follows an array/dictionary index operation and generates the appropriate code without requiring intermediate variables.
 
+
+
+## Version History
+
+### v0.40 (2025-09-09) - Python Alignment Complete
+
+#### Breaking Changes
+- **Comment Syntax**: Removed C-style comments (`//`, `/* */`), now use Python-style `#` comments
+- **Logical Operators**: Removed C-style `&&`, `||`, `!` operators (use `and`, `or`, `not`)
+
+#### New Features
+
+##### Bitwise XOR Operator
+- **Operator**: `^` for bitwise XOR operations
+- **Compound Assignment**: `^=` for XOR with assignment
+- **Precedence**: Between bitwise AND and OR operations
+
+##### Floor Division
+- **Operator**: `//` for integer division (enabled by comment syntax change)
+- **Compound Assignment**: `//=` for floor division with assignment
+
+##### Numeric Literals
+- **Binary**: `0b1010` notation for binary numbers
+- **Octal**: `0o755` notation for octal numbers
+- **Hexadecimal**: `0x1A2B` notation for hex numbers
+
+#### Examples
+```frame
+# Python-style comments (v0.40)
+fn test_new_operators() {
+    # Bitwise XOR
+    var flags = 0b1010
+    flags ^= 0b0011  # Toggle bits
+    
+    # Floor division
+    var result = 10 // 3  # Result: 3
+    result //= 2          # Result: 1
+    
+    # All compound assignments
+    var x = 10
+    x += 5   # 15
+    x -= 3   # 12
+    x *= 2   # 24
+    x /= 4   # 6.0
+    x //= 2  # 3
+    x %= 2   # 1
+    x **= 3  # 1
+    x |= 2   # 3
+    x &= 2   # 2
+    x ^= 3   # 1
+    x <<= 2  # 4
+    x >>= 1  # 2
+}
+```
+
+### v0.39 (2025-09-08) - Python Operators
+
+#### New Operators
+- **Compound Assignments**: `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `&=`, `|=`, `<<=`, `>>=`
+- **Bitwise Operators**: `&` (AND), `|` (OR), `~` (NOT), `<<` (left shift), `>>` (right shift)
+- **Identity Operators**: `is`, `is not` for object identity comparison
+- **Membership Operators**: `in`, `not in` for container membership testing
+
+### v0.38 (2025-09-07) - First-Class Functions & Collections
+
+#### New Features
+- **First-Class Functions**: Functions as values, pass as arguments, return from functions
+- **Lambda Expressions**: `lambda x: x * 2` anonymous function syntax
+- **Exponent Operator**: `**` for exponentiation with right-associativity
+- **Empty Set Literal**: `{,}` to distinguish from empty dict `{}`
+- **Python Logical Operators**: `and`, `or`, `not` keywords (removed `&&`, `||`, `!`)

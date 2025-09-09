@@ -1,7 +1,7 @@
-// Test try-except exception handling
+# Test try-except exception handling
 
 fn test_try_except() {
-    // Test 1: Basic try-except with actual division by zero
+    # Test 1: Basic try-except with actual division by zero
     print("Test 1: Basic try-except")
     try {
         print("  Trying division by zero")
@@ -12,7 +12,7 @@ fn test_try_except() {
         print("  Caught ZeroDivisionError")
     }
     
-    // Test 2: Try-except with variable binding
+    # Test 2: Try-except with variable binding
     print("\nTest 2: Exception with variable binding")
     try {
         var y = 1 / 0
@@ -21,17 +21,17 @@ fn test_try_except() {
         print("  Caught exception:", str(e))
     }
     
-    // Test 3: Multiple exception types (using list index out of range)
+    # Test 3: Multiple exception types (using list index out of range)
     print("\nTest 3: Multiple exception types")
     try {
         var lst = [1, 2, 3]
-        var item = lst[10]  // This will raise IndexError
+        var item = lst[10]  # This will raise IndexError
     }
     except (IndexError, KeyError) as err {
         print("  Caught IndexError or KeyError:", str(err))
     }
     
-    // Test 4: Try-except-else (no exception case)
+    # Test 4: Try-except-else (no exception case)
     print("\nTest 4: Try-except-else")
     try {
         var result = 10 / 2
@@ -44,7 +44,7 @@ fn test_try_except() {
         print("  Else block: No exception occurred")
     }
     
-    // Test 5: Try-except-finally
+    # Test 5: Try-except-finally
     print("\nTest 5: Try-except-finally")
     try {
         print("  Trying risky operation")
@@ -57,7 +57,7 @@ fn test_try_except() {
         print("  Finally: Cleanup always runs")
     }
     
-    // Test 6: Try-except-else-finally
+    # Test 6: Try-except-else-finally
     print("\nTest 6: Try-except-else-finally")
     try {
         var safe_result = 100 / 4
@@ -72,7 +72,7 @@ fn test_try_except() {
         print("  Finally: Always executes")
     }
     
-    // Test 7: Raise statement
+    # Test 7: Raise statement
     print("\nTest 7: Raise statement")
     try {
         print("  Raising ValueError")
@@ -82,7 +82,7 @@ fn test_try_except() {
         print("  Caught raised ValueError:", str(e))
     }
     
-    // Test 8: Re-raise
+    # Test 8: Re-raise
     print("\nTest 8: Re-raise")
     try {
         try {
@@ -97,7 +97,7 @@ fn test_try_except() {
         print("  Outer: Caught re-raised exception")
     }
     
-    // Test 9: Raise from (exception chaining)
+    # Test 9: Raise from (exception chaining)
     print("\nTest 9: Exception chaining")
     try {
         try {
@@ -111,7 +111,7 @@ fn test_try_except() {
         print("  Caught chained exception:", str(e))
     }
     
-    // Test 10: Bare except clause
+    # Test 10: Bare except clause
     print("\nTest 10: Bare except")
     try {
         var err = 1 / 0
@@ -130,11 +130,11 @@ system TryExceptSystem {
     machine:
         $Init {
             test_error_handling() {
-                // Test try-except in state machine
+                # Test try-except in state machine
                 print("\nSystem: Testing exception handling in state machine")
                 try {
                     print("  System: Attempting operation")
-                    // Simulate an operation that might fail
+                    # Simulate an operation that might fail
                     var result = 10 / 2
                     print("  System: Operation successful, result:", str(result))
                 }
@@ -161,7 +161,7 @@ system TryExceptSystem {
             test_error_handling() {
                 print("  System: In Error state")
                 
-                // Try to recover
+                # Try to recover
                 try {
                     print("  System: Attempting recovery")
                     var recovery = 5 + 5

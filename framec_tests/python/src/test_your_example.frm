@@ -1,4 +1,4 @@
-// Test hierarchical state machines without infinite loop
+# Test hierarchical state machines without infinite loop
 fn main() {
     var hsm = SimpleHSM()
     hsm.trigger()
@@ -23,8 +23,8 @@ system SimpleHSM {
         $Child => $Parent {
             $>() {
                 print("Child: entered")
-                // Don't transition to self - that creates infinite loop
-                // Instead, just stay in Child state
+                # Don't transition to self - that creates infinite loop
+                # Instead, just stay in Child state
             }
             
             trigger() {

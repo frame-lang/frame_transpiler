@@ -1,4 +1,4 @@
-// First system only
+# First system only
 
 system FirstSystem {
     interface:

@@ -1,16 +1,16 @@
-// Test: return = expr syntax in event handlers
+# Test: return = expr syntax in event handlers
 fn main() {
     var calculator = Calculator()
     
-    // Test default return value
+    # Test default return value
     var result1 = calculator.getDefault()
     print("Default value: " + result1)
     
-    // Test setting return value in event handler
+    # Test setting return value in event handler
     var result2 = calculator.calculate(10, 5)
     print("10 + 5 = " + str(result2))
     
-    // Test conditional return assignment
+    # Test conditional return assignment
     var result3 = calculator.divide(10, 0)
     print("10 / 0 = " + result3)
     
@@ -27,13 +27,13 @@ system Calculator {
     machine:
         $Ready {
             getDefault(): str {
-                // Should return the default "default_value"
+                # Should return the default "default_value"
                 system.return = "default_value"
                 return
             }
             
             calculate(a: int, b: int): int {
-                // Set interface return value
+                # Set interface return value
                 system.return = a + b
                 print("Calculated sum: " + str(a + b))
                 return

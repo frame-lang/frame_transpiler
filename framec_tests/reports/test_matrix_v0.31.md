@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-09 10:13  
-**Total Tests**: 307  
+**Generated**: 2025-09-09 11:24  
+**Total Tests**: 309  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 307 | 100% |
-| **Transpilation Success** | 307 | 100.0% |
-| **Execution Success** | 307 | 100.0% |
-| **Complete Success** | 307 | 100.0% |
+| **Total Tests** | 309 | 100% |
+| **Transpilation Success** | 309 | 100.0% |
+| **Execution Success** | 309 | 100.0% |
+| **Complete Success** | 309 | 100.0% |
 
 ## v0.31 Features
 
@@ -46,6 +46,7 @@
 | test_backtick_removal.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_basic_scope_working.frm | ✅ | ✅ | ✅ PASS |
+| test_bitwise_xor.frm | ✅ | ✅ | ✅ PASS |
 | test_blocks_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_builtin_access.frm | ✅ | ✅ | ✅ PASS |
 | test_c_style_comments.frm | ✅ | ✅ | ✅ PASS |
@@ -327,6 +328,7 @@
 | test_v030_three_systems.frm | ✅ | ✅ | ✅ PASS |
 | test_v031_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_v039_features.frm | ✅ | ✅ | ✅ PASS |
+| test_v040_comments_floor_div.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_with_statement.frm | ✅ | ✅ | ✅ PASS |

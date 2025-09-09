@@ -1,4 +1,4 @@
-// Force syntactic parsing by having 2 systems
+# Force syntactic parsing by having 2 systems
 
 system Dummy {
     machine:

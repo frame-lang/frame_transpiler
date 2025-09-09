@@ -1,4 +1,4 @@
-// Test async interface methods with proper event handlers
+# Test async interface methods with proper event handlers
 
 system AsyncHandler {
     interface:
@@ -9,7 +9,7 @@ system AsyncHandler {
         $Ready {
             getData(id) {
                 print("Getting data for id: " + str(id))
-                // In real code, this would await an async operation
+                # In real code, this would await an async operation
                 var result = "data_" + str(id)
                 return result
             }

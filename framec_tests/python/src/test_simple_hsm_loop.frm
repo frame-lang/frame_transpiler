@@ -1,4 +1,4 @@
-// Simplest possible HSM infinite loop test
+# Simplest possible HSM infinite loop test
 fn main() {
     var hsm = SimpleHSM()
     hsm.trigger()

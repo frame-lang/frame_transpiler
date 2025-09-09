@@ -1,4 +1,4 @@
-// Minimal scope test to identify parser issues
+# Minimal scope test to identify parser issues
 
 fn main() {
     print("Testing basic scope")

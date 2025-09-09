@@ -1,11 +1,11 @@
-// Test workaround for nested dict indexing
-// Since parser doesn't support dict["key1"]["key2"] directly,
-// we use intermediate variables as a workaround
+# Test workaround for nested dict indexing
+# Since parser doesn't support dict["key1"]["key2"] directly,
+# we use intermediate variables as a workaround
 
 fn test_nested_dict_access() {
     print("=== Testing Nested Dict Access (Workaround) ===")
     
-    // Create a nested dictionary structure
+    # Create a nested dictionary structure
     var data = {
         "users": {
             "alice": {"age": 30, "city": "Paris"},
@@ -17,7 +17,7 @@ fn test_nested_dict_access() {
         }
     }
     
-    // Workaround: Use intermediate variables for nested access
+    # Workaround: Use intermediate variables for nested access
     var users = data["users"]
     var alice = users["alice"]
     var alice_age = alice["age"]
@@ -31,7 +31,7 @@ fn test_nested_dict_access() {
     var theme = settings["theme"]
     print("Theme: " + theme)
     
-    // Using .get() with chaining works
+    # Using .get() with chaining works
     var alice_city = data.get("users", {}).get("alice", {}).get("city", "Unknown")
     print("Alice's city (via get): " + alice_city)
 }
@@ -39,7 +39,7 @@ fn test_nested_dict_access() {
 fn test_nested_assignment() {
     print("\n=== Testing Nested Dict Assignment (Workaround) ===")
     
-    // Build nested structure step by step
+    # Build nested structure step by step
     var tree = {}
     tree["level1"] = {}
     
@@ -49,13 +49,13 @@ fn test_nested_assignment() {
     var level2 = level1["level2"]
     level2["value"] = "deep value"
     
-    // Verify it worked
+    # Verify it worked
     var check_level1 = tree["level1"]
     var check_level2 = check_level1["level2"]
     var check_value = check_level2["value"]
     print("Deep value: " + check_value)
     
-    // Also works with get()
+    # Also works with get()
     var deep = tree.get("level1", {}).get("level2", {}).get("value", "not found")
     print("Deep value (via get): " + deep)
 }

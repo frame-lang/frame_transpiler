@@ -1,4 +1,4 @@
-// Comprehensive test of all Frame block types
+# Comprehensive test of all Frame block types
 system AllBlocksTest {
     operations:
         setup() {

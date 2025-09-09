@@ -1,18 +1,18 @@
-// Test setdefault method for dynamic dictionary creation
+# Test setdefault method for dynamic dictionary creation
 
 fn test_setdefault_basic() {
     print("=== Testing dict.setdefault() ===")
     
     var d = {}
     
-    // Traditional way (for comparison)
+    # Traditional way (for comparison)
     print("\n1. Traditional approach:")
-    // Note: 'in' operator not supported yet, using try-except pattern
-    // if "key" not in d:
-    //     d["key"] = []
-    // d["key"].append("value1")
+    # Note: 'in' operator not supported yet, using try-except pattern
+    # if "key" not in d:
+    #     d["key"] = []
+    # d["key"].append("value1")
     
-    // Using setdefault - creates key if it doesn't exist
+    # Using setdefault - creates key if it doesn't exist
     print("\n2. Using setdefault:")
     d.setdefault("fruits", []).append("apple")
     d.setdefault("fruits", []).append("banana")
@@ -22,11 +22,11 @@ fn test_setdefault_basic() {
     print("Fruits: " + str(d["fruits"]))
     print("Vegetables: " + str(d["vegetables"]))
     
-    // setdefault with different default values
+    # setdefault with different default values
     print("\n3. Different default values:")
     var counts = {}
     
-    // Initialize with 0 if not exists, then increment
+    # Initialize with 0 if not exists, then increment
     var current = counts.setdefault("apples", 0)
     counts["apples"] = current + 1
     
@@ -38,7 +38,7 @@ fn test_setdefault_basic() {
     
     print("Counts: " + str(counts))
     
-    // setdefault with dict as default
+    # setdefault with dict as default
     print("\n4. Nested dictionaries:")
     var users = {}
     
@@ -58,7 +58,7 @@ fn test_building_nested_structures() {
     
     var data = {}
     
-    // Simulate categorizing items
+    # Simulate categorizing items
     var items = [
         ["fruits", "apple"],
         ["fruits", "banana"],
@@ -69,7 +69,7 @@ fn test_building_nested_structures() {
         ["dairy", "cheese"]
     ]
     
-    // Build nested structure dynamically
+    # Build nested structure dynamically
     var i = 0
     loop {
         if i >= len(items) {
@@ -95,17 +95,17 @@ fn test_setdefault_return_value() {
     
     var d = {"existing": "value"}
     
-    // When key exists, returns existing value
+    # When key exists, returns existing value
     var result1 = d.setdefault("existing", "default")
     print("Existing key returns: " + result1)
     
-    // When key doesn't exist, returns and sets default
+    # When key doesn't exist, returns and sets default
     var result2 = d.setdefault("new", "default_value")
     print("New key returns: " + result2)
     
     print("Final dictionary: " + str(d))
     
-    // Practical use - get or create list and operate on it
+    # Practical use - get or create list and operate on it
     var groups = {}
     groups.setdefault("admins", []).append("alice")
     groups.setdefault("admins", []).append("bob")

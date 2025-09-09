@@ -1,4 +1,4 @@
-// Valid multiple systems test for v0.30
+# Valid multiple systems test for v0.30
 
 fn main() {
     var first = FirstSystem()

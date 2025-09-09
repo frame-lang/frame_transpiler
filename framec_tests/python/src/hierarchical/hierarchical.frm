@@ -47,17 +47,17 @@ system Hierarchical {
                 => $^
                 return
             }
-            A() {   // override parent handler
+            A() {   # override parent handler
                 log("S0.A")
                 -> $T
                 return
             }
-            B() {   // do this, then parent handler
+            B() {   # do this, then parent handler
                 log("S0.B")
                 => $^
                 return
             }
-            C() {   // extend parent handler
+            C() {   # extend parent handler
                 log("S0.C")
                 -> $S2
                 return
@@ -73,13 +73,13 @@ system Hierarchical {
                 exit("S1")
                 return
             }
-            // defer to parent for A
-            B() {   // do this, then parent, which transitions here
+            # defer to parent for A
+            B() {   # do this, then parent, which transitions here
                 log("S1.B")
                 => $^
                 return
             }
-            C() {   // propagate message not handled by parent
+            C() {   # propagate message not handled by parent
                 log("S1.C")
                 => $^
                 return
@@ -97,7 +97,7 @@ system Hierarchical {
                 => $^
                 return
             }
-            B() {   // will propagate to S0 and S
+            B() {   # will propagate to S0 and S
                 log("S2.B")
                 => $^
                 return
@@ -120,8 +120,8 @@ system Hierarchical {
                 => $^
                 return
             }
-            // defer to grandparent for A
-            B() {   // override and move to sibling
+            # defer to grandparent for A
+            B() {   # override and move to sibling
                 log("S3.B")
                 -> $S2
                 return

@@ -1,4 +1,4 @@
-// Test dictionary operations
+# Test dictionary operations
 fn main() {
     var data = {}
     data["name"] = "Frame"

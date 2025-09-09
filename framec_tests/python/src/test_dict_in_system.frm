@@ -1,5 +1,5 @@
-// test_dict_in_system.frm
-// Test dictionary literals in systems
+# test_dict_in_system.frm
+# Test dictionary literals in systems
 
 
 system DictSystem {
@@ -10,16 +10,16 @@ system DictSystem {
     machine:
         $Ready {
             configure(config) {
-                // Use the config dict parameter
+                # Use the config dict parameter
                 print("Received config: " + str(config))
                 
-                // Create and return a new dict
+                # Create and return a new dict
                 var result = {"status": "ok", "data": config}
                 system.return = result
             }
             
             getSettings() {
-                // Return a dictionary literal
+                # Return a dictionary literal
                 system.return = {"mode": "test", "version": "1.0"}
             }
         }
@@ -29,11 +29,11 @@ fn main() {
     print("Testing dictionary in system...")
     var sys = DictSystem()
     
-    // Pass dictionary literal to interface method
+    # Pass dictionary literal to interface method
     var response = sys.configure({"mode": "production", "debug": false})
     print("Configure response: " + str(response))
     
-    // Get dictionary from interface method
+    # Get dictionary from interface method
     var settings = sys.getSettings()
     print("Settings: " + str(settings))
     

@@ -1,4 +1,4 @@
-// Simple test for FSL conversion operations
+# Simple test for FSL conversion operations
 
 fn main() {
     var x = 42

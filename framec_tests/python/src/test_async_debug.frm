@@ -1,5 +1,5 @@
 
-// Debug test for async interface methods
+# Debug test for async interface methods
 system AsyncDebug {
     interface:
         async getData(id)

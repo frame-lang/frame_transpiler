@@ -1,6 +1,6 @@
-// Simple module-level variable test with system only
+# Simple module-level variable test with system only
 
-// Module-level variable declaration  
+# Module-level variable declaration  
 var module_var = "I am at module level"
 
 system TestModuleVar {

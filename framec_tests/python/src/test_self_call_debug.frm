@@ -1,14 +1,14 @@
-// Test to debug self.method() vs obj.method() call chain processing
+# Test to debug self.method() vs obj.method() call chain processing
 
 fn main() {
     var obj = TestSystem()
-    obj.run()  // This should NOT get self. prefix
+    obj.run()  # This should NOT get self. prefix
 }
 
 system TestSystem {
     operations:
         test_operation() {
-            self.internal_op()  // This SHOULD keep self. prefix
+            self.internal_op()  # This SHOULD keep self. prefix
         }
         
         internal_op() {

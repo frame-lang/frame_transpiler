@@ -1,4 +1,4 @@
-// Single system test to verify code generation
+# Single system test to verify code generation
 
 system TestSystem {
     interface:

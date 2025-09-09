@@ -1,7 +1,7 @@
-// Comprehensive test of module scope variables in Frame v0.30
-// Tests all permutations of module variable access and modification
+# Comprehensive test of module scope variables in Frame v0.30
+# Tests all permutations of module variable access and modification
 
-// Module-level variable declarations with different types
+# Module-level variable declarations with different types
 var module_string = "initial_string"
 var module_int = 42
 var module_bool = True
@@ -9,13 +9,13 @@ var module_float = 3.14
 var module_none = None
 var module_list = [1, 2, 3]
 
-// Module variable that will be modified by multiple functions
+# Module variable that will be modified by multiple functions
 var shared_counter = 0
 
-// Module variable that will be instantiated later
+# Module variable that will be instantiated later
 var module_system = None
 
-// Test basic read access from function
+# Test basic read access from function
 fn test_read_access() {
     print("=== test_read_access ===")
     print("module_string: " + module_string)
@@ -26,7 +26,7 @@ fn test_read_access() {
     print("module_list: " + str(module_list))
 }
 
-// Test write access from function
+# Test write access from function
 fn test_write_access() {
     print("=== test_write_access ===")
     module_string = "modified_string"
@@ -38,7 +38,7 @@ fn test_write_access() {
     print("All module variables modified")
 }
 
-// Test mixed read and write in same function
+# Test mixed read and write in same function
 fn test_mixed_access() {
     print("=== test_mixed_access ===")
     print("Before: module_int = " + str(module_int))
@@ -46,7 +46,7 @@ fn test_mixed_access() {
     print("After: module_int = " + str(module_int))
 }
 
-// Test multiple modifications in one function
+# Test multiple modifications in one function
 fn test_multiple_modifications() {
     print("=== test_multiple_modifications ===")
     shared_counter = shared_counter + 1
@@ -57,7 +57,7 @@ fn test_multiple_modifications() {
     print("module_bool: " + str(module_bool))
 }
 
-// Test nested function calls with module access
+# Test nested function calls with module access
 fn outer_function() {
     print("=== outer_function ===")
     shared_counter = shared_counter + 10
@@ -71,7 +71,7 @@ fn inner_function() {
     print("inner: shared_counter = " + str(shared_counter))
 }
 
-// Test system instantiation stored in module variable
+# Test system instantiation stored in module variable
 fn create_module_system() {
     print("=== create_module_system ===")
     module_system = ModuleScopeTestSystem()
@@ -88,7 +88,7 @@ fn use_module_system() {
     }
 }
 
-// Test function that only reads (no global declaration needed)
+# Test function that only reads (no global declaration needed)
 fn read_only_function() {
     print("=== read_only_function ===")
     var local_copy = module_int
@@ -96,7 +96,7 @@ fn read_only_function() {
     print("Direct read of module_string: " + module_string)
 }
 
-// Test function with local variables (not shadowing)
+# Test function with local variables (not shadowing)
 fn function_with_locals() {
     print("=== function_with_locals ===")
     var local_var1 = "I am local"
@@ -108,39 +108,39 @@ fn function_with_locals() {
     print("module_int doubled: " + str(module_int))
 }
 
-// Main orchestrator function
+# Main orchestrator function
 fn main() {
     print("\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n")
     
-    // Test 1: Read access
+    # Test 1: Read access
     test_read_access()
     
-    // Test 2: Write access
+    # Test 2: Write access
     test_write_access()
-    test_read_access()  // Verify changes
+    test_read_access()  # Verify changes
     
-    // Test 3: Mixed access
+    # Test 3: Mixed access
     test_mixed_access()
     
-    // Test 4: Multiple modifications
+    # Test 4: Multiple modifications
     test_multiple_modifications()
-    test_multiple_modifications()  // Call again to see counter increment
+    test_multiple_modifications()  # Call again to see counter increment
     
-    // Test 5: Nested functions
+    # Test 5: Nested functions
     outer_function()
     
-    // Test 6: System in module variable
-    use_module_system()  // Should print "System is null"
+    # Test 6: System in module variable
+    use_module_system()  # Should print "System is null"
     create_module_system()
-    use_module_system()  // Should call system method
+    use_module_system()  # Should call system method
     
-    // Test 7: Read-only function
+    # Test 7: Read-only function
     read_only_function()
     
-    // Test 8: Function with locals
+    # Test 8: Function with locals
     function_with_locals()
     
-    // Final state check
+    # Final state check
     print("\n=== FINAL STATE ===")
     print("module_string: " + module_string)
     print("module_int: " + str(module_int))
@@ -149,7 +149,7 @@ fn main() {
     print("module_system: " + str(module_system))
 }
 
-// System that accesses module variables
+# System that accesses module variables
 system ModuleScopeTestSystem {
     interface:
         test()
@@ -160,7 +160,7 @@ system ModuleScopeTestSystem {
                 print("System $Start enter - accessing module vars:")
                 print("  module_string from system: " + module_string)
                 print("  shared_counter from system: " + str(shared_counter))
-                // Modify module variable from system
+                # Modify module variable from system
                 shared_counter = shared_counter + 100
                 print("  shared_counter after system modify: " + str(shared_counter))
             }
@@ -182,7 +182,7 @@ system ModuleScopeTestSystem {
         }
 }
 
-// System that uses module variables in different blocks
+# System that uses module variables in different blocks
 system AdvancedModuleTest {
     interface:
         modify(amount)
@@ -209,7 +209,7 @@ system AdvancedModuleTest {
         $Modified {
             $>() {
                 print("In Modified state, counter = " + str(shared_counter))
-                -> $Idle  // Auto-return to Idle
+                -> $Idle  # Auto-return to Idle
             }
         }
     
@@ -223,7 +223,7 @@ system AdvancedModuleTest {
         var domain_var = 0
 }
 
-// Test function for advanced system
+# Test function for advanced system
 fn test_advanced_system() {
     print("\n=== test_advanced_system ===")
     var adv_sys = AdvancedModuleTest()
@@ -232,16 +232,16 @@ fn test_advanced_system() {
     print("Query result: " + str(result))
 }
 
-// Module initialization code (runs when module loads)
+# Module initialization code (runs when module loads)
 print("Module loading - initializing module variables")
 print("Initial shared_counter: " + str(shared_counter))
 
-// Additional module-level function to be called after main
+# Additional module-level function to be called after main
 fn post_main_check() {
     print("\n=== POST MAIN CHECK ===")
     print("Final shared_counter value: " + str(shared_counter))
     print("Module variables persist across all function calls")
     
-    // Test the advanced system
+    # Test the advanced system
     test_advanced_system()
 }

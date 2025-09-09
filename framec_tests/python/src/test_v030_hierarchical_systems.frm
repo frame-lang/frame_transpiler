@@ -1,5 +1,5 @@
-// Test: Multiple simple systems for v0.30 validation
-// Systems with basic state transitions
+# Test: Multiple simple systems for v0.30 validation
+# Systems with basic state transitions
 
 system Parent {
     interface:

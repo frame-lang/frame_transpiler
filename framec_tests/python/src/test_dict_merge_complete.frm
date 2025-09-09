@@ -1,10 +1,10 @@
-// Complete dictionary merging test
+# Complete dictionary merging test
 
 fn test_all_merge_methods() {
     print("Frame v0.38 - Dictionary Merging Methods")
     print("=" * 50)
     
-    // Method 1: dict.update() - mutates original
+    # Method 1: dict.update() - mutates original
     print("")
     print("1. dict.update() - Mutates Original")
     var d1 = {"a": 1, "b": 2}
@@ -16,7 +16,7 @@ fn test_all_merge_methods() {
     print("   After d1.update(d2) and d1.update(d3):")
     print("   d1 = " + str(d1))
     
-    // Method 2: Unpacking with ** operator
+    # Method 2: Unpacking with ** operator
     print("")
     print("2. Dictionary Unpacking {**d1, **d2}")
     var dict1 = {"a": 1, "b": 2}
@@ -29,7 +29,7 @@ fn test_all_merge_methods() {
     print("   merged = {**dict1, **dict2, **dict3}")
     print("   Result: " + str(merged))
     
-    // Method 3: Union operator | (Python 3.9+)
+    # Method 3: Union operator | (Python 3.9+)
     print("")
     print("3. Union Operator | (Python 3.9+)")
     var dx = {"a": 1, "b": 2}
@@ -42,7 +42,7 @@ fn test_all_merge_methods() {
     print("   union_result = dx | dy | dz")
     print("   Result: " + str(union_result))
     
-    // Method 4: dict.fromkeys()
+    # Method 4: dict.fromkeys()
     print("")
     print("4. dict.fromkeys() - Create with Same Value")
     var keys = ["x", "y", "z"]
@@ -50,7 +50,7 @@ fn test_all_merge_methods() {
     print("   keys = " + str(keys))
     print("   dict.fromkeys(keys, 0) = " + str(from_keys))
     
-    // Method 5: Dictionary comprehension for conditional merging
+    # Method 5: Dictionary comprehension for conditional merging
     print("")
     print("5. Dict Comprehension for Conditional Merge")
     var d_comp = {k: v for k, v in [("a", 1), ("b", 2), ("c", 3)] if v > 1}

@@ -1,4 +1,4 @@
-// Removed backticks - import jsonpickle
+# Removed backticks - import jsonpickle
 
 system TrafficLight {
 

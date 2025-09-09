@@ -22,7 +22,7 @@ system History105 {
             }
 
             gotoC() {
-                // When we return, a == 1
+                # When we return, a == 1
                 a = a + 1
                 print("Incrementing a to " + str(a))
                 $$[+]
@@ -40,7 +40,7 @@ system History105 {
             }
 
             gotoC() {
-                // When we return, b == 1
+                # When we return, b == 1
                 b = b + 1
                 print("Incrementing b to " + str(b))
                 $$[+]

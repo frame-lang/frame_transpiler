@@ -1,4 +1,4 @@
-// Simple test for module scope
+# Simple test for module scope
 
 fn hello() {
     print("Hello, world!")

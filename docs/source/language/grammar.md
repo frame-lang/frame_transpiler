@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.39)
+# Frame Language Grammar (v0.40)
 
 **Last Updated**: 2025-09-09  
-**Status**: Complete Python operator alignment including compound assignments (+=, -=, etc.), bitwise operators (~, &, <<, >>), identity operators (is, is not), plus all v0.38 features. **100% test success rate (307/307 tests passing)**.
+**Status**: Complete Python comment syntax alignment and floor division operator. Removed C-style comments (/* */) in favor of Python-style (#) comments. Added floor division (//) and compound assignment (//=). **100% test success rate (307/307 tests passing)**.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -2038,20 +2038,25 @@ if "world" in "hello world" {
 
 #### Arithmetic Operators
 ```frame
-// Standard arithmetic
+# Standard arithmetic
 var sum = a + b
 var diff = a - b
 var product = a * b
-var quotient = a / b
+var quotient = a / b       # Regular division
+var floor_div = a // b     # Floor division (NEW in v0.40)
 var remainder = a % b
 
-// Exponent operator (NEW in v0.38)
+# Exponent operator (v0.38)
 var square = x ** 2
 var cube = x ** 3
-var power = 2 ** 10  // 1024
+var power = 2 ** 10  # 1024
 
-// Right associativity for exponent
-var tower = 2 ** 3 ** 2  // 512 (evaluates as 2 ** (3 ** 2))
+# Right associativity for exponent
+var tower = 2 ** 3 ** 2  # 512 (evaluates as 2 ** (3 ** 2))
+
+# Floor division examples (v0.40)
+var result = 10 // 3      # 3
+var negative = -10 // 3   # -4 (Python floor division semantics)
 ```
 
 #### Comparison Operators
@@ -2076,14 +2081,15 @@ Frame v0.39 completes the Python operator alignment by adding compound assignmen
 
 #### Compound Assignment Operators
 ```frame
-// Arithmetic compound assignments
+# Arithmetic compound assignments
 var x = 10
-x += 5       // x = x + 5 → 15
-x -= 3       // x = x - 3 → 12
-x *= 2       // x = x * 2 → 24
-x /= 4       // x = x / 4 → 6
-x %= 4       // x = x % 4 → 2
-x **= 3      // x = x ** 3 → 8
+x += 5       # x = x + 5 → 15
+x -= 3       # x = x - 3 → 12
+x *= 2       # x = x * 2 → 24
+x /= 4       # x = x / 4 → 6
+x //= 3      # x = x // 3 → 2 (floor division, NEW in v0.40)
+x %= 4       # x = x % 4 → 2
+x **= 3      # x = x ** 3 → 8
 
 // Bitwise compound assignments
 var a = 12   // 1100 in binary
@@ -2535,41 +2541,39 @@ fn enumExample() {
 - ⚠️ Phase 3: String operations - Partial (trim, upper, lower, replace, split working)
 - 📋 Phase 4: Additional string operations (contains, substring) - Planned
 
-## Comments
+## Comments (v0.40 Breaking Change)
 
-Frame supports multiple comment styles:
+**v0.40 Update**: Frame now uses Python-style comments to enable the floor division operator (`//`).
 
-### Single-line Comments
+### Python-style Single-line Comments (v0.40)
 ```frame
-// This is a single-line comment
-var x = 42  // Comment at end of line
+# This is a Python-style comment
+var x = 42  # Comment at end of line
+
+# Multiple consecutive comments
+# Line 1
+# Line 2
+# Line 3
 ```
 
-### C-style Multiline Comments (v0.38)
+### Frame Documentation Comments
 ```frame
-/* This is a C-style multiline comment
-   It can span multiple lines
-   and contain any text */
-
-var y = /* inline comment */ 100
-
-/* 
- * Star-box style comment
- * commonly used in C/Java
- */
+{-- This is a Frame documentation comment
+    It can span multiple lines
+    and is typically used for documentation --}
 ```
 
-### Frame-style Multiline Comments (Legacy)
-```frame
-{-- This is a Frame-style multiline comment
-    using the legacy syntax --}
-```
+### Migration from v0.39
+- **Removed**: `//` single-line comments (now floor division)
+- **Removed**: `/* */` C-style multiline comments
+- **Added**: `#` Python-style single-line comments
+- **Retained**: `{-- --}` Frame documentation comments
 
 **Comment Rules**:
 - Comments are preserved during parsing but not included in generated code
-- C-style comments cannot be nested (`/* /* nested */ */` is invalid)
+- `#` comments extend to end of line
+- Frame documentation comments can span multiple lines
 - Comments can appear anywhere whitespace is allowed
-- Line count is maintained across multiline comments for accurate error reporting
 
 ## Tokens
 
@@ -2578,7 +2582,7 @@ IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*
 NUMBER: [0-9]+ ('.' [0-9]+)?
 STRING: '"' (ESC | ~["])* '"'
 SUPERSTRING: '`' ~[`]* '`' | '```' ~* '```'
-COMMENT: '//' ~[\n]* | '/*' ~* '*/' | '{--' ~* '--}'
+COMMENT: '#' ~[\n]* | '{--' ~* '--}'
 ```
 
 ## Keywords

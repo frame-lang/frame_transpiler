@@ -1,4 +1,4 @@
-// Test: Single system lifecycle to isolate the issue
+# Test: Single system lifecycle to isolate the issue
 
 fn main() {
     print("=== Single System Test ===")

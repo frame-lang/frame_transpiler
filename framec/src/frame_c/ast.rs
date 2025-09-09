@@ -350,12 +350,14 @@ pub enum AssignmentOperator {
     MinusEquals,    // -=
     StarEquals,     // *=
     SlashEquals,    // /=
+    FloorDivideEquals, // //=
     PercentEquals,  // %=
     PowerEquals,    // **=
     AndEquals,      // &=
     OrEquals,       // |=
     LeftShiftEquals,  // <<=
     RightShiftEquals, // >>=
+    XorEquals,      // ^= (v0.40)
 }
 
 // e.g. generate_frame_event
@@ -3410,6 +3412,7 @@ pub enum OperatorType {
     Minus,
     Multiply,
     Divide,
+    FloorDivide,  // Floor division operator //
     Power,  // For exponent operator **
     Greater,
     GreaterEqual,
@@ -3455,6 +3458,7 @@ impl OperatorType {
             TokenType::Star => OperatorType::Multiply,
             TokenType::StarStar => OperatorType::Power,  // Exponent operator **
             TokenType::ForwardSlash => OperatorType::Divide,
+            TokenType::FloorDivide => OperatorType::FloorDivide,  // Floor division //
             TokenType::GT => OperatorType::Greater,
             TokenType::GreaterEqual => OperatorType::GreaterEqual,
             TokenType::LT => OperatorType::Less,
@@ -3468,6 +3472,7 @@ impl OperatorType {
             TokenType::Percent => OperatorType::Percent,
             TokenType::Pipe => OperatorType::BitwiseOr,  // Bitwise OR |
             TokenType::Ampersand => OperatorType::BitwiseAnd,  // Bitwise AND &
+            TokenType::Caret => OperatorType::BitwiseXor,  // Bitwise XOR ^
             TokenType::Tilde => OperatorType::BitwiseNot,  // Bitwise NOT ~
             TokenType::LeftShift => OperatorType::LeftShift,  // Left shift <<
             TokenType::RightShift => OperatorType::RightShift,  // Right shift >>

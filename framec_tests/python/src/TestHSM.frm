@@ -11,10 +11,10 @@ system ContinueTerminatorDemo {
         passMe2()
 
     machine:
-        // Dispatch operator (=>) defines state hierarchy
+        # Dispatch operator (=>) defines state hierarchy
 
         $Child => $Parent {
-            // Continue operator sends events to $Parent
+            # Continue operator sends events to $Parent
 
             passMe1() {
                 => $^

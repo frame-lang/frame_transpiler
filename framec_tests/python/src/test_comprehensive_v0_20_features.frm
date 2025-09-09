@@ -1,14 +1,14 @@
-// Comprehensive test of Frame v0.20 features:
-// - return statements as regular statements
-// - return = expr for interface return assignment
-// - if/elif/else chains with returns
-// - Mixed usage in event handlers and actions
+# Comprehensive test of Frame v0.20 features:
+# - return statements as regular statements
+# - return = expr for interface return assignment
+# - if/elif/else chains with returns
+# - Mixed usage in event handlers and actions
 fn main() {
     print("=== Frame v0.20 Comprehensive Feature Test ===")
     
     var processor = AdvancedProcessor()
     
-    // Test various scenarios
+    # Test various scenarios
     var results = [
         processor.processData(""),
         processor.processData("test"),
@@ -42,13 +42,13 @@ system AdvancedProcessor {
             }
             
             processData(input: str): str {
-                // Early validation with return = 
+                # Early validation with return = 
                 if input == "" {
                     system.return = "error: empty input"
                     return
                 }
                 
-                // Transition to processing state with data
+                # Transition to processing state with data
                 -> $Processing(input)
                 return
             }
@@ -76,7 +76,7 @@ system AdvancedProcessor {
             $>() {
                 print("Processing: " + data)
                 
-                // Complex processing logic with if/elif/else
+                # Complex processing logic with if/elif/else
                 var result = processText(data)
                 
                 if result == "error" {
@@ -141,7 +141,7 @@ system AdvancedProcessor {
         
     actions:
         processText(text: str): str {
-            // Action with complex return logic
+            # Action with complex return logic
             if text == "ERROR" {
                 return "error"
             }

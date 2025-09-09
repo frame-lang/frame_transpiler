@@ -1,4 +1,4 @@
-// Test the exact pattern from test_lambda.frm
+# Test the exact pattern from test_lambda.frm
 
 fn test() {
     print("Before dict")

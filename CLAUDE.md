@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), and v0.38 (Python logical operators alignment).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), and v0.40 (Python comment syntax and bitwise XOR).
 
 ## File Locations
 
@@ -39,8 +39,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.39`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (307/307 tests passing) - Complete Python Operator Alignment
+**Version**: `v0.40`  
+**Status**: ✅ **100% TEST SUCCESS RATE** (309/309 tests passing) - Python Operator Alignment Complete
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -53,6 +53,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.37 achievements, see**: [`docs/v0.37_achievements.md`](docs/v0.37_achievements.md)
 📊 **For v0.38 achievements, see**: [`docs/v0.38_achievements.md`](docs/v0.38_achievements.md)
 📊 **For v0.39 achievements, see**: [`docs/v0.39_achievements.md`](docs/v0.39_achievements.md)
+📊 **For v0.40 achievements, see**: [`docs/v0.40_achievements.md`](docs/v0.40_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
@@ -634,6 +635,65 @@ if list1 == list2 { }  // True - same values
 // Identity checks same object
 if list1 is list3 { }  // True - same reference
 if list1 is not list2 { }  // True - different objects
+```
+
+### v0.40 Python Comments and Bitwise XOR (COMPLETE) ✅
+
+Frame v0.40 completes Python operator alignment with bitwise XOR and transitions to Python-style comments.
+
+#### Breaking Change: Python-Style Comments
+```frame
+# Python-style single-line comments (v0.40)
+fn example() {
+    var x = 42  # Inline comments use hash symbol
+    
+    {-- Frame documentation comments
+        still use special syntax for multiline --}
+}
+```
+
+**Migration Required**:
+- `//` now means floor division operator
+- `/* */` C-style comments removed
+- Use `#` for all single-line comments
+
+#### Bitwise XOR Operator ✅
+```frame
+fn xor_operations() {
+    # Basic XOR
+    var a = 5 ^ 3        # Result: 6
+    
+    # Compound assignment
+    var flags = 0b1010
+    flags ^= 0b0011      # Toggle specific bits
+    
+    # XOR encryption pattern
+    var data = 42
+    var key = 17
+    var encrypted = data ^ key
+    var decrypted = encrypted ^ key  # Returns to 42
+}
+```
+
+#### Floor Division ✅
+```frame
+fn division() {
+    var regular = 10 / 3    # 3.333...
+    var floor = 10 // 3     # 3
+    
+    # Compound floor division
+    var x = 25
+    x //= 4                 # x = 6
+}
+```
+
+#### Python Numeric Literals ✅
+```frame
+fn literals() {
+    var binary = 0b1010     # Binary notation
+    var octal = 0o755       # Octal notation
+    var hex = 0x1A2B        # Hexadecimal notation
+}
 ```
 
 ### v0.34 Module System (Complete Implementation)

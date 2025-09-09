@@ -1,4 +1,4 @@
-// Simple test for system return semantics
+# Simple test for system return semantics
 
 system SimpleReturn {
     interface:
@@ -18,7 +18,7 @@ fn main() {
     var result = sr.getValue()
     print("getValue result: " + str(result))
     
-    // Expect 100 from system.return override
+    # Expect 100 from system.return override
     if result == 100 {
         print("SUCCESS: system.return override works!")
     } else {

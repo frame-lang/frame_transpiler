@@ -1,12 +1,12 @@
-// Test that functions cannot access system internals
+# Test that functions cannot access system internals
 
 fn main() {
     print("=== Function Isolation Test ===")
     
-    // Create a system instance
+    # Create a system instance
     var sys = TestSystem()
     
-    // Can call interface methods
+    # Can call interface methods
     sys.public_interface()
     
     test_isolation()
@@ -17,8 +17,8 @@ fn main() {
 fn test_isolation() {
     print("In test_isolation function")
     
-    // This function should NOT be able to call system actions directly
-    // (This would fail if scope isolation is working)
+    # This function should NOT be able to call system actions directly
+    # (This would fail if scope isolation is working)
     
     var local_sys = TestSystem()
     local_sys.public_interface()

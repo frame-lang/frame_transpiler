@@ -1,4 +1,4 @@
-// Test enum compliance with Python standards
+# Test enum compliance with Python standards
 
 system ColorSystem {
     domain:
@@ -16,11 +16,11 @@ system ColorSystem {
 }
 
 fn test_enum_usage() {
-    // Test enum member access
+    # Test enum member access
     var color = Color.RED
     var priority = Priority.HIGH
     
-    // Test enum comparisons
+    # Test enum comparisons
     if color == Color.RED {
         print("Color is red")
     }
@@ -29,11 +29,11 @@ fn test_enum_usage() {
         print("Priority is high") 
     }
     
-    // Test enum values
+    # Test enum values
     print("Color value:", color.value)
     print("Priority value:", priority.value)
     
-    // Test enum names  
+    # Test enum names  
     print("Color name:", color.name)
     print("Priority name:", priority.name)
     
@@ -41,7 +41,7 @@ fn test_enum_usage() {
 }
 
 fn test_enum_iteration() {
-    // Test iterating over enum members
+    # Test iterating over enum members
     print("All colors:")
     for color in Color {
         print(" -", color.name, "=", color.value)

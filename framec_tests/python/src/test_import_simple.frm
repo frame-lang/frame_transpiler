@@ -1,4 +1,4 @@
-// Simple test for import statements
+# Simple test for import statements
 import math
 import json
 import os.path as osp
@@ -8,13 +8,13 @@ from typing import List, Dict
 fn main() {
     print("Testing imports...")
     
-    // math module
+    # math module
     var pi_value = math.pi
     var root = math.sqrt(16)
     print("Pi: " + str(pi_value))
     print("Square root of 16: " + str(root))
     
-    // Test that imported modules work
+    # Test that imported modules work
     print("Imports completed successfully")
 }
 

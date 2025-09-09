@@ -1,9 +1,9 @@
-// Test: Complex if/elif/else chains with returns in event handlers
-// This was the original issue that was fixed in v0.20
+# Test: Complex if/elif/else chains with returns in event handlers
+# This was the original issue that was fixed in v0.20
 fn main() {
     var grader = GradeSystem()
     
-    // Test various scores
+    # Test various scores
     var scores = [95, 85, 75, 65, 55, -5, 105]
     
     print("=== Grade System Tests ===")
@@ -24,7 +24,7 @@ system GradeSystem {
     machine:
         $Processing {
             calculateGrade(score: int): str {
-                // Complex nested if/elif/else with returns - this was broken before v0.20
+                # Complex nested if/elif/else with returns - this was broken before v0.20
                 if score < 0 {
                     system.return = "Invalid: negative score"
                     return
@@ -33,7 +33,7 @@ system GradeSystem {
                     return
                 }
                 
-                // Grade calculation with exhaustive if/elif/else
+                # Grade calculation with exhaustive if/elif/else
                 if score >= 90 {
                     if score >= 95 {
                         system.return = "A+"
@@ -77,7 +77,7 @@ system GradeSystem {
             }
             
             testCategories() {
-                // Test different category patterns
+                # Test different category patterns
                 var testValue = 42
                 
                 if testValue < 25 {

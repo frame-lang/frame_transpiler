@@ -1,16 +1,16 @@
-// Test comprehensive list features in Frame
+# Test comprehensive list features in Frame
 fn main() {
-    // Test list literals
+    # Test list literals
     var numbers = [1, 2, 3, 4, 5]
     var strings = ["hello", "world", "frame"]
     var mixed = [1, "two", 3, "four"]
     var empty = []
     
-    // Test list indexing
+    # Test list indexing
     print("First number:", numbers[0])
     print("Last string:", strings[2])
     
-    // Test list iteration
+    # Test list iteration
     print("\n=== Iterating numbers ===")
     for num in numbers {
         print("Number:", num)
@@ -21,14 +21,14 @@ fn main() {
         print("String:", str)
     }
     
-    // Test nested lists
+    # Test nested lists
     var matrix = [[1, 2], [3, 4], [5, 6]]
     print("\n=== Matrix ===")
     for row in matrix {
         print("Row:", row)
     }
     
-    // Test list operations
+    # Test list operations
     numbers.append(6)
     
     print("\n=== After append ===")
@@ -37,10 +37,10 @@ fn main() {
     var length = numbers.length
     print("Length:", length)
     
-    // Test list as function parameter
+    # Test list as function parameter
     processList(numbers)
     
-    // Test list as return value
+    # Test list as return value
     var newList = createList()
     print("\n=== Created list ===")
     print("New list:", newList)

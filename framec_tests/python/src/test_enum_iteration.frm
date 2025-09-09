@@ -1,4 +1,4 @@
-// Test enum iteration
+# Test enum iteration
 
 fn main() {
     var menu = MenuSystem()
@@ -21,7 +21,7 @@ system MenuSystem {
                 print("=== Menu Options ===")
                 var index = 1
                 
-                // Iterate over enum values
+                # Iterate over enum values
                 for option in MenuOption {
                     print(str(index) + ". " + option.name)
                     index = index + 1
@@ -31,7 +31,7 @@ system MenuSystem {
             }
             
             validateOption(name: string): bool {
-                // Check if name is valid enum member
+                # Check if name is valid enum member
                 for option in MenuOption {
                     if option.name == name {
                         print(name + " is a valid menu option")
@@ -63,7 +63,7 @@ system Validator {
             processAllStatuses() {
                 print("=== Processing All Statuses ===")
                 
-                // Iterate with custom values
+                # Iterate with custom values
                 for status in ProcessStatus {
                     print("Status: " + status.name + " (code: " + str(status.value) + ")")
                     
@@ -76,7 +76,7 @@ system Validator {
                     }
                 }
                 
-                // Count total statuses
+                # Count total statuses
                 var count = 0
                 for s in ProcessStatus {
                     count = count + 1

@@ -1,9 +1,9 @@
-// Test file for with statement support in Frame v0.37
+# Test file for with statement support in Frame v0.37
 import asyncio
 import aiohttp
 import os
 
-// Test regular with statement for file operations
+# Test regular with statement for file operations
 fn test_with_file() {
     var script_dir = os.path.dirname(os.path.abspath(__file__))
     var test_file = os.path.join(script_dir, "test.txt")
@@ -15,7 +15,7 @@ fn test_with_file() {
         print("File content: " + content)
     }
     
-    // Nested with statements
+    # Nested with statements
     with open(input_file_path, "r") as input_file {
         with open(output_file_path, "w") as output_file {
             var data = input_file.read()
@@ -24,9 +24,9 @@ fn test_with_file() {
     }
 }
 
-// Test async with statement for network operations
+# Test async with statement for network operations
 async fn test_async_with() {
-    // Using async with for aiohttp session
+    # Using async with for aiohttp session
     async with aiohttp.ClientSession() as session {
         async with session.get("https://api.github.com") as response {
             var text = await response.text()
@@ -35,7 +35,7 @@ async fn test_async_with() {
     }
 }
 
-// Test with statement in a system
+# Test with statement in a system
 system FileProcessor {
     interface:
         processFile(filename)
@@ -43,7 +43,7 @@ system FileProcessor {
     machine:
         $Idle {
             processFile(filename) {
-                // Use with statement inside event handler
+                # Use with statement inside event handler
                 with open(filename, "r") as file {
                     self.content = file.read()
                     print("Read " + str(len(self.content)) + " bytes")
@@ -55,7 +55,7 @@ system FileProcessor {
         $Processing {
             $>() {
                 print("Processing file content...")
-                // Transform content to uppercase
+                # Transform content to uppercase
                 self.processed = self.content.upper()
                 -> $Done
             }
@@ -72,7 +72,7 @@ system FileProcessor {
         var processed = ""
 }
 
-// Test async with in async system methods
+# Test async with in async system methods
 system AsyncDataFetcher {
     interface:
         async fetchData(url)
@@ -82,7 +82,7 @@ system AsyncDataFetcher {
             fetchData(url) {
                 print("Fetching from: " + url)
                 
-                // Use async with for resource management
+                # Use async with for resource management
                 async with aiohttp.ClientSession() as session {
                     async with session.get(url) as response {
                         self.data = await response.text()
@@ -101,35 +101,35 @@ system AsyncDataFetcher {
         var status_code = 0
 }
 
-// Async function to test everything
+# Async function to test everything
 async fn test_all() {
     print("Testing with statement support in Frame v0.37")
     print("=" * 50)
     
-    // Test regular with
+    # Test regular with
     print("\n1. Testing regular with statement:")
     test_with_file()
     
-    // Test async with
+    # Test async with
     print("\n2. Testing async with statement:")
     await test_async_with()
     
-    // Test with in system
+    # Test with in system
     print("\n3. Testing with in system:")
     var script_dir = os.path.dirname(os.path.abspath(__file__))
     var test_file = os.path.join(script_dir, "test.txt")
     var processor = FileProcessor()
     processor.processFile(test_file)
     
-    // Test async with in system
+    # Test async with in system
     print("\n4. Testing async with in system:")
     var fetcher = AsyncDataFetcher()
     var result = await fetcher.fetchData("https://api.github.com")
-    // Note: String slicing not yet supported in Frame
+    # Note: String slicing not yet supported in Frame
     print("Got result from API")
 }
 
-// Entry point - will be called from __main__
+# Entry point - will be called from __main__
 fn main() {
     asyncio.run(test_all())
 }

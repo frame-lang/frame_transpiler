@@ -1,18 +1,18 @@
-// Comprehensive test for explicit self/system syntax in Frame v0.31
+# Comprehensive test for explicit self/system syntax in Frame v0.31
 fn main() {
     var sys = ComprehensiveSystem()
     
-    // Test interface calls
+    # Test interface calls
     sys.processTask("task1")
     sys.calculate(10, 20)
     
-    // Test static method (when implemented)
-    // ComprehensiveSystem.staticMethod()
+    # Test static method (when implemented)
+    # ComprehensiveSystem.staticMethod()
 }
 
 system ComprehensiveSystem {
     operations:
-        // Public operations
+        # Public operations
         publicOp() {
             print("Public operation")
         }
@@ -28,31 +28,31 @@ system ComprehensiveSystem {
     machine:
         $Ready {
             processTask(taskName: string) {
-                // Test self.action() call
+                # Test self.action() call
                 self.logTask(taskName)
                 
-                // Test self.operation() call
+                # Test self.operation() call
                 self.publicOp()
                 
-                // Test domain var access (will need self. when fully migrated)
-                // For now, domain vars don't use self prefix in assignments
+                # Test domain var access (will need self. when fully migrated)
+                # For now, domain vars don't use self prefix in assignments
                 taskCount = taskCount + 1
                 
-                // Test calling action with return value
+                # Test calling action with return value
                 var result = self.computeHash(taskName)
                 print("Hash: " + str(result))
                 
-                // Test nested calls
+                # Test nested calls
                 self.processInternal()
                 
                 return
             }
             
             calculate(a: int, b: int): int {
-                // Test operation with return
+                # Test operation with return
                 var doubled = self.helperOp(a)
                 
-                // Test action that modifies domain
+                # Test action that modifies domain
                 self.updateTotal(doubled + b)
                 
                 system.return = total
@@ -60,21 +60,21 @@ system ComprehensiveSystem {
         }
         
     actions:
-        // Private actions
+        # Private actions
         logTask(name: string) {
             print("Logging task: " + name)
         }
         
         computeHash(input: string): int {
-            // Simple hash simulation
+            # Simple hash simulation
             return len(input) * 42
         }
         
         processInternal() {
-            // Test calling another action from action
+            # Test calling another action from action
             self.internalHelper()
             
-            // Test calling operation from action
+            # Test calling operation from action
             self.publicOp()
         }
         
@@ -92,7 +92,7 @@ system ComprehensiveSystem {
         var total: int = 0
 }
 
-// Test multiple systems with self context
+# Test multiple systems with self context
 system SecondarySystem {
     interface:
         test()
@@ -100,7 +100,7 @@ system SecondarySystem {
     machine:
         $Start {
             test() {
-                // Each system has its own self context
+                # Each system has its own self context
                 self.ownAction()
                 return
             }

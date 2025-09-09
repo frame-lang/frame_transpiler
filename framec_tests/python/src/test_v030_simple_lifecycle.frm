@@ -1,20 +1,20 @@
-// Simplified lifecycle test for v0.30
+# Simplified lifecycle test for v0.30
 
 fn main() {
     print("Starting test")
     var controller = Controller()
     
-    // Test SystemA lifecycle
+    # Test SystemA lifecycle
     print("Testing SystemA:")
     var sysA = SystemA()
-    sysA.step()  // Start -> Middle
-    sysA.step()  // Middle -> End
+    sysA.step()  # Start -> Middle
+    sysA.step()  # Middle -> End
     
-    // Test SystemB lifecycle  
+    # Test SystemB lifecycle  
     print("Testing SystemB:")
     var sysB = SystemB()
-    sysB.step()  // Start -> Middle
-    sysB.step()  // Middle -> End
+    sysB.step()  # Start -> Middle
+    sysB.step()  # Middle -> End
     
     print("Test complete")
 }

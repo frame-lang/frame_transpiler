@@ -1,4 +1,4 @@
-// Single system test for comparison
+# Single system test for comparison
 
 fn main() {
     var first = FirstSystem()

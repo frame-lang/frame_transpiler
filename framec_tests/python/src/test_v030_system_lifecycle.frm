@@ -1,30 +1,30 @@
-// Test: System lifecycle management with state-driven instantiation/destruction
-// Tests v0.30 multi-entity support with complex system interactions
+# Test: System lifecycle management with state-driven instantiation/destruction
+# Tests v0.30 multi-entity support with complex system interactions
 
 fn main() {
     print("=== Starting System Lifecycle Test ===")
     var mainSys = MainSystem()
     
-    // Drive 2 complete cycles: StateA -> StateB -> StateA -> StateB
+    # Drive 2 complete cycles: StateA -> StateB -> StateA -> StateB
     print("\n--- Cycle 1: StateA ---")
-    mainSys.next()  // Start -> Working
-    mainSys.next()  // Working -> End
-    mainSys.next()  // End returns false, transition to StateB
+    mainSys.next()  # Start -> Working
+    mainSys.next()  # Working -> End
+    mainSys.next()  # End returns false, transition to StateB
     
     print("\n--- Cycle 1: StateB ---")
-    mainSys.next()  // Start -> Working
-    mainSys.next()  // Working -> End
-    mainSys.next()  // End returns false, transition to StateA
+    mainSys.next()  # Start -> Working
+    mainSys.next()  # Working -> End
+    mainSys.next()  # End returns false, transition to StateA
     
     print("\n--- Cycle 2: StateA ---")
-    mainSys.next()  // Start -> Working
-    mainSys.next()  // Working -> End
-    mainSys.next()  // End returns false, transition to StateB
+    mainSys.next()  # Start -> Working
+    mainSys.next()  # Working -> End
+    mainSys.next()  # End returns false, transition to StateB
     
     print("\n--- Cycle 2: StateB ---")
-    mainSys.next()  // Start -> Working
-    mainSys.next()  // Working -> End
-    mainSys.next()  // End returns false, done
+    mainSys.next()  # Start -> Working
+    mainSys.next()  # Working -> End
+    mainSys.next()  # End returns false, done
     
     print("\n=== System Lifecycle Test Complete ===")
 }

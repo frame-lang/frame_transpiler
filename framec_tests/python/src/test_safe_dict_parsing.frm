@@ -1,4 +1,4 @@
-// Test safe alternatives to eval for dictionary parsing
+# Test safe alternatives to eval for dictionary parsing
 
 import json
 import ast
@@ -6,7 +6,7 @@ import ast
 fn test_json_parsing() {
     print("=== Safe JSON Parsing (Recommended) ===")
     
-    // JSON is the safest way to parse string representations
+    # JSON is the safest way to parse string representations
     var json_str = "{\"name\": \"Alice\", \"age\": 30, \"active\": true}"
     
     var d = json.loads(json_str)
@@ -14,7 +14,7 @@ fn test_json_parsing() {
     print("Name: " + d["name"])
     print("Age: " + str(d["age"]))
     
-    // JSON with arrays
+    # JSON with arrays
     var complex_json = "{\"users\": [{\"id\": 1, \"name\": \"Bob\"}, {\"id\": 2, \"name\": \"Carol\"}]}"
     var data = json.loads(complex_json)
     print("\nComplex JSON parsed: " + str(data))
@@ -25,8 +25,8 @@ fn test_json_parsing() {
 fn test_ast_literal_eval() {
     print("\n=== Using ast.literal_eval (Safe for Python literals) ===")
     
-    // ast.literal_eval safely evaluates Python literal structures
-    // It only evaluates literals: strings, numbers, tuples, lists, dicts, booleans, None
+    # ast.literal_eval safely evaluates Python literal structures
+    # It only evaluates literals: strings, numbers, tuples, lists, dicts, booleans, None
     
     var dict_str = "{'name': 'David', 'scores': [85, 90, 95], 'active': True}"
     var d = ast.literal_eval(dict_str)
@@ -35,12 +35,12 @@ fn test_ast_literal_eval() {
     print("Name: " + d["name"])
     print("Scores: " + str(d["scores"]))
     
-    // Works with nested structures
+    # Works with nested structures
     var nested_str = "{'users': {'alice': {'age': 30}, 'bob': {'age': 25}}}"
     var nested = ast.literal_eval(nested_str)
     print("\nNested structure: " + str(nested))
     
-    // Works with mixed types
+    # Works with mixed types
     var mixed_str = "{'int': 42, 'float': 3.14, 'list': [1, 2, 3], 'tuple': (4, 5, 6), 'bool': False}"
     var mixed = ast.literal_eval(mixed_str)
     print("Mixed types: " + str(mixed))
@@ -49,7 +49,7 @@ fn test_ast_literal_eval() {
 fn test_manual_parsing() {
     print("\n=== Manual String Processing (Most Control) ===")
     
-    // For simple key-value pairs, manual parsing gives full control
+    # For simple key-value pairs, manual parsing gives full control
     var input_str = "key1=value1,key2=value2,key3=value3"
     
     var d = {}
@@ -70,7 +70,7 @@ fn test_manual_parsing() {
     
     print("Manually parsed: " + str(d))
     
-    // Parse query string style
+    # Parse query string style
     var query = "name=Eve&age=28&city=Boston"
     var params = {}
     var items = query.split("&")
@@ -92,8 +92,8 @@ fn test_manual_parsing() {
 fn test_dangerous_eval() {
     print("\n=== Why eval() is Dangerous ===")
     
-    // DO NOT USE eval() in production!
-    // It can execute arbitrary code
+    # DO NOT USE eval() in production!
+    # It can execute arbitrary code
     
     print("Example of what NOT to do:")
     print("  eval() can execute any Python code")

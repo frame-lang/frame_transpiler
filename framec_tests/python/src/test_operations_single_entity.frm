@@ -1,4 +1,4 @@
-// Test operations in a single-entity context (no functions)
+# Test operations in a single-entity context (no functions)
 system SingleEntityOperationsTest {
     operations:
         test_operation() {

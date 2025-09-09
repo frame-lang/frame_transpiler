@@ -1,9 +1,9 @@
-// Simple seat booking test to verify scope bug fix
+# Simple seat booking test to verify scope bug fix
 
 fn main() {
     print("=== Simple Seat Booking Test ===")
     
-    // Test the scope bug fix: obj.method() should work
+    # Test the scope bug fix: obj.method() should work
     var seat_manager = SeatManager()
     seat_manager.test_operations()
     

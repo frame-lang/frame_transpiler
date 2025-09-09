@@ -1,22 +1,22 @@
-// Test file for v0.20 system parameter syntax
+# Test file for v0.20 system parameter syntax
 fn main() {
-    // Test 1: No system parameters
+    # Test 1: No system parameters
     var sys1 = NoParamsSystem()
     
-    // Test 2: Start state parameters only
+    # Test 2: Start state parameters only
     var sys2 = StartStateParameters("hello")
     
-    // Test 3: Start state enter event parameters only  
+    # Test 3: Start state enter event parameters only  
     var sys3 = StartStateEnterParameters("world")
     
-    // Test 4: Domain variable initialization only
+    # Test 4: Domain variable initialization only
     var sys4 = DomainVariables(1, 2)
     
-    // Test 5: All parameter types together (flattened argument list)
+    # Test 5: All parameter types together (flattened argument list)
     var sys5 = AllParameterTypes("hello", "world", 1, 2)
 }
 
-// System with no parameters
+# System with no parameters
 system NoParamsSystem {
     machine:
         $Start {
@@ -27,7 +27,7 @@ system NoParamsSystem {
         }
 }
 
-// System with start state parameters
+# System with start state parameters
 system StartStateParameters($(p1)) {
     machine:
         $S1(p1) { 
@@ -38,7 +38,7 @@ system StartStateParameters($(p1)) {
         }
 }
 
-// System with start state enter event parameters
+# System with start state enter event parameters
 system StartStateEnterParameters($>(p1)) {
     machine:
         $S1 { 
@@ -49,7 +49,7 @@ system StartStateEnterParameters($>(p1)) {
         }
 }
 
-// System with domain variable initialization
+# System with domain variable initialization
 system DomainVariables(a, c) {
     machine:
         $Start {
@@ -60,12 +60,12 @@ system DomainVariables(a, c) {
         }
     
     domain:
-        var a = None // a is set with a parameter value
+        var a = None # a is set with a parameter value
         var b = None 
-        var c = None // c is set with a parameter value
+        var c = None # c is set with a parameter value
 }
 
-// System with all parameter types: start state, start state enter event, domain
+# System with all parameter types: start state, start state enter event, domain
 system AllParameterTypes($(p1), $>(p2), a, c) {
     machine:
         $S1(p1) { 
@@ -76,7 +76,7 @@ system AllParameterTypes($(p1), $>(p2), a, c) {
         }
     
     domain:
-        var a = None // a is set with a parameter value
+        var a = None # a is set with a parameter value
         var b = None 
-        var c = None // c is set with a parameter value
+        var c = None # c is set with a parameter value
 }

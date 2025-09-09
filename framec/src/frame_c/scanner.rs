@@ -263,8 +263,11 @@ impl Scanner {
                 }
             }
             '^' => {
-                // Old caret return syntax removed - use 'return' keyword
-                self.error(self.line, "Unexpected character '^'. Old return syntax has been removed. Use 'return' or 'return value' instead.");
+                if self.match_char('=') {
+                    self.add_token(TokenType::CaretEqual);  // ^= bitwise XOR compound assignment
+                } else {
+                    self.add_token(TokenType::Caret);  // ^ bitwise XOR operator
+                }
             }
             '>' => {
                 if self.match_char('=') {
@@ -381,23 +384,8 @@ impl Scanner {
             '"' => self.string(),
             // Backtick support removed - no longer needed in Frame
             '#' => {
-                // Hash is only used for attributes now
-                if self.match_char('[') {
-                    self.add_token(TokenType::OuterAttributeOrDomainParams) // #[
-                } else if self.match_char('!') {
-                    if self.match_char('[') {
-                        // #![
-                        self.add_token(TokenType::InnerAttribute);
-                    } else {
-                        self.error(self.line, &format!("Unexpected character {}.", c));
-                    }
-                } else if self.match_char('/') {
-                    // Number match syntax removed
-                    self.error(self.line, "Number match syntax '#/' has been removed. Use if/elif/else statements instead.");
-                } else {
-                    // Old system declaration syntax removed
-                    self.error(self.line, "Unexpected character '#'. Old system declaration syntax has been removed. Use 'system Name { }' instead.");
-                }
+                // Python-style single-line comment
+                self.python_comment();
             }
             '=' => {
                 if self.match_char('>') {
@@ -410,9 +398,11 @@ impl Scanner {
             }
             '/' => {
                 if self.match_char('/') {
-                    self.single_line_comment();
-                } else if self.match_char('*') {
-                    self.c_style_multiline_comment();
+                    if self.match_char('=') {
+                        self.add_token(TokenType::FloorDivideEqual);  // //= floor division compound assignment
+                    } else {
+                        self.add_token(TokenType::FloorDivide);  // // floor division operator
+                    }
                 } else if self.match_char('=') {
                     self.add_token(TokenType::SlashEqual);  // /= compound assignment
                 } else {
@@ -496,6 +486,40 @@ impl Scanner {
     }
 
     fn number(&mut self, mut is_integer: bool) {
+        // Check for Python numeric literals (0b, 0o, 0x)
+        if self.chars[self.start] == '0' && self.current - self.start == 1 {
+            let next_char = self.peek();
+            if next_char == 'b' || next_char == 'B' {
+                // Binary literal
+                self.advance(); // consume 'b' or 'B'
+                while self.peek() == '0' || self.peek() == '1' {
+                    self.advance();
+                }
+                let s: String = self.chars[self.start..self.current].iter().collect();
+                // For Python, we just pass the literal through as-is
+                self.add_token_literal(TokenType::Number, TokenLiteral::Integer(0)); // Placeholder value
+                return;
+            } else if next_char == 'o' || next_char == 'O' {
+                // Octal literal
+                self.advance(); // consume 'o' or 'O'
+                while ('0'..='7').contains(&self.peek()) {
+                    self.advance();
+                }
+                let s: String = self.chars[self.start..self.current].iter().collect();
+                self.add_token_literal(TokenType::Number, TokenLiteral::Integer(0)); // Placeholder value
+                return;
+            } else if next_char == 'x' || next_char == 'X' {
+                // Hexadecimal literal
+                self.advance(); // consume 'x' or 'X'
+                while self.is_digit(self.peek()) || ('a'..='f').contains(&self.peek()) || ('A'..='F').contains(&self.peek()) {
+                    self.advance();
+                }
+                let s: String = self.chars[self.start..self.current].iter().collect();
+                self.add_token_literal(TokenType::Number, TokenLiteral::Integer(0)); // Placeholder value
+                return;
+            }
+        }
+
         if is_integer {
             // consume whole number
             while self.is_digit(self.peek()) {
@@ -579,12 +603,12 @@ impl Scanner {
         }
     }
 
-    // TODO: handle EOF w/ error
-    fn single_line_comment(&mut self) {
+    // Python-style single-line comment with #
+    fn python_comment(&mut self) {
         while !self.is_at_end() && self.peek() != '\n' {
             self.advance();
         }
-        self.add_token(TokenType::SingleLineComment);
+        self.add_token(TokenType::PythonComment);
     }
 
     // TODO: handle EOF w/ error
@@ -609,30 +633,7 @@ impl Scanner {
         }
     }
 
-    // Handle C-style multiline comments /* ... */
-    fn c_style_multiline_comment(&mut self) {
-        // We've already consumed '/*', now look for '*/'
-        while !self.is_at_end() {
-            // Check for nested line breaks to maintain line count
-            if self.peek() == '\n' {
-                self.line += 1;
-            }
-            
-            // Look for the closing */
-            if self.peek() == '*' && self.peek_next() == '/' {
-                // Consume the '*'
-                self.advance();
-                // Consume the '/'
-                self.advance();
-                self.add_token(TokenType::CStyleMultiLineComment);
-                return;
-            }
-            self.advance();
-        }
-        
-        // If we reach here, we hit EOF without finding the closing */
-        self.error(self.line, "Unterminated C-style comment. Expected '*/' before end of file.");
-    }
+    // Removed C-style comments - no longer supported in Frame v0.40
 
     // Scan the string looking for the end of the match test ('/')
     // or the end of the current match string ('|').
@@ -846,9 +847,9 @@ pub enum TokenType {
     And,      // 'and' keyword (Python logical AND)
     Or,       // 'or' keyword (Python logical OR)
     Not,      // 'not' keyword (Python logical NOT)
-    // SingleLineComment, // --- comment
-    MultiLineComment, // {-- comments --}
-    CStyleMultiLineComment, // /* C-style comments */
+    PythonComment, // # Python-style comment
+    MultiLineComment, // {-- Frame documentation comments --}
+    FloorDivide, // // floor division operator
     OpenBrace,        // {
     CloseBrace,       // }
     True,             // true
@@ -864,7 +865,6 @@ pub enum TokenType {
     MatchString,             // '/<any characters>/' - contains <string>
     MatchEmptyString,        // '~//'
     MatchNull,               // '!//'
-    SingleLineComment,       // '//'
     // REMOVED: Pattern matching tokens
     // REMOVED: StringMatchStart ('~/') - string patterns removed
     // REMOVED: NumberMatchStart ('#/') - number patterns removed  
@@ -887,17 +887,20 @@ pub enum TokenType {
     DashEqual,               // -=
     StarEqual,               // *=
     SlashEqual,              // /=
+    FloorDivideEqual,        // //=
     PercentEqual,            // %=
     StarStarEqual,           // **=
     AmpersandEqual,          // &=
     PipeEqual,               // |=
     LeftShiftEqual,          // <<=
     RightShiftEqual,         // >>=
+    CaretEqual,              // ^= (bitwise XOR assignment, v0.40)
     
-    // Bitwise operators (v0.39)
+    // Bitwise operators (v0.39/v0.40)
     Tilde,                   // ~ (bitwise NOT)
     LeftShift,               // <<
     RightShift,              // >>
+    Caret,                   // ^ (bitwise XOR, v0.40)
     
     // Identity operators (v0.39)
     Is,                      // 'is' keyword

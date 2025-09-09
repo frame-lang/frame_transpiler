@@ -1,18 +1,18 @@
-// Complete lambda test suite for Frame v0.38 - Fixed version
-// Works around lambda-in-collection limitations
+# Complete lambda test suite for Frame v0.38 - Fixed version
+# Works around lambda-in-collection limitations
 
 fn test_basic_lambdas() {
     print("\n=== Basic Lambda Tests ===")
     
-    // Simple lambda
+    # Simple lambda
     var square = lambda x: x * x
     print("Square of 5: " + str(square(5)))
     
-    // Multi-parameter
+    # Multi-parameter
     var add = lambda a, b: a + b
     print("Add 3 + 4: " + str(add(3, 4)))
     
-    // No parameters
+    # No parameters
     var get_pi = lambda: 3.14159
     print("Pi: " + str(get_pi()))
 }
@@ -23,11 +23,11 @@ fn test_lambda_reassignment() {
     var double = lambda x: x * 2
     print("Double 5: " + str(double(5)))
     
-    // Reassign to another variable
+    # Reassign to another variable
     var another = double
     print("Via another: " + str(another(7)))
     
-    // Reassign different lambda
+    # Reassign different lambda
     another = lambda x: x * 3
     print("Now triple: " + str(another(7)))
 }
@@ -35,7 +35,7 @@ fn test_lambda_reassignment() {
 fn test_lambdas_in_collections() {
     print("\n=== Lambdas in Collections ===")
     
-    // Work around: Create lambdas first, then add to dict
+    # Work around: Create lambdas first, then add to dict
     var add_op = lambda a, b: a + b
     var sub_op = lambda a, b: a - b
     var ops = {}
@@ -43,13 +43,13 @@ fn test_lambdas_in_collections() {
     ops["sub"] = sub_op
     print("Created dictionary with lambda operations")
     
-    // Test the operations
+    # Test the operations
     var result1 = ops["add"](5, 3)
     var result2 = ops["sub"](5, 3)
     print("5 + 3 = " + str(result1))
     print("5 - 3 = " + str(result2))
     
-    // Work around: Create lambdas first, then add to list
+    # Work around: Create lambdas first, then add to list
     var inc = lambda x: x + 1
     var dbl = lambda x: x * 2
     var sqr = lambda x: x * x
@@ -59,7 +59,7 @@ fn test_lambdas_in_collections() {
     transforms.append(sqr)
     print("Created list of lambda transforms")
     
-    // Test the transforms
+    # Test the transforms
     var val = 5
     var r1 = transforms[0](val)
     var r2 = transforms[1](val)
@@ -84,7 +84,7 @@ fn test_lambdas_as_parameters() {
 }
 
 fn make_adder(n) {
-    // Return a lambda that captures n
+    # Return a lambda that captures n
     return lambda x: x + n
 }
 
@@ -116,13 +116,13 @@ fn test_closure_capture() {
     var capture_outer = lambda x: x + outer_var
     print("Capture outer 100: " + str(capture_outer(5)))
     
-    // Change outer variable
+    # Change outer variable
     outer_var = 200
     print("After change to 200: " + str(capture_outer(5)))
 }
 
 fn compose(f, g) {
-    // Function composition
+    # Function composition
     return lambda x: f(g(x))
 }
 

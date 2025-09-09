@@ -1,5 +1,5 @@
-// Test exception handling - JavaScript target simulation using Python
-// Since JavaScript visitor is not enabled, this tests the concepts
+# Test exception handling - JavaScript target simulation using Python
+# Since JavaScript visitor is not enabled, this tests the concepts
 
 fn main() {
     testBasicTryCatch()
@@ -11,12 +11,12 @@ fn main() {
     testNestedTry()
 }
 
-// Test 1: Basic try-catch
+# Test 1: Basic try-catch
 fn testBasicTryCatch() {
     print("Test 1: Basic try-catch")
     try {
         print("  In try block")
-        // Force an error
+        # Force an error
         var x = 1 / 0
         print("  Result: " + str(x))
     }
@@ -26,7 +26,7 @@ fn testBasicTryCatch() {
     print("  After try-catch")
 }
 
-// Test 2: Specific exception type
+# Test 2: Specific exception type
 fn testSpecificException() {
     print("\nTest 2: Specific exception")
     try {
@@ -41,11 +41,11 @@ fn testSpecificException() {
     }
 }
 
-// Test 3: Multiple exception types
+# Test 3: Multiple exception types
 fn testMultipleExceptions() {
     print("\nTest 3: Multiple exception types")
     
-    // Test with IndexError
+    # Test with IndexError
     try {
         var arr = [1, 2, 3]
         var item = arr[10]
@@ -54,17 +54,17 @@ fn testMultipleExceptions() {
         print("  Caught IndexError or KeyError:", str(err))
     }
     
-    // Test with another IndexError
+    # Test with another IndexError
     try {
         var arr2 = [4, 5]
-        var item2 = arr2[100]  // Another index error
+        var item2 = arr2[100]  # Another index error
     }
     except (IndexError, KeyError) as err {
         print("  Caught IndexError or KeyError again:", str(err))
     }
 }
 
-// Test 4: Else clause (runs if no exception)
+# Test 4: Else clause (runs if no exception)
 fn testElseClause() {
     print("\nTest 4: Else clause")
     try {
@@ -78,7 +78,7 @@ fn testElseClause() {
         print("  Else block - ran because no exception")
     }
     
-    // Now with exception
+    # Now with exception
     try {
         var y = 1 / 0
     }
@@ -90,7 +90,7 @@ fn testElseClause() {
     }
 }
 
-// Test 5: Finally clause
+# Test 5: Finally clause
 fn testFinallyClause() {
     print("\nTest 5: Finally clause")
     try {
@@ -104,7 +104,7 @@ fn testFinallyClause() {
         print("  Finally - always runs")
     }
     
-    // With exception
+    # With exception
     try {
         var y = 1 / 0
     }
@@ -116,7 +116,7 @@ fn testFinallyClause() {
     }
 }
 
-// Test 6: Raise exceptions
+# Test 6: Raise exceptions
 fn testRaiseException() {
     print("\nTest 6: Raise exceptions")
     
@@ -128,7 +128,7 @@ fn testRaiseException() {
         print("  Caught:", str(e))
     }
     
-    // Exception chaining
+    # Exception chaining
     try {
         try {
             var x = 1 / 0
@@ -143,7 +143,7 @@ fn testRaiseException() {
     }
 }
 
-// Test 7: Nested try blocks
+# Test 7: Nested try blocks
 fn testNestedTry() {
     print("\nTest 7: Nested try blocks")
     try {

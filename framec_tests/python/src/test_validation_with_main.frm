@@ -1,4 +1,4 @@
-// Simple validation test with all blocks
+# Simple validation test with all blocks
 fn main() {
     ValidationTest()
 }

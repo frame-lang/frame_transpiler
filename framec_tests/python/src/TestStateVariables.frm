@@ -36,6 +36,6 @@ system StateVariableDemo {
 
     actions:
         print(msg: string) {
-            // Print implementation
+            # Print implementation
         }
 }

@@ -1,4 +1,4 @@
-// First system plus simple second system
+# First system plus simple second system
 
 system FirstSystem {
     interface:

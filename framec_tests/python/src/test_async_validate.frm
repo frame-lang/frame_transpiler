@@ -1,15 +1,15 @@
 
-// Simple async validation test for Frame v0.37
+# Simple async validation test for Frame v0.37
 import asyncio
 
-// Basic async function
+# Basic async function
 async fn fetch_data(id) {
     print("Fetching data for id: " + str(id))
-    // Removed backticks - await asyncio.sleep(0.1)
+    # Removed backticks - await asyncio.sleep(0.1)
     return "data_" + str(id)
 }
 
-// Test system with async interface
+# Test system with async interface
 system AsyncTest {
     interface:
         async getData(id)
@@ -36,22 +36,22 @@ system AsyncTest {
         var status = "ready"
 }
 
-// Main async test function
+# Main async test function
 async fn run_test() {
     print("=== Async Validation Test ===")
     
-    // Test basic async function
+    # Test basic async function
     var result = await fetch_data(100)
     print("Direct call result: " + result)
     
-    // Test async state machine
+    # Test async state machine
     var test = AsyncTest()
     
-    // Call async interface method
+    # Call async interface method
     var data = await test.getData(42)
     print("Interface call result: " + data)
     
-    // Call sync interface method
+    # Call sync interface method
     test.setStatus("complete")
     
     print("=== Test Complete ===")
@@ -59,5 +59,5 @@ async fn run_test() {
 
 fn main() {
     print("Starting Frame v0.37 Async Validation")
-    // Removed backticks - asyncio.run(run_test())
+    # Removed backticks - asyncio.run(run_test())
 }

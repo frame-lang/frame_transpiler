@@ -1,7 +1,7 @@
-// Simple dict comprehension test
+# Simple dict comprehension test
 
 fn test_simple() {
-    // Simplest possible dict comprehension
+    # Simplest possible dict comprehension
     var squares = {x: x*x for x in range(5)}
     print(squares)
 }

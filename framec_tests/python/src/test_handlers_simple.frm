@@ -1,4 +1,4 @@
-// Simple test for event-handlers-as-functions architecture
+# Simple test for event-handlers-as-functions architecture
 system SimpleHandlers {
     interface:
         start()

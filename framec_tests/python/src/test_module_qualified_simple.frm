@@ -1,8 +1,8 @@
-// Test simple module qualified names (v0.34)
-// This is a simplified test to check basic module.function() syntax
+# Test simple module qualified names (v0.34)
+# This is a simplified test to check basic module.function() syntax
 
 
-// Simple module with a function
+# Simple module with a function
 module utils {
     fn helper() {
         print("Helper called from utils module")
@@ -11,10 +11,10 @@ module utils {
 }
 
 fn main() {
-    // Direct call (works now)
+    # Direct call (works now)
     print("Testing module qualified names")
     
-    // Qualified call (to be implemented)
-    // var result = utils.helper()
-    // print(str(result))
+    # Qualified call (to be implemented)
+    # var result = utils.helper()
+    # print(str(result))
 }

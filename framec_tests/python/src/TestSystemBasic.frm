@@ -1,4 +1,4 @@
-// Test basic system with no parameters
+# Test basic system with no parameters
 fn main() {
     var sys = NoParamsSystem()
 }

@@ -1,4 +1,4 @@
-// Test os.path.join
+# Test os.path.join
 import os
 
 fn main() {

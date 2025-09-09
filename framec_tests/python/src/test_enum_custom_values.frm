@@ -1,4 +1,4 @@
-// Test custom enum values
+# Test custom enum values
 
 fn main() {
     var http = HttpServer()
@@ -40,7 +40,7 @@ system HttpServer {
         }
     
     domain:
-        // Integer enum with custom values
+        # Integer enum with custom values
         enum HttpStatus {
             Ok = 200
             Created = 201
@@ -57,7 +57,7 @@ system Logger {
     machine:
         $Active {
             testLogLevels() {
-                // Test negative values
+                # Test negative values
                 var silent = Priority.Silent
                 var low = Priority.Low
                 var high = Priority.High
@@ -66,25 +66,25 @@ system Logger {
                 print("Low priority: " + str(low.value))
                 print("High priority: " + str(high.value))
                 
-                // Test mixed explicit and auto values
+                # Test mixed explicit and auto values
                 var unknown = MixedEnum.Unknown
                 var idle = MixedEnum.Idle
                 var running = MixedEnum.Running
                 var complete = MixedEnum.Complete
                 var error = MixedEnum.Error
                 
-                print("Unknown: " + str(unknown.value))  // -1
-                print("Idle: " + str(idle.value))        // 0
-                print("Running: " + str(running.value))  // 1 (auto)
-                print("Complete: " + str(complete.value)) // 100
-                print("Error: " + str(error.value))      // 101 (auto)
+                print("Unknown: " + str(unknown.value))  # -1
+                print("Idle: " + str(idle.value))        # 0
+                print("Running: " + str(running.value))  # 1 (auto)
+                print("Complete: " + str(complete.value)) # 100
+                print("Error: " + str(error.value))      # 101 (auto)
                 
                 return
             }
         }
     
     domain:
-        // Enum with negative values
+        # Enum with negative values
         enum Priority {
             Silent = -1
             Low = 1
@@ -92,12 +92,12 @@ system Logger {
             High = 10
         }
         
-        // Mixed explicit and auto values
+        # Mixed explicit and auto values
         enum MixedEnum {
             Unknown = -1
             Idle = 0
-            Running      // 1 (auto continues from 0)
+            Running      # 1 (auto continues from 0)
             Complete = 100
-            Error        // 101 (auto continues from 100)
+            Error        # 101 (auto continues from 100)
         }
 }

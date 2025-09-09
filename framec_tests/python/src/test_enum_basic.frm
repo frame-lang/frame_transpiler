@@ -1,4 +1,4 @@
-// Basic enum declaration and usage test
+# Basic enum declaration and usage test
 
 system CalendarSystem {
     domain:

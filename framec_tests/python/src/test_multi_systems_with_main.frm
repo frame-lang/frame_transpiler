@@ -1,5 +1,5 @@
-// Test: Multi-system with main function (v0.30)
-// Validates multiple systems in multi-entity format
+# Test: Multi-system with main function (v0.30)
+# Validates multiple systems in multi-entity format
 
 fn main() {
     var sys1 = FirstSystem()

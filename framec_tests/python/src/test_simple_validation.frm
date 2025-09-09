@@ -1,4 +1,4 @@
-// Simple validation test with all blocks
+# Simple validation test with all blocks
 system ValidationTest {
     operations:
         do_work() {

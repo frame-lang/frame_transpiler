@@ -1,4 +1,4 @@
-// Simple FSL import test
+# Simple FSL import test
 
 fn test_fsl() {
     var number = 42

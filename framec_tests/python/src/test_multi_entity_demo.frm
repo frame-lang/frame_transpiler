@@ -1,27 +1,27 @@
-// Frame v0.30 Multi-Entity Demo
-// This demonstrates multiple functions and systems working together
+# Frame v0.30 Multi-Entity Demo
+# This demonstrates multiple functions and systems working together
 
-// Helper function for formatting output
+# Helper function for formatting output
 fn format_message(prefix, msg) {
     print("=== " + prefix + ": " + msg + " ===")
     return prefix + "_" + msg
 }
 
-// Logger function that both systems will use
+# Logger function that both systems will use
 fn log_event(system_name, event_name) {
     print("[LOG] System: " + system_name + ", Event: " + event_name)
 }
 
-// Main entry point
+# Main entry point
 fn main() {
     print("Starting Multi-Entity Demo")
     print("---------------------------")
     
-    // Test helper function
+    # Test helper function
     var result = format_message("TEST", "helper_works")
     print("Result: " + result)
     
-    // Create first system - a simple counter
+    # Create first system - a simple counter
     var counter = CounterSystem()
     counter.increment()
     counter.increment()
@@ -29,13 +29,13 @@ fn main() {
     print("Counter value: " + str(count))
     counter.reset()
     
-    // Create second system - a toggle switch
+    # Create second system - a toggle switch
     var toggle = ToggleSystem()
     toggle.switch()
     toggle.switch()
     toggle.switch()
     
-    // Create third system - a traffic light with transitions
+    # Create third system - a traffic light with transitions
     var light = TrafficLight()
     light.next()
     light.next()
@@ -46,7 +46,7 @@ fn main() {
     print("Multi-Entity Demo Complete")
 }
 
-// First System: Simple Counter
+# First System: Simple Counter
 system CounterSystem {
     
     interface:
@@ -79,7 +79,7 @@ system CounterSystem {
         var count : int = 0
 }
 
-// Second System: Toggle Switch
+# Second System: Toggle Switch
 system ToggleSystem {
     
     interface:
@@ -105,7 +105,7 @@ system ToggleSystem {
         }
 }
 
-// Third System: Traffic Light with Complex Transitions
+# Third System: Traffic Light with Complex Transitions
 system TrafficLight {
     
     interface:

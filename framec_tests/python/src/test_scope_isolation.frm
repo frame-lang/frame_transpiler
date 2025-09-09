@@ -1,33 +1,33 @@
-// Test file for validating proper scope isolation
-// Functions should NOT be able to access system internals (actions/operations)
-// Systems should NOT be able to access other systems' internals
+# Test file for validating proper scope isolation
+# Functions should NOT be able to access system internals (actions/operations)
+# Systems should NOT be able to access other systems' internals
 
 import math
 
-// Module-level function - accessible from anywhere
+# Module-level function - accessible from anywhere
 fn add(a: int, b: int): int {
     return a + b
 }
 
-// Test function that should NOT be able to call system actions
+# Test function that should NOT be able to call system actions
 fn testFunctionIsolation() {
     print("Testing function scope isolation")
     
-    // This should work - calling module-level function
+    # This should work - calling module-level function
     var result = add(5, 3)
     print("add(5, 3) = " + str(result))
     
-    // This should work - using built-in
+    # This should work - using built-in
     print("math.pi = " + str(math.pi))
     
-    // These should NOT work if scope isolation is properly implemented
-    // Functions cannot call system actions or operations
-    // The parser should treat these as external/undeclared calls
-    // _testAction()  // Would be error if uncommented
-    // testOperation() // Would be error if uncommented
+    # These should NOT work if scope isolation is properly implemented
+    # Functions cannot call system actions or operations
+    # The parser should treat these as external/undeclared calls
+    # _testAction()  // Would be error if uncommented
+    # testOperation() // Would be error if uncommented
 }
 
-// First system with its own actions and operations
+# First system with its own actions and operations
 system SystemA {
     operations:
         publicOperation() {
@@ -53,7 +53,7 @@ system SystemA {
         }
 }
 
-// Second system - should NOT access SystemA's internals
+# Second system - should NOT access SystemA's internals
 system SystemB {
     operations:
         ownOperation() {
@@ -70,9 +70,9 @@ system SystemB {
                 _ownAction()
                 ownOperation()
                 
-                // These would be errors if uncommented - cannot access other system's internals
-                // _privateAction()  // SystemA's action - not accessible
-                // publicOperation() // SystemA's operation - not accessible  
+                # These would be errors if uncommented - cannot access other system's internals
+                # _privateAction()  // SystemA's action - not accessible
+                # publicOperation() // SystemA's operation - not accessible  
                 return
             }
         }
@@ -83,39 +83,39 @@ system SystemB {
         }
 }
 
-// Test that functions can call system interface methods on instances
+# Test that functions can call system interface methods on instances
 fn testSystemInteraction() {
     print("Testing system interaction from function")
     
-    // This should work - creating system instances
+    # This should work - creating system instances
     var sysA = SystemA()
     var sysB = SystemB()
     
-    // This should work - calling interface methods
+    # This should work - calling interface methods
     sysA.test()
     sysB.test()
     
-    // This should work - calling static operations with class prefix
-    // SystemA.publicOperation() // Would need @staticmethod to work
+    # This should work - calling static operations with class prefix
+    # SystemA.publicOperation() // Would need @staticmethod to work
     
-    // This should NOT work - cannot call actions
-    // sysA._privateAction() // Error - actions are private
+    # This should NOT work - cannot call actions
+    # sysA._privateAction() // Error - actions are private
 }
 
-// Main entry point
+# Main entry point
 fn main() {
     print("=== Scope Isolation Test ===")
     
-    // Test function isolation
+    # Test function isolation
     testFunctionIsolation()
     
-    // Test system isolation
+    # Test system isolation
     var systemA = SystemA()
     var systemB = SystemB()
     systemA.test()
     systemB.test()
     
-    // Test system interaction from function
+    # Test system interaction from function
     testSystemInteraction()
     
     print("=== Test Complete ===")

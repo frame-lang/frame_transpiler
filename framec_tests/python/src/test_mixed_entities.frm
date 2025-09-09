@@ -1,4 +1,4 @@
-// Test scope boundaries in multi-entity files
+# Test scope boundaries in multi-entity files
 
 fn main() {
     print("=== Mixed Entity Test ===")

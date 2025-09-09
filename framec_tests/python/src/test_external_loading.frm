@@ -1,4 +1,4 @@
-// Test loading dictionaries from external sources
+# Test loading dictionaries from external sources
 
 import json
 import configparser
@@ -7,17 +7,17 @@ import os
 fn test_json_operations() {
     print("=== JSON Operations ===")
     
-    // From JSON string
+    # From JSON string
     var json_str = "{\"name\": \"Alice\", \"age\": 30}"
     var d = json.loads(json_str)
     print("From JSON string: " + str(d))
     
-    // To JSON string
+    # To JSON string
     var data = {"user": "Bob", "score": 95}
     var json_output = json.dumps(data)
     print("To JSON string: " + json_output)
     
-    // Pretty printing
+    # Pretty printing
     var pretty = json.dumps(data, indent=2)
     print("Pretty JSON:\n" + pretty)
 }
@@ -25,7 +25,7 @@ fn test_json_operations() {
 fn test_config_file() {
     print("\n=== Configuration File Loading ===")
     
-    // First create a test config file if it doesn't exist
+    # First create a test config file if it doesn't exist
     var config_exists = os.path.exists("config.ini")
     if not config_exists {
         print("Creating test config.ini file...")
@@ -45,22 +45,22 @@ fn test_config_file() {
         f.close()
     }
     
-    // Create config parser
+    # Create config parser
     var config = configparser.ConfigParser()
     config.read("config.ini")
     
-    // Convert section to dictionary
+    # Convert section to dictionary
     var db_config = dict(config["database"])
     print("Database config: " + str(db_config))
     print("DB Host: " + db_config["host"])
     print("DB Port: " + db_config["port"])
     
-    // Access different sections
+    # Access different sections
     var app_config = dict(config["application"])
     print("\nApplication config: " + str(app_config))
     print("Debug mode: " + app_config["debug"])
     
-    // Get all sections
+    # Get all sections
     var sections = config.sections()
     print("\nAll sections: " + str(sections))
 }
@@ -68,33 +68,33 @@ fn test_config_file() {
 fn test_environment_variables() {
     print("\n=== Environment Variables ===")
     
-    // Get single environment variable
+    # Get single environment variable
     var path = os.environ.get("PATH", "not set")
     print("PATH length: " + str(len(path)) + " chars")
     
-    // Get HOME directory
+    # Get HOME directory
     var home = os.environ.get("HOME", "not set")
     print("HOME: " + home)
     
-    // Convert all env vars to dictionary (careful - can be large!)
+    # Convert all env vars to dictionary (careful - can be large!)
     var env_dict = dict(os.environ)
     print("Total environment variables: " + str(len(env_dict)))
     
-    // Get some common ones
+    # Get some common ones
     var user = os.environ.get("USER", "unknown")
     var shell = os.environ.get("SHELL", "unknown")
     print("Current user: " + user)
     print("Current shell: " + shell)
     
-    // Check if a var exists (note: 'in' operator not supported yet)
-    // var has_display = "DISPLAY" in os.environ
-    // print("Has DISPLAY variable: " + str(has_display))
+    # Check if a var exists (note: 'in' operator not supported yet)
+    # var has_display = "DISPLAY" in os.environ
+    # print("Has DISPLAY variable: " + str(has_display))
 }
 
 fn test_json_file_operations() {
     print("\n=== JSON File Operations ===")
     
-    // Write JSON to file
+    # Write JSON to file
     var test_data = {
         "project": "Frame v0.38",
         "features": ["json", "config", "env"],
@@ -106,7 +106,7 @@ fn test_json_file_operations() {
     f.close()
     print("Wrote test data to test_data.json")
     
-    // Read JSON from file
+    # Read JSON from file
     var f2 = open("test_data.json", "r")
     var loaded_data = json.load(f2)
     f2.close()

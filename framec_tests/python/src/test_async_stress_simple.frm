@@ -1,14 +1,14 @@
 
-// Simplified async stress test for Frame v0.37
-// Tests core async functionality without complex backtick blocks
+# Simplified async stress test for Frame v0.37
+# Tests core async functionality without complex backtick blocks
 
 import asyncio
 import time
 
-// Simple async functions
+# Simple async functions
 async fn async_work(work_id, delay) {
     print("Starting work " + str(work_id))
-    // Removed backticks - await asyncio.sleep(delay)
+    # Removed backticks - await asyncio.sleep(delay)
     print("Completed work " + str(work_id))
     return "Result_" + str(work_id)
 }
@@ -16,7 +16,7 @@ async fn async_work(work_id, delay) {
 async fn parallel_work(count) {
     print("Running " + str(count) + " parallel tasks")
     
-    // Simulate parallel work
+    # Simulate parallel work
     for i in [0, 1, 2, 3, 4] {
         var result = await async_work(i, 0.1)
         print("Task " + str(i) + " completed: " + result)
@@ -26,7 +26,7 @@ async fn parallel_work(count) {
     return "done"
 }
 
-// Async system with mixed handlers
+# Async system with mixed handlers
 system AsyncStressTest {
     interface:
         async runTest(test_id)
@@ -67,10 +67,10 @@ system AsyncStressTest {
         
         $Processing {
             async $>() {
-                // Processing items count would require len() support
+                # Processing items count would require len() support
                 print("Processing items")
                 
-                // Process each item
+                # Process each item
                 for item in self.items_to_process {
                     var result = await async_work(item, 0.1)
                     print("Processed: " + result)
@@ -105,7 +105,7 @@ system AsyncStressTest {
         var items_to_process = []
 }
 
-// Error handling system
+# Error handling system
 system AsyncErrorTest {
     interface:
         async tryOperation(should_fail)
@@ -137,9 +137,9 @@ system AsyncErrorTest {
         $Error {
             async $>() {
                 print("Error state entered. Count: " + str(self.error_count))
-                // Auto-recovery after delay
-                // Sleep for recovery
-                // await asyncio.sleep(1)
+                # Auto-recovery after delay
+                # Sleep for recovery
+                # await asyncio.sleep(1)
                 print("Attempting recovery...")
                 self.error_count = 0
                 -> $Ready
@@ -156,54 +156,54 @@ system AsyncErrorTest {
         var last_success = ""
 }
 
-// Main test function
+# Main test function
 async fn run_stress_test() {
     print("=== Frame v0.37 Async Stress Test ===")
     print("")
     
-    // Test 1: Basic async work
+    # Test 1: Basic async work
     print("Test 1: Basic Async Work")
     print("-" * 30)
     var result = await async_work(100, 0.5)
     print("Result: " + result)
     print("")
     
-    // Test 2: Parallel execution
+    # Test 2: Parallel execution
     print("Test 2: Parallel Execution")
     print("-" * 30)
     var result2 = await parallel_work(5)
     print("Result: " + result2)
     print("")
     
-    // Test 3: Async state machine
+    # Test 3: Async state machine
     print("Test 3: Async State Machine")
     print("-" * 30)
     var machine = AsyncStressTest()
     
-    // Run a test
+    # Run a test
     await machine.runTest(42)
     var status = machine.getStatus()
     print("Status: " + status)
     
-    // Process items
+    # Process items
     await machine.processItems([10, 20, 30])
     status = machine.getStatus()
     print("Final status: " + status)
     print("")
     
-    // Test 4: Error handling
+    # Test 4: Error handling
     print("Test 4: Error Handling")
     print("-" * 30)
     var error_test = AsyncErrorTest()
     
-    // Successful operation
+    # Successful operation
     var success = await error_test.tryOperation(false)
     print("Success: " + success)
     
-    // Failed operation
+    # Failed operation
     await error_test.tryOperation(true)
     
-    // Multiple errors
+    # Multiple errors
     error_test.handleError("Network error")
     error_test.handleError("Timeout")
     print("")
@@ -211,11 +211,11 @@ async fn run_stress_test() {
     print("=== All Tests Complete ===")
 }
 
-// Benchmark function
+# Benchmark function
 async fn benchmark() {
     print("=== Performance Benchmark ===")
     
-    // Run many tasks sequentially (Frame doesn't support gather)
+    # Run many tasks sequentially (Frame doesn't support gather)
     for i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] {
         var result = await async_work(i, 0.1)
     }
@@ -228,9 +228,9 @@ fn main() {
     print("Frame v0.37 Async Stress Test")
     print("=" * 40)
     
-    // Run async tests
-    // asyncio.run(run_stress_test())
+    # Run async tests
+    # asyncio.run(run_stress_test())
     
     print("")
-    // asyncio.run(benchmark())
+    # asyncio.run(benchmark())
 }

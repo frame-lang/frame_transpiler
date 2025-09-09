@@ -1,10 +1,10 @@
-// Test JSON-like data handling - Fixed version
-// Working around nested dict indexing limitations
+# Test JSON-like data handling - Fixed version
+# Working around nested dict indexing limitations
 
 fn test_json_like_parsing() {
     print("=== Testing JSON-like Data Handling ===")
     
-    // Simulate JSON data as Frame dictionaries
+    # Simulate JSON data as Frame dictionaries
     var json_data = {
         "user": {
             "id": 123,
@@ -23,7 +23,7 @@ fn test_json_like_parsing() {
     }
     
     print("Simulated JSON data:")
-    // Work around: Extract to variables first
+    # Work around: Extract to variables first
     var user_data = json_data["user"]
     print("User info: " + str(user_data))
     var user_name = user_data["name"]
@@ -56,7 +56,7 @@ fn test_nested_data_access() {
         }
     }
     
-    // Access nested values - work around by extracting step by step
+    # Access nested values - work around by extracting step by step
     var db_config = config["database"]
     var db_host = db_config["host"]
     var db_credentials = db_config["credentials"]
@@ -83,7 +83,7 @@ fn test_data_manipulation() {
         ]
     }
     
-    // Access array elements
+    # Access array elements
     var items_list = data["items"]
     var first_item = items_list[0]
     var item_name = first_item["name"]
@@ -91,7 +91,7 @@ fn test_data_manipulation() {
     
     print("First item: " + item_name + " - $" + str(item_price))
     
-    // Calculate total
+    # Calculate total
     var total = 0.0
     var items = data["items"]
     var i = 0

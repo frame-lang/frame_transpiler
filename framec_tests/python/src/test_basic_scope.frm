@@ -1,4 +1,4 @@
-// Basic scope test - Fixed syntax
+# Basic scope test - Fixed syntax
 
 fn main() {
     print("=== Basic Scope Test ===")

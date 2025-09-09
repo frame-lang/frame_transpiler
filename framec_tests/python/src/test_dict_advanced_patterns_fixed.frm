@@ -1,8 +1,8 @@
-// Test advanced dictionary patterns - Fixed version
-// Working around 'in' operator limitations in if conditions
+# Test advanced dictionary patterns - Fixed version
+# Working around 'in' operator limitations in if conditions
 
 fn contains(list, item) {
-    // Helper function to check if item is in list
+    # Helper function to check if item is in list
     var i = 0
     while i < len(list) {
         if list[i] == item {
@@ -14,8 +14,8 @@ fn contains(list, item) {
 }
 
 fn has_key(dict, key) {
-    // Helper function to check if key exists in dict
-    // Use dict.get() with a unique default value
+    # Helper function to check if key exists in dict
+    # Use dict.get() with a unique default value
     var sentinel = "__NOT_FOUND__"
     var result = dict.get(key, sentinel)
     return result != sentinel
@@ -24,7 +24,7 @@ fn has_key(dict, key) {
 fn test_dict_based_dispatch() {
     print("=== Dictionary-Based Dispatch Pattern ===")
     
-    // Use dictionary to map values to results
+    # Use dictionary to map values to results
     var responses = {
         "yes": "Processing your request...",
         "no": "Request cancelled.",
@@ -47,7 +47,7 @@ fn test_dict_based_dispatch() {
 fn test_state_machine_with_dict() {
     print("\n=== State Machine with Dictionary ===")
     
-    // Simple state machine using dictionaries
+    # Simple state machine using dictionaries
     var state_transitions = {
         "idle": {"start": "running", "reset": "idle"},
         "running": {"pause": "paused", "stop": "stopped", "error": "error"},
@@ -83,10 +83,10 @@ fn test_recursive_dict_pattern() {
     
     print("\nBuilding nested structure with regular dicts:")
     
-    // Create a structure for user preferences using regular dicts
+    # Create a structure for user preferences using regular dicts
     var user_prefs = {}
     
-    // Add nested preferences
+    # Add nested preferences
     user_prefs["alice"] = {
         "theme": "dark",
         "language": "en",
@@ -101,10 +101,10 @@ fn test_recursive_dict_pattern() {
     
     print("User preferences: " + str(user_prefs))
     
-    // Multi-level nesting with manual approach
+    # Multi-level nesting with manual approach
     var tree = {}
     
-    // Build a tree structure manually
+    # Build a tree structure manually
     tree["users"] = {}
     tree["users"]["alice"] = {}
     tree["users"]["alice"]["settings"] = {}
@@ -120,7 +120,7 @@ fn test_recursive_dict_pattern() {
     print("\nManually built tree structure:")
     print(str(tree))
     
-    // Access nested values safely
+    # Access nested values safely
     var alice_theme = tree.get("users", {}).get("alice", {}).get("settings", {}).get("theme", "default")
     print("Alice's theme: " + alice_theme)
 }
@@ -128,7 +128,7 @@ fn test_recursive_dict_pattern() {
 fn test_config_with_defaults() {
     print("\n=== Configuration with Nested Defaults ===")
     
-    // Build configuration with multiple levels of defaults
+    # Build configuration with multiple levels of defaults
     var default_config = {
         "server": {
             "host": "localhost",
@@ -146,7 +146,7 @@ fn test_config_with_defaults() {
         }
     }
     
-    // User overrides
+    # User overrides
     var user_config = {
         "server": {
             "host": "api.example.com",
@@ -157,24 +157,24 @@ fn test_config_with_defaults() {
         }
     }
     
-    // Merge configs (simple approach)
+    # Merge configs (simple approach)
     var final_config = {}
     
-    // Copy defaults
+    # Copy defaults
     var sections = ["server", "database", "logging"]
     var i = 0
     while i < len(sections) {
         var section = sections[i]
         final_config[section] = {}
         
-        // Copy default values
+        # Copy default values
         var default_section = default_config.get(section, {})
         var keys = ["host", "port", "ssl", "name", "level", "file"]
         var j = 0
         while j < len(keys) {
             var key = keys[j]
             
-            // Check which section and key we're processing
+            # Check which section and key we're processing
             var is_server_key = False
             var is_database_key = False
             var is_logging_key = False
@@ -231,7 +231,7 @@ fn test_counting_pattern() {
     
     print("Word counts: " + str(word_count))
     
-    // Grouping pattern
+    # Grouping pattern
     var items = [
         {"name": "apple", "type": "fruit"},
         {"name": "carrot", "type": "vegetable"},
@@ -247,7 +247,7 @@ fn test_counting_pattern() {
         var item = items[i]
         var item_type = item["type"]
         
-        // Check if key exists using helper function
+        # Check if key exists using helper function
         if not has_key(grouped, item_type) {
             grouped[item_type] = []
         }

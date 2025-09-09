@@ -1,22 +1,22 @@
 
-// Test basic async/await functionality in Frame v0.35
-// This tests async functions, async operations, and async interface methods
+# Test basic async/await functionality in Frame v0.35
+# This tests async functions, async operations, and async interface methods
 
-// Mock async function to simulate network call
+# Mock async function to simulate network call
 async fn fetch_data(url) {
-    // In real code, this would be an actual async call
+    # In real code, this would be an actual async call
     print("Fetching from " + url)
     return "data from " + url
 }
 
-// Async module-level function
+# Async module-level function
 async fn process_data(data) {
     print("Processing: " + data)
     var result = await fetch_data("api.example.com/process")
     return "processed " + data + " with " + result
 }
 
-// System with async interface methods
+# System with async interface methods
 system AsyncService {
     operations:
         async fetchRemote(endpoint) {
@@ -35,7 +35,7 @@ system AsyncService {
                 print("Getting data for id: " + str(id))
                 var data = await fetch_data("api.example.com/item/" + str(id))
                 print("Received: " + data)
-                // Store data in domain for processing state
+                # Store data in domain for processing state
                 self.lastData = data
                 -> $Processing
             }
@@ -65,30 +65,30 @@ system AsyncService {
         var lastData = None
 }
 
-// Regular function that can't use await
+# Regular function that can't use await
 fn main() {
     print("Starting async test")
     var service = AsyncService()
-    // Can't await here since main is not async
-    // But we can call the async methods - they'll return coroutines
+    # Can't await here since main is not async
+    # But we can call the async methods - they'll return coroutines
     service.getData(123)
     service.processItem("test item")
     print("Async test complete")
 }
 
-// Async entry point
+# Async entry point
 async fn async_main() {
     print("Starting async main")
     var service = AsyncService()
     
-    // Here we can properly await
+    # Here we can properly await
     var data = await service.getData(456)
     print("Got data: " + data)
     
     var result = await service.processItem("async item")
     print("Processed: " + result)
     
-    // Call async operation
+    # Call async operation
     var remote = await service.fetchRemote("api.example.com/remote")
     print("Remote data: " + remote)
     

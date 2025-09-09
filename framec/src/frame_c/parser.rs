@@ -2871,7 +2871,7 @@ impl<'a> Parser<'a> {
             // Comments are dealt with in match_token().
             // As we do peek() checks next we need to consume any
             // comments that preceed them.
-            self.match_token(&[TokenType::SingleLineComment, TokenType::MultiLineComment, TokenType::CStyleMultiLineComment]);
+            self.match_token(&[TokenType::PythonComment, TokenType::MultiLineComment]);
 
             if matches!(
                 self.peek().token_type,
@@ -4132,7 +4132,7 @@ impl<'a> Parser<'a> {
 
     // Helper: Consume single line comments before event handler
     fn consume_event_handler_comments(&mut self) {
-        while self.match_token(&[TokenType::SingleLineComment]) {
+        while self.match_token(&[TokenType::PythonComment]) {
             // consume
             // @TODO: fix this. see https://app.asana.com/0/1199651557660024/1199953268166075/f
             // this is a hack because we don't use
@@ -5912,6 +5912,8 @@ impl<'a> Parser<'a> {
             Some(AssignmentOperator::StarEquals)
         } else if self.match_token(&[TokenType::SlashEqual]) {
             Some(AssignmentOperator::SlashEquals)
+        } else if self.match_token(&[TokenType::FloorDivideEqual]) {
+            Some(AssignmentOperator::FloorDivideEquals)
         } else if self.match_token(&[TokenType::PercentEqual]) {
             Some(AssignmentOperator::PercentEquals)
         } else if self.match_token(&[TokenType::StarStarEqual]) {
@@ -5924,6 +5926,8 @@ impl<'a> Parser<'a> {
             Some(AssignmentOperator::LeftShiftEquals)
         } else if self.match_token(&[TokenType::RightShiftEqual]) {
             Some(AssignmentOperator::RightShiftEquals)
+        } else if self.match_token(&[TokenType::CaretEqual]) {
+            Some(AssignmentOperator::XorEquals)
         } else {
             None
         };
@@ -6094,9 +6098,18 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        // XOR is not currently implemented as a binary operator in Frame
-        // This is a placeholder for future XOR operator support
-        // For now, just pass through to bitwise_and
+        while self.match_token(&[TokenType::Caret]) {
+            let operator_token = self.previous();
+            let op_type = self.get_operator_type(&operator_token.clone());
+            let r_value = match self.bitwise_and() {
+                Ok(Some(expr_type)) => expr_type,
+                Ok(None) => return Ok(None),
+                Err(parse_error) => return Err(parse_error),
+            };
+
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
+            l_value = BinaryExprT { binary_expr_node };
+        }
         
         Ok(Some(l_value))
     }
@@ -6260,7 +6273,7 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&[TokenType::ForwardSlash, TokenType::Star]) {
+        while self.match_token(&[TokenType::ForwardSlash, TokenType::Star, TokenType::FloorDivide]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.power() {
@@ -10861,7 +10874,7 @@ impl<'a> Parser<'a> {
 
     fn match_token(&mut self, token_types: &[TokenType]) -> bool {
         // cache off comments
-        while self.check(TokenType::SingleLineComment) || self.check(TokenType::MultiLineComment) || self.check(TokenType::CStyleMultiLineComment) {
+        while self.check(TokenType::PythonComment) || self.check(TokenType::MultiLineComment) {
             let comment = self.peek().clone();
             self.comments.push(comment);
             self.advance();
@@ -11023,7 +11036,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let vec_comments = &vec![TokenType::SingleLineComment, TokenType::MultiLineComment, TokenType::CStyleMultiLineComment];
+        let vec_comments = &vec![TokenType::PythonComment, TokenType::MultiLineComment];
         for comment_token_type in vec_comments {
             if *comment_token_type == token.token_type {
                 return true;

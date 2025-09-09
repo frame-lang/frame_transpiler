@@ -1,10 +1,10 @@
-// Test the 'not in' operator - now works directly!
+# Test the 'not in' operator - now works directly!
 
 fn test_not_in_lists() {
     print("=== Testing 'not in' with lists ===")
     var numbers = [1, 2, 3, 4, 5]
     
-    // Direct 'not in' syntax now works!
+    # Direct 'not in' syntax now works!
     if 10 not in numbers {
         print("✓ 10 is not in the list")
     }
@@ -60,7 +60,7 @@ fn test_not_in_complex() {
     var nums = [1, 2, 3]
     var chars = "abc"
     
-    // Combining with and/or
+    # Combining with and/or
     if 5 not in nums and "d" not in chars {
         print("✓ Both are absent")
     }
@@ -69,7 +69,7 @@ fn test_not_in_complex() {
         print("✓ At least one is absent")
     }
     
-    // In boolean variable
+    # In boolean variable
     var missing = 10 not in nums
     if missing {
         print("✓ missing is True")

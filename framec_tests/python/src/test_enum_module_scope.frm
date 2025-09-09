@@ -1,6 +1,6 @@
-// Test module-scope enums
+# Test module-scope enums
 
-// Module-level enum (not in system)
+# Module-level enum (not in system)
 enum GlobalStatus {
     Inactive
     Active
@@ -20,7 +20,7 @@ enum Environment : string {
 }
 
 fn main() {
-    // Test module-level enum access from function
+    # Test module-level enum access from function
     var status = GlobalStatus.Active
     print("Global status: " + status.name)
     
@@ -30,13 +30,13 @@ fn main() {
     var env = Environment.Production
     print("Environment: " + env.value)
     
-    // Iterate module-level enum
+    # Iterate module-level enum
     print("All environments:")
     for e in Environment {
         print("  - " + e.name + ": " + e.value)
     }
     
-    // Use in systems
+    # Use in systems
     var monitor = SystemMonitor()
     monitor.checkStatus(GlobalStatus.Active)
     monitor.setPriority(Priority.Medium)
@@ -52,7 +52,7 @@ system SystemMonitor {
             checkStatus(status: GlobalStatus) {
                 print("System checking status: " + status.name)
                 
-                // Compare with module enum
+                # Compare with module enum
                 if status == GlobalStatus.Active {
                     print("Status is ACTIVE")
                 } elif status == GlobalStatus.Inactive {
@@ -67,7 +67,7 @@ system SystemMonitor {
             setPriority(p: Priority) {
                 print("Setting priority to: " + p.name + " (value: " + str(p.value) + ")")
                 
-                // Iterate module enum from system
+                # Iterate module enum from system
                 print("Available priorities:")
                 for priority in Priority {
                     if priority == p {
@@ -82,7 +82,7 @@ system SystemMonitor {
         }
     
     domain:
-        // System can also have its own enums
+        # System can also have its own enums
         enum InternalState {
             Init
             Ready

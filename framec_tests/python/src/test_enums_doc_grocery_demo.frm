@@ -16,7 +16,7 @@ system Grocery {
             getFruitOfTheDay(): string {
                 var f: Fruit = _getRandomFruit()
 
-                // Demonstrate boolean tests for enums and return
+                # Demonstrate boolean tests for enums and return
                 if f == Fruit.Peach {
                     print("Found a Peach.")
                     return "Peaches"

@@ -1,8 +1,8 @@
-// Test exponent-like operations (** operator not supported in Frame yet)
+# Test exponent-like operations (** operator not supported in Frame yet)
 
 fn test_exponent() {
     var x = 5
-    var result = x * x  // Simulate x ** 2
+    var result = x * x  # Simulate x ** 2
     print("5 * 5 (simulating 5**2) = " + str(result))
     return
 }

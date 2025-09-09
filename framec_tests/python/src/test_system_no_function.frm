@@ -1,4 +1,4 @@
-// Test: System without function
+# Test: System without function
 
 system OnlySystem {
     interface:

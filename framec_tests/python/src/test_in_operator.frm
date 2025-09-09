@@ -1,10 +1,10 @@
-// Test the 'in' operator for membership testing
+# Test the 'in' operator for membership testing
 
 fn test_in_with_lists() {
     print("=== Testing 'in' with lists ===")
     var numbers = [1, 2, 3, 4, 5]
     
-    // Test positive cases
+    # Test positive cases
     if 3 in numbers {
         print("✓ 3 is in the list")
     }
@@ -13,14 +13,14 @@ fn test_in_with_lists() {
         print("✓ 1 is in the list")
     }
     
-    // Test negative cases
+    # Test negative cases
     if 10 in numbers {
         print("✗ 10 should not be in the list")
     } else {
         print("✓ 10 is not in the list")
     }
     
-    // With variables
+    # With variables
     var target = 4
     if target in numbers {
         print("✓ " + str(target) + " is in the list")
@@ -50,7 +50,7 @@ fn test_in_with_dicts() {
     print("\n=== Testing 'in' with dictionaries ===")
     var data = {"name": "Alice", "age": 30, "city": "Paris"}
     
-    // Test for keys
+    # Test for keys
     if "name" in data {
         print("✓ 'name' key is in the dictionary")
     }
@@ -65,7 +65,7 @@ fn test_in_with_dicts() {
         print("✓ 'country' key is not in the dictionary")
     }
     
-    // With variable
+    # With variable
     var key = "city"
     if key in data {
         print("✓ '" + key + "' key is in the dictionary")
@@ -107,7 +107,7 @@ fn test_in_expressions() {
     var nums = [1, 2, 3, 4, 5]
     var chars = "abcde"
     
-    // Combining with and/or
+    # Combining with and/or
     if 2 in nums and "b" in chars {
         print("✓ Both conditions are true")
     }
@@ -116,7 +116,7 @@ fn test_in_expressions() {
         print("✓ At least one condition is true")
     }
     
-    // In boolean variable
+    # In boolean variable
     var has_three = 3 in nums
     if has_three {
         print("✓ has_three is True")

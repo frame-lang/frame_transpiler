@@ -5,7 +5,7 @@ system DomainTest {
     machine:
         $Start {
             run_test() {
-                // Current syntax (works)
+                # Current syntax (works)
                 counter = 25
                 print("Updated: " + str(self.counter))
                 return

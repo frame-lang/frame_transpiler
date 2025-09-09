@@ -24,7 +24,7 @@ system TestSystem {
     machine:
         $Start {
             run_test() {
-                // Test static operation calls
+                # Test static operation calls
                 var result = UtilitySystem.calculate(42)
                 print("Result: " + str(result))
                 

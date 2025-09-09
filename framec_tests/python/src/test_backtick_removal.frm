@@ -1,18 +1,18 @@
-// Test for backtick removal limitations
-// These should work without backticks in v0.39
+# Test for backtick removal limitations
+# These should work without backticks in v0.39
 
 fn test_module_member_access() {
-    // Frame doesn't support import statements yet
-    // import math
-    // import os
+    # Frame doesn't support import statements yet
+    # import math
+    # import os
     
-    // Currently requires backticks
-    // var pi_value = math.pi
-    // var path = os.path.join("dir", "file.txt")
+    # Currently requires backticks
+    # var pi_value = math.pi
+    # var path = os.path.join("dir", "file.txt")
     
-    // Simulation without imports or backticks
-    var pi_value = 3.14159  // Simulate math.pi
-    var path = "dir/file.txt"  // Simulate path joining
+    # Simulation without imports or backticks
+    var pi_value = 3.14159  # Simulate math.pi
+    var path = "dir/file.txt"  # Simulate path joining
     
     print("Pi value: " + str(pi_value))
     print("Path: " + path)
@@ -20,7 +20,7 @@ fn test_module_member_access() {
 }
 
 fn test_dictionary_operations() {
-    // Frame v0.38 supports dictionary operations without backticks!
+    # Frame v0.38 supports dictionary operations without backticks!
     var dict = {}
     dict["key"] = "value"
     
@@ -29,20 +29,20 @@ fn test_dictionary_operations() {
 }
 
 fn test_method_chaining() {
-    // Frame doesn't support method chaining yet
-    // var result = "hello".upper().replace("H", "J")
+    # Frame doesn't support method chaining yet
+    # var result = "hello".upper().replace("H", "J")
     
-    // Step-by-step approach (requires FSL import)
+    # Step-by-step approach (requires FSL import)
     var text = "hello"
-    // var upper = text.upper()  // Requires: from fsl import str
-    // var result = upper.replace("H", "J")
-    var result = "JELLO"  // Simulate the chained result
+    # var upper = text.upper()  // Requires: from fsl import str
+    # var result = upper.replace("H", "J")
+    var result = "JELLO"  # Simulate the chained result
     print("Chained result: " + result)
     return
 }
 
 fn test_complex_indexing() {
-    // Frame v0.38 supports nested indexing without backticks!
+    # Frame v0.38 supports nested indexing without backticks!
     var matrix = [[1, 2], [3, 4]]
     var val = matrix[0][1]
     print("Matrix value: " + str(val))

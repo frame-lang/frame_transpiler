@@ -1,6 +1,6 @@
-// Test all collection constructors
+# Test all collection constructors
 fn main() {
-    // These generate but may not work correctly
+    # These generate but may not work correctly
     var l = list()
     var d = dict()
     var s = set()

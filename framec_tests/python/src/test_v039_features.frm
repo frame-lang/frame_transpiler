@@ -1,16 +1,16 @@
-// Test current Frame v0.38 capabilities (v0.39 features not yet implemented)
-// This test demonstrates what Frame can do today
+# Test current Frame v0.38 capabilities (v0.39 features not yet implemented)
+# This test demonstrates what Frame can do today
 
 fn test_basic_features() {
     print("=== Basic Frame Features Working ===")
     
-    // Variables and basic operations
+    # Variables and basic operations
     var x = 10
     var y = 20
     var sum = x + y
     print("Basic math: " + str(x) + " + " + str(y) + " = " + str(sum))
     
-    // String operations
+    # String operations
     var greeting = "Hello"
     var name = "Frame"
     var message = greeting + " " + name
@@ -22,17 +22,17 @@ fn test_basic_features() {
 fn test_collections() {
     print("\n=== Collections Working ===")
     
-    // Lists
+    # Lists
     var numbers = [1, 2, 3, 4, 5]
     numbers.append(6)
     print("List operations: " + str(numbers))
     
-    // Dictionaries
+    # Dictionaries
     var person = {"name": "Alice", "age": 30}
     person["city"] = "NYC"
     print("Dict operations: " + str(person))
     
-    // Dictionary comprehensions
+    # Dictionary comprehensions
     var squares = {x: x * x for x in range(5)}
     print("Dict comprehension: " + str(squares))
     
@@ -42,7 +42,7 @@ fn test_collections() {
 fn test_control_flow() {
     print("\n=== Control Flow Working ===")
     
-    // if-elif-else
+    # if-elif-else
     var score = 85
     var grade = ""
     if score >= 90 {
@@ -54,7 +54,7 @@ fn test_control_flow() {
     }
     print("Grade for " + str(score) + ": " + grade)
     
-    // Loops
+    # Loops
     var count = 0
     var i = 0
     while i < 3 {
@@ -79,7 +79,7 @@ fn test_functions() {
     return
 }
 
-// Test system functionality
+# Test system functionality
 system TestSystem {
     interface:
         increment()

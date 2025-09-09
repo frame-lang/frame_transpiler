@@ -1,4 +1,4 @@
-// Test simple operations block - single system only
+# Test simple operations block - single system only
 system SimpleOperationsTest {
     operations:
         test_operation() {

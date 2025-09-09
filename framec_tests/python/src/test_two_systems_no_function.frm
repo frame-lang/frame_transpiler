@@ -1,4 +1,4 @@
-// Two systems without main function
+# Two systems without main function
 
 system FirstSystem {
     interface:

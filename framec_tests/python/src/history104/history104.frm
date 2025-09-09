@@ -23,7 +23,7 @@ system History104 {
         $B {
             var b = 0
 
-            // upon reentry using a transition, b == 0
+            # upon reentry using a transition, b == 0
             $>() {
                 print("Entering $B. b = " + str(b))
                 return
@@ -47,7 +47,7 @@ system History104 {
         $C {
             var c = 0
 
-            // upon reentry using history pop, c == 1
+            # upon reentry using history pop, c == 1
             $>() {
                 print("Entering $C. c = " + str(c))
                 return

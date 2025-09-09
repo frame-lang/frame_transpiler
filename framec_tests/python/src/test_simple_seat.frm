@@ -1,4 +1,4 @@
-// Simple seat booking test
+# Simple seat booking test
 
 fn main() {
     print("=== Simple Seat Test ===")

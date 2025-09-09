@@ -15,7 +15,7 @@ system HelloWorldWithDomainSystem {
 
         $Hello {
             sayHello() {
-                actionWriteHello() // call action
+                actionWriteHello() # call action
                 -> $World
                 return
             }
@@ -23,7 +23,7 @@ system HelloWorldWithDomainSystem {
         
         $World {
             sayWorld() {
-                actionWriteWorld() // call action
+                actionWriteWorld() # call action
                 -> $Done
                 return     
             }
@@ -35,11 +35,11 @@ system HelloWorldWithDomainSystem {
     actions: 
 
         actionWriteHello() {
-            actionWrite(hello_txt, " ") // use domain variable
+            actionWrite(hello_txt, " ") # use domain variable
         }
 
         actionWriteWorld() {
-            actionWrite(world_txt, "") // use domain variable
+            actionWrite(world_txt, "") # use domain variable
         }    
 
         actionWrite(msg, separator) {

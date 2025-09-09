@@ -1,4 +1,4 @@
-// Test static operations vs instance operations
+# Test static operations vs instance operations
 system StaticTest {
     operations:
         @staticmethod
@@ -20,10 +20,10 @@ system StaticTest {
             $>() {
                 print("Machine: testing static vs instance calls")
                 
-                // Instance operation call (should use self.method())
+                # Instance operation call (should use self.method())
                 self.instance_helper()
                 
-                // Static operation calls (should use ClassName.method())
+                # Static operation calls (should use ClassName.method())
                 StaticTest.static_helper()
                 StaticTest.static_with_param("hello static")
                 

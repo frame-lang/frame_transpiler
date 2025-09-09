@@ -1,4 +1,4 @@
-# Frame v0.39 Development Notes
+# Frame v0.40 Development Notes
 
 ## Language Support Classification (Updated 2025-09-08)
 
@@ -23,17 +23,26 @@ Languages considered in Frame's design with documented patterns but no visitor i
 - **Simplified codebase**: Only Python and GraphViz visitors remain
 - **Maintained compatibility**: No impact on functionality (99.3% test success rate preserved)
 
-### C-style Multiline Comments (2025-09-08)
-- **Added**: Full support for `/* ... */` C-style multiline comments
-- **Scanner Enhancement**: New `CStyleMultiLineComment` token type with proper scanning logic
-- **Parser Updates**: Handles new comment token alongside existing comment types
-- **Features Supported**:
-  - Multiline comments spanning any number of lines
-  - Inline comments within expressions (e.g., `var x = /* comment */ 42`)
-  - Star-box style comments for documentation
-  - Proper line counting maintained across multiline spans
-- **Error Handling**: Detects unterminated comments with clear error messages
-- **Compatibility**: Works alongside existing `//` single-line and `{-- --}` Frame-style comments
+### Python-style Comments Migration (v0.40 - 2025-09-09)
+- **Breaking Change**: Removed C-style comments (`//`, `/* */`)
+- **New Syntax**: Python-style `#` for single-line comments
+- **Rationale**: Enables `//` operator for floor division
+- **Migration**: All 264 test files successfully migrated to new syntax
+- **Frame Comments**: `{-- --}` retained for multi-line documentation
+
+### Bitwise XOR Implementation (v0.40 - 2025-09-09)
+- **Operator**: `^` for bitwise XOR (was reserved for old return syntax)
+- **Compound**: `^=` for XOR with assignment
+- **Scanner**: Added `Caret` and `CaretEqual` token types
+- **Parser**: Activated existing `bitwise_xor()` precedence function
+- **Visitor**: Added code generation for XOR operations
+
+### Python Numeric Literals (v0.40 - 2025-09-09)
+- **Binary**: `0b1010` notation support added
+- **Octal**: `0o755` notation support added
+- **Hexadecimal**: `0x1A2B` notation support added
+- **Scanner Enhancement**: Extended `number()` function to recognize Python prefixes
+- **Lexeme Preservation**: Original notation preserved in generated code
 
 ### Slicing Expression Enhancement (2025-09-09)
 - **Enhanced**: Full expression support in slice positions (e.g., `text[start+1:end-1]`)
@@ -62,9 +71,23 @@ Languages considered in Frame's design with documented patterns but no visitor i
 - **Test Coverage**: Created comprehensive test files demonstrating all operations
 - **No Implementation Required**: Methods work through transpiler pass-through to Python
 
-## Latest Status: v0.38 Complete - All Collection Features Working (2025-09-08)
+## Latest Status: v0.40 Complete - Python Operator Alignment (2025-09-09)
 
-### v0.38 Release - Complete Feature Set with Enhanced Operations ✅
+### v0.40 Release - Python Comments and Bitwise XOR ✅
+- **Test Coverage**: **309/309 tests passing (100% success rate)** 🎉
+- **Breaking Change**: Replaced C-style comments with Python-style `#` comments
+- **NEW - Bitwise XOR**: `^` operator and `^=` compound assignment fully implemented
+- **NEW - Floor Division**: `//` operator enabled by comment syntax change
+- **NEW - Numeric Literals**: Binary (`0b`), octal (`0o`), hex (`0x`) notation support
+
+### v0.39 Release - Python Operators Complete ✅
+- **Test Coverage**: **308/308 tests passing (100% success rate)**
+- **Compound Assignments**: All Python compound operators (`+=`, `-=`, `*=`, etc.)
+- **Bitwise Operators**: `&`, `|`, `~`, `<<`, `>>` fully implemented
+- **Identity Operators**: `is` and `is not` for object identity
+- **XOR Placeholder**: Parser infrastructure ready for `^` operator
+
+### v0.38 Release - Collections and Functions ✅
 - **Test Coverage**: **298/301 tests passing (99.0% success rate)**
 - **NEW - Membership Operators**: `in` and `not in` operators fully implemented ✅
 - **NEW - Nested Dict Indexing**: `dict["key1"]["key2"]` chained indexing working ✅

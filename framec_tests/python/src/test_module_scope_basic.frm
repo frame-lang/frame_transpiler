@@ -1,4 +1,4 @@
-// Basic module scope test without variables
+# Basic module scope test without variables
 
 system TestBasic {
     machine:

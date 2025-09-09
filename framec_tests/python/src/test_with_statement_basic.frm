@@ -1,10 +1,10 @@
-// Test file for with statement support in Frame v0.37 - Basic version
+# Test file for with statement support in Frame v0.37 - Basic version
 import tempfile
 import os
 
-// Test regular with statement for file operations
+# Test regular with statement for file operations
 fn test_with_file() {
-    // Create a temporary file for testing
+    # Create a temporary file for testing
     var temp_file = tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt")
     temp_file.write("Test content for with statement")
     temp_file.close()
@@ -12,22 +12,22 @@ fn test_with_file() {
     
     print("Testing basic with statement...")
     
-    // Test with statement
+    # Test with statement
     with open(temp_path, "r") as f {
         var content = f.read()
         print("File content: " + content)
     }
     
-    // Clean up
+    # Clean up
     os.unlink(temp_path)
     print("Basic with statement test passed!")
 }
 
-// Test nested with statements
+# Test nested with statements
 fn test_nested_with() {
     print("Testing nested with statements...")
     
-    // Create temp files
+    # Create temp files
     var temp1 = tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt")
     temp1.write("input data for nested test")
     temp1.close()
@@ -37,7 +37,7 @@ fn test_nested_with() {
     temp2.close()
     var output_path = temp2.name
     
-    // Test nested with
+    # Test nested with
     with open(input_path, "r") as input_file {
         with open(output_path, "w") as output_file {
             var data = input_file.read()
@@ -45,19 +45,19 @@ fn test_nested_with() {
         }
     }
     
-    // Verify result
+    # Verify result
     with open(output_path, "r") as result {
         var output = result.read()
         print("Nested with result: " + output)
     }
     
-    // Clean up
+    # Clean up
     os.unlink(input_path)
     os.unlink(output_path)
     print("Nested with statement test passed!")
 }
 
-// Test with statement in a system
+# Test with statement in a system
 system FileProcessor {
     interface:
         processFile(content)
@@ -68,19 +68,19 @@ system FileProcessor {
             processFile(content) {
                 print("Processing in system with 'with' statement...")
                 
-                // Create temp file
+                # Create temp file
                 var temp = tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt")
                 temp.write(content)
                 temp.close()
                 var path = temp.name
                 
-                // Use with statement inside event handler
+                # Use with statement inside event handler
                 with open(path, "r") as file {
                     self.content = file.read()
                     print("Read " + str(len(self.content)) + " bytes from file")
                 }
                 
-                // Clean up
+                # Clean up
                 os.unlink(path)
                 -> $Processing
             }
@@ -117,23 +117,23 @@ system FileProcessor {
         var processed = ""
 }
 
-// Main test function
+# Main test function
 fn main() {
     print("=" * 50)
     print("Testing with statement support in Frame v0.37")
     print("=" * 50)
     
-    // Test 1: Basic with statement
+    # Test 1: Basic with statement
     print("\nTest 1: Basic with statement")
     print("-" * 30)
     test_with_file()
     
-    // Test 2: Nested with statements
+    # Test 2: Nested with statements
     print("\nTest 2: Nested with statements")
     print("-" * 30)
     test_nested_with()
     
-    // Test 3: With statement in system
+    # Test 3: With statement in system
     print("\nTest 3: With statement in system")
     print("-" * 30)
     var processor = FileProcessor()
@@ -146,5 +146,5 @@ fn main() {
     print("=" * 50)
 }
 
-// Run the tests
+# Run the tests
 main()

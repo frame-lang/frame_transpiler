@@ -1,4 +1,4 @@
-// Test multiple lambdas in dictionary
+# Test multiple lambdas in dictionary
 
 fn test() {
     var ops = {

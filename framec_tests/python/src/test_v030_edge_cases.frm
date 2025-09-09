@@ -1,5 +1,5 @@
-// Test: Edge cases for v0.30 multi-entity support
-// Empty systems, minimal functions, various combinations
+# Test: Edge cases for v0.30 multi-entity support
+# Empty systems, minimal functions, various combinations
 
 fn main() {
     minimal()
@@ -47,7 +47,7 @@ system SystemWithOperations {
     machine:
         $State {
             op1() {
-                // empty operation
+                # empty operation
             }
             
             op2(param) {

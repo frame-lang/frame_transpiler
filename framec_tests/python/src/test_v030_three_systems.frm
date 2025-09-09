@@ -1,5 +1,5 @@
-// Test: Three systems in one module (v0.30)
-// Validates multiple system definitions
+# Test: Three systems in one module (v0.30)
+# Validates multiple system definitions
 
 system SystemA {
     interface:

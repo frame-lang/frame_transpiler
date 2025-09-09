@@ -1,24 +1,24 @@
-// Test special dictionary patterns using Frame's native capabilities
-// Fixed version - works around 'in' operator and nested function limitations
+# Test special dictionary patterns using Frame's native capabilities
+# Fixed version - works around 'in' operator and nested function limitations
 
 fn has_key(dict, key) {
-    // Helper function to check if key exists in dict
+    # Helper function to check if key exists in dict
     var sentinel = "__NOT_FOUND__"
     var result = dict.get(key, sentinel)
     return result != sentinel
 }
 
 fn chain_get(key, current, user_prefs, defaults) {
-    // Chain lookup helper (moved out of nested context)
-    // Check current first
+    # Chain lookup helper (moved out of nested context)
+    # Check current first
     if has_key(current, key) {
         return current[key]
     }
-    // Then user_prefs
+    # Then user_prefs
     if has_key(user_prefs, key) {
         return user_prefs[key]
     }
-    // Finally defaults
+    # Finally defaults
     if has_key(defaults, key) {
         return defaults[key]
     }
@@ -28,27 +28,27 @@ fn chain_get(key, current, user_prefs, defaults) {
 fn test_defaultdict_pattern() {
     print("=== Testing defaultdict-like pattern ===")
     
-    // Simulate defaultdict with manual checks
+    # Simulate defaultdict with manual checks
     var dd_int = {}
     var key = "count"
     var current = dd_int.get(key, 0)
     dd_int[key] = current + 1
-    print("dd_int['count'] = " + str(dd_int[key]))  // 1
+    print("dd_int['count'] = " + str(dd_int[key]))  # 1
     
     var new_val = dd_int.get("new", 0)
-    print("dd_int['new'] = " + str(new_val))      // 0 (default value)
+    print("dd_int['new'] = " + str(new_val))      # 0 (default value)
     
-    // Simulate defaultdict with list default
+    # Simulate defaultdict with list default
     var dd_list = {}
     if not has_key(dd_list, "items") {
         dd_list["items"] = []
     }
     dd_list["items"].append("apple")
     dd_list["items"].append("banana")
-    print("dd_list['items'] = " + str(dd_list["items"]))  // ['apple', 'banana']
+    print("dd_list['items'] = " + str(dd_list["items"]))  # ['apple', 'banana']
     
     var empty_list = dd_list.get("empty", [])
-    print("dd_list['empty'] = " + str(empty_list))  // [] (default empty list)
+    print("dd_list['empty'] = " + str(empty_list))  # [] (default empty list)
 }
 
 fn test_ordered_pattern() {
@@ -56,13 +56,13 @@ fn test_ordered_pattern() {
     print("=== Testing ordered dictionary pattern ===")
     print("Note: Frame dicts maintain insertion order like modern Python")
     
-    // Regular dict maintains order in Frame
+    # Regular dict maintains order in Frame
     var od = {}
     od["first"] = 1
     od["second"] = 2
     od["third"] = 3
     
-    // Manual key extraction to show order
+    # Manual key extraction to show order
     var keys = []
     if has_key(od, "first") {
         keys.append("first")
@@ -73,14 +73,14 @@ fn test_ordered_pattern() {
     if has_key(od, "third") {
         keys.append("third")
     }
-    print("Dict keys: " + str(keys))  // ['first', 'second', 'third']
+    print("Dict keys: " + str(keys))  # ['first', 'second', 'third']
 }
 
 fn test_counter_pattern() {
     print("")
     print("=== Testing counter pattern ===")
     
-    // Manual counting implementation
+    # Manual counting implementation
     var words = ["apple", "banana", "apple", "cherry", "banana", "apple"]
     var count = {}
     
@@ -92,9 +92,9 @@ fn test_counter_pattern() {
         i = i + 1
     }
     print("count = " + str(count))
-    // {'apple': 3, 'banana': 2, 'cherry': 1}
+    # {'apple': 3, 'banana': 2, 'cherry': 1}
     
-    // Character counting
+    # Character counting
     var text = "mississippi"
     var char_count = {}
     i = 0
@@ -105,9 +105,9 @@ fn test_counter_pattern() {
         i = i + 1
     }
     print("char_count = " + str(char_count))
-    // {'m': 1, 'i': 4, 's': 4, 'p': 2}
+    # {'m': 1, 'i': 4, 's': 4, 'p': 2}
     
-    // Find most common (manual implementation)
+    # Find most common (manual implementation)
     var max_count = 0
     var max_word = ""
     var word_keys = ["apple", "banana", "cherry"]
@@ -134,16 +134,16 @@ fn test_chainmap_pattern() {
     var user_prefs = {"color": "blue"}
     var current = {"theme": "dark"}
     
-    // Use the external chain_get function
+    # Use the external chain_get function
     var color = chain_get("color", current, user_prefs, defaults)
     var size = chain_get("size", current, user_prefs, defaults)
     var theme = chain_get("theme", current, user_prefs, defaults)
     
-    print("color = " + str(color))    // 'blue' (from user_prefs)
-    print("size = " + str(size))      // 'medium' (from defaults)
-    print("theme = " + str(theme))    // 'dark' (from current)
+    print("color = " + str(color))    # 'blue' (from user_prefs)
+    print("size = " + str(size))      # 'medium' (from defaults)
+    print("theme = " + str(theme))    # 'dark' (from current)
     
-    // Show chain order
+    # Show chain order
     print("Chain lookup order: current -> user_prefs -> defaults")
 }
 

@@ -1,6 +1,6 @@
-// Test lambda patterns in Frame v0.38
-// NOTE: Lambda expressions ARE SUPPORTED - see test_lambda_simple.frm
-// This file demonstrates workarounds for features not yet implemented
+# Test lambda patterns in Frame v0.38
+# NOTE: Lambda expressions ARE SUPPORTED - see test_lambda_simple.frm
+# This file demonstrates workarounds for features not yet implemented
 
 fn get_pi() {
     return 3.14159
@@ -21,7 +21,7 @@ fn multiply3(x, y, z) {
 fn test_basic_lambda_like() {
     print("=== Lambda-like Functions (regular functions) ===")
     
-    // Simulate lambda with regular functions
+    # Simulate lambda with regular functions
     print("Pi value: " + str(get_pi()))
     print("Square of 5: " + str(square(5)))
     print("10 + 20 = " + str(add(10, 20)))
@@ -32,11 +32,11 @@ fn test_basic_lambda_like() {
 fn test_function_as_value() {
     print("\n=== Functions as First-Class Values ===")
     
-    // TODO: Future feature - functions as first-class values
-    // var operation = add  // Will allow function assignment
-    // var result = operation(5, 10)  // Will allow indirect calls
+    # TODO: Future feature - functions as first-class values
+    # var operation = add  // Will allow function assignment
+    # var result = operation(5, 10)  // Will allow indirect calls
     
-    // Workaround: use if-elif chains
+    # Workaround: use if-elif chains
     var op_type = "add"
     var result = 0
     if op_type == "add" {
@@ -50,7 +50,7 @@ fn test_function_as_value() {
 }
 
 fn apply_to_list(numbers, operation) {
-    // Simulate higher-order function behavior
+    # Simulate higher-order function behavior
     var results = []
     var i = 0
     while i < len(numbers) {

@@ -1,13 +1,13 @@
-// CultureTicks Backend Testing Plan Implementation
-// Seat Business Logic Rules - State Management and Lock Business Rules
+# CultureTicks Backend Testing Plan Implementation
+# Seat Business Logic Rules - State Management and Lock Business Rules
 
 fn main() {
     print("=== CultureTicks Seat Booking Workflow Test ===")
     
-    // Create seat management system
+    # Create seat management system
     var seat_manager = SeatManager()
     
-    // Test Phase 1: Core Business Rules
+    # Test Phase 1: Core Business Rules
     seat_manager.test_seat_state_management()
     seat_manager.test_mercury_lock_rules()
     
@@ -19,21 +19,21 @@ system SeatManager {
         test_seat_state_management() {
             print("### Phase 1: Core Business Rules - Seat State Management")
             
-            // Rule 1.1: Seats exist in database states
+            # Rule 1.1: Seats exist in database states
             print("Rule 1.1: Testing seat states: Available, Reserved, Sold")
             self.create_seat("A1", "Available")
             self.create_seat("A2", "Reserved") 
             self.create_seat("A3", "Sold")
             
-            // Rule 1.2: Frontend status mapping
+            # Rule 1.2: Frontend status mapping
             print("Rule 1.2: Testing frontend status mapping")
             self.test_status_mapping()
             
-            // Rule 1.3: Valid state transitions
+            # Rule 1.3: Valid state transitions
             print("Rule 1.3: Testing valid state transitions")
             self.test_valid_transitions()
             
-            // Rule 1.4: Invalid transitions must be rejected
+            # Rule 1.4: Invalid transitions must be rejected
             print("Rule 1.4: Testing invalid transition rejection")
             self.test_invalid_transitions()
         }
@@ -41,22 +41,22 @@ system SeatManager {
         test_mercury_lock_rules() {
             print("### Mercury Lock Business Rules")
             
-            // Rule 1.4: Lock duration is exactly 15 minutes (900 seconds)
+            # Rule 1.4: Lock duration is exactly 15 minutes (900 seconds)
             print("Rule 1.4: Lock duration is 15 minutes (900 seconds)")
             self.test_lock_duration()
             
-            // Rule 1.5: Lock must include lockRequestId (UUID) and exchangeTicketGroupId
+            # Rule 1.5: Lock must include lockRequestId (UUID) and exchangeTicketGroupId
             print("Rule 1.5: Lock must include required IDs")
             self.test_lock_requirements()
             
-            // Rule 1.6: Lock cannot be applied to already locked or purchased seats
+            # Rule 1.6: Lock cannot be applied to already locked or purchased seats
             print("Rule 1.6: Testing lock application restrictions")
             self.test_lock_restrictions()
         }
         
         create_seat(seat_id, initial_state) {
             print("Creating seat: " + seat_id + " with state: " + initial_state)
-            // Note: Cannot transition from operations - would need to handle in machine block
+            # Note: Cannot transition from operations - would need to handle in machine block
         }
         
         test_status_mapping() {
@@ -107,7 +107,7 @@ system SeatManager {
         $ProcessingSelection {
             $>() {
                 print("Processing selection for seat")
-                // Check if seat is available for selection
+                # Check if seat is available for selection
                 self.check_seat_availability("seat_id")
             }
             
@@ -129,7 +129,7 @@ system SeatManager {
         $SeatReserved {
             $>() {
                 print("Seat reserved with lock")
-                // Start 15-minute timer
+                # Start 15-minute timer
                 self.start_lock_timer("current_seat", "current_lock")
             }
             
@@ -160,24 +160,24 @@ system SeatManager {
         $SeatSold {
             $>() {
                 print("Seat sold")
-                // Seat is permanently sold - no further state changes allowed
+                # Seat is permanently sold - no further state changes allowed
             }
             
             select_seat(seat_id) {
                 print("ERROR: Cannot select sold seat: " + seat_id)
-                // Invalid transition - sold seats cannot be reselected
+                # Invalid transition - sold seats cannot be reselected
             }
             
             reserve_seat(seat_id, lock_request_id, exchange_ticket_group_id) {
                 print("ERROR: Cannot reserve sold seat: " + seat_id)
-                // Invalid transition - sold seats cannot be reserved
+                # Invalid transition - sold seats cannot be reserved
             }
         }
         
         $SeatCreated {
             $>() {
                 print("Seat created in initial state")
-                // Simplified - just go to idle for testing
+                # Simplified - just go to idle for testing
                 -> $Idle
             }
         }
@@ -189,7 +189,7 @@ system SeatManager {
         
         is_seat_available(seat_id) {
             print("Validating seat availability: " + seat_id)
-            return true  // Simplified for test
+            return true  # Simplified for test
         }
         
         create_mercury_lock(seat_id, lock_request_id, exchange_ticket_group_id) {
@@ -206,7 +206,7 @@ system SeatManager {
         
         process_payment(payment_info) {
             print("Processing payment: " + payment_info)
-            return true  // Simplified for test
+            return true  # Simplified for test
         }
         
         remove_lock(seat_id) {
@@ -215,6 +215,6 @@ system SeatManager {
         
     domain:
         var current_seat_id:string = ""
-        var lock_duration:string = "900"  // 15 minutes in seconds
+        var lock_duration:string = "900"  # 15 minutes in seconds
         var active_locks:string = ""
 }

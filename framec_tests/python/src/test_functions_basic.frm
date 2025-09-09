@@ -1,14 +1,14 @@
-// Frame v0.20 allows only main function. 
-// Function-like behavior is implemented via system actions.
+# Frame v0.20 allows only main function. 
+# Function-like behavior is implemented via system actions.
 
 fn main() {
     var calc = Calculator()
     
-    // Test addition
+    # Test addition
     var sum = calc.add(5, 3)
     print("5 + 3 = " + str(sum))
     
-    // Test number categorization  
+    # Test number categorization  
     var category = calc.categorizeNumber(42)
     print("42 is: " + category)
 }

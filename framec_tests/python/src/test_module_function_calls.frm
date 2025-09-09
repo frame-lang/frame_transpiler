@@ -1,5 +1,5 @@
-// Test module-level function-to-function calls
-// This tests if functions can see each other at module scope
+# Test module-level function-to-function calls
+# This tests if functions can see each other at module scope
 
 fn main() {
     print("Main function calling helper")

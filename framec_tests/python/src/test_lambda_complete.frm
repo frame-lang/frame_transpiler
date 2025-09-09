@@ -1,18 +1,18 @@
-// Complete lambda test suite for Frame v0.38
-// Tests all aspects of lambda support including closures
+# Complete lambda test suite for Frame v0.38
+# Tests all aspects of lambda support including closures
 
 fn test_basic_lambdas() {
     print("\n=== Basic Lambda Tests ===")
     
-    // Simple lambda
+    # Simple lambda
     var square = lambda x: x * x
     print("Square of 5: " + str(square(5)))
     
-    // Multi-parameter
+    # Multi-parameter
     var add = lambda a, b: a + b
     print("Add 3 + 4: " + str(add(3, 4)))
     
-    // No parameters
+    # No parameters
     var get_pi = lambda: 3.14159
     print("Pi: " + str(get_pi()))
 }
@@ -23,11 +23,11 @@ fn test_lambda_reassignment() {
     var double = lambda x: x * 2
     print("Double 5: " + str(double(5)))
     
-    // Reassign to another variable
+    # Reassign to another variable
     var another = double
     print("Via another: " + str(another(7)))
     
-    // Reassign different lambda
+    # Reassign different lambda
     another = lambda x: x * 3
     print("Now triple: " + str(another(7)))
 }
@@ -35,11 +35,11 @@ fn test_lambda_reassignment() {
 fn test_lambdas_in_collections() {
     print("\n=== Lambdas in Collections ===")
     
-    // In dictionary
+    # In dictionary
     var ops = {"add": lambda a, b: a + b, "sub": lambda a, b: a - b}
     print("Created dictionary with lambda operations")
     
-    // In list
+    # In list
     var transforms = [lambda x: x + 1, lambda x: x * 2, lambda x: x * x]
     print("Created list of lambda transforms")
 }
@@ -59,7 +59,7 @@ fn test_lambdas_as_parameters() {
 }
 
 fn make_adder(n) {
-    // Return a lambda that captures n
+    # Return a lambda that captures n
     return lambda x: x + n
 }
 
@@ -91,13 +91,13 @@ fn test_closure_capture() {
     var capture_outer = lambda x: x + outer_var
     print("Capture outer 100: " + str(capture_outer(5)))
     
-    // Change outer variable
+    # Change outer variable
     outer_var = 200
     print("After change to 200: " + str(capture_outer(5)))
 }
 
 fn compose(f, g) {
-    // Function composition
+    # Function composition
     return lambda x: f(g(x))
 }
 
