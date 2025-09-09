@@ -209,6 +209,13 @@ var len = len(list)      // Length function
 
 // Negative indexing works!
 var last_item = list[-1]
+
+// ALL Python list methods work! Examples:
+list.sort()             // Sort in place
+list.index(value)       // Find index of value
+list.extend([4, 5])     // Add multiple items
+list.insert(0, "first") // Insert at position
+// ...and many more - see grammar.md for full list
 ```
 
 #### String Operations
@@ -224,6 +231,14 @@ var len = len(text)         // Length function
 // Direct Python syntax (v0.38)
 var contains = "world" in text   // Membership operator
 var substring = text[0:5]        // Slicing
+
+// ALL Python string methods work! Examples:
+text.find("World")           // Search for substring
+text.startswith("Hello")     // Check prefix
+text.endswith("!")          // Check suffix
+text.count("l")             // Count occurrences
+text.center(20, "*")        // Padding/alignment
+// ...and many more - see grammar.md for full list
 ```
 
 ### v0.38 Complete Features (Session 3 - 2025-09-08)

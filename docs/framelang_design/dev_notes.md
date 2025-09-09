@@ -46,6 +46,22 @@ Languages considered in Frame's design with documented patterns but no visitor i
 - **Compatibility**: Negative literals still work via unary expression parsing (e.g., `var x = -1`)
 - **Benefits**: Allows complex arithmetic in slice indices without parser conflicts
 
+### Native String and List Operations Documentation (2025-09-09)
+- **Discovery**: Frame supports ALL Python string and list methods through natural pass-through
+- **Documentation Added**: Comprehensive sections in grammar.md covering:
+  - String search methods (find, rfind, index, count)
+  - String check methods (startswith, endswith, isdigit, etc.)
+  - String transformations (upper, lower, strip, replace)
+  - String split/join operations
+  - String formatting methods
+  - List creation and access
+  - List modification methods (append, insert, remove, pop)
+  - List search and query operations
+  - List ordering and copying
+  - List comprehensions and unpacking
+- **Test Coverage**: Created comprehensive test files demonstrating all operations
+- **No Implementation Required**: Methods work through transpiler pass-through to Python
+
 ## Latest Status: v0.38 Complete - All Collection Features Working (2025-09-08)
 
 ### v0.38 Release - Complete Feature Set with Enhanced Operations ✅

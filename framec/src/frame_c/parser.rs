@@ -142,6 +142,15 @@ pub struct Parser<'a> {
     debug_mode: bool,
 }
 
+// Helper enum for call type classification
+enum CallType {
+    Interface,
+    Action,
+    Operation,
+    Function,
+    Unknown,
+}
+
 impl<'a> Parser<'a> {
     pub(crate) fn new(
         tokens: &'a [Token],
@@ -3390,10 +3399,7 @@ impl<'a> Parser<'a> {
                     // v0.38: Function reference as value (first-class function)
                     value = Rc::new(FunctionRefT { name })
                 }
-                Ok(Some(SliceExprT { slice_node })) => {
-                    // v0.39: String/list slicing as value
-                    value = Rc::new(SliceExprT { slice_node })
-                }
+                // Removed SliceExprT - slicing is handled through call chains
                 Ok(Some(ExprListT { expr_list_node })) => {
                     let err_msg =
                         &format!("Expr type 'ExprList' is not a valid rvalue assignment type.");
@@ -5131,11 +5137,7 @@ impl<'a> Parser<'a> {
                         self.error_at_previous("Function reference expressions not allowed as statements.");
                         return Err(ParseError::new("Function reference must be part of an assignment or call"));
                     }
-                    ExprType::SliceExprT { .. } => {
-                        // Slice expressions are not valid as statements on their own
-                        self.error_at_previous("Slice expressions not allowed as statements.");
-                        return Err(ParseError::new("Slice expression must be part of an assignment or expression"));
-                    }
+                    // Removed SliceExprT check - slicing is handled through call chains
                 }
             }
             None => {
@@ -12011,6 +12013,72 @@ impl<'a> Parser<'a> {
                 Err(ParseError::new(&err_msg))
             }
         }
+    }
+    
+    // Classify what type of call this is based on the method name
+    fn classify_call_type(&self, method_name: &str) -> CallType {
+        // Check interface methods first (highest priority in Frame)
+        if self.arcanum.lookup_interface_method(method_name).is_some() {
+            return CallType::Interface;
+        }
+        
+        // Check actions
+        if self.arcanum.lookup_action(method_name).is_some() {
+            return CallType::Action;
+        }
+        
+        // Check operations
+        if self.arcanum.lookup_operation(method_name).is_some() {
+            return CallType::Operation;
+        }
+        
+        // Check module-level functions
+        if self.arcanum.lookup_function(method_name).is_some() {
+            return CallType::Function;
+        }
+        
+        // Unknown type (could be external function like print())
+        CallType::Unknown
+    }
+    
+    // Parse function/method arguments using token collection for better handling of nested expressions
+    fn parse_arguments_with_collection(&mut self) -> Result<ExprListNode, ParseError> {
+        let mut args = Vec::new();
+        
+        // If immediate closing paren, no arguments
+        if self.check(TokenType::RParen) {
+            self.advance();
+            return Ok(ExprListNode::new(args));
+        }
+        
+        // Collect and parse arguments
+        loop {
+            // Collect tokens for this argument (until comma or closing paren)
+            let arg_tokens = self.collect_tokens_until(&[TokenType::Comma, TokenType::RParen]);
+            
+            // Parse the collected tokens as an expression
+            if let Some(expr) = self.parse_token_sequence_as_expr(arg_tokens)? {
+                args.push(expr);
+            }
+            
+            // Check what stopped us
+            if self.match_token(&[TokenType::Comma]) {
+                // More arguments to come
+                if self.check(TokenType::RParen) {
+                    // Trailing comma before closing paren
+                    self.advance();
+                    break;
+                }
+                continue;
+            } else if self.match_token(&[TokenType::RParen]) {
+                // End of arguments
+                break;
+            } else {
+                return Err(ParseError::new("Expected ',' or ')' in argument list"));
+            }
+        }
+        
+        Ok(ExprListNode::new(args))
     }
 }
 

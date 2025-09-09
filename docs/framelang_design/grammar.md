@@ -446,6 +446,173 @@ fn demonstrateSlicing() {
 }
 ```
 
+## Native String Operations (v0.38)
+
+Frame fully supports all Python string methods through natural pass-through to the target language. No special imports or syntax required.
+
+### String Search Methods
+```frame
+var text = "Hello, World! Hello, Frame!"
+
+// Finding substrings
+var pos = text.find("World")           // 7 (first occurrence, -1 if not found)
+var last = text.rfind("Hello")         // 14 (last occurrence)
+var idx = text.index("Frame")          // 21 (raises ValueError if not found)
+var ridx = text.rindex("Hello")        // 14 (last occurrence, raises if not found)
+var count = text.count("Hello")        // 2 (count occurrences)
+```
+
+### String Check Methods
+```frame
+var text = "Frame Language"
+
+// Prefix/suffix checks
+var starts = text.startswith("Frame")      // true
+var ends = text.endswith("age")           // true
+
+// Character type checks
+"12345".isdigit()                          // true
+"abcdef".isalpha()                         // true
+"abc123".isalnum()                         // true
+"   ".isspace()                            // true
+"hello".islower()                          // true
+"HELLO".isupper()                          // true
+"Hello World".istitle()                    // true
+"valid_identifier".isidentifier()          // true
+```
+
+### String Transformation Methods
+```frame
+var text = "  Hello, World!  "
+
+// Case transformations
+text.upper()                    // "  HELLO, WORLD!  "
+text.lower()                    // "  hello, world!  "
+text.title()                    // "  Hello, World!  "
+text.capitalize()               // "  hello, world!  "
+text.swapcase()                 // "  hELLO, wORLD!  "
+
+// Stripping whitespace
+text.strip()                    // "Hello, World!"
+text.lstrip()                   // "Hello, World!  "
+text.rstrip()                   // "  Hello, World!"
+
+// Replace
+text.replace("World", "Frame")  // "  Hello, Frame!  "
+```
+
+### String Split and Join
+```frame
+var text = "apple,banana,cherry"
+
+// Splitting
+var parts = text.split(",")              // ["apple", "banana", "cherry"]
+var rsplit_parts = text.rsplit(",", 1)   // ["apple,banana", "cherry"]
+var lines = "Line 1\nLine 2".splitlines() // ["Line 1", "Line 2"]
+
+// Partitioning
+var part = text.partition(",")           // ("apple", ",", "banana,cherry")
+var rpart = text.rpartition(",")         // ("apple,banana", ",", "cherry")
+
+// Joining
+var separator = " | "
+var joined = separator.join(parts)       // "apple | banana | cherry"
+```
+
+### String Formatting
+```frame
+var text = "Frame"
+
+// Alignment and padding
+text.center(10, "*")            // "**Frame***"
+text.ljust(10, "-")            // "Frame-----"
+text.rjust(10, "+")            // "+++++Frame"
+"42".zfill(5)                  // "00042"
+
+// Format strings
+"Hello, {}!".format("Frame")    // "Hello, Frame!"
+```
+
+## Native List Operations (v0.38)
+
+Frame fully supports all Python list methods through natural pass-through to the target language.
+
+### List Creation and Access
+```frame
+// List creation
+var empty = []
+var numbers = [1, 2, 3, 4, 5]
+var mixed = [1, "hello", 3.14, true, None]
+var nested = [[1, 2], [3, 4]]
+
+// Indexing and length
+var first = numbers[0]          // 1
+var last = numbers[-1]          // 5
+var length = len(numbers)       // 5
+```
+
+### List Modification Methods
+```frame
+var list = [1, 2, 3]
+
+// Adding elements
+list.append(4)                  // [1, 2, 3, 4]
+list.insert(1, 99)             // [1, 99, 2, 3, 4]
+list.extend([5, 6])            // [1, 99, 2, 3, 4, 5, 6]
+
+// Removing elements
+list.remove(99)                 // Remove first occurrence
+var last = list.pop()          // Remove and return last element
+var item = list.pop(0)         // Remove and return element at index
+list.clear()                   // Remove all elements
+```
+
+### List Search and Query
+```frame
+var list = [10, 20, 30, 20, 40]
+
+// Finding elements
+var idx = list.index(20)        // 1 (first occurrence)
+var count = list.count(20)      // 2 (count occurrences)
+
+// Membership tests
+var has_30 = 30 in list        // true
+var no_99 = 99 not in list     // true
+```
+
+### List Ordering and Copying
+```frame
+var list = [3, 1, 4, 1, 5, 9]
+
+// Ordering
+list.sort()                     // Sort in place
+list.reverse()                  // Reverse in place
+
+// Copying
+var copy = list.copy()          // Shallow copy
+```
+
+### List Comprehensions
+```frame
+// Basic comprehension
+var squares = [x * x for x in range(5)]
+
+// With condition
+var evens = [x for x in range(10) if x % 2 == 0]
+
+// Nested comprehension
+var matrix = [[i + j for j in range(3)] for i in range(3)]
+```
+
+### List Unpacking Operator
+```frame
+var list1 = [1, 2, 3]
+var list2 = [4, 5, 6]
+
+// Unpacking in list literal
+var combined = [*list1, *list2, 7, 8]  // [1, 2, 3, 4, 5, 6, 7, 8]
+```
+
 ## With Statement Support (v0.37)
 
 Frame v0.37 adds support for context managers via with statements:
