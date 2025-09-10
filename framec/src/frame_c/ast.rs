@@ -1610,6 +1610,18 @@ pub enum ExprType {
     FunctionRefT {
         name: String,
     },
+    // Yield expression (v0.42)
+    YieldExprT {
+        yield_expr_node: YieldExprNode,
+    },
+    // Yield from expression (v0.42)
+    YieldFromExprT {
+        yield_from_expr_node: YieldFromExprNode,
+    },
+    // Generator expression (v0.42)
+    GeneratorExprT {
+        generator_expr_node: GeneratorExprNode,
+    },
     // TODO:
     // NilExprT is a new ExprType used atm to hack around
     // differences between variables and parameters. Parameters
@@ -1713,6 +1725,9 @@ impl ExprType {
             ExprType::AwaitExprT { .. } => "AwaitExprT",
             ExprType::LambdaExprT { .. } => "LambdaExprT",
             ExprType::FunctionRefT { .. } => "FunctionRefT",
+            ExprType::YieldExprT { .. } => "YieldExprT",
+            ExprType::YieldFromExprT { .. } => "YieldFromExprT",
+            ExprType::GeneratorExprT { .. } => "GeneratorExprT",
         }
     }
 
@@ -1789,6 +1804,28 @@ impl ExprType {
             ExprType::AwaitExprT { await_expr_node } => {
                 print!("await ");
                 await_expr_node.expr.debug_print();
+            }
+            ExprType::YieldExprT { yield_expr_node } => {
+                print!("yield");
+                if let Some(ref expr) = yield_expr_node.expr {
+                    print!(" ");
+                    expr.debug_print();
+                }
+            }
+            ExprType::YieldFromExprT { yield_from_expr_node } => {
+                print!("yield from ");
+                yield_from_expr_node.expr.debug_print();
+            }
+            ExprType::GeneratorExprT { generator_expr_node } => {
+                print!("(");
+                generator_expr_node.expr.debug_print();
+                print!(" for {} in ", generator_expr_node.target);
+                generator_expr_node.iter.debug_print();
+                if let Some(ref condition) = generator_expr_node.condition {
+                    print!(" if ");
+                    condition.debug_print();
+                }
+                print!(")");
             }
             _ => {}
         }
@@ -1907,6 +1944,15 @@ impl NodeElement for ExprType {
             ExprType::FunctionRefT { name } => {
                 ast_visitor.visit_function_ref_node(name);
             }
+            ExprType::YieldExprT { yield_expr_node } => {
+                ast_visitor.visit_yield_expr_node(yield_expr_node);
+            }
+            ExprType::YieldFromExprT { yield_from_expr_node } => {
+                ast_visitor.visit_yield_from_expr_node(yield_from_expr_node);
+            }
+            ExprType::GeneratorExprT { generator_expr_node } => {
+                ast_visitor.visit_generator_expr_node(generator_expr_node);
+            }
         }
     }
 
@@ -2023,6 +2069,15 @@ impl NodeElement for ExprType {
             }
             ExprType::FunctionRefT { name } => {
                 ast_visitor.visit_function_ref_node_to_string(name, output);
+            }
+            ExprType::YieldExprT { yield_expr_node } => {
+                ast_visitor.visit_yield_expr_node_to_string(yield_expr_node, output);
+            }
+            ExprType::YieldFromExprT { yield_from_expr_node } => {
+                ast_visitor.visit_yield_from_expr_node_to_string(yield_from_expr_node, output);
+            }
+            ExprType::GeneratorExprT { generator_expr_node } => {
+                ast_visitor.visit_generator_expr_node_to_string(generator_expr_node, output);
             }
         }
     }
@@ -4666,6 +4721,51 @@ impl AwaitExprNode {
     }
 }
 
+// YieldExprNode for yield expressions (v0.42)
+pub struct YieldExprNode {
+    pub expr: Option<Box<ExprType>>,  // yield can be used without value
+}
+
+impl YieldExprNode {
+    pub fn new(expr: Option<ExprType>) -> YieldExprNode {
+        YieldExprNode {
+            expr: expr.map(Box::new),
+        }
+    }
+}
+
+// YieldFromExprNode for yield from expressions (v0.42)
+pub struct YieldFromExprNode {
+    pub expr: Box<ExprType>,  // yield from requires an iterable
+}
+
+impl YieldFromExprNode {
+    pub fn new(expr: ExprType) -> YieldFromExprNode {
+        YieldFromExprNode {
+            expr: Box::new(expr),
+        }
+    }
+}
+
+// GeneratorExprNode for generator expressions (v0.42)
+pub struct GeneratorExprNode {
+    pub expr: Box<ExprType>,
+    pub target: String,
+    pub iter: Box<ExprType>,
+    pub condition: Option<Box<ExprType>>,
+}
+
+impl GeneratorExprNode {
+    pub fn new(expr: ExprType, target: String, iter: ExprType, condition: Option<ExprType>) -> GeneratorExprNode {
+        GeneratorExprNode {
+            expr: Box::new(expr),
+            target,
+            iter: Box::new(iter),
+            condition: condition.map(Box::new),
+        }
+    }
+}
+
 impl NodeElement for AwaitExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_await_expr_node(self);
@@ -4673,6 +4773,36 @@ impl NodeElement for AwaitExprNode {
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_await_expr_node_to_string(self, output);
+    }
+}
+
+impl NodeElement for YieldExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_yield_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_yield_expr_node_to_string(self, output);
+    }
+}
+
+impl NodeElement for YieldFromExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_yield_from_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_yield_from_expr_node_to_string(self, output);
+    }
+}
+
+impl NodeElement for GeneratorExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_generator_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_generator_expr_node_to_string(self, output);
     }
 }
 

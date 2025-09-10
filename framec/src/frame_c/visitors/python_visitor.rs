@@ -8132,8 +8132,13 @@ impl AstVisitor for PythonVisitor {
     fn visit_expression_list_node(&mut self, expr_list: &ExprListNode) {
         let mut generate_parens = true;
         if expr_list.exprs_t.len() == 1 {
-            if let Some(ExprType::TransitionExprT { .. }) = expr_list.exprs_t.get(0) {
-                generate_parens = false;
+            // Don't wrap single transitions, yield, or await expressions in parentheses
+            match expr_list.exprs_t.get(0) {
+                Some(ExprType::TransitionExprT { .. }) => generate_parens = false,
+                Some(ExprType::YieldExprT { .. }) => generate_parens = false,
+                Some(ExprType::YieldFromExprT { .. }) => generate_parens = false,
+                Some(ExprType::AwaitExprT { .. }) => generate_parens = false,
+                _ => {}
             }
         }
         let mut separator = "";
@@ -8573,6 +8578,66 @@ impl AstVisitor for PythonVisitor {
     fn visit_function_ref_node_to_string(&mut self, name: &str, output: &mut String) {
         // In Python, function references are just the function name without parentheses
         output.push_str(name);
+    }
+    
+    // v0.42: Visit yield expression node
+    fn visit_yield_expr_node(&mut self, yield_expr: &YieldExprNode) {
+        self.add_code("yield");
+        if let Some(ref expr) = yield_expr.expr {
+            self.add_code(" ");
+            expr.accept(self);
+        }
+    }
+    
+    // v0.42: Visit yield expression node to string
+    fn visit_yield_expr_node_to_string(&mut self, yield_expr: &YieldExprNode, output: &mut String) {
+        output.push_str("yield");
+        if let Some(ref expr) = yield_expr.expr {
+            output.push(' ');
+            expr.accept_to_string(self, output);
+        }
+    }
+    
+    // v0.42: Visit yield from expression node
+    fn visit_yield_from_expr_node(&mut self, yield_from_expr: &YieldFromExprNode) {
+        self.add_code("yield from ");
+        yield_from_expr.expr.accept(self);
+    }
+    
+    // v0.42: Visit yield from expression node to string
+    fn visit_yield_from_expr_node_to_string(&mut self, yield_from_expr: &YieldFromExprNode, output: &mut String) {
+        output.push_str("yield from ");
+        yield_from_expr.expr.accept_to_string(self, output);
+    }
+    
+    // v0.42: Visit generator expression node
+    fn visit_generator_expr_node(&mut self, generator_expr: &GeneratorExprNode) {
+        self.add_code("(");
+        generator_expr.expr.accept(self);
+        self.add_code(" for ");
+        self.add_code(&generator_expr.target);
+        self.add_code(" in ");
+        generator_expr.iter.accept(self);
+        if let Some(ref condition) = generator_expr.condition {
+            self.add_code(" if ");
+            condition.accept(self);
+        }
+        self.add_code(")");
+    }
+    
+    // v0.42: Visit generator expression node to string
+    fn visit_generator_expr_node_to_string(&mut self, generator_expr: &GeneratorExprNode, output: &mut String) {
+        output.push('(');
+        generator_expr.expr.accept_to_string(self, output);
+        output.push_str(" for ");
+        output.push_str(&generator_expr.target);
+        output.push_str(" in ");
+        generator_expr.iter.accept_to_string(self, output);
+        if let Some(ref condition) = generator_expr.condition {
+            output.push_str(" if ");
+            condition.accept_to_string(self, output);
+        }
+        output.push(')');
     }
 
     //* --------------------------------------------------------------------- *//

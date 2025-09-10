@@ -3495,6 +3495,9 @@ impl<'a> Parser<'a> {
                     DictComprehensionExprT { dict_comprehension_node } => Rc::new(DictComprehensionExprT { dict_comprehension_node }),
                     SetComprehensionExprT { set_comprehension_node } => Rc::new(SetComprehensionExprT { set_comprehension_node }),
                     FunctionRefT { name } => Rc::new(FunctionRefT { name }),
+                    YieldExprT { yield_expr_node } => Rc::new(YieldExprT { yield_expr_node }),
+                    YieldFromExprT { yield_from_expr_node } => Rc::new(YieldFromExprT { yield_from_expr_node }),
+                    GeneratorExprT { generator_expr_node } => Rc::new(GeneratorExprT { generator_expr_node }),
                     
                     // Invalid assignment types
                     ExprListT { expr_list_node } => {
@@ -5144,6 +5147,30 @@ impl<'a> Parser<'a> {
                 self.error_at_previous("Function reference expressions not allowed as statements.");
                 Err(ParseError::new("Function reference must be part of an assignment or call"))
             }
+            YieldExprT { yield_expr_node } => {
+                // Yield expressions can be statements (like yield value)
+                let expr_list_node = ExprListNode::new(vec![YieldExprT { yield_expr_node }]);
+                let stmt = StatementType::ExpressionStmt {
+                    expr_stmt_t: ExprListStmtT {
+                        expr_list_stmt_node: ExprListStmtNode::new(expr_list_node),
+                    },
+                };
+                Ok(Some(stmt))
+            }
+            YieldFromExprT { yield_from_expr_node } => {
+                // Yield from expressions can be statements (like yield from iterator)
+                let expr_list_node = ExprListNode::new(vec![YieldFromExprT { yield_from_expr_node }]);
+                let stmt = StatementType::ExpressionStmt {
+                    expr_stmt_t: ExprListStmtT {
+                        expr_list_stmt_node: ExprListStmtNode::new(expr_list_node),
+                    },
+                };
+                Ok(Some(stmt))
+            }
+            GeneratorExprT { .. } => {
+                self.error_at_previous("Generator expressions not allowed as statements.");
+                Err(ParseError::new("Generator expression must be part of an assignment or expression"))
+            }
         }
     }
 
@@ -6587,6 +6614,44 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // v0.42: Parse yield expressions
+    fn parse_yield_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+        use crate::frame_c::ast::ExprType::{YieldExprT, YieldFromExprT};
+        
+        // Check for "yield from"
+        if self.match_token(&[TokenType::From]) {
+            // yield from expression
+            let expr_result = self.unary_expression()?;
+            if let Some(expr) = expr_result {
+                let yield_from_expr_node = YieldFromExprNode::new(expr);
+                Ok(Some(YieldFromExprT { yield_from_expr_node }))
+            } else {
+                Err(ParseError::new("Expected expression after 'yield from'"))
+            }
+        } else {
+            // regular yield or yield with value
+            // Check if the next token could be the start of an expression
+            // Common statement starts that aren't expressions: if, while, for, return, yield, etc.
+            // Also check for block end
+            let next_is_expr = !self.check(TokenType::If) 
+                && !self.check(TokenType::While)
+                && !self.check(TokenType::For)
+                && !self.check(TokenType::Return_)
+                && !self.check(TokenType::Yield)
+                && !self.check(TokenType::CloseBrace)  // End of block
+                && !self.is_at_end();
+            
+            let expr_result = if next_is_expr {
+                self.assignment()?
+            } else {
+                None
+            };
+            
+            let yield_expr_node = YieldExprNode::new(expr_result);
+            Ok(Some(YieldExprT { yield_expr_node }))
+        }
+    }
+
     // Helper: Parse unary operators (!, -)
     fn parse_unary_operator(&mut self) -> Result<Option<ExprType>, ParseError> {
         let token = self.previous();
@@ -6762,6 +6827,11 @@ impl<'a> Parser<'a> {
     }
 
     fn unary_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // v0.42: Handle yield expressions
+        if self.match_token(&[TokenType::Yield]) {
+            return self.parse_yield_expression();
+        }
+        
         // v0.35: Handle await expressions
         if self.match_token(&[TokenType::Await]) {
             return self.parse_await_expression();
@@ -8816,7 +8886,53 @@ impl<'a> Parser<'a> {
 
         // Parse first expression
         match self.expression() {
-            Ok(Some(expr)) => expressions.push(expr),
+            Ok(Some(expr)) => {
+                // v0.42: Check for generator expression (expr for var in iterable)
+                if self.peek().token_type == TokenType::For {
+                    self.advance(); // consume 'for'
+                    
+                    // Parse target variable
+                    let target = if self.peek().token_type == TokenType::Identifier {
+                        let token = self.advance();
+                        token.lexeme.clone()
+                    } else {
+                        return Err(ParseError::new("Expected identifier after 'for' in generator expression"));
+                    };
+                    
+                    // Expect 'in'
+                    if !self.match_token(&[TokenType::In]) {
+                        return Err(ParseError::new("Expected 'in' after identifier in generator expression"));
+                    }
+                    
+                    // Parse iterable expression
+                    let iter = match self.expression() {
+                        Ok(Some(e)) => e,
+                        Ok(None) => return Err(ParseError::new("Expected iterable expression after 'in'")),
+                        Err(e) => return Err(e),
+                    };
+                    
+                    // Optional 'if' condition
+                    let condition = if self.match_token(&[TokenType::If]) {
+                        match self.expression() {
+                            Ok(Some(e)) => Some(e),
+                            Ok(None) => return Err(ParseError::new("Expected condition after 'if'")),
+                            Err(e) => return Err(e),
+                        }
+                    } else {
+                        None
+                    };
+                    
+                    // Expect closing parenthesis
+                    if !self.match_token(&[TokenType::RParen]) {
+                        return Err(ParseError::new("Expected ')' after generator expression"));
+                    }
+                    
+                    let generator_expr_node = GeneratorExprNode::new(expr, target, iter, condition);
+                    return Ok(Some(GeneratorExprT { generator_expr_node }));
+                }
+                
+                expressions.push(expr);
+            }
             Ok(None) => {
                 // No expression, just close paren
                 if self.match_token(&[TokenType::RParen]) {

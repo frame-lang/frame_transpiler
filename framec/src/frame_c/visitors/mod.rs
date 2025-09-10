@@ -143,6 +143,14 @@ pub trait AstVisitor {
     // v0.38: Function references for first-class functions
     fn visit_function_ref_node(&mut self, _name: &str) {}
     fn visit_function_ref_node_to_string(&mut self, _name: &str, _output: &mut String) {}
+    
+    // v0.42: Generator features
+    fn visit_yield_expr_node(&mut self, _yield_expr: &YieldExprNode) {}
+    fn visit_yield_expr_node_to_string(&mut self, _yield_expr: &YieldExprNode, _output: &mut String) {}
+    fn visit_yield_from_expr_node(&mut self, _yield_from_expr: &YieldFromExprNode) {}
+    fn visit_yield_from_expr_node_to_string(&mut self, _yield_from_expr: &YieldFromExprNode, _output: &mut String) {}
+    fn visit_generator_expr_node(&mut self, _generator_expr: &GeneratorExprNode) {}
+    fn visit_generator_expr_node_to_string(&mut self, _generator_expr: &GeneratorExprNode, _output: &mut String) {}
 
     fn visit_list_stmt_node(&mut self, _list: &ListStmtNode) {}
 

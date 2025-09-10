@@ -62,6 +62,7 @@ impl Scanner {
             ("not".to_string(), TokenType::Not),
             ("xor".to_string(), TokenType::LogicalXor),
             ("is".to_string(), TokenType::Is),
+            ("yield".to_string(), TokenType::Yield),
         ]
         .iter()
         .cloned()
@@ -972,6 +973,8 @@ pub enum TokenType {
     And,      // 'and' keyword (Python logical AND)
     Or,       // 'or' keyword (Python logical OR)
     Not,      // 'not' keyword (Python logical NOT)
+    Yield,    // 'yield' keyword (v0.42)
+    YieldFrom, // 'yield from' (handled as two tokens) (v0.42)
     PythonComment, // # Python-style comment
     MultiLineComment, // {-- Frame documentation comments --}
     FloorDivide, // // floor division operator
