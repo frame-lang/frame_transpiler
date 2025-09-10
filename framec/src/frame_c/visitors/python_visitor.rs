@@ -929,12 +929,18 @@ impl PythonVisitor {
             // Convert Frame types to Python equivalents
             match type_node.type_str.as_str() {
                 "string" => "str".to_string(),
+                "str" => "str".to_string(),  // v0.43: Accept Python-style str
                 "int" => "int".to_string(),
                 "float" => "float".to_string(),
                 "bool" => "bool".to_string(),
+                "list" => "list".to_string(),
+                "dict" => "dict".to_string(),
+                "set" => "set".to_string(),
+                "tuple" => "tuple".to_string(),
+                "any" => "any".to_string(),
                 _ => {
-                    // For unknown types, omit type annotation to avoid errors
-                    String::new()
+                    // Pass through unknown types as-is (for user-defined types)
+                    type_node.type_str.clone()
                 }
             }
         }
@@ -4755,7 +4761,17 @@ impl AstVisitor for PythonVisitor {
 
         self.format_parameter_list(&function_node.params);
 
-        self.add_code("):");
+        self.add_code(")");
+        
+        // v0.43: Add return type annotation if present
+        if let Some(ref type_node) = function_node.type_opt {
+            let return_type = self.format_type(type_node);
+            if !return_type.is_empty() {
+                self.add_code(&format!(" -> {}", return_type));
+            }
+        }
+        
+        self.add_code(":");
 
         if !function_node.is_implemented {
             self.newline();
