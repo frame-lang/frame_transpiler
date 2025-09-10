@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.41)
+# Frame Language Grammar (v0.44)
 
-**Last Updated**: 2025-01-23  
-**Status**: Complete with Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, and string literal method calls with 100% test coverage (317/317 tests passing)
+**Last Updated**: 2025-01-24  
+**Status**: Complete with comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, and string literal method calls
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1710,6 +1710,7 @@ stmt: expr_stmt
     | var_decl
     | assignment
     | if_stmt
+    | match_stmt
     | for_stmt
     | while_stmt
     | loop_stmt
@@ -1745,6 +1746,112 @@ state_stack_op: '$$[' '+' ']' | '$$[' '-' ']'
 block_stmt: '{' stmt* '}'
 break_stmt: 'break'
 continue_stmt: 'continue'
+```
+
+### Pattern Matching (v0.44)
+
+Frame v0.44 introduces comprehensive pattern matching with match-case statements:
+
+```bnf
+match_stmt: 'match' expr '{' case_clause+ '}'
+case_clause: 'case' pattern guard_clause? '{' stmt* '}'
+guard_clause: 'if' expr
+
+pattern: or_pattern ('as' IDENTIFIER)?
+or_pattern: pattern_atom ('or' pattern_atom)*
+pattern_atom: literal_pattern
+            | capture_pattern
+            | wildcard_pattern
+            | sequence_pattern
+            | mapping_pattern
+            | class_pattern
+            | '(' pattern ')'
+
+literal_pattern: NUMBER | STRING | 'true' | 'false' | 'None'
+capture_pattern: IDENTIFIER
+wildcard_pattern: '_'
+sequence_pattern: '[' pattern_list? ']' | '(' pattern_list? ')'
+pattern_list: pattern_element (',' pattern_element)*
+pattern_element: pattern | star_pattern
+star_pattern: '*' IDENTIFIER
+mapping_pattern: '{' mapping_item_list? '}'
+mapping_item_list: mapping_item (',' mapping_item)*
+mapping_item: (STRING | IDENTIFIER) ':' pattern
+class_pattern: '(' STRING ',' pattern_list? ')'  // Tuple workaround for classes
+```
+
+**Pattern Types:**
+- **Literal Patterns**: Match specific values (numbers, strings, booleans, None)
+- **Capture Patterns**: Bind matched values to variables
+- **Wildcard Pattern**: Match anything without binding (`_`)
+- **Sequence Patterns**: Match lists and tuples with optional star patterns
+- **Mapping Patterns**: Match dictionary structures
+- **OR Patterns**: Multiple alternatives using `or` keyword (not `|` due to Frame pipe operator)
+- **AS Patterns**: Bind entire matched pattern to a variable
+- **Star Patterns**: Capture remaining sequence elements (`*rest`)
+- **Guard Clauses**: Add conditions to patterns with `if`
+
+**Examples:**
+```frame
+# Literal and capture patterns
+match value {
+    case 42 {
+        return "the answer"
+    }
+    case x {
+        return "captured: " + str(x)
+    }
+}
+
+# OR patterns (using 'or' keyword)
+match status {
+    case 200 or 201 or 204 {
+        return "success"
+    }
+    case 400 or 404 or 403 {
+        return "client error"
+    }
+}
+
+# Star patterns for unpacking
+match lst {
+    case [first, *rest] {
+        return "first: " + str(first) + ", rest: " + str(rest)
+    }
+    case [first, *middle, last] {
+        return "edges with middle"
+    }
+}
+
+# AS patterns for binding
+match data {
+    case [x, y] as point {
+        return "point: " + str(point)
+    }
+    case (1 or 2 or 3) as num {
+        return "small number: " + str(num)
+    }
+}
+
+# Guard clauses
+match score {
+    case x if x >= 90 {
+        return "A"
+    }
+    case x if x >= 80 {
+        return "B"
+    }
+}
+
+# Nested patterns
+match response {
+    case {"status": 200 or 201, "data": [first, *rest]} {
+        return "success with data"
+    }
+    case {"error": {"code": code, "message": msg}} {
+        return "error " + str(code) + ": " + msg
+    }
+}
 ```
 
 ### Exception Handling

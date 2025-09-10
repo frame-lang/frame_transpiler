@@ -4917,6 +4917,14 @@ impl<'a> Parser<'a> {
             };
         }
 
+        if self.match_token(&[TokenType::Match]) {
+            return match self.match_statement() {
+                Ok(Some(match_stmt_t)) => Ok(Some(match_stmt_t)),
+                Ok(None) => Err(ParseError::new("Expected match statement")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+
         if self.match_token(&[TokenType::For]) {
             return match self.for_statement() {
                 Ok(Some(for_stmt_t)) => Ok(Some(for_stmt_t)),
@@ -7587,6 +7595,275 @@ impl<'a> Parser<'a> {
         );
 
         Ok(Some(StatementType::WithStmt { with_stmt_node }))
+    }
+
+    fn match_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Parse the match expression
+        let match_expr = match self.expression() {
+            Ok(Some(expr)) => expr,
+            Ok(None) => {
+                self.error_at_current("Expected expression after 'match'.");
+                return Err(ParseError::new("Expected expression after 'match'."));
+            }
+            Err(e) => return Err(e),
+        };
+
+        // Expect opening brace
+        if !self.match_token(&[TokenType::OpenBrace]) {
+            self.error_at_current("Expected '{' after match expression.");
+            return Err(ParseError::new("Expected '{' after match expression."));
+        }
+
+        let mut cases = Vec::new();
+
+        // Parse cases until we hit the closing brace
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            // Expect 'case' keyword
+            if !self.match_token(&[TokenType::Case]) {
+                self.error_at_current("Expected 'case' in match statement.");
+                return Err(ParseError::new("Expected 'case' in match statement."));
+            }
+
+            // Parse the pattern
+            let pattern = match self.parse_pattern() {
+                Ok(pattern) => pattern,
+                Err(e) => return Err(e),
+            };
+
+            // Parse optional guard clause (if expression)
+            let guard = if self.match_token(&[TokenType::If]) {
+                match self.expression() {
+                    Ok(Some(expr)) => Some(expr),
+                    Ok(None) => {
+                        self.error_at_current("Expected guard expression after 'if'.");
+                        return Err(ParseError::new("Expected guard expression after 'if'."));
+                    }
+                    Err(e) => return Err(e),
+                }
+            } else {
+                None
+            };
+
+            // Expect opening brace for case body
+            if !self.match_token(&[TokenType::OpenBrace]) {
+                self.error_at_current("Expected '{' after case pattern.");
+                return Err(ParseError::new("Expected '{' after case pattern."));
+            }
+
+            // Parse case body statements
+            let mut statements = Vec::new();
+            while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+                match self.decl_or_stmt(IdentifierDeclScope::UnknownScope) {
+                    Ok(Some(stmt)) => statements.push(stmt),
+                    Ok(None) => break,
+                    Err(e) => return Err(e),
+                }
+            }
+
+            // Expect closing brace for case body
+            if !self.match_token(&[TokenType::CloseBrace]) {
+                self.error_at_current("Expected '}' after case body.");
+                return Err(ParseError::new("Expected '}' after case body."));
+            }
+
+            cases.push(CaseNode::new(pattern, guard, statements));
+        }
+
+        // Expect closing brace for match statement
+        if !self.match_token(&[TokenType::CloseBrace]) {
+            self.error_at_current("Expected '}' after match cases.");
+            return Err(ParseError::new("Expected '}' after match cases."));
+        }
+
+        let match_stmt_node = MatchStmtNode::new(match_expr, cases);
+        Ok(Some(StatementType::MatchStmt { match_stmt_node }))
+    }
+
+    fn parse_literal(&mut self) -> Result<LiteralExprNode, ParseError> {
+        let token = self.peek();
+        if matches!(token.token_type, 
+            TokenType::Number | 
+            TokenType::String | 
+            TokenType::FString |
+            TokenType::RawString |
+            TokenType::ByteString |
+            TokenType::TripleQuotedString |
+            TokenType::True | 
+            TokenType::False | 
+            TokenType::None_
+        ) {
+            let token_type = token.token_type;
+            let lexeme = token.lexeme.clone();
+            self.advance();
+            Ok(LiteralExprNode::new(token_type, lexeme))
+        } else {
+            Err(ParseError::new("Expected literal value"))
+        }
+    }
+
+    fn parse_pattern(&mut self) -> Result<PatternNode, ParseError> {
+        let mut pattern = self.parse_pattern_inner()?;
+        
+        // Check for OR patterns using 'or' keyword
+        if self.match_token(&[TokenType::Or]) {
+            let mut patterns = vec![pattern];
+            patterns.push(self.parse_pattern_inner()?);
+            
+            // Continue collecting patterns connected by 'or'
+            while self.match_token(&[TokenType::Or]) {
+                patterns.push(self.parse_pattern_inner()?);
+            }
+            
+            pattern = PatternNode::Or(patterns);
+        }
+        
+        // Check if this pattern has an 'as' clause
+        if self.match_token(&[TokenType::As]) {
+            if self.peek().token_type != TokenType::Identifier {
+                return Err(ParseError::new("Expected identifier after 'as' in pattern."));
+            }
+            let as_name = self.peek().lexeme.clone();
+            self.advance();
+            return Ok(PatternNode::As(Box::new(pattern), as_name));
+        }
+        
+        Ok(pattern)
+    }
+    
+    fn parse_pattern_inner(&mut self) -> Result<PatternNode, ParseError> {
+        // Check for wildcard pattern
+        if self.peek().lexeme == "_" && self.peek().token_type == TokenType::Identifier {
+            self.advance();
+            return Ok(PatternNode::Wildcard);
+        }
+
+        // Check for literal patterns
+        if matches!(self.peek().token_type, TokenType::Number | TokenType::String | TokenType::True | TokenType::False | TokenType::None_) {
+            let literal = self.parse_literal()?;
+            return Ok(PatternNode::Literal(literal));
+        }
+
+        // Check for sequence patterns (list/tuple)
+        if self.match_token(&[TokenType::LBracket]) {
+            let mut patterns = Vec::new();
+            if !self.check(TokenType::RBracket) {
+                loop {
+                    // Check for star pattern (*identifier)
+                    if self.match_token(&[TokenType::Star]) {
+                        if self.peek().token_type != TokenType::Identifier {
+                            return Err(ParseError::new("Expected identifier after '*' in star pattern."));
+                        }
+                        let star_name = self.peek().lexeme.clone();
+                        self.advance();
+                        patterns.push(PatternNode::Star(star_name));
+                    } else {
+                        patterns.push(self.parse_pattern()?);
+                    }
+                    if !self.match_token(&[TokenType::Comma]) {
+                        break;
+                    }
+                }
+            }
+            if !self.match_token(&[TokenType::RBracket]) {
+                return Err(ParseError::new("Expected ']' after sequence pattern."));
+            }
+            return Ok(PatternNode::Sequence(patterns));
+        }
+
+        // Check for tuple pattern with parentheses
+        if self.match_token(&[TokenType::LParen]) {
+            let mut patterns = Vec::new();
+            if !self.check(TokenType::RParen) {
+                loop {
+                    // Check for star pattern (*identifier)
+                    if self.match_token(&[TokenType::Star]) {
+                        if self.peek().token_type != TokenType::Identifier {
+                            return Err(ParseError::new("Expected identifier after '*' in star pattern."));
+                        }
+                        let star_name = self.peek().lexeme.clone();
+                        self.advance();
+                        patterns.push(PatternNode::Star(star_name));
+                    } else {
+                        patterns.push(self.parse_pattern()?);
+                    }
+                    if !self.match_token(&[TokenType::Comma]) {
+                        break;
+                    }
+                }
+            }
+            if !self.match_token(&[TokenType::RParen]) {
+                return Err(ParseError::new("Expected ')' after tuple pattern."));
+            }
+            return Ok(PatternNode::Sequence(patterns));
+        }
+
+        // Check for mapping pattern (dict)
+        if self.match_token(&[TokenType::OpenBrace]) {
+            let mut mappings = Vec::new();
+            if !self.check(TokenType::CloseBrace) {
+                loop {
+                    // Parse key (must be string literal or identifier)
+                    let key = if self.peek().token_type == TokenType::String {
+                        let s = self.peek().lexeme.clone();
+                        self.advance();
+                        // For string literals, use the content as-is (it already has quotes removed by scanner)
+                        s
+                    } else if self.peek().token_type == TokenType::Identifier {
+                        let id = self.peek().lexeme.clone();
+                        self.advance();
+                        id
+                    } else {
+                        return Err(ParseError::new("Expected string or identifier as dictionary key in pattern."));
+                    };
+
+                    if !self.match_token(&[TokenType::Colon]) {
+                        return Err(ParseError::new("Expected ':' after dictionary key in pattern."));
+                    }
+
+                    let value_pattern = self.parse_pattern()?;
+                    mappings.push((key, value_pattern));
+
+                    if !self.match_token(&[TokenType::Comma]) {
+                        break;
+                    }
+                }
+            }
+            if !self.match_token(&[TokenType::CloseBrace]) {
+                return Err(ParseError::new("Expected '}' after mapping pattern."));
+            }
+            return Ok(PatternNode::Mapping(mappings));
+        }
+
+        // Default to capture pattern (identifier)
+        if self.peek().token_type == TokenType::Identifier {
+            let name = self.peek().lexeme.clone();
+            self.advance();
+            
+            // Check for class pattern
+            if self.match_token(&[TokenType::LParen]) {
+                let mut args = Vec::new();
+                if !self.check(TokenType::RParen) {
+                    loop {
+                        args.push(self.parse_pattern()?);
+                        if !self.match_token(&[TokenType::Comma]) {
+                            break;
+                        }
+                    }
+                }
+                if !self.match_token(&[TokenType::RParen]) {
+                    return Err(ParseError::new("Expected ')' after class pattern arguments."));
+                }
+                return Ok(PatternNode::Class(name, args));
+            }
+            
+            // DON'T check for OR pattern here - it needs to be handled differently
+            // The pipe character conflicts with other uses in Frame
+            
+            return Ok(PatternNode::Capture(name));
+        }
+
+        self.error_at_current("Invalid pattern in match statement.");
+        Err(ParseError::new("Invalid pattern in match statement."))
     }
 
     fn if_statement(&mut self) -> Result<Option<StatementType>, ParseError> {

@@ -1,4 +1,4 @@
-# Frame v0.41 Development Notes
+# Frame v0.44 Development Notes
 
 ## Language Support Classification (Updated 2025-09-08)
 
@@ -17,6 +17,36 @@ Languages considered in Frame's design with documented patterns but no visitor i
 ### 3rd Class Languages (LLM-Generated)
 - Other languages via AI generation
 - No formal support or guarantees
+
+## v0.44 Pattern Matching (2025-01-24)
+
+### Comprehensive Match-Case Implementation
+Frame v0.44 introduces Python 3.10+ style pattern matching with match-case statements, providing powerful structural pattern matching capabilities.
+
+**Pattern Types Implemented:**
+- **Literal Patterns**: Match specific values (numbers, strings, booleans, None)
+- **Capture Patterns**: Bind matched values to variables
+- **Wildcard Pattern**: Match anything with `_`
+- **Sequence Patterns**: Match lists and tuples
+- **Mapping Patterns**: Match dictionary structures
+- **OR Patterns**: Multiple alternatives using `or` keyword (not `|` to avoid Frame pipe conflict)
+- **AS Patterns**: Bind entire patterns to variables
+- **Star Patterns**: Unpacking with `*rest` syntax
+- **Guard Clauses**: Conditional matching with `if`
+- **Nested Patterns**: Complex nested structure matching
+
+**Implementation Details:**
+- **Scanner**: Added `Match` and `Case` keywords
+- **AST**: Added `MatchStmtNode`, `CaseNode`, `PatternNode` types
+- **Parser**: Recursive pattern parser with full pattern support
+- **Visitor**: Generates clean Python match-case code
+- **OR Syntax**: Uses `or` keyword instead of `|` to avoid pipe operator conflict
+- **Class Patterns**: Limited support using tuple workaround (pending Frame class support)
+
+**Test Coverage:**
+- Created comprehensive test suites for all pattern types
+- Added tests for OR patterns and star patterns
+- 100% success rate on supported features
 
 ### Visitor Cleanup (2025-09-08)
 - **Removed 11 unused visitors**: cpp, cs, cs_for_bob, gdscript, golang, java_8, javascript, plantuml, rust, smcat, xtate

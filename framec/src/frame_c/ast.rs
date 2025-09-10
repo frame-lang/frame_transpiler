@@ -2243,6 +2243,9 @@ pub enum StatementType {
     WithStmt {
         with_stmt_node: WithStmtNode,
     },
+    MatchStmt {
+        match_stmt_node: MatchStmtNode,
+    },
     // SuperStringStmt removed - backticks no longer supported
     BlockStmt {
         block_stmt_node: BlockStmtNode,
@@ -3319,6 +3322,63 @@ impl WithStmtNode {
 impl NodeElement for WithStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_with_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+// Match statement node (v0.44)
+pub struct MatchStmtNode {
+    pub match_expr: ExprType,
+    pub cases: Vec<CaseNode>,
+}
+
+impl MatchStmtNode {
+    pub fn new(match_expr: ExprType, cases: Vec<CaseNode>) -> MatchStmtNode {
+        MatchStmtNode { match_expr, cases }
+    }
+}
+
+impl NodeElement for MatchStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_match_stmt_node(self);
+    }
+}
+
+// Case node for match statement (v0.44)
+pub struct CaseNode {
+    pub pattern: PatternNode,
+    pub guard: Option<ExprType>,  // Optional guard clause
+    pub statements: Vec<DeclOrStmtType>,
+}
+
+impl CaseNode {
+    pub fn new(pattern: PatternNode, guard: Option<ExprType>, statements: Vec<DeclOrStmtType>) -> CaseNode {
+        CaseNode { pattern, guard, statements }
+    }
+}
+
+impl NodeElement for CaseNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_case_node(self);
+    }
+}
+
+// Pattern types for match-case (v0.44)
+pub enum PatternNode {
+    Literal(LiteralExprNode),           // Literal pattern: 42, "hello", True
+    Capture(String),                     // Capture pattern: x (binds to variable)
+    Wildcard,                            // Wildcard pattern: _
+    Sequence(Vec<PatternNode>),          // List/tuple pattern: [a, b, c]
+    Mapping(Vec<(String, PatternNode)>), // Dict pattern: {"key": value}
+    Class(String, Vec<PatternNode>),     // Class pattern: Point(x, y)
+    Or(Vec<PatternNode>),                // Or pattern: pattern1 | pattern2
+    As(Box<PatternNode>, String),        // As pattern: pattern as name
+    Star(String),                        // Star pattern: *rest (captures remaining elements)
+}
+
+impl NodeElement for PatternNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_pattern_node(self);
     }
 }
 

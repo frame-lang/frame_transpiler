@@ -464,6 +464,9 @@ impl GraphVizVisitor {
                         StatementType::WithStmt { .. } => {
                             // TODO: Implement with statement visualization
                         }
+                        StatementType::MatchStmt { .. } => {
+                            // TODO: Implement match statement visualization
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");

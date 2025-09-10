@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), and v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), and v0.44 (comprehensive pattern matching with match-case).
 
 ## File Locations
 
@@ -39,8 +39,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.41`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (318/318 tests passing) - Set Comprehensions & Complete Collection Support
+**Version**: `v0.44`  
+**Status**: ✅ **100% TEST SUCCESS RATE** - Comprehensive Pattern Matching Complete
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -55,6 +55,9 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.39 achievements, see**: [`docs/v0.39_achievements.md`](docs/v0.39_achievements.md)
 📊 **For v0.40 achievements, see**: [`docs/v0.40_achievements.md`](docs/v0.40_achievements.md)
 📊 **For v0.41 achievements, see**: [`docs/v0.41_achievements.md`](docs/v0.41_achievements.md)
+📊 **For v0.42 achievements, see**: [`docs/v0.42_achievements.md`](docs/v0.42_achievements.md)
+📊 **For v0.43 achievements, see**: [`docs/v0.43_achievements.md`](docs/v0.43_achievements.md)
+📊 **For v0.44 achievements, see**: [`docs/v0.44_achievements.md`](docs/v0.44_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
@@ -763,6 +766,113 @@ fn string_features() {
 - **Triple-quoted**: `"""text"""` - Multi-line strings with preserved formatting
 - **Prefixed triple-quoted**: `r"""text"""`, `f"""text"""` - Combined features
 - **Percent formatting**: `"format" % values` - Classic Python string formatting
+
+### v0.44 Pattern Matching (COMPLETE) ✅
+
+Frame v0.44 introduces comprehensive pattern matching with match-case statements, bringing Python 3.10+ structural pattern matching to Frame.
+
+#### Match-Case Statement
+```frame
+match expression {
+    case pattern {
+        # statements
+    }
+    case pattern if guard {
+        # statements with guard condition
+    }
+    case _ {
+        # default case
+    }
+}
+```
+
+#### Supported Pattern Types
+
+**Literal Patterns** ✅
+```frame
+match value {
+    case 42 { return "answer" }
+    case "hello" { return "greeting" }
+    case true { return "boolean" }
+    case None { return "null" }
+}
+```
+
+**Capture Patterns** ✅
+```frame
+match value {
+    case 0 { return "zero" }
+    case x { return "captured: " + str(x) }
+}
+```
+
+**OR Patterns** ✅ (using `or` keyword)
+```frame
+match status {
+    case 200 or 201 or 204 {
+        return "success"
+    }
+    case 400 or 404 or 403 {
+        return "client error"
+    }
+}
+```
+
+**Star Patterns** ✅
+```frame
+match lst {
+    case [first, *rest] {
+        return "first: " + str(first) + ", rest: " + str(rest)
+    }
+    case [first, *middle, last] {
+        return "edges with middle"
+    }
+}
+```
+
+**AS Patterns** ✅
+```frame
+match data {
+    case [x, y] as point {
+        return "point: " + str(point)
+    }
+    case (1 or 2 or 3) as num {
+        return "small: " + str(num)
+    }
+}
+```
+
+**Sequence Patterns** ✅
+```frame
+match lst {
+    case [] { return "empty" }
+    case [x] { return "single" }
+    case [x, y] { return "pair" }
+    case [x, y, z] { return "triple" }
+}
+```
+
+**Mapping Patterns** ✅
+```frame
+match response {
+    case {"status": 200, "data": data} {
+        return process(data)
+    }
+    case {"error": {"code": code, "message": msg}} {
+        return "Error " + str(code) + ": " + msg
+    }
+}
+```
+
+**Guard Clauses** ✅
+```frame
+match score {
+    case x if x >= 90 { return "A" }
+    case x if x >= 80 { return "B" }
+    case x if x >= 70 { return "C" }
+    case _ { return "F" }
+}
+```
 
 ### v0.34 Module System (Complete Implementation)
 
