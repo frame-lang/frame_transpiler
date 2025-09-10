@@ -3,6 +3,8 @@
 use super::ast::AssignmentExprNode;
 use super::ast::AssignmentOperator;
 use super::ast::CallChainNodeType;
+use super::ast::CallChainLiteralExprNode;
+use super::ast::CallExprListNode;
 use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
@@ -6990,6 +6992,114 @@ impl<'a> Parser<'a> {
         match self.literal_expr() {
             Ok(Some(mut literal_expr_node)) => {
                 literal_expr_node.is_reference = is_reference;
+                
+                // Check if there's a dot after the literal for method calls like "string".upper()
+                if self.peek().token_type == TokenType::Dot {
+                    // Create a temporary variable to hold the literal value
+                    // This allows us to call methods on string/number literals
+                    let temp_var_name = format!("__literal_temp_{}", self.peek().line);
+                    let temp_id = IdentifierNode::new(
+                        Token {
+                            token_type: TokenType::Identifier,
+                            lexeme: temp_var_name.clone(),
+                            literal: TokenLiteral::None,
+                            line: self.peek().line,
+                            start: 0,
+                            length: temp_var_name.len(),
+                        },
+                        None,
+                        IdentifierDeclScope::UnknownScope,
+                        false,
+                        self.peek().line,
+                    );
+                    
+                    // Create a variable node wrapping the literal
+                    let var_node = VariableNode::new(
+                        temp_id,
+                        IdentifierDeclScope::UnknownScope,
+                        None,
+                    );
+                    
+                    // Build a call chain starting with the literal as a pseudo-variable
+                    let mut call_chain = std::collections::VecDeque::new();
+                    
+                    // Add the literal as a special node type that will be handled by the visitor
+                    // We'll use CallChainNodeType::CallChainLiteralExprT to represent this
+                    call_chain.push_back(CallChainNodeType::CallChainLiteralExprT { 
+                        call_chain_literal_expr_node: CallChainLiteralExprNode::new(
+                            literal_expr_node.token_t.clone(),
+                            literal_expr_node.value.clone(),
+                        ),
+                    });
+                    
+                    // Now consume the dot and parse the method call
+                    while self.match_token(&[TokenType::Dot]) {
+                        if !self.match_token(&[TokenType::Identifier]) {
+                            let err_msg = "Expected identifier after '.'";
+                            self.error_at_current(err_msg);
+                            return Err(ParseError::new(err_msg));
+                        }
+                        
+                        let method_id = IdentifierNode::new(
+                            self.previous().clone(),
+                            None,
+                            IdentifierDeclScope::UnknownScope,
+                            false,
+                            self.previous().line,
+                        );
+                        
+                        // Check if it's a method call (has parentheses) or property access
+                        if self.match_token(&[TokenType::LParen]) {
+                            // It's a method call
+                            let expr_list_opt = match self.expr_list() {
+                                Ok(Some(expr_list_t)) => {
+                                    match expr_list_t {
+                                        ExprListT { expr_list_node } => Some(expr_list_node),
+                                        _ => None,
+                                    }
+                                }
+                                Ok(None) => None,
+                                Err(parse_error) => return Err(parse_error),
+                                _ => None,
+                            };
+                            
+                            // Note: expr_list() already consumes the RParen, so we don't need to do it again
+                            
+                            // Create a CallExprListNode from the expression list
+                            let call_expr_list = if let Some(expr_list) = expr_list_opt {
+                                CallExprListNode::new(expr_list.exprs_t)
+                            } else {
+                                CallExprListNode::new(Vec::new())
+                            };
+                            
+                            let call_expr_node = CallExprNode::new(
+                                method_id,
+                                call_expr_list,
+                                None,  // No call chain continuation
+                            );
+                            
+                            call_chain.push_back(CallChainNodeType::UndeclaredCallT { 
+                                call_node: call_expr_node 
+                            });
+                        } else {
+                            // It's property access (rare for literals but possible)
+                            let var_node = VariableNode::new(
+                                method_id,
+                                IdentifierDeclScope::UnknownScope,
+                                None,
+                            );
+                            call_chain.push_back(CallChainNodeType::VariableNodeT { var_node });
+                        }
+                    }
+                    
+                    // If we built a call chain, return it
+                    if call_chain.len() > 1 {
+                        let call_chain_expr_node = CallChainExprNode::new(call_chain);
+                        return Ok(Some(CallChainExprT { call_chain_expr_node }));
+                    }
+                }
+                
+                // No dot after literal, return as normal
                 return Ok(Some(LiteralExprT { literal_expr_node }));
             }
             Err(parse_error) => return Err(parse_error),

@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-09 12:29  
-**Total Tests**: 314  
+**Generated**: 2025-09-09 22:14  
+**Total Tests**: 317  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 314 | 100% |
-| **Transpilation Success** | 314 | 100.0% |
-| **Execution Success** | 314 | 100.0% |
-| **Complete Success** | 314 | 100.0% |
+| **Total Tests** | 317 | 100% |
+| **Transpilation Success** | 317 | 100.0% |
+| **Execution Success** | 317 | 100.0% |
+| **Complete Success** | 317 | 100.0% |
 
 ## v0.31 Features
 
@@ -121,6 +121,7 @@
 | test_enums_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_terminator.frm | ✅ | ✅ | ✅ PASS |
 | test_event_handlers_poc.frm | ✅ | ✅ | ✅ PASS |
+| test_exceptions_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_explicit_self_syntax.frm | ✅ | ✅ | ✅ PASS |
 | test_explicit_self_system_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_exponent_operator.frm | ✅ | ✅ | ✅ PASS |
@@ -334,6 +335,8 @@
 | test_v031_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_v039_features.frm | ✅ | ✅ | ✅ PASS |
 | test_v040_comments_floor_div.frm | ✅ | ✅ | ✅ PASS |
+| test_v040_string_features.frm | ✅ | ✅ | ✅ PASS |
+| test_v040_strings_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_with_statement.frm | ✅ | ✅ | ✅ PASS |

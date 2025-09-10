@@ -1,60 +1,50 @@
-# Frame Test Results Log
+# Frame Transpiler Test Status
 
-## Last Run: 2025-09-09 12:29
-
-**Branch**: v0.30  
-**Version**: v0.40  
-**Total Tests**: 314  
-**Passed**: 314  
+**Last Run**: 2025-01-23  
+**Total Tests**: 317  
+**Passed**: 317  
 **Failed**: 0  
-**Success Rate**: 100.0% 🎉
+**Success Rate**: 100.0% ✅
+
+## Achievement: 100% Test Pass Rate! 🎉
+
+All 317 tests are now passing after fixing string literal method calls.
 
 ## Summary
 
-All tests are passing with complete v0.40 implementation including:
-- ✅ Bitwise XOR operator (^) and compound assignment (^=)
-- ✅ Matrix multiplication operator (@) and compound assignment (@=)  
-- ✅ Python-style comments (# only, C-style removed)
-- ✅ Floor division operator (//)
-- ✅ Binary, octal, and hexadecimal literals (0b, 0o, 0x)
+### ✅ All Test Categories Passing (317/317)
+- Multi-entity and functions tests
+- System lifecycle tests  
+- Hierarchical state machines
+- Module system tests
+- Async/await tests
+- Import statement tests
+- Enum tests
+- Python operator tests
+- String feature tests (including v0.40 advanced features)
+- Exception handling tests
+- Comprehensive feature tests
 
-## Test Categories Summary
+## Recent Fix Applied
 
-| Category | Tests | Status |
-|----------|-------|--------|
-| Core Syntax | 50+ | ✅ All Pass |
-| State Machines | 40+ | ✅ All Pass |
-| Module System | 30+ | ✅ All Pass |
-| Async/Await | 15 | ✅ All Pass |
-| Collections | 50+ | ✅ All Pass |
-| Operators | 20+ | ✅ All Pass |
-| Enums | 15 | ✅ All Pass |
-| Imports | 15 | ✅ All Pass |
-| Functions | 30+ | ✅ All Pass |
-| Systems | 40+ | ✅ All Pass |
+### String Literal Method Calls (Fixed 2025-01-23)
+- **Issue**: Parser didn't support method calls on string literals (e.g., `"string".upper()`, `f"{var}".strip()`)
+- **Root Cause**: Parser's `unary_expression` function didn't check for dot operators after literal expressions
+- **Solution**: Modified parser to detect and handle dot operators after literals
+- **Implementation**:
+  - Added `CallChainLiteralExprT` variant to `CallChainNodeType` enum
+  - Created `CallChainLiteralExprNode` struct to represent literals in call chains
+  - Modified `unary_expression` in parser.rs to check for dots after literals and build proper call chains
+  - Updated Python visitor to handle the new AST node type
+  - Fixed double RParen consumption issue in expression list parsing
+- **Result**: `test_v040_string_features.frm` now passes, achieving 100% test success
 
-## v0.40 Specific Tests
+## Test Infrastructure
+- Using official test runner: `framec_tests/runner/frame_test_runner.py`
+- Full test matrix available at: `reports/test_matrix_v0.31.md`
+- JSON results at: `reports/test_results_v0.31.json`
 
-| Test | Purpose | Status |
-|------|---------|--------|
-| test_bitwise_xor.frm | XOR operator comprehensive test | ✅ Pass |
-| test_xor_operator.frm | XOR basic functionality | ✅ Pass |
-| test_xor_simple.frm | Simple XOR test | ✅ Pass |
-| test_matmul_with_numpy.frm | Matrix multiplication with NumPy | ✅ Pass |
-| test_matmul_syntax_only.frm | @ operator syntax validation | ✅ Pass |
-| test_matmul_transpile.frm | @ transpilation documentation | ✅ Pass |
-| test_v040_comments_floor_div.frm | Python comments & floor division | ✅ Pass |
-
-## Test Environment
-
-- **Python Version**: 3.13
-- **NumPy Version**: 2.3.3 (in virtual environment)
-- **Test Runner**: frame_test_runner.py
-- **Virtual Environment**: Configured with all dependencies
-
-## Notes
-
-- Virtual environment setup documented in `test_environment_setup.md`
-- Automated setup script available: `setup_test_env.sh`
-- All dependencies listed in `requirements.txt`
-- Matrix multiplication tests require NumPy but gracefully handle its absence
+## Version Info
+**Branch**: v0.30  
+**Version**: v0.41 (with exception handling and string literal method calls)  
+**Transpiler**: framec v0.30.0

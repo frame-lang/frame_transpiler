@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-09T12:29:09.750237",
+  "timestamp": "2025-09-09T22:14:16.444528",
   "version": "v0.31",
   "summary": {
-    "total": 314,
-    "transpile_success": 314,
-    "execute_success": 314,
-    "complete_success": 314,
+    "total": 317,
+    "transpile_success": 317,
+    "execute_success": 317,
+    "complete_success": 317,
     "success_rate": "100.0%"
   },
   "results": [
@@ -594,7 +594,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -622,14 +622,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -658,6 +658,13 @@
       "transpile": true,
       "execute": true,
       "output": "Event-Handlers-as-Functions PoC\n=== Testing Mixed Handler Demo ===\nSync handler: getData\nGot sync data: cached_123\nSync handler: getStatus\nStatus: ready\n=== Test Complete ===\n",
+      "error": null
+    },
+    {
+      "file": "test_exceptions_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Frame Exception Handling Tests ===\n\nTesting basic try/except\nIn try block\nDivision succeeded: 5.0\nAfter try/except\n\nTesting specific exception types\nCaught IndexError\nCaught ValueError: invalid li",
       "error": null
     },
     {
@@ -2149,6 +2156,20 @@
       "transpile": true,
       "execute": true,
       "output": "=== Frame v0.40 Features Test ===\n10 // 3 = 3\n-10 // 3 = -4\nRegular: 3.3333333333333335, Floor: 3\n17 //= 5 = 3\nComments working correctly!\n",
+      "error": null
+    },
+    {
+      "file": "test_v040_string_features.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing v0.40 String Features\n==============================\n\n1. F-strings:\nHello Frame!\nLanguage: Frame, Version: 0.4, Count: 3\nSum: 5, Product: 20\nPi: 3.14\nF-strings test passed: True\n\n2. Raw string",
+      "error": null
+    },
+    {
+      "file": "test_v040_strings_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Hello Frame!\nVersion 0.4\nC:\\path\\to\\file\nLine 1\\nLine 2\nb'Binary data'\nThis is\na multi-line\nstring\nRaw\nwith \\n literal\nHello Frame\nVersion 0.4\nFrame v0.4\n\n\u2705 All string features working!\n",
       "error": null
     },
     {

@@ -6236,6 +6236,7 @@ impl AstVisitor for PythonVisitor {
             
             let node_type = match &node {
                 CallChainNodeType::SelfT { .. } => "Self".to_string(),
+                CallChainNodeType::CallChainLiteralExprT { .. } => "Literal".to_string(),
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme)
                 },
@@ -6451,6 +6452,19 @@ impl AstVisitor for PythonVisitor {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept(self);
+                }
+                CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
+                    // v0.41: Handle literal expressions in call chains (e.g., "string".upper())
+                    // Output the literal value directly
+                    match &call_chain_literal_expr_node.token_t {
+                        TokenType::String => self.add_code(&format!("\"{}\"", call_chain_literal_expr_node.value)),
+                        TokenType::FString => self.add_code(&call_chain_literal_expr_node.value),
+                        TokenType::RawString => self.add_code(&call_chain_literal_expr_node.value),
+                        TokenType::ByteString => self.add_code(&call_chain_literal_expr_node.value),
+                        TokenType::TripleQuotedString => self.add_code(&call_chain_literal_expr_node.value),
+                        TokenType::Number => self.add_code(&call_chain_literal_expr_node.value),
+                        _ => self.add_code(&call_chain_literal_expr_node.value),
+                    }
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
                     // TODO: figure out why this is necessary as sometimes it generates
@@ -6772,6 +6786,7 @@ impl AstVisitor for PythonVisitor {
             
             let _node_desc = match &node {
                 CallChainNodeType::SelfT { .. } => "Self".to_string(),
+                CallChainNodeType::CallChainLiteralExprT { .. } => "Literal".to_string(),
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => 
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme),
                 CallChainNodeType::UndeclaredCallT { call_node } => 
@@ -6871,6 +6886,19 @@ impl AstVisitor for PythonVisitor {
                     action_call_expr_node,
                 } => {
                     action_call_expr_node.accept_to_string(self, output);
+                }
+                CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
+                    // v0.41: Handle literal expressions in call chains (e.g., "string".upper())
+                    // Output the literal value directly
+                    match &call_chain_literal_expr_node.token_t {
+                        TokenType::String => output.push_str(&format!("\"{}\"", call_chain_literal_expr_node.value)),
+                        TokenType::FString => output.push_str(&call_chain_literal_expr_node.value),
+                        TokenType::RawString => output.push_str(&call_chain_literal_expr_node.value),
+                        TokenType::ByteString => output.push_str(&call_chain_literal_expr_node.value),
+                        TokenType::TripleQuotedString => output.push_str(&call_chain_literal_expr_node.value),
+                        TokenType::Number => output.push_str(&call_chain_literal_expr_node.value),
+                        _ => output.push_str(&call_chain_literal_expr_node.value),
+                    }
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
                     // Check if this variable is actually an enum type defined in the current system

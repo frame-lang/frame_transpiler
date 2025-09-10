@@ -174,6 +174,10 @@ pub enum CallChainNodeType {
     SelfT {
         self_expr_node: SelfExprNode,
     },
+    // Special node for literal expressions with method calls (v0.41)
+    CallChainLiteralExprT {
+        call_chain_literal_expr_node: CallChainLiteralExprNode,
+    },
     // Declared identifier types
     VariableNodeT {
         var_node: VariableNode,
@@ -226,6 +230,9 @@ impl CallChainNodeType {
             }
             CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                 id_node.is_reference = is_reference;
+            }
+            CallChainNodeType::CallChainLiteralExprT { .. } => {
+                // Literals don't need reference marking
             }
             _ => {}
         }
@@ -3399,6 +3406,13 @@ impl fmt::Display for CallChainExprNode {
                 CallChainNodeType::UndeclaredSliceT { .. } => {
                     // Undeclared slice nodes similarly
                 }
+                CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
+                    match &call_chain_literal_expr_node.token_t {
+                        TokenType::String => output.push_str(&format!("\"{}\"", call_chain_literal_expr_node.value)),
+                        TokenType::FString => output.push_str(&call_chain_literal_expr_node.value),
+                        _ => output.push_str(&call_chain_literal_expr_node.value),
+                    }
+                }
             }
             separator = ".";
         }
@@ -3749,6 +3763,42 @@ impl LiteralExprNode {
             is_reference: false,
             inc_dec: IncDecExpr::None,
         }
+    }
+}
+
+// Node for literal expressions in call chains (e.g., "string".upper())
+pub struct CallChainLiteralExprNode {
+    pub token_t: TokenType,
+    pub value: String,
+}
+
+impl CallChainLiteralExprNode {
+    pub fn new(token_t: TokenType, value: String) -> CallChainLiteralExprNode {
+        CallChainLiteralExprNode {
+            token_t,
+            value,
+        }
+    }
+}
+
+impl NodeElement for CallChainLiteralExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        // For now, treat it like a regular literal
+        ast_visitor.visit_literal_expression_node(&LiteralExprNode {
+            token_t: self.token_t.clone(),
+            value: self.value.clone(),
+            is_reference: false,
+            inc_dec: IncDecExpr::None,
+        });
+    }
+    
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_literal_expression_node_to_string(&LiteralExprNode {
+            token_t: self.token_t.clone(),
+            value: self.value.clone(),
+            is_reference: false,
+            inc_dec: IncDecExpr::None,
+        }, output);
     }
 }
 

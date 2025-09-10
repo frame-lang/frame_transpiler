@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.40)
+# Frame Language Grammar (v0.41)
 
 **Last Updated**: 2025-01-23  
-**Status**: Complete with Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, and comprehensive string literal support with 100% test coverage (315/315 tests passing)
+**Status**: Complete with Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, and string literal method calls with 100% test coverage (317/317 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1749,7 +1749,7 @@ continue_stmt: 'continue'
 
 ### Exception Handling
 
-Frame v0.32 introduces Python-style exception handling with try-except-else-finally blocks and raise statements:
+Frame v0.41 (previously documented in v0.32 but now fully tested) supports Python-style exception handling with try-except-else-finally blocks and raise statements:
 
 ```frame
 // Basic try-except
@@ -1947,7 +1947,7 @@ operator: '+' | '-' | '*' | '/' | '//' | '%' | '**' | '@'  // v0.40: Added floor
 
 unary_expr: ('-' | 'not' | '~') expr  // v0.38-39: Python unary operators
 
-primary_expr: IDENTIFIER | NUMBER | string_literal | SUPERSTRING
+primary_expr: IDENTIFIER | NUMBER | string_literal | literal_method_call | SUPERSTRING
             | 'true' | 'false' | 'None'
             | '(' expr ')' | '@'
             | list_literal | dict_literal | set_literal | tuple_literal
@@ -1955,6 +1955,9 @@ primary_expr: IDENTIFIER | NUMBER | string_literal | SUPERSTRING
 
 // v0.40: Comprehensive string literal support
 string_literal: STRING | FSTRING | RAWSTRING | BYTESTRING | TRIPLE_QUOTED
+
+// v0.41: String literal method calls
+literal_method_call: string_literal '.' IDENTIFIER '(' arg_list? ')'
 
 function_ref: IDENTIFIER  // Function name without parentheses
 
@@ -2362,6 +2365,14 @@ with \n literal"""
 
 // Percent formatting
 var formatted = "Name: %s, Version: %.2f" % (name, version)
+
+// v0.41: String literal method calls - call methods directly on string literals
+var upper1 = "hello".upper()                    // "HELLO"  
+var lower1 = "WORLD".lower()                    // "world"
+var stripped = "  spaces  ".strip()            // "spaces"
+var upper2 = f"{name}".upper()                  // F-string literal method call
+var lower2 = r"FRAME".lower()                   // Raw string literal method call  
+var multi_strip = """  multiline  """.strip()  // Triple-quoted literal method call
 ```
 
 ## Keywords

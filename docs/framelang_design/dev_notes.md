@@ -1,4 +1,4 @@
-# Frame v0.40 Development Notes
+# Frame v0.41 Development Notes
 
 ## Language Support Classification (Updated 2025-09-08)
 
@@ -93,7 +93,14 @@ Languages considered in Frame's design with documented patterns but no visitor i
 - **Visitor**: Direct pass-through of Python string syntax to generated code
 - **Compatibility**: 100% backward compatible with existing string features
 
-## Latest Status: v0.40 Complete - Python String Literals & Operator Alignment (2025-01-23)
+## Latest Status: v0.41 Complete - String Literal Method Calls (2025-01-23)
+
+### v0.41 Release - String Literal Method Call Support ✅
+- **Test Coverage**: **317/317 tests passing (100% success rate)** 🎉
+- **New Feature**: Direct method calls on string literals (e.g., `"hello".upper()`, `f"{var}".strip()`)
+- **Parser Enhancement**: Modified `unary_expression` to detect dot operators after literal expressions
+- **AST Extension**: Added `CallChainLiteralExprT` node type for literal method calls
+- **Full Support**: All string literal types support method calls (regular, f-strings, raw, byte, triple-quoted)
 
 ### v0.40 Release - Python String Literals, Comments, Bitwise XOR, and Matrix Multiplication ✅
 - **Test Coverage**: **315/315 tests passing (100% success rate)** 🎉
