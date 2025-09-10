@@ -81,10 +81,23 @@ Languages considered in Frame's design with documented patterns but no visitor i
 - **Test Coverage**: Created comprehensive test files demonstrating all operations
 - **No Implementation Required**: Methods work through transpiler pass-through to Python
 
-## Latest Status: v0.40 Complete - Python Operator Alignment (2025-09-09)
+### Python String Literals Implementation (v0.40 - 2025-01-23)
+- **F-strings**: `f"Hello {name}"` - Formatted string literals with embedded expressions
+- **Raw strings**: `r"C:\path"` - Strings with literal backslashes (no escape processing)
+- **Byte strings**: `b"binary"` - Binary data representation
+- **Triple-quoted**: `"""multi-line"""` - Multi-line strings with preserved formatting
+- **Prefixed triple-quoted**: `r"""raw multi"""`, `f"""formatted multi"""` - Combined features
+- **Percent formatting**: `"Hello %s" % name` - Classic Python string formatting (already worked)
+- **Scanner**: Added string prefix detection (f, r, b) and triple-quote handling
+- **Parser**: Extended literal expression parsing for new token types
+- **Visitor**: Direct pass-through of Python string syntax to generated code
+- **Compatibility**: 100% backward compatible with existing string features
 
-### v0.40 Release - Python Comments, Bitwise XOR, and Matrix Multiplication ✅
-- **Test Coverage**: **314/314 tests passing (100% success rate)** 🎉
+## Latest Status: v0.40 Complete - Python String Literals & Operator Alignment (2025-01-23)
+
+### v0.40 Release - Python String Literals, Comments, Bitwise XOR, and Matrix Multiplication ✅
+- **Test Coverage**: **315/315 tests passing (100% success rate)** 🎉
+- **NEW - String Literals**: F-strings, raw strings, byte strings, triple-quoted strings
 - **Breaking Change**: Replaced C-style comments with Python-style `#` comments
 - **NEW - Bitwise XOR**: `^` operator and `^=` compound assignment fully implemented
 - **NEW - Matrix Multiplication**: `@` operator and `@=` compound assignment (PEP 465)

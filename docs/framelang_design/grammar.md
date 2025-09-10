@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.40)
 
-**Last Updated**: 2025-09-09  
-**Status**: Complete with Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, and numeric literal support with 100% test coverage (314/314 tests passing)
+**Last Updated**: 2025-01-23  
+**Status**: Complete with Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, and comprehensive string literal support with 100% test coverage (315/315 tests passing)
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1947,11 +1947,14 @@ operator: '+' | '-' | '*' | '/' | '//' | '%' | '**' | '@'  // v0.40: Added floor
 
 unary_expr: ('-' | 'not' | '~') expr  // v0.38-39: Python unary operators
 
-primary_expr: IDENTIFIER | NUMBER | STRING | SUPERSTRING
+primary_expr: IDENTIFIER | NUMBER | string_literal | SUPERSTRING
             | 'true' | 'false' | 'None'
             | '(' expr ')' | '@'
             | list_literal | dict_literal | set_literal | tuple_literal
             | function_ref  // v0.38: Function reference
+
+// v0.40: Comprehensive string literal support
+string_literal: STRING | FSTRING | RAWSTRING | BYTESTRING | TRIPLE_QUOTED
 
 function_ref: IDENTIFIER  // Function name without parentheses
 
@@ -2320,14 +2323,45 @@ NUMBER: [0-9]+ ('.' [0-9]+)?  // Decimal
       | '0b' [01]+             // Binary literal (v0.40)
       | '0o' [0-7]+            // Octal literal (v0.40)
       | '0x' [0-9a-fA-F]+      // Hexadecimal literal (v0.40)
-STRING: '"' (ESC | ~["])* '"'
-SUPERSTRING: '`' ~[`]* '`' | '```' ~* '```'
+STRING: '"' (ESC | ~["])* '"'  // Regular string
+FSTRING: 'f"' (ESC | EXPR | ~["])* '"'  // f-string with expressions (v0.40)
+RAWSTRING: 'r"' (~["])* '"'  // Raw string, no escape processing (v0.40)
+BYTESTRING: 'b"' (ESC | ~["])* '"'  // Byte string literal (v0.40)
+TRIPLE_QUOTED: '"""' ~* '"""'  // Multi-line string (v0.40)
+              | [frb]'"""' ~* '"""'  // Prefixed triple-quoted (v0.40)
+SUPERSTRING: '`' ~[`]* '`' | '```' ~* '```'  // Deprecated, use raw strings
 ```
 
-**String Literals**: Can contain any UTF-8 characters:
+**String Literals (v0.40)**: Comprehensive Python-style string support:
+
 ```frame
+// Regular strings - UTF-8 support
 var greeting = "Hello, 世界! 🌍"
 var message = "Unicode works: ✓ ✗ ★ ☆"
+
+// F-strings - formatted string literals
+var name = "Frame"
+var version = 0.40
+var msg = f"Hello {name} v{version}!"
+
+// Raw strings - no escape processing
+var path = r"C:\Users\Frame\Documents"
+var pattern = r"\d{3}-\d{4}"
+
+// Byte strings - binary data
+var data = b"Binary data"
+
+// Triple-quoted strings - multi-line
+var text = """This is a
+multi-line string
+with preserved formatting"""
+
+// Prefixed triple-quoted
+var raw_multi = r"""Raw multi-line
+with \n literal"""
+
+// Percent formatting
+var formatted = "Name: %s, Version: %.2f" % (name, version)
 ```
 
 ## Keywords

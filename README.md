@@ -35,6 +35,13 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Exponent Operator**: Right-associative `**` for power operations
 - **Collection Literals**: Lists `[]`, dicts `{}`, sets `{1,2}`, tuples `()`, empty set `{,}`
 
+### String Literals (v0.40)
+- **F-strings**: `f"Hello {name}"` - Formatted string literals with embedded expressions
+- **Raw strings**: `r"C:\path"` - No escape sequence processing
+- **Byte strings**: `b"binary"` - Binary data representation
+- **Triple-quoted**: `"""multi-line"""` - Multi-line strings with preserved formatting
+- **Percent formatting**: `"Hello %s" % name` - Classic Python string formatting
+
 ### Frame Standard Library (FSL)
 - **Type Conversions**: `str()`, `int()`, `float()`, `bool()`
 - **List Operations**: `.append()`, `.pop()`, `.sort()`, `.reverse()`, etc.
@@ -47,7 +54,7 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Interface Methods**: Public system interfaces with async support
 
 ### Test Coverage
-- **100% Success Rate**: 314/314 tests passing 🎉
+- **100% Success Rate**: 315/315 tests passing 🎉
 - **UTF-8 Support**: Full Unicode character support in source files
 - **Complete Feature Coverage**: All Python operators and core language features fully tested
 - **Virtual Environment**: Test suite includes NumPy support for matrix multiplication

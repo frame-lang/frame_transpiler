@@ -8587,6 +8587,22 @@ impl AstVisitor for PythonVisitor {
             TokenType::Number => self.add_code(&literal_expression_node.value.to_string()),
             // SuperString removed - backticks no longer supported
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
+            TokenType::FString => {
+                // F-strings use the lexeme directly as it contains the full f"..." syntax
+                self.add_code(&literal_expression_node.value);
+            },
+            TokenType::RawString => {
+                // Raw strings use the lexeme directly as it contains the full r"..." syntax
+                self.add_code(&literal_expression_node.value);
+            },
+            TokenType::ByteString => {
+                // Byte strings use the lexeme directly as it contains the full b"..." syntax
+                self.add_code(&literal_expression_node.value);
+            },
+            TokenType::TripleQuotedString => {
+                // Triple-quoted strings use the lexeme directly
+                self.add_code(&literal_expression_node.value);
+            },
             TokenType::True => self.add_code("True"),
             TokenType::False => self.add_code("False"),
             TokenType::None_ => self.add_code("None"),
@@ -8608,6 +8624,22 @@ impl AstVisitor for PythonVisitor {
             TokenType::Number => output.push_str(&literal_expression_node.value.to_string()),
             TokenType::String => {
                 output.push_str(&format!("\"{}\"", literal_expression_node.value));
+            }
+            TokenType::FString => {
+                // F-strings use the lexeme directly
+                output.push_str(&literal_expression_node.value);
+            }
+            TokenType::RawString => {
+                // Raw strings use the lexeme directly
+                output.push_str(&literal_expression_node.value);
+            }
+            TokenType::ByteString => {
+                // Byte strings use the lexeme directly
+                output.push_str(&literal_expression_node.value);
+            }
+            TokenType::TripleQuotedString => {
+                // Triple-quoted strings use the lexeme directly
+                output.push_str(&literal_expression_node.value);
             }
             TokenType::True => {
                 output.push_str("True");

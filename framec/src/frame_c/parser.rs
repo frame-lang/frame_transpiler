@@ -10235,6 +10235,10 @@ impl<'a> Parser<'a> {
         let literal_tokens = vec![
             // SuperString removed,
             TokenType::String,
+            TokenType::FString,
+            TokenType::RawString,
+            TokenType::ByteString,
+            TokenType::TripleQuotedString,
             TokenType::Number,
             TokenType::True,
             TokenType::False,

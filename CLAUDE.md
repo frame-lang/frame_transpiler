@@ -40,7 +40,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.40`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (314/314 tests passing) - Python Operator Alignment Complete with Matrix Multiplication
+**Status**: ✅ **100% TEST SUCCESS RATE** (315/315 tests passing) - Python String Literals and Operator Alignment Complete
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -719,6 +719,49 @@ fn literals() {
     var hex = 0x1A2B        # Hexadecimal notation
 }
 ```
+
+#### Python String Literals (NEW in v0.40) ✅
+Frame v0.40 adds comprehensive support for Python's string literal features:
+
+```frame
+fn string_features() {
+    var name = "Frame"
+    var version = 0.40
+    
+    # F-strings (formatted string literals)
+    var msg = f"Hello {name} v{version}!"
+    var calc = f"Sum: {2 + 3}"
+    
+    # Raw strings (no escape processing)
+    var path = r"C:\Users\Frame\Documents"
+    var regex = r"\d{3}-\d{4}"
+    
+    # Byte strings (binary data)
+    var data = b"Binary data"
+    
+    # Triple-quoted strings (multi-line)
+    var text = """This is a
+    multi-line string
+    with preserved formatting"""
+    
+    # Prefixed triple-quoted
+    var raw_multi = r"""Raw multi-line
+    with \n literal"""
+    
+    # Percent formatting (classic Python)
+    var fmt1 = "Hello %s" % name
+    var fmt2 = "%s v%.2f" % (name, version)
+    var fmt3 = "%(lang)s v%(ver).1f" % {"lang": name, "ver": version}
+}
+```
+
+**String Feature Support**:
+- **F-strings**: `f"text {expr}"` - Formatted string literals with embedded expressions
+- **Raw strings**: `r"text"` - No escape sequence processing
+- **Byte strings**: `b"text"` - Binary data representation
+- **Triple-quoted**: `"""text"""` - Multi-line strings with preserved formatting
+- **Prefixed triple-quoted**: `r"""text"""`, `f"""text"""` - Combined features
+- **Percent formatting**: `"format" % values` - Classic Python string formatting
 
 ### v0.34 Module System (Complete Implementation)
 

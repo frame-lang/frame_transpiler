@@ -483,6 +483,14 @@ impl Scanner {
         }
         return self.chars[self.current + 1];
     }
+    
+    fn peek_at(&self, offset: usize) -> char {
+        let pos = self.current + offset;
+        if pos >= self.chars.len() {
+            return '\0';
+        }
+        self.chars[pos]
+    }
 
     fn is_digit(&self, c: char) -> bool {
         ('0'..='9').contains(&c)
@@ -568,6 +576,18 @@ impl Scanner {
     }
 
     fn identifier(&mut self) {
+        // Check for string prefixes before consuming the identifier
+        let first_char = self.chars[self.start];
+        let has_quote_ahead = self.peek() == '"' || (self.peek() == '"' && self.peek_at(1) == '"' && self.peek_at(2) == '"');
+        
+        // Check for f-strings, raw strings, byte strings
+        if (first_char == 'f' || first_char == 'F' || 
+            first_char == 'r' || first_char == 'R' ||
+            first_char == 'b' || first_char == 'B') && has_quote_ahead {
+            // Handle string prefix
+            return self.prefixed_string(first_char);
+        }
+        
         while self.is_alpha_numeric(self.peek()) {
             self.advance();
         }
@@ -731,6 +751,15 @@ impl Scanner {
             tok_type, lex, literal, self.line, self.start, len,
         ));
     }
+    
+    fn add_prefixed_string_token(&mut self, tok_type: TokenType) {
+        // For prefixed strings, we want to preserve the entire lexeme including prefix and quotes
+        let lex = self.chars[self.start..self.current].iter().collect::<String>();
+        let len = self.current - self.start;
+        self.tokens.push(Token::new(
+            tok_type, lex, TokenLiteral::None, self.line, self.start, len,
+        ));
+    }
 
     fn error(&mut self, line: usize, error_msg: &str) {
         let error = &format!("Line {} : Error: {}\n", line, error_msg);
@@ -740,6 +769,13 @@ impl Scanner {
     }
 
     fn string(&mut self) {
+        // Check for triple-quoted string
+        if self.peek() == '"' && self.peek_at(1) == '"' {
+            self.advance(); // consume second quote
+            self.advance(); // consume third quote
+            return self.triple_quoted_string();
+        }
+        
         while !self.is_at_end() {
             let c = self.peek();
             if c == '\\' {
@@ -764,6 +800,88 @@ impl Scanner {
         self.advance();
 
         self.add_string_token_literal(TokenType::String, TokenLiteral::None);
+    }
+    
+    fn prefixed_string(&mut self, prefix: char) {
+        // Already consumed the prefix letter, now consume the quote(s)
+        if self.peek() == '"' {
+            self.advance(); // consume first quote
+            
+            // Check for triple-quoted string
+            if self.peek() == '"' && self.peek_at(1) == '"' {
+                self.advance(); // consume second quote
+                self.advance(); // consume third quote
+                
+                // Handle triple-quoted prefixed string
+                self.scan_triple_quoted_content();
+                
+                match prefix {
+                    'f' | 'F' => self.add_prefixed_string_token(TokenType::FString),
+                    'r' | 'R' => self.add_prefixed_string_token(TokenType::RawString),
+                    'b' | 'B' => self.add_prefixed_string_token(TokenType::ByteString),
+                    _ => unreachable!(),
+                }
+            } else {
+                // Regular prefixed string
+                self.scan_regular_string_content(prefix == 'r' || prefix == 'R');
+                
+                match prefix {
+                    'f' | 'F' => self.add_prefixed_string_token(TokenType::FString),
+                    'r' | 'R' => self.add_prefixed_string_token(TokenType::RawString),
+                    'b' | 'B' => self.add_prefixed_string_token(TokenType::ByteString),
+                    _ => unreachable!(),
+                }
+            }
+        }
+    }
+    
+    fn triple_quoted_string(&mut self) {
+        self.scan_triple_quoted_content();
+        self.add_prefixed_string_token(TokenType::TripleQuotedString);
+    }
+    
+    fn scan_triple_quoted_content(&mut self) {
+        // Scan until we find three quotes in a row
+        while !self.is_at_end() {
+            if self.peek() == '"' && self.peek_at(1) == '"' && self.peek_at(2) == '"' {
+                self.advance(); // consume first closing quote
+                self.advance(); // consume second closing quote
+                self.advance(); // consume third closing quote
+                return;
+            }
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+        
+        // Unterminated triple-quoted string
+        self.error(self.line, "Unterminated triple-quoted string.");
+    }
+    
+    fn scan_regular_string_content(&mut self, is_raw: bool) {
+        while !self.is_at_end() {
+            let c = self.peek();
+            if !is_raw && c == '\\' {
+                self.advance();
+                if self.is_at_end() {
+                    break;
+                }
+            } else if c == '\n' {
+                // Allow newlines in regular strings for now
+            } else if c == '"' {
+                break;
+            }
+            self.advance();
+        }
+        
+        // Unterminated string
+        if self.is_at_end() {
+            self.error(self.line, "Unterminated string.");
+            return;
+        }
+        
+        self.advance(); // consume closing quote
     }
 
     // Backtick/SuperString support removed - no longer needed in Frame
@@ -819,6 +937,10 @@ pub enum TokenType {
     Transition,                   // ->
     //    ChangeState,                  // ->>
     String,      // "foo"
+    FString,     // f"foo {bar}" - formatted string literal (v0.40)
+    RawString,   // r"foo\bar" - raw string literal (v0.40)
+    ByteString,  // b"foo" - byte string literal (v0.40)
+    TripleQuotedString, // """foo""" - multi-line string (v0.40)
     // REMOVED: ThreeTicks (```) - not used
     Number,                 // 1, 1.01
     Var,                    // var keyword
