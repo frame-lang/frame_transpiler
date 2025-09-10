@@ -1594,6 +1594,10 @@ pub enum ExprType {
     DictComprehensionExprT {
         dict_comprehension_node: DictComprehensionNode,
     },
+    // Set comprehension (v0.41)
+    SetComprehensionExprT {
+        set_comprehension_node: SetComprehensionNode,
+    },
     // Await expression (v0.35)
     AwaitExprT {
         await_expr_node: AwaitExprNode,
@@ -1705,6 +1709,7 @@ impl ExprType {
             ExprType::DictUnpackExprT { .. } => "DictUnpackExprT",
             ExprType::ListComprehensionExprT { .. } => "ListComprehensionExprT",
             ExprType::DictComprehensionExprT { .. } => "DictComprehensionExprT",
+            ExprType::SetComprehensionExprT { .. } => "SetComprehensionExprT",
             ExprType::AwaitExprT { .. } => "AwaitExprT",
             ExprType::LambdaExprT { .. } => "LambdaExprT",
             ExprType::FunctionRefT { .. } => "FunctionRefT",
@@ -1765,6 +1770,17 @@ impl ExprType {
                 print!(" for {} in ", dict_comprehension_node.target);
                 dict_comprehension_node.iter.debug_print();
                 if let Some(ref cond) = dict_comprehension_node.condition {
+                    print!(" if ");
+                    cond.debug_print();
+                }
+                print!("}}");
+            }
+            ExprType::SetComprehensionExprT { set_comprehension_node } => {
+                print!("{{");
+                set_comprehension_node.expr.debug_print();
+                print!(" for {} in ", set_comprehension_node.target);
+                set_comprehension_node.iter.debug_print();
+                if let Some(ref cond) = set_comprehension_node.condition {
                     print!(" if ");
                     cond.debug_print();
                 }
@@ -1879,6 +1895,9 @@ impl NodeElement for ExprType {
             ExprType::DictComprehensionExprT { dict_comprehension_node } => {
                 ast_visitor.visit_dict_comprehension_node(dict_comprehension_node);
             }
+            ExprType::SetComprehensionExprT { set_comprehension_node } => {
+                ast_visitor.visit_set_comprehension_node(set_comprehension_node);
+            }
             ExprType::AwaitExprT { await_expr_node } => {
                 ast_visitor.visit_await_expr_node(await_expr_node);
             }
@@ -1992,6 +2011,9 @@ impl NodeElement for ExprType {
             }
             ExprType::DictComprehensionExprT { dict_comprehension_node } => {
                 ast_visitor.visit_dict_comprehension_node_to_string(dict_comprehension_node, output);
+            }
+            ExprType::SetComprehensionExprT { set_comprehension_node } => {
+                ast_visitor.visit_set_comprehension_node_to_string(set_comprehension_node, output);
             }
             ExprType::AwaitExprT { await_expr_node } => {
                 ast_visitor.visit_await_expr_node_to_string(await_expr_node, output);
@@ -4753,6 +4775,42 @@ impl NodeElement for DictComprehensionNode {
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_dict_comprehension_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// SetComprehensionNode for {expr for var in iterable if condition} (v0.41)
+pub struct SetComprehensionNode {
+    pub expr: Box<ExprType>,            // The expression to evaluate
+    pub target: String,                 // Loop variable name
+    pub iter: Box<ExprType>,            // The iterable to loop over
+    pub condition: Option<Box<ExprType>>, // Optional filter condition
+}
+
+impl SetComprehensionNode {
+    pub fn new(
+        expr: ExprType,
+        target: String,
+        iter: ExprType,
+        condition: Option<ExprType>,
+    ) -> SetComprehensionNode {
+        SetComprehensionNode {
+            expr: Box::new(expr),
+            target,
+            iter: Box::new(iter),
+            condition: condition.map(Box::new),
+        }
+    }
+}
+
+impl NodeElement for SetComprehensionNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_set_comprehension_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_set_comprehension_node_to_string(self, output);
     }
 }
 

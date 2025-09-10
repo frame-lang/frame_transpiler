@@ -8453,6 +8453,50 @@ impl AstVisitor for PythonVisitor {
         output.push('}');
     }
     
+    // v0.41: Visit set comprehension node
+    fn visit_set_comprehension_node(&mut self, comp: &SetComprehensionNode) {
+        self.add_code("{");
+        
+        // Generate the expression part
+        comp.expr.accept(self);
+        
+        // Generate 'for target in iterable'
+        self.add_code(" for ");
+        self.add_code(&comp.target);
+        self.add_code(" in ");
+        comp.iter.accept(self);
+        
+        // Optional 'if' condition
+        if let Some(ref condition) = comp.condition {
+            self.add_code(" if ");
+            condition.accept(self);
+        }
+        
+        self.add_code("}");
+    }
+    
+    // v0.41: Visit set comprehension node to string
+    fn visit_set_comprehension_node_to_string(&mut self, comp: &SetComprehensionNode, output: &mut String) {
+        output.push('{');
+        
+        // Generate the expression part
+        comp.expr.accept_to_string(self, output);
+        
+        // Generate 'for target in iterable'
+        output.push_str(" for ");
+        output.push_str(&comp.target);
+        output.push_str(" in ");
+        comp.iter.accept_to_string(self, output);
+        
+        // Optional 'if' condition
+        if let Some(ref condition) = comp.condition {
+            output.push_str(" if ");
+            condition.accept_to_string(self, output);
+        }
+        
+        output.push('}');
+    }
+    
     // v0.34: Visit unpacking expression node to string  
     fn visit_unpack_expr_node_to_string(&mut self, unpack: &UnpackExprNode, output: &mut String) {
         output.push('*');

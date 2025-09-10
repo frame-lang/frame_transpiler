@@ -3493,6 +3493,7 @@ impl<'a> Parser<'a> {
                     AwaitExprT { await_expr_node } => Rc::new(AwaitExprT { await_expr_node }),
                     LambdaExprT { lambda_expr_node } => Rc::new(LambdaExprT { lambda_expr_node }),
                     DictComprehensionExprT { dict_comprehension_node } => Rc::new(DictComprehensionExprT { dict_comprehension_node }),
+                    SetComprehensionExprT { set_comprehension_node } => Rc::new(SetComprehensionExprT { set_comprehension_node }),
                     FunctionRefT { name } => Rc::new(FunctionRefT { name }),
                     
                     // Invalid assignment types
@@ -5116,6 +5117,10 @@ impl<'a> Parser<'a> {
             ListComprehensionExprT { .. } => {
                 self.error_at_previous("List comprehension expressions not allowed as statements.");
                 Err(ParseError::new("List comprehension must be part of an assignment or expression"))
+            }
+            SetComprehensionExprT { .. } => {
+                self.error_at_previous("Set comprehension expressions not allowed as statements.");
+                Err(ParseError::new("Set comprehension must be part of an assignment or expression"))
             }
             AwaitExprT { await_expr_node } => {
                 // Await expressions can be statements (like await some_async_call())
@@ -8457,7 +8462,20 @@ impl<'a> Parser<'a> {
                 dict_literal_node: DictLiteralNode::new(pairs)
             })
         } else {
-            // It's a set
+            // It's a set or set comprehension
+            
+            // Check if it's a set comprehension (has 'for' keyword after first expression)
+            if self.peek().token_type == TokenType::For {
+                // It's a set comprehension
+                let comp_result = self.set_comprehension(first_expr)?;
+                // Consume the closing brace
+                if !self.match_token(&[TokenType::CloseBrace]) {
+                    return Err(ParseError::new("Expected '}' after set comprehension"));
+                }
+                return Ok(comp_result);
+            }
+            
+            // It's a regular set literal
             let mut elements = vec![first_expr];
             
             // Check for single element set
@@ -8620,6 +8638,50 @@ impl<'a> Parser<'a> {
         let comprehension_node = DictComprehensionNode::new(key_expr, value_expr, target, iter, condition);
         Ok(ExprType::DictComprehensionExprT { 
             dict_comprehension_node: comprehension_node 
+        })
+    }
+
+    // Parse set comprehension: {expr for var in iterable if condition}
+    fn set_comprehension(&mut self, expr: ExprType) -> Result<ExprType, ParseError> {
+        // Consume 'for' keyword
+        if !self.match_token(&[TokenType::For]) {
+            return Err(ParseError::new("Expected 'for' in set comprehension"));
+        }
+        
+        // Parse target variable
+        if !self.match_token(&[TokenType::Identifier]) {
+            return Err(ParseError::new("Expected identifier after 'for' in set comprehension"));
+        }
+        let target = self.previous().lexeme.clone();
+        
+        // Consume 'in' keyword
+        if !self.match_token(&[TokenType::In]) {
+            return Err(ParseError::new("Expected 'in' after variable in set comprehension"));
+        }
+        
+        // Parse iterable expression
+        let iter = match self.expression() {
+            Ok(Some(e)) => e,
+            Ok(None) => return Err(ParseError::new("Expected iterable in set comprehension")),
+            Err(e) => return Err(e),
+        };
+        
+        // Parse optional condition
+        let condition = if self.match_token(&[TokenType::If]) {
+            match self.expression() {
+                Ok(Some(e)) => Some(e),
+                Ok(None) => return Err(ParseError::new("Expected condition after 'if' in set comprehension")),
+                Err(e) => return Err(e),
+            }
+        } else {
+            None
+        };
+        
+        // DO NOT consume closing brace - let dict_or_set_literal handle it
+        
+        let comprehension_node = SetComprehensionNode::new(expr, target, iter, condition);
+        Ok(ExprType::SetComprehensionExprT { 
+            set_comprehension_node: comprehension_node 
         })
     }
 

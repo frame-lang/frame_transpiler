@@ -39,8 +39,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.40`  
-**Status**: ✅ **100% TEST SUCCESS RATE** (315/315 tests passing) - Python String Literals and Operator Alignment Complete
+**Version**: `v0.41`  
+**Status**: ✅ **100% TEST SUCCESS RATE** (318/318 tests passing) - Set Comprehensions & Complete Collection Support
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -54,6 +54,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.38 achievements, see**: [`docs/v0.38_achievements.md`](docs/v0.38_achievements.md)
 📊 **For v0.39 achievements, see**: [`docs/v0.39_achievements.md`](docs/v0.39_achievements.md)
 📊 **For v0.40 achievements, see**: [`docs/v0.40_achievements.md`](docs/v0.40_achievements.md)
+📊 **For v0.41 achievements, see**: [`docs/v0.41_achievements.md`](docs/v0.41_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)

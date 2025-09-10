@@ -125,6 +125,8 @@ pub trait AstVisitor {
     fn visit_list_comprehension_node_to_string(&mut self, _comprehension: &ListComprehensionNode, _output: &mut String) {}
     fn visit_dict_comprehension_node(&mut self, _comprehension: &DictComprehensionNode) {}
     fn visit_dict_comprehension_node_to_string(&mut self, _comprehension: &DictComprehensionNode, _output: &mut String) {}
+    fn visit_set_comprehension_node(&mut self, _comprehension: &SetComprehensionNode) {}
+    fn visit_set_comprehension_node_to_string(&mut self, _comprehension: &SetComprehensionNode, _output: &mut String) {}
     
     // v0.38: Dict unpacking
     fn visit_dict_unpack_expr_node(&mut self, _dict_unpack_expr: &DictUnpackExprNode) {}
