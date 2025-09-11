@@ -47,6 +47,8 @@ pub trait AstVisitor {
     fn visit_module(&mut self, _node: &Module) {}
     fn visit_module_node(&mut self, _node: &ModuleNode) {}
     fn visit_import_node(&mut self, _node: &ImportNode) {}
+    fn visit_class_node(&mut self, _node: &ClassNode) {}
+    fn visit_method_node(&mut self, _node: &MethodNode) {}
     fn visit_function_node(&mut self, _node: &FunctionNode) {}
     fn visit_system_node(&mut self, _node: &SystemNode) {}
     fn visit_system_instance_statement_node(&mut self, _system_instance_stmt_node: &SystemInstanceStmtNode) {}

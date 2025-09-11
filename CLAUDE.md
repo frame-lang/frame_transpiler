@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), and v0.44 (comprehensive pattern matching with match-case).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), and v0.45 (class support with OOP features).
 
 ## File Locations
 
@@ -39,8 +39,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.44`  
-**Status**: ✅ **100% TEST SUCCESS RATE** - Comprehensive Pattern Matching Complete
+**Version**: `v0.45`  
+**Status**: ✅ **100% TEST SUCCESS RATE** - Class Support Complete
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -58,6 +58,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.42 achievements, see**: [`docs/v0.42_achievements.md`](docs/v0.42_achievements.md)
 📊 **For v0.43 achievements, see**: [`docs/v0.43_achievements.md`](docs/v0.43_achievements.md)
 📊 **For v0.44 achievements, see**: [`docs/v0.44_achievements.md`](docs/v0.44_achievements.md)
+📊 **For v0.45 achievements, see**: [`docs/v0.45_achievements.md`](docs/v0.45_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
@@ -873,6 +874,87 @@ match score {
     case _ { return "F" }
 }
 ```
+
+### v0.45 Class Support (COMPLETE) ✅
+
+Frame v0.45 introduces basic class support for object-oriented programming, enabling familiar OOP patterns alongside Frame's state machine paradigm.
+
+#### Class Declaration Syntax
+```frame
+class ClassName {
+    # Class variables
+    var shared_var = 0
+    
+    # Constructor (method named 'init')
+    fn init(param1, param2) {
+        self.instance_var1 = param1
+        self.instance_var2 = param2
+    }
+    
+    # Instance method
+    fn method_name(args) {
+        # Access instance vars via self
+        return self.instance_var1
+    }
+    
+    # Static method
+    @staticmethod
+    fn static_method(args) {
+        # No self parameter
+        return ClassName(args)
+    }
+}
+```
+
+#### Key Features
+- **Constructor Methods**: Methods named `init` automatically become constructors
+- **Implicit Self**: Method signatures don't include `self` (added automatically)
+- **Instance Variables**: Created via `self.varname = value` assignments
+- **Class Variables**: Declared at class level with `var name = value`
+- **Static Methods**: Use `@staticmethod` decorator for non-instance methods
+- **Method Calls**: Instance methods via `obj.method()`, static via `Class.method()`
+
+#### Example Usage
+```frame
+class Point {
+    var instance_count = 0
+    
+    fn init(x, y) {
+        self.x = x
+        self.y = y
+        Point.instance_count = Point.instance_count + 1
+    }
+    
+    fn distance_to(other) {
+        var dx = self.x - other.x
+        var dy = self.y - other.y
+        return ((dx * dx) + (dy * dy)) ** 0.5
+    }
+    
+    @staticmethod
+    fn origin() {
+        return Point(0, 0)
+    }
+}
+
+fn main() {
+    var p1 = Point(3, 4)
+    var p2 = Point.origin()
+    var dist = p1.distance_to(p2)
+    print("Distance: " + str(dist))
+    print("Points created: " + str(Point.instance_count))
+}
+```
+
+#### Implementation Status
+- ✅ Class declarations with methods and variables
+- ✅ Constructor methods (init)
+- ✅ Instance methods with implicit self
+- ✅ Static methods with @staticmethod
+- ✅ Class and instance variables
+- ✅ Proper variable scoping in methods
+- ❌ Inheritance (not yet supported)
+- ❌ Access modifiers (all members public)
 
 ### v0.34 Module System (Complete Implementation)
 

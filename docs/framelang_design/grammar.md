@@ -1,14 +1,14 @@
-# Frame Language Grammar (v0.44)
+# Frame Language Grammar (v0.45)
 
-**Last Updated**: 2025-01-24  
-**Status**: Complete with comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, and string literal method calls
+**Last Updated**: 2025-01-27  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, and string literal method calls
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
 ## Module Structure
 
 ```bnf
-module: (import_stmt | enum_decl | var_decl | function | async_function | system)*
+module: (import_stmt | enum_decl | class_decl | var_decl | function | async_function | system)*
 ```
 
 **v0.31 Import Support**: Modules can now include native import statements at the top level, supporting Python module imports without requiring backticks.
@@ -79,6 +79,80 @@ module DataProcessor {
     }
 }
 ```
+
+## Classes (v0.45)
+
+Frame v0.45 introduces class support for object-oriented programming, providing a familiar syntax for defining classes with methods and variables.
+
+```bnf
+class_decl: 'class' IDENTIFIER '{' class_body '}'
+class_body: (var_decl | method_decl | static_method_decl)*
+
+method_decl: 'fn' IDENTIFIER '(' parameters? ')' (':' type)? '{' statements '}'
+static_method_decl: '@staticmethod' 'fn' IDENTIFIER '(' parameters? ')' (':' type)? '{' statements '}'
+```
+
+### Class Features
+
+- **Constructor Methods**: Methods named `init` become constructors (`__init__` in Python)
+- **Instance Methods**: Regular methods with implicit `self` parameter
+- **Static Methods**: Methods decorated with `@staticmethod` (no implicit `self`)
+- **Class Variables**: Variables declared at class level (shared across instances)
+- **Instance Variables**: Variables assigned via `self.varname` in methods
+- **Method Calls**: Instance methods called via `object.method()`, static via `ClassName.method()`
+
+### Class Examples
+
+```frame
+# Basic class with constructor and methods
+class Point {
+    # Class/static variable
+    var instance_count = 0
+    
+    # Constructor (implicit init method)
+    fn init(x, y) {
+        self.x = x  # Instance variables
+        self.y = y
+        Point.instance_count = Point.instance_count + 1
+    }
+    
+    # Instance method
+    fn distance_to(other) {
+        var dx = self.x - other.x
+        var dy = self.y - other.y
+        return ((dx * dx) + (dy * dy)) ** 0.5
+    }
+    
+    # Static method
+    @staticmethod
+    fn origin() {
+        return Point(0, 0)
+    }
+    
+    # Special method (Python __str__)
+    fn __str__() {
+        return "Point(" + str(self.x) + ", " + str(self.y) + ")"
+    }
+}
+
+# Using classes
+fn main() {
+    var p1 = Point(3.0, 4.0)
+    var p2 = Point(6.0, 8.0)
+    var origin = Point.origin()  # Static method call
+    
+    var dist = p1.distance_to(p2)  # Instance method call
+    print("Distance: " + str(dist))
+    print("Points created: " + str(Point.instance_count))
+}
+```
+
+### Key Differences from Traditional OOP
+
+- **Implicit `self`**: Method signatures don't include `self` parameter (added automatically)
+- **No Inheritance**: Frame v0.45 supports single classes without inheritance
+- **No Access Modifiers**: All members are public
+- **Python-style Special Methods**: Use `__str__`, `__repr__`, etc. for special behavior
 
 ## Scope Rules (v0.31)
 
@@ -1709,6 +1783,7 @@ Similar to if/elif/else statements:
 stmt: expr_stmt
     | var_decl
     | assignment
+    | assert_stmt
     | if_stmt
     | match_stmt
     | for_stmt
@@ -1728,6 +1803,7 @@ stmt: expr_stmt
 
 expr_stmt: expr
 var_decl: 'var' IDENTIFIER type? '=' expr
+assert_stmt: 'assert' expr (',' expr)?
 assignment: lvalue assignment_op expr
 assignment_op: '=' | '+=' | '-=' | '*=' | '/=' | '//=' | '%=' | '**=' | '@='  // v0.39-40
              | '&=' | '|=' | '^=' | '<<=' | '>>='  // v0.39-40: Bitwise compound

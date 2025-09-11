@@ -130,6 +130,7 @@ pub struct Parser<'a> {
     is_action_scope: bool,
     operation_scope_depth: i32,
     is_static_operation: bool,
+    is_class_method: bool,  // v0.45: Track if we're in a class method
     is_function_scope: bool,
     is_system_scope: bool,
     is_loop_scope: bool,
@@ -199,6 +200,7 @@ impl<'a> Parser<'a> {
             is_action_scope: false,
             operation_scope_depth: 0,
             is_static_operation: false,
+            is_class_method: false,
             is_function_scope: false,
             is_system_scope: false,
             is_loop_scope: false,
@@ -257,6 +259,7 @@ impl<'a> Parser<'a> {
         // v0.31: Parse module-level variables, functions, systems, and statements
         let mut functions = Vec::new();
         let mut systems = Vec::new();
+        let mut classes = Vec::new();   // v0.45: Classes
         let mut variables = Vec::new();
         let mut enums = Vec::new();
         let mut modules = Vec::new();  // v0.34: Nested modules
@@ -273,6 +276,17 @@ impl<'a> Parser<'a> {
                         if let Some(ref mut elements) = module_elements_opt {
                             elements.push(crate::frame_c::ast::ModuleElement::Enum { enum_decl_node: enum_decl });
                         }
+                    }
+                    Err(e) => return Err(e),
+                }
+                continue;
+            }
+            
+            // Check for class declarations
+            if self.match_token(&[TokenType::Class]) {
+                match self.class_decl() {
+                    Ok(class_decl) => {
+                        classes.push(class_decl);
                     }
                     Err(e) => return Err(e),
                 }
@@ -333,6 +347,13 @@ impl<'a> Parser<'a> {
                 }
                 let module = self.module_declaration()?;
                 modules.push(module);
+            } else if self.match_token(&[TokenType::Class]) {
+                // v0.45: Parse class declaration
+                if entity_attributes_opt.is_some() {
+                    return Err(ParseError::new("Classes do not support attributes in the current implementation."));
+                }
+                let class = self.class_declaration()?;
+                classes.push(class);
             } else if entity_attributes_opt.is_some() {
                 // We parsed attributes but found no system or function - this is an error
                 return Err(ParseError::new("Expected 'system' after attributes. Functions do not support attributes."));
@@ -374,7 +395,7 @@ impl<'a> Parser<'a> {
             None => crate::frame_c::ast::Module::new(vec![]),
         };
         
-        Ok(FrameModule::new(final_module, functions, systems, variables, enums, modules, statements))
+        Ok(FrameModule::new(final_module, functions, systems, classes, variables, enums, modules, statements))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3335,6 +3356,188 @@ impl<'a> Parser<'a> {
 
     //* --------------------------------------------------------------------- *//
 
+    fn class_decl(&mut self) -> Result<Rc<RefCell<ClassNode>>, ParseError> {
+        // Get class name
+        let class_name = match self.match_token(&[TokenType::Identifier]) {
+            false => {
+                self.error_at_current("Expected class name");
+                return Err(ParseError::new("Expected class name"));
+            }
+            true => self.previous().lexeme.clone(),
+        };
+        
+        let line = self.previous().line;
+        
+        // Expect opening brace
+        if !self.match_token(&[TokenType::OpenBrace]) {
+            self.error_at_current("Expected '{' after class name");
+            return Err(ParseError::new("Expected '{' after class name"));
+        }
+        
+        let mut instance_vars = Vec::new();
+        let mut static_vars = Vec::new();
+        let mut methods = Vec::new();
+        let mut static_methods = Vec::new();
+        let mut constructor = None;
+        
+        // Parse class body
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            eprintln!("DEBUG: In class body, current token: {:?}", self.peek());
+            
+            // Skip comments
+            if self.match_token(&[TokenType::PythonComment]) {
+                continue;
+            }
+            
+            // Check for static method
+            if self.check(TokenType::At) {
+                eprintln!("DEBUG: Found @ token");
+                // Check if it's @staticmethod
+                let saved_pos = self.current;
+                self.advance(); // consume @
+                eprintln!("DEBUG: After @, next token: {:?}", self.peek());
+                if self.check(TokenType::Identifier) && self.peek().lexeme == "staticmethod" {
+                    self.advance(); // consume "staticmethod"
+                    // Static method
+                    if self.match_token(&[TokenType::Function]) {
+                        let method = self.method_decl(true)?;
+                        static_methods.push(method);
+                        continue; // Move to next class member
+                    } else {
+                        self.error_at_current("Expected 'fn' after @staticmethod");
+                        return Err(ParseError::new("Expected 'fn' after @staticmethod"));
+                    }
+                } else {
+                    // Not @staticmethod, rewind
+                    self.current = saved_pos;
+                    eprintln!("DEBUG: @ not followed by staticmethod, rewinding");
+                }
+            }
+            // Check for function/method
+            else if self.match_token(&[TokenType::Function]) {
+                let method = self.method_decl(false)?;
+                // Check if it's a constructor
+                if method.borrow().name == "init" || method.borrow().is_constructor {
+                    constructor = Some(method);
+                } else {
+                    methods.push(method);
+                }
+                continue;
+            }
+            // Check for variable declaration
+            else if self.match_token(&[TokenType::Var]) {
+                let var_decl = self.var_declaration(IdentifierDeclScope::DomainBlockScope)?;
+                // For now, treat all class-level variables as static/class variables
+                // In the future, we might want to use a decorator to distinguish
+                static_vars.push(var_decl);
+                continue;
+            }
+            else {
+                eprintln!("DEBUG: Unexpected token in class body: {:?}", self.peek());
+                self.error_at_current("Expected method or variable declaration in class body");
+                return Err(ParseError::new("Unexpected token in class body"));
+            }
+        }
+        
+        // Expect closing brace
+        if !self.match_token(&[TokenType::CloseBrace]) {
+            self.error_at_current("Expected '}' after class body");
+            return Err(ParseError::new("Expected '}' after class body"));
+        }
+        
+        let class_node = ClassNode::new(
+            class_name,
+            methods,
+            static_methods,
+            instance_vars,
+            static_vars,
+            constructor,
+            line,
+        );
+        
+        Ok(Rc::new(RefCell::new(class_node)))
+    }
+    
+    fn method_decl(&mut self, is_static: bool) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
+        // Get method name
+        let method_name = match self.match_token(&[TokenType::Identifier]) {
+            false => {
+                self.error_at_current("Expected method name");
+                return Err(ParseError::new("Expected method name"));
+            }
+            true => self.previous().lexeme.clone(),
+        };
+        
+        eprintln!("DEBUG: Parsing method '{}'", method_name);
+        
+        let line = self.previous().line;
+        let is_constructor = method_name == "init";
+        
+        // Parse parameters - parentheses are required for methods
+        if !self.match_token(&[TokenType::LParen]) {
+            self.error_at_current("Expected '(' after method name");
+            return Err(ParseError::new("Expected '(' after method name"));
+        }
+        let params_opt = self.parameters()?;
+        
+        // Consume closing parenthesis
+        if !self.match_token(&[TokenType::RParen]) {
+            self.error_at_current("Expected ')' after parameters");
+            return Err(ParseError::new("Expected ')' after parameters"));
+        }
+        
+        // Parse return type if specified
+        let type_opt = if self.match_token(&[TokenType::Colon]) {
+            Some(self.type_decl()?)
+        } else {
+            None
+        };
+        
+        // Expect opening brace for method body
+        if !self.match_token(&[TokenType::OpenBrace]) {
+            self.error_at_current("Expected '{' after method declaration");
+            return Err(ParseError::new("Expected '{' after method declaration"));
+        }
+        
+        // Parse method body
+        let mut statements = Vec::new();
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            // Use EventHandlerVarScope for local variables in methods
+            // This prevents them from getting the self. prefix
+            if let Some(stmt) = self.decl_or_stmt(IdentifierDeclScope::EventHandlerVarScope)? {
+                statements.push(stmt);
+            }
+        }
+        
+        // Expect closing brace
+        if !self.match_token(&[TokenType::CloseBrace]) {
+            self.error_at_current("Expected '}' after method body");
+            return Err(ParseError::new("Expected '}' after method body"));
+        }
+        
+        // Default terminator
+        let terminator_expr = TerminatorExpr::new(
+            TerminatorType::Return,
+            None,
+            line,
+        );
+        
+        let method_node = MethodNode::new(
+            method_name,
+            params_opt,
+            statements,
+            terminator_expr,
+            type_opt,
+            is_constructor,
+            is_static,
+            line,
+        );
+        
+        Ok(Rc::new(RefCell::new(method_node)))
+    }
+
+    //* --------------------------------------------------------------------- *//
+
     fn var_declaration(
         &mut self,
         identifier_decl_scope: IdentifierDeclScope,
@@ -3599,6 +3802,14 @@ impl<'a> Parser<'a> {
             },
             IdentifierDeclScope::ModuleScope => SymbolType::ModuleVariable {
                 module_variable_symbol_rcref: variable_symbol_rcref,
+            },
+            IdentifierDeclScope::ClassStaticScope => SymbolType::BlockVar {
+                // Use BlockVar for class static variables for now
+                block_variable_symbol_rcref: variable_symbol_rcref,
+            },
+            IdentifierDeclScope::ClassInstanceScope => SymbolType::BlockVar {
+                // Use BlockVar for class instance variables for now
+                block_variable_symbol_rcref: variable_symbol_rcref,
             },
             _ => {
                 let err_msg = "Unrecognized variable scope.";
@@ -6693,6 +6904,7 @@ impl<'a> Parser<'a> {
             }
         } else if self.match_token(&[TokenType::Self_]) {
             // Frame v0.31: Handle explicit self.method() and self.variable syntax
+            eprintln!("DEBUG: Found Self_ token in parse_special_keywords");
             return self.parse_self_context();
         } else if self.match_token(&[TokenType::SystemReturn]) {
             // Frame v0.31: Handle system.return special variable
@@ -11846,12 +12058,18 @@ impl<'a> Parser<'a> {
     fn parse_self_context(&mut self) -> Result<Option<ExprType>, ParseError> {
         use crate::frame_c::ast::SelfExprNode;
         
+        eprintln!("DEBUG parse_self_context: is_class_method={}, is_static_operation={}", 
+                  self.is_class_method, self.is_static_operation);
+        
         // Check if we're in a static operation - if so, self is not allowed
         if self.is_static_operation {
             let err_msg = "Cannot use 'self' in a static operation (marked with @staticmethod)";
             self.error_at_previous(err_msg);
             return Err(ParseError::new(err_msg));
         }
+        
+        // v0.45: Allow self in class instance methods
+        // For class methods, we allow self to work similarly to system contexts
         
         // We've already consumed 'self' token
         if !self.match_token(&[TokenType::Dot]) {
@@ -12075,6 +12293,251 @@ impl<'a> Parser<'a> {
             variables,
             enums,
             nested_modules,
+        ))))
+    }
+    
+    // ===================== Frame v0.45 Class Support =====================
+    
+    fn class_declaration(&mut self) -> Result<Rc<RefCell<ClassNode>>, ParseError> {
+        // We've already consumed 'class' keyword
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected class name after 'class'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let class_name = self.previous().lexeme.clone();
+        let line = self.previous().line;
+        
+        if !self.match_token(&[TokenType::OpenBrace]) {
+            let err_msg = "Expected '{' after class name";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // Enter class scope for parsing
+        if self.is_building_symbol_table {
+            self.arcanum.enter_scope(ParseScopeType::Class { 
+                class_name: class_name.clone() 
+            });
+        } else {
+            // Second pass: navigate to class scope
+            if let Err(err) = self.arcanum.set_parse_scope(&class_name) {
+                return Err(ParseError::new(&format!("Failed to enter class scope '{}': {}", class_name, err)));
+            }
+        }
+        
+        // Parse class members
+        let mut methods = Vec::new();
+        let mut static_methods = Vec::new();
+        let mut instance_vars = Vec::new();
+        let mut static_vars = Vec::new();
+        let mut constructor = None;
+        let mut has_explicit_init_annotation = false;
+        
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            // Check for @staticmethod decorator
+            let is_static = if self.check(TokenType::OuterAttributeOrDomainParams) {
+                // Parse attribute to see if it's @staticmethod
+                let saved_pos = self.current;
+                if self.match_token(&[TokenType::OuterAttributeOrDomainParams]) {
+                    if self.match_token(&[TokenType::Identifier]) {
+                        let attr_name = self.previous().lexeme.clone();
+                        if !self.match_token(&[TokenType::RBracket]) {
+                            return Err(ParseError::new("Expected ']' after attribute"));
+                        }
+                        attr_name == "staticmethod"
+                    } else {
+                        // Rewind if not a simple identifier attribute
+                        self.current = saved_pos;
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            
+            // Check for @init decorator
+            let is_init_annotated = if !is_static && self.check(TokenType::OuterAttributeOrDomainParams) {
+                let saved_pos = self.current;
+                if self.match_token(&[TokenType::OuterAttributeOrDomainParams]) {
+                    if self.match_token(&[TokenType::Identifier]) {
+                        let attr_name = self.previous().lexeme.clone();
+                        if !self.match_token(&[TokenType::RBracket]) {
+                            return Err(ParseError::new("Expected ']' after attribute"));
+                        }
+                        if attr_name == "init" {
+                            has_explicit_init_annotation = true;
+                            true
+                        } else {
+                            // Rewind if not init attribute
+                            self.current = saved_pos;
+                            false
+                        }
+                    } else {
+                        // Rewind if not a simple identifier attribute
+                        self.current = saved_pos;
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            
+            if self.match_token(&[TokenType::Var, TokenType::Const]) {
+                // Variable declaration (instance or static based on context/decorator)
+                let is_const = self.previous().token_type == TokenType::Const;
+                let var_decl = self.var_declaration(if is_static { 
+                    IdentifierDeclScope::ClassStaticScope 
+                } else { 
+                    IdentifierDeclScope::ClassInstanceScope 
+                })?;
+                
+                if is_static {
+                    static_vars.push(var_decl);
+                } else {
+                    instance_vars.push(var_decl);
+                }
+            } else if self.match_token(&[TokenType::Function]) {
+                // Method declaration
+                let method = self.parse_class_method(is_static, is_init_annotated)?;
+                
+                // Check if this is a constructor
+                let method_ref = method.borrow();
+                if is_init_annotated || (!has_explicit_init_annotation && method_ref.name == "init" && !is_static) {
+                    if constructor.is_some() {
+                        return Err(ParseError::new("Class can only have one constructor"));
+                    }
+                    eprintln!("DEBUG: Setting constructor for class, statements count: {}", method_ref.statements.len());
+                    drop(method_ref); // Release borrow
+                    constructor = Some(method.clone());
+                } else if is_static {
+                    drop(method_ref); // Release borrow
+                    static_methods.push(method);
+                } else {
+                    drop(method_ref); // Release borrow
+                    methods.push(method);
+                }
+            } else {
+                let err_msg = "Expected method or variable declaration in class";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+        }
+        
+        if !self.match_token(&[TokenType::CloseBrace]) {
+            let err_msg = "Expected '}' at end of class";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // Exit class scope
+        if self.is_building_symbol_table {
+            self.arcanum.exit_scope();
+        }
+        
+        Ok(Rc::new(RefCell::new(ClassNode::new(
+            class_name,
+            methods,
+            static_methods,
+            instance_vars,
+            static_vars,
+            constructor,
+            line,
+        ))))
+    }
+    
+    fn parse_class_method(&mut self, is_static: bool, is_constructor: bool) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
+        // We've already consumed 'fn' token
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected method name after 'fn'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let method_name = self.previous().lexeme.clone();
+        let line = self.previous().line;
+        
+        // Set flag to indicate we're in a class method (for self support)
+        let saved_is_class_method = self.is_class_method;
+        let saved_is_static = self.is_static_operation;
+        self.is_class_method = !is_static;
+        self.is_static_operation = is_static;
+        
+        // Parse parameters
+        if !self.match_token(&[TokenType::LParen]) {
+            let err_msg = "Expected '(' after method name";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let params = self.parameters()?;
+        
+        if !self.match_token(&[TokenType::RParen]) {
+            let err_msg = "Expected ')' after parameters";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // Optional return type
+        let type_opt = if self.match_token(&[TokenType::Colon]) {
+            Some(self.type_decl()?)
+        } else {
+            None
+        };
+        
+        // Parse method body
+        if !self.match_token(&[TokenType::OpenBrace]) {
+            let err_msg = "Expected '{' to begin method body";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // Parse statements
+        let mut statements = Vec::new();
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            // Check for variable declarations
+            if self.check(TokenType::Var) || self.check(TokenType::Const) {
+                self.match_token(&[TokenType::Var, TokenType::Const]);
+                // Use EventHandlerVarScope for method local variables (similar to how event handlers work)
+                let var_decl = self.var_declaration(IdentifierDeclScope::EventHandlerVarScope)?;
+                let decl_or_stmt = DeclOrStmtType::VarDeclT { var_decl_t_rcref: var_decl };
+                statements.push(decl_or_stmt);
+            } else if let Some(stmt) = self.statement()? {
+                let decl_or_stmt = DeclOrStmtType::StmtT { stmt_t: stmt };
+                statements.push(decl_or_stmt);
+                eprintln!("DEBUG: Added statement to class method");
+            } else {
+                eprintln!("DEBUG: statement() returned None in class method");
+            }
+        }
+        
+        if !self.match_token(&[TokenType::CloseBrace]) {
+            let err_msg = "Expected '}' at end of method body";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // Create terminator (implicit return for methods)
+        let terminator = TerminatorExpr::new(TerminatorType::Return, None, line);
+        
+        // Restore flags
+        self.is_class_method = saved_is_class_method;
+        self.is_static_operation = saved_is_static;
+        
+        Ok(Rc::new(RefCell::new(MethodNode::new(
+            method_name,
+            params,
+            statements,
+            terminator,
+            type_opt,
+            is_constructor,
+            is_static,
+            line,
         ))))
     }
     

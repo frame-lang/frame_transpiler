@@ -76,6 +76,8 @@ pub struct PythonVisitor {
     current_system_enums: HashSet<String>,   // Track enum names defined in the current system
     module_level_enums: HashSet<String>,     // Track enum names defined at module level
     system_has_async_runtime: bool,          // v0.37: Track if current system needs async runtime
+    pending_assert: bool,                    // v0.45: Track if we just output an assert and need to suppress next newline
+    in_class_method: bool,                   // v0.45: Track if we're in a class method
 }
 
 impl PythonVisitor {
@@ -165,6 +167,8 @@ impl PythonVisitor {
             current_system_enums: HashSet::new(),
             module_level_enums: HashSet::new(),
             system_has_async_runtime: false,
+            pending_assert: false,
+            in_class_method: false,
         }
     }
 
@@ -301,7 +305,7 @@ impl PythonVisitor {
     /// Returns true if we should use direct return instead of return stack
     /// This includes functions, actions, and operations but excludes event handlers
     pub fn should_use_direct_return(&self) -> bool {
-        self.in_standalone_function || self.operation_scope_depth > 0 || self.action_scope_depth > 0
+        self.in_standalone_function || self.operation_scope_depth > 0 || self.action_scope_depth > 0 || self.in_class_method
     }
 
     //* --------------------------------------------------------------------- *//
@@ -1292,7 +1296,14 @@ impl PythonVisitor {
             self.newline();
         }
         
-        // Generate module-level variables (after systems are defined)
+        // v0.45: Generate classes
+        for class_rcref in &frame_module.classes {
+            let class_node = class_rcref.borrow();
+            class_node.accept(self);
+            self.newline();
+        }
+        
+        // Generate module-level variables (after systems and classes are defined)
         for var_decl_rcref in &frame_module.variables {
             let var_decl_node = var_decl_rcref.borrow();
             var_decl_node.accept(self);
@@ -2366,7 +2377,14 @@ impl PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn newline(&mut self) {
-        self.code.push_str(&*format!("\n{}", self.dent()));
+        // Check if we have a pending assert statement
+        if self.pending_assert {
+            // Just add a space after assert instead of a newline
+            self.code.push_str(" ");
+            self.pending_assert = false;
+        } else {
+            self.code.push_str(&*format!("\n{}", self.dent()));
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -4269,6 +4287,88 @@ impl PythonVisitor {
 
 //* --------------------------------------------------------------------- *//
 
+impl PythonVisitor {
+    // v0.45: Helper method to visit statement types
+    fn visit_stmt_type_helper(&mut self, stmt_t: &StatementType) {
+        match stmt_t {
+            StatementType::ExpressionStmt { expr_stmt_t } => {
+                match expr_stmt_t {
+                    ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+                        eprintln!("DEBUG: CallChainStmtT in visit_stmt_type_helper");
+                        call_chain_literal_stmt_node.accept(self);
+                    }
+                    ExprStmtType::CallStmtT { call_stmt_node } => {
+                        eprintln!("DEBUG: CallStmtT in visit_stmt_type_helper");
+                        call_stmt_node.accept(self);
+                    }
+                    ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                        eprintln!("DEBUG: AssignmentStmtT in visit_stmt_type_helper");
+                        assignment_stmt_node.accept(self);
+                    }
+                    ExprStmtType::VariableStmtT { variable_stmt_node } => {
+                        eprintln!("DEBUG: VariableStmtT in visit_stmt_type_helper");
+                        variable_stmt_node.accept(self);
+                    }
+                    _ => {
+                        eprintln!("DEBUG: Other ExprStmtType in visit_stmt_type_helper");
+                    }
+                }
+            }
+            StatementType::TransitionStmt { transition_statement_node } => {
+                transition_statement_node.accept(self);
+            }
+            StatementType::BlockStmt { block_stmt_node } => {
+                block_stmt_node.accept(self);
+            }
+            StatementType::IfStmt { if_stmt_node } => {
+                if_stmt_node.accept(self);
+            }
+            StatementType::LoopStmt { loop_stmt_node } => {
+                loop_stmt_node.accept(self);
+            }
+            StatementType::ContinueStmt { continue_stmt_node } => {
+                continue_stmt_node.accept(self);
+            }
+            StatementType::BreakStmt { break_stmt_node } => {
+                break_stmt_node.accept(self);
+            }
+            StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
+                parent_dispatch_stmt_node.accept(self);
+            }
+            StatementType::MatchStmt { match_stmt_node } => {
+                match_stmt_node.accept(self);
+            }
+            StatementType::ReturnStmt { return_stmt_node } => {
+                return_stmt_node.accept(self);
+            }
+            StatementType::ReturnAssignStmt { return_assign_stmt_node } => {
+                return_assign_stmt_node.accept(self);
+            }
+            StatementType::NoStmt => {
+                // Do nothing
+            }
+            StatementType::StateStackStmt { state_stack_operation_statement_node } => {
+                state_stack_operation_statement_node.accept(self);
+            }
+            StatementType::ForStmt { for_stmt_node } => {
+                for_stmt_node.accept(self);
+            }
+            StatementType::WhileStmt { while_stmt_node } => {
+                while_stmt_node.accept(self);
+            }
+            StatementType::TryStmt { try_stmt_node } => {
+                try_stmt_node.accept(self);
+            }
+            StatementType::RaiseStmt { raise_stmt_node } => {
+                raise_stmt_node.accept(self);
+            }
+            StatementType::WithStmt { with_stmt_node } => {
+                with_stmt_node.accept(self);
+            }
+        }
+    }
+}
+
 impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
@@ -4336,6 +4436,207 @@ impl AstVisitor for PythonVisitor {
             self.outdent();
             self.newline();
         }
+    }
+
+    //* --------------------------------------------------------------------- *//
+    
+    // v0.45: Class support
+    fn visit_class_node(&mut self, class_node: &ClassNode) {
+        self.newline();
+        self.add_code(&format!("class {}:", class_node.name));
+        self.indent();
+        
+        // Generate class-level (static) variables
+        if !class_node.static_vars.is_empty() {
+            self.newline();
+            self.add_code("# Class variables");
+            for var_rcref in &class_node.static_vars {
+                self.newline();
+                let var_node = var_rcref.borrow();
+                // Generate as class variable (without self.)
+                self.add_code(&format!("{} = ", var_node.name));
+                let expr_t = var_node.get_initializer_value_rc();
+                if !matches!(*expr_t, ExprType::NilExprT) {
+                    expr_t.accept(self);
+                } else {
+                    self.add_code("None");
+                }
+            }
+        }
+        
+        // Generate constructor if present
+        eprintln!("DEBUG visit_class_node: constructor present = {}", class_node.constructor.is_some());
+        if let Some(constructor_rcref) = &class_node.constructor {
+            self.newline();
+            self.newline();
+            let constructor = constructor_rcref.borrow();
+            eprintln!("DEBUG visit_class_node: constructor statements count = {}", constructor.statements.len());
+            
+            // Generate __init__ method
+            self.add_code("def __init__(self");
+            if let Some(params) = &constructor.params {
+                for param in params {
+                    self.add_code(", ");
+                    param.accept(self);
+                }
+            }
+            self.add_code("):");
+            self.indent();
+            
+            // Generate constructor body
+            if constructor.statements.is_empty() {
+                self.newline();
+                self.add_code("pass");
+            } else {
+                for stmt in &constructor.statements {
+                    self.newline();
+                    match stmt {
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            let var_decl = var_decl_t_rcref.borrow();
+                            // In constructor, instance variables become self.var
+                            self.add_code(&format!("self.{} = ", var_decl.name));
+                            let expr_t = var_decl.get_initializer_value_rc();
+                            if !matches!(*expr_t, ExprType::NilExprT) {
+                                expr_t.accept(self);
+                            } else {
+                                self.add_code("None");
+                            }
+                        }
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            // Handle regular statements in constructor
+                            eprintln!("DEBUG: About to visit statement in constructor");
+                            self.visit_stmt_type_helper(stmt_t);
+                            eprintln!("DEBUG: Finished visiting statement in constructor");
+                        }
+                    }
+                }
+            }
+            self.outdent();
+        } else if !class_node.instance_vars.is_empty() {
+            // Generate default constructor if we have instance vars but no explicit constructor
+            self.newline();
+            self.newline();
+            self.add_code("def __init__(self):");
+            self.indent();
+            for var_rcref in &class_node.instance_vars {
+                self.newline();
+                let var_node = var_rcref.borrow();
+                self.add_code(&format!("self.{} = ", var_node.name));
+                let expr_t = var_node.get_initializer_value_rc();
+                if !matches!(*expr_t, ExprType::NilExprT) {
+                    expr_t.accept(self);
+                } else {
+                    self.add_code("None");
+                }
+            }
+            self.outdent();
+        }
+        
+        // Generate instance methods
+        for method_rcref in &class_node.methods {
+            self.newline();
+            self.newline();
+            let method = method_rcref.borrow();
+            method.accept(self);
+        }
+        
+        // Generate static methods
+        for method_rcref in &class_node.static_methods {
+            self.newline();
+            self.newline();
+            self.add_code("@staticmethod");
+            self.newline();
+            let method = method_rcref.borrow();
+            method.accept(self);
+        }
+        
+        // If no methods or constructor, add pass
+        if class_node.constructor.is_none() 
+            && class_node.methods.is_empty() 
+            && class_node.static_methods.is_empty()
+            && class_node.static_vars.is_empty()
+            && class_node.instance_vars.is_empty() {
+            self.newline();
+            self.add_code("pass");
+        }
+        
+        self.outdent();
+        self.newline();
+    }
+    
+    fn visit_method_node(&mut self, method_node: &MethodNode) {
+        // Set context flag for proper return handling
+        let was_in_class_method = self.in_class_method;
+        self.in_class_method = true;
+        
+        // Generate method signature
+        self.add_code(&format!("def {}", method_node.name));
+        self.add_code("(");
+        
+        // Add self parameter for instance methods
+        if !method_node.is_static {
+            self.add_code("self");
+            if let Some(params) = &method_node.params {
+                if !params.is_empty() {
+                    self.add_code(", ");
+                }
+            }
+        }
+        
+        // Add method parameters
+        if let Some(params) = &method_node.params {
+            let mut first = true;
+            for param in params {
+                if !first {
+                    self.add_code(", ");
+                }
+                param.accept(self);
+                first = false;
+            }
+        }
+        
+        self.add_code("):");
+        
+        // Add return type annotation if present
+        if let Some(type_node) = &method_node.type_opt {
+            self.add_code(" -> ");
+            self.add_code(&self.format_type(type_node));
+            self.add_code(":");
+        }
+        
+        self.indent();
+        
+        // Generate method body
+        if method_node.statements.is_empty() {
+            self.newline();
+            self.add_code("pass");
+        } else {
+            for stmt in &method_node.statements {
+                self.newline();
+                match stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        var_decl_t_rcref.borrow().accept(self);
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_type_helper(stmt_t);
+                    }
+                }
+            }
+            
+            // Handle terminator (usually implicit return)
+            if let TerminatorType::Return = method_node.terminator_expr.terminator_type {
+                if let Some(expr) = &method_node.terminator_expr.return_expr_t_opt {
+                    self.newline();
+                    self.add_code("return ");
+                    expr.accept(self);
+                }
+            }
+        }
+        
+        self.outdent();
+        
+        // Restore context flag
+        self.in_class_method = was_in_class_method;
     }
 
     //* --------------------------------------------------------------------- *//
@@ -6076,8 +6377,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     // TODO: ??
-    fn visit_parameter_node(&mut self, _: &ParameterNode) {
-        // self.add_code(&format!("{}",parameter_node.name));
+    fn visit_parameter_node(&mut self, parameter_node: &ParameterNode) {
+        self.add_code(&parameter_node.param_name);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -6196,9 +6497,26 @@ impl AstVisitor for PythonVisitor {
         // standard case
         eprintln!("DEBUG: Processing standard case with {} nodes", call_chain.len());
         
-        method_call_chain_stmt_node
-            .call_chain_literal_expr_node
-            .accept(self);
+        // Check if this is an assert statement (single "assert" identifier)
+        // If so, suppress the newline so the expression stays on the same line
+        let is_assert = call_chain.len() == 1 && 
+            matches!(&call_chain[0], 
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } 
+                    if id_node.name.lexeme == "assert");
+        
+        if is_assert {
+            // For assert statements, output "assert" without a trailing newline
+            // and set a flag to suppress the newline before the next statement
+            self.newline();
+            self.add_code("assert");
+            self.pending_assert = true;
+            // Don't process the identifier itself since we've already outputted "assert"
+            // The expression will follow as the next statement
+        } else {
+            method_call_chain_stmt_node
+                .call_chain_literal_expr_node
+                .accept(self);
+        }
 
         // TODO - review autoinc logic
         // resets flag used in autoinc code

@@ -60,6 +60,7 @@ pub struct FrameModule {
     pub module: Module,
     pub functions: Vec<Rc<RefCell<FunctionNode>>>,
     pub systems: Vec<SystemNode>,
+    pub classes: Vec<Rc<RefCell<ClassNode>>>,  // v0.45: Classes
     pub variables: Vec<Rc<RefCell<VariableDeclNode>>>,
     pub enums: Vec<Rc<RefCell<EnumDeclNode>>>,
     pub modules: Vec<Rc<RefCell<ModuleNode>>>,  // v0.34: Nested modules
@@ -71,12 +72,13 @@ impl FrameModule {
         module: Module, 
         functions: Vec<Rc<RefCell<FunctionNode>>>, 
         systems: Vec<SystemNode>,
+        classes: Vec<Rc<RefCell<ClassNode>>>,
         variables: Vec<Rc<RefCell<VariableDeclNode>>>,
         enums: Vec<Rc<RefCell<EnumDeclNode>>>,
         modules: Vec<Rc<RefCell<ModuleNode>>>,
         statements: Vec<DeclOrStmtType>,
     ) -> FrameModule {
-        FrameModule { module, functions, systems, variables, enums, modules, statements }
+        FrameModule { module, functions, systems, classes, variables, enums, modules, statements }
     }
     
     // v0.30: Backward compatibility - get primary system for legacy visitors
@@ -697,6 +699,89 @@ impl ModuleNode {
 impl NodeElement for ModuleNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_module_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+// v0.45: Class support
+pub struct ClassNode {
+    pub name: String,
+    pub methods: Vec<Rc<RefCell<MethodNode>>>,
+    pub static_methods: Vec<Rc<RefCell<MethodNode>>>,
+    pub instance_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
+    pub static_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
+    pub constructor: Option<Rc<RefCell<MethodNode>>>,  // implicit init() or @init methods
+    pub line: usize,
+}
+
+impl ClassNode {
+    pub fn new(
+        name: String,
+        methods: Vec<Rc<RefCell<MethodNode>>>,
+        static_methods: Vec<Rc<RefCell<MethodNode>>>,
+        instance_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
+        static_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
+        constructor: Option<Rc<RefCell<MethodNode>>>,
+        line: usize,
+    ) -> ClassNode {
+        ClassNode {
+            name,
+            methods,
+            static_methods,
+            instance_vars,
+            static_vars,
+            constructor,
+            line,
+        }
+    }
+}
+
+impl NodeElement for ClassNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_class_node(self);
+    }
+}
+
+// v0.45: Method node for class methods
+pub struct MethodNode {
+    pub name: String,
+    pub params: Option<Vec<ParameterNode>>,
+    pub statements: Vec<DeclOrStmtType>,
+    pub terminator_expr: TerminatorExpr,
+    pub type_opt: Option<TypeNode>,
+    pub is_constructor: bool,  // true if this is an init method
+    pub is_static: bool,       // true if @staticmethod
+    pub line: usize,
+}
+
+impl MethodNode {
+    pub fn new(
+        name: String,
+        params: Option<Vec<ParameterNode>>,
+        statements: Vec<DeclOrStmtType>,
+        terminator_expr: TerminatorExpr,
+        type_opt: Option<TypeNode>,
+        is_constructor: bool,
+        is_static: bool,
+        line: usize,
+    ) -> MethodNode {
+        MethodNode {
+            name,
+            params,
+            statements,
+            terminator_expr,
+            type_opt,
+            is_constructor,
+            is_static,
+            line,
+        }
+    }
+}
+
+impl NodeElement for MethodNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_method_node(self);
     }
 }
 
@@ -3831,6 +3916,8 @@ pub enum IdentifierDeclScope {
     EventHandlerVarScope,
     LoopVarScope,
     BlockVarScope,
+    ClassStaticScope,    // v0.45: Class static variables
+    ClassInstanceScope,  // v0.45: Class instance variables
 }
 
 // #[derive(Clone)]

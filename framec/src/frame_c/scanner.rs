@@ -37,6 +37,8 @@ impl Scanner {
             ("break".to_string(), TokenType::Break),
             ("enum".to_string(), TokenType::Enum),
             ("fn".to_string(), TokenType::Function),
+            ("class".to_string(), TokenType::Class),
+            ("assert".to_string(), TokenType::Assert),
             ("system".to_string(), TokenType::System),
             ("interface:".to_string(), TokenType::InterfaceBlock),
             ("machine:".to_string(), TokenType::MachineBlock),
@@ -65,6 +67,7 @@ impl Scanner {
             ("yield".to_string(), TokenType::Yield),
             ("match".to_string(), TokenType::Match),
             ("case".to_string(), TokenType::Case),
+            ("class".to_string(), TokenType::Class),
         ]
         .iter()
         .cloned()
@@ -1038,6 +1041,8 @@ pub enum TokenType {
     // Identity operators (v0.39)
     Is,                      // 'is' keyword
     IsNot,                   // 'is not' (handled as two tokens)
+    Class,                   // 'class' keyword
+    Assert,                  // 'assert' keyword
     
     Error,
 }

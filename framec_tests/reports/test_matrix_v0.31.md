@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-09 22:14  
-**Total Tests**: 317  
+**Generated**: 2025-09-10 17:01  
+**Total Tests**: 325  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 317 | 100% |
-| **Transpilation Success** | 317 | 100.0% |
-| **Execution Success** | 317 | 100.0% |
-| **Complete Success** | 317 | 100.0% |
+| **Total Tests** | 325 | 100% |
+| **Transpilation Success** | 324 | 99.7% |
+| **Execution Success** | 323 | 99.4% |
+| **Complete Success** | 323 | 99.4% |
 
 ## v0.31 Features
 
@@ -22,7 +22,17 @@
 
 ## Failed Tests
 
-🎉 **All tests passing!**
+| Test File | Transpile | Execute | Error |
+|-----------|-----------|---------|-------|
+| test_class_basic.frm | ❌ | ❌ | DEBUG: Found Self_ token in parse_special_keywords
+DEBUG parse_self_context: is_class_method=true, is_static_operation=false
+DEBUG: Added statement to class method
+DEBUG: Found Self_ token in parse_sp |
+| test_set_comprehensions.frm | ✅ | ❌ |   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_set_comprehensions.py", line 22
+    assert
+          ^
+SyntaxError: invalid syntax
+ |
 
 ## Test Details
 
@@ -33,6 +43,7 @@
 | test_all_constructors.frm | ✅ | ✅ | ✅ PASS |
 | test_async_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_async_debug.frm | ✅ | ✅ | ✅ PASS |
+| test_async_generators.frm | ✅ | ✅ | ✅ PASS |
 | test_async_handler.frm | ✅ | ✅ | ✅ PASS |
 | test_async_interface.frm | ✅ | ✅ | ✅ PASS |
 | test_async_minimal.frm | ✅ | ✅ | ✅ PASS |
@@ -54,7 +65,9 @@
 | test_call_chain_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_call_chain_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_chaining.frm | ✅ | ✅ | ✅ PASS |
+| test_class_basic.frm | ❌ | ❌ | ❌ FAIL |
 | test_collection_constructors.frm | ✅ | ✅ | ✅ PASS |
+| test_collection_literals_v041.frm | ✅ | ✅ | ✅ PASS |
 | test_collections.frm | ✅ | ✅ | ✅ PASS |
 | test_collections_all.frm | ✅ | ✅ | ✅ PASS |
 | test_compound.frm | ✅ | ✅ | ✅ PASS |
@@ -152,6 +165,7 @@
 | test_functions_event_handler.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_with_system.frm | ✅ | ✅ | ✅ PASS |
+| test_generators_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_handlers_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_history.frm | ✅ | ✅ | ✅ PASS |
 | test_if_elif_returns.frm | ✅ | ✅ | ✅ PASS |
@@ -193,6 +207,8 @@
 | test_list_features.frm | ✅ | ✅ | ✅ PASS |
 | test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
 | test_list_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_match_case.frm | ✅ | ✅ | ✅ PASS |
+| test_match_patterns_advanced.frm | ✅ | ✅ | ✅ PASS |
 | test_matmul_syntax_only.frm | ✅ | ✅ | ✅ PASS |
 | test_matmul_transpile.frm | ✅ | ✅ | ✅ PASS |
 | test_matmul_transpile_only.frm | ✅ | ✅ | ✅ PASS |
@@ -262,6 +278,7 @@
 | test_self_call_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_self_domain_vars.frm | ✅ | ✅ | ✅ PASS |
 | test_self_variable_exhaustive.frm | ✅ | ✅ | ✅ PASS |
+| test_set_comprehensions.frm | ✅ | ❌ | ❌ FAIL |
 | test_set_literal.frm | ✅ | ✅ | ✅ PASS |
 | test_simple_call.frm | ✅ | ✅ | ✅ PASS |
 | test_simple_call_chain_debug.frm | ✅ | ✅ | ✅ PASS |
@@ -318,6 +335,7 @@
 | test_two_systems_no_function.frm | ✅ | ✅ | ✅ PASS |
 | test_two_systems_print.frm | ✅ | ✅ | ✅ PASS |
 | test_type_annotation_fix.frm | ✅ | ✅ | ✅ PASS |
+| test_type_annotations.frm | ✅ | ✅ | ✅ PASS |
 | test_type_fix.frm | ✅ | ✅ | ✅ PASS |
 | test_underscore_actions.frm | ✅ | ✅ | ✅ PASS |
 | test_unpacking_operator.frm | ✅ | ✅ | ✅ PASS |

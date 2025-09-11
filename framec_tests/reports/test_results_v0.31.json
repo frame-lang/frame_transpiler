@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-09T22:14:16.444528",
+  "timestamp": "2025-09-10T17:01:09.286948",
   "version": "v0.31",
   "summary": {
-    "total": 317,
-    "transpile_success": 317,
-    "execute_success": 317,
-    "complete_success": 317,
-    "success_rate": "100.0%"
+    "total": 325,
+    "transpile_success": 324,
+    "execute_success": 323,
+    "complete_success": 323,
+    "success_rate": "99.4%"
   },
   "results": [
     {
@@ -42,6 +42,13 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_async_generators.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Frame v0.42: Async Generator Support ===\nCreating async generators with 'async fn' + 'yield'\n",
       "error": null
     },
     {
@@ -192,10 +199,23 @@
       "error": null
     },
     {
+      "file": "test_class_basic.frm",
+      "transpile": false,
+      "execute": false,
+      "error": "DEBUG: Found Self_ token in parse_special_keywords\nDEBUG parse_self_context: is_class_method=true, is_static_operation=false\nDEBUG: Added statement to class method\nDEBUG: Found Self_ token in parse_sp"
+    },
+    {
       "file": "test_collection_constructors.frm",
       "transpile": true,
       "execute": true,
       "output": "=== Testing Collection Constructors ===\nlist([1,2,3]): [1, 2, 3]\nset([1,2,3]): {1, 2, 3}\ntuple([10,20,30]): (10, 20, 30)\ndict([('key1', 'value1'), ('key2', 'value2')]): {'key1': 'value1', 'key2': 'val",
+      "error": null
+    },
+    {
+      "file": "test_collection_literals_v041.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Frame v0.41 Collection Support ===\n\n1. Lists:\n  Basic: [1, 2, 3, 4]\n  Empty: []\n  Nested: [[1, 2], [3, 4]]\n\n2. Dictionaries:\n  Basic: {'a': 1, 'b': 2, 'c': 3}\n  Empty: {}\n  Nested: {'outer': {'inn",
       "error": null
     },
     {
@@ -594,7 +614,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -622,14 +642,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -875,6 +895,13 @@
       "transpile": true,
       "execute": true,
       "output": "Final count: 3\n",
+      "error": null
+    },
+    {
+      "file": "test_generators_basic.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Generators ===\nGenerator results: [0, 2, 4, 6, 8]\nEven generator results: [0, 2, 4, 6, 8]\n\n=== Testing yield functions ===\n",
       "error": null
     },
     {
@@ -1162,6 +1189,20 @@
       "transpile": true,
       "execute": true,
       "output": "=== COMPREHENSIVE LIST OPERATIONS TEST ===\n\n=== List Creation ===\nEmpty list: []\nNumber list: [1, 2, 3, 4, 5]\nMixed list: [1, 'hello', 3.14, True, None]\nNested list: [[1, 2], [3, 4], [5, 6]]\nFrom rang",
+      "error": null
+    },
+    {
+      "file": "test_match_case.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Literal Patterns ===\none\ntwo\ngreeting\none\nnone value\nother\n\n=== Capture Patterns ===\nzero\ncaptured: 42\n\n=== Sequence Patterns ===\nempty list\nsingle element: 1\ntwo elements: 1, 2\nthree elements: 1,",
+      "error": null
+    },
+    {
+      "file": "test_match_patterns_advanced.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== OR Patterns ===\nsmall number\nsmall number\nsmall number\naffirmative\naffirmative\nnegative\nround number\nother\n\n=== Star Patterns ===\nempty\nsingle: 1\nfirst: 1, rest: [2]\nfirst: 1, rest: [2, 3]\nfirst: ",
       "error": null
     },
     {
@@ -1648,6 +1689,13 @@
       "error": null
     },
     {
+      "file": "test_set_comprehensions.frm",
+      "transpile": true,
+      "execute": false,
+      "output": null,
+      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_set_comprehensions.py\", line 22\n    assert\n          ^\nSyntaxError: invalid syntax\n"
+    },
+    {
       "file": "test_set_literal.frm",
       "transpile": true,
       "execute": true,
@@ -2037,6 +2085,13 @@
       "transpile": true,
       "execute": true,
       "output": "hello\ndomain test\n",
+      "error": null
+    },
+    {
+      "file": "test_type_annotations.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Sum: 8\nArea: 213.15\nGreeting: Hello, Frame\nUnique items: {1, 2, 3}\nType annotations test complete\nSum: 8\nArea: 213.15\nGreeting: Hello, Frame\nUnique items: {1, 2, 3}\nType annotations test complete\n",
       "error": null
     },
     {

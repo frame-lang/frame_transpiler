@@ -1,4 +1,35 @@
-# Frame v0.44 Development Notes
+# Frame v0.45 Development Notes
+
+## v0.45 Class Support (2025-01-27)
+
+### Object-Oriented Programming in Frame
+Frame v0.45 introduces basic class support, enabling object-oriented programming patterns alongside Frame's state machine paradigm.
+
+**Core Features:**
+- **Class Declarations**: `class ClassName { ... }` syntax
+- **Constructor Methods**: Methods named `init` become constructors
+- **Instance Methods**: Regular methods with implicit `self` parameter
+- **Static Methods**: `@staticmethod` decorator for class-level methods
+- **Class Variables**: Variables declared at class level (shared across instances)
+- **Instance Variables**: Variables assigned via `self.varname` in methods
+
+**Implementation Details:**
+- **Scanner**: Added `Class` and `Assert` keywords
+- **AST**: Added `ClassNode` and `MethodNode` types
+- **Parser**: Class body parser handles methods, variables, and decorators
+- **Visitor**: Generates proper Python class code with correct scoping
+- **Scope Management**: Local variables in methods use `EventHandlerVarScope` to avoid `self.` prefix
+
+**Key Design Decisions:**
+- **Implicit `self`**: Method signatures don't include `self` (added during code generation)
+- **No Inheritance**: v0.45 supports single classes without inheritance
+- **Python Target**: Initial implementation focuses on Python code generation
+- **Public Members**: All class members are public (no access modifiers)
+
+**Test Coverage:**
+- Created comprehensive test with Point and Circle classes
+- Tests constructor, instance methods, static methods, and class variables
+- Verified proper variable scoping and method invocation
 
 ## Language Support Classification (Updated 2025-09-08)
 

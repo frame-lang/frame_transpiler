@@ -58,6 +58,10 @@ pub enum ParseScopeType {
     NamedModule {
         module_name: String,
     },
+    // v0.45: Class scope
+    Class {
+        class_name: String,
+    },
     // Entity scopes
     Function {
         function_scope_symbol_rcref: Rc<RefCell<FunctionScopeSymbol>>,
@@ -884,6 +888,11 @@ impl SymbolTable {
                     params_scope_symbol_rcref,
                 }));
                 self.symbols.insert(name, st_ref);
+            }
+            ParseScopeType::Class { class_name: _ } => {
+                // v0.45: Classes will be managed similarly to named modules
+                // The class's own symbol table will be created in enter_scope
+                return;
             }
         }
     }
@@ -2264,6 +2273,33 @@ impl Arcanum {
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
                 // update current symbol table to new event_handler's symbol table
                 self.current_symtab = Rc::clone(&params_scope_symtab_rcref);
+            }
+            ParseScopeType::Class { ref class_name } => {
+                // v0.45: Create class scope similar to named modules
+                let class_st = SymbolTable::new(
+                    class_name.clone(),
+                    Some(Rc::clone(&self.current_symtab)),
+                    IdentifierDeclScope::ClassInstanceScope,
+                    false,
+                );
+                let class_symtab_rc = Rc::new(RefCell::new(class_st));
+                
+                // Create a class symbol (similar to module symbol)
+                // For now, we'll reuse ModuleSymbol since it has the same structure
+                let class_symbol = ModuleSymbol::new(class_name.clone(), Rc::clone(&class_symtab_rc));
+                let class_symbol_rcref = Rc::new(RefCell::new(class_symbol));
+                
+                // Insert the class symbol into the parent symbol table so it can be found later
+                let class_symbol_type = SymbolType::Module {
+                    module_symbol_rcref: class_symbol_rcref,
+                };
+                self.current_symtab.borrow_mut().symbols.insert(
+                    class_name.clone(),
+                    Rc::new(RefCell::new(class_symbol_type)),
+                );
+                
+                // Update current symbol table to the new class's symbol table
+                self.current_symtab = class_symtab_rc;
             }
         }
 
