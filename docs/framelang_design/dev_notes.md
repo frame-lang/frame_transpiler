@@ -1,4 +1,48 @@
-# Frame v0.49 Development Notes
+# Frame v0.51 Development Notes
+
+## v0.51 Loop Else Clauses (2025-09-11)
+
+### Python Loop Else Feature in Frame
+Frame v0.51 adds support for Python's unique loop else clause feature, where else blocks execute when loops complete normally without encountering a break statement. This elegant pattern simplifies search operations, retry logic, and completion detection scenarios.
+
+**New Capabilities in v0.51:**
+- **For-Else Loops**: Else blocks on for loops for completion detection
+- **While-Else Loops**: Else blocks on while loops for condition-based completion
+- **Break Interaction**: Else skipped when loop exits via break
+- **Continue Compatibility**: Continue statements don't prevent else execution
+- **Empty Loop Support**: Else executes even with zero iterations
+
+**Implementation Details:**
+- **AST Changes**: Added optional `else_block` field to ForStmtNode and WhileStmtNode
+- **Parser Updates**: Extended loop parsing to handle optional else clauses  
+- **Code Generation**: Python visitor generates proper else blocks with indentation
+- **Test Coverage**: Comprehensive test file `test_loop_else.frm` with 9 test scenarios
+- **Zero Regressions**: All existing tests continue to pass (100% success rate)
+
+**Use Cases:**
+- Search patterns with "not found" handling
+- Retry logic with max attempts detection
+- Validation loops confirming all items processed
+- Nested loop patterns with per-level completion
+
+## v0.50 Delete Statement Support (2025-09-11)
+
+### Memory Management with Del Statement
+Frame v0.50 introduces the `del` statement for explicit memory management, enabling removal of variables, list elements, dictionary entries, and object attributes. This provides fine-grained control over resource cleanup and memory usage.
+
+**New Capabilities in v0.50:**
+- **Variable Deletion**: Remove variables from current scope
+- **List Element Deletion**: Delete elements by index or slice
+- **Dictionary Entry Deletion**: Remove key-value pairs
+- **Attribute Deletion**: Remove object attributes dynamically
+- **Expression Support**: Any valid expression can be deletion target
+
+**Implementation Details:**
+- **Scanner**: Added `del` keyword recognition
+- **Parser**: New del_statement parsing with expression lists
+- **AST**: DelStmtNode for delete operations
+- **Code Generation**: Direct Python `del` statement generation
+- **Test Coverage**: Comprehensive test file with all deletion scenarios
 
 ## v0.49 Complete Error Handling Support (2025-09-11)
 

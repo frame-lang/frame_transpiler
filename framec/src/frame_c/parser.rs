@@ -8644,7 +8644,43 @@ impl<'a> Parser<'a> {
             Err(e) => return Err(e),
         };
 
-        let for_stmt_node = if is_enum_iteration {
+        // v0.51: Check for optional else clause
+        let else_block_opt = if self.match_token(&[TokenType::Else]) {
+            let else_block = if self.match_token(&[TokenType::Colon]) {
+                // Python-style: else: statement
+                self.parse_single_statement_block("for_else_block")
+            } else if self.match_token(&[TokenType::OpenBrace]) {
+                // Braced block: else { statements }
+                self.parse_braced_block("for_else_block")
+            } else {
+                self.error_at_current("Expected ':' or '{' after 'else'.");
+                return Err(ParseError::new("Expected ':' or '{' after 'else'."));
+            };
+            
+            match else_block {
+                Ok(block) => Some(block),
+                Err(e) => return Err(e),
+            }
+        } else {
+            None
+        };
+
+        let for_stmt_node = if let Some(else_block) = else_block_opt {
+            if is_enum_iteration {
+                let mut node = ForStmtNode::with_else(
+                    variable,
+                    identifier,
+                    iterable,
+                    for_block,
+                    else_block,
+                );
+                node.is_enum_iteration = true;
+                node.enum_type_name = enum_type_name;
+                node
+            } else {
+                ForStmtNode::with_else(variable, identifier, iterable, for_block, else_block)
+            }
+        } else if is_enum_iteration {
             ForStmtNode::new_enum_iteration(
                 variable,
                 identifier,
@@ -8688,7 +8724,29 @@ impl<'a> Parser<'a> {
             Err(e) => return Err(e),
         };
 
-        let while_stmt_node = WhileStmtNode::new(condition, while_block);
+        // v0.51: Check for optional else clause
+        let while_stmt_node = if self.match_token(&[TokenType::Else]) {
+            let else_block = if self.match_token(&[TokenType::Colon]) {
+                // Python-style: else: statement
+                self.parse_single_statement_block("while_else_block")
+            } else if self.match_token(&[TokenType::OpenBrace]) {
+                // Braced block: else { statements }
+                self.parse_braced_block("while_else_block")
+            } else {
+                self.error_at_current("Expected ':' or '{' after 'else'.");
+                return Err(ParseError::new("Expected ':' or '{' after 'else'."));
+            };
+            
+            let else_block = match else_block {
+                Ok(block) => block,
+                Err(e) => return Err(e),
+            };
+            
+            WhileStmtNode::with_else(condition, while_block, else_block)
+        } else {
+            WhileStmtNode::new(condition, while_block)
+        };
+        
         Ok(Some(StatementType::WhileStmt { while_stmt_node }))
     }
 

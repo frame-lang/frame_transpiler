@@ -7456,6 +7456,13 @@ impl AstVisitor for PythonVisitor {
         
         self.add_code(":");
         for_stmt_node.block.accept(self);
+        
+        // v0.51: Handle optional else clause
+        if let Some(else_block) = &for_stmt_node.else_block {
+            self.newline();
+            self.add_code("else:");
+            else_block.accept(self);
+        }
     }
 
     //* --------------------------------------------------------------------- *//
@@ -7466,6 +7473,13 @@ impl AstVisitor for PythonVisitor {
         while_stmt_node.condition.accept(self);
         self.add_code(":");
         while_stmt_node.block.accept(self);
+        
+        // v0.51: Handle optional else clause
+        if let Some(else_block) = &while_stmt_node.else_block {
+            self.newline();
+            self.add_code("else:");
+            else_block.accept(self);
+        }
     }
 
     //* --------------------------------------------------------------------- *//

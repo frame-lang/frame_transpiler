@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (class support with OOP features), v0.46 (assert statement support), v0.47 (with statement support), v0.48 (Python-style access modifiers), v0.49 (complete error handling), and v0.50 (del statement support).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (class support with OOP features), v0.46 (assert statement support), v0.47 (with statement support), v0.48 (Python-style access modifiers), v0.49 (complete error handling), v0.50 (del statement support), and v0.51 (loop else clauses).
 
 ## File Locations
 
@@ -39,8 +39,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.50`  
-**Status**: ✅ **100% TEST SUCCESS RATE** - Delete Statement Support
+**Version**: `v0.51`  
+**Status**: ✅ **100% TEST SUCCESS RATE** - Loop Else Clauses
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -64,6 +64,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.48 achievements, see**: [`docs/v0.48_achievements.md`](docs/v0.48_achievements.md)
 📊 **For v0.49 achievements, see**: [`docs/v0.49_achievements.md`](docs/v0.49_achievements.md)
 📊 **For v0.50 achievements, see**: [`docs/v0.50_achievements.md`](docs/v0.50_achievements.md)
+📊 **For v0.51 achievements, see**: [`docs/v0.51_achievements.md`](docs/v0.51_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
@@ -1007,6 +1008,55 @@ del data["users"][0]["age"]  # Remove nested field
 - ✅ Python code generation
 - ✅ Comprehensive test coverage
 - ⚠️ Parser limitation: Cannot redeclare deleted variables in same scope
+
+### v0.51 Loop Else Clauses (COMPLETE) ✅
+
+Frame v0.51 adds support for Python's loop else clause feature, where else blocks execute when loops complete normally without encountering a break statement.
+
+#### Loop Else Syntax
+```frame
+# For-else: Search pattern
+for item in items {
+    if item == target {
+        print("Found!")
+        break
+    }
+}
+else {
+    print("Not found")  # Executes only if no break
+}
+
+# While-else: Process with limit
+var attempts = 0
+while attempts < max_attempts {
+    if try_operation() {
+        break
+    }
+    attempts = attempts + 1
+}
+else {
+    print("Max attempts reached")  # Executes if loop completed normally
+}
+```
+
+#### Key Behavior
+- **Executes on normal completion**: Else block runs when loop condition becomes false
+- **Skipped on break**: Else block does NOT execute if loop exits via `break`
+- **Executes with continue**: Continue doesn't prevent else execution
+- **Executes on empty loops**: Else runs even if loop body never executes (condition initially false)
+
+#### Use Cases
+- **Search patterns**: Detect when item not found in collection
+- **Retry logic**: Handle max attempts reached scenarios
+- **Completion detection**: Know when loop finished all iterations
+- **Validation loops**: Confirm all items processed successfully
+
+#### Implementation Status
+- ✅ AST nodes support optional else blocks
+- ✅ Parser handles else clauses for both for and while loops
+- ✅ Python code generation with proper indentation
+- ✅ Backward compatibility maintained
+- ✅ Comprehensive test coverage
 
 ### v0.34 Module System (Complete Implementation)
 

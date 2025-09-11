@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.50)
+# Frame Language Grammar (v0.51)
 
 **Last Updated**: 2025-01-28  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, string literal method calls, and del statement support
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, string literal method calls, del statement support, and loop else clauses
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1681,14 +1681,18 @@ elif condition2 {
 
 ### Loop Grammar
 ```bnf
-// For loops
-for_stmt: 'for' (var_decl | identifier) 'in' expr ':' stmt
-        | 'for' (var_decl | identifier) 'in' expr block
-        | 'for' var_decl ';' expr ';' expr block  // C-style for loop with 'for' keyword
+// For loops (v0.51: added else clause support)
+for_stmt: 'for' (var_decl | identifier) 'in' expr ':' stmt else_clause?
+        | 'for' (var_decl | identifier) 'in' expr block else_clause?
+        | 'for' var_decl ';' expr ';' expr block else_clause?  // C-style for loop
 
-// While loops  
-while_stmt: 'while' expr ':' stmt
-          | 'while' expr block
+// While loops (v0.51: added else clause support)
+while_stmt: 'while' expr ':' stmt else_clause?
+          | 'while' expr block else_clause?
+
+// Loop else clause (v0.51)
+else_clause: 'else' ':' stmt
+           | 'else' block
 
 // Legacy loop syntax (maintained for backward compatibility)
 loop_stmt: 'loop' '{' stmt* '}'
@@ -1770,6 +1774,69 @@ for i in range(10):
 for i in range(5, 10):
     print(i)
 ```
+
+#### Loop Else Clauses (v0.51)
+
+Frame v0.51 adds support for Python's loop else clause feature. The else block executes when a loop completes normally (without encountering a break statement). This is particularly useful for search patterns and completion detection.
+
+```frame
+// For-else: Search pattern
+for item in items {
+    if item == target {
+        print("Found: " + item)
+        break
+    }
+}
+else {
+    print("Item not found")  // Executes only if break was NOT hit
+}
+
+// While-else: Process until condition
+var attempts = 0
+while attempts < max_attempts {
+    if try_operation() {
+        print("Success!")
+        break
+    }
+    attempts = attempts + 1
+}
+else {
+    print("Max attempts reached")  // Executes if loop completed without break
+}
+
+// Nested loops with else
+for i in range(3) {
+    for j in range(3) {
+        if matrix[i][j] == target {
+            print("Found at " + str(i) + "," + str(j))
+            break
+        }
+    }
+    else {
+        print("Row " + str(i) + " complete")  // Inner loop completed normally
+    }
+}
+else {
+    print("Matrix search complete")  // Outer loop completed normally
+}
+
+// Continue doesn't affect else
+for i in range(10) {
+    if i % 2 == 0 {
+        continue  // Skip even numbers
+    }
+    process(i)
+}
+else {
+    print("All odd numbers processed")  // Still executes (no break)
+}
+```
+
+**Important Notes:**
+- The else block executes ONLY when the loop terminates normally (condition becomes false)
+- The else block does NOT execute if the loop is exited via `break`
+- The else block DOES execute if the loop uses `continue` (as continue doesn't exit the loop)
+- The else block also executes if the loop condition is initially false (zero iterations)
 
 ### Syntax Enforcement
 

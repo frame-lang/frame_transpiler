@@ -2721,6 +2721,7 @@ pub struct ForStmtNode {
     pub identifier: Option<IdentifierNode>, // for x in items
     pub iterable: ExprType,
     pub block: BlockStmtNode,
+    pub else_block: Option<BlockStmtNode>, // v0.51: else clause for loops
     pub is_enum_iteration: bool, // v0.32: Track if iterating over enum
     pub enum_type_name: Option<String>, // v0.32: Name of enum being iterated
 }
@@ -2737,6 +2738,25 @@ impl ForStmtNode {
             identifier,
             iterable,
             block,
+            else_block: None,
+            is_enum_iteration: false,
+            enum_type_name: None,
+        }
+    }
+    
+    pub fn with_else(
+        variable: Option<VariableNode>,
+        identifier: Option<IdentifierNode>,
+        iterable: ExprType,
+        block: BlockStmtNode,
+        else_block: BlockStmtNode,
+    ) -> ForStmtNode {
+        ForStmtNode {
+            variable,
+            identifier,
+            iterable,
+            block,
+            else_block: Some(else_block),
             is_enum_iteration: false,
             enum_type_name: None,
         }
@@ -2754,6 +2774,7 @@ impl ForStmtNode {
             identifier,
             iterable,
             block,
+            else_block: None,
             is_enum_iteration: true,
             enum_type_name: Some(enum_type_name),
         }
@@ -2771,11 +2792,24 @@ impl NodeElement for ForStmtNode {
 pub struct WhileStmtNode {
     pub condition: ExprType,
     pub block: BlockStmtNode,
+    pub else_block: Option<BlockStmtNode>, // v0.51: else clause for loops
 }
 
 impl WhileStmtNode {
     pub fn new(condition: ExprType, block: BlockStmtNode) -> WhileStmtNode {
-        WhileStmtNode { condition, block }
+        WhileStmtNode { 
+            condition, 
+            block,
+            else_block: None,
+        }
+    }
+    
+    pub fn with_else(condition: ExprType, block: BlockStmtNode, else_block: BlockStmtNode) -> WhileStmtNode {
+        WhileStmtNode { 
+            condition, 
+            block,
+            else_block: Some(else_block),
+        }
     }
 }
 
