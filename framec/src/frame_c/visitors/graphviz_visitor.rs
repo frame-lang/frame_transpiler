@@ -467,6 +467,9 @@ impl GraphVizVisitor {
                         StatementType::MatchStmt { .. } => {
                             // TODO: Implement match statement visualization
                         }
+                        StatementType::AssertStmt { .. } => {
+                            // Assert statements don't affect control flow in graphviz
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");

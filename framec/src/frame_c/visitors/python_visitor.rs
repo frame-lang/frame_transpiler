@@ -970,6 +970,19 @@ impl PythonVisitor {
     fn format_variable_expr(&mut self, variable_node: &VariableNode) -> String {
         let mut code = String::new();
         
+        // v0.46: Handle super keyword
+        if variable_node.id_node.name.lexeme == "super" {
+            // Generate super() for Python
+            code.push_str("super()");
+            return code;
+        }
+        
+        // v0.46: Handle cls keyword (for class methods)
+        if variable_node.id_node.name.lexeme == "cls" {
+            code.push_str("cls");
+            return code;
+        }
+        
         // Frame v0.31: Handle explicit self.variable syntax
         if variable_node.is_self {
             // Check if this is standalone 'self' or 'self.something'
@@ -1349,6 +1362,9 @@ impl PythonVisitor {
                             }
                             StatementType::BreakStmt { break_stmt_node } => {
                                 break_stmt_node.accept(self);
+                            }
+                            StatementType::AssertStmt { assert_stmt_node } => {
+                                assert_stmt_node.accept(self);
                             }
                             // SuperStringStmt removed - backticks no longer supported
                             StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
@@ -2504,6 +2520,9 @@ impl PythonVisitor {
                         }
                         StatementType::BreakStmt { break_stmt_node } => {
                             break_stmt_node.accept(self);
+                        }
+                        StatementType::AssertStmt { assert_stmt_node } => {
+                            assert_stmt_node.accept(self);
                         }
                         // SuperStringStmt removed - backticks no longer supported
                         StatementType::IfStmt { if_stmt_node } => {
@@ -4332,6 +4351,9 @@ impl PythonVisitor {
             StatementType::BreakStmt { break_stmt_node } => {
                 break_stmt_node.accept(self);
             }
+            StatementType::AssertStmt { assert_stmt_node } => {
+                assert_stmt_node.accept(self);
+            }
             StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
                 parent_dispatch_stmt_node.accept(self);
             }
@@ -4443,7 +4465,12 @@ impl AstVisitor for PythonVisitor {
     // v0.45: Class support
     fn visit_class_node(&mut self, class_node: &ClassNode) {
         self.newline();
-        self.add_code(&format!("class {}:", class_node.name));
+        // Handle inheritance
+        if let Some(ref parent) = class_node.parent {
+            self.add_code(&format!("class {}({}):", class_node.name, parent));
+        } else {
+            self.add_code(&format!("class {}:", class_node.name));
+        }
         self.indent();
         
         // Generate class-level (static) variables
@@ -4550,10 +4577,57 @@ impl AstVisitor for PythonVisitor {
             method.accept(self);
         }
         
+        // Generate class methods
+        for method_rcref in &class_node.class_methods {
+            self.newline();
+            self.newline();
+            self.add_code("@classmethod");
+            self.newline();
+            let method = method_rcref.borrow();
+            method.accept(self);
+        }
+        
+        // Generate properties
+        for property_rcref in &class_node.properties {
+            let property = property_rcref.borrow();
+            
+            // Generate getter
+            if let Some(ref getter) = property.getter {
+                self.newline();
+                self.newline();
+                self.add_code("@property");
+                self.newline();
+                let getter_method = getter.borrow();
+                getter_method.accept(self);
+            }
+            
+            // Generate setter
+            if let Some(ref setter) = property.setter {
+                self.newline();
+                self.newline();
+                self.add_code(&format!("@{}.setter", property.name));
+                self.newline();
+                let setter_method = setter.borrow();
+                setter_method.accept(self);
+            }
+            
+            // Generate deleter
+            if let Some(ref deleter) = property.deleter {
+                self.newline();
+                self.newline();
+                self.add_code(&format!("@{}.deleter", property.name));
+                self.newline();
+                let deleter_method = deleter.borrow();
+                deleter_method.accept(self);
+            }
+        }
+        
         // If no methods or constructor, add pass
         if class_node.constructor.is_none() 
             && class_node.methods.is_empty() 
             && class_node.static_methods.is_empty()
+            && class_node.class_methods.is_empty()
+            && class_node.properties.is_empty()
             && class_node.static_vars.is_empty()
             && class_node.instance_vars.is_empty() {
             self.newline();
@@ -4569,29 +4643,39 @@ impl AstVisitor for PythonVisitor {
         let was_in_class_method = self.in_class_method;
         self.in_class_method = true;
         
-        // Generate method signature
-        self.add_code(&format!("def {}", method_node.name));
+        // Generate method signature with special method name handling
+        let method_name = if method_node.name == "init" {
+            "__init__".to_string()
+        } else {
+            method_node.name.clone()
+        };
+        self.add_code(&format!("def {}", method_name));
         self.add_code("(");
         
-        // Add self parameter for instance methods
+        // Add self/cls parameter for instance/class methods
+        let mut has_self_or_cls = false;
         if !method_node.is_static {
-            self.add_code("self");
-            if let Some(params) = &method_node.params {
-                if !params.is_empty() {
-                    self.add_code(", ");
-                }
+            if method_node.is_class {
+                self.add_code("cls");
+            } else {
+                self.add_code("self");
             }
+            has_self_or_cls = true;
         }
         
         // Add method parameters
         if let Some(params) = &method_node.params {
-            let mut first = true;
+            let mut need_comma = has_self_or_cls;
             for param in params {
-                if !first {
+                // Skip 'cls' parameter for class methods as we add it automatically
+                if method_node.is_class && param.param_name == "cls" {
+                    continue;
+                }
+                if need_comma {
                     self.add_code(", ");
                 }
                 param.accept(self);
-                first = false;
+                need_comma = true;
             }
         }
         
@@ -6641,6 +6725,14 @@ impl AstVisitor for PythonVisitor {
                     eprintln!("  Current system enums: {:?}", self.current_system_enums);
                     eprintln!("  Checking if '{}' is in enum set", id_node.name.lexeme);
                     
+                    // v0.46: Handle 'super' in call chains
+                    if id_node.name.lexeme == "super" {
+                        self.add_code("super()");
+                        // Skip adding the separator after super()
+                        separator = "";
+                        continue;
+                    }
+                    
                     // Check for FSL property access (e.g., list.length)
                     // This is a special case where we need to transform the property access
                     // to a function call in the target language
@@ -6707,6 +6799,15 @@ impl AstVisitor for PythonVisitor {
                     if self.in_call_chain {
                         // Multi-node chain - check for string method transformations
                         eprintln!("DEBUG: Multi-node chain - checking for FSL string operations");
+                        
+                        // v0.46: Handle super().init() -> super().__init__()
+                        // Check if the previous token was super()
+                        if self.code.ends_with("super()") && call.identifier.name.lexeme == "init" {
+                            self.add_code(".__init__");
+                            call.call_expr_list.accept(self);
+                            separator = ".";
+                            continue;
+                        }
                         
                         // Check if this is a string method that needs transformation (v0.33 Phase 3)
                         match call.identifier.name.lexeme.as_str() {
@@ -7574,6 +7675,14 @@ impl AstVisitor for PythonVisitor {
     fn visit_break_stmt_node(&mut self, _: &BreakStmtNode) {
         self.newline();
         self.add_code("break");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_assert_stmt_node(&mut self, assert_stmt_node: &AssertStmtNode) {
+        self.newline();
+        self.add_code("assert ");
+        assert_stmt_node.expr.accept(self);
     }
 
     //* --------------------------------------------------------------------- *//

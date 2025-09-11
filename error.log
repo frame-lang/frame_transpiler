@@ -1,0 +1,79 @@
+DEBUG: In class body, current token: Token { token_type: Var, lexeme: "var", literal: None, line: 4, start: 40, length: 3 }
+DEBUG: In class body, current token: Token { token_type: Function, lexeme: "fn", literal: None, line: 6, start: 63, length: 2 }
+DEBUG: Parsing method 'init'
+DEBUG: Found Self_ token in parse_special_keywords
+DEBUG parse_self_context: is_class_method=false, is_static_operation=false
+DEBUG: In class body, current token: Token { token_type: At, lexeme: "@", literal: None, line: 10, start: 119, length: 1 }
+DEBUG: Found @ token
+DEBUG: After @, next token: Token { token_type: ClassMethod, lexeme: "classmethod", literal: None, line: 10, start: 120, length: 11 }
+DEBUG: Parsing method 'get_count'
+DEBUG: In class body, current token: Token { token_type: Var, lexeme: "var", literal: None, line: 4, start: 40, length: 3 }
+DEBUG: In class body, current token: Token { token_type: Function, lexeme: "fn", literal: None, line: 6, start: 63, length: 2 }
+DEBUG: Parsing method 'init'
+DEBUG: Found Self_ token in parse_special_keywords
+DEBUG parse_self_context: is_class_method=false, is_static_operation=false
+DEBUG: In class body, current token: Token { token_type: At, lexeme: "@", literal: None, line: 10, start: 119, length: 1 }
+DEBUG: Found @ token
+DEBUG: After @, next token: Token { token_type: ClassMethod, lexeme: "classmethod", literal: None, line: 10, start: 120, length: 11 }
+DEBUG: Parsing method 'get_count'
+DEBUG: Found local variable declaration: a
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG collect_global_assignments_from_stmt: Checking statement type
+DEBUG: Found StmtT
+DEBUG: Found ExpressionStmt
+DEBUG: Found CallChainStmtT - might be assignment!
+DEBUG: Function 'test' modifies module variables: {}
+DEBUG: method_name=Animal, has_call_chain=false, output so far=''
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'print' at index 0
+DEBUG: Processing UndeclaredCall 'print' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=print, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=print, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'str' at index 0
+DEBUG: Processing UndeclaredCall 'str' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=str, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=str, has_call_chain=false
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Accepting UndeclaredIdentifier 'Animal'
+  Current system enums: {}
+  Checking if 'Animal' is in enum set
+  NO - using unqualified name
+DEBUG: Processing UndeclaredCall 'get_count' at index 1
+DEBUG: Processing UndeclaredCall 'get_count' in call chain, in_call_chain=true
+DEBUG: Multi-node chain - checking for FSL string operations
+DEBUG visit_class_node: constructor present = true
+DEBUG visit_class_node: constructor statements count = 1
+DEBUG: About to visit statement in constructor
+DEBUG: AssignmentStmtT in visit_stmt_type_helper
+DEBUG visit_call_chain_expr_node: Processing 2 nodes
+DEBUG: starts_with_self_var = true
+DEBUG: Skipping 'self' node at index 0
+DEBUG: Processing Variable 'name' at index 1
+DEBUG: Outputting self.variable pattern: self.name
+DEBUG _to_string: UndeclaredIdentifier 'name'
+  Current system enums: {}
+  NO - using unqualified
+DEBUG: Finished visiting statement in constructor
+DEBUG _to_string: UndeclaredIdentifier 'cls'
+  Current system enums: {}
+  NO - using unqualified
+DEBUG _to_string: UndeclaredIdentifier 'count'
+  Current system enums: {}
+  NO - using unqualified
+DEBUG visit_call_chain_statement_node: 1 nodes
+DEBUG: Processing standard case with 1 nodes
+DEBUG visit_call_chain_expr_node: Processing 1 nodes
+DEBUG: starts_with_self_var = false
+DEBUG: Processing UndeclaredCall 'test' at index 0
+DEBUG: Processing UndeclaredCall 'test' in call chain, in_call_chain=false
+DEBUG: Single-node chain - calling accept
+DEBUG visit_call_expression_node: method=test, NO call_chain, context=ExternalCall
+DEBUG REGULAR: method_name=test, has_call_chain=false

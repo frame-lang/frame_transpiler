@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-10T17:01:09.286948",
+  "timestamp": "2025-09-11T07:59:13.325384",
   "version": "v0.31",
   "summary": {
-    "total": 325,
-    "transpile_success": 324,
-    "execute_success": 323,
-    "complete_success": 323,
-    "success_rate": "99.4%"
+    "total": 327,
+    "transpile_success": 327,
+    "execute_success": 327,
+    "complete_success": 327,
+    "success_rate": "100.0%"
   },
   "results": [
     {
@@ -200,9 +200,24 @@
     },
     {
       "file": "test_class_basic.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "DEBUG: Found Self_ token in parse_special_keywords\nDEBUG parse_self_context: is_class_method=true, is_static_operation=false\nDEBUG: Added statement to class method\nDEBUG: Found Self_ token in parse_sp"
+      "transpile": true,
+      "execute": true,
+      "output": "Distance from p1 to p2: 5.0\nTotal points created: 3\nCircle area: 78.53975\np1 is inside the circle\np2 is outside the circle\n",
+      "error": null
+    },
+    {
+      "file": "test_class_simple_v046.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "0\n",
+      "error": null
+    },
+    {
+      "file": "test_class_v046.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing v0.46 Class Features ===\n\n--- Testing Inheritance ---\nDog name: Buddy\nDog breed: Golden Retriever\nDog species: Canis familiaris\nDog speaks: Woof! My name is Buddy\nDog moves: Buddy is movin",
+      "error": null
     },
     {
       "file": "test_collection_constructors.frm",
@@ -614,7 +629,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -642,14 +657,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1691,9 +1706,9 @@
     {
       "file": "test_set_comprehensions.frm",
       "transpile": true,
-      "execute": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_set_comprehensions.py\", line 22\n    assert\n          ^\nSyntaxError: invalid syntax\n"
+      "execute": true,
+      "output": "Basic set comprehension: PASS\nConditional set comprehension: PASS\nExpression set comprehension: PASS\nMethod call set comprehension: PASS\nComplex set comprehension: PASS\nSet comprehension deduplication",
+      "error": null
     },
     {
       "file": "test_set_literal.frm",

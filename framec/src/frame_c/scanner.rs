@@ -67,7 +67,13 @@ impl Scanner {
             ("yield".to_string(), TokenType::Yield),
             ("match".to_string(), TokenType::Match),
             ("case".to_string(), TokenType::Case),
-            ("class".to_string(), TokenType::Class),
+            ("extends".to_string(), TokenType::Extends),
+            ("super".to_string(), TokenType::Super),
+            ("cls".to_string(), TokenType::Cls),
+            ("property".to_string(), TokenType::Property),
+            ("classmethod".to_string(), TokenType::ClassMethod),
+            ("setter".to_string(), TokenType::Setter),
+            ("deleter".to_string(), TokenType::Deleter),
         ]
         .iter()
         .cloned()
@@ -1043,6 +1049,13 @@ pub enum TokenType {
     IsNot,                   // 'is not' (handled as two tokens)
     Class,                   // 'class' keyword
     Assert,                  // 'assert' keyword
+    Extends,                 // 'extends' keyword for inheritance
+    Super,                   // 'super' keyword for parent class access
+    Cls,                     // 'cls' keyword for class methods
+    Property,                // 'property' keyword/decorator
+    ClassMethod,             // 'classmethod' keyword/decorator
+    Setter,                  // 'setter' keyword for property setters
+    Deleter,                 // 'deleter' keyword for property deleters
     
     Error,
 }

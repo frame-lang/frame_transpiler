@@ -2401,7 +2401,8 @@ impl<'a> Parser<'a> {
     // parameter -> param_name ( ':' param_type )?
 
     fn parameter(&mut self) -> Result<Option<ParameterNode>, ParseError> {
-        if !self.match_token(&[TokenType::Identifier]) {
+        // v0.46: Allow 'cls' keyword as parameter name for class methods
+        if !self.match_token(&[TokenType::Identifier, TokenType::Cls]) {
             // self.error_at_current("Expected parameter name.");
             // return Err(ParseError::new("TODO"));
             return Ok(None);
@@ -3368,16 +3369,29 @@ impl<'a> Parser<'a> {
         
         let line = self.previous().line;
         
+        // Check for inheritance with 'extends' keyword
+        let parent = if self.match_token(&[TokenType::Extends]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                self.error_at_current("Expected parent class name after 'extends'");
+                return Err(ParseError::new("Expected parent class name after 'extends'"));
+            }
+            Some(self.previous().lexeme.clone())
+        } else {
+            None
+        };
+        
         // Expect opening brace
         if !self.match_token(&[TokenType::OpenBrace]) {
-            self.error_at_current("Expected '{' after class name");
-            return Err(ParseError::new("Expected '{' after class name"));
+            self.error_at_current("Expected '{' after class declaration");
+            return Err(ParseError::new("Expected '{' after class declaration"));
         }
         
         let mut instance_vars = Vec::new();
         let mut static_vars = Vec::new();
         let mut methods = Vec::new();
         let mut static_methods = Vec::new();
+        let mut class_methods = Vec::new();
+        let mut properties: Vec<Rc<RefCell<PropertyNode>>> = Vec::new();
         let mut constructor = None;
         
         // Parse class body
@@ -3389,35 +3403,124 @@ impl<'a> Parser<'a> {
                 continue;
             }
             
-            // Check for static method
+            // Check for decorators
             if self.check(TokenType::At) {
                 eprintln!("DEBUG: Found @ token");
-                // Check if it's @staticmethod
                 let saved_pos = self.current;
                 self.advance(); // consume @
                 eprintln!("DEBUG: After @, next token: {:?}", self.peek());
-                if self.check(TokenType::Identifier) && self.peek().lexeme == "staticmethod" {
-                    self.advance(); // consume "staticmethod"
-                    // Static method
-                    if self.match_token(&[TokenType::Function]) {
-                        let method = self.method_decl(true)?;
-                        static_methods.push(method);
-                        continue; // Move to next class member
+                
+                // Check decorator type - decorators come as identifiers or keywords
+                if self.check(TokenType::Identifier) || self.check(TokenType::ClassMethod) || 
+                   self.check(TokenType::Property) {
+                    
+                    let decorator_name = if self.check(TokenType::ClassMethod) {
+                        "classmethod".to_string()
+                    } else if self.check(TokenType::Property) {
+                        "property".to_string()
                     } else {
-                        self.error_at_current("Expected 'fn' after @staticmethod");
-                        return Err(ParseError::new("Expected 'fn' after @staticmethod"));
+                        self.peek().lexeme.clone()
+                    };
+                    
+                    if decorator_name == "staticmethod" {
+                        self.advance(); // consume "staticmethod"
+                        if self.match_token(&[TokenType::Function]) {
+                            let method = self.method_decl(true, false)?;
+                            static_methods.push(method);
+                            continue;
+                        } else {
+                            self.error_at_current("Expected 'fn' after @staticmethod");
+                            return Err(ParseError::new("Expected 'fn' after @staticmethod"));
+                        }
+                    } else if decorator_name == "classmethod" {
+                        self.advance(); // consume "classmethod"
+                        if self.match_token(&[TokenType::Function]) {
+                            let method = self.method_decl(false, true)?;
+                            class_methods.push(method);
+                            continue;
+                        } else {
+                            self.error_at_current("Expected 'fn' after @classmethod");
+                            return Err(ParseError::new("Expected 'fn' after @classmethod"));
+                        }
+                    } else if decorator_name == "property" {
+                        self.advance(); // consume "property"
+                        if self.match_token(&[TokenType::Function]) {
+                            let getter = self.method_decl(false, false)?;
+                            let prop_name = getter.borrow().name.clone();
+                            let prop = Rc::new(RefCell::new(PropertyNode::new(prop_name)));
+                            prop.borrow_mut().getter = Some(getter);
+                            properties.push(prop);
+                            continue;
+                        } else {
+                            self.error_at_current("Expected 'fn' after @property");
+                            return Err(ParseError::new("Expected 'fn' after @property"));
+                        }
+                    } else {
+                        // Check if it's a property setter or deleter
+                        // Format: @property_name.setter or @property_name.deleter
+                        let property_name = decorator_name.clone();
+                        self.advance(); // consume property name
+                        
+                        if self.match_token(&[TokenType::Dot]) {
+                            if self.check(TokenType::Identifier) || self.check(TokenType::Setter) || self.check(TokenType::Deleter) {
+                                let decorator_type = self.peek().lexeme.clone();
+                                if decorator_type == "setter" || decorator_type == "deleter" {
+                                    self.advance(); // consume "setter" or "deleter"
+                                    
+                                    // Find the existing property
+                                    let mut found_property = None;
+                                    for prop in &properties {
+                                        if prop.borrow().name == property_name {
+                                            found_property = Some(Rc::clone(prop));
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if let Some(prop) = found_property {
+                                        if self.match_token(&[TokenType::Function]) {
+                                            let method = self.method_decl(false, false)?;
+                                            if decorator_type == "setter" {
+                                                prop.borrow_mut().setter = Some(method);
+                                            } else {
+                                                prop.borrow_mut().deleter = Some(method);
+                                            }
+                                            continue;
+                                        } else {
+                                            self.error_at_current(&format!("Expected 'fn' after @{}.{}", property_name, decorator_type));
+                                            return Err(ParseError::new(&format!("Expected 'fn' after @{}.{}", property_name, decorator_type)));
+                                        }
+                                    } else {
+                                        self.error_at_current(&format!("Property '{}' not found. @property must be defined before @{}.setter or @{}.deleter", property_name, property_name, property_name));
+                                        return Err(ParseError::new(&format!("Property '{}' not found", property_name)));
+                                    }
+                                } else {
+                                    // Unknown decorator type after dot, this is an error
+                                    self.error_at_current(&format!("Unknown property decorator @{}.{}", property_name, decorator_type));
+                                    return Err(ParseError::new(&format!("Unknown property decorator @{}.{}", property_name, decorator_type)));
+                                }
+                            } else {
+                                // No identifier after dot, this is an error
+                                self.error_at_current(&format!("Expected 'setter' or 'deleter' after @{}.", property_name));
+                                return Err(ParseError::new(&format!("Expected 'setter' or 'deleter' after @{}.", property_name)));
+                            }
+                        } else {
+                            // No dot after property name, this must be an unknown decorator
+                            // Don't rewind since we already consumed the name
+                            self.error_at_current(&format!("Unknown decorator '@{}'", property_name));
+                            return Err(ParseError::new(&format!("Unknown decorator '@{}'", property_name)));
+                        }
                     }
                 } else {
-                    // Not @staticmethod, rewind
+                    // Not an identifier after @, rewind
                     self.current = saved_pos;
-                    eprintln!("DEBUG: @ not followed by staticmethod, rewinding");
+                    eprintln!("DEBUG: @ not followed by identifier, rewinding");
                 }
             }
             // Check for function/method
             else if self.match_token(&[TokenType::Function]) {
-                let method = self.method_decl(false)?;
+                let method = self.method_decl(false, false)?;
                 // Check if it's a constructor
-                if method.borrow().name == "init" || method.borrow().is_constructor {
+                if method.borrow().name == "init" || method.borrow().name == "__init__" || method.borrow().is_constructor {
                     constructor = Some(method);
                 } else {
                     methods.push(method);
@@ -3447,8 +3550,11 @@ impl<'a> Parser<'a> {
         
         let class_node = ClassNode::new(
             class_name,
+            parent,
             methods,
             static_methods,
+            class_methods,
+            properties,
             instance_vars,
             static_vars,
             constructor,
@@ -3458,7 +3564,7 @@ impl<'a> Parser<'a> {
         Ok(Rc::new(RefCell::new(class_node)))
     }
     
-    fn method_decl(&mut self, is_static: bool) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
+    fn method_decl(&mut self, is_static: bool, is_class: bool) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
         // Get method name
         let method_name = match self.match_token(&[TokenType::Identifier]) {
             false => {
@@ -3471,7 +3577,7 @@ impl<'a> Parser<'a> {
         eprintln!("DEBUG: Parsing method '{}'", method_name);
         
         let line = self.previous().line;
-        let is_constructor = method_name == "init";
+        let is_constructor = method_name == "init" || method_name == "__init__";
         
         // Parse parameters - parentheses are required for methods
         if !self.match_token(&[TokenType::LParen]) {
@@ -3530,6 +3636,7 @@ impl<'a> Parser<'a> {
             type_opt,
             is_constructor,
             is_static,
+            is_class,
             line,
         );
         
@@ -5177,6 +5284,24 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::Break]) {
             let break_stmt_node = BreakStmtNode::new();
             return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
+        }
+        
+        // v0.46: Handle assert statements
+        if self.match_token(&[TokenType::Assert]) {
+            // Parse the condition expression
+            let expr = match self.expression() {
+                Ok(Some(expr)) => expr,
+                Ok(None) => {
+                    self.error_at_current("Expected expression after 'assert'");
+                    return Err(ParseError::new("Expected expression after 'assert'"));
+                }
+                Err(e) => return Err(e),
+            };
+            
+            // Create an assert statement node
+            let assert_stmt_node = AssertStmtNode::new(expr);
+            let stmt_type = StatementType::AssertStmt { assert_stmt_node };
+            return Ok(Some(stmt_type));
         }
         
         if self.match_token(&[TokenType::Return_]) {
@@ -7227,6 +7352,74 @@ impl<'a> Parser<'a> {
             is_reference = true;
         }
 
+        // Handle cls keyword specially (for class methods)
+        if self.match_token(&[TokenType::Cls]) {
+            // cls is the first parameter in class methods
+            // Treat it like a regular identifier and let the visitor handle the validation
+            match self.call(IdentifierDeclScope::UnknownScope) {
+                Ok(Some(VariableExprT { mut var_node })) => {
+                    var_node.id_node.is_reference = is_reference;
+                    return Ok(Some(VariableExprT { var_node }));
+                }
+                Ok(Some(CallExprT {
+                    call_expr_node: method_call_expr_node,
+                })) => {
+                    return Ok(Some(CallExprT {
+                        call_expr_node: method_call_expr_node,
+                    }))
+                }
+                Ok(Some(CallChainExprT {
+                    mut call_chain_expr_node,
+                })) => {
+                    // set the is_reference on first variable in the call chain
+                    let call_chain_first_node_opt = call_chain_expr_node.call_chain.get_mut(0);
+                    if let Some(call_chain_first_node) = call_chain_first_node_opt {
+                        call_chain_first_node.setIsReference(is_reference);
+                    }
+
+                    let x = CallChainExprT {
+                        call_chain_expr_node,
+                    };
+                    return Ok(Some(x));
+                }
+                _ => {}
+            }
+        }
+        
+        // Handle super keyword specially
+        if self.match_token(&[TokenType::Super]) {
+            // super can only be used in methods within a class that extends another class
+            // For now, treat it like a regular identifier and let the visitor handle the validation
+            match self.call(IdentifierDeclScope::UnknownScope) {
+                Ok(Some(VariableExprT { mut var_node })) => {
+                    var_node.id_node.is_reference = is_reference;
+                    return Ok(Some(VariableExprT { var_node }));
+                }
+                Ok(Some(CallExprT {
+                    call_expr_node: method_call_expr_node,
+                })) => {
+                    return Ok(Some(CallExprT {
+                        call_expr_node: method_call_expr_node,
+                    }))
+                }
+                Ok(Some(CallChainExprT {
+                    mut call_chain_expr_node,
+                })) => {
+                    // set the is_reference on first variable in the call chain
+                    let call_chain_first_node_opt = call_chain_expr_node.call_chain.get_mut(0);
+                    if let Some(call_chain_first_node) = call_chain_first_node_opt {
+                        call_chain_first_node.setIsReference(is_reference);
+                    }
+
+                    let x = CallChainExprT {
+                        call_chain_expr_node,
+                    };
+                    return Ok(Some(x));
+                }
+                _ => {}
+            }
+        }
+        
         // TODO: I think only identifier is allowed?
         if self.match_token(&[TokenType::Identifier]) {
             // let debug_is_building_symbol_table = self.is_building_symbol_table;
@@ -12442,8 +12635,11 @@ impl<'a> Parser<'a> {
         
         Ok(Rc::new(RefCell::new(ClassNode::new(
             class_name,
+            None,  // parent - not supported in this old function
             methods,
             static_methods,
+            Vec::new(),  // class_methods - not supported in this old function  
+            Vec::new(),  // properties - not supported in this old function
             instance_vars,
             static_vars,
             constructor,
@@ -12537,6 +12733,7 @@ impl<'a> Parser<'a> {
             type_opt,
             is_constructor,
             is_static,
+            false,  // is_class - not supported in this old function
             line,
         ))))
     }

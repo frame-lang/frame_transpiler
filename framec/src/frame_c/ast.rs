@@ -707,8 +707,11 @@ impl NodeElement for ModuleNode {
 // v0.45: Class support
 pub struct ClassNode {
     pub name: String,
+    pub parent: Option<String>,  // Parent class name for inheritance
     pub methods: Vec<Rc<RefCell<MethodNode>>>,
     pub static_methods: Vec<Rc<RefCell<MethodNode>>>,
+    pub class_methods: Vec<Rc<RefCell<MethodNode>>>,  // @classmethod methods
+    pub properties: Vec<Rc<RefCell<PropertyNode>>>,    // @property definitions
     pub instance_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
     pub static_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
     pub constructor: Option<Rc<RefCell<MethodNode>>>,  // implicit init() or @init methods
@@ -718,8 +721,11 @@ pub struct ClassNode {
 impl ClassNode {
     pub fn new(
         name: String,
+        parent: Option<String>,
         methods: Vec<Rc<RefCell<MethodNode>>>,
         static_methods: Vec<Rc<RefCell<MethodNode>>>,
+        class_methods: Vec<Rc<RefCell<MethodNode>>>,
+        properties: Vec<Rc<RefCell<PropertyNode>>>,
         instance_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
         static_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
         constructor: Option<Rc<RefCell<MethodNode>>>,
@@ -727,8 +733,11 @@ impl ClassNode {
     ) -> ClassNode {
         ClassNode {
             name,
+            parent,
             methods,
             static_methods,
+            class_methods,
+            properties,
             instance_vars,
             static_vars,
             constructor,
@@ -743,6 +752,25 @@ impl NodeElement for ClassNode {
     }
 }
 
+// v0.46: Property node for @property definitions
+pub struct PropertyNode {
+    pub name: String,
+    pub getter: Option<Rc<RefCell<MethodNode>>>,
+    pub setter: Option<Rc<RefCell<MethodNode>>>,
+    pub deleter: Option<Rc<RefCell<MethodNode>>>,
+}
+
+impl PropertyNode {
+    pub fn new(name: String) -> PropertyNode {
+        PropertyNode {
+            name,
+            getter: None,
+            setter: None,
+            deleter: None,
+        }
+    }
+}
+
 // v0.45: Method node for class methods
 pub struct MethodNode {
     pub name: String,
@@ -752,6 +780,7 @@ pub struct MethodNode {
     pub type_opt: Option<TypeNode>,
     pub is_constructor: bool,  // true if this is an init method
     pub is_static: bool,       // true if @staticmethod
+    pub is_class: bool,        // true if @classmethod
     pub line: usize,
 }
 
@@ -764,6 +793,7 @@ impl MethodNode {
         type_opt: Option<TypeNode>,
         is_constructor: bool,
         is_static: bool,
+        is_class: bool,
         line: usize,
     ) -> MethodNode {
         MethodNode {
@@ -774,6 +804,7 @@ impl MethodNode {
             type_opt,
             is_constructor,
             is_static,
+            is_class,
             line,
         }
     }
@@ -2319,6 +2350,9 @@ pub enum StatementType {
     BreakStmt {
         break_stmt_node: BreakStmtNode,
     },
+    AssertStmt {
+        assert_stmt_node: AssertStmtNode,
+    },
     TryStmt {
         try_stmt_node: TryStmtNode,
     },
@@ -3292,6 +3326,23 @@ impl BreakStmtNode {
 impl NodeElement for BreakStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_break_stmt_node(self);
+    }
+}
+
+// v0.46: Assert statement support
+pub struct AssertStmtNode {
+    pub expr: ExprType,
+}
+
+impl AssertStmtNode {
+    pub fn new(expr: ExprType) -> AssertStmtNode {
+        AssertStmtNode { expr }
+    }
+}
+
+impl NodeElement for AssertStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_assert_stmt_node(self);
     }
 }
 

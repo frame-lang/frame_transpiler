@@ -1,17 +1,17 @@
-# Frame Language Grammar (v0.40)
+# Frame Language Grammar (v0.46)
 
-**Last Updated**: 2025-09-09  
-**Status**: Complete Python comment syntax alignment and floor division operator. Removed C-style comments (/* */) in favor of Python-style (#) comments. Added floor division (//) and compound assignment (//=). **100% test success rate (307/307 tests passing)**.
+**Last Updated**: 2025-09-11  
+**Status**: v0.46 - Complete class support with inheritance, properties, decorators, and special methods. **100% test success rate (327/327 tests passing)**.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
 ## Module Structure
 
 ```bnf
-module: (import_stmt | module_decl | enum_decl | var_decl | function | system)*
+module: (import_stmt | module_decl | enum_decl | var_decl | function | class | system)*
 
 module_decl: 'module' IDENTIFIER '{' module_content '}'
-module_content: (module_decl | enum_decl | var_decl | function | system)*
+module_content: (module_decl | enum_decl | var_decl | function | class | system)*
 ```
 
 **v0.34 Module System (FULLY IMPLEMENTED)**: 
@@ -398,6 +398,231 @@ system Utils {
                 return "multi digit"
             }
         }
+}
+```
+
+## Classes (v0.46)
+
+Frame v0.46 introduces object-oriented programming with class support, enabling familiar OOP patterns alongside Frame's state machine paradigm.
+
+```bnf
+class: 'class' IDENTIFIER ('extends' IDENTIFIER)? '{' class_body '}'
+class_body: (class_var_decl | method_decl)*
+class_var_decl: 'var' IDENTIFIER '=' expr
+method_decl: decorator* 'fn' IDENTIFIER '(' parameter_list? ')' type? method_body
+decorator: '@' decorator_name
+decorator_name: 'property' | 'classmethod' | 'staticmethod' 
+              | IDENTIFIER ('.' ('setter' | 'deleter'))?
+method_body: '{' stmt* '}'
+```
+
+### Basic Class Declaration
+
+```frame
+class Point {
+    # Class variables
+    var origin_x = 0
+    var origin_y = 0
+    
+    # Constructor (method named 'init')
+    fn init(x, y) {
+        self.x = x
+        self.y = y
+    }
+    
+    # Instance method
+    fn distance_to(other) {
+        var dx = self.x - other.x
+        var dy = self.y - other.y
+        return ((dx * dx) + (dy * dy)) ** 0.5
+    }
+    
+    # Static method
+    @staticmethod
+    fn origin() {
+        return Point(0, 0)
+    }
+    
+    # Class method
+    @classmethod
+    fn from_tuple(cls, coords) {
+        return cls(coords[0], coords[1])
+    }
+}
+```
+
+### Class Inheritance
+
+Classes can inherit from parent classes using the `extends` keyword:
+
+```frame
+class Animal {
+    var species = "Unknown"
+    
+    fn init(name) {
+        self.name = name
+    }
+    
+    fn speak() {
+        return "Some sound from " + self.name
+    }
+    
+    fn move() {
+        return self.name + " is moving"
+    }
+}
+
+class Dog extends Animal {
+    fn init(name, breed) {
+        # Call parent constructor
+        super().__init__(name)
+        self.breed = breed
+        self.species = "Canis familiaris"
+    }
+    
+    # Override parent method
+    fn speak() {
+        return "Woof! My name is " + self.name
+    }
+    
+    # Add new method
+    fn fetch() {
+        return self.name + " is fetching!"
+    }
+}
+```
+
+### Properties
+
+Properties provide controlled access to instance variables:
+
+```frame
+class Temperature {
+    fn init(celsius) {
+        self._celsius = celsius
+    }
+    
+    @property
+    fn celsius() {
+        return self._celsius
+    }
+    
+    @celsius.setter
+    fn celsius(value) {
+        if value < -273.15 {
+            print("Error: Temperature below absolute zero")
+            return
+        }
+        self._celsius = value
+    }
+    
+    @property
+    fn fahrenheit() {
+        return self._celsius * 9.0 / 5.0 + 32.0
+    }
+    
+    @fahrenheit.setter
+    fn fahrenheit(value) {
+        self.celsius = (value - 32.0) * 5.0 / 9.0
+    }
+}
+```
+
+### Special Methods
+
+Frame supports Python special methods (dunder methods) for operator overloading and built-in behavior:
+
+```frame
+class Vector {
+    fn __init__(x, y) {
+        self.x = x
+        self.y = y
+    }
+    
+    fn __str__() {
+        return "Vector(" + str(self.x) + ", " + str(self.y) + ")"
+    }
+    
+    fn __add__(other) {
+        return Vector(self.x + other.x, self.y + other.y)
+    }
+    
+    fn __eq__(other) {
+        return self.x == other.x and self.y == other.y
+    }
+    
+    fn __len__() {
+        return int((self.x * self.x + self.y * self.y) ** 0.5)
+    }
+}
+
+# Usage
+fn main() {
+    var v1 = Vector(3, 4)
+    var v2 = Vector(1, 2)
+    
+    print(str(v1))              # "Vector(3, 4)"
+    var v3 = v1 + v2            # Calls __add__
+    print(v1 == v2)             # Calls __eq__
+    print(str(len(v1)))         # Calls __len__
+}
+```
+
+### Key Features
+
+- **Constructor Methods**: Methods named `init` or `__init__` become constructors
+- **Implicit Self**: Method signatures don't include `self` (added automatically)
+- **Instance Variables**: Created via `self.varname = value` assignments
+- **Class Variables**: Declared at class level with `var name = value`
+- **Static Methods**: Use `@staticmethod` decorator for non-instance methods
+- **Class Methods**: Use `@classmethod` decorator, receive `cls` parameter
+- **Method Calls**: Instance methods via `obj.method()`, static via `Class.method()`
+- **Inheritance**: `extends` keyword for single inheritance
+- **Super Calls**: `super().__init__()` to call parent methods
+- **Properties**: `@property`, `@name.setter`, `@name.deleter` decorators
+- **Special Methods**: All Python dunder methods supported through passthrough
+
+### Factory Pattern Example
+
+```frame
+class User {
+    var user_count = 0
+    
+    fn init(name, email) {
+        self.name = name
+        self.email = email
+        User.user_count = User.user_count + 1
+    }
+    
+    @classmethod
+    fn from_string(cls, user_string) {
+        parts = user_string.split(":")
+        if len(parts) == 2 {
+            return cls(parts[0], parts[1])
+        }
+        return None
+    }
+    
+    @staticmethod
+    fn validate_email(email) {
+        return "@" in email and "." in email
+    }
+    
+    fn __str__() {
+        return "User(" + self.name + ", " + self.email + ")"
+    }
+}
+
+# Usage
+fn main() {
+    var user1 = User("Alice", "alice@example.com")
+    var user2 = User.from_string("Bob:bob@example.com")
+    
+    if User.validate_email("test@example.com") {
+        print("Valid email")
+    }
+    
+    print("Total users: " + str(User.user_count))
 }
 ```
 

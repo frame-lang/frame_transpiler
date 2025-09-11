@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-10 17:01  
-**Total Tests**: 325  
+**Generated**: 2025-09-11 07:59  
+**Total Tests**: 327  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 325 | 100% |
-| **Transpilation Success** | 324 | 99.7% |
-| **Execution Success** | 323 | 99.4% |
-| **Complete Success** | 323 | 99.4% |
+| **Total Tests** | 327 | 100% |
+| **Transpilation Success** | 327 | 100.0% |
+| **Execution Success** | 327 | 100.0% |
+| **Complete Success** | 327 | 100.0% |
 
 ## v0.31 Features
 
@@ -22,17 +22,7 @@
 
 ## Failed Tests
 
-| Test File | Transpile | Execute | Error |
-|-----------|-----------|---------|-------|
-| test_class_basic.frm | ❌ | ❌ | DEBUG: Found Self_ token in parse_special_keywords
-DEBUG parse_self_context: is_class_method=true, is_static_operation=false
-DEBUG: Added statement to class method
-DEBUG: Found Self_ token in parse_sp |
-| test_set_comprehensions.frm | ✅ | ❌ |   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_set_comprehensions.py", line 22
-    assert
-          ^
-SyntaxError: invalid syntax
- |
+🎉 **All tests passing!**
 
 ## Test Details
 
@@ -65,7 +55,9 @@ SyntaxError: invalid syntax
 | test_call_chain_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_call_chain_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_chaining.frm | ✅ | ✅ | ✅ PASS |
-| test_class_basic.frm | ❌ | ❌ | ❌ FAIL |
+| test_class_basic.frm | ✅ | ✅ | ✅ PASS |
+| test_class_simple_v046.frm | ✅ | ✅ | ✅ PASS |
+| test_class_v046.frm | ✅ | ✅ | ✅ PASS |
 | test_collection_constructors.frm | ✅ | ✅ | ✅ PASS |
 | test_collection_literals_v041.frm | ✅ | ✅ | ✅ PASS |
 | test_collections.frm | ✅ | ✅ | ✅ PASS |
@@ -278,7 +270,7 @@ SyntaxError: invalid syntax
 | test_self_call_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_self_domain_vars.frm | ✅ | ✅ | ✅ PASS |
 | test_self_variable_exhaustive.frm | ✅ | ✅ | ✅ PASS |
-| test_set_comprehensions.frm | ✅ | ❌ | ❌ FAIL |
+| test_set_comprehensions.frm | ✅ | ✅ | ✅ PASS |
 | test_set_literal.frm | ✅ | ✅ | ✅ PASS |
 | test_simple_call.frm | ✅ | ✅ | ✅ PASS |
 | test_simple_call_chain_debug.frm | ✅ | ✅ | ✅ PASS |

@@ -1,35 +1,49 @@
-# Frame v0.45 Development Notes
+# Frame v0.46 Development Notes
 
-## v0.45 Class Support (2025-01-27)
+## v0.46 Complete Class Support (2025-09-11)
 
-### Object-Oriented Programming in Frame
-Frame v0.45 introduces basic class support, enabling object-oriented programming patterns alongside Frame's state machine paradigm.
+### Full Object-Oriented Programming in Frame
+Frame v0.46 completes the class support implementation with inheritance, properties, decorators, and special methods, providing comprehensive OOP capabilities.
 
-**Core Features:**
+**New Features in v0.46:**
+- **Class Inheritance**: `extends` keyword for single inheritance
+- **Super Calls**: `super().__init__()` syntax for parent method access
+- **Property Decorators**: `@property`, `@name.setter`, `@name.deleter`
+- **Class Methods**: `@classmethod` decorator with `cls` parameter
+- **Special Methods**: Full support for Python dunder methods (`__str__`, `__add__`, etc.)
+- **Method Overriding**: Child classes can override parent methods
+- **Factory Pattern**: Class methods can serve as alternate constructors
+
+**Implementation Enhancements:**
+- **Scanner**: Added `extends`, `super`, `cls`, `setter`, `deleter` keywords
+- **Parser**: Fixed infinite loop in decorator parsing, added property decorator support
+- **AST**: ClassNode includes parent field for inheritance
+- **Visitor**: Proper super() call generation, property decorator handling
+- **Code Generation**: Idiomatic Python classes with all OOP features
+
+**Bug Fixes:**
+- Fixed infinite loop in decorator parsing by removing rewind logic
+- Fixed super() call generation (`super().__init__()` instead of `super.init()`)
+- Fixed property setter/deleter token recognition
+- Fixed classmethod parameter comma issue
+
+**Test Results:**
+- **327/327 tests passing** (100% success rate)
+- Comprehensive v0.46 test coverage for all new features
+- No regressions in existing functionality
+
+## v0.45 Basic Class Support (2025-01-27)
+
+### Initial Object-Oriented Programming in Frame
+Frame v0.45 introduced basic class support as the foundation for OOP in Frame.
+
+**Core Features from v0.45:**
 - **Class Declarations**: `class ClassName { ... }` syntax
 - **Constructor Methods**: Methods named `init` become constructors
 - **Instance Methods**: Regular methods with implicit `self` parameter
 - **Static Methods**: `@staticmethod` decorator for class-level methods
 - **Class Variables**: Variables declared at class level (shared across instances)
 - **Instance Variables**: Variables assigned via `self.varname` in methods
-
-**Implementation Details:**
-- **Scanner**: Added `Class` and `Assert` keywords
-- **AST**: Added `ClassNode` and `MethodNode` types
-- **Parser**: Class body parser handles methods, variables, and decorators
-- **Visitor**: Generates proper Python class code with correct scoping
-- **Scope Management**: Local variables in methods use `EventHandlerVarScope` to avoid `self.` prefix
-
-**Key Design Decisions:**
-- **Implicit `self`**: Method signatures don't include `self` (added during code generation)
-- **No Inheritance**: v0.45 supports single classes without inheritance
-- **Python Target**: Initial implementation focuses on Python code generation
-- **Public Members**: All class members are public (no access modifiers)
-
-**Test Coverage:**
-- Created comprehensive test with Point and Circle classes
-- Tests constructor, instance methods, static methods, and class variables
-- Verified proper variable scoping and method invocation
 
 ## Language Support Classification (Updated 2025-09-08)
 
