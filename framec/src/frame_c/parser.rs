@@ -5189,6 +5189,15 @@ impl<'a> Parser<'a> {
 
     // Helper: Parse control flow statements (if, for, while, etc.)
     fn parse_control_flow_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // v0.50: Add del statement support
+        if self.match_token(&[TokenType::Del]) {
+            return match self.del_statement() {
+                Ok(Some(del_stmt_t)) => Ok(Some(del_stmt_t)),
+                Ok(None) => Err(ParseError::new("Expected del statement")),
+                Err(parse_error) => Err(parse_error),
+            };
+        }
+        
         if self.match_token(&[TokenType::If]) {
             return match self.if_statement() {
                 Ok(Some(if_stmt_t)) => Ok(Some(if_stmt_t)),
@@ -8681,6 +8690,25 @@ impl<'a> Parser<'a> {
 
         let while_stmt_node = WhileStmtNode::new(condition, while_block);
         Ok(Some(StatementType::WhileStmt { while_stmt_node }))
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    // v0.50: Parse del statement - del target
+    fn del_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Parse the target expression to delete
+        let target = match self.expression() {
+            Ok(Some(expr)) => expr,
+            Ok(None) => {
+                self.error_at_current("Expected target expression after 'del'.");
+                return Err(ParseError::new("Expected target expression after 'del'."));
+            }
+            Err(e) => return Err(e),
+        };
+
+        // Create the del statement node
+        let del_stmt_node = DelStmtNode::new(target);
+        Ok(Some(StatementType::DelStmt { del_stmt_node }))
     }
 
     /* --------------------------------------------------------------------- */

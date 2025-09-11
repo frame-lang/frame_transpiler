@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (initial class exploration), v0.46 (complete class support with inheritance, properties, and decorators), v0.47 (assert statement support), and v0.48 (Python-style access modifiers).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (class support with OOP features), v0.46 (assert statement support), v0.47 (with statement support), v0.48 (Python-style access modifiers), v0.49 (complete error handling), and v0.50 (del statement support).
 
 ## File Locations
 
@@ -39,8 +39,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.49`  
-**Status**: ✅ **100% TEST SUCCESS RATE** - Complete Error Handling Support
+**Version**: `v0.50`  
+**Status**: ✅ **100% TEST SUCCESS RATE** - Delete Statement Support
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -63,6 +63,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.47 achievements, see**: [`docs/v0.47_achievements.md`](docs/v0.47_achievements.md)
 📊 **For v0.48 achievements, see**: [`docs/v0.48_achievements.md`](docs/v0.48_achievements.md)
 📊 **For v0.49 achievements, see**: [`docs/v0.49_achievements.md`](docs/v0.49_achievements.md)
+📊 **For v0.50 achievements, see**: [`docs/v0.50_achievements.md`](docs/v0.50_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
@@ -959,6 +960,53 @@ fn main() {
 - ✅ Proper variable scoping in methods
 - ❌ Inheritance (not yet supported)
 - ❌ Access modifiers (all members public)
+
+### v0.50 Delete Statement (COMPLETE) ✅
+
+Frame v0.50 introduces the `del` statement for removing variables, list elements, dictionary entries, and object attributes, providing complete memory management control.
+
+#### Delete Statement Syntax
+```frame
+# Delete variables
+var x = 42
+del x  # Variable no longer accessible
+
+# Delete list elements
+var mylist = [1, 2, 3, 4, 5]
+del mylist[2]      # Remove element at index 2
+del mylist[-1]     # Remove last element
+
+# Delete slices
+var nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+del nums[2:5]      # Delete elements 2-4
+del nums[::2]      # Delete every other element
+
+# Delete dictionary entries
+var mydict = {"a": 1, "b": 2, "c": 3}
+del mydict["b"]    # Remove key "b"
+
+# Delete from nested structures
+var data = {
+    "users": [{"name": "Alice", "age": 30}]
+}
+del data["users"][0]["age"]  # Remove nested field
+```
+
+#### Key Features
+- **Variable Deletion**: Remove variables from scope
+- **List Element Deletion**: Delete by index (positive or negative)
+- **Slice Deletion**: Delete ranges with optional step
+- **Dictionary Entry Deletion**: Remove key-value pairs
+- **Nested Deletion**: Delete from complex nested structures
+- **Expression Support**: Any valid expression can be deletion target
+
+#### Implementation Status
+- ✅ Scanner recognizes `del` keyword
+- ✅ Parser handles del statements
+- ✅ AST node for delete operations
+- ✅ Python code generation
+- ✅ Comprehensive test coverage
+- ⚠️ Parser limitation: Cannot redeclare deleted variables in same scope
 
 ### v0.34 Module System (Complete Implementation)
 

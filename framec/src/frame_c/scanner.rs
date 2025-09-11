@@ -35,6 +35,7 @@ impl Scanner {
             ("in".to_string(), TokenType::In),
             ("continue".to_string(), TokenType::Continue),
             ("break".to_string(), TokenType::Break),
+            ("del".to_string(), TokenType::Del),
             ("enum".to_string(), TokenType::Enum),
             ("fn".to_string(), TokenType::Function),
             ("class".to_string(), TokenType::Class),
@@ -966,6 +967,7 @@ pub enum TokenType {
     Else,                   // else keyword
     Continue, // continue keyword
     Break,    // break keyword
+    Del,      // 'del' keyword (v0.50)
     In,       // 'in' keyword
     Enum,     // 'enum' keyword
     Function, // 'fn' keyword

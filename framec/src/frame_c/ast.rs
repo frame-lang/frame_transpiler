@@ -2350,6 +2350,9 @@ pub enum StatementType {
     BreakStmt {
         break_stmt_node: BreakStmtNode,
     },
+    DelStmt {
+        del_stmt_node: DelStmtNode,
+    },
     AssertStmt {
         assert_stmt_node: AssertStmtNode,
     },
@@ -3326,6 +3329,25 @@ impl BreakStmtNode {
 impl NodeElement for BreakStmtNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_break_stmt_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+
+// v0.50: Del statement support
+pub struct DelStmtNode {
+    pub target: ExprType,  // The expression to delete (e.g., list[i], dict[key], var)
+}
+
+impl DelStmtNode {
+    pub fn new(target: ExprType) -> DelStmtNode {
+        DelStmtNode { target }
+    }
+}
+
+impl NodeElement for DelStmtNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_del_stmt_node(self);
     }
 }
 

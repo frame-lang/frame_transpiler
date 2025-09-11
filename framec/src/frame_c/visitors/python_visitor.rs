@@ -1366,6 +1366,9 @@ impl PythonVisitor {
                             StatementType::AssertStmt { assert_stmt_node } => {
                                 assert_stmt_node.accept(self);
                             }
+                            StatementType::DelStmt { del_stmt_node } => {
+                                del_stmt_node.accept(self);
+                            }
                             // SuperStringStmt removed - backticks no longer supported
                             StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
                                 parent_dispatch_stmt_node.accept(self);
@@ -2523,6 +2526,9 @@ impl PythonVisitor {
                         }
                         StatementType::AssertStmt { assert_stmt_node } => {
                             assert_stmt_node.accept(self);
+                        }
+                        StatementType::DelStmt { del_stmt_node } => {
+                            del_stmt_node.accept(self);
                         }
                         // SuperStringStmt removed - backticks no longer supported
                         StatementType::IfStmt { if_stmt_node } => {
@@ -4353,6 +4359,9 @@ impl PythonVisitor {
             }
             StatementType::AssertStmt { assert_stmt_node } => {
                 assert_stmt_node.accept(self);
+            }
+            StatementType::DelStmt { del_stmt_node } => {
+                del_stmt_node.accept(self);
             }
             StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
                 parent_dispatch_stmt_node.accept(self);
@@ -7683,6 +7692,15 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.add_code("assert ");
         assert_stmt_node.expr.accept(self);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    // v0.50: Del statement support
+    fn visit_del_stmt_node(&mut self, del_stmt_node: &DelStmtNode) {
+        self.newline();
+        self.add_code("del ");
+        del_stmt_node.target.accept(self);
     }
 
     //* --------------------------------------------------------------------- *//

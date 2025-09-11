@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.45)
+# Frame Language Grammar (v0.50)
 
-**Last Updated**: 2025-01-27  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, and string literal method calls
+**Last Updated**: 2025-01-28  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, string literal method calls, and del statement support
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1784,6 +1784,7 @@ stmt: expr_stmt
     | var_decl
     | assignment
     | assert_stmt
+    | del_stmt
     | if_stmt
     | match_stmt
     | for_stmt
@@ -1804,6 +1805,7 @@ stmt: expr_stmt
 expr_stmt: expr
 var_decl: 'var' IDENTIFIER type? '=' expr
 assert_stmt: 'assert' expr (',' expr)?
+del_stmt: 'del' expr  // v0.50: Delete statement
 assignment: lvalue assignment_op expr
 assignment_op: '=' | '+=' | '-=' | '*=' | '/=' | '//=' | '%=' | '**=' | '@='  // v0.39-40
              | '&=' | '|=' | '^=' | '<<=' | '>>='  // v0.39-40: Bitwise compound
@@ -2004,6 +2006,47 @@ The exception handling maps to target language idioms:
 - **Java/C#**: Multi-catch and success flags
 - **Go**: defer/recover pattern or error returns
 - **Rust**: Result<T, E> pattern
+
+### Delete Statement (v0.50)
+
+Frame v0.50 introduces the `del` statement for removing variables, list elements, dictionary entries, and object attributes:
+
+```frame
+// Delete variables
+var x = 42
+del x  # x is no longer defined
+
+// Delete list elements
+var mylist = [1, 2, 3, 4, 5]
+del mylist[2]      # Remove element at index 2
+del mylist[-1]     # Remove last element
+del mylist[1:3]    # Delete slice
+
+// Delete dictionary entries
+var mydict = {"a": 1, "b": 2, "c": 3}
+del mydict["b"]    # Remove key "b"
+
+// Delete with variable key
+var key = "a"
+del mydict[key]
+
+// Delete from nested structures
+var data = {
+    "users": [
+        {"name": "Alice", "age": 30},
+        {"name": "Bob", "age": 25}
+    ]
+}
+del data["users"][0]["age"]  # Remove age from first user
+del data["users"][1]         # Remove second user entirely
+
+// Delete slices with step
+var nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+del nums[::2]      # Delete every other element
+del nums[2:7:2]    # Delete elements at indices 2, 4, 6
+```
+
+**Note**: After deleting a variable with `del`, attempting to access it will result in a runtime error (NameError in Python). The Frame parser currently does not allow redeclaration of a deleted variable within the same scope.
 
 ### Parent Dispatch Statement
 
@@ -2733,6 +2776,23 @@ The parser automatically detects when a function call follows an array/dictionar
 
 
 ## Version History
+
+### v0.50 (2025-01-28) - Delete Statement
+
+#### New Features
+- **Delete Statement**: `del` keyword for removing variables, list elements, dictionary entries, and slices
+- **Comprehensive Deletion Support**: Works with all indexable types and nested structures
+- **Slice Deletion**: Full support for deleting slices including with step parameters
+
+#### Examples
+```frame
+# Delete variables and elements
+del x                      # Delete variable
+del mylist[2]             # Delete list element
+del mydict["key"]         # Delete dict entry
+del data[0:5]            # Delete slice
+del nested["a"][0]["b"]   # Delete from nested structures
+```
 
 ### v0.40 (2025-09-09) - Python Alignment Complete
 

@@ -470,6 +470,9 @@ impl GraphVizVisitor {
                         StatementType::AssertStmt { .. } => {
                             // Assert statements don't affect control flow in graphviz
                         }
+                        StatementType::DelStmt { .. } => {
+                            // Del statements don't affect control flow in graphviz
+                        }
                         StatementType::NoStmt => {
                             // TODO
                             panic!("todo");
