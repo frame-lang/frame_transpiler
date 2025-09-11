@@ -1,13 +1,13 @@
 # Frame Transpiler Test Report
 
 **Last Run**: 2025-09-11  
-**Version**: v0.46  
+**Version**: v0.49  
 **Branch**: v0.30  
 
 ## Test Summary
 
-**Total Tests**: 327  
-**Passed**: 327  
+**Total Tests**: 330  
+**Passed**: 330  
 **Failed**: 0  
 **Success Rate**: 100.0% ✅
 
@@ -29,6 +29,24 @@
 - **Comprehensions**: 15/15
 - **Generators**: 10/10
 - **Type Annotations**: 10/10
+- **Error Handling (v0.49)**: 7/7
+
+## v0.49 Implementation Status
+
+### ✅ Completed Features
+1. **Try/Except Blocks**: Full exception type support with proper Python generation
+2. **Exception Variable Binding**: `as e` syntax for accessing exception details  
+3. **Multiple Exception Types**: Single except clause handling multiple exception types
+4. **Finally Blocks**: Cleanup code that always executes
+5. **Raise Statements**: Custom exception throwing with expression support
+6. **Try/Finally Without Except**: Cleanup-only blocks (parser fix in v0.49)
+7. **Nested Exception Handling**: Arbitrary nesting with proper scope handling
+8. **System Integration**: Error handling works seamlessly with Frame state machines
+
+### 🔧 v0.49 Bug Fixes
+- **Critical Parser Fix**: Allow try/finally blocks without except clauses
+- **Validation Enhancement**: Proper validation ensuring either except or finally exists
+- **Zero Regressions**: All 330 tests pass (100% success rate)
 
 ## v0.46 Implementation Status
 

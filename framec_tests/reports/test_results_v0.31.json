@@ -1,14 +1,21 @@
 {
-  "timestamp": "2025-09-11T08:21:04.379986",
+  "timestamp": "2025-09-11T09:50:09.664058",
   "version": "v0.31",
   "summary": {
-    "total": 327,
-    "transpile_success": 327,
-    "execute_success": 327,
-    "complete_success": 327,
+    "total": 330,
+    "transpile_success": 330,
+    "execute_success": 330,
+    "complete_success": 330,
     "success_rate": "100.0%"
   },
   "results": [
+    {
+      "file": "test_access_modifiers_v048.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Access Modifiers ===\nOwner: Alice\nAccount count: 1\nDeposited: 500\nWithdrew: 200\nInvalid PIN\n=== Access Modifier Tests Complete ===\n",
+      "error": null
+    },
     {
       "file": "test_all_8_collection_patterns.frm",
       "transpile": true,
@@ -28,6 +35,13 @@
       "transpile": true,
       "execute": true,
       "output": "Empty list: []\nEmpty dict: {}\nEmpty set: set()\nEmpty tuple: ()\n",
+      "error": null
+    },
+    {
+      "file": "test_assert_v047.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing v0.47 Assert Statements ===\nBasic assertions passed!\nFunction assertions passed!\n=== All Assert Tests Passed! ===\n=== Testing v0.47 Assert Statements ===\nBasic assertions passed!\nFunction ",
       "error": null
     },
     {
@@ -629,7 +643,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -657,14 +671,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -686,6 +700,13 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_error_handling_v049.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Frame v0.49 Error Handling Test Suite ===\n\n1. Basic try/except:\n\u2713 Caught division by zero!\n\n2. Exception variable binding:\n\u2713 Caught ValueError: invalid literal for int() with base 10: 'not_a_numbe",
       "error": null
     },
     {

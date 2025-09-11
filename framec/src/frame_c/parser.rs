@@ -7789,15 +7789,14 @@ impl<'a> Parser<'a> {
             Err(e) => return Err(e),
         };
 
-        // Parse except clauses (at least one required for now)
+        // Parse except clauses (optional - try/finally is allowed without except)
         let mut except_clauses = Vec::new();
         
-        if !self.match_token(&[TokenType::Except]) {
-            self.error_at_current("Expected 'except' after try block.");
-            return Err(ParseError::new("Expected 'except' after try block."));
-        }
-
-        loop {
+        // Check if we have except clauses
+        let has_except = self.match_token(&[TokenType::Except]);
+        
+        if has_except {
+            loop {
             // Parse exception specification (optional)
             let mut exception_types = None;
             let mut var_name = None;
@@ -7887,6 +7886,7 @@ impl<'a> Parser<'a> {
             if !self.match_token(&[TokenType::Except]) {
                 break;
             }
+            }
         }
 
         // Parse optional else block
@@ -7918,6 +7918,12 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+
+        // Validate that we have at least except clauses or finally block
+        if except_clauses.is_empty() && finally_block.is_none() {
+            self.error_at_current("Try statement must have either 'except' clauses or 'finally' block.");
+            return Err(ParseError::new("Try statement must have either 'except' clauses or 'finally' block."));
+        }
 
         let try_stmt_node = TryStmtNode::new(
             try_block,

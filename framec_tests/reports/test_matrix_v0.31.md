@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-11 08:21  
-**Total Tests**: 327  
+**Generated**: 2025-09-11 09:50  
+**Total Tests**: 330  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 327 | 100% |
-| **Transpilation Success** | 327 | 100.0% |
-| **Execution Success** | 327 | 100.0% |
-| **Complete Success** | 327 | 100.0% |
+| **Total Tests** | 330 | 100% |
+| **Transpilation Success** | 330 | 100.0% |
+| **Execution Success** | 330 | 100.0% |
+| **Complete Success** | 330 | 100.0% |
 
 ## v0.31 Features
 
@@ -28,9 +28,11 @@
 
 | Test File | Transpile | Execute | Status |
 |-----------|-----------|---------|--------|
+| test_access_modifiers_v048.frm | ✅ | ✅ | ✅ PASS |
 | test_all_8_collection_patterns.frm | ✅ | ✅ | ✅ PASS |
 | test_all_blocks_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_all_constructors.frm | ✅ | ✅ | ✅ PASS |
+| test_assert_v047.frm | ✅ | ✅ | ✅ PASS |
 | test_async_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_async_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_async_generators.frm | ✅ | ✅ | ✅ PASS |
@@ -125,6 +127,7 @@
 | test_enums_doc_values.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_terminator.frm | ✅ | ✅ | ✅ PASS |
+| test_error_handling_v049.frm | ✅ | ✅ | ✅ PASS |
 | test_event_handlers_poc.frm | ✅ | ✅ | ✅ PASS |
 | test_exceptions_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_explicit_self_syntax.frm | ✅ | ✅ | ✅ PASS |

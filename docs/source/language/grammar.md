@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.47)
+# Frame Language Grammar (v0.49)
 
 **Last Updated**: 2025-09-11  
-**Status**: v0.47 - Complete assert statement support. **100% test success rate (327/327 tests passing)**.
+**Status**: v0.49 - Complete error handling support with try/finally fix. **100% test success rate with comprehensive error handling**.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -568,6 +568,55 @@ fn main() {
 }
 ```
 
+### Access Modifiers (v0.48)
+
+Frame follows Python access modifier conventions using naming patterns:
+
+```frame
+class BankAccount {
+    var account_count = 0  # Public class variable
+    
+    fn init(owner, balance) {
+        self.owner = owner           # Public instance variable
+        self._balance = balance      # Protected instance variable
+        self.__pin = 1234           # Private instance variable
+    }
+    
+    # Public method
+    fn get_owner() {
+        return self.owner
+    }
+    
+    # Protected method
+    fn _check_balance() {
+        return self._balance
+    }
+    
+    # Private method
+    fn __validate_pin(pin) {
+        return pin == self.__pin
+    }
+    
+    fn withdraw(amount, pin) {
+        if not self.__validate_pin(pin) {
+            return "Invalid PIN"
+        }
+        
+        if amount > self._balance {
+            return "Insufficient funds"
+        }
+        
+        self._balance = self._balance - amount
+        return "Withdrew: " + str(amount)
+    }
+}
+```
+
+**Access Modifier Conventions:**
+- **Public**: `name` - Normal identifiers, accessible everywhere
+- **Protected**: `_name` - Single underscore prefix, intended for internal use and inheritance
+- **Private**: `__name` - Double underscore prefix, Python name mangling applied
+
 ### Key Features
 
 - **Constructor Methods**: Methods named `init` or `__init__` become constructors
@@ -581,6 +630,7 @@ fn main() {
 - **Super Calls**: `super().__init__()` to call parent methods
 - **Properties**: `@property`, `@name.setter`, `@name.deleter` decorators
 - **Special Methods**: All Python dunder methods supported through passthrough
+- **Access Modifiers**: Python-style naming conventions for public, protected, and private members
 
 ### Factory Pattern Example
 
@@ -792,6 +842,275 @@ system SimpleAsync {
 ```
 
 **Test Coverage**: 207/207 tests passing (100% success rate) including multiple async test cases.
+
+## Error Handling (v0.49)
+
+Frame provides comprehensive error handling support through try/except/finally/raise statements that generate idiomatic Python exception handling code.
+
+```bnf
+try_statement: 'try' '{' block '}' (except_clause)* (else_clause)? (finally_clause)?
+except_clause: 'except' (exception_type (',' exception_type)* | '(' exception_type (',' exception_type)* ')') ('as' IDENTIFIER)? '{' block '}'
+else_clause: 'else' '{' block '}'
+finally_clause: 'finally' '{' block '}'
+raise_statement: 'raise' expression?
+```
+
+### Error Handling Features
+
+- **try/except blocks**: Catch and handle specific exceptions
+- **Exception variable binding**: Access exception details with `as` syntax
+- **Multiple exception types**: Handle different exception types in one clause
+- **finally blocks**: Code that always executes for cleanup
+- **raise statements**: Throw exceptions with custom messages
+- **try/finally**: Finally blocks without except clauses (v0.49 fix)
+- **Nested exception handling**: Full support for nested try/except blocks
+
+### Basic Exception Handling
+
+```frame
+fn safe_division(a, b) {
+    try {
+        var result = a / b
+        print("Result: " + str(result))
+        return result
+    }
+    except ZeroDivisionError {
+        print("Error: Cannot divide by zero!")
+        return None
+    }
+}
+```
+
+### Exception Variable Binding
+
+Access exception details using the `as` keyword:
+
+```frame
+fn parse_number(text) {
+    try {
+        var num = int(text)
+        return num
+    }
+    except ValueError as e {
+        print("Parse error: " + str(e))
+        return 0
+    }
+}
+```
+
+### Multiple Exception Types
+
+Handle different exception types in a single except clause:
+
+```frame
+fn process_data(data) {
+    try {
+        var num = int(data)
+        var result = 100 / num
+        return result
+    }
+    except (ValueError, ZeroDivisionError) as e {
+        print("Processing failed: " + str(e))
+        return None
+    }
+}
+```
+
+### Try/Except/Finally
+
+The finally block always executes, regardless of exceptions:
+
+```frame
+fn read_file(filename) {
+    var file = None
+    try {
+        file = open(filename, "r")
+        var content = file.read()
+        return content
+    }
+    except IOError as e {
+        print("File error: " + str(e))
+        return ""
+    }
+    finally {
+        if file is not None {
+            file.close()
+            print("File closed")
+        }
+    }
+}
+```
+
+### Try/Finally Without Except (v0.49)
+
+Frame v0.49 supports try/finally blocks without except clauses for cleanup-only scenarios:
+
+```frame
+fn cleanup_example() {
+    var resource = acquire_resource()
+    try {
+        # Do work with resource
+        var result = process(resource)
+        print("Processing complete")
+    }
+    finally {
+        # Always cleanup, even if no exceptions
+        release_resource(resource)
+        print("Resource cleaned up")
+    }
+}
+```
+
+### Raise Statements
+
+Throw custom exceptions with descriptive messages:
+
+```frame
+fn validate_age(age) {
+    if age < 0 {
+        raise ValueError("Age cannot be negative: " + str(age))
+    }
+    if age > 150 {
+        raise ValueError("Age seems unrealistic: " + str(age))
+    }
+    return age
+}
+
+fn test_validation() {
+    try {
+        validate_age(-5)
+    }
+    except ValueError as e {
+        print("Validation failed: " + str(e))
+    }
+}
+```
+
+### Nested Exception Handling
+
+Frame supports arbitrary nesting of try/except blocks:
+
+```frame
+fn complex_operation() {
+    try {
+        print("Starting outer operation")
+        
+        try {
+            print("Inner operation")
+            raise ValueError("Inner failure")
+        }
+        except ValueError as inner_e {
+            print("Caught inner exception: " + str(inner_e))
+            # Re-raise as different exception
+            raise RuntimeError("Operation failed in inner handler")
+        }
+        
+    }
+    except RuntimeError as outer_e {
+        print("Caught outer exception: " + str(outer_e))
+    }
+    finally {
+        print("Outer finally block executed")
+    }
+}
+```
+
+### System Error Handling
+
+Error handling works seamlessly within Frame state machines:
+
+```frame
+system SafeProcessor {
+    interface:
+        processItem(item)
+        handleError(error)
+    
+    machine:
+        $Ready {
+            processItem(item) {
+                try {
+                    var result = risky_operation(item)
+                    self.result = result
+                    -> $Complete
+                }
+                except Exception as e {
+                    self.error = str(e)
+                    -> $Error
+                }
+            }
+        }
+        
+        $Error {
+            $>() {
+                self.handleError(self.error)
+            }
+            
+            handleError(error) {
+                print("System error: " + error)
+                -> $Ready  # Reset to ready state
+            }
+        }
+        
+        $Complete {
+            $>() {
+                print("Processing successful: " + str(self.result))
+            }
+        }
+    
+    domain:
+        var result = None
+        var error = None
+}
+```
+
+### Generated Python Code
+
+Frame error handling generates idiomatic Python exception handling:
+
+```frame
+# Frame source:
+try {
+    var x = 10 / 0
+}
+except ZeroDivisionError as e {
+    print("Error: " + str(e))
+}
+finally {
+    print("Cleanup")
+}
+```
+
+```python
+# Generated Python:
+try:
+    x = 10 / 0
+except ZeroDivisionError as e:
+    print("Error: " + str(e))
+finally:
+    print("Cleanup")
+```
+
+### Implementation Status
+
+**✅ Fully Implemented Features (v0.49)**:
+- Try/except blocks with full exception type support
+- Exception variable binding with `as` keyword  
+- Multiple exception types in single except clause
+- Finally blocks for cleanup code
+- Raise statements with expression support
+- Try/finally without except (v0.49 parser fix)
+- Nested exception handling
+- Perfect Python code generation
+- System integration for state machine error handling
+
+**✅ Test Coverage**: All 7 error handling scenarios verified working:
+1. Basic try/except blocks
+2. Exception variable binding (`as e`)
+3. Multiple exception types  
+4. Try/except/finally
+5. Raise statements
+6. Nested exception handling
+7. Try/finally without except
 
 ## Module Variables (v0.31)
 
