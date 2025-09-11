@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.46)
+# Frame Language Grammar (v0.47)
 
 **Last Updated**: 2025-09-11  
-**Status**: v0.46 - Complete class support with inheritance, properties, decorators, and special methods. **100% test success rate (327/327 tests passing)**.
+**Status**: v0.47 - Complete assert statement support. **100% test success rate (327/327 tests passing)**.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1893,6 +1893,7 @@ stmt: expr_stmt
     | while_stmt
     | loop_stmt
     | with_stmt        // v0.37: context managers
+    | assert_stmt      // v0.47: assertions
     | return_stmt
     | return_assign_stmt
     | parent_dispatch_stmt
@@ -1916,7 +1917,53 @@ state_stack_op: '$$[' '+' ']' | '$$[' '-' ']'
 block_stmt: '{' stmt* '}'
 break_stmt: 'break'
 continue_stmt: 'continue'
+assert_stmt: 'assert' expr
 ```
+
+### Assert Statement (v0.47)
+
+Frame v0.47 adds support for assertions for debugging and validation:
+
+```frame
+fn validate_input(value) {
+    # Basic assertion
+    assert value > 0
+    
+    # Assert with complex expression
+    assert value % 2 == 0 and value < 100
+    
+    # Assert in conditional logic
+    if value > 50 {
+        assert value < 75
+    }
+    
+    print("All validations passed!")
+}
+
+# Assert in systems
+system SafeCounter {
+    domain:
+        var count = 0
+        var max = 10
+    
+    machine:
+        $Ready {
+            increment() {
+                assert count < max  # Ensure we don't overflow
+                count = count + 1
+                return
+            }
+            
+            decrement() {
+                assert count > 0    # Ensure we don't go negative
+                count = count - 1
+                return
+            }
+        }
+}
+```
+
+**Note**: Assert statements generate Python `assert` statements directly. Failed assertions raise `AssertionError` exceptions at runtime.
 
 ### With Statement (v0.37)
 
