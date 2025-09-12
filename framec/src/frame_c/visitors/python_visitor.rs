@@ -9791,6 +9791,25 @@ impl AstVisitor for PythonVisitor {
         };
         let var_name = &variable_decl_node.name;
         
+        // v0.53: Check for multiple variable declaration marker
+        if var_name.starts_with("__multi_var__:") {
+            // Extract the variable names from the marker
+            let names_str = &var_name["__multi_var__:".len()..];
+            let names: Vec<&str> = names_str.split(',').collect();
+            
+            // Generate the unpacking assignment
+            self.add_code(&names.join(", "));
+            self.add_code(" = ");
+            
+            // Generate the right-hand side
+            let var_init_expr = &variable_decl_node.get_initializer_value_rc();
+            let mut code = String::new();
+            var_init_expr.accept_to_string(self, &mut code);
+            self.add_code(&code);
+            
+            return;  // Early return for multiple variable declarations
+        }
+        
         // Note: Shadowing check is now performed in the parser during semantic analysis
         // This ensures consistent error checking regardless of code generation order
         

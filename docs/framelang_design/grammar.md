@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.52)
+# Frame Language Grammar (v0.53)
 
-**Last Updated**: 2025-01-29  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, and multiple assignment/tuple unpacking
+**Last Updated**: 2025-09-12  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, and fixed collection literal parsing
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -370,7 +370,7 @@ system Utils {
 Module-level variables can be declared at the top level of a Frame module, making them accessible from all functions and systems in the module.
 
 ```bnf
-module_var: 'var' IDENTIFIER type? '=' expr
+module_var: 'var' IDENTIFIER (',' IDENTIFIER)* type? '=' expr (',' expr)*  // v0.53: Multiple variable declarations
 ```
 
 ### Module Variable Features
@@ -387,6 +387,10 @@ module_var: 'var' IDENTIFIER type? '=' expr
 var counter = 0
 var message: string = "Hello"
 var data = []
+
+// Multiple variable declarations (v0.53)
+var x, y, z = 1, 2, 3
+var a, b = 10, 20
 
 fn increment() {
     counter = counter + 1  // Automatic 'global counter' in Python
@@ -1026,14 +1030,14 @@ terminator: 'return' expr?
           | '->' '$' IDENTIFIER  // Transition to named state (NOT '$^')
 stmt: parent_dispatch_stmt | /* other statements */
 parent_dispatch_stmt: '=>' '$^'  // Parent dispatch statement
-state_var: 'var' IDENTIFIER type? '=' expr
+state_var: 'var' IDENTIFIER (',' IDENTIFIER)* type? '=' expr (',' expr)*  // v0.53: Multiple variable declarations
 ```
 
 ## Domain Block
 
 ```bnf
 domain_block: 'domain:' (domain_var | enum_decl)*
-domain_var: 'var' IDENTIFIER type? '=' expr
+domain_var: 'var' IDENTIFIER (',' IDENTIFIER)* type? '=' expr (',' expr)*  // v0.53: Multiple variable declarations
 ```
 
 ### Domain Variable Access (v0.31)
@@ -1876,10 +1880,10 @@ n1, n2, n3 = n1 + 1, n2 * 2, n3 ** 2  # Multiple expressions on RHS
 - Only simple `=` operator supported for multiple assignment (not compound operators)
 
 **Important Notes:**
-- Multiple variable declarations (`var x, y = 10, 20`) not fully supported - use separate declarations
-- List literals with commas create nested tuples: `[1, 2, 3]` becomes `[(1, 2, 3)]` (known limitation)
+- Multiple variable declarations (`var x, y, z = 1, 2, 3`) now supported as of v0.53
+- ~~List literals with commas create nested tuples: `[1, 2, 3]` becomes `[(1, 2, 3)]`~~ **FIXED in v0.53**
 - Assignment targets must be valid lvalues (identifiers, indexed expressions, etc.)
-- Right-hand values automatically wrapped in tuple when multiple values present
+- Right-hand values automatically wrapped in tuple when multiple values present (except in collection literals as of v0.53)
 
 ### Syntax Enforcement
 
@@ -1913,7 +1917,7 @@ stmt: expr_stmt
     | continue_stmt
 
 expr_stmt: expr
-var_decl: 'var' IDENTIFIER type? '=' expr
+var_decl: 'var' IDENTIFIER (',' IDENTIFIER)* type? '=' expr (',' expr)*  // v0.53: Multiple variable declarations
 assert_stmt: 'assert' expr (',' expr)?
 del_stmt: 'del' expr  // v0.50: Delete statement
 assignment: lvalue_list assignment_op rvalue_list  // v0.52: Multiple assignment
@@ -2323,6 +2327,31 @@ tuple_literal: '(' expr_list? ')'  // Disambiguated by context and trailing comm
 dict_pair_list: dict_pair (',' dict_pair)* ','?
 dict_pair: expr ':' expr
 expr_list: expr (',' expr)* ','?
+
+// v0.53: Collection Literal Parsing Fix
+// Collection literals now correctly parse comma-separated elements without
+// wrapping them in tuples. The parser uses context-aware parsing to distinguish
+// between comma-separated collection elements and tuple expressions.
+
+/* Collection Literal Examples (v0.53 behavior):
+   
+   Lists:
+   var lst = [1, 2, 3]              // → lst = [1, 2, 3] ✅
+   var nested = [[1, 2], [3, 4]]    // → nested = [[1, 2], [3, 4]] ✅
+   
+   Dictionaries:
+   var dict = {"a": 1, "b": 2}      // → dict = {"a": 1, "b": 2} ✅
+   
+   Sets:
+   var set = {1, 2, 3}               // → set = {1, 2, 3} ✅
+   
+   Tuples:
+   var tup = (1, 2, 3)               // → tup = (1, 2, 3) ✅
+   var single = (42,)                // → single = (42,) ✅
+   
+   Mixed Collections:
+   var data = {"list": [1, 2, 3]}   // → data = {"list": [1, 2, 3]} ✅
+*/
 
 // v0.38: Collection Constructors (transformed to literals)
 collection_constructor: list_constructor | set_constructor | tuple_constructor | dict_constructor
@@ -2890,6 +2919,22 @@ The parser automatically detects when a function call follows an array/dictionar
 
 ## Version History
 
+### v0.53 (2025-09-11) - Collection Literal Parsing Fix
+
+#### Bug Fixes
+- **Collection Literal Comma Parsing**: Fixed issue where comma-separated values in collection literals were incorrectly wrapped in tuples
+  - Lists: `[1, 2, 3]` now correctly generates `[1, 2, 3]` instead of `[(1, 2, 3)]`
+  - Dictionaries, sets, and tuples also correctly handle comma-separated elements
+  - Parser now uses context-aware parsing to distinguish collection elements from tuple expressions
+
+#### Technical Implementation
+- Added `is_parsing_collection` flag to parser for context tracking
+- Modified collection parsing functions to set/restore context flag
+- Updated `assignment_or_lambda()` to check context before tuple wrapping
+
+#### Known Limitations (Updated in v0.53)
+- ~~Multiple variable declarations (`var x, y = 10, 20`) remain partially implemented~~ **FIXED in v0.53**
+
 ### v0.52 (2025-01-29) - Multiple Assignment and Tuple Unpacking
 
 #### New Features
@@ -2903,8 +2948,8 @@ The parser automatically detects when a function call follows an array/dictionar
 - Parser handles comma-separated expressions as tuples when appropriate
 - Automatic tuple wrapping for multiple RHS values
 
-#### Known Limitations
-- Multiple variable declarations (`var x, y = 10, 20`) require separate declarations
+#### Known Limitations (Resolved in v0.53)
+- ~~Multiple variable declarations (`var x, y = 10, 20`) require separate declarations~~ **FIXED in v0.53**
 - List literals with commas create nested tuples (workaround available)
 
 ### v0.51 (2025-01-28) - Loop Else Clauses

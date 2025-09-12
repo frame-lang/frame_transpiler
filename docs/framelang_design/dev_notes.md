@@ -1,4 +1,37 @@
-# Frame v0.52 Development Notes
+# Frame v0.53 Development Notes
+
+## v0.53 Collection Literal Parsing Fix & Multiple Variable Declarations (2025-09-12)
+
+### Context-Aware Collection Parsing
+Frame v0.53 fixes a critical parser bug introduced in v0.52 where comma-separated values in collection literals were incorrectly wrapped in tuples. This fix restores correct behavior for all collection types while preserving v0.52's multiple assignment functionality.
+
+**Problem Fixed in v0.53:**
+- **Issue**: List literals like `[1, 2, 3]` were generating `[(1, 2, 3)]` (list containing tuple)
+- **Root Cause**: v0.52's multiple assignment logic was too aggressive in detecting tuples
+- **Impact**: Affected lists, dictionaries, sets, and nested collections
+
+**Solution Implemented:**
+- **Context Tracking**: Added `is_parsing_collection` flag to parser state
+- **Smart Detection**: Parser now distinguishes collection elements from tuple expressions
+- **Selective Wrapping**: Comma-separated values only become tuples outside collections
+- **Comprehensive Fix**: Applied to all collection types (list, dict, set, tuple)
+
+**Technical Details:**
+- **Parser Field**: `is_parsing_collection: bool` tracks parsing context
+- **Modified Functions**: `list()`, `dict_or_set_literal()`, `expr_list_or_tuple()`
+- **Context Check**: `assignment_or_lambda()` checks flag before tuple wrapping
+- **Flag Management**: Save/restore pattern ensures correct context nesting
+
+**Test Results:**
+- Lists: `[1, 2, 3]` → `[1, 2, 3]` ✅
+- Nested: `[[1, 2], [3, 4]]` → `[[1, 2], [3, 4]]` ✅
+- Mixed: `{"list": [1, 2, 3]}` → `{"list": [1, 2, 3]}` ✅
+- All collection types validated with comprehensive test suite
+
+**Additional Enhancement in v0.53:**
+- **Multiple Variable Declarations**: Now supports `var x, y, z = 1, 2, 3` syntax
+- **Symbol Table Fix**: All variables properly registered in symbol table
+- **Grammar Extension**: Extended all variable declaration rules (module, domain, state vars)
 
 ## v0.52 Multiple Assignment and Tuple Unpacking (2025-01-29)
 
@@ -20,8 +53,8 @@ Frame v0.52 introduces Python-style multiple assignment and tuple unpacking, ena
 - **Test Coverage**: Comprehensive test file `test_multiple_assignment_v052.frm` with all scenarios
 
 **Known Limitations:**
-- Multiple variable declarations (`var x, y = 10, 20`) not fully supported
-- List literals with commas incorrectly create nested tuples (workaround available)
+- ~~Multiple variable declarations (`var x, y = 10, 20`) not fully supported~~ **FIXED in v0.53**
+- ~~List literals with commas incorrectly create nested tuples~~ **FIXED in v0.53**
 - Only simple `=` operator supported (not compound assignments)
 
 **Use Cases:**

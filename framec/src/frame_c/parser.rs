@@ -126,6 +126,7 @@ pub struct Parser<'a> {
     last_sync_token_idx: usize,
     system_hierarchy_opt: Option<SystemHierarchy>,
     is_parsing_rhs: bool,
+    is_parsing_collection: bool,  // v0.53: Track when inside collection literals
     event_handler_has_transition: bool,
     is_action_scope: bool,
     operation_scope_depth: i32,
@@ -190,6 +191,7 @@ impl<'a> Parser<'a> {
             current_tok_ref: &tokens[0],
             system_hierarchy_opt: None,
             is_parsing_rhs: false,
+            is_parsing_collection: false,  // v0.53: Initialize
             event_handler_has_transition: false,
             generate_enter_args: false,
             generate_exit_args: false,
@@ -3811,15 +3813,36 @@ impl<'a> Parser<'a> {
         // Parse the right-hand side
         let value = self.parse_variable_initializer(&names.join(", "))?;
         
-        // Create a synthetic assignment statement that will handle the unpacking
-        // For now, we'll create a simple variable for the first name and let the 
-        // visitor handle the unpacking logic
+        // v0.53: Properly register ALL variables in the symbol table during first pass
+        if self.is_building_symbol_table {
+            // During first pass, create placeholder symbols for all variables
+            for name in &names {
+                // Create a simple placeholder node for each variable
+                let var_node = VariableDeclNode::new(
+                    name.clone(),
+                    None,
+                    is_constant,
+                    value.clone(),
+                    value.clone(),
+                    identifier_decl_scope.clone(),
+                );
+                let var_node_rcref = Rc::new(RefCell::new(var_node));
+                
+                // Register each variable in the symbol table
+                self.create_variable_symbol(
+                    name.clone(), 
+                    None, 
+                    &identifier_decl_scope, 
+                    var_node_rcref
+                )?;
+            }
+        }
         
-        // Create variable declarations for each name
-        // Return the first one (for compatibility)
-        let first_name = names[0].clone();
+        // Create a special node that encodes all the variable names for the visitor
+        // We'll use a comma-separated string in the name field as a signal to the visitor
+        let multi_var_marker = format!("__multi_var__:{}", names.join(","));
         let variable_decl_node = VariableDeclNode::new(
-            first_name.clone(),
+            multi_var_marker,
             None,
             is_constant,
             value.clone(),
@@ -3828,15 +3851,6 @@ impl<'a> Parser<'a> {
         );
         
         let variable_decl_node_rcref = Rc::new(RefCell::new(variable_decl_node));
-        
-        // Register the first variable in the symbol table
-        let _ =
-            self.create_variable_symbol(first_name.clone(), None, &identifier_decl_scope, variable_decl_node_rcref.clone())?;
-        
-        // TODO: This is a simplified implementation - we should properly handle
-        // all variables in the unpacking, but that requires more AST changes
-        
-        // Symbol registration is handled in create_variable_symbol
         
         Ok(variable_decl_node_rcref)
     }
@@ -6362,8 +6376,9 @@ impl<'a> Parser<'a> {
         let mut is_multiple = false;
         let saved_l_value;  // Save the original l_value
         
+        // v0.53: Only process comma-separated values as tuple/multiple assignment if not inside collection
         // Check if we have comma-separated targets
-        if self.peek().token_type == TokenType::Comma {
+        if self.peek().token_type == TokenType::Comma && !self.is_parsing_collection {
             is_multiple = true;
             saved_l_value = l_value;  // Move l_value to saved
             l_values.push(saved_l_value);
@@ -6477,8 +6492,9 @@ impl<'a> Parser<'a> {
                     }
                 };
                 
+                // v0.53: Only wrap comma-separated values in tuple if not inside collection
                 // Check if right side is also comma-separated (for tuple on RHS)
-                if self.peek().token_type == TokenType::Comma {
+                if self.peek().token_type == TokenType::Comma && !self.is_parsing_collection {
                     let mut rhs_values = vec![first_rhs];
                     while self.match_token(&[TokenType::Comma]) {
                         match self.logical_xor() {
@@ -9273,6 +9289,10 @@ impl<'a> Parser<'a> {
 
     // Parse dictionary or set literal: {key: value} or {1, 2, 3}
     fn dict_or_set_literal(&mut self) -> Result<ExprType, ParseError> {
+        // v0.53: Set flag to indicate we're inside a collection literal
+        let was_parsing_collection = self.is_parsing_collection;
+        self.is_parsing_collection = true;
+        
         // Handle empty {} - default to empty dict
         // v0.38: Use {,} for empty set (single comma inside)
         if self.peek().token_type == TokenType::CloseBrace {
@@ -9345,7 +9365,10 @@ impl<'a> Parser<'a> {
                     // For keys, we don't want lambda expressions, so use equality() instead of expression()
                     let key = match self.equality() {
                         Ok(Some(expr)) => expr,
-                        Ok(None) => return Err(ParseError::new("Expected key in dictionary")),
+                        Ok(None) => {
+                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                            return Err(ParseError::new("Expected key in dictionary"))
+                        },
                         Err(e) => return Err(e),
                     };
                     
@@ -9441,7 +9464,10 @@ impl<'a> Parser<'a> {
                     // Parse next key - don't allow lambda as key
                     let key = match self.equality() {
                         Ok(Some(expr)) => expr,
-                        Ok(None) => return Err(ParseError::new("Expected key in dictionary")),
+                        Ok(None) => {
+                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                            return Err(ParseError::new("Expected key in dictionary"))
+                        },
                         Err(e) => return Err(e),
                     };
                     
@@ -9522,6 +9548,10 @@ impl<'a> Parser<'a> {
     }
 
     fn list(&mut self) -> Result<ListNode, ParseError> {
+        // v0.53: Set flag to indicate we're inside a collection literal
+        let was_parsing_collection = self.is_parsing_collection;
+        self.is_parsing_collection = true;
+        
         // First, check if this is a list comprehension by looking ahead
         // We need to look for the pattern: expr 'for' ... 
         let checkpoint = self.current;
@@ -9539,7 +9569,10 @@ impl<'a> Parser<'a> {
         
         if is_comprehension {
             // Parse as list comprehension
-            return self.list_comprehension();
+            let result = self.list_comprehension();
+            // v0.53: Restore the original flag value before returning
+            self.is_parsing_collection = was_parsing_collection;
+            return result;
         }
         
         // Parse as regular list with possible unpacking
@@ -9582,6 +9615,8 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // v0.53: Restore the original flag value
+        self.is_parsing_collection = was_parsing_collection;
         Ok(ListNode::new(expressions))
     }
     
@@ -9804,6 +9839,10 @@ impl<'a> Parser<'a> {
 
     // Parse expression list or tuple - returns tuple if has trailing comma or multiple elements
     fn expr_list_or_tuple(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // v0.53: Set flag to indicate we're inside a collection literal (tuples)
+        let was_parsing_collection = self.is_parsing_collection;
+        self.is_parsing_collection = true;
+        
         let mut expressions: Vec<ExprType> = Vec::new();
         let mut has_trailing_comma = false;
 
@@ -9811,6 +9850,7 @@ impl<'a> Parser<'a> {
         if self.peek().token_type == TokenType::RParen {
             self.advance();
             // Empty () is an empty tuple
+            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
             return Ok(Some(TupleLiteralT {
                 tuple_literal_node: TupleLiteralNode::new(Vec::new()),
             }));
@@ -9856,10 +9896,12 @@ impl<'a> Parser<'a> {
                     
                     // Expect closing parenthesis
                     if !self.match_token(&[TokenType::RParen]) {
+                        self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                         return Err(ParseError::new("Expected ')' after generator expression"));
                     }
                     
                     let generator_expr_node = GeneratorExprNode::new(expr, target, iter, condition);
+                    self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                     return Ok(Some(GeneratorExprT { generator_expr_node }));
                 }
                 
@@ -9868,19 +9910,25 @@ impl<'a> Parser<'a> {
             Ok(None) => {
                 // No expression, just close paren
                 if self.match_token(&[TokenType::RParen]) {
+                    self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                     return Ok(Some(TupleLiteralT {
                         tuple_literal_node: TupleLiteralNode::new(Vec::new()),
                     }));
                 }
+                self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                 return Err(ParseError::new("Expected expression in parentheses"));
             }
-            Err(e) => return Err(e),
+            Err(e) => {
+                self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                return Err(e)
+            },
         }
 
         // Check for comma (which makes it a tuple) or close paren
         if self.match_token(&[TokenType::RParen]) {
             // Single expression without comma - just a parenthesized expression
             if expressions.len() == 1 {
+                self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                 return Ok(Some(expressions.into_iter().next().unwrap()));
             }
         } else if self.match_token(&[TokenType::Comma]) {
@@ -9901,15 +9949,24 @@ impl<'a> Parser<'a> {
                             let unpack_node = UnpackExprNode::new(expr);
                             expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
                         }
-                        Ok(None) => return Err(ParseError::new("Expected expression after '*'")),
-                        Err(e) => return Err(e),
+                        Ok(None) => {
+                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                            return Err(ParseError::new("Expected expression after '*'"))
+                        },
+                        Err(e) => {
+                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                            return Err(e)
+                        },
                     }
                 } else {
                     // Regular expression
                     match self.expression() {
                         Ok(Some(expr)) => expressions.push(expr),
                         Ok(None) => break,
-                        Err(e) => return Err(e),
+                        Err(e) => {
+                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                            return Err(e)
+                        },
                     }
                 }
                 
@@ -9918,20 +9975,24 @@ impl<'a> Parser<'a> {
                 }
                 
                 if !self.match_token(&[TokenType::Comma]) {
+                    self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                     return Err(ParseError::new("Expected ',' or ')' in tuple"));
                 }
             }
         } else {
+            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
             return Err(ParseError::new("Expected ',' or ')' after expression"));
         }
 
         // If we have multiple expressions or a trailing comma, it's a tuple
         if expressions.len() > 1 || has_trailing_comma {
+            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
             Ok(Some(TupleLiteralT {
                 tuple_literal_node: TupleLiteralNode::new(expressions),
             }))
         } else {
             // Single expression without comma - return the expression itself
+            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
             Ok(Some(expressions.into_iter().next().unwrap()))
         }
     }
