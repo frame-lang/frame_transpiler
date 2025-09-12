@@ -1,4 +1,28 @@
-# Frame v0.53 Development Notes
+# Frame v0.54 Development Notes
+
+## v0.54 Star Expressions and Collection Constructors (2025-09-12)
+
+### Python-Style Star Unpacking
+Frame v0.54 completes the v0.53 roadmap with star expressions for unpacking, enabling Python's powerful *rest syntax for flexible variable assignments and collection destructuring.
+
+**New Capabilities in v0.54:**
+- **Star Unpacking**: Use `*rest` to capture remaining elements in assignments
+- **Flexible Positioning**: Star can appear at beginning, middle, or end
+- **Tuple/List Support**: Works with both tuples and lists (rest always becomes a list)
+- **Edge Case Handling**: Correctly handles empty unpacking and single elements
+- **Symbol Table Integration**: Star variables properly registered without asterisk
+
+**Implementation Details:**
+- **AST Addition**: New `StarExprNode` and `StarExprT` for star expressions
+- **Parser Logic**: Modified `var_declaration()` to recognize star patterns
+- **Code Generation**: Python visitor generates correct unpacking syntax
+- **Test Coverage**: Comprehensive test file `test_v054_star_expressions.frm`
+
+**Collection Constructor Validation:**
+- **Confirmed Working**: list(), dict(), set(), tuple() with arguments
+- **Type Conversions**: str(), int(), float(), bool() all functional
+- **Parser Limitations**: Can't chain methods on constructor results
+- **Workarounds**: Store intermediate results in variables
 
 ## v0.53 Collection Literal Parsing Fix & Multiple Variable Declarations (2025-09-12)
 

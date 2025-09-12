@@ -123,6 +123,9 @@ pub trait AstVisitor {
     // v0.34: Unpacking and comprehensions
     fn visit_unpack_expr_node(&mut self, _unpack_expr: &UnpackExprNode) {}
     fn visit_unpack_expr_node_to_string(&mut self, _unpack_expr: &UnpackExprNode, _output: &mut String) {}
+    // v0.54: Star expression for unpacking
+    fn visit_star_expr_node(&mut self, _star_expr: &StarExprNode) {}
+    fn visit_star_expr_node_to_string(&mut self, _star_expr: &StarExprNode, _output: &mut String) {}
     fn visit_list_comprehension_node(&mut self, _comprehension: &ListComprehensionNode) {}
     fn visit_list_comprehension_node_to_string(&mut self, _comprehension: &ListComprehensionNode, _output: &mut String) {}
     fn visit_dict_comprehension_node(&mut self, _comprehension: &DictComprehensionNode) {}

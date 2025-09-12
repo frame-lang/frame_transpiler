@@ -3657,28 +3657,54 @@ impl<'a> Parser<'a> {
             _ => return Err(ParseError::new("TODO")),
         };
 
-        let name = match self.match_token(&[TokenType::Identifier]) {
-            false => {
-                self.error_at_current("Expected declaration identifier");
-                return Err(ParseError::new("TODO"));
+        // v0.54: Check for star expression at the beginning
+        let first_name = if self.match_token(&[TokenType::Star]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                self.error_at_current("Expected identifier after '*' in unpacking");
+                return Err(ParseError::new("Expected identifier after '*'"));
             }
-            true => self.previous().lexeme.clone(),
+            format!("*{}", self.previous().lexeme)
+        } else if self.match_token(&[TokenType::Identifier]) {
+            self.previous().lexeme.clone()
+        } else {
+            self.error_at_current("Expected declaration identifier or star expression");
+            return Err(ParseError::new("Expected identifier or *identifier"));
         };
         
         // v0.52: Check for multiple variable declarations (var x, y = ...)
-        let mut names = vec![name.clone()];
+        // v0.54: Support star expressions (var x, *rest, y = ...)
+        let mut names = vec![first_name.clone()];
+        let mut star_index = if first_name.starts_with("*") { Some(0) } else { None };
+        
         while self.match_token(&[TokenType::Comma]) {
-            if !self.match_token(&[TokenType::Identifier]) {
-                self.error_at_current("Expected identifier after ',' in variable declaration");
-                return Err(ParseError::new("Expected identifier after ','"));
+            // Check for star expression
+            if self.match_token(&[TokenType::Star]) {
+                if star_index.is_some() {
+                    self.error_at_current("Only one star expression allowed in unpacking");
+                    return Err(ParseError::new("Only one star expression allowed"));
+                }
+                if !self.match_token(&[TokenType::Identifier]) {
+                    self.error_at_current("Expected identifier after '*' in unpacking");
+                    return Err(ParseError::new("Expected identifier after '*'"));
+                }
+                star_index = Some(names.len());
+                names.push(format!("*{}", self.previous().lexeme));
+            } else if self.match_token(&[TokenType::Identifier]) {
+                names.push(self.previous().lexeme.clone());
+            } else {
+                self.error_at_current("Expected identifier or star expression after ',' in variable declaration");
+                return Err(ParseError::new("Expected identifier or star expression after ','"));
             }
-            names.push(self.previous().lexeme.clone());
         }
         
-        // If we have multiple names, handle it specially
-        if names.len() > 1 {
+        // If we have multiple names or a star expression, handle it specially
+        // Note: Single star expression (*rest = ...) is also handled as multiple var declaration
+        if names.len() > 1 || first_name.starts_with("*") {
             return self.handle_multiple_var_declaration(names, is_constant, identifier_decl_scope);
         }
+        
+        // For single regular variable, use the name directly
+        let name = first_name.clone();
 
         let mut type_node_opt: Option<TypeNode> = None;
 
@@ -3817,9 +3843,16 @@ impl<'a> Parser<'a> {
         if self.is_building_symbol_table {
             // During first pass, create placeholder symbols for all variables
             for name in &names {
+                // v0.54: Handle star expressions - strip the * prefix for the variable name
+                let actual_name = if name.starts_with("*") {
+                    name[1..].to_string()
+                } else {
+                    name.clone()
+                };
+                
                 // Create a simple placeholder node for each variable
                 let var_node = VariableDeclNode::new(
-                    name.clone(),
+                    actual_name.clone(),
                     None,
                     is_constant,
                     value.clone(),
@@ -3830,7 +3863,7 @@ impl<'a> Parser<'a> {
                 
                 // Register each variable in the symbol table
                 self.create_variable_symbol(
-                    name.clone(), 
+                    actual_name, 
                     None, 
                     &identifier_decl_scope, 
                     var_node_rcref
@@ -3891,6 +3924,7 @@ impl<'a> Parser<'a> {
                     YieldExprT { yield_expr_node } => Rc::new(YieldExprT { yield_expr_node }),
                     YieldFromExprT { yield_from_expr_node } => Rc::new(YieldFromExprT { yield_from_expr_node }),
                     GeneratorExprT { generator_expr_node } => Rc::new(GeneratorExprT { generator_expr_node }),
+                    StarExprT { star_expr_node } => Rc::new(StarExprT { star_expr_node }),
                     
                     // Invalid assignment types
                     ExprListT { expr_list_node } => {
@@ -5606,6 +5640,10 @@ impl<'a> Parser<'a> {
             GeneratorExprT { .. } => {
                 self.error_at_previous("Generator expressions not allowed as statements.");
                 Err(ParseError::new("Generator expression must be part of an assignment or expression"))
+            }
+            StarExprT { .. } => {
+                self.error_at_previous("Star expressions not allowed as statements.");
+                Err(ParseError::new("Star expression must be part of an unpacking assignment"))
             }
         }
     }

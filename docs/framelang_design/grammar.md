@@ -1917,7 +1917,8 @@ stmt: expr_stmt
     | continue_stmt
 
 expr_stmt: expr
-var_decl: 'var' IDENTIFIER (',' IDENTIFIER)* type? '=' expr (',' expr)*  // v0.53: Multiple variable declarations
+var_decl: 'var' unpacking_pattern type? '=' expr  // v0.54: Star expressions for unpacking
+unpacking_pattern: (IDENTIFIER | '*' IDENTIFIER) (',' (IDENTIFIER | '*' IDENTIFIER))*  // v0.54: Star unpacking
 assert_stmt: 'assert' expr (',' expr)?
 del_stmt: 'del' expr  // v0.50: Delete statement
 assignment: lvalue_list assignment_op rvalue_list  // v0.52: Multiple assignment
@@ -2918,6 +2919,21 @@ The parser automatically detects when a function call follows an array/dictionar
 
 
 ## Version History
+
+### v0.54 (2025-09-12) - Star Expressions and Collection Constructors
+
+#### Star Expressions for Unpacking
+- **Python-style unpacking**: Support for `*rest` syntax in variable declarations
+- **Multiple positions**: Star can appear at beginning, middle, or end
+- **Works with tuples and lists**: `var x, *rest = (1, 2, 3, 4)`
+- **Edge cases handled**: Empty unpacking, single element unpacking
+
+#### Collection Constructor Arguments (Validated)
+- **list()**: Works with iterables, strings, ranges
+- **dict()**: Works with pairs, empty constructor
+- **set()**: Works with iterables, strings  
+- **tuple()**: Works with iterables, ranges
+- **Type conversions**: str(), int(), float(), bool() all working
 
 ### v0.53 (2025-09-11) - Collection Literal Parsing Fix
 

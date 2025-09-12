@@ -8987,6 +8987,12 @@ impl AstVisitor for PythonVisitor {
         unpack.expr.accept(self);
     }
     
+    // v0.54: Visit star expression node for unpacking
+    fn visit_star_expr_node(&mut self, star_expr: &StarExprNode) {
+        self.add_code("*");
+        self.add_code(&star_expr.identifier);
+    }
+    
     // v0.34: Visit list comprehension node
     fn visit_list_comprehension_node(&mut self, comp: &ListComprehensionNode) {
         self.add_code("[");
@@ -9131,6 +9137,12 @@ impl AstVisitor for PythonVisitor {
     fn visit_unpack_expr_node_to_string(&mut self, unpack: &UnpackExprNode, output: &mut String) {
         output.push('*');
         unpack.expr.accept_to_string(self, output);
+    }
+    
+    // v0.54: Visit star expression node to string
+    fn visit_star_expr_node_to_string(&mut self, star_expr: &StarExprNode, output: &mut String) {
+        output.push('*');
+        output.push_str(&star_expr.identifier);
     }
     
     // v0.38: Visit dict unpacking expression node
@@ -9797,7 +9809,9 @@ impl AstVisitor for PythonVisitor {
             let names_str = &var_name["__multi_var__:".len()..];
             let names: Vec<&str> = names_str.split(',').collect();
             
-            // Generate the unpacking assignment
+            // v0.54: Handle star expressions in unpacking
+            // Star expressions are already in the correct format (*name) from the parser
+            // Python expects them as-is in the unpacking pattern
             self.add_code(&names.join(", "));
             self.add_code(" = ");
             

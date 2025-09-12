@@ -1726,6 +1726,10 @@ pub enum ExprType {
     FunctionRefT {
         name: String,
     },
+    // Star expression (v0.54) - for unpacking with rest (*var)
+    StarExprT {
+        star_expr_node: StarExprNode,
+    },
     // Yield expression (v0.42)
     YieldExprT {
         yield_expr_node: YieldExprNode,
@@ -1844,6 +1848,7 @@ impl ExprType {
             ExprType::YieldExprT { .. } => "YieldExprT",
             ExprType::YieldFromExprT { .. } => "YieldFromExprT",
             ExprType::GeneratorExprT { .. } => "GeneratorExprT",
+            ExprType::StarExprT { .. } => "StarExprT",
         }
     }
 
@@ -2069,6 +2074,9 @@ impl NodeElement for ExprType {
             ExprType::GeneratorExprT { generator_expr_node } => {
                 ast_visitor.visit_generator_expr_node(generator_expr_node);
             }
+            ExprType::StarExprT { star_expr_node } => {
+                ast_visitor.visit_star_expr_node(star_expr_node);
+            }
         }
     }
 
@@ -2194,6 +2202,9 @@ impl NodeElement for ExprType {
             }
             ExprType::GeneratorExprT { generator_expr_node } => {
                 ast_visitor.visit_generator_expr_node_to_string(generator_expr_node, output);
+            }
+            ExprType::StarExprT { star_expr_node } => {
+                ast_visitor.visit_star_expr_node_to_string(star_expr_node, output);
             }
         }
     }
@@ -4967,6 +4978,29 @@ impl NodeElement for UnpackExprNode {
 
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
         ast_visitor.visit_unpack_expr_node_to_string(self, output);
+    }
+}
+
+//-----------------------------------------------------//
+
+// StarExprNode for *var unpacking (v0.54)
+pub struct StarExprNode {
+    pub identifier: String,
+}
+
+impl StarExprNode {
+    pub fn new(identifier: String) -> StarExprNode {
+        StarExprNode { identifier }
+    }
+}
+
+impl NodeElement for StarExprNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_star_expr_node(self);
+    }
+
+    fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
+        ast_visitor.visit_star_expr_node_to_string(self, output);
     }
 }
 
