@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-11T09:50:09.664058",
+  "timestamp": "2025-09-12T10:19:30.052944",
   "version": "v0.31",
   "summary": {
-    "total": 330,
-    "transpile_success": 330,
-    "execute_success": 330,
-    "complete_success": 330,
+    "total": 339,
+    "transpile_success": 339,
+    "execute_success": 339,
+    "complete_success": 339,
     "success_rate": "100.0%"
   },
   "results": [
@@ -339,6 +339,13 @@
       "error": null
     },
     {
+      "file": "test_del_statement.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Del Statement ===\n\n--- Test 1: Delete list elements ---\nOriginal list: [1, 2, 3, 4, 5]\nAfter del mylist[2]: [1, 2, 4, 5]\nAfter del mylist[-1]: [1, 2, 4]\nFinal result: [1, 2, 4]\n\n--- Test 2",
+      "error": null
+    },
+    {
       "file": "test_dict.frm",
       "transpile": true,
       "execute": true,
@@ -643,7 +650,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -671,7 +678,7 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1228,6 +1235,13 @@
       "error": null
     },
     {
+      "file": "test_loop_else.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Loop Else Clauses ===\n\nTesting for-else without break:\n  i = 0\n  i = 1\n  i = 2\n  i = 3\n  i = 4\n  Loop completed normally - else executed\nResult: completed\n\nTesting for-else with break:\n  i",
+      "error": null
+    },
+    {
       "file": "test_match_case.frm",
       "transpile": true,
       "execute": true,
@@ -1484,6 +1498,13 @@
       "transpile": true,
       "execute": true,
       "output": null,
+      "error": null
+    },
+    {
+      "file": "test_multiple_assignment_v052.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Frame v0.52 Multiple Assignment Test ===\n\nBefore: x=1, y=2\nAfter: x=10, y=20\n\nBefore swap: a=5, b=10\nAfter swap: a=10, b=5\n\nUnpacked from tuple: p=100, q=200, r=300\n\nUnpacked from list: x1=1, y1=2",
       "error": null
     },
     {
@@ -1917,7 +1938,14 @@
       "file": "test_state_parameters.frm",
       "transpile": true,
       "execute": true,
-      "output": "0\n1\n",
+      "output": "Configured with range: 1 to 5\nValue set to: 3\nIncremented to: 4\nIncremented to: 5\nWrapped to minimum: 1\nRange: 1 to 5\nConfigured with range: 1 to 5\nValue set to: 3\nIncremented to: 4\nIncremented to: 5\n",
+      "error": null
+    },
+    {
+      "file": "test_state_parameters_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
       "error": null
     },
     {
@@ -2261,6 +2289,41 @@
       "transpile": true,
       "execute": true,
       "output": "Hello Frame!\nVersion 0.4\nC:\\path\\to\\file\nLine 1\\nLine 2\nb'Binary data'\nThis is\na multi-line\nstring\nRaw\nwith \\n literal\nHello Frame\nVersion 0.4\nFrame v0.4\n\n\u2705 All string features working!\n",
+      "error": null
+    },
+    {
+      "file": "test_v053_collection_fixes.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "Testing list literals:\n[1, 2, 3]\n[5, 6, 10]\n[[1, 2], [3, 4], [5, 6]]\n[]\n[42]\n\nTesting dict literals:\n{'a': 1, 'b': 2, 'c': 3}\n{'x': 10, 'y': 11}\n{}\n\nTesting set literals:\n{1, 2, 3}\n\nTesting tuple lite",
+      "error": null
+    },
+    {
+      "file": "test_v053_list_fix.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== v0.53 List Literal Comma Fix Test ===\n\n--- Testing list comma fix ---\nList with 3 elements: [1, 2, 3]\nNested list: [[1, 2], [3, 4], [5, 6]]\nList with expressions: [10, 11, 12, 20]\n\n--- Testing dic",
+      "error": null
+    },
+    {
+      "file": "test_v053_multi_var.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Multiple Variable Declarations Test ===\nx = 1\ny = 2\nz = 3\na = hello\nb = 42\nc = 3.14\np = 10\nq = 20\nr = 30\nm = 100\nn = 200\no = 300\ncoords: 5, 10, 15\nsingle = 100\nmulti_a = 200\nmulti_b = 300\nanother_",
+      "error": null
+    },
+    {
+      "file": "test_v054_collection_constructors.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== List Constructor ===\nlist('hello') = ['h', 'e', 'l', 'l', 'o']\nlist((1,2,3,4,5)) = [1, 2, 3, 4, 5]\nlist() = []\nlist(range(5)) = [0, 1, 2, 3, 4]\n\n=== Dict Constructor ===\ndict() = {}\ndict from pair",
+      "error": null
+    },
+    {
+      "file": "test_v054_star_expressions.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Star Expression Tests ===\nfirst = 1\nrest = [2, 3, 4, 5]\nbeginning = [10, 20, 30]\nlast = 40\nhead = 100\nmiddle = [200, 300, 400]\ntail = 500\n\n=== Star with Tuples ===\nx = 1\nrest (from tuple) = [2, 3,",
       "error": null
     },
     {

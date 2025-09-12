@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-11 09:50  
-**Total Tests**: 330  
+**Generated**: 2025-09-12 10:19  
+**Total Tests**: 339  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 330 | 100% |
-| **Transpilation Success** | 330 | 100.0% |
-| **Execution Success** | 330 | 100.0% |
-| **Complete Success** | 330 | 100.0% |
+| **Total Tests** | 339 | 100% |
+| **Transpilation Success** | 339 | 100.0% |
+| **Execution Success** | 339 | 100.0% |
+| **Complete Success** | 339 | 100.0% |
 
 ## v0.31 Features
 
@@ -75,6 +75,7 @@
 | test_current_limitations.frm | ✅ | ✅ | ✅ PASS |
 | test_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_debug_nil.frm | ✅ | ✅ | ✅ PASS |
+| test_del_statement.frm | ✅ | ✅ | ✅ PASS |
 | test_dict.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_advanced_patterns.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_advanced_patterns_fixed.frm | ✅ | ✅ | ✅ PASS |
@@ -202,6 +203,7 @@
 | test_list_features.frm | ✅ | ✅ | ✅ PASS |
 | test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
 | test_list_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_loop_else.frm | ✅ | ✅ | ✅ PASS |
 | test_match_case.frm | ✅ | ✅ | ✅ PASS |
 | test_match_patterns_advanced.frm | ✅ | ✅ | ✅ PASS |
 | test_matmul_syntax_only.frm | ✅ | ✅ | ✅ PASS |
@@ -239,6 +241,7 @@
 | test_multi_systems_with_interface.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_systems_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_systems_with_transitions.frm | ✅ | ✅ | ✅ PASS |
+| test_multiple_assignment_v052.frm | ✅ | ✅ | ✅ PASS |
 | test_multiple_systems_valid.frm | ✅ | ✅ | ✅ PASS |
 | test_native_print.frm | ✅ | ✅ | ✅ PASS |
 | test_negative_indexing.frm | ✅ | ✅ | ✅ PASS |
@@ -301,6 +304,7 @@
 | test_special_dicts_fixed.frm | ✅ | ✅ | ✅ PASS |
 | test_special_dicts_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_state_parameters.frm | ✅ | ✅ | ✅ PASS |
+| test_state_parameters_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_state_var.frm | ✅ | ✅ | ✅ PASS |
 | test_state_vars_complex.frm | ✅ | ✅ | ✅ PASS |
 | test_state_vars_simple.frm | ✅ | ✅ | ✅ PASS |
@@ -350,6 +354,11 @@
 | test_v040_comments_floor_div.frm | ✅ | ✅ | ✅ PASS |
 | test_v040_string_features.frm | ✅ | ✅ | ✅ PASS |
 | test_v040_strings_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_v053_collection_fixes.frm | ✅ | ✅ | ✅ PASS |
+| test_v053_list_fix.frm | ✅ | ✅ | ✅ PASS |
+| test_v053_multi_var.frm | ✅ | ✅ | ✅ PASS |
+| test_v054_collection_constructors.frm | ✅ | ✅ | ✅ PASS |
+| test_v054_star_expressions.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_with_statement.frm | ✅ | ✅ | ✅ PASS |

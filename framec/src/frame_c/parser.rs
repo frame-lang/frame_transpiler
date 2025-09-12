@@ -3837,7 +3837,44 @@ impl<'a> Parser<'a> {
         }
         
         // Parse the right-hand side
-        let value = self.parse_variable_initializer(&names.join(", "))?;
+        // For multiple variable declarations, if the RHS is not parenthesized,
+        // we need to explicitly parse it as a tuple
+        let value = if self.check(TokenType::LParen) {
+            // If it starts with '(', parse normally (will be a tuple)
+            self.parse_variable_initializer(&names.join(", "))?
+        } else {
+            // Otherwise, we need to collect comma-separated values into a tuple
+            // Parse the first value
+            let mut values = Vec::new();
+            match self.logical_xor() {
+                Ok(Some(expr)) => values.push(expr),
+                Ok(None) => {
+                    return Err(ParseError::new("Expected value in multiple variable initialization"));
+                }
+                Err(e) => return Err(e),
+            }
+            
+            // Parse remaining comma-separated values
+            while self.match_token(&[TokenType::Comma]) {
+                match self.logical_xor() {
+                    Ok(Some(expr)) => values.push(expr),
+                    Ok(None) => {
+                        return Err(ParseError::new("Expected value after comma in multiple variable initialization"));
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+            
+            // If we have multiple values, create a tuple. If single value, use it directly
+            if values.len() > 1 {
+                Rc::new(ExprType::TupleLiteralT {
+                    tuple_literal_node: TupleLiteralNode::new(values),
+                })
+            } else {
+                // Single value - use it directly (for unpacking like a, b, c = lst)
+                Rc::new(values.into_iter().next().unwrap())
+            }
+        };
         
         // v0.53: Properly register ALL variables in the symbol table during first pass
         if self.is_building_symbol_table {
@@ -9825,6 +9862,10 @@ impl<'a> Parser<'a> {
     // expr_list -> '(' expression* ')'
 
     fn expr_list(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // Set flag to prevent comma-separated values from being parsed as tuples
+        let was_parsing_collection = self.is_parsing_collection;
+        self.is_parsing_collection = true;
+        
         let mut expressions: Vec<ExprType> = Vec::new();
 
         loop {
@@ -9841,9 +9882,13 @@ impl<'a> Parser<'a> {
                         expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
                     }
                     Ok(None) => {
+                        self.is_parsing_collection = was_parsing_collection;
                         return Err(ParseError::new("Expected expression after '*' operator"));
                     }
-                    Err(parse_error) => return Err(parse_error),
+                    Err(parse_error) => {
+                        self.is_parsing_collection = was_parsing_collection;
+                        return Err(parse_error);
+                    }
                 }
             } else {
                 // Regular expression
@@ -9852,8 +9897,14 @@ impl<'a> Parser<'a> {
                         expressions.push(expression);
                     }
                     // should see a list of valid expressions until ')'
-                    Ok(None) => return Ok(None),
-                    Err(parse_error) => return Err(parse_error),
+                    Ok(None) => {
+                        self.is_parsing_collection = was_parsing_collection;
+                        return Ok(None);
+                    }
+                    Err(parse_error) => {
+                        self.is_parsing_collection = was_parsing_collection;
+                        return Err(parse_error);
+                    }
                 }
             }
             
@@ -9865,6 +9916,9 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // Restore the flag before returning
+        self.is_parsing_collection = was_parsing_collection;
+        
         if expressions.is_empty() {
             Ok(None)
         } else {
@@ -10972,24 +11026,14 @@ impl<'a> Parser<'a> {
                             } else if self.match_token(&[TokenType::LParen]) {
                                 // The indexed value is being called as a function
                                 // Create a synthetic call node for this
-                                let mut args = Vec::new();
                                 
-                                // Parse arguments
-                                if !self.check(TokenType::RParen) {
-                                    loop {
-                                        match self.expression() {
-                                            Ok(Some(expr)) => args.push(expr),
-                                            Ok(None) => return Err(ParseError::new("Expected expression in function call")),
-                                            Err(e) => return Err(e),
-                                        }
-                                        
-                                        if !self.match_token(&[TokenType::Comma]) {
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                self.consume(TokenType::RParen, "Expected ')' after arguments")?;
+                                // Parse arguments using expr_list() to avoid tuple creation
+                                let args = match self.expr_list() {
+                                    Ok(Some(ExprListT { expr_list_node })) => expr_list_node.exprs_t,
+                                    Ok(Some(_)) => return Err(ParseError::new("Invalid expression list in indexed call")),
+                                    Ok(None) => Vec::new(),
+                                    Err(e) => return Err(e),
+                                };
                                 
                                 // Create a call expression node for the indexed call
                                 let call_expr_list = CallExprListNode::new(args);
@@ -11670,29 +11714,55 @@ impl<'a> Parser<'a> {
             //
             let mut state_ref_args_opt = None;
             if self.match_token(&[TokenType::LParen]) {
-                match self.expr_list() {
-                    Ok(Some(ExprListT { expr_list_node })) => {
-                        if expr_list_node.exprs_t.is_empty() {
-                            // Error - number of state params does not match number of expression arguments
-                            let err_msg = &format!("Empty expression list not allowed for state parameters for transition target state {}.", name);
-                            self.error_at_current(err_msg.as_str());
-                            return Err(ParseError::new(err_msg));
-                        }
-                        state_ref_args_opt = Some(expr_list_node)
-                    }
-                    Ok(Some(_)) => {
-                        return Err(ParseError::new(
-                            "Invalid expression list for state parmeters.",
-                        ))
-                    } // TODO
-                    Err(parse_error) => return Err(parse_error),
-                    Ok(None) => {
-                        // Error - number of state params does not match number of expression arguments
-                        let err_msg = &format!("Empty expression list not allowed for state parameters for transition target state {}.", name);
-                        self.error_at_current(err_msg.as_str());
-                        return Err(ParseError::new(err_msg));
-                    } // continue
+                // Parse arguments directly to avoid tuple wrapping
+                let mut args = Vec::new();
+                
+                // Handle empty argument list
+                if self.peek().token_type == TokenType::RParen {
+                    // expr_list() will consume the RParen
                 }
+                
+                // Set flag to prevent comma-separated values from being parsed as tuples
+                let was_parsing_collection = self.is_parsing_collection;
+                self.is_parsing_collection = true;
+                
+                // Parse arguments directly like function call arguments
+                while !self.check(TokenType::RParen) {
+                    match self.expression() {
+                        Ok(Some(expr)) => {
+                            args.push(expr);
+                            if !self.check(TokenType::RParen) {
+                                if !self.match_token(&[TokenType::Comma]) {
+                                    self.is_parsing_collection = was_parsing_collection;
+                                    self.error_at_current("Expected ',' or ')' in state arguments");
+                                    return Err(ParseError::new("Expected ',' or ')' in state arguments"));
+                                }
+                            }
+                        }
+                        Ok(None) => {
+                            self.is_parsing_collection = was_parsing_collection;
+                            self.error_at_current("Expected expression in state arguments");
+                            return Err(ParseError::new("Expected expression in state arguments"));
+                        }
+                        Err(e) => {
+                            self.is_parsing_collection = was_parsing_collection;
+                            return Err(e);
+                        }
+                    }
+                }
+                
+                // Restore the flag
+                self.is_parsing_collection = was_parsing_collection;
+                
+                if !self.match_token(&[TokenType::RParen]) {
+                    self.error_at_current("Expected ')' after state arguments");
+                    return Err(ParseError::new("Expected ')' after state arguments"));
+                }
+                
+                if !args.is_empty() {
+                    state_ref_args_opt = Some(ExprListNode::new(args));
+                }
+                
             }
 
             if !self.is_building_symbol_table {

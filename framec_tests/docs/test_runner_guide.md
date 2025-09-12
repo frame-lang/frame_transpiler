@@ -18,8 +18,8 @@ The Frame Test Runner is the standard testing tool for the Frame language transp
 
 ### `framec_tests/reports/`
 **Critical for tracking project health and test status:**
-- **`test_matrix_v031.md`** - Latest detailed test matrix with pass/fail breakdown
-- **`test_results_v031.json`** - Machine-readable test results for automation
+- **`test_matrix_v0.31.md`** - Latest detailed test matrix with pass/fail breakdown (version number updates with releases)
+- **`test_results_v0.31.json`** - Machine-readable test results for automation (version number updates with releases)
 - **`test_log.md`** - Standard test status report (always overwrite after runs)
 - Historical matrices for version tracking
 
@@ -107,7 +107,7 @@ python3 framec_tests/runner/frame_test_runner.py --all --matrix --json
 | `--config FILE` | Run tests from JSON config | - |
 | `--matrix` | Generate markdown test matrix | - |
 | `--json` | Save results as JSON | - |
-| `--version VERSION` | Version string for reports | v0.31 |
+| `--version VERSION` | Version string for reports | v0.55 |
 | `--timeout SECONDS` | Timeout for each test | 5 |
 | `--verbose`, `-v` | Verbose output | False |
 | `--framec PATH` | Path to framec executable | target/debug/framec |
@@ -147,20 +147,20 @@ Test configurations are JSON files that specify which tests to run:
 Generated at `framec_tests/reports/test_matrix_VERSION.md`:
 
 ```markdown
-# Frame v0.31 Test Matrix
+# Frame v0.55 Test Matrix
 
-**Generated**: 2025-08-31 10:00  
-**Total Tests**: 152  
-**Current Branch**: v0.31  
+**Generated**: 2025-09-12  
+**Total Tests**: 339  
+**Current Branch**: v0.30  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 152 | 100% |
-| **Transpilation Success** | 150 | 98.7% |
-| **Execution Success** | 143 | 94.1% |
-| **Complete Success** | 143 | 94.1% |
+| **Total Tests** | 339 | 100% |
+| **Transpilation Success** | 339 | 100.0% |
+| **Execution Success** | 339 | 100.0% |
+| **Complete Success** | 339 | 100.0% |
 ```
 
 ### JSON Results
@@ -170,7 +170,7 @@ Generated at `framec_tests/reports/test_results_VERSION.json`:
 ```json
 {
   "timestamp": "2025-08-31T10:00:00",
-  "version": "v0.31",
+  "version": "v0.55",
   "summary": {
     "total": 152,
     "transpile_success": 150,
@@ -233,7 +233,7 @@ if [ $? -eq 0 ]; then
     echo "All tests passed!"
     exit 0
 else
-    echo "Tests failed. See test_matrix_v031.md for details."
+    echo "Tests failed. See test_matrix_v0.55.md for details."
     exit 1
 fi
 ```

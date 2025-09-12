@@ -77,6 +77,7 @@ pub struct PythonVisitor {
     module_level_enums: HashSet<String>,     // Track enum names defined at module level
     system_has_async_runtime: bool,          // v0.37: Track if current system needs async runtime
     pending_assert: bool,                    // v0.45: Track if we just output an assert and need to suppress next newline
+    generating_state_vars_init: bool,        // v0.55: Track if we're generating state variable initializers in transition
     in_class_method: bool,                   // v0.45: Track if we're in a class method
 }
 
@@ -169,6 +170,7 @@ impl PythonVisitor {
             system_has_async_runtime: false,
             pending_assert: false,
             in_class_method: false,
+            generating_state_vars_init: false,
         }
     }
 
@@ -649,17 +651,25 @@ impl PythonVisitor {
         self.newline_to_string(&mut ret);
         
         // Build state_vars dictionary for this state
+        // v0.55: For transitions, don't initialize state variables in the dictionary
+        // They will all be properly initialized after state parameters are set
         let mut state_vars_entries = Vec::new();
-        if let Some(vars) = &state_node_rcref.borrow().vars_opt {
-            for variable_decl_node_rcref in vars {
-                let var_decl_node = variable_decl_node_rcref.borrow();
-                let var_name = &var_decl_node.name;
-                let initializer_expr_rc = var_decl_node.get_initializer_value_rc();
-                let mut initializer_value = String::new();
-                initializer_expr_rc.accept_to_string(self, &mut initializer_value);
-                state_vars_entries.push(format!("'{}': {}", var_name, initializer_value));
+        
+        // Only include state variables in the initial dictionary if this is NOT a transition
+        // (i.e., if transition_expr_node_opt is None)
+        if transition_expr_node_opt.is_none() {
+            if let Some(vars) = &state_node_rcref.borrow().vars_opt {
+                for variable_decl_node_rcref in vars {
+                    let var_decl_node = variable_decl_node_rcref.borrow();
+                    let var_name = &var_decl_node.name;
+                    let initializer_expr_rc = var_decl_node.get_initializer_value_rc();
+                    let mut initializer_value = String::new();
+                    initializer_expr_rc.accept_to_string(self, &mut initializer_value);
+                    state_vars_entries.push(format!("'{}': {}", var_name, initializer_value));
+                }
             }
         }
+        // For transitions, state variables will be initialized after state parameters are set
         let state_vars_dict = if state_vars_entries.is_empty() {
             "{}".to_string()
         } else {
@@ -878,19 +888,50 @@ impl PythonVisitor {
                     let var_decl_node = variable_decl_node_rcref.borrow();
                     let initalizer_value_expr_t = &var_decl_node.get_initializer_value_rc();
                     initalizer_value_expr_t.debug_print();
+                    
+                    // v0.55: Check if the initializer references a state parameter
+                    // If so, use next_compartment.state_args instead of compartment.state_args
                     let mut expr_code = String::new();
-                    // #STATE_NODE_UPDATE_BUG - the AST state node wasn't being updated
-                    // in the semantic pass and contained var decls from the syntactic
-                    // pass. The types of the nodes therefore were CallChainNodeType::UndeclaredIdentifierNodeT
-                    // and not CallChainNodeType::VariableNodeT. Therefore the generation
-                    // code that relies on knowing what kind of variable this is
-                    // broke. That happened in this next line.
-                    initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
-                        self.newline_to_string(&mut ret);
-                        ret.push_str(&format!(
-                            "next_compartment.state_vars[\"{}\"] = {}",
-                            var_decl_node.name, expr_code
-                        ));
+                    let mut is_state_param_ref = false;
+                    
+                    // Check both VariableExprT and CallChainExprT patterns
+                    match initalizer_value_expr_t.as_ref() {
+                        ExprType::VariableExprT { var_node } => {
+                            if let IdentifierDeclScope::StateParamScope = var_node.scope {
+                                is_state_param_ref = true;
+                                expr_code.push_str(&format!(
+                                    "next_compartment.state_args[\"{}\"]",
+                                    var_node.id_node.name.lexeme
+                                ));
+                            }
+                        },
+                        ExprType::CallChainExprT { call_chain_expr_node } => {
+                            // Check if it's a single variable reference
+                            if call_chain_expr_node.call_chain.len() == 1 {
+                                if let CallChainNodeType::VariableNodeT { var_node } = &call_chain_expr_node.call_chain[0] {
+                                    if let IdentifierDeclScope::StateParamScope = var_node.scope {
+                                        is_state_param_ref = true;
+                                        expr_code.push_str(&format!(
+                                            "next_compartment.state_args[\"{}\"]",
+                                            var_node.id_node.name.lexeme
+                                        ));
+                                    }
+                                }
+                            }
+                        },
+                        _ => {}
+                    }
+                    
+                    if !is_state_param_ref {
+                        // Normal initialization
+                        initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
+                    }
+                    
+                    self.newline_to_string(&mut ret);
+                    ret.push_str(&format!(
+                        "next_compartment.state_vars[\"{}\"] = {}",
+                        var_decl_node.name, expr_code
+                    ));
                     }
                 }
             }
@@ -1008,10 +1049,16 @@ impl PythonVisitor {
                 if self.visiting_call_chain_literal_variable {
                     code.push('(');
                 }
+                if self.visiting_call_chain_literal_variable {
+                    code.push('(');
+                }
                 code.push_str(&format!(
                     "compartment.state_args[\"{}\"]",
                     variable_node.id_node.name.lexeme
                 ));
+                if self.visiting_call_chain_literal_variable {
+                    code.push(')');
+                }
                 if self.visiting_call_chain_literal_variable {
                     code.push(')');
                 }
@@ -4400,6 +4447,42 @@ impl PythonVisitor {
     }
 }
 
+impl PythonVisitor {
+    //* --------------------------------------------------------------------- *//
+    // Helper method for @indexed_call - outputs arguments with proper parentheses
+    fn output_indexed_call_args(&mut self, call_expr_list: &CallExprListNode) {
+        let mut separator = "";
+        self.add_code("(");
+
+        for expr in &call_expr_list.exprs_t {
+            self.add_code(separator);
+            expr.accept(self);
+            separator = ",";
+        }
+
+        self.add_code(")");
+    }
+
+    //* --------------------------------------------------------------------- *//
+    // Helper method for @indexed_call - outputs arguments with proper parentheses to string
+    fn output_indexed_call_args_to_string(
+        &mut self,
+        call_expr_list: &CallExprListNode,
+        output: &mut String,
+    ) {
+        let mut separator = "";
+        output.push('(');
+
+        for expr in &call_expr_list.exprs_t {
+            output.push_str(separator);
+            expr.accept_to_string(self, output);
+            separator = ",";
+        }
+
+        output.push(')');
+    }
+}
+
 impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
@@ -6339,13 +6422,11 @@ impl AstVisitor for PythonVisitor {
     fn visit_call_expr_list_node(&mut self, call_expr_list: &CallExprListNode) {
         let mut separator = "";
         self.add_code("(");
-
         for expr in &call_expr_list.exprs_t {
             self.add_code(separator);
             expr.accept(self);
             separator = ",";
         }
-
         self.add_code(")");
     }
 
@@ -6358,15 +6439,14 @@ impl AstVisitor for PythonVisitor {
     ) {
         let mut separator = "";
         output.push('(');
-
         for expr in &call_expr_list.exprs_t {
             output.push_str(separator);
             expr.accept_to_string(self, output);
             separator = ",";
         }
-
         output.push(')');
     }
+
 
     //* --------------------------------------------------------------------- *//
 
@@ -6861,7 +6941,7 @@ impl AstVisitor for PythonVisitor {
                             "@indexed_call" => {
                                 // This is our synthetic node for array[index](args)
                                 // Just output the arguments, no method name
-                                call.call_expr_list.accept(self);
+                                self.output_indexed_call_args(&call.call_expr_list);
                             }
                             _ => {
                                 // Default: output method name as-is
@@ -6871,7 +6951,6 @@ impl AstVisitor for PythonVisitor {
                         }
                     } else {
                         // Single-node chain - go through normal processing which might add self._ prefix
-                        eprintln!("DEBUG: Single-node chain - calling accept");
                         call.accept(self);
                     }
                 }
@@ -7293,7 +7372,7 @@ impl AstVisitor for PythonVisitor {
                             "@indexed_call" => {
                                 // This is our synthetic node for array[index](args)
                                 // Just output the arguments, no method name
-                                call.call_expr_list.accept_to_string(self, output);
+                                self.output_indexed_call_args_to_string(&call.call_expr_list, output);
                             }
                             _ => {
                                 // Default behavior for other methods
@@ -7303,7 +7382,7 @@ impl AstVisitor for PythonVisitor {
                     } else {
                         // Also check for @indexed_call when not in call chain
                         if call.identifier.name.lexeme == "@indexed_call" {
-                            call.call_expr_list.accept_to_string(self, output);
+                            self.output_indexed_call_args_to_string(&call.call_expr_list, output);
                         } else {
                             call.accept_to_string(self, output);
                         }

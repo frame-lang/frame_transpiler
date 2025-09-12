@@ -1,15 +1,15 @@
 # Frame Transpiler Test Report
 
-**Last Run**: 2025-09-11  
-**Version**: v0.49  
+**Last Run**: 2025-09-12  
+**Version**: v0.55  
 **Branch**: v0.30  
 
 ## Test Summary
 
-**Total Tests**: 330  
-**Passed**: 330  
+**Total Tests**: 339  
+**Passed**: 339  
 **Failed**: 0  
-**Success Rate**: 100.0% ✅
+**Success Rate**: 100.0% 🎉
 
 ## Test Categories
 
@@ -31,22 +31,25 @@
 - **Type Annotations**: 10/10
 - **Error Handling (v0.49)**: 7/7
 
-## v0.49 Implementation Status
+## v0.55 Implementation Status
 
 ### ✅ Completed Features
-1. **Try/Except Blocks**: Full exception type support with proper Python generation
-2. **Exception Variable Binding**: `as e` syntax for accessing exception details  
-3. **Multiple Exception Types**: Single except clause handling multiple exception types
-4. **Finally Blocks**: Cleanup code that always executes
-5. **Raise Statements**: Custom exception throwing with expression support
-6. **Try/Finally Without Except**: Cleanup-only blocks (parser fix in v0.49)
-7. **Nested Exception Handling**: Arbitrary nesting with proper scope handling
-8. **System Integration**: Error handling works seamlessly with Frame state machines
+1. **State Parameters**: Fixed parser bug - states can now receive and store parameters
+2. **Type Annotations**: Confirmed fully working in all contexts (functions, variables, states)
+3. **@property Decorator**: Verified working for computed properties in classes
+4. **Function Arguments**: Fixed tuple wrapping issue for multiple arguments
+5. **Parser Context Tracking**: Improved `is_parsing_collection` flag usage
 
-### 🔧 v0.49 Bug Fixes
-- **Critical Parser Fix**: Allow try/finally blocks without except clauses
-- **Validation Enhancement**: Proper validation ensuring either except or finally exists
+### 🔧 v0.55 Bug Fixes
+- **State Transition Arguments**: Fixed incorrect tuple wrapping in state transitions
+- **Function Call Arguments**: Fixed comma-separated arguments being parsed as tuples
+- **Parser Context**: Properly set `is_parsing_collection` flag in critical locations
 - **Zero Regressions**: All 330 tests pass (100% success rate)
+
+### 📝 v0.55 Discoveries
+- Type annotations have been working since v0.43 but were undocumented
+- @property decorator support was functional but not widely known
+- State parameters were in grammar but broken by v0.53 tuple parsing changes
 
 ## v0.46 Implementation Status
 

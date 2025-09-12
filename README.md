@@ -1,9 +1,11 @@
-be
 # Frame Language Transpiler
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-## Current Features (v0.40)
+**Current Version**: v0.55  
+**Test Success Rate**: 100% (339/339 tests passing) 🎉
+
+## Current Features (v0.55)
 
 ### Core Language
 - **State Machines**: Hierarchical state machines with enter/exit handlers
@@ -48,13 +50,26 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **String Operations**: `.upper()`, `.lower()`, `.split()`, `.replace()`
 
 ### Advanced Features
+- **Pattern Matching**: Full match-case support with guards, OR patterns, star patterns
+- **Classes**: Object-oriented programming with methods and variables
+- **Generators**: Regular and async generators with yield expressions
+- **Type Annotations**: Parameter and return type hints
+- **Property Decorators**: `@property` for computed properties
+- **Access Modifiers**: Public/private/protected member visibility
+- **Assert Statements**: Runtime assertion checking
+- **Try-Except**: Exception handling with finally blocks
+- **Del Statement**: Explicit deletion of variables
+- **Global Keyword**: Explicit global variable access
+- **Multiple Assignment**: Tuple unpacking and multiple variable declarations
+- **Star Expressions**: Unpacking operators in assignments and calls
+- **State Parameters**: States can receive and store parameters
 - **Enums**: Custom values, string enums, iteration support
 - **Scope Resolution**: LEGB scope rules with proper isolation
 - **Static Methods**: `@staticmethod` decorator support
 - **Interface Methods**: Public system interfaces with async support
 
 ### Test Coverage
-- **100% Success Rate**: 315/315 tests passing 🎉
+- **100% Success Rate**: 339/339 tests passing 🎉
 - **UTF-8 Support**: Full Unicode character support in source files
 - **Complete Feature Coverage**: All Python operators and core language features fully tested
 - **Virtual Environment**: Test suite includes NumPy support for matrix multiplication

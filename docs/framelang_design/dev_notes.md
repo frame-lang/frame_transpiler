@@ -1,3 +1,74 @@
+# Frame v0.55 Development Notes
+
+## v0.55 100% Test Success Rate Achieved! (2025-09-12)
+
+### Historic Milestone: All 339 Tests Passing
+
+Frame v0.55 achieves **100% test success rate** by fixing the final issues with indexed function calls and tuple argument handling. This represents the culmination of the v0.30+ development cycle.
+
+### Key Fixes
+
+**1. Indexed Function Call Arguments**
+- **Problem**: `operations[0](10, 5)` was generating `operations[0]((10, 5))` with extra tuple wrapping
+- **Solution**: Modified parser to use `expr_list()` for indexed calls, preventing incorrect tuple creation
+- **Impact**: Function references in collections now work correctly
+
+**2. Tuple Literal Preservation**
+- **Problem**: `func((1, 2, 3))` was being unwrapped to `func(1, 2, 3)`
+- **Solution**: Removed aggressive tuple unwrapping from visitor, relying on parser's context-aware handling
+- **Impact**: Pattern matching with tuples now works correctly
+
+### Technical Details
+The fix leverages the parser's `is_parsing_collection` flag to distinguish between:
+- Function call arguments (should not create tuples from comma-separated values)
+- Tuple literals (should preserve tuple structure)
+- Collection literals (should parse elements correctly)
+
+## v0.55 State Parameters and Type Annotations (2025-01-23)
+
+### State Parameters Fixed
+Frame v0.55 fixes the critical parser bug preventing state parameters from working correctly. States can now receive and store parameters when transitioned to, enabling more flexible state machine designs.
+
+**State Parameters Features:**
+- **Parameter Declaration**: States declare parameters like functions: `$Active(min: int, max: int)`
+- **Transition Arguments**: Pass values when transitioning: `-> $Active(5, 10)`
+- **Parameter Access**: State parameters accessible in all state handlers
+- **State Variables**: Can initialize from parameters: `var current = min`
+- **Type Annotations**: Optional type hints for parameters
+
+**Parser Fix Details:**
+- **Problem**: Arguments were being wrapped in tuples due to v0.53 tuple support
+- **Root Cause**: `assignment()` function treated comma-separated values as tuples
+- **Solution**: Set `is_parsing_collection` flag when parsing state arguments and function calls
+- **Impact**: Both state transitions and function calls now work correctly with multiple arguments
+
+### Type Annotations Confirmed Working
+Frame v0.55 confirms that type annotations have been fully functional, despite appearing unimplemented:
+
+**Supported Type Annotation Contexts:**
+- Function parameters: `fn process(data: str, count: int)`
+- Function returns: `fn calculate() : float`
+- Variable declarations: `var name: str = "Frame"`
+- State parameters: `$Active(min: int, max: int)`
+- Interface methods: `processData(input: str) : bool`
+
+### @property Decorator Support
+The `@property` decorator is fully functional for creating computed properties in classes:
+
+```frame
+class Rectangle {
+    @property
+    fn area() {
+        return self.width * self.height
+    }
+}
+```
+
+### Technical Implementation
+- **Parser Changes**: Modified `transition()` and `expr_list()` to handle arguments correctly
+- **Context Tracking**: Use `is_parsing_collection` flag to distinguish contexts
+- **Backward Compatible**: No breaking changes to existing functionality
+
 # Frame v0.54 Development Notes
 
 ## v0.54 Star Expressions and Collection Constructors (2025-09-12)
