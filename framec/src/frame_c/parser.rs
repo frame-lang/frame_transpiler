@@ -3662,6 +3662,21 @@ impl<'a> Parser<'a> {
             }
             true => self.previous().lexeme.clone(),
         };
+        
+        // v0.52: Check for multiple variable declarations (var x, y = ...)
+        let mut names = vec![name.clone()];
+        while self.match_token(&[TokenType::Comma]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                self.error_at_current("Expected identifier after ',' in variable declaration");
+                return Err(ParseError::new("Expected identifier after ','"));
+            }
+            names.push(self.previous().lexeme.clone());
+        }
+        
+        // If we have multiple names, handle it specially
+        if names.len() > 1 {
+            return self.handle_multiple_var_declaration(names, is_constant, identifier_decl_scope);
+        }
 
         let mut type_node_opt: Option<TypeNode> = None;
 
@@ -3772,6 +3787,60 @@ impl<'a> Parser<'a> {
         Ok(variable_decl_node_rcref)
     }
 
+    /* --------------------------------------------------------------------- */
+    
+    // v0.52: Handle multiple variable declaration (var x, y = ...)
+    fn handle_multiple_var_declaration(
+        &mut self,
+        names: Vec<String>,
+        is_constant: bool,
+        identifier_decl_scope: IdentifierDeclScope,
+    ) -> Result<Rc<RefCell<VariableDeclNode>>, ParseError> {
+        // Multiple variable declaration doesn't support type annotations
+        if self.match_token(&[TokenType::Colon]) {
+            self.error_at_current("Type annotations not supported in multiple variable declarations");
+            return Err(ParseError::new("Type annotations not supported in multiple variable declarations"));
+        }
+        
+        // Require equals for initialization
+        if !self.match_token(&[TokenType::Equals]) {
+            self.error_at_current("Multiple variable declaration requires initialization");
+            return Err(ParseError::new("Multiple variable declaration requires initialization"));
+        }
+        
+        // Parse the right-hand side
+        let value = self.parse_variable_initializer(&names.join(", "))?;
+        
+        // Create a synthetic assignment statement that will handle the unpacking
+        // For now, we'll create a simple variable for the first name and let the 
+        // visitor handle the unpacking logic
+        
+        // Create variable declarations for each name
+        // Return the first one (for compatibility)
+        let first_name = names[0].clone();
+        let variable_decl_node = VariableDeclNode::new(
+            first_name.clone(),
+            None,
+            is_constant,
+            value.clone(),
+            value.clone(),
+            identifier_decl_scope.clone(),
+        );
+        
+        let variable_decl_node_rcref = Rc::new(RefCell::new(variable_decl_node));
+        
+        // Register the first variable in the symbol table
+        let _ =
+            self.create_variable_symbol(first_name.clone(), None, &identifier_decl_scope, variable_decl_node_rcref.clone())?;
+        
+        // TODO: This is a simplified implementation - we should properly handle
+        // all variables in the unpacking, but that requires more AST changes
+        
+        // Symbol registration is handled in create_variable_symbol
+        
+        Ok(variable_decl_node_rcref)
+    }
+    
     /* --------------------------------------------------------------------- */
     // Helper function to parse variable initializer value
     
@@ -6288,6 +6357,56 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
+        // v0.52: Check for multiple assignment targets (x, y, z = ...)
+        let mut l_values = Vec::new();
+        let mut is_multiple = false;
+        let saved_l_value;  // Save the original l_value
+        
+        // Check if we have comma-separated targets
+        if self.peek().token_type == TokenType::Comma {
+            is_multiple = true;
+            saved_l_value = l_value;  // Move l_value to saved
+            l_values.push(saved_l_value);
+            
+            while self.match_token(&[TokenType::Comma]) {
+                // Parse the next target
+                match self.logical_xor() {
+                    Ok(Some(expr_type)) => {
+                        l_values.push(expr_type);
+                    }
+                    Ok(None) => {
+                        self.error_at_current("Expected expression after ',' in expression list");
+                        return Err(ParseError::new("Expected expression after ','"));
+                    }
+                    Err(parse_error) => return Err(parse_error),
+                }
+            }
+            
+            // Check if this is an assignment or just a tuple/expression list
+            if self.peek().token_type != TokenType::Equals {
+                // Not an assignment - return as tuple
+                return Ok(Some(ExprType::TupleLiteralT {
+                    tuple_literal_node: TupleLiteralNode::new(l_values),
+                }));
+            }
+            
+            // It's an assignment - create a dummy l_value for the assignment node
+            let line = self.previous().line;
+            l_value = ExprType::VariableExprT {
+                var_node: VariableNode::new(
+                    IdentifierNode::new(
+                        Token::new(TokenType::Identifier, "_multi".to_string(), TokenLiteral::None, line, 0, 6),
+                        None,
+                        IdentifierDeclScope::UnknownScope,
+                        false,
+                        line,
+                    ),
+                    IdentifierDeclScope::UnknownScope,
+                    None,
+                )
+            };
+        }
+
         // Check for assignment operators (including compound assignments)
         let assignment_op = if self.match_token(&[TokenType::Equals]) {
             Some(AssignmentOperator::Equals)
@@ -6328,6 +6447,7 @@ impl<'a> Parser<'a> {
 
             let line = self.previous().line;
             // Check for lambda in assignment RHS
+            // v0.52: Parse right-hand side, which might also be comma-separated
             let r_value = if self.match_token(&[TokenType::Lambda]) {
                 match self.parse_lambda() {
                     Ok(Some(expr_type)) => {
@@ -6344,11 +6464,9 @@ impl<'a> Parser<'a> {
                     }
                 }
             } else {
-                match self.logical_xor() {
-                    Ok(Some(expr_type)) => {
-                        self.is_parsing_rhs = false;
-                        expr_type
-                    }
+                // Parse first expression on right side
+                let first_rhs = match self.logical_xor() {
+                    Ok(Some(expr_type)) => expr_type,
                     Ok(None) => {
                         self.is_parsing_rhs = false;
                         return Ok(None);
@@ -6357,15 +6475,47 @@ impl<'a> Parser<'a> {
                         self.is_parsing_rhs = false;
                         return Err(parse_error);
                     }
+                };
+                
+                // Check if right side is also comma-separated (for tuple on RHS)
+                if self.peek().token_type == TokenType::Comma {
+                    let mut rhs_values = vec![first_rhs];
+                    while self.match_token(&[TokenType::Comma]) {
+                        match self.logical_xor() {
+                            Ok(Some(expr_type)) => {
+                                rhs_values.push(expr_type);
+                            }
+                            Ok(None) => {
+                                self.error_at_current("Expected expression after ',' in RHS");
+                                self.is_parsing_rhs = false;
+                                return Err(ParseError::new("Expected expression after ',' in RHS"));
+                            }
+                            Err(parse_error) => {
+                                self.is_parsing_rhs = false;
+                                return Err(parse_error);
+                            }
+                        }
+                    }
+                    self.is_parsing_rhs = false;
+                    // Return as tuple for multiple RHS values
+                    ExprType::TupleLiteralT {
+                        tuple_literal_node: TupleLiteralNode::new(rhs_values),
+                    }
+                } else {
+                    self.is_parsing_rhs = false;
+                    first_rhs
                 }
             };
 
             let r_value_rc = Rc::new(r_value);
 
-            match self.assign(&mut l_value, r_value_rc.clone()) {
-                Ok(()) => {}
-                Err(..) => {
-                    // grammar is correct and error already logged. Continue
+            // v0.52: Skip assign() for multiple assignment - handled differently
+            if !is_multiple {
+                match self.assign(&mut l_value, r_value_rc.clone()) {
+                    Ok(()) => {}
+                    Err(..) => {
+                        // grammar is correct and error already logged. Continue
+                    }
                 }
             }
 
@@ -6377,7 +6527,15 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let assignment_expr_node = if op == AssignmentOperator::Equals {
+            // v0.52: Create multiple assignment node if we have multiple targets
+            let assignment_expr_node = if is_multiple {
+                // Multiple assignment only supports simple equals
+                if op != AssignmentOperator::Equals {
+                    self.error_at_current("Multiple assignment only supports '=' operator");
+                    return Err(ParseError::new("Multiple assignment only supports '=' operator"));
+                }
+                AssignmentExprNode::new_multiple(l_values, r_value_rc.clone(), line)
+            } else if op == AssignmentOperator::Equals {
                 AssignmentExprNode::new(l_value, r_value_rc.clone(), line)
             } else {
                 AssignmentExprNode::new_with_op(l_value, r_value_rc.clone(), op, line)

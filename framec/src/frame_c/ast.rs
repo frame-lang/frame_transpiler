@@ -1,7 +1,7 @@
 #![allow(clippy::enum_variant_names)]
 #![allow(non_snake_case)]
 
-use super::scanner::{Token, TokenType};
+use super::scanner::{Token, TokenType, TokenLiteral};
 use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 
 use crate::frame_c::ast::OperatorType::{
@@ -2550,6 +2550,9 @@ pub struct AssignmentExprNode {
     pub assignment_op: AssignmentOperator,
     //    pub is_decl: bool,
     pub line: usize,
+    // v0.52: Support for multiple assignment targets
+    pub is_multiple_assignment: bool,
+    pub l_values: Vec<ExprType>,  // For x, y, z = ...
 }
 
 impl AssignmentExprNode {
@@ -2560,6 +2563,8 @@ impl AssignmentExprNode {
             assignment_op: AssignmentOperator::Equals,  // Default to simple assignment
             //            is_decl,
             line,
+            is_multiple_assignment: false,
+            l_values: Vec::new(),
         }
     }
     
@@ -2569,6 +2574,36 @@ impl AssignmentExprNode {
             r_value_rc: r_value.clone(),
             assignment_op: op,
             line,
+            is_multiple_assignment: false,
+            l_values: Vec::new(),
+        }
+    }
+    
+    // v0.52: Constructor for multiple assignment
+    pub fn new_multiple(l_values: Vec<ExprType>, r_value: Rc<ExprType>, line: usize) -> AssignmentExprNode {
+        // For multiple assignment, l_value_box is not used (we use l_values instead)
+        // Create a dummy for compatibility
+        let dummy_l_value = ExprType::VariableExprT {
+            var_node: VariableNode::new(
+                IdentifierNode::new(
+                    Token::new(TokenType::Identifier, "_multi".to_string(), TokenLiteral::None, line, 0, 6),
+                    None,
+                    IdentifierDeclScope::UnknownScope,
+                    false,
+                    line,
+                ),
+                IdentifierDeclScope::UnknownScope,
+                None,
+            )
+        };
+        
+        AssignmentExprNode {
+            l_value_box: Box::new(dummy_l_value),
+            r_value_rc: r_value.clone(),
+            assignment_op: AssignmentOperator::Equals,
+            line,
+            is_multiple_assignment: true,
+            l_values,
         }
     }
 }

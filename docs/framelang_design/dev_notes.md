@@ -1,4 +1,34 @@
-# Frame v0.51 Development Notes
+# Frame v0.52 Development Notes
+
+## v0.52 Multiple Assignment and Tuple Unpacking (2025-01-29)
+
+### Python-Style Multiple Assignment in Frame
+Frame v0.52 introduces Python-style multiple assignment and tuple unpacking, enabling elegant variable assignments, value swapping, and collection unpacking patterns. This feature significantly improves code readability and reduces boilerplate for common programming patterns.
+
+**New Capabilities in v0.52:**
+- **Multiple Assignment**: Assign values to multiple variables in one statement (`x, y = 10, 20`)
+- **Tuple Unpacking**: Unpack tuples and lists into individual variables
+- **Variable Swapping**: Swap values without temporary variables (`a, b = b, a`)
+- **Function Return Unpacking**: Elegantly handle multi-value returns
+- **Expression Assignment**: Complex expressions on RHS with automatic tuple wrapping
+
+**Implementation Details:**
+- **Parser Strategy**: Comma-separated expressions parsed as tuples first, then handled for assignment
+- **AST Enhancement**: Added `is_multiple_assignment` flag and `l_values` vector to AssignmentExprNode
+- **First-Pass Handling**: Special logic to skip symbol table lookup for multiple assignments
+- **Code Generation**: Python visitor generates proper comma-separated targets with tuple RHS
+- **Test Coverage**: Comprehensive test file `test_multiple_assignment_v052.frm` with all scenarios
+
+**Known Limitations:**
+- Multiple variable declarations (`var x, y = 10, 20`) not fully supported
+- List literals with commas incorrectly create nested tuples (workaround available)
+- Only simple `=` operator supported (not compound assignments)
+
+**Use Cases:**
+- Coordinate and dimension handling
+- Min/max value extraction
+- State swapping in algorithms
+- Destructuring data from functions
 
 ## v0.51 Loop Else Clauses (2025-09-11)
 

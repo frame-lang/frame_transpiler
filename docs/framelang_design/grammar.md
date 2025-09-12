@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.51)
+# Frame Language Grammar (v0.52)
 
-**Last Updated**: 2025-01-28  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, string literal method calls, del statement support, and loop else clauses
+**Last Updated**: 2025-01-29  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, and multiple assignment/tuple unpacking
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -1838,6 +1838,49 @@ else {
 - The else block DOES execute if the loop uses `continue` (as continue doesn't exit the loop)
 - The else block also executes if the loop condition is initially false (zero iterations)
 
+#### Multiple Assignment and Tuple Unpacking (v0.52)
+
+Frame v0.52 introduces Python-style multiple assignment and tuple unpacking, enabling more elegant variable assignments and value swapping operations.
+
+```frame
+# Basic multiple assignment
+x, y = 10, 20                    # Assigns 10 to x, 20 to y
+
+# Variable swapping
+a, b = b, a                       # Swaps values without temp variable
+
+# Tuple unpacking
+var t = (100, 200, 300)
+p, q, r = t                       # Unpacks tuple elements
+
+# Function return unpacking
+fn get_coordinates() {
+    return (42, 73)
+}
+lat, lon = get_coordinates()     # Unpacks multiple return values
+
+# List unpacking
+var lst = [1]
+lst.append(2)
+lst.append(3)
+x1, y1, z1 = lst                 # Unpacks list elements
+
+# Complex expressions
+n1, n2, n3 = n1 + 1, n2 * 2, n3 ** 2  # Multiple expressions on RHS
+```
+
+**Grammar Changes:**
+- Assignment now supports comma-separated left-hand values: `lvalue_list`
+- Right-hand side automatically forms tuple when comma-separated: `rvalue_list`
+- Parser distinguishes between tuple literals and multiple assignment based on context
+- Only simple `=` operator supported for multiple assignment (not compound operators)
+
+**Important Notes:**
+- Multiple variable declarations (`var x, y = 10, 20`) not fully supported - use separate declarations
+- List literals with commas create nested tuples: `[1, 2, 3]` becomes `[(1, 2, 3)]` (known limitation)
+- Assignment targets must be valid lvalues (identifiers, indexed expressions, etc.)
+- Right-hand values automatically wrapped in tuple when multiple values present
+
 ### Syntax Enforcement
 
 Similar to if/elif/else statements:
@@ -1873,7 +1916,10 @@ expr_stmt: expr
 var_decl: 'var' IDENTIFIER type? '=' expr
 assert_stmt: 'assert' expr (',' expr)?
 del_stmt: 'del' expr  // v0.50: Delete statement
-assignment: lvalue assignment_op expr
+assignment: lvalue_list assignment_op rvalue_list  // v0.52: Multiple assignment
+lvalue_list: lvalue (',' lvalue)*  // v0.52: Comma-separated targets
+rvalue_list: expr (',' expr)*      // v0.52: Comma-separated values
+lvalue: IDENTIFIER | call_chain | index_expr
 assignment_op: '=' | '+=' | '-=' | '*=' | '/=' | '//=' | '%=' | '**=' | '@='  // v0.39-40
              | '&=' | '|=' | '^=' | '<<=' | '>>='  // v0.39-40: Bitwise compound
 try_stmt: 'try' block except_clause+ else_clause? finally_clause?
@@ -2843,6 +2889,30 @@ The parser automatically detects when a function call follows an array/dictionar
 
 
 ## Version History
+
+### v0.52 (2025-01-29) - Multiple Assignment and Tuple Unpacking
+
+#### New Features
+- **Multiple Assignment**: Assign values to multiple variables in a single statement (`x, y = 10, 20`)
+- **Tuple Unpacking**: Unpack tuples and lists into individual variables (`p, q, r = tuple_value`)
+- **Variable Swapping**: Elegant value swapping without temporary variables (`a, b = b, a`)
+- **Function Return Unpacking**: Unpack multiple return values (`lat, lon = get_coordinates()`)
+
+#### Grammar Changes
+- Assignment syntax extended to support comma-separated targets and values
+- Parser handles comma-separated expressions as tuples when appropriate
+- Automatic tuple wrapping for multiple RHS values
+
+#### Known Limitations
+- Multiple variable declarations (`var x, y = 10, 20`) require separate declarations
+- List literals with commas create nested tuples (workaround available)
+
+### v0.51 (2025-01-28) - Loop Else Clauses
+
+#### New Features
+- **Loop Else Clauses**: Python-style else blocks for for and while loops
+- **Break Detection**: Else block executes only when loop completes without break
+- **Search Patterns**: Ideal for implementing search-and-not-found patterns
 
 ### v0.50 (2025-01-28) - Delete Statement
 

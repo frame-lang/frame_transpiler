@@ -9958,8 +9958,22 @@ impl AstVisitor for PythonVisitor {
         // inc/dec all *rvalue* expressions before generating the
         // assignement statement
         // assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
-        // now generate assignment expression
-        assignment_expr_node.l_value_box.accept(self);
+        
+        // v0.52: Handle multiple assignment (x, y, z = ...)
+        if assignment_expr_node.is_multiple_assignment {
+            // Generate comma-separated list of targets
+            let mut first = true;
+            for l_value in &assignment_expr_node.l_values {
+                if !first {
+                    self.add_code(", ");
+                }
+                l_value.accept(self);
+                first = false;
+            }
+        } else {
+            // Single assignment - use original logic
+            assignment_expr_node.l_value_box.accept(self);
+        }
         
         // Handle different assignment operators
         match assignment_expr_node.assignment_op {
@@ -9999,9 +10013,22 @@ impl AstVisitor for PythonVisitor {
         // self.generate_comment(assignment_expr_node.line);
         // self.newline();
         // self.newline_to_string(output);
-        assignment_expr_node
-            .l_value_box
-            .accept_to_string(self, output);
+        
+        // v0.52: Handle multiple assignment
+        if assignment_expr_node.is_multiple_assignment {
+            let mut first = true;
+            for l_value in &assignment_expr_node.l_values {
+                if !first {
+                    output.push_str(", ");
+                }
+                l_value.accept_to_string(self, output);
+                first = false;
+            }
+        } else {
+            assignment_expr_node
+                .l_value_box
+                .accept_to_string(self, output);
+        }
         
         // Handle different assignment operators
         match assignment_expr_node.assignment_op {
