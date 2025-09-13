@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-12 10:19  
-**Total Tests**: 339  
+**Generated**: 2025-09-12 15:44  
+**Total Tests**: 341  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 339 | 100% |
-| **Transpilation Success** | 339 | 100.0% |
-| **Execution Success** | 339 | 100.0% |
-| **Complete Success** | 339 | 100.0% |
+| **Total Tests** | 341 | 100% |
+| **Transpilation Success** | 340 | 99.7% |
+| **Execution Success** | 340 | 99.7% |
+| **Complete Success** | 340 | 99.7% |
 
 ## v0.31 Features
 
@@ -22,7 +22,14 @@
 
 ## Failed Tests
 
-🎉 **All tests passing!**
+| Test File | Transpile | Execute | Error |
+|-----------|-----------|---------|-------|
+| test_empty_set_literal.frm | ❌ | ❌ | Framec failed with an error:
+First pass parse error:
+Expected '}' - found 'empty_dict'
+
+Symbol table construction failed. Please check your Frame syntax.
+ |
 
 ## Test Details
 
@@ -112,7 +119,7 @@
 | test_elif_with_return.frm | ✅ | ✅ | ✅ PASS |
 | test_empty_module.frm | ✅ | ✅ | ✅ PASS |
 | test_empty_params.frm | ✅ | ✅ | ✅ PASS |
-| test_empty_set_literal.frm | ✅ | ✅ | ✅ PASS |
+| test_empty_set_literal.frm | ❌ | ❌ | ❌ FAIL |
 | test_enum_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_compliance.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_custom_values.frm | ✅ | ✅ | ✅ PASS |
@@ -359,6 +366,8 @@
 | test_v053_multi_var.frm | ✅ | ✅ | ✅ PASS |
 | test_v054_collection_constructors.frm | ✅ | ✅ | ✅ PASS |
 | test_v054_star_expressions.frm | ✅ | ✅ | ✅ PASS |
+| test_v056_features.frm | ✅ | ✅ | ✅ PASS |
+| test_v056_walrus_and_literals.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_with_statement.frm | ✅ | ✅ | ✅ PASS |

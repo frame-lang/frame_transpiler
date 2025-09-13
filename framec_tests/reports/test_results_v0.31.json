@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-12T10:19:30.052944",
+  "timestamp": "2025-09-12T15:44:23.667178",
   "version": "v0.31",
   "summary": {
-    "total": 339,
-    "transpile_success": 339,
-    "execute_success": 339,
-    "complete_success": 339,
-    "success_rate": "100.0%"
+    "total": 341,
+    "transpile_success": 340,
+    "execute_success": 340,
+    "complete_success": 340,
+    "success_rate": "99.7%"
   },
   "results": [
     {
@@ -599,10 +599,9 @@
     },
     {
       "file": "test_empty_set_literal.frm",
-      "transpile": true,
-      "execute": true,
-      "output": "=== Empty Set Literal Test ===\nEmpty dict: {}\nType: <class 'dict'>\nEmpty set: set()\nType: <class 'set'>\nNon-empty set: {1, 2, 3}\nAfter adding 42: {42}\n=== Empty Set Literal Test ===\nEmpty dict: {}\nTyp",
-      "error": null
+      "transpile": false,
+      "execute": false,
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'empty_dict'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_enum_basic.frm",
@@ -650,7 +649,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -678,14 +677,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -2324,6 +2323,20 @@
       "transpile": true,
       "execute": true,
       "output": "=== Star Expression Tests ===\nfirst = 1\nrest = [2, 3, 4, 5]\nbeginning = [10, 20, 30]\nlast = 40\nhead = 100\nmiddle = [200, 300, 400]\ntail = 500\n\n=== Star with Tuples ===\nx = 1\nrest (from tuple) = [2, 3,",
+      "error": null
+    },
+    {
+      "file": "test_v056_features.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing v0.56 Features ===\n\n--- Walrus Operator ---\nn is positive: 5\nAdded 5, total: 5\nAdded 4, total: 9\nAdded 3, total: 12\nAdded 2, total: 14\nAdded 1, total: 15\nFiltered: [6, 8, 10, 12, 14, 16, 1",
+      "error": null
+    },
+    {
+      "file": "test_v056_walrus_and_literals.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "=== Testing Walrus Operator ===\nList is long: 5 elements\nCounter: 0\nCounter: 1\nCounter: 2\nCounter: 3\nCounter: 4\nFiltered results: [6, 8, 10, 12, 14, 16, 18]\n\n=== Testing Numeric Underscores ===\nMillio",
       "error": null
     },
     {

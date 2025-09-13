@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.55)
+# Frame Language Grammar (v0.56)
 
-**Last Updated**: 2025-01-23  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, numeric literals, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, and type annotations
+**Last Updated**: 2025-01-24  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, and type annotations
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -496,6 +496,52 @@ system ConfigurableTimer {
 - **IDE Support**: Enhanced autocompletion and type checking in IDEs
 - **Documentation**: Types serve as inline documentation
 - **Runtime Safety**: Optional runtime type checking in target languages
+
+## Type Aliases (v0.56)
+
+Frame v0.56 introduces type aliases for creating custom type definitions, following Python 3.12+ syntax.
+
+```bnf
+type_alias: 'type' IDENTIFIER '=' type_expr
+```
+
+### Type Alias Features
+
+- **Custom Type Names**: Create readable aliases for complex types
+- **Generic Types**: Support for parameterized type aliases
+- **Improved Readability**: Replace complex type expressions with meaningful names
+- **Python 3.12+ Compatible**: Generates modern Python type alias syntax
+
+### Type Alias Examples
+
+```frame
+# Simple type alias
+type UserID = int
+type Username = str
+
+# Complex type aliases
+type Point = tuple[float, float]
+type Coordinates = list[Point]
+type UserDict = dict[UserID, Username]
+
+# Using type aliases in functions
+fn processUser(id: UserID, name: Username) : bool {
+    return id > 0 and name != ""
+}
+
+# Using with generic types
+type Optional[T] = T | None
+type Result[T, E] = tuple[bool, T | E]
+
+fn divide(a: float, b: float) : Result[float, str] {
+    if b == 0 {
+        return (false, "Division by zero")
+    }
+    return (true, a / b)
+}
+```
+
+**Implementation Note**: The `type` keyword is context-sensitive - it's only recognized as a keyword when starting a type alias declaration. The built-in `type()` function works normally in all other contexts.
 
 ## Async/Await Support (v0.35-v0.37)
 
@@ -2453,7 +2499,9 @@ actions:
 ## Expressions
 
 ```bnf
-expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr | lambda_expr
+expr: assignment_expr | binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr | lambda_expr
+
+assignment_expr: IDENTIFIER ':=' expr  // v0.56: Walrus operator (assignment expression)
 
 binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '//' | '%' | '**' | '@'  // v0.40: Added floor division and matrix multiplication
@@ -2538,6 +2586,44 @@ dict_constructor: 'dict' '(' ')'               // → dict() (Python-compliant)
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
 
 **Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
+
+### Assignment Expressions / Walrus Operator (v0.56)
+
+Frame v0.56 introduces the walrus operator `:=` for assignment expressions, following Python 3.8+ syntax:
+
+```frame
+# Walrus operator in if statement
+if (n := len(data)) > 10 {
+    print("Large dataset with " + str(n) + " items")
+}
+
+# In while loops
+while (line := readline()) != "" {
+    process(line)
+}
+
+# In list comprehensions
+var results = [y for x in data if (y := transform(x)) > 0]
+
+# Reusing computed values
+fn processData(items) {
+    if (total := sum(items)) > 100 {
+        return total / len(items)  # Can reuse 'total'
+    }
+    return 0
+}
+
+# Variable creation and testing
+if (match := search(pattern, text)) {
+    print("Found: " + match)
+}
+```
+
+**Key Features:**
+- Creates a variable and returns its value in a single expression
+- Variable is created in the current scope (not a new scope)
+- Useful for avoiding repeated calculations
+- Improves code readability by reducing duplication
 
 ### Lambda Expressions (v0.38)
 
@@ -2860,14 +2946,49 @@ Comments can contain any UTF-8 characters:
     and emojis: 😀 🚀 💻 --}
 ```
 
+### Numeric Literals (v0.56)
+
+Frame v0.56 enhances numeric literal support with underscores for readability, scientific notation, and complex numbers:
+
+```frame
+# Underscores for readability
+var million = 1_000_000
+var binary_mask = 0b1111_0000_1111_0000
+var hex_color = 0xFF_FF_FF
+var precise = 3.141_592_653_589_793
+
+# Scientific notation
+var avogadro = 6.022e23
+var planck = 6.626e-34
+var electron_mass = 9.109_383_56e-31
+
+# Complex numbers
+var z1 = 3.14j
+var z2 = 2.5 + 3.7j
+var z3 = 1e10j
+
+# All bases support underscores
+var binary = 0b1010_1010
+var octal = 0o755_644
+var hex = 0xDEAD_BEEF
+```
+
+**Key Features:**
+- **Underscores**: Use `_` as digit separator for improved readability
+- **Scientific Notation**: Support for `e` or `E` exponents with optional sign
+- **Complex Numbers**: Add `j` or `J` suffix for imaginary numbers
+- **All Bases**: Binary, octal, and hexadecimal literals all support underscores
+
 ### Tokens
 
 ```bnf
 IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*
-NUMBER: [0-9]+ ('.' [0-9]+)?  // Decimal
-      | '0b' [01]+             // Binary literal (v0.40)
-      | '0o' [0-7]+            // Octal literal (v0.40)
-      | '0x' [0-9a-fA-F]+      // Hexadecimal literal (v0.40)
+NUMBER: [0-9]([0-9_]*)* ('.' [0-9]([0-9_]*)*)?  // Decimal with underscores (v0.56)
+      | [0-9]([0-9_]*)* ('.' [0-9]([0-9_]*)*)? ('e'|'E') [+-]? [0-9]+  // Scientific notation (v0.56)
+      | [0-9]([0-9_]*)* ('.' [0-9]([0-9_]*)*)? ('j'|'J')  // Complex number (v0.56)
+      | '0b' [01]([01_]*)*       // Binary literal with underscores (v0.40/v0.56)
+      | '0o' [0-7]([0-7_]*)*     // Octal literal with underscores (v0.40/v0.56)
+      | '0x' [0-9a-fA-F]([0-9a-fA-F_]*)*  // Hexadecimal with underscores (v0.40/v0.56)
 STRING: '"' (ESC | ~["])* '"'  // Regular string
 FSTRING: 'f"' (ESC | EXPR | ~["])* '"'  // f-string with expressions (v0.40)
 RAWSTRING: 'r"' (~["])* '"'  // Raw string, no escape processing (v0.40)

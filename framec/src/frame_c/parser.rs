@@ -269,6 +269,9 @@ impl<'a> Parser<'a> {
         
         // Parse all entities in sequence
         loop {
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Top of parsing loop, current token: {:?}", self.peek());
+            }
             // Check for module-level enum declarations
             if self.match_token(&[TokenType::Enum]) {
                 match self.enum_decl() {
@@ -322,6 +325,9 @@ impl<'a> Parser<'a> {
                 // v0.30: All individual systems get empty modules - module elements belong to FrameModule
                 let module_for_system = crate::frame_c::ast::Module::new(vec![]);
                 
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Parsing system at token index {}", self.current);
+                }
                 let system = self.system_scope(Some(module_for_system), entity_attributes_opt, None)?;
                 systems.push(system);
             } else if self.match_token(&[TokenType::Async]) {
@@ -340,8 +346,17 @@ impl<'a> Parser<'a> {
                 if entity_attributes_opt.is_some() {
                     return Err(ParseError::new("Functions do not support attributes. Remove attributes or change to system."));
                 }
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Parsing function at token index {}", self.current);
+                }
                 let function = self.function_scope_async(false)?;
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Successfully parsed function");
+                }
                 functions.push(function);
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: After parsing function, next token: {:?}", self.peek());
+                }
             } else if self.match_token(&[TokenType::Module]) {
                 // v0.34: Parse nested module declaration
                 if entity_attributes_opt.is_some() {
@@ -441,6 +456,17 @@ impl<'a> Parser<'a> {
                 match self.parse_from_import_statement() {
                     Ok(import_node) => {
                         module_elements.push(crate::frame_c::ast::ModuleElement::Import { import_node });
+                    }
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
+            } else if self.check(TokenType::Identifier) && self.peek().lexeme == "type" {
+                // Parse type alias: type Name = type_expression
+                self.advance(); // consume 'type'
+                match self.parse_type_alias() {
+                    Ok(type_alias_node) => {
+                        module_elements.push(crate::frame_c::ast::ModuleElement::TypeAlias { type_alias_node });
                     }
                     Err(err) => {
                         return Err(err);
@@ -1404,6 +1430,9 @@ impl<'a> Parser<'a> {
     // ===================== Entity Scope Functions =====================
     
     fn function_scope_async(&mut self, is_async: bool) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Entered function_scope_async, next token: {:?}", self.peek());
+        }
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected function name.";
             self.error_at_current(&err_msg);
@@ -1412,6 +1441,9 @@ impl<'a> Parser<'a> {
 
         let line = self.previous().line;
         let function_name = self.previous().lexeme.clone();
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Parsing function named '{}'", function_name);
+        }
 
         // The 'is_function_context' flag is used to determine which statements are valid
         // to be called in the context of an function. Transitions, for example, are not
@@ -1496,6 +1528,9 @@ impl<'a> Parser<'a> {
         system_attributes_opt: Option<HashMap<String, AttributeNode>>,
         functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
     ) -> Result<SystemNode, ParseError> {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Entered system_scope, current token: {:?}", self.peek());
+        }
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected system identifier.";
             self.error_at_current(&err_msg);
@@ -1611,7 +1646,13 @@ impl<'a> Parser<'a> {
         //     code_opt = Some(token.lexeme.clone());
         // }
 
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: About to parse function body statements, current token: {:?}", self.peek());
+        }
         let statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Finished parsing function body, current token: {:?}", self.peek());
+        }
 
         // foo(...) : type { ... return
         if self.match_token(&[TokenType::Return_]) {
@@ -3962,6 +4003,7 @@ impl<'a> Parser<'a> {
                     YieldFromExprT { yield_from_expr_node } => Rc::new(YieldFromExprT { yield_from_expr_node }),
                     GeneratorExprT { generator_expr_node } => Rc::new(GeneratorExprT { generator_expr_node }),
                     StarExprT { star_expr_node } => Rc::new(StarExprT { star_expr_node }),
+                    WalrusExprT { assignment_expr_node } => Rc::new(WalrusExprT { assignment_expr_node }),
                     
                     // Invalid assignment types
                     ExprListT { expr_list_node } => {
@@ -5160,6 +5202,10 @@ impl<'a> Parser<'a> {
 
         loop {
             self.stmt_idx = self.stmt_idx + 1;
+            
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: statements() loop iteration {}, current token: {:?}", self.stmt_idx, self.peek());
+            }
 
             match self.decl_or_stmt(identifier_decl_scope.clone()) {
                 Ok(opt_smt) => match opt_smt {
@@ -5253,6 +5299,9 @@ impl<'a> Parser<'a> {
                         }
                     }
                     None => {
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: statements() returning early - decl_or_stmt returned None");
+                        }
                         return statements;
                     }
                 },
@@ -5681,6 +5730,10 @@ impl<'a> Parser<'a> {
             StarExprT { .. } => {
                 self.error_at_previous("Star expressions not allowed as statements.");
                 Err(ParseError::new("Star expression must be part of an unpacking assignment"))
+            }
+            WalrusExprT { .. } => {
+                self.error_at_previous("Walrus operator expressions not allowed as statements.");
+                Err(ParseError::new("Walrus operator must be part of a larger expression"))
             }
         }
     }
@@ -6440,7 +6493,7 @@ impl<'a> Parser<'a> {
             return self.parse_lambda();
         }
         
-        let mut l_value = match self.logical_xor() {
+        let mut l_value = match self.walrus() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -6955,6 +7008,102 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
+
+    // Walrus operator (:=) - assignment expression that returns value
+    fn walrus(&mut self) -> Result<Option<ExprType>, ParseError> {
+        // Check if we have an identifier followed by :=
+        // This allows us to handle (n := expr) where n is a new variable
+        if self.peek().token_type == TokenType::Identifier {
+            let next_idx = self.current + 1;
+            if next_idx < self.tokens.len() && self.tokens[next_idx].token_type == TokenType::Walrus {
+                // This is a walrus expression with a simple identifier
+                let id_token = self.advance().clone();
+                self.advance(); // consume :=
+                
+                // Create a variable node for the identifier
+                let id_node = IdentifierNode::new(
+                    id_token.clone(),
+                    None,
+                    IdentifierDeclScope::UnknownScope,
+                    false,
+                    id_token.line,
+                );
+                let var_node = VariableNode::new(
+                    id_node,
+                    IdentifierDeclScope::UnknownScope,
+                    None,
+                );
+                let l_value = ExprType::VariableExprT { var_node };
+                
+                // Parse the right side
+                let r_value = match self.logical_xor() {
+                    Ok(Some(expr_type)) => Rc::new(expr_type),
+                    Ok(None) => {
+                        self.error_at_current("Expected expression after ':=' operator");
+                        return Err(ParseError::new("Expected expression after ':='"));
+                    }
+                    Err(parse_error) => return Err(parse_error),
+                };
+                
+                // Create walrus assignment expression
+                let assignment_expr = AssignmentExprNode::new(
+                    l_value,
+                    r_value,
+                    self.previous().line,
+                );
+                
+                // Return as walrus expression
+                return Ok(Some(ExprType::WalrusExprT {
+                    assignment_expr_node: assignment_expr,
+                }));
+            }
+        }
+        
+        // Not a walrus expression, parse normally
+        let l_value = match self.logical_xor() {
+            Ok(Some(expr_type)) => expr_type,
+            Ok(None) => return Ok(None),
+            Err(parse_error) => return Err(parse_error),
+        };
+
+        // Check for walrus operator after complex expression (shouldn't happen in valid Python)
+        if self.match_token(&[TokenType::Walrus]) {
+            // Ensure l_value is a variable
+            match &l_value {
+                ExprType::VariableExprT { .. } => {
+                    // Valid - proceed with walrus assignment
+                }
+                _ => {
+                    self.error_at_current("Walrus operator (:=) requires a simple variable on the left side");
+                    return Err(ParseError::new("Invalid walrus operator usage"));
+                }
+            }
+
+            // Parse the right side (should not recursively call walrus)
+            let r_value = match self.logical_xor() {
+                Ok(Some(expr_type)) => Rc::new(expr_type),
+                Ok(None) => {
+                    self.error_at_current("Expected expression after ':=' operator");
+                    return Err(ParseError::new("Expected expression after ':='"));
+                }
+                Err(parse_error) => return Err(parse_error),
+            };
+
+            // Create walrus assignment expression
+            let assignment_expr = AssignmentExprNode::new(
+                l_value,
+                r_value,
+                self.previous().line,
+            );
+
+            // Return as walrus expression (assignment that yields its value)
+            return Ok(Some(ExprType::WalrusExprT {
+                assignment_expr_node: assignment_expr,
+            }));
+        }
+
+        Ok(Some(l_value))
+    }
 
     fn logical_xor(&mut self) -> Result<Option<ExprType>, ParseError> {
         let mut l_value = match self.logical_or() {
@@ -9372,6 +9521,7 @@ impl<'a> Parser<'a> {
         // v0.38: Use {,} for empty set (single comma inside)
         if self.peek().token_type == TokenType::CloseBrace {
             self.advance(); // consume '}'
+            self.is_parsing_collection = was_parsing_collection;  // Restore flag
             return Ok(ExprType::DictLiteralT { 
                 dict_literal_node: DictLiteralNode::new(Vec::new())
             });
@@ -9382,10 +9532,12 @@ impl<'a> Parser<'a> {
             self.advance(); // consume ','
             if self.peek().token_type == TokenType::CloseBrace {
                 self.advance(); // consume '}'
+                self.is_parsing_collection = was_parsing_collection;  // Restore flag
                 return Ok(ExprType::SetLiteralT {
                     set_literal_node: SetLiteralNode::new(Vec::new())
                 });
             } else {
+                self.is_parsing_collection = was_parsing_collection;  // Restore flag
                 return Err(ParseError::new("Expected '}' after ',' for empty set literal"));
             }
         }
@@ -9406,13 +9558,20 @@ impl<'a> Parser<'a> {
                         ExprType::NilExprT  // Placeholder value for unpacking
                     ));
                 }
-                Ok(None) => return Err(ParseError::new("Expected expression after '**'")),
-                Err(e) => return Err(e),
+                Ok(None) => {
+                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                    return Err(ParseError::new("Expected expression after '**'"))
+                },
+                Err(e) => {
+                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                    return Err(e)
+                },
             };
             
             // Parse remaining items (could be more unpacking or regular pairs)
             while !self.match_token(&[TokenType::CloseBrace]) {
                 if !self.match_token(&[TokenType::Comma]) {
+                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
                     return Err(ParseError::new("Expected ',' or '}' in dictionary"));
                 }
                 
@@ -9432,8 +9591,14 @@ impl<'a> Parser<'a> {
                                 ExprType::NilExprT  // Placeholder value for unpacking
                             ));
                         }
-                        Ok(None) => return Err(ParseError::new("Expected expression after '**'")),
-                        Err(e) => return Err(e),
+                        Ok(None) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(ParseError::new("Expected expression after '**'"))
+                        },
+                        Err(e) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(e)
+                        },
                     };
                 } else {
                     // Regular key-value pair
@@ -9444,24 +9609,35 @@ impl<'a> Parser<'a> {
                             self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                             return Err(ParseError::new("Expected key in dictionary"))
                         },
-                        Err(e) => return Err(e),
+                        Err(e) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(e)
+                        },
                     };
                     
                     if !self.match_token(&[TokenType::Colon]) {
+                        self.is_parsing_collection = was_parsing_collection;  // Restore flag
                         return Err(ParseError::new("Expected ':' after dictionary key"));
                     }
                     
                     // For values, we want full expressions including lambda
                     let value = match self.expression() {
                         Ok(Some(expr)) => expr,
-                        Ok(None) => return Err(ParseError::new("Expected value in dictionary")),
-                        Err(e) => return Err(e),
+                        Ok(None) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(ParseError::new("Expected value in dictionary"))
+                        },
+                        Err(e) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(e)
+                        },
                     };
                     
                     pairs.push((key, value));
                 }
             }
             
+            self.is_parsing_collection = was_parsing_collection;  // Restore flag
             return Ok(ExprType::DictLiteralT { 
                 dict_literal_node: DictLiteralNode::new(pairs)
             });
@@ -9475,13 +9651,18 @@ impl<'a> Parser<'a> {
                 if self.peek().token_type == TokenType::CloseBrace {
                     // Empty dict
                     self.advance();
+                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
                     return Ok(ExprType::DictLiteralT { 
                         dict_literal_node: DictLiteralNode::new(Vec::new())
                     });
                 }
+                self.is_parsing_collection = was_parsing_collection;  // Restore flag
                 return Err(ParseError::new("Expected expression in literal"));
             }
-            Err(e) => return Err(e),
+            Err(e) => {
+                self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                return Err(e)
+            },
         };
         
         // Check if it's a dictionary (has colon) or set (has comma or closing brace)
@@ -9492,8 +9673,14 @@ impl<'a> Parser<'a> {
             // Parse first value
             let value = match self.expression() {
                 Ok(Some(expr)) => expr,
-                Ok(None) => return Err(ParseError::new("Expected value after ':' in dictionary")),
-                Err(e) => return Err(e),
+                Ok(None) => {
+                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                    return Err(ParseError::new("Expected value after ':' in dictionary"))
+                },
+                Err(e) => {
+                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                    return Err(e)
+                },
             };
             
             // Check if it's a dictionary comprehension (has 'for' keyword)
@@ -9502,8 +9689,10 @@ impl<'a> Parser<'a> {
                 let comp_result = self.dict_comprehension(first_expr, value)?;
                 // Consume the closing brace
                 if !self.match_token(&[TokenType::CloseBrace]) {
+                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
                     return Err(ParseError::new("Expected '}' after dictionary comprehension"));
                 }
+                self.is_parsing_collection = was_parsing_collection;  // Restore flag
                 return Ok(comp_result);
             }
             
@@ -9512,6 +9701,7 @@ impl<'a> Parser<'a> {
             // Parse remaining pairs
             while !self.match_token(&[TokenType::CloseBrace]) {
                 if !self.match_token(&[TokenType::Comma]) {
+                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
                     return Err(ParseError::new("Expected ',' or '}' in dictionary"));
                 }
                 
@@ -9532,8 +9722,14 @@ impl<'a> Parser<'a> {
                                 ExprType::NilExprT  // Placeholder value for unpacking
                             ));
                         }
-                        Ok(None) => return Err(ParseError::new("Expected expression after '**'")),
-                        Err(e) => return Err(e),
+                        Ok(None) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(ParseError::new("Expected expression after '**'"))
+                        },
+                        Err(e) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(e)
+                        },
                     };
                 } else {
                     // Parse next key - don't allow lambda as key
@@ -9543,24 +9739,35 @@ impl<'a> Parser<'a> {
                             self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                             return Err(ParseError::new("Expected key in dictionary"))
                         },
-                        Err(e) => return Err(e),
+                        Err(e) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(e)
+                        },
                     };
                     
                     if !self.match_token(&[TokenType::Colon]) {
+                        self.is_parsing_collection = was_parsing_collection;  // Restore flag
                         return Err(ParseError::new("Expected ':' after dictionary key"));
                     }
                     
                     // Parse value - allow full expressions including lambda
                     let value = match self.expression() {
                         Ok(Some(expr)) => expr,
-                        Ok(None) => return Err(ParseError::new("Expected value in dictionary")),
-                        Err(e) => return Err(e),
+                        Ok(None) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(ParseError::new("Expected value in dictionary"))
+                        },
+                        Err(e) => {
+                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                            return Err(e)
+                        },
                     };
                     
                     pairs.push((key, value));
                 }
             }
             
+            self.is_parsing_collection = was_parsing_collection;  // Restore flag
             Ok(ExprType::DictLiteralT { 
                 dict_literal_node: DictLiteralNode::new(pairs)
             })
@@ -9583,6 +9790,7 @@ impl<'a> Parser<'a> {
             
             // Check for single element set
             if self.match_token(&[TokenType::CloseBrace]) {
+                self.is_parsing_collection = was_parsing_collection;  // Restore flag
                 return Ok(ExprType::SetLiteralT { 
                     set_literal_node: SetLiteralNode::new(elements)
                 });
@@ -9590,6 +9798,7 @@ impl<'a> Parser<'a> {
             
             // Parse remaining elements
             if !self.match_token(&[TokenType::Comma]) {
+                self.is_parsing_collection = was_parsing_collection;  // Restore flag
                 return Err(ParseError::new("Expected ',' or '}' in set literal"));
             }
             
@@ -9603,8 +9812,14 @@ impl<'a> Parser<'a> {
                 // Parse next element
                 match self.expression() {
                     Ok(Some(expr)) => elements.push(expr),
-                    Ok(None) => return Err(ParseError::new("Expected element in set")),
-                    Err(e) => return Err(e),
+                    Ok(None) => {
+                        self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                        return Err(ParseError::new("Expected element in set"))
+                    },
+                    Err(e) => {
+                        self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                        return Err(e)
+                    },
                 }
                 
                 if self.match_token(&[TokenType::CloseBrace]) {
@@ -9612,10 +9827,12 @@ impl<'a> Parser<'a> {
                 }
                 
                 if !self.match_token(&[TokenType::Comma]) {
+                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
                     return Err(ParseError::new("Expected ',' or '}' in set"));
                 }
             }
             
+            self.is_parsing_collection = was_parsing_collection;  // Restore flag
             Ok(ExprType::SetLiteralT { 
                 set_literal_node: SetLiteralNode::new(elements)
             })
@@ -11603,6 +11820,7 @@ impl<'a> Parser<'a> {
             TokenType::ByteString,
             TokenType::TripleQuotedString,
             TokenType::Number,
+            TokenType::ComplexNumber,
             TokenType::True,
             TokenType::False,
             TokenType::None_,
@@ -13292,6 +13510,93 @@ impl<'a> Parser<'a> {
             },
             line
         ))
+    }
+    
+    // v0.56: Parse type alias: type Name = type_expression
+    fn parse_type_alias(&mut self) -> Result<TypeAliasNode, ParseError> {
+        // We've already consumed 'type' token
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected type alias name after 'type'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let alias_name = self.previous().lexeme.clone();
+        let line = self.previous().line;
+        
+        // Expect '=' 
+        if !self.match_token(&[TokenType::Equals]) {
+            let err_msg = "Expected '=' after type alias name";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // Parse the type expression
+        // Capture everything on the same line as the type expression
+        let mut type_expr = String::new();
+        let mut bracket_depth = 0;
+        
+        // Collect tokens until end of line or next major statement
+        while !self.is_at_end() {
+            let token = self.peek();
+            
+            // Track bracket depth
+            if token.token_type == TokenType::LBracket {
+                bracket_depth += 1;
+            } else if token.token_type == TokenType::RBracket {
+                bracket_depth -= 1;
+            }
+            
+            // Stop conditions:
+            // 1. Found a comment (marks end of line)
+            // 2. Found next line starting with keyword (only if brackets are balanced)
+            if token.token_type == TokenType::PythonComment {
+                break;
+            }
+            
+            // If brackets are balanced and at depth 0, check for line end
+            if bracket_depth == 0 {
+                // Check if this token itself is start of new statement
+                if matches!(token.token_type,
+                    TokenType::Type | TokenType::Import | TokenType::From |
+                    TokenType::Function | TokenType::Class | TokenType::System |
+                    TokenType::Var | TokenType::Const | TokenType::Enum) {
+                    break;
+                }
+                // Also check for 'type' keyword as identifier (since it's no longer a reserved keyword)
+                if token.token_type == TokenType::Identifier && token.lexeme == "type" {
+                    break;
+                }
+            }
+            
+            // Add the token to type expression with appropriate spacing
+            // Add space after commas for readability
+            if !type_expr.is_empty() && !type_expr.ends_with('[') && token.lexeme != "]" && token.lexeme != "[" {
+                // Add space before token if it's not a bracket and previous char wasn't an opening bracket
+                if token.lexeme != "," {
+                    type_expr.push(' ');
+                }
+            }
+            type_expr.push_str(&token.lexeme);
+            if token.lexeme == "," {
+                type_expr.push(' ');  // Add space after comma
+            }
+            self.advance();
+            
+            // After consuming the token, check if we should stop
+            if bracket_depth < 0 {
+                // Unbalanced brackets - stop
+                break;
+            }
+        }
+        
+        if type_expr.is_empty() {
+            let err_msg = "Expected type expression after '='";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        Ok(TypeAliasNode::new(alias_name, type_expr, line))
     }
     
     // v0.37: Analyze system runtime async requirements

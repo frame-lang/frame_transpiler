@@ -159,6 +159,8 @@ pub enum ModuleElement {
     Enum { enum_decl_node: Rc<RefCell<EnumDeclNode>> },
     // v0.34: Nested modules
     Module { module_node: Rc<RefCell<ModuleNode>> },
+    // v0.56: Type aliases
+    TypeAlias { type_alias_node: TypeAliasNode },
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -661,6 +663,28 @@ impl ImportNode {
 impl NodeElement for ImportNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_import_node(self);
+    }
+}
+
+//-----------------------------------------------------//
+// v0.56: Type alias support
+
+#[derive(Clone, Debug)]
+pub struct TypeAliasNode {
+    pub name: String,
+    pub type_expr: String,  // The type expression as a string (e.g., "tuple[float, float]")
+    pub line: usize,
+}
+
+impl TypeAliasNode {
+    pub fn new(name: String, type_expr: String, line: usize) -> TypeAliasNode {
+        TypeAliasNode { name, type_expr, line }
+    }
+}
+
+impl NodeElement for TypeAliasNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_type_alias_node(self);
     }
 }
 
@@ -1629,6 +1653,9 @@ pub enum ExprType {
     AssignmentExprT {
         assignment_expr_node: AssignmentExprNode,
     },
+    WalrusExprT {
+        assignment_expr_node: AssignmentExprNode,  // Walrus operator (:=) - assignment that returns value
+    },
     #[allow(dead_code)] // is used, don't know why I need this
     ActionCallExprT {
         action_call_expr_node: ActionCallExprNode,
@@ -1770,6 +1797,7 @@ impl ExprType {
     pub fn is_valid_binary_expr_type(&self) -> bool {
         match self {
             ExprType::AssignmentExprT { .. } => false,
+            ExprType::WalrusExprT { .. } => true,  // Walrus can be used in binary expressions
             ExprType::TransitionExprT { .. } => false,
             ExprType::StateStackOperationExprT { .. } => false,
             ExprType::CallExprListT { .. } => false, // this shouldn't happen
@@ -1779,6 +1807,7 @@ impl ExprType {
     pub fn is_valid_assignment_rvalue_expr_type(&self) -> bool {
         match self {
             ExprType::AssignmentExprT { .. } => false,
+            ExprType::WalrusExprT { .. } => true,  // Walrus can be used as rvalue (it returns a value)
             ExprType::TransitionExprT { .. } => false,
             ExprType::StateStackOperationExprT { .. } => false,
             ExprType::CallExprListT { .. } => false, // this shouldn't happen
@@ -1815,6 +1844,7 @@ impl ExprType {
     pub fn expr_type_name(&self) -> &'static str {
         match self {
             ExprType::AssignmentExprT { .. } => "AssignmentExprT",
+            ExprType::WalrusExprT { .. } => "WalrusExprT",
             ExprType::ActionCallExprT { .. } => "ActionCallExprT",
             ExprType::CallChainExprT { .. } => "CallChainExprT",
             ExprType::CallExprT { .. } => "CallExprT",
@@ -1926,6 +1956,13 @@ impl ExprType {
                 print!("await ");
                 await_expr_node.expr.debug_print();
             }
+            ExprType::WalrusExprT { assignment_expr_node } => {
+                print!("(");
+                assignment_expr_node.l_value_box.debug_print();
+                print!(" := ");
+                assignment_expr_node.r_value_rc.debug_print();
+                print!(")");
+            }
             ExprType::YieldExprT { yield_expr_node } => {
                 print!("yield");
                 if let Some(ref expr) = yield_expr_node.expr {
@@ -1960,6 +1997,11 @@ impl NodeElement for ExprType {
                 assignment_expr_node,
             } => {
                 ast_visitor.visit_assignment_expr_node(assignment_expr_node);
+            }
+            ExprType::WalrusExprT {
+                assignment_expr_node,
+            } => {
+                ast_visitor.visit_walrus_expr_node(assignment_expr_node);
             }
             ExprType::CallChainExprT {
                 call_chain_expr_node,
@@ -2187,6 +2229,9 @@ impl NodeElement for ExprType {
             }
             ExprType::AwaitExprT { await_expr_node } => {
                 ast_visitor.visit_await_expr_node_to_string(await_expr_node, output);
+            }
+            ExprType::WalrusExprT { assignment_expr_node } => {
+                ast_visitor.visit_walrus_expr_node_to_string(assignment_expr_node, output);
             }
             ExprType::LambdaExprT { lambda_expr_node } => {
                 ast_visitor.visit_lambda_expr_node_to_string(lambda_expr_node, output);

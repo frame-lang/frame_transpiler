@@ -1284,11 +1284,16 @@ impl PythonVisitor {
         // Process all content first to determine required imports
         let header_len = self.code.len();
         
-        // v0.30: Process module-level elements (imports and CodeBlocks)
+        // v0.30: Process module-level elements (imports, CodeBlocks, and TypeAliases)
+        let mut has_type_aliases = false;
         for module_element in &frame_module.module.module_elements {
             match module_element {
                 ModuleElement::Import { import_node } => {
                     import_node.accept(self);
+                }
+                ModuleElement::TypeAlias { type_alias_node } => {
+                    type_alias_node.accept(self);
+                    has_type_aliases = true;
                 }
                 ModuleElement::CodeBlock { code_block } => {
                     self.newline();
@@ -1296,6 +1301,11 @@ impl PythonVisitor {
                 }
                 _ => {} // Functions and Systems handled separately
             }
+        }
+        
+        // Add extra newline after type aliases section if any were present
+        if has_type_aliases {
+            self.newline();
         }
         
         // Generate FrameEvent class (common to all systems)
@@ -4532,6 +4542,9 @@ impl AstVisitor for PythonVisitor {
                     // v0.34: Nested modules - need qualified access implementation
                     // For now, skip nested modules as we need name resolution first
                 }
+                ModuleElement::TypeAlias { type_alias_node: _ } => {
+                    // Type aliases are already processed in run_v2, skip here
+                }
             }
         }
 
@@ -5225,6 +5238,14 @@ impl AstVisitor for PythonVisitor {
                 }
             }
         }
+    }
+
+    //* --------------------------------------------------------------------- *//
+    
+    fn visit_type_alias_node(&mut self, type_alias_node: &TypeAliasNode) {
+        // Python 3.12+ type alias syntax
+        self.add_code(&format!("type {} = {}", type_alias_node.name, type_alias_node.type_expr));
+        self.newline();  // Use the newline method to add proper newline
     }
 
     //* --------------------------------------------------------------------- *//
@@ -6992,6 +7013,7 @@ impl AstVisitor for PythonVisitor {
                         TokenType::ByteString => self.add_code(&call_chain_literal_expr_node.value),
                         TokenType::TripleQuotedString => self.add_code(&call_chain_literal_expr_node.value),
                         TokenType::Number => self.add_code(&call_chain_literal_expr_node.value),
+                        TokenType::ComplexNumber => self.add_code(&call_chain_literal_expr_node.value),
                         _ => self.add_code(&call_chain_literal_expr_node.value),
                     }
                 }
@@ -7426,6 +7448,7 @@ impl AstVisitor for PythonVisitor {
                         TokenType::ByteString => output.push_str(&call_chain_literal_expr_node.value),
                         TokenType::TripleQuotedString => output.push_str(&call_chain_literal_expr_node.value),
                         TokenType::Number => output.push_str(&call_chain_literal_expr_node.value),
+                        TokenType::ComplexNumber => output.push_str(&call_chain_literal_expr_node.value),
                         _ => output.push_str(&call_chain_literal_expr_node.value),
                     }
                 }
@@ -9438,6 +9461,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_literal_expression_node(&mut self, literal_expression_node: &LiteralExprNode) {
         match &literal_expression_node.token_t {
             TokenType::Number => self.add_code(&literal_expression_node.value.to_string()),
+            TokenType::ComplexNumber => self.add_code(&literal_expression_node.value.to_string()),
             // SuperString removed - backticks no longer supported
             TokenType::String => self.add_code(&format!("\"{}\"", literal_expression_node.value)),
             TokenType::FString => {
@@ -9475,6 +9499,7 @@ impl AstVisitor for PythonVisitor {
         // TODO: make a focused enum or the literals
         match &literal_expression_node.token_t {
             TokenType::Number => output.push_str(&literal_expression_node.value.to_string()),
+            TokenType::ComplexNumber => output.push_str(&literal_expression_node.value.to_string()),
             TokenType::String => {
                 output.push_str(&format!("\"{}\"", literal_expression_node.value));
             }
@@ -10163,6 +10188,32 @@ impl AstVisitor for PythonVisitor {
         assignment_expr_node
             .r_value_rc
             .accept_to_string(self, output);
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_walrus_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
+        // Walrus operator (:=) - generates assignment expression that returns value
+        // In Python, this is (var := value) with parentheses
+        self.add_code("(");
+        assignment_expr_node.l_value_box.accept(self);
+        self.add_code(" := ");
+        assignment_expr_node.r_value_rc.accept(self);
+        self.add_code(")");
+    }
+
+    //* --------------------------------------------------------------------- *//
+
+    fn visit_walrus_expr_node_to_string(
+        &mut self,
+        assignment_expr_node: &AssignmentExprNode,
+        output: &mut String,
+    ) {
+        output.push_str("(");
+        assignment_expr_node.l_value_box.accept_to_string(self, output);
+        output.push_str(" := ");
+        assignment_expr_node.r_value_rc.accept_to_string(self, output);
+        output.push_str(")");
     }
 
     //* --------------------------------------------------------------------- *//

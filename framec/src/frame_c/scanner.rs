@@ -70,6 +70,7 @@ impl Scanner {
             ("case".to_string(), TokenType::Case),
             ("extends".to_string(), TokenType::Extends),
             ("super".to_string(), TokenType::Super),
+            // ("type".to_string(), TokenType::Type), // Removed to allow type() function calls
             ("cls".to_string(), TokenType::Cls),
             ("property".to_string(), TokenType::Property),
             ("classmethod".to_string(), TokenType::ClassMethod),
@@ -372,6 +373,8 @@ impl Scanner {
                 }
             }
             '{' => {
+                // Check if this starts a multiline comment {--
+                // but ONLY if we're not already inside a Python comment
                 if self.match_char('-') {
                     if self.match_char('-') {
                         self.multi_line_comment();
@@ -392,6 +395,9 @@ impl Scanner {
                 } else if self.match_char('/') {
                     // Enum match syntax removed
                     self.error(self.line, "Enum match syntax ':/' has been removed. Use if/elif/else statements instead.");
+                } else if self.match_char('=') {
+                    // Walrus operator (assignment expression)
+                    self.add_token(TokenType::Walrus);
                 } else {
                     self.add_token(TokenType::Colon);
                 }
@@ -514,9 +520,9 @@ impl Scanner {
         if self.chars[self.start] == '0' && self.current - self.start == 1 {
             let next_char = self.peek();
             if next_char == 'b' || next_char == 'B' {
-                // Binary literal
+                // Binary literal (with optional underscores)
                 self.advance(); // consume 'b' or 'B'
-                while self.peek() == '0' || self.peek() == '1' {
+                while self.peek() == '0' || self.peek() == '1' || self.peek() == '_' {
                     self.advance();
                 }
                 let s: String = self.chars[self.start..self.current].iter().collect();
@@ -524,18 +530,18 @@ impl Scanner {
                 self.add_token_literal(TokenType::Number, TokenLiteral::Integer(0)); // Placeholder value
                 return;
             } else if next_char == 'o' || next_char == 'O' {
-                // Octal literal
+                // Octal literal (with optional underscores)
                 self.advance(); // consume 'o' or 'O'
-                while ('0'..='7').contains(&self.peek()) {
+                while ('0'..='7').contains(&self.peek()) || self.peek() == '_' {
                     self.advance();
                 }
                 let s: String = self.chars[self.start..self.current].iter().collect();
                 self.add_token_literal(TokenType::Number, TokenLiteral::Integer(0)); // Placeholder value
                 return;
             } else if next_char == 'x' || next_char == 'X' {
-                // Hexadecimal literal
+                // Hexadecimal literal (with optional underscores)
                 self.advance(); // consume 'x' or 'X'
-                while self.is_digit(self.peek()) || ('a'..='f').contains(&self.peek()) || ('A'..='F').contains(&self.peek()) {
+                while self.is_digit(self.peek()) || ('a'..='f').contains(&self.peek()) || ('A'..='F').contains(&self.peek()) || self.peek() == '_' {
                     self.advance();
                 }
                 let s: String = self.chars[self.start..self.current].iter().collect();
@@ -545,8 +551,8 @@ impl Scanner {
         }
 
         if is_integer {
-            // consume whole number
-            while self.is_digit(self.peek()) {
+            // consume whole number (with optional underscores)
+            while self.is_digit(self.peek()) || self.peek() == '_' {
                 self.advance();
             }
 
@@ -557,14 +563,41 @@ impl Scanner {
             }
         }
 
-        // consume mantissa, if present
-        while self.is_digit(self.peek()) {
+        // consume mantissa, if present (with optional underscores)
+        while self.is_digit(self.peek()) || self.peek() == '_' {
             self.advance();
+        }
+
+        // Check for scientific notation (e or E)
+        if self.peek() == 'e' || self.peek() == 'E' {
+            is_integer = false; // Scientific notation is always treated as float
+            self.advance(); // consume 'e' or 'E'
+            
+            // Handle optional sign
+            if self.peek() == '+' || self.peek() == '-' {
+                self.advance();
+            }
+            
+            // Consume exponent digits
+            while self.is_digit(self.peek()) || self.peek() == '_' {
+                self.advance();
+            }
+        }
+
+        // Check for complex number suffix (j or J)
+        if self.peek() == 'j' || self.peek() == 'J' {
+            self.advance(); // consume 'j' or 'J'
+            // Complex number - treat as special token
+            let s: String = self.chars[self.start..self.current].iter().collect();
+            self.add_token_literal(TokenType::ComplexNumber, TokenLiteral::Float(0.0)); // Placeholder value
+            return;
         }
 
         if is_integer {
             let s: String = self.chars[self.start..self.current].iter().collect();
-            let result = s.parse::<i32>();
+            // Remove underscores before parsing (Python allows them for readability)
+            let clean_s: String = s.chars().filter(|c| *c != '_').collect();
+            let result = clean_s.parse::<i32>();
             match result {
                 Ok(number) => {
                     self.add_token_literal(TokenType::Number, TokenLiteral::Integer(number));
@@ -576,7 +609,9 @@ impl Scanner {
         } else {
             // is float
             let s: String = self.chars[self.start..self.current].iter().collect();
-            let result = s.parse::<f32>();
+            // Remove underscores before parsing (Python allows them for readability)
+            let clean_s: String = s.chars().filter(|c| *c != '_').collect();
+            let result = clean_s.parse::<f32>();
             match result {
                 Ok(number) => {
                     self.add_token_literal(TokenType::Number, TokenLiteral::Float(number));
@@ -956,6 +991,7 @@ pub enum TokenType {
     TripleQuotedString, // """foo""" - multi-line string (v0.40)
     // REMOVED: ThreeTicks (```) - not used
     Number,                 // 1, 1.01
+    ComplexNumber,          // 3+4j, 2.5j - complex numbers (v0.56)
     Var,                    // var keyword
     Const,                  // const keyword
     //    New,              // new keyword
@@ -1003,7 +1039,7 @@ pub enum TokenType {
     Comma,            // ,
     Dispatch,         // =>
     Equals,           // =
-    //    DeclAssignment,          // ':='
+    Walrus,           // := (assignment expression operator)
     ForwardSlash,            // /
     MatchString,             // '/<any characters>/' - contains <string>
     MatchEmptyString,        // '~//'
@@ -1058,6 +1094,7 @@ pub enum TokenType {
     ClassMethod,             // 'classmethod' keyword/decorator
     Setter,                  // 'setter' keyword for property setters
     Deleter,                 // 'deleter' keyword for property deleters
+    Type,                    // 'type' keyword for type aliases (Python 3.12+)
     
     Error,
 }
