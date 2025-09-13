@@ -5235,6 +5235,7 @@ impl AstVisitor for PythonVisitor {
     
     fn visit_import_node(&mut self, import_node: &ImportNode) {
         // v0.34: Filter out FSL imports - they're built into Python
+        // v0.57: Added Frame file import support for multi-file module system
         match &import_node.import_type {
             ImportType::Simple { module } => {
                 if !module.starts_with("fsl") {
@@ -5259,6 +5260,23 @@ impl AstVisitor for PythonVisitor {
                     self.add_code(&format!("from {} import *", module));
                     self.newline();
                 }
+            }
+            // v0.57: Frame file imports - generate as comments during single-file compilation
+            // The multi-file compiler will handle actual module linking
+            ImportType::FrameModule { module_name, file_path } => {
+                self.add_code(&format!("# Frame import: {} from {}", module_name, file_path));
+                self.newline();
+                // TODO: Will be replaced with actual module imports during linking phase
+            }
+            ImportType::FrameModuleAliased { module_name, file_path, alias } => {
+                self.add_code(&format!("# Frame import: {} from {} as {}", module_name, file_path, alias));
+                self.newline();
+                // TODO: Will be replaced with actual module imports during linking phase
+            }
+            ImportType::FrameSelective { items, file_path } => {
+                self.add_code(&format!("# Frame import: {{{}}} from {}", items.join(", "), file_path));
+                self.newline();
+                // TODO: Will be replaced with actual module imports during linking phase
             }
         }
     }

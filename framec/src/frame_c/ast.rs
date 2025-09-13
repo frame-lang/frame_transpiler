@@ -55,8 +55,10 @@ pub struct Module {
 
 // v0.30: Top-level Frame module containing systems and functions
 // v0.31: Added module-level variables and statements
+// v0.57: Added imports for multi-file module system
 pub struct FrameModule {
     pub module: Module,
+    pub imports: Vec<ImportNode>,  // v0.57: Track imports for multi-file system
     pub functions: Vec<Rc<RefCell<FunctionNode>>>,
     pub systems: Vec<SystemNode>,
     pub classes: Vec<Rc<RefCell<ClassNode>>>,  // v0.45: Classes
@@ -69,6 +71,7 @@ pub struct FrameModule {
 impl FrameModule {
     pub fn new(
         module: Module, 
+        imports: Vec<ImportNode>,  // v0.57: Added imports parameter
         functions: Vec<Rc<RefCell<FunctionNode>>>, 
         systems: Vec<SystemNode>,
         classes: Vec<Rc<RefCell<ClassNode>>>,
@@ -77,7 +80,7 @@ impl FrameModule {
         modules: Vec<Rc<RefCell<ModuleNode>>>,
         statements: Vec<DeclOrStmtType>,
     ) -> FrameModule {
-        FrameModule { module, functions, systems, classes, variables, enums, modules, statements }
+        FrameModule { module, imports, functions, systems, classes, variables, enums, modules, statements }
     }
     
     // v0.30: Get primary system for single-system compatibility
@@ -635,9 +638,11 @@ impl NodeElement for ParameterNode {
 
 //-----------------------------------------------------//
 
-// v0.31: Import support
+// v0.31: Import support (Python modules)
+// v0.57: Extended for Frame file imports
 #[derive(Clone, Debug)]
 pub enum ImportType {
+    // Python imports (existing v0.31)
     // import math
     Simple { module: String },
     // import numpy as np
@@ -646,8 +651,17 @@ pub enum ImportType {
     FromImport { module: String, items: Vec<String> },
     // from math import *
     FromImportAll { module: String },
+    
+    // Frame file imports (new v0.57)
+    // import Utils from "./utils.frm"
+    FrameModule { module_name: String, file_path: String },
+    // import Utils from "./utils.frm" as U
+    FrameModuleAliased { module_name: String, file_path: String, alias: String },
+    // import { add, multiply } from "./math.frm"
+    FrameSelective { items: Vec<String>, file_path: String },
 }
 
+#[derive(Clone, Debug)]
 pub struct ImportNode {
     pub import_type: ImportType,
     pub line: usize,

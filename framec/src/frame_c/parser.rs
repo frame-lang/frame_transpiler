@@ -259,6 +259,16 @@ impl<'a> Parser<'a> {
 
         let mut module_elements_opt = self.header()?;
 
+        // v0.57: Collect imports from module elements for multi-file support
+        let mut imports = Vec::new();
+        if let Some(ref elements) = module_elements_opt {
+            for element in elements {
+                if let crate::frame_c::ast::ModuleElement::Import { import_node } = element {
+                    imports.push(import_node.clone());
+                }
+            }
+        }
+
         // v0.31: Parse module-level variables, functions, systems, and statements
         let mut functions = Vec::new();
         let mut systems = Vec::new();
@@ -413,7 +423,7 @@ impl<'a> Parser<'a> {
             None => crate::frame_c::ast::Module::new(vec![]),
         };
         
-        Ok(FrameModule::new(final_module, functions, systems, classes, variables, enums, modules, statements))
+        Ok(FrameModule::new(final_module, imports, functions, systems, classes, variables, enums, modules, statements))
     }
 
     /* --------------------------------------------------------------------- */
@@ -13386,6 +13396,13 @@ impl<'a> Parser<'a> {
     /// Parse import statement: import module [as alias]
     fn parse_import_statement(&mut self) -> Result<ImportNode, ParseError> {
         // We've already consumed 'import' token
+        let line = self.previous().line;
+        
+        // Check for destructuring import syntax: import { ... } from "..."
+        if self.match_token(&[TokenType::OpenBrace]) {
+            return self.parse_frame_selective_import(line);
+        }
+        
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected module name after 'import'";
             self.error_at_current(err_msg);
@@ -13393,7 +13410,6 @@ impl<'a> Parser<'a> {
         }
         
         let mut module_name = self.previous().lexeme.clone();
-        let line = self.previous().line;
         
         // Handle dotted module names (e.g., os.path, fsl.str)
         while self.match_token(&[TokenType::Dot]) {
@@ -13406,10 +13422,17 @@ impl<'a> Parser<'a> {
             module_name.push_str(&self.previous().lexeme);
         }
         
+        // Check for Frame file import: import Utils from "./utils.frm"
+        // Only check if we're still on the same line (not a new statement)
+        if self.peek().token_type == TokenType::From && self.peek().line == line {
+            self.advance(); // Consume the 'from' token
+            return self.parse_frame_module_import(module_name, line);
+        }
+        
         // v0.34: Track FSL imports
         // self.track_fsl_import(&module_name);  // v0.37: FSL removed
         
-        // Check for 'as alias' syntax
+        // Check for 'as alias' syntax (Python imports)
         if self.match_token(&[TokenType::As]) {
             if !self.match_token(&[TokenType::Identifier]) {
                 let err_msg = "Expected alias name after 'as'";
@@ -13514,6 +13537,126 @@ impl<'a> Parser<'a> {
             },
             line
         ))
+    }
+    
+    /// Parse Frame module import: import Utils from "./utils.frm" [as alias]
+    /// v0.57: Added for multi-file module system
+    fn parse_frame_module_import(&mut self, module_name: String, line: usize) -> Result<ImportNode, ParseError> {
+        // We've already consumed 'from' token, expect string literal for file path
+        if !self.match_token(&[TokenType::String]) {
+            let err_msg = "Expected string literal file path after 'from'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let file_path = self.extract_string_literal(&self.previous().lexeme);
+        
+        // Validate that this is a Frame file (.frm extension)
+        if !file_path.ends_with(".frm") {
+            let err_msg = "Frame module imports must reference .frm files";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        // Check for optional 'as alias' syntax
+        if self.match_token(&[TokenType::As]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                let err_msg = "Expected alias name after 'as'";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+            let alias = self.previous().lexeme.clone();
+            
+            Ok(ImportNode::new(
+                ImportType::FrameModuleAliased { 
+                    module_name, 
+                    file_path, 
+                    alias 
+                },
+                line
+            ))
+        } else {
+            Ok(ImportNode::new(
+                ImportType::FrameModule { 
+                    module_name, 
+                    file_path 
+                },
+                line
+            ))
+        }
+    }
+    
+    /// Parse Frame selective import: import { add, multiply } from "./math.frm"
+    /// v0.57: Added for multi-file module system
+    fn parse_frame_selective_import(&mut self, line: usize) -> Result<ImportNode, ParseError> {
+        // We've already consumed '{' token, parse list of imported items
+        let mut items = Vec::new();
+        
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected identifier after '{'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        items.push(self.previous().lexeme.clone());
+        
+        // Parse additional items separated by commas
+        while self.match_token(&[TokenType::Comma]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                let err_msg = "Expected identifier after ','";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
+            }
+            items.push(self.previous().lexeme.clone());
+        }
+        
+        if !self.match_token(&[TokenType::CloseBrace]) {
+            let err_msg = "Expected '}' after import list";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        if !self.match_token(&[TokenType::From]) {
+            let err_msg = "Expected 'from' after import list";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        if !self.match_token(&[TokenType::String]) {
+            let err_msg = "Expected string literal file path after 'from'";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        let file_path = self.extract_string_literal(&self.previous().lexeme);
+        
+        // Validate that this is a Frame file (.frm extension)
+        if !file_path.ends_with(".frm") {
+            let err_msg = "Frame module imports must reference .frm files";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
+        
+        Ok(ImportNode::new(
+            ImportType::FrameSelective { 
+                items, 
+                file_path 
+            },
+            line
+        ))
+    }
+    
+    /// Extract string content from string literal token
+    /// v0.57: Helper for Frame file import parsing
+    fn extract_string_literal(&self, lexeme: &str) -> String {
+        // Remove surrounding quotes from string literal
+        if lexeme.len() >= 2 && lexeme.starts_with('"') && lexeme.ends_with('"') {
+            lexeme[1..lexeme.len()-1].to_string()
+        } else if lexeme.len() >= 2 && lexeme.starts_with('\'') && lexeme.ends_with('\'') {
+            lexeme[1..lexeme.len()-1].to_string()
+        } else {
+            lexeme.to_string() // Return as-is if not quoted
+        }
     }
     
     // v0.56: Parse type alias: type Name = type_expression

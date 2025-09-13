@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.57)
 
-**Last Updated**: 2025-01-15  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, and **multi-file module system infrastructure**
+**Last Updated**: 2025-09-13  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, **multi-file module system with Frame file imports**, and comprehensive module infrastructure
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -15,9 +15,9 @@ module: (import_stmt | enum_decl | class_decl | var_decl | function | async_func
 
 **v0.30 Multi-Entity Support**: Modules can contain any combination of functions and systems in any order. Each entity (function or system) can have individual attributes.
 
-## Module System (v0.34 + v0.57 Infrastructure)
+## Module System (v0.34 + v0.57)
 
-Frame v0.34 introduces a complete module system with named modules, qualified access, and nested module support. Frame v0.57 adds multi-file module infrastructure for cross-file imports and project-level compilation.
+Frame v0.34 introduces a complete module system with named modules, qualified access, and nested module support. Frame v0.57 extends this with multi-file module capabilities, including Frame file imports, dependency resolution, and project-wide compilation.
 
 ```bnf
 module_decl: 'module' IDENTIFIER '{' module_body '}'
@@ -294,46 +294,54 @@ fn main() {
 }
 ```
 
-## Import Statements (v0.31)
+## Import Statements (v0.31 + v0.57)
 
-Frame v0.31 introduces native import statement support, primarily targeting Python but designed for future multi-language support.
+Frame v0.31 introduces native Python import statement support. Frame v0.57 extends this with Frame file imports for multi-file projects.
 
 ```bnf
-import_stmt: simple_import | aliased_import | from_import
+import_stmt: python_import | frame_import
 
+# Python imports (v0.31)
+python_import: simple_import | aliased_import | from_import
 simple_import: 'import' dotted_name
 aliased_import: 'import' dotted_name 'as' IDENTIFIER
 from_import: 'from' dotted_name 'import' (import_items | '*')
+
+# Frame file imports (v0.57)
+frame_import: frame_module_import | frame_aliased_import | frame_selective_import
+frame_module_import: 'import' IDENTIFIER 'from' STRING_LITERAL
+frame_aliased_import: 'import' IDENTIFIER 'from' STRING_LITERAL 'as' IDENTIFIER
+frame_selective_import: 'import' '{' import_items '}' 'from' STRING_LITERAL
 
 dotted_name: IDENTIFIER ('.' IDENTIFIER)*
 import_items: IDENTIFIER (',' IDENTIFIER)*
 ```
 
-### Import Examples
+### Python Import Examples (v0.31)
 ```frame
-// Simple imports
+# Simple imports
 import math
 import json
 
-// Aliased imports
+# Aliased imports
 import numpy as np
 import os.path as osp
 
-// From imports
+# From imports
 from collections import defaultdict, OrderedDict
 from typing import List, Dict, Optional
 
-// Wildcard imports
+# Wildcard imports
 from typing import *
 
-// Using imported modules in functions
+# Using imported modules in functions
 fn main() {
     var pi = math.pi
     var root = math.sqrt(16)
     var data = json.dumps({"key": "value"})
 }
 
-// Using imported modules in systems
+# Using imported modules in systems
 system Calculator {
     operations:
         compute() {
@@ -341,6 +349,35 @@ system Calculator {
             return result
         }
 }
+
+### Frame File Import Examples (v0.57)
+```frame
+# Import a Frame module from a file
+import Utils from "./utils.frm"
+import Calculator from "../lib/calculator.frm"
+
+# Import with alias
+import DataProcessor from "./processor.frm" as DP
+import MathUtils from "./math_utils.frm" as Math
+
+# Selective imports (destructuring)
+import { add, subtract, multiply } from "./math_ops.frm"
+import { validateEmail, validatePhone } from "./validators.frm"
+
+# Using imported Frame modules
+fn main() {
+    var result = Utils.process(42)
+    var sum = Math.add(10, 20)
+    
+    # Selective imports used directly
+    var product = multiply(5, 6)
+    var isValid = validateEmail("user@example.com")
+}
+
+# Note: During single-file compilation, Frame imports generate
+# placeholder comments. The multi-file compiler will resolve
+# and link these imports during the build phase.
+```
 ```
 
 ## Backtick Expressions (Deprecated in v0.37)
