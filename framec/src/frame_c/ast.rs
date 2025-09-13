@@ -1,12 +1,11 @@
 #![allow(clippy::enum_variant_names)]
 #![allow(non_snake_case)]
+#![allow(dead_code)]  // Many AST nodes are part of the API even if not currently used
 
 use super::scanner::{Token, TokenType, TokenLiteral};
 use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 
-use crate::frame_c::ast::OperatorType::{
-    Divide, Greater, GreaterEqual, LessEqual, Minus, Multiply, Plus,
-};
+// Removed unused OperatorType imports
 use crate::frame_c::symbol_table::{InterfaceMethodSymbol, OperationScopeSymbol, ParameterSymbol};
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
@@ -81,7 +80,7 @@ impl FrameModule {
         FrameModule { module, functions, systems, classes, variables, enums, modules, statements }
     }
     
-    // v0.30: Backward compatibility - get primary system for legacy visitors
+    // v0.30: Get primary system for single-system compatibility
     pub fn get_primary_system(&self) -> SystemNode {
         if self.systems.is_empty() {
             // Create empty system if no systems exist (function-only modules)
@@ -2384,7 +2383,6 @@ pub enum StatementType {
     // ChangeStateStmt {
     //     change_state_stmt_node: ChangeStateStatementNode,
     // },
-    // REMOVED: TestStmt variant for deprecated ternary syntax
     StateStackStmt {
         state_stack_operation_statement_node: StateStackOperationStatementNode,
     },

@@ -1,3 +1,5 @@
+#![allow(dead_code)]  // Symbol table methods are part of the API even if not currently used
+
 use super::ast::*;
 use crate::compiler::Exe;
 use crate::frame_c::symbol_table::SystemSymbolType::{

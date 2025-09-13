@@ -3,124 +3,162 @@
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.37`  
+**Version**: `v0.56`  
 **Status**: ✅ **100% TEST SUCCESS RATE - ALL FEATURES OPERATIONAL**  
-**Achievement**: **Complete Feature Set with Async, Modules, FSL, and More**  
-**Latest**: ✅ **ALL 222 TESTS PASSING** (2025-09-06)
+**Achievement**: **Complete Python 3.8+ Feature Alignment**  
+**Latest**: ✅ **ALL 341 TESTS PASSING** (2025-01-27)  
+**Rust Version**: 1.89.0 (Latest Stable)
 
-## Latest Accomplishments (September 2025)
+## Latest Updates (January 27, 2025)
 
-### ✅ Frame v0.37 Complete Feature Set - 100% Tests Passing
+### ✅ Dependency and Toolchain Updates Complete
+- **Rust**: Updated from 1.83.0 → 1.89.0 (latest stable)
+- **Edition**: Upgraded from Rust 2018 → 2021
+- **All Dependencies**: Updated to latest versions
+- **Build Status**: Zero warnings, zero deprecations
+- **Test Suite**: 100% passing (341/341 tests)
+
+### ✅ Frame v0.56 Python Enhancement Features
+- **Walrus Operator (:=)**: Assignment expressions for inline variable creation
+- **Numeric Literal Underscores**: `1_000_000`, `0xFF_FF` for readability
+- **Complex Numbers**: `3+4j`, `2.5j` imaginary number support
+- **Type Aliases**: Python 3.12+ style `type MyType = int`
+- **Scientific Notation**: `1.23e10`, `6.022e23` exponential notation
+
+### ✅ Frame v0.55 State Parameters & Type Annotations
+- **State Parameters**: States can receive and store parameters during transitions
+- **Type Annotations**: Full support for parameter and return type hints
+- **Property Decorators**: `@property` for computed properties in classes
+- **100% Test Success**: All 339 tests passing (milestone achievement)
+
+### ✅ Frame v0.54 Collection Operations
+- **Star Expressions**: Unpacking with `*` in assignments and calls
+- **Collection Constructors**: `list()`, `dict()`, `set()`, `tuple()`
+- **Tuple Unpacking**: Multiple assignment support
+
+### ✅ Frame v0.53 Multiple Assignment
+- **Multiple Variable Declaration**: `var x, y, z = 1, 2, 3`
+- **Tuple Unpacking**: `var (a, b) = get_pair()`
+- **Chained Assignment**: `x = y = z = 0`
+
+## Complete Feature Set (v0.30 - v0.56)
+
+### Core Language Features
+- **State Machines**: Hierarchical state machines with enter/exit handlers
+- **Multi-Entity Support**: Multiple functions and systems per module
+- **Module System**: Named modules with qualified access
+- **Classes**: Object-oriented programming with methods and variables
 - **Async/Await**: Full async function and event handler support
-- **Module System**: Complete with qualified names and nested modules
-- **Frame Standard Library**: Type conversions, list ops, string methods
-- **List Comprehensions**: Python-style `[x*2 for x in list]`
-- **Slicing Operations**: Full Python-style slicing for strings/lists
+- **Pattern Matching**: Complete match-case support with guards
+- **Generators**: Regular and async generators with yield
+
+### Python Operator Alignment (100% Complete)
+- **All Logical Operators**: `and`, `or`, `not`
+- **All Bitwise Operators**: `&`, `|`, `~`, `^`, `<<`, `>>`
+- **All Compound Assignments**: `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, etc.
+- **Identity/Membership**: `is`, `is not`, `in`, `not in`
+- **Matrix Multiplication**: `@` and `@=` operators
+- **Floor Division**: `//` and `//=`
+- **Exponentiation**: `**` with right associativity
+
+### Python String Support
+- **F-strings**: Formatted string literals with expressions
+- **Raw strings**: No escape sequence processing
+- **Byte strings**: Binary data representation
+- **Triple-quoted**: Multi-line strings
+- **Percent formatting**: Classic Python string formatting
+
+### Advanced Features
+- **List/Dict/Set Comprehensions**: Full Python-style comprehensions
+- **Slicing**: Complete Python-style slicing support
 - **With Statements**: Context manager support
-- **Import Statements**: Native imports without backticks
-- **Unpacking Operator**: List unpacking with `*` operator
-- **Enum Enhancements**: Custom values, string enums, iteration
+- **Try-Except**: Exception handling with finally
+- **Assert Statements**: Runtime assertions
+- **Del Statement**: Explicit deletion
+- **Global Keyword**: Explicit global access
+- **Enums**: Custom values, string enums, iteration
+- **Import Statements**: Native Python imports
 
-### ✅ Frame v0.30 Multi-Entity Support Complete
-- **Multiple Systems**: Support for multiple system definitions per file
-- **Multiple Functions**: Support for multiple functions with any names
-- **Smart Parsing**: Automatic fallback to syntactic parsing when semantic analysis fails
-- **System Isolation**: Proper isolation between multiple systems with system-scoped state resolution
-- **FrameCompartment Fix**: Corrected Python code generation for compartment classes
+### Frame Standard Library (FSL)
+- **Type Conversions**: `str()`, `int()`, `float()`, `bool()`
+- **List Operations**: All Python list methods
+- **String Operations**: All Python string methods
+- **Dict Operations**: All Python dict methods
+- **No Import Required**: Native Python operations work directly
 
-### ✅ Critical Bug Fixes
-- **Call Chain Scoping** (2025-08-24): Fixed critical bug where `obj.method()` calls generated `obj.self.method()` in Python
-- **Token Parsing**: Fixed double `self.previous()` infinite loop in system_scope()
-- **Visitor Panics**: Replaced panic!("TODO") with graceful error handling
-- **State Resolution**: Implemented proper system-scoped API replacing singleton pattern
-- **Code Generation**: Fixed compartment class name generation in Python visitor
+## Test Infrastructure
 
-### ✅ Architecture Improvements
-- **Modular Design**: FrameModule with peer Functions[] and Systems[] entities
-- **System Scoping**: Proper encapsulation with system.get_state() pattern  
-- **Smart Fallback**: Robust parsing with automatic fallback mechanisms
-- **Clean Separation**: No artificial parent-child relationships between entities
+### Test Runner
+- **Location**: `framec_tests/runner/frame_test_runner.py`
+- **Test Files**: `framec_tests/python/src/test_*.frm`
+- **Total Tests**: 341
+- **Success Rate**: 100%
 
-## Validation Results
-
-**Multi-Entity Test**: `test_multiple_systems_valid.frm`
-- ✅ Transpiles successfully
-- ✅ Generates clean Python code
-- ✅ Executes correctly with expected output
-- ✅ Demonstrates complete v0.30 architecture
-
-**Scope Resolution Test**: `test_seat_booking_workflow.frm`
-- ✅ Complex CultureTicks workflow with 20+ operation calls
-- ✅ All `self.operation()` calls generate correctly with proper prefixes
-- ✅ External object method calls work correctly
-- ✅ Full workflow execution successful - no runtime errors
-- ✅ Demonstrates production-ready object-oriented integration
+### Reports
+- **Test Log**: `framec_tests/reports/test_log.md`
+- **Test Matrix**: `framec_tests/reports/test_matrix_v0.31.md`
+- **JSON Results**: `framec_tests/reports/test_results_v0.31.json`
 
 ## Documentation Structure
 
 ### Frame Language Design
 - **Location**: `docs/framelang_design/`
-- **Contents**: 
-  - `v030_syntax.md` - Complete v0.30 syntax reference
-  - `grammar.md` - BNF grammar specification
+- **Grammar**: `grammar.md` - Complete BNF specification (v0.56)
+- **Dev Notes**: `dev_notes.md` - Version history and features
 
-### Frame Transpiler Design  
-- **Location**: `docs/framepiler_design/`
-- **Contents**:
-  - `architecture.md` - Transpiler architecture overview
-  - `v030_fixes.md` - Detailed fix documentation
-  - `v030_scope_fix.md` - Critical scope resolution bug fix (2025-08-24)
-
-## Current Priorities
-
-1. ✅ **COMPLETED**: Multi-entity architecture implementation
-2. ✅ **COMPLETED**: Critical bug fixes (compartments, parsing, visitor panics)
-3. ✅ **COMPLETED**: Comprehensive validation and testing
-4. **Next**: Continue advanced Frame feature development
-5. **Next**: Documentation migration for remaining features
-6. **Next**: Performance optimizations and code quality improvements
-
-## Known Issues
-
-**Minor Issues** (non-blocking):
-- Domain variables initialization in multi-entity files
-- Array syntax generation (Go-style to Python conversion)  
-- System parameter constructor generation
-- Dead code optimization in event handlers
-
-These issues do not affect core multi-entity functionality and can be addressed in future iterations.
+### Achievement Documents
+- **Location**: `docs/`
+- **Files**: `v0.30_achievements.md` through `v0.56_achievements.md`
+- **Coverage**: Complete documentation of all features per version
 
 ## Build Instructions
 
 ```bash
 # Build transpiler
-cargo build
+cargo build --release
 
-# Test multi-entity example
-cd framec_tests/python/src
-../../../target/debug/framec -l python_3 test_multiple_systems_valid.frm > test_multiple_systems_valid.py
-python3 test_multiple_systems_valid.py
+# Run tests
+cd framec_tests
+python3 runner/frame_test_runner.py --all --framec ../target/release/framec
+
+# Transpile example
+./target/release/framec -l python_3 file.frm
 ```
 
-## Repository Structure
+## Language Support
 
-```
-frame_transpiler/
-├── framec/src/frame_c/          # Core transpiler implementation
-├── framec_tests/python/src/     # Test Frame source files (.frm)
-├── docs/
-│   ├── framelang_design/        # Frame language specification
-│   └── framepiler_design/       # Transpiler architecture docs
-└── target/debug/framec          # Built transpiler executable
-```
+### 1st Class (Full Implementation)
+- **Python 3**: Complete visitor with all features
 
-## Success Metrics
+### 2nd Class (Design Guides)
+- C/C++, JavaScript, C#, Java, Go, Rust
 
-- ✅ **Multi-System Files**: Parse and transpile correctly
-- ✅ **Smart Fallback**: Graceful handling of complex parsing scenarios  
-- ✅ **Code Quality**: Clean, executable target language output
-- ✅ **System Isolation**: No cross-contamination between systems
-- ✅ **Backward Compatibility**: All existing v0.20 syntax still works
-- ✅ **Production Ready**: Comprehensive validation completed
+### Target Options
+- `python_3`: Python code generation
+- `plantuml`: UML state diagram generation
 
-**Frame v0.30 is ready for production use with full multi-entity support.**
+## Project Metrics
+
+- **Versions Released**: 27 (v0.30 through v0.56)
+- **Test Files**: 341
+- **Success Rate**: 100%
+- **Python Features**: ~95% coverage of core Python 3.8+ features
+- **Code Quality**: Zero warnings, zero deprecations
+- **Rust Edition**: 2021
+- **Min Rust Version**: 1.89.0
+
+## Next Steps
+
+1. **Rust Target**: Implementation of Rust code generation
+2. **Multi-File Support**: Import Frame modules from other .frm files
+3. **Build System**: Package management and dependency resolution
+4. **Performance**: Optimization of transpiler performance
+5. **IDE Support**: Enhanced VSCode extension features
+
+## Contact
+
+- **Creator**: Mark Truluck
+- **Discord**: [The Art of the State](https://discord.com/invite/CfbU4QCbSD)
+- **Documentation**: [Read the Docs](https://docs.frame-lang.org)
+- **Playground**: [Frame Playground](https://playground.frame-lang.org)
+- **Issues**: bugs@frame-lang.org

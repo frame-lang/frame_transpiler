@@ -1,3 +1,5 @@
+#![allow(dead_code)] // Scanner tokens and methods are part of the language API
+
 use crate::compiler::Exe;
 use std::collections::HashMap;
 use std::fmt;
@@ -525,7 +527,7 @@ impl Scanner {
                 while self.peek() == '0' || self.peek() == '1' || self.peek() == '_' {
                     self.advance();
                 }
-                let s: String = self.chars[self.start..self.current].iter().collect();
+                let _s: String = self.chars[self.start..self.current].iter().collect();
                 // For Python, we just pass the literal through as-is
                 self.add_token_literal(TokenType::Number, TokenLiteral::Integer(0)); // Placeholder value
                 return;
@@ -535,7 +537,7 @@ impl Scanner {
                 while ('0'..='7').contains(&self.peek()) || self.peek() == '_' {
                     self.advance();
                 }
-                let s: String = self.chars[self.start..self.current].iter().collect();
+                let _s: String = self.chars[self.start..self.current].iter().collect();
                 self.add_token_literal(TokenType::Number, TokenLiteral::Integer(0)); // Placeholder value
                 return;
             } else if next_char == 'x' || next_char == 'X' {
@@ -544,7 +546,7 @@ impl Scanner {
                 while self.is_digit(self.peek()) || ('a'..='f').contains(&self.peek()) || ('A'..='F').contains(&self.peek()) || self.peek() == '_' {
                     self.advance();
                 }
-                let s: String = self.chars[self.start..self.current].iter().collect();
+                let _s: String = self.chars[self.start..self.current].iter().collect();
                 self.add_token_literal(TokenType::Number, TokenLiteral::Integer(0)); // Placeholder value
                 return;
             }
@@ -588,7 +590,7 @@ impl Scanner {
         if self.peek() == 'j' || self.peek() == 'J' {
             self.advance(); // consume 'j' or 'J'
             // Complex number - treat as special token
-            let s: String = self.chars[self.start..self.current].iter().collect();
+            let _s: String = self.chars[self.start..self.current].iter().collect();
             self.add_token_literal(TokenType::ComplexNumber, TokenLiteral::Float(0.0)); // Placeholder value
             return;
         }

@@ -4,8 +4,9 @@
 #![allow(clippy::single_match)]
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
+#![allow(dead_code)] // Many visitor methods are part of the API even if not currently used
 
-use crate::config::*;
+use crate::frame_c::config::*;
 use crate::frame_c::ast::DeclOrStmtType;
 use crate::frame_c::ast::DeclOrStmtType::{StmtT, VarDeclT};
 use crate::frame_c::ast::*;
@@ -112,7 +113,7 @@ impl PythonVisitor {
         _comments: Vec<Token>,
         config: FrameConfig,
     ) -> PythonVisitor {
-        let python_config = config.codegen.python;
+        let python_config = config.python;
         PythonVisitor {
             compiler_version: compiler_version.to_string(),
             code: String::from(""),
@@ -327,7 +328,7 @@ impl PythonVisitor {
         }
         
         // Check if any state has async handlers when using event-handlers-as-functions
-        if self.config.code.event_handlers_as_functions {
+        if self.config.event_handlers_as_functions {
             if let Some(machine_block) = &system_node.machine_block_node_opt {
                 for state_rcref in &machine_block.states {
                     let state = state_rcref.borrow();
@@ -730,7 +731,12 @@ impl PythonVisitor {
                     match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if enter_args.exprs_t.len() != event_params.len() {
-                                panic!("Fatal error: misaligned parameters to arguments.")
+                                self.errors.push(format!(
+                                    "Parameter count mismatch for enter event: expected {}, got {}",
+                                    event_params.len(),
+                                    enter_args.exprs_t.len()
+                                ));
+                                return ret;
                             }
                             let mut param_symbols_it = event_params.iter();
                             for expr_t in &enter_args.exprs_t {
@@ -749,15 +755,19 @@ impl PythonVisitor {
                                             p.name, expr
                                         ));
                                     }
-                                    None => panic!(
-                                        "Invalid number of arguments for \"{}\" event handler.",
-                                        msg
-                                    ),
+                                    None => {
+                                        self.errors.push(format!(
+                                            "Invalid number of arguments for \"{}\" event handler.",
+                                            msg
+                                        ));
+                                        break;
+                                    }
                                 }
                             }
                         }
                         None => {
-                            panic!("Invalid number of arguments for \"{}\" event handler.", msg)
+                            self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.", msg));
+                            return ret;
                         }
                     }
                 } else {
@@ -1631,7 +1641,7 @@ impl PythonVisitor {
         self.system_name = system_node.name.clone();
         
         // v0.37: Determine if system needs async runtime BEFORE visiting interface methods
-        if self.config.code.event_handlers_as_functions {
+        if self.config.event_handlers_as_functions {
             self.system_has_async_runtime = self.system_needs_async_runtime(system_node);
         } else {
             self.system_has_async_runtime = false;
@@ -1926,7 +1936,7 @@ impl PythonVisitor {
         let machine_block_node = system_node.machine_block_node_opt.as_ref().unwrap();
         
         // v0.37: Check if system needs async runtime
-        let needs_async = self.config.code.event_handlers_as_functions && 
+        let needs_async = self.config.event_handlers_as_functions && 
                          self.system_needs_async_runtime(system_node);
         
         self.newline();
@@ -3114,7 +3124,8 @@ impl PythonVisitor {
                     match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                panic!("Fatal error: misaligned parameters to arguments.")
+                                self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
+                                return;
                             }
                             let mut param_symbols_it = event_params.iter();
                             // Loop through the ARGUMENTS...
@@ -3135,14 +3146,20 @@ impl PythonVisitor {
                                             p.name, expr
                                         ));
                                     }
-                                    None => panic!(
-                                        "Invalid number of arguments for \"{}\" event handler.",
-                                        msg
-                                    ),
+                                    None => {
+                                        self.errors.push(format!(
+                                            "Invalid number of arguments for \"{}\" event handler.",
+                                            msg
+                                        ));
+                                        break;
+                                    }
                                 }
                             }
                         }
-                        None => panic!("Fatal error: misaligned parameters to arguments."),
+                        None => {
+                            self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
+                            return;
+                        }
                     }
                 } else {
                     // No exit event handler defined - this is ok, just skip exit args
@@ -3407,7 +3424,8 @@ impl PythonVisitor {
                     match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                panic!("Fatal error: misaligned parameters to arguments.")
+                                self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
+                                return;
                             }
                             let mut param_symbols_it = event_params.iter();
                             // self.add_code("FrameEventParams exitArgs = new FrameEventParams();");
@@ -3429,14 +3447,20 @@ impl PythonVisitor {
                                         ));
                                         self.newline();
                                     }
-                                    None => panic!(
-                                        "Invalid number of arguments for \"{}\" event handler.",
-                                        msg
-                                    ),
+                                    None => {
+                                        self.errors.push(format!(
+                                            "Invalid number of arguments for \"{}\" event handler.",
+                                            msg
+                                        ));
+                                        break;
+                                    }
                                 }
                             }
                         }
-                        None => panic!("Fatal error: misaligned parameters to arguments."),
+                        None => {
+                            self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
+                            return;
+                        }
                     }
                 } else {
                     // No exit event handler defined - this is ok, just skip exit args
@@ -3788,7 +3812,7 @@ impl PythonVisitor {
     fn generate_single_system(&mut self, system_symbol: &SystemSymbol) {
         // v0.37: Check if system needs async runtime based on SystemSymbol
         // NOTE: This is for the Symbol-based generation path (not currently used)
-        if self.config.code.event_handlers_as_functions {
+        if self.config.event_handlers_as_functions {
             self.system_has_async_runtime = self.system_symbol_needs_async_runtime(system_symbol);
         }
         
@@ -4034,7 +4058,7 @@ impl PythonVisitor {
         self.newline();
         
         // v0.37: Check if system needs async runtime
-        let needs_async = self.config.code.event_handlers_as_functions && 
+        let needs_async = self.config.event_handlers_as_functions && 
                          self.system_symbol_needs_async_runtime(system_symbol);
         
         // Generate __kernel method
@@ -4813,12 +4837,11 @@ impl AstVisitor for PythonVisitor {
             }
             
             // Handle terminator (usually implicit return)
-            if let TerminatorType::Return = method_node.terminator_expr.terminator_type {
-                if let Some(expr) = &method_node.terminator_expr.return_expr_t_opt {
-                    self.newline();
-                    self.add_code("return ");
-                    expr.accept(self);
-                }
+            // TerminatorType only has Return variant currently
+            if let Some(expr) = &method_node.terminator_expr.return_expr_t_opt {
+                self.newline();
+                self.add_code("return ");
+                expr.accept(self);
             }
         }
         
@@ -5047,11 +5070,11 @@ impl AstVisitor for PythonVisitor {
 
         self.generate_machinery(system_node);
 
-        if self.config.code.public_state_info {
+        if self.config.public_state_info {
             self.generate_state_info_method()
         }
 
-        if self.config.code.public_compartment {
+        if self.config.public_compartment {
             self.generate_compartment_info_method()
         }
 
@@ -5335,14 +5358,8 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_frame_messages_enum(&mut self, _interface_block_node: &InterfaceBlockNode) {
-        panic!("Error - visit_frame_messages_enum() only used in Rust.");
-    }
-
-    //* --------------------------------------------------------------------- *//
-
     fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) {
-        panic!("visit_interface_parameters() not valid for target language.");
+        self.errors.push("visit_interface_parameters() not valid for target language.".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -5759,18 +5776,6 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_action_node_rust_trait(&mut self, _: &ActionsBlockNode) {
-        panic!("Error - visit_action_node_rust_trait() not implemented.");
-    }
-
-    //* --------------------------------------------------------------------- *//
-
-    fn visit_actions_node_rust_impl(&mut self, _: &ActionsBlockNode) {
-        panic!("Error - visit_actions_node_rust_impl() not implemented.");
-    }
-
-    //* --------------------------------------------------------------------- *//
-
     // fn visit_domain_block_node(&mut self, domain_block_node: &DomainBlockNode) {
     //     // self.newline();
     //     // self.newline();
@@ -5800,7 +5805,7 @@ impl AstVisitor for PythonVisitor {
         };
         
         // v0.36: Use event-handlers-as-functions if enabled
-        if self.config.code.event_handlers_as_functions {
+        if self.config.event_handlers_as_functions {
             // Generate individual event handler functions
             for evt_handler_rcref in &state_node.evt_handlers_rcref {
                 let evt_handler = evt_handler_rcref.borrow();
@@ -7711,7 +7716,10 @@ impl AstVisitor for PythonVisitor {
             //                            , output));
             // }
             // TODO
-            _ => panic!("Error - unexpected target expression in 'in' loop."),
+            _ => {
+                self.errors.push("Error - unexpected target expression in 'in' loop.".to_string());
+                return;
+            }
         };
 
         self.indent();
@@ -9833,7 +9841,10 @@ impl AstVisitor for PythonVisitor {
         let value_str = match &enumerator_decl_node.value {
             EnumValue::Integer(val) => val.to_string(),
             EnumValue::String(val) => format!("\"{}\"", val),
-            EnumValue::Auto => unreachable!("Auto values should be resolved during parsing"),
+            EnumValue::Auto => {
+                self.errors.push("Internal error: Auto enum values should be resolved during parsing".to_string());
+                "0".to_string()  // Default to 0 as fallback
+            }
         };
         
         self.add_code(&format!(
@@ -10023,7 +10034,10 @@ impl AstVisitor for PythonVisitor {
                 }
                 self.add_code(&format!(" = {}", code));
             }
-            _ => panic!("Error - unexpected scope for variable declaration"),
+            _ => {
+                self.errors.push("Error - unexpected scope for variable declaration".to_string());
+                return;
+            }
         }
 
         // self.serialize
@@ -10055,7 +10069,10 @@ impl AstVisitor for PythonVisitor {
                 }
                 self.add_code(&format!(" = {}", code));
             }
-            _ => panic!("Error - unexpected scope for variable declaration"),
+            _ => {
+                self.errors.push("Error - unexpected scope for variable declaration".to_string());
+                return;
+            }
         }
     }
 

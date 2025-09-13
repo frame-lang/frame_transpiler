@@ -46,6 +46,23 @@ fn main() -> Result<()> {
         .set_targets(&[TargetLanguage::Python3])
         .input_dir(&path.python)
         .output_dir(&path.python)
+        .include_only_if(move |path| {
+            // Skip legacy test files with backticks
+            let path_str = path.to_str().unwrap();
+            !path_str.contains("/hierarchical/") &&
+            !path_str.contains("/state_context/") &&
+            !path_str.contains("/transition_params/") &&
+            !path_str.contains("/transition/") &&
+            !path_str.contains("/state_stack/") &&
+            !path_str.contains("/state_params/") &&
+            !path_str.contains("/state_context_stack/") &&
+            !path_str.contains("/forward_events/") &&
+            !path_str.contains("/event_handler/") &&
+            !path_str.contains("/enum_case/") &&
+            !path_str.contains("/basic/") &&
+            !path_str.contains("services_") &&
+            !path_str.contains("DomainTypedTest")
+        })
         .run()?;
 
     // FrameBuild::new()

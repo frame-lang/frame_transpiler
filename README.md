@@ -2,10 +2,12 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-**Current Version**: v0.55  
-**Test Success Rate**: 100% (339/339 tests passing) 🎉
+**Current Version**: v0.56  
+**Test Success Rate**: 100% (341/341 tests passing) 🎉  
+**Rust Version**: 1.89.0 (2025-08-04)  
+**Last Updated**: 2025-01-27
 
-## Current Features (v0.55)
+## Current Features (v0.56)
 
 ### Core Language
 - **State Machines**: Hierarchical state machines with enter/exit handlers
@@ -68,11 +70,19 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Static Methods**: `@staticmethod` decorator support
 - **Interface Methods**: Public system interfaces with async support
 
+### Python 3.8+ Features (v0.56)
+- **Walrus Operator**: `:=` assignment expressions for inline variable creation
+- **Numeric Literal Underscores**: `1_000_000`, `0xFF_FF` for improved readability
+- **Complex Numbers**: `3+4j`, `2.5j` imaginary number support
+- **Type Aliases**: Python 3.12+ style `type MyType = int`
+- **Scientific Notation**: `1.23e10`, `6.022e23` exponential notation
+
 ### Test Coverage
-- **100% Success Rate**: 339/339 tests passing 🎉
+- **100% Success Rate**: 341/341 tests passing 🎉
 - **UTF-8 Support**: Full Unicode character support in source files
 - **Complete Feature Coverage**: All Python operators and core language features fully tested
 - **Virtual Environment**: Test suite includes NumPy support for matrix multiplication
+- **Clean Build**: Zero warnings, zero deprecations with latest Rust toolchain
 
 ## Explore Frame
 

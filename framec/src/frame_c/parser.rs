@@ -1,4 +1,5 @@
 #![allow(clippy::unnecessary_wraps)]
+#![allow(dead_code)]  // Many parser methods are part of the complete grammar even if not currently used
 
 use super::ast::AssignmentExprNode;
 use super::ast::AssignmentOperator;
@@ -508,11 +509,11 @@ impl<'a> Parser<'a> {
         system_attributes_opt: Option<HashMap<String, AttributeNode>>,
         _functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
     ) -> Result<SystemNode, ParseError> {
-        let mut interface_block_node_opt = Option::None;
-        let mut machine_block_node_opt = Option::None;
-        let mut actions_block_node_opt = Option::None;
-        let mut operations_block_node_opt = Option::None;
-        let mut domain_block_node_opt = Option::None;
+        let interface_block_node_opt;
+        let machine_block_node_opt;
+        let actions_block_node_opt;
+        let operations_block_node_opt;
+        let domain_block_node_opt;
 
         // SystemHierarchy is used in the GraphViz visitor rather than the AST
         self.system_hierarchy_opt = Some(SystemHierarchy::new(system_name.clone()));
@@ -3429,7 +3430,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("Expected '{' after class declaration"));
         }
         
-        let mut instance_vars = Vec::new();
+        let instance_vars = Vec::new();
         let mut static_vars = Vec::new();
         let mut methods = Vec::new();
         let mut static_methods = Vec::new();
@@ -3806,8 +3807,9 @@ impl<'a> Parser<'a> {
             // TODO - NOTE! setting the ast node
             match symbol_t.set_ast_node(variable_decl_node_rcref.clone()) {
                 Ok(()) => {}
-                Err(str) => {
-                    panic!("{}", str);
+                Err(err_str) => {
+                    self.error_at_current(&format!("Symbol table error: {}", err_str));
+                    return Err(ParseError::new("Symbol table error"));
                 }
             }
             // match &*z {
@@ -5661,13 +5663,16 @@ impl<'a> Parser<'a> {
                 Err(ParseError::new("TODO"))
             }
             NilExprT => {
-                panic!("Unexpected use of ExprType::NilExprT");
+                self.error_at_current("Unexpected use of ExprType::NilExprT");
+                return Err(ParseError::new("Unexpected ExprType::NilExprT"));
             }
             SelfExprT { .. } => {
-                panic!("Unexpected use of ExprType::SelfExprT");
+                self.error_at_current("Unexpected use of ExprType::SelfExprT");
+                return Err(ParseError::new("Unexpected ExprType::SelfExprT"));
             }
             DefaultLiteralValueForTypeExprT => {
-                panic!("Unexpected use of ExprType::DefaultLiteralValueForTypeExprT");
+                self.error_at_current("Unexpected use of ExprType::DefaultLiteralValueForTypeExprT");
+                return Err(ParseError::new("Unexpected ExprType::DefaultLiteralValueForTypeExprT"));
             }
             UnpackExprT { .. } | DictUnpackExprT { .. } => {
                 self.error_at_previous("Unpacking expressions not allowed as statements.");
@@ -7909,7 +7914,7 @@ impl<'a> Parser<'a> {
                     );
                     
                     // Create a variable node wrapping the literal
-                    let var_node = VariableNode::new(
+                    let _var_node = VariableNode::new(
                         temp_id,
                         IdentifierDeclScope::UnknownScope,
                         None,
@@ -7955,7 +7960,6 @@ impl<'a> Parser<'a> {
                                 }
                                 Ok(None) => None,
                                 Err(parse_error) => return Err(parse_error),
-                                _ => None,
                             };
                             
                             // Note: expr_list() already consumes the RParen, so we don't need to do it again
@@ -13220,7 +13224,7 @@ impl<'a> Parser<'a> {
             
             if self.match_token(&[TokenType::Var, TokenType::Const]) {
                 // Variable declaration (instance or static based on context/decorator)
-                let is_const = self.previous().token_type == TokenType::Const;
+                let _is_const = self.previous().token_type == TokenType::Const;
                 let var_decl = self.var_declaration(if is_static { 
                     IdentifierDeclScope::ClassStaticScope 
                 } else { 

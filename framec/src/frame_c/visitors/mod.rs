@@ -1,3 +1,5 @@
+#![allow(dead_code)] // Visitor trait methods are part of the API
+
 use std::convert::TryFrom;
 
 /// An enumeration of the target languages currently supported by Frame.

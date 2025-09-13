@@ -11,11 +11,11 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::io;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 // Re-export this enum here since it's part of the interface for the run functions. The definition
 // lives with visitors since adding a new visitor requires extending the enum and its trait impls.
-use crate::frame_c::ast::{AttributeNode, SystemNode};
+use crate::frame_c::ast::AttributeNode;
 pub use crate::frame_c::visitors::TargetLanguage;
 use std::convert::TryFrom;
 
@@ -49,22 +49,19 @@ impl Exe {
     ///
     /// # Arguments
     ///
-    /// * `config_path` - Optional path to a configuration YAML file.
-    ///
     /// * `input_path` - Path to the file containing the Frame specification.
     ///
     /// * `target_language` - The target language to compile the specification to. This may be
     ///   `None` if the `language` attribute is defined in the specification itself.
     pub fn run_file(
         &self,
-        config_path: &Option<PathBuf>,
         input_path: &Path,
         target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
         match fs::read_to_string(input_path) {
             Ok(content) => {
                 Exe::debug_print(&content);
-                self.run(config_path, input_path.to_str(), content, target_language)
+                self.run(input_path.to_str(), content, target_language)
             }
             Err(err) => {
                 let error_msg = format!("Error reading input file: {}", err);
@@ -78,7 +75,6 @@ impl Exe {
 
     pub fn run_stdin(
         &self,
-        config_path: &Option<PathBuf>,
         target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
         let mut buffer = String::new();
@@ -86,7 +82,7 @@ impl Exe {
         match stdin.read_to_string(&mut buffer) {
             Ok(_size) => {
                 Exe::debug_print(&buffer);
-                self.run(config_path, None, buffer, target_language)
+                self.run(None, buffer, target_language)
             }
             Err(err) => {
                 let error_msg = format!("Error reading input file: {}", err);
@@ -102,8 +98,6 @@ impl Exe {
     ///
     /// # Arguments
     ///
-    /// * `config_path` - Optional path to a configuration YAML file.
-    ///
     /// * `input_path_str` - Path to the file containing the Frame specification, as a `&str`.
     ///   This value is used for metadata in some backends, but the file path is not verified or
     ///   loaded. This argument may be `None` if the Frame specification does not exist on the file
@@ -116,7 +110,6 @@ impl Exe {
 
     pub fn run(
         &self,
-        config_path: &Option<PathBuf>,
         _input_path_str: Option<&str>,
         content: String,
         mut target_language: Option<TargetLanguage>,
@@ -245,32 +238,8 @@ impl Exe {
         let generate_change_state = semantic_parser.generate_change_state;
         let generate_transition_state = semantic_parser.generate_transition_state;
 
-        // check for local config.yaml if no path specified
-        let mut local_config_path = config_path;
-        let config_yaml = PathBuf::from("config.yaml");
-        let some_config_yaml = Some(config_yaml.clone());
-        if local_config_path.is_none() && config_yaml.exists() {
-            local_config_path = &some_config_yaml;
-        }
-
-        // load configuration
-        // v0.30: Use first system for config compatibility, or empty system if none
-        let config_system = if frame_module.systems.is_empty() {
-            SystemNode::new(
-                String::new(),
-                frame_module.module.clone(),
-                None, None, None, None, None, None, None, None, None, 1,
-            )
-        } else {
-            frame_module.systems[0].clone()
-        };
-        let config = match FrameConfig::load(local_config_path, &config_system) {
-            Ok(cfg) => cfg,
-            Err(err) => {
-                let run_error = RunError::new(frame_exitcode::CONFIG_ERR, &err.to_string());
-                return Err(run_error);
-            }
-        };
+        // load configuration - always use defaults
+        let config = FrameConfig::default();
 
         // check for language attribute override in spec specifying target language
         // v0.30: Check all systems for language attribute

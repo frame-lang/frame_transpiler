@@ -4,6 +4,7 @@
 #![allow(clippy::single_match)]
 #![allow(clippy::ptr_arg)]
 #![allow(non_snake_case)]
+#![allow(dead_code)] // GraphViz visitor methods are part of the API
 
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};

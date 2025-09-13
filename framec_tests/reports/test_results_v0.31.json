@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-12T15:44:23.667178",
+  "timestamp": "2025-09-13T08:52:49.726522",
   "version": "v0.31",
   "summary": {
     "total": 341,
-    "transpile_success": 340,
-    "execute_success": 340,
-    "complete_success": 340,
-    "success_rate": "99.7%"
+    "transpile_success": 341,
+    "execute_success": 341,
+    "complete_success": 341,
+    "success_rate": "100.0%"
   },
   "results": [
     {
@@ -599,9 +599,10 @@
     },
     {
       "file": "test_empty_set_literal.frm",
-      "transpile": false,
-      "execute": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '}' - found 'empty_dict'\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "transpile": true,
+      "execute": true,
+      "output": "=== Empty Set Literal Test ===\nEmpty dict: {}\nType: <class 'dict'>\nEmpty set: set()\nType: <class 'set'>\nNon-empty set: {1, 2, 3}\nAfter adding 42: {42}\n=== Empty Set Literal Test ===\nEmpty dict: {}\nTyp",
+      "error": null
     },
     {
       "file": "test_enum_basic.frm",
@@ -649,7 +650,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -677,14 +678,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {

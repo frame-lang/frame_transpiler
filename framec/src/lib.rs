@@ -11,7 +11,7 @@ pub fn run(frame_code: &str, format: &str) -> String {
     let exe = Exe::new();
     match TargetLanguage::try_from(format) {
         Ok(target) => {
-            let result = exe.run(&None, None, frame_code.to_string(), Some(target));
+            let result = exe.run(None, frame_code.to_string(), Some(target));
             match result {
                 Ok(code) => code,
                 Err(run_error) => {
