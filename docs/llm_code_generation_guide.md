@@ -160,11 +160,11 @@ class utils:
 | `module` | `class` with static methods | `mod` | package functions | `static class` | object literal |
 | `module.function()` | `class.method()` | `module::function()` | `package.Function()` | `Class.method()` | `object.method()` |
 
-### 3. Frame Standard Library (FSL)
+### 3. Native Python Operations
 
-FSL operations map to language built-ins:
+Frame supports native Python operations directly. These operations map to language built-ins:
 
-| FSL Operation | Python | Rust | Go | Java/C# | JavaScript |
+| Operation | Python | Rust | Go | Java/C# | JavaScript |
 |---------------|--------|------|----|---------|------------|
 | `str(x)` | `str(x)` | `x.to_string()` | `fmt.Sprint(x)` | `x.ToString()` | `String(x)` |
 | `int(s)` | `int(s)` | `s.parse::<i32>()` | `strconv.Atoi(s)` | `int.Parse(s)` | `parseInt(s)` |
@@ -237,7 +237,7 @@ self.count = 0  # Domain variable
 - [ ] **Handle Events**: Route events to current state
 - [ ] **State Transitions**: Exit, transition, enter sequence
 - [ ] **Variable Scoping**: Domain, state, local variables
-- [ ] **FSL Operations**: Map to language built-ins
+- [ ] **Native Operations**: Map to language built-ins
 - [ ] **Module Structure**: Preserve namespace hierarchy
 - [ ] **Error Handling**: Maintain Frame error semantics
 - [ ] **Concurrency**: Handle if Frame system is marked thread-safe
@@ -293,5 +293,5 @@ Given Frame + Python, generate Rust:
 
 - Frame Language Documentation: [frame-lang.org](https://frame-lang.org)
 - Frame Grammar: `docs/source/language/grammar.md`
-- FSL Reference: `docs/fsl_reference.md`
+- Python Operations Reference: Python built-in functions documentation
 - Test Examples: `framec_tests/python/src/`

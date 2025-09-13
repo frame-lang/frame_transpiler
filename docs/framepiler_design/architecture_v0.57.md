@@ -45,13 +45,11 @@ Target Code (Python)
 - Path resolution with search directories
 - Circular dependency detection
 - Module cache management
-- Standard library module resolution
+- Project module resolution
 
 **Resolution Order**:
 1. Relative to current file (`./`, `../`)
 2. Project source directories (from frame.toml)
-3. Standard library (`frame:` prefix)
-4. System Frame modules
 
 ### Dependency Graph (`modules/graph.rs`) - NEW
 **Purpose**: Builds and validates module dependency relationships.
@@ -135,7 +133,6 @@ pub struct ImportNode {
 
 pub enum ImportSource {
     File(PathBuf),      // Local .frm file
-    StandardLib(String), // frame:collections
     Package(String),     // Future: external packages
 }
 ```
@@ -188,7 +185,6 @@ class App_Main:
 ```frame
 # Import entire module
 import Utils::Math from "./utils/math.frm"
-import Collections::List from "frame:collections"
 
 # Import specific items
 from "./models.frm" import User, Product

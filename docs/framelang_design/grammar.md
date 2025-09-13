@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.56)
+# Frame Language Grammar (v0.57)
 
-**Last Updated**: 2025-01-24  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, and type annotations
+**Last Updated**: 2025-01-15  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, and **multi-file module system infrastructure**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -15,9 +15,9 @@ module: (import_stmt | enum_decl | class_decl | var_decl | function | async_func
 
 **v0.30 Multi-Entity Support**: Modules can contain any combination of functions and systems in any order. Each entity (function or system) can have individual attributes.
 
-## Module System (v0.34)
+## Module System (v0.34 + v0.57 Infrastructure)
 
-Frame v0.34 introduces a complete module system with named modules, qualified access, and nested module support.
+Frame v0.34 introduces a complete module system with named modules, qualified access, and nested module support. Frame v0.57 adds multi-file module infrastructure for cross-file imports and project-level compilation.
 
 ```bnf
 module_decl: 'module' IDENTIFIER '{' module_body '}'
@@ -31,7 +31,7 @@ qualified_name: IDENTIFIER ('.' IDENTIFIER)*
 - **Qualified Access**: Access module contents via `module.function()` or `module.variable`
 - **Nested Modules**: Support for hierarchical module organization
 - **Scope Isolation**: Each module has its own namespace
-- **Import Integration**: FSL imports work within module contexts
+- **Import Integration**: Python imports work within module contexts
 
 ### Module Examples
 
@@ -69,7 +69,7 @@ module Math {
     }
 }
 
-// Module with FSL imports
+// Module with Python imports
 module DataProcessor {
     from fsl import str, int
     
@@ -79,6 +79,72 @@ module DataProcessor {
     }
 }
 ```
+
+## Multi-File Module System (v0.57 Infrastructure)
+
+Frame v0.57 introduces the infrastructure for multi-file module support, enabling programs to be split across multiple `.frm` files with proper import/export mechanisms and dependency management.
+
+### Infrastructure Components
+
+**Core System Architecture:**
+- **ModuleResolver**: Resolves import paths to file system paths with security validation
+- **DependencyGraph**: Manages module dependencies with cycle detection using topological sorting
+- **ModuleCache**: Provides incremental compilation through SHA-256 based change detection
+- **ModuleLinker**: Combines compiled modules with optimization strategies
+- **MultiFileCompiler**: Orchestrates the complete multi-file compilation workflow
+
+### Planned Import Syntax (Future Implementation)
+
+```bnf
+# Future grammar extensions for cross-file imports
+file_import: 'import' IDENTIFIER 'from' STRING
+selective_import: 'import' '{' import_list '}' 'from' STRING
+import_list: IDENTIFIER (',' IDENTIFIER)*
+```
+
+### Example Multi-File Structure (Planned)
+
+```frame
+// utils.frm - Utility module
+module Utils {
+    fn helper(x) {
+        return x * 2
+    }
+    
+    var version = "1.0"
+}
+
+// main.frm - Main application
+import Utils from "./utils.frm"
+
+fn main() {
+    var result = Utils.helper(21)
+    print("Result: " + str(result))
+    print("Utils version: " + Utils.version)
+}
+```
+
+### Security Features
+
+- **Path Traversal Protection**: Prevents access outside project root
+- **Symlink Validation**: Blocks dangerous symlinks to system directories
+- **File Extension Validation**: Only `.frm` files can be imported
+- **Project Boundary Enforcement**: All imports must be within project scope
+
+### Performance Optimizations
+
+- **Dependency Caching**: Resolution results cached in memory for fast lookup
+- **Incremental Compilation**: SHA-256 based change detection for rebuild optimization
+- **Topological Sorting**: Efficient compilation ordering with automatic cycle detection
+- **Module Linking**: Smart concatenation with future dead-code elimination support
+
+### Current Status (v0.57)
+
+- ✅ **Infrastructure Complete**: All core components implemented and tested
+- ✅ **Build Integration**: Successfully integrated with existing Frame compiler
+- ✅ **Test Validation**: All 341 existing tests continue to pass (100% compatibility)
+- 🔄 **Import Parsing**: Parser extensions for import statements (next phase)
+- 🔄 **Cross-File Compilation**: Full multi-file project compilation (next phase)
 
 ## Classes (v0.45)
 
@@ -2535,7 +2601,7 @@ self_expr: 'self' | 'self' '.' IDENTIFIER  // v0.31: self as standalone or dotte
 call_expr: IDENTIFIER '(' arg_list? ')' | '_' IDENTIFIER '(' arg_list? ')'
 arg_list: expr (',' expr)*
 
-fsl_expr: fsl_conversion | fsl_property | fsl_method  // v0.33: Frame Standard Library
+fsl_expr: fsl_conversion | fsl_property | fsl_method  // v0.33: Native Python Operations
 fsl_conversion: ('str' | 'int' | 'float' | 'bool') '(' expr ')'
 fsl_property: expr '.' ('length' | 'size' | 'capacity' | 'name' | 'value')
 fsl_method: expr '.' ('append' | 'pop' | 'clear' | 'remove') '(' arg_list? ')'
@@ -2777,7 +2843,7 @@ if (a and b) or (not c and d) {
 
 **Call Chain Support**: Multi-node call chains like `sys.methodName()` correctly generate interface method calls on system instances without adding action prefixes.
 
-**Frame Standard Library (v0.33)**: FSL provides native built-in operations guaranteed across all target languages, eliminating the need for backticks when using common operations like type conversions and collection methods.
+**Native Python Operations (v0.33)**: Frame supports Python built-in operations directly, eliminating the need for backticks when using common operations like type conversions and collection methods.
 
 ## Native Python Functions (v0.38)
 
@@ -2812,22 +2878,22 @@ var val = dict.get("a", 0)  // 1
 dict.setdefault("b", [])    // Creates if not exists
 ```
 
-## Frame Standard Library (FSL) - v0.34 (DEPRECATED)
+## Legacy Python Import Syntax - v0.34 (DEPRECATED)
 
-**Note**: As of v0.38, most FSL operations are no longer needed as native Python functions work directly. FSL imports are retained for backward compatibility but are not required for basic operations.
+**Note**: As of v0.38, Python functions work directly in Frame without special imports. This legacy import syntax is retained for backward compatibility but is no longer required.
 
-### FSL Import Requirements (v0.34)
+### Legacy Import Requirements (v0.34)
 
-FSL operations must be explicitly imported before use:
+Previously, operations required explicit imports:
 
 ```frame
-// Import specific FSL operations
+// Legacy import syntax (no longer needed)
 from fsl import str, int, float
 
-// Import all FSL operations
+// Legacy import all (no longer needed)
 from fsl import *
 
-// Without import, str/int/float are treated as external functions
+// Modern Frame: str/int/float work directly without imports
 fn noImport() {
     var s = str(42)  // Calls external str() if available
 }

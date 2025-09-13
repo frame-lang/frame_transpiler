@@ -28,7 +28,7 @@ impl Default for FrameConfig {
 }
 
 /// Project metadata configuration
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProjectConfig {
     /// Project name
     pub name: Option<String>,
@@ -39,12 +39,29 @@ pub struct ProjectConfig {
     /// Entry point for multi-file compilation
     pub entry: Option<PathBuf>,
     
+    /// Project root directory
+    #[serde(default = "default_project_root")]
+    pub root: PathBuf,
+    
     /// Project authors
     #[serde(default)]
     pub authors: Vec<String>,
     
     /// Project description
     pub description: Option<String>,
+}
+
+impl Default for ProjectConfig {
+    fn default() -> Self {
+        Self {
+            name: None,
+            version: None,
+            entry: None,
+            root: default_project_root(),
+            authors: Vec::new(),
+            description: None,
+        }
+    }
 }
 
 /// Build configuration
@@ -93,6 +110,10 @@ fn default_source_dirs() -> Vec<PathBuf> {
 
 fn default_incremental() -> bool {
     true
+}
+
+fn default_project_root() -> PathBuf {
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 /// Python-specific configuration

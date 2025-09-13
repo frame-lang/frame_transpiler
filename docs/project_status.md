@@ -79,12 +79,12 @@
 - **Enums**: Custom values, string enums, iteration
 - **Import Statements**: Native Python imports
 
-### Frame Standard Library (FSL)
+### Native Python Operations
 - **Type Conversions**: `str()`, `int()`, `float()`, `bool()`
-- **List Operations**: All Python list methods
-- **String Operations**: All Python string methods
-- **Dict Operations**: All Python dict methods
-- **No Import Required**: Native Python operations work directly
+- **List Operations**: All Python list methods work natively
+- **String Operations**: All Python string methods work natively
+- **Dict Operations**: All Python dict methods work natively
+- **No Import Required**: Python built-in functions work directly in Frame
 
 ## Test Infrastructure
 

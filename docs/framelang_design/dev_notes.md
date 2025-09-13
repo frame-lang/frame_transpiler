@@ -490,7 +490,7 @@ Frame v0.44 introduces Python 3.10+ style pattern matching with match-case state
 - **Domain Block Order**: Fixed - domain blocks must appear last in system definitions
 - **Breaking Change**: Removed C-style logical operators (`&&`, `||`, `!`)
 - **Python Operators**: Exclusively use `and`, `or`, `not` keywords
-- **Native Python Functions**: `str()`, `len()`, etc work without FSL imports
+- **Native Python Functions**: `str()`, `len()`, etc work directly without special imports
 
 ### Key Features Completed (2025-09-08)
 1. **Membership Operators**: `in` and `not in` for collections and strings

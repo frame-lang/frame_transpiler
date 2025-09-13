@@ -170,7 +170,7 @@
 | String Operations | test_string_ops.frm | ❓ | .upper(), .lower(), etc |
 | List Operations | test_list_ops.frm | ❓ | .append(), .pop(), etc |
 | Built-in Functions | test_builtins.frm | ❓ | len(), range(), etc |
-| Native vs FSL | test_native_vs_fsl.frm | ❓ | Clarify requirements |
+| Native Python Ops | test_native_python.frm | ✅ | str(), len(), etc work directly |
 
 ## Lambda Functions
 
@@ -242,7 +242,7 @@ Based on successful transpilation and code generation testing:
 - **Lambda in Dict**: `{"add": lambda a,b: a+b}` → test_dict_lambda.frm ✅
 
 #### Native Python Operations - WORKING  
-- **Type Conversions**: `str()`, `int()`, `float()`, `bool()` → No FSL import needed ✅
+- **Type Conversions**: `str()`, `int()`, `float()`, `bool()` → Work directly in Frame ✅
 - **Built-in Functions**: `len()`, `print()` → Work natively ✅
 - **List Methods**: `.append()`, `.pop()`, `.extend()` → Work on list objects ✅
 - **Dict Methods**: `.get()`, `.setdefault()`, `.keys()` → Work on dict objects ✅
@@ -262,14 +262,14 @@ Based on successful transpilation and code generation testing:
 - **v0.38 claims 224/224 (100%)** but test_log shows 269/283 (95.1%)
 - **Lambda support EXISTS** but tests say "not yet supported"  
 - **Dict indexing WORKS** but some tests may not reflect this
-- **Native Python functions WORK** without FSL imports
+- **Native Python functions WORK** directly in Frame
 
 ## Key Discoveries
 
 ### ✅ Fully Working But Underdocumented
 1. **Lambda Expressions**: Complete support for Python lambda syntax
 2. **Dictionary Indexing**: Full `dict["key"]` read/write support  
-3. **Native Python Functions**: `str()`, `len()`, etc work without FSL imports
+3. **Native Python Functions**: `str()`, `len()`, etc work directly in Frame
 4. **All Collection Literals**: Dict, Set, Tuple, List all working
 
 ### ❌ Known Limitations
