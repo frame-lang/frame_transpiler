@@ -1,7 +1,7 @@
 # Frame Test Suite Status Report
 
 **Last Run**: September 14, 2025  
-**Frame Version**: v0.57  
+**Frame Version**: v0.58  
 **Total Tests**: 374  
 **Passed**: 374  
 **Failed**: 0  
@@ -62,11 +62,14 @@ Overall Success: 374/374 (100.0%)
 
 ## Recent Fixes Applied
 
-### September 14, 2025
-1. **Debug Output Control**: Wrapped all debug statements with FRAME_TRANSPILER_DEBUG environment variable checks
-2. **Parser Warnings**: Controlled parser warning output with environment variable
-3. **Linker Borrow Fix**: Resolved borrow checker error in linker.rs by cloning strategy
-4. **Code Cleanup**: Removed unused variables and improved code quality
+### September 14, 2025 - v0.58 Release
+1. **Project Configuration System**: Added frame.toml support with init and build commands
+2. **Debug Output Control**: Wrapped all debug statements with FRAME_TRANSPILER_DEBUG environment variable checks
+3. **Parser Warnings**: Controlled parser warning output with environment variable
+4. **Linker Borrow Fix**: Resolved borrow checker error in linker.rs by cloning strategy
+5. **Code Cleanup**: Removed unused variables and improved code quality
+6. **CLI Enhancements**: Added `framec init` and `framec build` subcommands
+7. **Config Features**: Support for project metadata, build settings, path aliases, and custom scripts
 
 ### January 25, 2025
 1. **Multifile Test Dependencies**: Created 14 missing dependency files for multifile tests

@@ -2,12 +2,22 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-**Current Version**: v0.57  
+**Current Version**: v0.58  
 **Test Success Rate**: 100% (374/374 tests passing) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-09-14
 
-## Current Features (v0.57)
+## Current Features (v0.58)
+
+### Project Configuration System (NEW in v0.58)
+- **frame.toml**: Standardized project configuration file
+- **`framec init`**: Initialize new Frame projects with boilerplate
+- **`framec build`**: Build projects using configuration settings
+- **Flexible Output**: Configure concatenated or separate file generation
+- **Custom Scripts**: Define project-specific build commands
+- **Path Aliases**: Create import path shortcuts for cleaner code
+
+## Previous Features (v0.57)
 
 ### Multi-File Module System (NEW in v0.57)
 - **Frame File Imports**: Import modules from other `.frm` files
