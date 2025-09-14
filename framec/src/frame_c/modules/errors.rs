@@ -23,6 +23,11 @@ pub enum ModuleErrorKind {
         path: String,
         searched_paths: Vec<PathBuf>,
     },
+    /// Module not found (alias for compatibility)
+    ModuleNotFound {
+        module: String,
+        searched_paths: Vec<PathBuf>,
+    },
     /// Circular dependency detected
     CircularDependency {
         cycle: Vec<String>,
@@ -55,6 +60,20 @@ pub enum ModuleErrorKind {
     IoError {
         path: PathBuf,
         error: String,
+    },
+    /// I/O error (alias for compatibility)
+    IOError {
+        path: PathBuf,
+        error: String,
+    },
+    /// Parse error
+    ParseError {
+        error: String,
+    },
+    /// Import error
+    ImportError {
+        import: String,
+        reason: String,
     },
 }
 
@@ -200,6 +219,25 @@ impl fmt::Display for ModuleErrorKind {
             },
             ModuleErrorKind::IoError { path, error } => {
                 write!(f, "I/O error for '{}': {}", path.display(), error)
+            },
+            ModuleErrorKind::ModuleNotFound { module, searched_paths } => {
+                write!(f, "Module not found: '{}'", module)?;
+                if !searched_paths.is_empty() {
+                    write!(f, "\n  Searched in:")?;
+                    for search_path in searched_paths {
+                        write!(f, "\n    {}", search_path.display())?;
+                    }
+                }
+                Ok(())
+            },
+            ModuleErrorKind::IOError { path, error } => {
+                write!(f, "I/O error for '{}': {}", path.display(), error)
+            },
+            ModuleErrorKind::ParseError { error } => {
+                write!(f, "Parse error: {}", error)
+            },
+            ModuleErrorKind::ImportError { import, reason } => {
+                write!(f, "Import error for '{}': {}", import, reason)
             },
         }
     }

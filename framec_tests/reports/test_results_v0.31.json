@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-13T15:10:10.269544",
+  "timestamp": "2025-09-13T22:27:52.319382",
   "version": "v0.31",
   "summary": {
-    "total": 341,
-    "transpile_success": 341,
-    "execute_success": 341,
-    "complete_success": 341,
+    "total": 344,
+    "transpile_success": 344,
+    "execute_success": 344,
+    "complete_success": 344,
     "success_rate": "100.0%"
   },
   "results": [
@@ -650,7 +650,7 @@
       "file": "test_enums.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -678,14 +678,14 @@
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1495,6 +1495,27 @@
     },
     {
       "file": "test_multi_systems_with_transitions.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_multifile_calculator.frm",
+      "transpile": true,
+      "execute": true,
+      "output": null,
+      "error": null
+    },
+    {
+      "file": "test_multifile_main.frm",
+      "transpile": true,
+      "execute": true,
+      "output": "5 + 3 = 8\n4 * 7 = 28\nArea of circle with radius 5 = 78.53975\n10 is even\n7 is odd\nDirect calculation: 300\nPI value: 3.14159\n5 + 3 = 8\n4 * 7 = 28\nArea of circle with radius 5 = 78.53975\n10 is even\n7 is ",
+      "error": null
+    },
+    {
+      "file": "test_multifile_utils.frm",
       "transpile": true,
       "execute": true,
       "output": null,

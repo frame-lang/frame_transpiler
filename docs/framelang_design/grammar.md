@@ -80,26 +80,111 @@ module DataProcessor {
 }
 ```
 
-## Multi-File Module System (v0.57 Infrastructure)
+## Multi-File Module System (v0.57) ✅ COMPLETE
 
-Frame v0.57 introduces the infrastructure for multi-file module support, enabling programs to be split across multiple `.frm` files with proper import/export mechanisms and dependency management.
+Frame v0.57 delivers a fully functional multi-file module system, enabling programs to be split across multiple `.frm` files with proper import/export mechanisms, dependency management, and automatic compilation.
+
+### Frame File Import Syntax
+
+```bnf
+frame_import: 'import' IDENTIFIER 'from' STRING
+frame_import_aliased: 'import' IDENTIFIER 'from' STRING 'as' IDENTIFIER  
+frame_import_selective: 'import' '{' identifier_list '}' 'from' STRING
+identifier_list: IDENTIFIER (',' IDENTIFIER)*
+```
+
+### Import Examples
+
+```frame
+# Standard module import from Frame file
+import MathUtils from "./utils.frm"
+import DataStore from "../lib/datastore.frm"
+
+# Import with alias
+import LongModuleName from "./very_long_module_name.frm" as LMN
+import Calculator from "./calc.frm" as Calc
+
+# Selective imports (destructuring)
+import { add, subtract, multiply } from "./math_ops.frm"
+import { validateEmail, validatePhone } from "./validators.frm"
+
+# Using imported modules
+fn main() {
+    var sum = MathUtils.add(5, 3)
+    var result = Calc.compute(10, 20)
+    var valid = validateEmail("user@example.com")
+}
+```
 
 ### Infrastructure Components
 
 **Core System Architecture:**
 - **ModuleResolver**: Resolves import paths to file system paths with security validation
-- **DependencyGraph**: Manages module dependencies with cycle detection using topological sorting
+- **DependencyGraph**: Manages module dependencies with cycle detection using topological sorting  
 - **ModuleCache**: Provides incremental compilation through SHA-256 based change detection
 - **ModuleLinker**: Combines compiled modules with optimization strategies
 - **MultiFileCompiler**: Orchestrates the complete multi-file compilation workflow
 
-### Planned Import Syntax (Future Implementation)
+### Multi-File Compilation
 
-```bnf
-# Future grammar extensions for cross-file imports
-file_import: 'import' IDENTIFIER 'from' STRING
-selective_import: 'import' '{' import_list '}' 'from' STRING
-import_list: IDENTIFIER (',' IDENTIFIER)*
+Frame provides automatic multi-file compilation with the `-m` flag:
+
+```bash
+# Compile multi-file Frame project
+framec -m main.frm -l python_3
+
+# The compiler automatically:
+# 1. Discovers all imported .frm files
+# 2. Resolves dependencies with cycle detection
+# 3. Compiles in topological order
+# 4. Links modules into single output file
+```
+
+### Module Generation
+
+Modules are transpiled to Python classes with static methods:
+
+```frame
+// Frame module with variables and functions
+module MathUtils {
+    var PI = 3.14159
+    var E = 2.71828
+    
+    fn add(a, b) {
+        return a + b
+    }
+    
+    fn circleArea(radius) {
+        return PI * radius * radius  // PI automatically qualified as MathUtils.PI
+    }
+}
+```
+
+Generates:
+
+```python
+class MathUtils:
+    PI = 3.14159
+    E = 2.71828
+    
+    @staticmethod
+    def add(a, b):
+        return a + b
+    
+    @staticmethod
+    def circleArea(radius):
+        return MathUtils.PI * radius * radius  # Properly qualified
+```
+
+### Test Runner Support
+
+The Frame test runner automatically detects and handles multi-file tests:
+
+```python
+# Test runner detects Frame imports (.frm files)
+# and automatically uses -m flag for compilation
+if 'import' in line and '.frm' in line:
+    use_multifile_compilation()
 ```
 
 ### Example Multi-File Structure (Planned)

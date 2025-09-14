@@ -79,6 +79,8 @@ pub struct PythonVisitor {
     system_has_async_runtime: bool,          // v0.37: Track if current system needs async runtime
     pending_assert: bool,                    // v0.45: Track if we just output an assert and need to suppress next newline
     generating_state_vars_init: bool,        // v0.55: Track if we're generating state variable initializers in transition
+    current_module_name: Option<String>,     // v0.57: Track current module being generated
+    current_module_variables: HashSet<String>, // v0.57: Track variables in current module
     in_class_method: bool,                   // v0.45: Track if we're in a class method
 }
 
@@ -172,6 +174,8 @@ impl PythonVisitor {
             pending_assert: false,
             in_class_method: false,
             generating_state_vars_init: false,
+            current_module_name: None,
+            current_module_variables: HashSet::new(),
         }
     }
 
@@ -1296,7 +1300,9 @@ impl PythonVisitor {
         
         // v0.30: Process module-level elements (imports, CodeBlocks, and TypeAliases)
         let mut has_type_aliases = false;
-        for module_element in &frame_module.module.module_elements {
+        eprintln!("DEBUG: run_v2 processing {} module elements", frame_module.module.module_elements.len());
+        for (i, module_element) in frame_module.module.module_elements.iter().enumerate() {
+            eprintln!("DEBUG: Processing element {}: {:?}", i, std::mem::discriminant(module_element));
             match module_element {
                 ModuleElement::Import { import_node } => {
                     import_node.accept(self);
@@ -1308,6 +1314,11 @@ impl PythonVisitor {
                 ModuleElement::CodeBlock { code_block } => {
                     self.newline();
                     self.add_code(code_block);
+                }
+                ModuleElement::Module { module_node } => {
+                    // v0.57: Generate module contents as a class
+                    eprintln!("DEBUG: Found module '{}' with {} functions", module_node.borrow().name, module_node.borrow().functions.len());
+                    self.generate_module_as_class(&module_node.borrow());
                 }
                 _ => {} // Functions and Systems handled separately
             }
@@ -1361,6 +1372,12 @@ impl PythonVisitor {
         
         // v0.30: Generate all enums at module level first (before functions and systems)
         self.generate_all_enums(frame_module);
+        
+        // v0.57: Generate nested modules as classes
+        for module_node_rcref in &frame_module.modules {
+            eprintln!("DEBUG: Generating module '{}' as class", module_node_rcref.borrow().name);
+            self.generate_module_as_class(&module_node_rcref.borrow());
+        }
         
         // Generate module-level functions (like main)
         for function_rcref in &frame_module.functions {
@@ -4394,6 +4411,139 @@ impl PythonVisitor {
 //* --------------------------------------------------------------------- *//
 
 impl PythonVisitor {
+    // v0.57: Module support for multi-file compilation
+    fn generate_module_as_class(&mut self, module_node: &ModuleNode) {
+        // Set module context
+        self.current_module_name = Some(module_node.name.clone());
+        self.current_module_variables.clear();
+        
+        // Collect module variable names
+        for var_node_rcref in &module_node.variables {
+            let var = var_node_rcref.borrow();
+            self.current_module_variables.insert(var.name.clone());
+        }
+        
+        // Generate a Python class to act as namespace for the module
+        self.newline();
+        self.add_code(&format!("class {}:", module_node.name));
+        self.indent();
+        
+        let mut has_content = false;
+        
+        // Process module variables as class variables
+        for var_node_rcref in &module_node.variables {
+            if has_content {
+                self.newline();
+            }
+            // Generate as class variable
+            self.newline();
+            let var = var_node_rcref.borrow();
+            self.add_code(&format!("{} = ", var.name));
+            // value_rc is Rc<ExprType>, not Option
+            var.value_rc.accept(self);
+            has_content = true;
+        }
+        
+        // Process module functions as static methods
+        for func_node_rcref in &module_node.functions {
+            if has_content {
+                self.newline();
+            }
+            // Generate as static method
+            self.newline();
+            self.add_code("@staticmethod");
+            let func = func_node_rcref.borrow();
+            // Generate the function
+            self.newline();
+            self.add_code(&format!("def {}(", func.name));
+            // Visit parameters
+            if let Some(ref params) = func.params {
+                let mut first = true;
+                for param in params {
+                    if !first {
+                        self.add_code(",");
+                    }
+                    param.accept(self);
+                    first = false;
+                }
+            }
+            self.add_code("):");
+            self.indent();
+            
+            // Generate function body
+            if !func.statements.is_empty() {
+                // Mark that we're in a standalone function
+                let was_in_function = self.in_standalone_function;
+                self.in_standalone_function = true;
+                
+                // Track if we generated a return statement
+                let had_return_before = self.this_branch_transitioned;
+                self.this_branch_transitioned = false;
+                
+                for stmt in &func.statements {
+                    match stmt {
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            self.visit_stmt_type_helper(stmt_t);
+                        }
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            var_decl_t_rcref.borrow().accept(self);
+                        }
+                    }
+                }
+                
+                // Check if a return was generated in the statements
+                let generated_return = self.this_branch_transitioned;
+                self.this_branch_transitioned = had_return_before;
+                
+                // Only add terminator return if we didn't already generate one
+                if !generated_return {
+                    if let Some(ref return_expr) = func.terminator_expr.return_expr_t_opt {
+                        self.newline();
+                        self.add_code("return ");
+                        return_expr.accept(self);
+                    }
+                }
+                
+                self.in_standalone_function = was_in_function;
+            } else {
+                self.newline();
+                self.add_code("pass");
+                
+                // Add return if needed and no statements
+                if let Some(ref return_expr) = func.terminator_expr.return_expr_t_opt {
+                    self.newline();
+                    self.add_code("return ");
+                    return_expr.accept(self);
+                }
+            }
+            
+            self.outdent();
+            has_content = true;
+        }
+        
+        // Process nested modules recursively
+        for nested_module_rcref in &module_node.modules {
+            if has_content {
+                self.newline();
+            }
+            self.generate_module_as_class(&nested_module_rcref.borrow());
+            has_content = true;
+        }
+        
+        if !has_content {
+            // Empty module - add pass statement
+            self.newline();
+            self.add_code("pass");
+        }
+        
+        self.outdent();
+        self.newline();
+        
+        // Clear module context
+        self.current_module_name = None;
+        self.current_module_variables.clear();
+    }
+    
     // v0.45: Helper method to visit statement types
     fn visit_stmt_type_helper(&mut self, stmt_t: &StatementType) {
         match stmt_t {
@@ -4562,9 +4712,9 @@ impl AstVisitor for PythonVisitor {
                 ModuleElement::Enum { enum_decl_node: _ } => {
                     // Module-level enums are handled in generate_all_enums
                 }
-                ModuleElement::Module { module_node: _ } => {
-                    // v0.34: Nested modules - need qualified access implementation
-                    // For now, skip nested modules as we need name resolution first
+                ModuleElement::Module { module_node } => {
+                    // v0.57: Generate module contents
+                    self.generate_module_as_class(&module_node.borrow());
                 }
                 ModuleElement::TypeAlias { type_alias_node: _ } => {
                     // Type aliases are already processed in run_v2, skip here
@@ -5343,26 +5493,54 @@ impl AstVisitor for PythonVisitor {
                         self.outdent();
                     }
                     
+                    // Track if we generated a return statement
+                    let had_return_before = self.this_branch_transitioned;
+                    self.this_branch_transitioned = false;
+                    
                     self.indent();
                     self.visit_decl_stmts(&function_node.statements);
                     self.outdent();
-                }
-
-                self.indent();
-                self.newline();
-                match &function_node.terminator_expr.terminator_type {
-                    TerminatorType::Return => match &function_node.terminator_expr.return_expr_t_opt {
-                        Some(expr_t) => {
-                            self.add_code("return ");
-                            expr_t.accept(self);
+                    
+                    // Check if a return was generated in the statements
+                    let generated_return = self.this_branch_transitioned;
+                    self.this_branch_transitioned = had_return_before;
+                    
+                    // Only add terminator return if we didn't already generate one
+                    if !generated_return {
+                        self.indent();
+                        self.newline();
+                        match &function_node.terminator_expr.terminator_type {
+                            TerminatorType::Return => match &function_node.terminator_expr.return_expr_t_opt {
+                                Some(expr_t) => {
+                                    self.add_code("return ");
+                                    expr_t.accept(self);
+                                }
+                                None => {
+                                    self.add_code("return");
+                                }
+                            },
+                            // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                         }
-                        None => {
-                            self.add_code("return");
-                        }
-                    },
-                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
+                        self.outdent();
+                    }
+                } else {
+                    // No statements, just add the terminator
+                    self.indent();
+                    self.newline();
+                    match &function_node.terminator_expr.terminator_type {
+                        TerminatorType::Return => match &function_node.terminator_expr.return_expr_t_opt {
+                            Some(expr_t) => {
+                                self.add_code("return ");
+                                expr_t.accept(self);
+                            }
+                            None => {
+                                self.add_code("return");
+                            }
+                        },
+                        // DispatchToParentState removed - now handled as ParentDispatchStmt statement
+                    }
+                    self.outdent();
                 }
-                self.outdent();
 
         }
 
@@ -8587,7 +8765,7 @@ impl AstVisitor for PythonVisitor {
             self.add_code("return");
         }
         // Mark that we've generated a return to avoid duplicate in terminator
-        self.this_branch_transitioned = false;
+        self.this_branch_transitioned = true;
     }
     
     //* --------------------------------------------------------------------- *//
@@ -9566,6 +9744,16 @@ impl AstVisitor for PythonVisitor {
     fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) {
         let name = &identifier_node.name.lexeme;
         
+        // v0.57: Check if we're in a module and if this is a module variable
+        // Module variables need to be qualified even within the module's static methods
+        if let Some(ref module_name) = self.current_module_name {
+            if self.current_module_variables.contains(name) {
+                // This is a module variable, qualify it with the module name
+                self.add_code(&format!("{}.{}", module_name, name));
+                return;
+            }
+        }
+        
         // Frame v0.31: Handle system.return - convert to return stack
         if name == "system.return" {
             self.add_code("self.return_stack[-1]");
@@ -9608,7 +9796,16 @@ impl AstVisitor for PythonVisitor {
         identifier_node: &IdentifierNode,
         output: &mut String,
     ) {
-        let _name = &identifier_node.name.lexeme;
+        let name = &identifier_node.name.lexeme;
+        
+        // v0.57: Check if we're in a module and if this is a module variable
+        if let Some(ref module_name) = self.current_module_name {
+            if self.current_module_variables.contains(name) {
+                output.push_str(&format!("{}.{}", module_name, name));
+                return;
+            }
+        }
+        
         output.push_str(&identifier_node.name.lexeme.to_string());
     }
 

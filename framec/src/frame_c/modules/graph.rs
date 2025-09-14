@@ -98,6 +98,33 @@ impl DependencyGraph {
         Ok(())
     }
     
+    /// Add a dependency relationship between two modules
+    pub fn add_dependency(&mut self, from: PathBuf, to: PathBuf) {
+        let from_str = from.to_string_lossy().to_string();
+        let to_str = to.to_string_lossy().to_string();
+        
+        self.dependencies.entry(from_str.clone())
+            .or_insert_with(HashSet::new)
+            .insert(to_str.clone());
+            
+        self.dependents.entry(to_str)
+            .or_insert_with(HashSet::new)
+            .insert(from_str);
+    }
+    
+    /// Check for cycles in the dependency graph
+    pub fn check_cycles(&self) -> ModuleResult<()> {
+        // Use the compilation_order method which will detect cycles
+        self.compilation_order()?;
+        Ok(())
+    }
+    
+    /// Get the build order (alias for compilation_order)
+    pub fn get_build_order(&self) -> ModuleResult<Vec<PathBuf>> {
+        let order = self.compilation_order()?;
+        Ok(order.into_iter().map(PathBuf::from).collect())
+    }
+    
     /// Get the compilation order using topological sort
     pub fn compilation_order(&self) -> ModuleResult<Vec<String>> {
         // Kahn's algorithm for topological sorting

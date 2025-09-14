@@ -14,6 +14,9 @@ pub struct Cli {
 
     /// Target language.
     language: Option<String>,
+    
+    /// Multi-file project mode
+    multifile: bool,
 }
 
 impl Cli {
@@ -33,6 +36,13 @@ impl Cli {
                     .help("Target language")
                     .num_args(1),
             )
+            .arg(
+                Arg::new("multifile")
+                    .long("multifile")
+                    .short('m')
+                    .help("Enable multi-file project compilation")
+                    .action(clap::ArgAction::SetTrue),
+            )
             .get_matches();
 
         let mut stdin = false;
@@ -46,11 +56,14 @@ impl Cli {
 
         let language = matches.get_one::<String>("language");
         let language_opt = language.map(|lang| lang.clone());
+        
+        let multifile = matches.get_flag("multifile");
 
         Cli {
             stdin_flag: stdin,
             path: path_opt,
             language: language_opt,
+            multifile,
         }
     }
 }
@@ -93,7 +106,14 @@ pub fn run_with(args: Cli) {
             }
         }
     } else {
-        match exe.run_file(&args.path.unwrap(), target_language) {
+        let path = args.path.unwrap();
+        let result = if args.multifile {
+            exe.run_multifile(&path, target_language)
+        } else {
+            exe.run_file(&path, target_language)
+        };
+        
+        match result {
             Ok(code) => {
                 println!("{}", code);
             }

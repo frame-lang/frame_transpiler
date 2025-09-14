@@ -5,6 +5,7 @@ use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
+use crate::frame_c::modules::MultiFileCompiler;
 
 use exitcode::USAGE;
 use sha2::{Digest, Sha256};
@@ -69,6 +70,42 @@ impl Exe {
                 Err(run_error)
             }
         }
+    }
+
+    /* --------------------------------------------------------------------- */
+    
+    /// Run the Frame compiler in multi-file mode on a Frame project.
+    ///
+    /// # Arguments
+    ///
+    /// * `entry_path` - Path to the entry point file of the Frame project.
+    ///
+    /// * `target_language` - The target language to compile to.
+    pub fn run_multifile(
+        &self,
+        entry_path: &Path,
+        target_language: Option<TargetLanguage>,
+    ) -> Result<String, RunError> {
+        // For now, only support Python target for multi-file
+        let lang = target_language.unwrap_or(TargetLanguage::Python3);
+        if !matches!(lang, TargetLanguage::Python3) {
+            let error_msg = "Multi-file compilation currently only supports Python target";
+            return Err(RunError::new(exitcode::USAGE, error_msg));
+        }
+        
+        // Create default config
+        let config = FrameConfig::default();
+        
+        // Create and run multi-file compiler
+        let mut compiler = MultiFileCompiler::new_for_entry(config, entry_path).map_err(|e| {
+            RunError::new(frame_exitcode::PARSE_ERR, &format!("Failed to create multi-file compiler: {}", e))
+        })?;
+        
+        let output = compiler.compile(entry_path).map_err(|e| {
+            RunError::new(frame_exitcode::PARSE_ERR, &format!("Multi-file compilation failed: {}", e))
+        })?;
+        
+        Ok(output)
     }
 
     /* --------------------------------------------------------------------- */

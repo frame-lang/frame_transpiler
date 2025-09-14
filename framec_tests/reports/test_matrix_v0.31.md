@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-13 15:10  
-**Total Tests**: 341  
+**Generated**: 2025-09-13 22:27  
+**Total Tests**: 344  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 341 | 100% |
-| **Transpilation Success** | 341 | 100.0% |
-| **Execution Success** | 341 | 100.0% |
-| **Complete Success** | 341 | 100.0% |
+| **Total Tests** | 344 | 100% |
+| **Transpilation Success** | 344 | 100.0% |
+| **Execution Success** | 344 | 100.0% |
+| **Complete Success** | 344 | 100.0% |
 
 ## v0.31 Features
 
@@ -241,6 +241,9 @@
 | test_multi_systems_with_interface.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_systems_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_systems_with_transitions.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_calculator.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_main.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_utils.frm | ✅ | ✅ | ✅ PASS |
 | test_multiple_assignment_v052.frm | ✅ | ✅ | ✅ PASS |
 | test_multiple_systems_valid.frm | ✅ | ✅ | ✅ PASS |
 | test_native_print.frm | ✅ | ✅ | ✅ PASS |
