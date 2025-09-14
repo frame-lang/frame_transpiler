@@ -1,5 +1,5 @@
 # Frame Language Quick Reference Card
-*AI-Optimized Cheat Sheet for Frame v0.57*
+*AI-Optimized Cheat Sheet for Frame v0.57 - Updated September 14, 2025*
 
 ## 🎯 One-Line Summary
 Frame is a Python-like state machine language where systems contain states ($Name) that respond to events with transitions (->).
@@ -86,12 +86,12 @@ None                      # NOT: null, nil
 (1, 2, 3)                # Tuple
 ```
 
-### Imports
+### Imports (v0.57 NEW!)
 ```frame
 import math                           # Python
-import Utils from "./utils.frm"      # Frame file
-import Calc from "./calc.frm" as C   # Aliased
-import { add, mul } from "./ops.frm" # Selective
+import Utils from "./utils.frm"      # Frame file (NEW!)
+import Calc from "./calc.frm" as C   # Aliased (NEW!)
+import { add, mul } from "./ops.frm" # Selective (NEW!)
 ```
 
 ### Compilation

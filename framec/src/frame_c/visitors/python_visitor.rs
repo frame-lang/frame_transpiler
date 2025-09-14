@@ -17,6 +17,15 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
+// Debug macro that only prints when FRAME_TRANSPILER_DEBUG is set
+macro_rules! debug_print {
+    ($($arg:tt)*) => {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!($($arg)*);
+        }
+    };
+}
+
 // use yaml_rust::{YamlLoader, Yaml};
 
 pub struct PythonVisitor {
@@ -1304,9 +1313,9 @@ impl PythonVisitor {
         
         // v0.30: Process module-level elements (imports, CodeBlocks, and TypeAliases)
         let mut has_type_aliases = false;
-        eprintln!("DEBUG: run_v2 processing {} module elements", frame_module.module.module_elements.len());
+        debug_print!("DEBUG: run_v2 processing {} module elements", frame_module.module.module_elements.len());
         for (i, module_element) in frame_module.module.module_elements.iter().enumerate() {
-            eprintln!("DEBUG: Processing element {}: {:?}", i, std::mem::discriminant(module_element));
+            debug_print!("DEBUG: Processing element {}: {:?}", i, std::mem::discriminant(module_element));
             match module_element {
                 ModuleElement::Import { import_node } => {
                     import_node.accept(self);
@@ -1321,7 +1330,7 @@ impl PythonVisitor {
                 }
                 ModuleElement::Module { module_node } => {
                     // v0.57: Generate module contents as a class
-                    eprintln!("DEBUG: Found module '{}' with {} functions", module_node.borrow().name, module_node.borrow().functions.len());
+                    debug_print!("DEBUG: Found module '{}' with {} functions", module_node.borrow().name, module_node.borrow().functions.len());
                     self.generate_module_as_class(&module_node.borrow());
                 }
                 _ => {} // Functions and Systems handled separately
@@ -1379,7 +1388,7 @@ impl PythonVisitor {
         
         // v0.57: Generate nested modules as classes
         for module_node_rcref in &frame_module.modules {
-            eprintln!("DEBUG: Generating module '{}' as class", module_node_rcref.borrow().name);
+            debug_print!("DEBUG: Generating module '{}' as class", module_node_rcref.borrow().name);
             self.generate_module_as_class(&module_node_rcref.borrow());
         }
         
@@ -1539,7 +1548,7 @@ impl PythonVisitor {
             if let DeclOrStmtType::VarDeclT { var_decl_t_rcref } = stmt {
                 let var_name = var_decl_t_rcref.borrow().name.clone();
                 local_vars.insert(var_name.clone());
-                eprintln!("DEBUG: Found local variable declaration: {}", var_name);
+                debug_print!("DEBUG: Found local variable declaration: {}", var_name);
             }
         }
         
@@ -1562,31 +1571,31 @@ impl PythonVisitor {
     }
     
     fn collect_global_assignments_from_stmt(&mut self, stmt: &DeclOrStmtType) {
-        eprintln!("DEBUG collect_global_assignments_from_stmt: Checking statement type");
+        debug_print!("DEBUG collect_global_assignments_from_stmt: Checking statement type");
         match stmt {
             DeclOrStmtType::StmtT { stmt_t } => {
-                eprintln!("DEBUG: Found StmtT");
+                debug_print!("DEBUG: Found StmtT");
                 match &*stmt_t {
                     StatementType::ExpressionStmt { expr_stmt_t } => {
-                        eprintln!("DEBUG: Found ExpressionStmt");
+                        debug_print!("DEBUG: Found ExpressionStmt");
                         match &*expr_stmt_t {
                             ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
-                                eprintln!("DEBUG: Found AssignmentStmtT!");
+                                debug_print!("DEBUG: Found AssignmentStmtT!");
                                 // Check if this is a module variable assignment
                                 // In v0.30, assignments use CallChainExprT not VariableExprT
                                 match &*assignment_stmt_node.assignment_expr_node.l_value_box {
                                     ExprType::CallChainExprT { call_chain_expr_node } => {
-                                        eprintln!("DEBUG: It's a CallChainExprT!");
+                                        debug_print!("DEBUG: It's a CallChainExprT!");
                                         // Check if this is a simple variable (single node in call chain)
                                         if call_chain_expr_node.call_chain.len() == 1 {
                                             if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node } = &call_chain_expr_node.call_chain[0] {
                                                 let var_name = &id_node.name.lexeme;
-                                                eprintln!("DEBUG: Found assignment to variable: {}", var_name);
+                                                debug_print!("DEBUG: Found assignment to variable: {}", var_name);
                                     
                                                 // Check if this variable is a module-level variable
                                                 // Check if the variable exists in module scope  
-                                                eprintln!("DEBUG collect_global: Looking for variable '{}' in module scope", var_name);
-                                                eprintln!("DEBUG collect_global: Module symbols: {:?}", 
+                                                debug_print!("DEBUG collect_global: Looking for variable '{}' in module scope", var_name);
+                                                debug_print!("DEBUG collect_global: Module symbols: {:?}", 
                                                         self.arcanium.module_symtab.borrow().symbols.keys().collect::<Vec<_>>());
                                                 
                                                 for (symbol_name, symbol_type_rcref) in &self.arcanium.module_symtab.borrow().symbols {
@@ -1594,11 +1603,11 @@ impl PythonVisitor {
                                                         // Check if it's actually a module variable (not a function or system)
                                                         match &*symbol_type_rcref.borrow() {
                                                             SymbolType::ModuleVariable { .. } => {
-                                                                eprintln!("DEBUG: Found module variable '{}' being assigned in function", var_name);
+                                                                debug_print!("DEBUG: Found module variable '{}' being assigned in function", var_name);
                                                                 self.global_vars_in_function.insert(var_name.clone());
                                                             },
                                                             other => {
-                                                                eprintln!("DEBUG: Found '{}' but it's not a ModuleVariable, it's: {:?}", 
+                                                                debug_print!("DEBUG: Found '{}' but it's not a ModuleVariable, it's: {:?}", 
                                                                         var_name, std::mem::discriminant(other));
                                                             }
                                                         }
@@ -1607,7 +1616,7 @@ impl PythonVisitor {
                                                 }
                                                 // Debug if not found
                                                 if !self.global_vars_in_function.contains(var_name) {
-                                                    eprintln!("DEBUG: Variable '{}' not found in module scope at all", var_name);
+                                                    debug_print!("DEBUG: Variable '{}' not found in module scope at all", var_name);
                                                 }
                                             }
                                         }
@@ -1615,7 +1624,7 @@ impl PythonVisitor {
                                     ExprType::VariableExprT { var_node } => {
                                         // Legacy compatibility - handle old style VariableExprT
                                         let var_name = &var_node.id_node.name.lexeme;
-                                        eprintln!("DEBUG: Found assignment to variable (legacy): {}", var_name);
+                                        debug_print!("DEBUG: Found assignment to variable (legacy): {}", var_name);
                                         
                                         // Same logic as above
                                         for (symbol_name, symbol_type_rcref) in &self.arcanium.module_symtab.borrow().symbols {
@@ -1628,22 +1637,22 @@ impl PythonVisitor {
                                         }
                                     }
                                     _ => {
-                                        eprintln!("DEBUG: Assignment l_value is neither CallChainExprT nor VariableExprT");
+                                        debug_print!("DEBUG: Assignment l_value is neither CallChainExprT nor VariableExprT");
                                     }
                                 }
                             }
                             ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node: _ } => {
-                                eprintln!("DEBUG: Found CallChainStmtT - might be assignment!");
+                                debug_print!("DEBUG: Found CallChainStmtT - might be assignment!");
                                 // CallChainStmtT can also contain assignments
                                 // Need to check if this is an assignment expression
                             }
                             _ => {
-                                eprintln!("DEBUG: Found other ExprStmtType");
+                                debug_print!("DEBUG: Found other ExprStmtType");
                             }
                         }
                     }
                     _ => {
-                        eprintln!("DEBUG: Found other StatementType");
+                        debug_print!("DEBUG: Found other StatementType");
                     }
                 }
             }
@@ -4497,9 +4506,9 @@ impl PythonVisitor {
             self.indent();
             
             // Generate function body
-            eprintln!("DEBUG: Generating function '{}' in module '{:?}'", func.name, self.current_module_name);
-            eprintln!("  Current module path: {:?}", self.current_module_path);
-            eprintln!("  Nested module names: {:?}", self.nested_module_names);
+            debug_print!("DEBUG: Generating function '{}' in module '{:?}'", func.name, self.current_module_name);
+            debug_print!("  Current module path: {:?}", self.current_module_path);
+            debug_print!("  Nested module names: {:?}", self.nested_module_names);
             if !func.statements.is_empty() {
                 // Mark that we're in a standalone function
                 let was_in_function = self.in_standalone_function;
@@ -4572,23 +4581,23 @@ impl PythonVisitor {
             StatementType::ExpressionStmt { expr_stmt_t } => {
                 match expr_stmt_t {
                     ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
-                        eprintln!("DEBUG: CallChainStmtT in visit_stmt_type_helper");
+                        debug_print!("DEBUG: CallChainStmtT in visit_stmt_type_helper");
                         call_chain_literal_stmt_node.accept(self);
                     }
                     ExprStmtType::CallStmtT { call_stmt_node } => {
-                        eprintln!("DEBUG: CallStmtT in visit_stmt_type_helper");
+                        debug_print!("DEBUG: CallStmtT in visit_stmt_type_helper");
                         call_stmt_node.accept(self);
                     }
                     ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
-                        eprintln!("DEBUG: AssignmentStmtT in visit_stmt_type_helper");
+                        debug_print!("DEBUG: AssignmentStmtT in visit_stmt_type_helper");
                         assignment_stmt_node.accept(self);
                     }
                     ExprStmtType::VariableStmtT { variable_stmt_node } => {
-                        eprintln!("DEBUG: VariableStmtT in visit_stmt_type_helper");
+                        debug_print!("DEBUG: VariableStmtT in visit_stmt_type_helper");
                         variable_stmt_node.accept(self);
                     }
                     _ => {
-                        eprintln!("DEBUG: Other ExprStmtType in visit_stmt_type_helper");
+                        debug_print!("DEBUG: Other ExprStmtType in visit_stmt_type_helper");
                     }
                 }
             }
@@ -4793,12 +4802,12 @@ impl AstVisitor for PythonVisitor {
         }
         
         // Generate constructor if present
-        eprintln!("DEBUG visit_class_node: constructor present = {}", class_node.constructor.is_some());
+        debug_print!("DEBUG visit_class_node: constructor present = {}", class_node.constructor.is_some());
         if let Some(constructor_rcref) = &class_node.constructor {
             self.newline();
             self.newline();
             let constructor = constructor_rcref.borrow();
-            eprintln!("DEBUG visit_class_node: constructor statements count = {}", constructor.statements.len());
+            debug_print!("DEBUG visit_class_node: constructor statements count = {}", constructor.statements.len());
             
             // Generate __init__ method
             self.add_code("def __init__(self");
@@ -4832,9 +4841,9 @@ impl AstVisitor for PythonVisitor {
                         }
                         DeclOrStmtType::StmtT { stmt_t } => {
                             // Handle regular statements in constructor
-                            eprintln!("DEBUG: About to visit statement in constructor");
+                            debug_print!("DEBUG: About to visit statement in constructor");
                             self.visit_stmt_type_helper(stmt_t);
-                            eprintln!("DEBUG: Finished visiting statement in constructor");
+                            debug_print!("DEBUG: Finished visiting statement in constructor");
                         }
                     }
                 }
@@ -5503,7 +5512,7 @@ impl AstVisitor for PythonVisitor {
                     self.collect_global_assignments(&function_node.statements);
                     
                     // Debug: print what we found
-                    eprintln!("DEBUG: Function '{}' modifies module variables: {:?}", 
+                    debug_print!("DEBUG: Function '{}' modifies module variables: {:?}", 
                              function_node.name, self.global_vars_in_function);
                     
                     // Generate global declarations if needed
@@ -6295,13 +6304,13 @@ impl AstVisitor for PythonVisitor {
         
         // Debug: log the call chain to understand what's happening
         if let Some(call_chain) = &method_call.call_chain {
-            eprintln!("DEBUG visit_call_expression_node: method={}, call_chain length={}, context={:?}", 
+            debug_print!("DEBUG visit_call_expression_node: method={}, call_chain length={}, context={:?}", 
                 method_call.identifier.name.lexeme, call_chain.len(), method_call.context);
             for (i, _callable) in call_chain.iter().enumerate() {
-                eprintln!("  Call chain[{}]: <callable>", i);
+                debug_print!("  Call chain[{}]: <callable>", i);
             }
         } else {
-            eprintln!("DEBUG visit_call_expression_node: method={}, NO call_chain, context={:?}", 
+            debug_print!("DEBUG visit_call_expression_node: method={}, NO call_chain, context={:?}", 
                 method_call.identifier.name.lexeme, method_call.context);
         }
         
@@ -6335,7 +6344,7 @@ impl AstVisitor for PythonVisitor {
                 // BUT ONLY if there's no call chain (actions/operations are internal only)
                 let method_name = &method_call.identifier.name.lexeme;
                 
-                eprintln!("DEBUG REGULAR: method_name={}, has_call_chain={}", method_name, has_call_chain);
+                debug_print!("DEBUG REGULAR: method_name={}, has_call_chain={}", method_name, has_call_chain);
                 
                 // If there's a call chain, it's an external call (e.g., sys.testFruit())
                 // Don't apply action/operation transformations
@@ -6479,7 +6488,7 @@ impl AstVisitor for PythonVisitor {
             // BUT ONLY if there's no call chain (actions/operations are internal only)
             let method_name = &method_call.identifier.name.lexeme;
             
-            eprintln!("DEBUG: method_name={}, has_call_chain={}, output so far='{}'", method_name, has_call_chain, output);
+            debug_print!("DEBUG: method_name={}, has_call_chain={}, output so far='{}'", method_name, has_call_chain, output);
             
             // If there's a call chain, it's an external call (e.g., sys.testFruit())
             // Don't apply action/operation transformations
@@ -6884,7 +6893,7 @@ impl AstVisitor for PythonVisitor {
     // simplifying the implementation and reasoning about Frame programs.
 
     fn visit_call_chain_statement_node(&mut self, method_call_chain_stmt_node: &CallChainStmtNode) {
-        eprintln!("DEBUG visit_call_chain_statement_node: {} nodes", 
+        debug_print!("DEBUG visit_call_chain_statement_node: {} nodes", 
             method_call_chain_stmt_node.call_chain_literal_expr_node.call_chain.len());
         
         self.skip_next_newline();
@@ -6912,7 +6921,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         // standard case
-        eprintln!("DEBUG: Processing standard case with {} nodes", call_chain.len());
+        debug_print!("DEBUG: Processing standard case with {} nodes", call_chain.len());
         
         // Check if this is an assert statement (single "assert" identifier)
         // If so, suppress the newline so the expression stays on the same line
@@ -6981,13 +6990,13 @@ impl AstVisitor for PythonVisitor {
             return;
         }
         
-        eprintln!("DEBUG visit_call_chain_expr_node: Processing {} nodes", call_l_chain_expression_node.call_chain.len());
-        eprintln!("DEBUG: starts_with_self_var = {}", starts_with_self_var);
+        debug_print!("DEBUG visit_call_chain_expr_node: Processing {} nodes", call_l_chain_expression_node.call_chain.len());
+        debug_print!("DEBUG: starts_with_self_var = {}", starts_with_self_var);
         
         for (i, node) in call_l_chain_expression_node.call_chain.iter().enumerate() {
             // Skip the first "self" node in self.variable patterns
             if starts_with_self_var && i == 0 {
-                eprintln!("DEBUG: Skipping 'self' node at index 0");
+                debug_print!("DEBUG: Skipping 'self' node at index 0");
                 continue;
             }
             
@@ -6998,7 +7007,7 @@ impl AstVisitor for PythonVisitor {
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme)
                 },
                 CallChainNodeType::UndeclaredCallT { call_node } => {
-                    eprintln!("DEBUG: Processing UndeclaredCall '{}' at index {}", call_node.identifier.name.lexeme, i);
+                    debug_print!("DEBUG: Processing UndeclaredCall '{}' at index {}", call_node.identifier.name.lexeme, i);
                     format!("UndeclaredCall({})", call_node.identifier.name.lexeme)
                 },
                 CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => format!("InterfaceMethodCall({})", interface_method_call_expr_node.identifier.name.lexeme),
@@ -7006,7 +7015,7 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::OperationRefT { operation_ref_expr_node } => format!("OperationRef({})", operation_ref_expr_node.name),
                 CallChainNodeType::ActionCallT { action_call_expr_node } => format!("ActionCall({})", action_call_expr_node.identifier.name.lexeme),
                 CallChainNodeType::VariableNodeT { var_node } => {
-                    eprintln!("DEBUG: Processing Variable '{}' at index {}", var_node.id_node.name.lexeme, i);
+                    debug_print!("DEBUG: Processing Variable '{}' at index {}", var_node.id_node.name.lexeme, i);
                     format!("Variable({})", var_node.id_node.name.lexeme)
                 },
                 CallChainNodeType::ListElementNodeT { .. } => "ListElement".to_string(),
@@ -7020,7 +7029,7 @@ impl AstVisitor for PythonVisitor {
             if starts_with_self_var && i == 1 {
                 // For self.variable, we already have the context, just output the variable name
                 if let CallChainNodeType::VariableNodeT { var_node } = &node {
-                    eprintln!("DEBUG: Outputting self.variable pattern: self.{}", var_node.id_node.name.lexeme);
+                    debug_print!("DEBUG: Outputting self.variable pattern: self.{}", var_node.id_node.name.lexeme);
                     self.add_code(&format!("self.{}", var_node.id_node.name.lexeme));
                     separator = ".";
                     continue;
@@ -7054,11 +7063,11 @@ impl AstVisitor for PythonVisitor {
                     self.add_code("self");
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                    eprintln!("DEBUG: Accepting UndeclaredIdentifier '{}'", id_node.name.lexeme);
-                    eprintln!("  Current system enums: {:?}", self.current_system_enums);
-                    eprintln!("  Nested module names: {:?}", self.nested_module_names);
-                    eprintln!("  Current module path: {:?}", self.current_module_path);
-                    eprintln!("  Checking if '{}' is in enum set", id_node.name.lexeme);
+                    debug_print!("DEBUG: Accepting UndeclaredIdentifier '{}'", id_node.name.lexeme);
+                    debug_print!("  Current system enums: {:?}", self.current_system_enums);
+                    debug_print!("  Nested module names: {:?}", self.nested_module_names);
+                    debug_print!("  Current module path: {:?}", self.current_module_path);
+                    debug_print!("  Checking if '{}' is in enum set", id_node.name.lexeme);
                     
                     // v0.46: Handle 'super' in call chains
                     if id_node.name.lexeme == "super" {
@@ -7071,12 +7080,12 @@ impl AstVisitor for PythonVisitor {
                     // v0.57: Check if this is a nested module reference within the current module
                     // When inside a module function and referencing a nested module, qualify it with the module name
                     if !self.current_module_path.is_empty() && self.nested_module_names.contains(&id_node.name.lexeme) {
-                        eprintln!("  Found nested module reference '{}' inside module - qualifying with full module path", id_node.name.lexeme);
+                        debug_print!("  Found nested module reference '{}' inside module - qualifying with full module path", id_node.name.lexeme);
                         // In Python, static methods need to qualify nested class references with the parent class name
                         // E.g., inside Engineering.getTotalSize(), reference Frontend as Engineering.Frontend
                         // Build the full path to the nested module
                         let qualified_name = self.current_module_path.join(".") + "." + &id_node.name.lexeme;
-                        eprintln!("  Qualified name: {}", qualified_name);
+                        debug_print!("  Qualified name: {}", qualified_name);
                         self.add_code(&qualified_name);
                         continue;
                     }
@@ -7117,13 +7126,13 @@ impl AstVisitor for PythonVisitor {
                             
                             // Check if this enum is defined in the current system
                             if self.current_system_enums.contains(enum_name) {
-                                eprintln!("  Found enum member reference: {}.{} - qualifying with system name", enum_name, member_name);
+                                debug_print!("  Found enum member reference: {}.{} - qualifying with system name", enum_name, member_name);
                                 self.add_code(&format!("{}_{}.{}", self.system_name, enum_name, member_name));
                             } else if self.module_level_enums.contains(enum_name) {
-                                eprintln!("  Found module-level enum member reference: {}.{}", enum_name, member_name);
+                                debug_print!("  Found module-level enum member reference: {}.{}", enum_name, member_name);
                                 self.add_code(&id_node.name.lexeme);
                             } else {
-                                eprintln!("  Enum member reference but enum not found - using as-is");
+                                debug_print!("  Enum member reference but enum not found - using as-is");
                                 id_node.accept(self);
                             }
                         } else {
@@ -7133,20 +7142,20 @@ impl AstVisitor for PythonVisitor {
                     } else if self.current_system_enums.contains(&id_node.name.lexeme) {
                         // Check if this identifier is an enum defined in the current system
                         // If so, qualify it with the system name
-                        eprintln!("  YES - qualifying with system name: {}_{}", self.system_name, id_node.name.lexeme);
+                        debug_print!("  YES - qualifying with system name: {}_{}", self.system_name, id_node.name.lexeme);
                         self.add_code(&format!("{}_{}", self.system_name, id_node.name.lexeme));
                     } else {
-                        eprintln!("  NO - using unqualified name");
+                        debug_print!("  NO - using unqualified name");
                         id_node.accept(self);
                     }
                 }
                 CallChainNodeType::UndeclaredCallT { call_node: call } => {
-                    eprintln!("DEBUG: Processing UndeclaredCall '{}' in call chain, in_call_chain={}", call.identifier.name.lexeme, self.in_call_chain);
+                    debug_print!("DEBUG: Processing UndeclaredCall '{}' in call chain, in_call_chain={}", call.identifier.name.lexeme, self.in_call_chain);
                     // For multi-node chains (e.g., sys.testFruit()), don't add self._ prefix
                     // For single-node chains (e.g., _testFruit()), let it go through normal processing
                     if self.in_call_chain {
                         // Multi-node chain - check for string method transformations
-                        eprintln!("DEBUG: Multi-node chain - checking for FSL string operations");
+                        debug_print!("DEBUG: Multi-node chain - checking for FSL string operations");
                         
                         // v0.46: Handle super().init() -> super().__init__()
                         // Check if the previous token was super()
@@ -7270,7 +7279,7 @@ impl AstVisitor for PythonVisitor {
                         // Check if this variable is actually an enum type defined in the current system
                         // If so, qualify it with the system name
                         if self.current_system_enums.contains(&var_node.id_node.name.lexeme) {
-                            eprintln!("  Variable '{}' is an enum - qualifying with system name: {}_{}", 
+                            debug_print!("  Variable '{}' is an enum - qualifying with system name: {}_{}", 
                                       var_node.id_node.name.lexeme, self.system_name, var_node.id_node.name.lexeme);
                             self.add_code(&format!("{}_{}", self.system_name, var_node.id_node.name.lexeme));
                         } else {
@@ -7608,24 +7617,24 @@ impl AstVisitor for PythonVisitor {
                     output.push_str("self");
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                    eprintln!("DEBUG _to_string: UndeclaredIdentifier '{}'", id_node.name.lexeme);
-                    eprintln!("  Current system enums: {:?}", self.current_system_enums);
-                    eprintln!("  Nested module names: {:?}", self.nested_module_names);
-                    eprintln!("  Current module path: {:?}", self.current_module_path);
+                    debug_print!("DEBUG _to_string: UndeclaredIdentifier '{}'", id_node.name.lexeme);
+                    debug_print!("  Current system enums: {:?}", self.current_system_enums);
+                    debug_print!("  Nested module names: {:?}", self.nested_module_names);
+                    debug_print!("  Current module path: {:?}", self.current_module_path);
                     
                     // v0.57: Check if this is a nested module reference within the current module
                     if !self.current_module_path.is_empty() && self.nested_module_names.contains(&id_node.name.lexeme) {
-                        eprintln!("  Found nested module reference '{}' - qualifying with full module path", id_node.name.lexeme);
+                        debug_print!("  Found nested module reference '{}' - qualifying with full module path", id_node.name.lexeme);
                         // In Python, static methods need to qualify nested class references with the parent class name
                         let qualified_name = self.current_module_path.join(".") + "." + &id_node.name.lexeme;
-                        eprintln!("  Qualified name: {}", qualified_name);
+                        debug_print!("  Qualified name: {}", qualified_name);
                         output.push_str(&qualified_name);
                     } else if self.current_system_enums.contains(&id_node.name.lexeme) {
                         // Check if this identifier is an enum defined in the current system
-                        eprintln!("  YES - qualifying: {}_{}", self.system_name, id_node.name.lexeme);
+                        debug_print!("  YES - qualifying: {}_{}", self.system_name, id_node.name.lexeme);
                         output.push_str(&format!("{}_{}", self.system_name, id_node.name.lexeme));
                     } else {
-                        eprintln!("  NO - using unqualified");
+                        debug_print!("  NO - using unqualified");
                         id_node.accept_to_string(self, output);
                     }
                 }
@@ -7786,15 +7795,15 @@ impl AstVisitor for PythonVisitor {
                 if !self.system_name.is_empty() {
                     // Use system-prefixed enum name
                     let qualified_name = format!("{}_{}", self.system_name, enum_name);
-                    // eprintln!("  Using qualified enum name: {}", qualified_name);
+                    // debug_print!("  Using qualified enum name: {}", qualified_name);
                     self.add_code(&qualified_name);
                 } else {
                     // Module-level enum, use directly
-                    // eprintln!("  Using module-level enum name: {}", enum_name);
+                    // debug_print!("  Using module-level enum name: {}", enum_name);
                     self.add_code(enum_name);
                 }
             } else {
-                // eprintln!("  No enum_type_name, falling back to regular iterable");
+                // debug_print!("  No enum_type_name, falling back to regular iterable");
                 // Fallback to regular iterable
                 for_stmt_node.iterable.accept(self);
             }
@@ -10065,7 +10074,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_enum_decl_node(&mut self, enum_decl_node: &EnumDeclNode) {
-        eprintln!("DEBUG: Generating enum: {}", enum_decl_node.name);
+        debug_print!("DEBUG: Generating enum: {}", enum_decl_node.name);
         self.newline();
         self.newline();
 
@@ -10085,7 +10094,7 @@ impl AstVisitor for PythonVisitor {
                 enumerator_decl_node.accept(self);
             } else {
                 // DEBUG: Log when we skip a duplicate
-                eprintln!("DEBUG: Skipping duplicate enum entry: {}", enumerator_decl_node.name);
+                debug_print!("DEBUG: Skipping duplicate enum entry: {}", enumerator_decl_node.name);
             }
         }
 

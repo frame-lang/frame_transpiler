@@ -1,6 +1,6 @@
 # Frame v0.57 Development Notes
 
-## v0.57 Multi-File Module System Infrastructure - COMPLETE! (2025-01-25)
+## v0.57 Multi-File Module System Infrastructure - COMPLETE! (2025-09-14)
 
 ### Major Multi-File Capabilities Added
 
@@ -125,11 +125,12 @@ framec -m entry.frm -l python_3 -o /output/dir
 - Phase 9: Package management support
 
 ### Test Results
-- **Total Tests**: 344
-- **Passed**: 344
+- **Total Tests**: 374
+- **Passed**: 374
 - **Failed**: 0
 - **Success Rate**: 100%
 - **Multi-File Tests**: Working with automatic detection
+- **Debug Output**: Controlled via FRAME_TRANSPILER_DEBUG environment variable
 
 ### Key Technical Achievements
 

@@ -1,6 +1,6 @@
 # Frame Language AI Guide
 *Version 0.57 - Comprehensive Grammar and Code Style Reference for AI Systems*
-*Last Updated: January 25, 2025*
+*Last Updated: September 14, 2025*
 
 ## 🎯 Purpose
 This guide is specifically designed for AI systems (LLMs, code assistants, etc.) to quickly understand Frame's grammar, generate correct Frame code, and assist developers effectively. Frame is a state machine language that transpiles to Python (and other targets).
@@ -815,21 +815,33 @@ var *head, last = sequence
 
 ## 📚 Version History Highlights
 
-- **v0.57**: Multi-file module system infrastructure with Frame imports (100% test success)
-- **v0.56**: Walrus operator, type aliases
+- **v0.57** (Sept 2025): Multi-file module system with Frame imports, separate file generation (374/374 tests)
+- **v0.56**: Walrus operator, type aliases, enhanced numerics
+- **v0.55**: State parameters fixed, 100% test success achieved
 - **v0.54**: Star expressions, collection constructors
-- **v0.45**: Class support with OOP
+- **v0.53**: Collection parsing fix, multiple variable declarations
+- **v0.52**: Multiple assignment, tuple unpacking
+- **v0.51**: Loop else clauses
+- **v0.50**: Delete statement support
+- **v0.49**: Complete error handling (try/except/finally/raise)
+- **v0.48**: Python-style access modifiers
+- **v0.47**: With statement support
+- **v0.46**: Complete class support with inheritance
+- **v0.45**: Basic class support with OOP
 - **v0.44**: Pattern matching with match-case
 - **v0.43**: Type annotations
 - **v0.42**: Generators and async generators
-- **v0.41**: Set comprehensions
-- **v0.40**: Python comments (#), string literals, operators
+- **v0.41**: Set comprehensions, string literal method calls
+- **v0.40**: Python comments (#), enhanced string literals, XOR, matrix ops
 - **v0.39**: Compound assignments, bitwise, identity operators
-- **v0.38**: Python logical operators (and/or/not), membership
-- **v0.37**: Async event handlers, slicing
+- **v0.38**: Python logical operators (and/or/not), membership (in/not in)
+- **v0.37**: Async event handlers, slicing operations
+- **v0.36**: Event-handlers-as-functions architecture
 - **v0.35**: Async/await foundation
-- **v0.34**: Module system, list comprehensions
-- **v0.31**: Import statements, self expression
+- **v0.34**: Module system, list comprehensions, unpacking
+- **v0.33**: Frame Standard Library (native operations)
+- **v0.32**: Advanced enum features
+- **v0.31**: Import statements, self expression, static methods
 
 ## 🤖 AI Code Generation Tips
 

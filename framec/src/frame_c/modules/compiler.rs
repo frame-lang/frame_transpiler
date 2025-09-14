@@ -224,18 +224,24 @@ impl MultiFileCompiler {
     
     /// Compile a Frame project starting from an entry point
     pub fn compile(&mut self, entry_file: &Path) -> ModuleResult<String> {
-        eprintln!("DEBUG: Starting multi-file compilation from {:?}", entry_file);
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Starting multi-file compilation from {:?}", entry_file);
+        }
         
         // Phase 1: Discover all modules
         self.discover_modules(entry_file)?;
-        eprintln!("DEBUG: Discovered {} modules", self.parsed_modules.len());
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Discovered {} modules", self.parsed_modules.len());
+        }
         
         // Phase 2: Build dependency graph
         self.build_dependency_graph()?;
         
         // Phase 3: Compile modules in dependency order
         let compilation_order = self.dependency_graph.get_build_order()?;
-        eprintln!("DEBUG: Compilation order has {} modules", compilation_order.len());
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Compilation order has {} modules", compilation_order.len());
+        }
         for module_path in compilation_order {
             self.compile_module(&module_path)?;
         }

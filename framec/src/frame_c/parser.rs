@@ -1515,7 +1515,9 @@ impl<'a> Parser<'a> {
                     } else {
                         // Function symbol not found - this shouldn't happen in normal cases
                         // Continue processing but log for debugging
-                        eprintln!("Warning: Function symbol '{}' not found during AST association", function_name);
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("Warning: Function symbol '{}' not found during AST association", function_name);
+                        }
                     }
                 }
                 Err(_err) => {
@@ -1578,7 +1580,7 @@ impl<'a> Parser<'a> {
             // Look up the system symbol from the module scope
             if let Some(system_symbol) = self.arcanum.get_system_by_name(&system_name) {
                 // Debug: Check if the system symbol has blocks
-                {
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     let sys = system_symbol.borrow();
                     // eprintln!("DEBUG: Retrieved system '{}' in semantic pass", sys.name);
                     eprintln!("  Has actions block: {}", sys.actions_block_symbol_opt.is_some());
@@ -1587,7 +1589,9 @@ impl<'a> Parser<'a> {
                 }
                 self.arcanum.set_current_system_symbol(Some(system_symbol));
             } else {
-                eprintln!("WARNING: Could not find system symbol '{}' in semantic pass", system_name);
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("WARNING: Could not find system symbol '{}' in semantic pass", system_name);
+                }
             }
         }
 
