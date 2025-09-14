@@ -90,6 +90,14 @@ None                      # NOT: null, nil
 ```frame
 import math                           # Python
 import Utils from "./utils.frm"      # Frame file
+import Calc from "./calc.frm" as C   # Aliased
+import { add, mul } from "./ops.frm" # Selective
+```
+
+### Compilation
+```bash
+framec -m main.frm -l python_3       # Concatenated (default)
+framec -m main.frm -l python_3 -o dir # Separate files (NEW!)
 ```
 
 ## 🚨 Critical Rules

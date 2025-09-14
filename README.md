@@ -17,6 +17,7 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Security Validation**: Path traversal protection and validation
 - **Incremental Compilation**: SHA-256 based caching for efficiency
 - **Module Access**: Use `::` for static access in Frame (transpiles to `.` in Python)
+- **Separate File Generation**: Generate individual Python files with `-o` flag
 
 ### Core Language
 - **State Machines**: Hierarchical state machines with enter/exit handlers
@@ -141,8 +142,13 @@ main()
 
 **Compile:**
 ```bash
+# Option 1: Generate single concatenated file (default)
 framec -m main.frm -l python_3 > output.py
 python3 output.py
+
+# Option 2: Generate separate Python files (NEW!)
+framec -m main.frm -l python_3 -o ./output
+python3 output/main.py
 ```
 
 ## Frame Examples

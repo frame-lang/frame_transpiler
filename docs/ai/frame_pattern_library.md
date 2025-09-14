@@ -1086,6 +1086,85 @@ fn main() {
 }
 ```
 
+## 🗂️ Multi-File Project Patterns (v0.57)
+
+### Calculator with Utils
+```frame
+# utils.frm - Utility module
+module MathUtils {
+    var PI = 3.14159
+    
+    fn add(a, b) {
+        return a + b
+    }
+    
+    fn multiply(a, b) {
+        return a * b
+    }
+    
+    fn circle_area(radius) {
+        return PI * radius * radius
+    }
+}
+
+fn format_result(value) {
+    return f"Result: {value:.2f}"
+}
+```
+
+```frame
+# calculator.frm - Main calculator system
+import MathUtils from "./utils.frm"
+import { format_result } from "./utils.frm"
+
+system Calculator {
+    interface:
+        compute(op, a, b) -> str
+        circle_area(r) -> str
+    
+    machine:
+        $Ready {
+            compute(op, a, b) {
+                var result = 0
+                if op == "add" {
+                    result = MathUtils::add(a, b)
+                } elif op == "multiply" {
+                    result = MathUtils::multiply(a, b)
+                }
+                system.return = format_result(result)
+                return
+            }
+            
+            circle_area(r) {
+                var area = MathUtils::circle_area(r)
+                system.return = format_result(area)
+                return
+            }
+        }
+}
+
+fn main() {
+    var calc = Calculator()
+    print(calc.compute("add", 5, 3))
+    print(calc.circle_area(10))
+}
+```
+
+### Compilation Examples
+```bash
+# Concatenated output (default)
+framec -m calculator.frm -l python_3 > output.py
+python3 output.py
+
+# Separate Python files with package structure
+framec -m calculator.frm -l python_3 -o ./calculator_pkg
+# Creates:
+#   calculator_pkg/__init__.py
+#   calculator_pkg/calculator.py
+#   calculator_pkg/utils.py
+python3 -m calculator_pkg.calculator
+```
+
 ---
 
 *These patterns are complete, tested examples that AI systems can adapt for generating Frame code. Each pattern demonstrates proper Frame syntax, state machine design, and Python integration.*

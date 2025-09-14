@@ -214,6 +214,14 @@ impl MultiFileCompiler {
         })
     }
     
+    /// Set the output directory for separate file generation
+    pub fn set_output_dir(&mut self, output_dir: PathBuf) {
+        self.linker = ModuleLinker::new(LinkingStrategy::SeparateFiles {
+            output_dir,
+            create_package: true,
+        });
+    }
+    
     /// Compile a Frame project starting from an entry point
     pub fn compile(&mut self, entry_file: &Path) -> ModuleResult<String> {
         eprintln!("DEBUG: Starting multi-file compilation from {:?}", entry_file);

@@ -17,6 +17,9 @@ pub struct Cli {
     
     /// Multi-file project mode
     multifile: bool,
+    
+    /// Output directory for multi-file mode
+    output_dir: Option<PathBuf>,
 }
 
 impl Cli {
@@ -43,6 +46,14 @@ impl Cli {
                     .help("Enable multi-file project compilation")
                     .action(clap::ArgAction::SetTrue),
             )
+            .arg(
+                Arg::new("output-dir")
+                    .long("output-dir")
+                    .short('o')
+                    .help("Output directory for generated files (multi-file mode)")
+                    .value_name("DIR")
+                    .num_args(1),
+            )
             .get_matches();
 
         let mut stdin = false;
@@ -58,12 +69,16 @@ impl Cli {
         let language_opt = language.map(|lang| lang.clone());
         
         let multifile = matches.get_flag("multifile");
+        
+        let output_dir = matches.get_one::<String>("output-dir");
+        let output_dir_opt = output_dir.map(|dir| PathBuf::from(dir.clone()));
 
         Cli {
             stdin_flag: stdin,
             path: path_opt,
             language: language_opt,
             multifile,
+            output_dir: output_dir_opt,
         }
     }
 }
@@ -108,7 +123,7 @@ pub fn run_with(args: Cli) {
     } else {
         let path = args.path.unwrap();
         let result = if args.multifile {
-            exe.run_multifile(&path, target_language)
+            exe.run_multifile(&path, target_language, args.output_dir)
         } else {
             exe.run_file(&path, target_language)
         };

@@ -426,6 +426,14 @@ fn example() {
     var area = Math::Constants::PI * r   # Nested module access
 }
 # Note: :: transpiles to . in Python output
+
+# Compilation commands:
+# Single file (concatenation - default):
+framec -m main.frm -l python_3
+
+# Separate Python files (NEW!):
+framec -m main.frm -l python_3 -o ./output
+# Creates: output/main.py, output/utils.py, output/__init__.py
 ```
 
 ### Async/Await (v0.35+)

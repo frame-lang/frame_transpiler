@@ -4,7 +4,7 @@
 
 ### Major Multi-File Capabilities Added
 
-Frame v0.57 delivers complete multi-file module system infrastructure, achieving **100% test success rate** with all 374 tests passing:
+Frame v0.57 delivers complete multi-file module system infrastructure with **separate file generation**, achieving **100% test success rate** with all 374 tests passing:
 
 **New Multi-File Features:**
 1. **Frame File Imports** - Import Frame modules from other .frm files
@@ -14,6 +14,7 @@ Frame v0.57 delivers complete multi-file module system infrastructure, achieving
 5. **Incremental Compilation** - SHA-256 based caching for efficient rebuilds
 6. **Module Generation** - Modules transpiled as Python classes with static methods
 7. **Working Multi-File Projects** - Full compilation pipeline operational
+8. **Separate File Generation** - Generate individual Python files for each Frame module (NEW!)
 
 ### Frame Import Syntax (New in v0.57)
 
@@ -28,6 +29,25 @@ import Calculator from "./calc.frm" as Calc
 # Selective imports (destructuring)
 import { add, multiply, divide } from "./math.frm"
 ```
+
+### Separate File Generation (NEW!)
+
+**CLI Usage:**
+```bash
+# Generate separate Python files in specified directory
+framec -m entry.frm -l python_3 -o /output/dir
+
+# Creates:
+# - /output/dir/module1.py
+# - /output/dir/module2.py  
+# - /output/dir/__init__.py (for Python package)
+```
+
+**Features:**
+- Each Frame module becomes its own Python file
+- Automatic Python import generation between modules
+- Package structure with `__init__.py`
+- Backward compatible (concatenation mode still default)
 
 ### Infrastructure Components
 

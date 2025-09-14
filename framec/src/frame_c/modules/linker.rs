@@ -2,7 +2,9 @@
 // Combines multiple compiled modules into final output
 
 use std::collections::{HashMap, HashSet};
-use super::errors::{ModuleResult};
+use std::fs;
+use std::path::{Path, PathBuf};
+use super::errors::{ModuleResult, ModuleError, ModuleErrorKind};
 use super::compiler::CompiledModule;
 
 /// Module linker that combines compiled modules
@@ -22,6 +24,12 @@ pub struct ModuleLinker {
 pub enum LinkingStrategy {
     /// Simple concatenation in dependency order
     Concatenation,
+    
+    /// Generate separate files for each module
+    SeparateFiles {
+        output_dir: std::path::PathBuf,
+        create_package: bool,  // Whether to create __init__.py
+    },
     
     /// Future: Smart linking with dead code elimination
     Optimized {
@@ -77,8 +85,11 @@ impl ModuleLinker {
         }
         
         // Perform linking based on strategy
-        match &self.strategy {
+        match self.strategy.clone() {
             LinkingStrategy::Concatenation => self.link_concatenation(),
+            LinkingStrategy::SeparateFiles { output_dir, create_package } => {
+                self.link_separate_files(&output_dir, create_package)
+            },
             LinkingStrategy::Optimized { .. } => self.link_optimized(),
         }
     }
@@ -169,7 +180,6 @@ impl ModuleLinker {
             output.push_str("\n# Module initialization\n");
             output.push_str("\n");
             // Look for any top-level function calls (but not if already in main guard)
-            let mut found_main_call = false;
             for (_, code) in &module_codes {
                 if let Some(main_call) = self.extract_main_call(code) {
                     // Check if this is already inside a main guard
@@ -177,7 +187,6 @@ impl ModuleLinker {
                         output.push_str(&main_call);
                         output.push_str("\n\n");
                     }
-                    found_main_call = true;
                     break;
                 }
             }
@@ -352,6 +361,191 @@ impl ModuleLinker {
             }
         }
         None
+    }
+    
+    /// Generate separate Python files for each module
+    fn link_separate_files(&mut self, output_dir: &Path, create_package: bool) -> ModuleResult<String> {
+        use crate::frame_c::visitors::python_visitor::PythonVisitor;
+        use crate::frame_c::config::FrameConfig;
+        
+        // Create output directory if it doesn't exist
+        fs::create_dir_all(output_dir).map_err(|e| {
+            ModuleError::new(
+                ModuleErrorKind::IOError {
+                    path: output_dir.to_path_buf(),
+                    error: e.to_string(),
+                },
+                format!("Failed to create output directory: {}", output_dir.display()),
+            )
+        })?;
+        
+        let config = FrameConfig::default();
+        let framec_version = "Emitted from framec_v0.57.0";
+        
+        // Process each module and generate its Python file
+        let modules = std::mem::take(&mut self.modules);
+        let mut generated_files = Vec::new();
+        let mut module_map = HashMap::new(); // Map Frame paths to Python module names
+        
+        for module in modules {
+            // Generate Python module name from Frame file path
+            let py_module_name = self.frame_path_to_python_module(&module.file_path);
+            module_map.insert(module.file_path.clone(), py_module_name.clone());
+            
+            // Create a visitor for this module
+            let mut visitor = PythonVisitor::new(
+                module.symbols,
+                false, // generate_state_stack
+                false, // generate_change_state
+                framec_version,
+                Vec::new(), // comments
+                config.clone(),
+            );
+            
+            // Generate code for this module
+            visitor.run_v2(&module.ast);
+            let mut module_code = visitor.get_code();
+            
+            // Add Python imports for Frame imports
+            let python_imports = self.generate_python_imports(&module.ast, &module_map, &module.file_path);
+            if !python_imports.is_empty() {
+                // Insert imports after the version comment
+                let lines: Vec<&str> = module_code.lines().collect();
+                let mut output = String::new();
+                
+                // Keep the version comment
+                if let Some(version_line) = lines.first() {
+                    if version_line.starts_with("#Emitted") {
+                        output.push_str(version_line);
+                        output.push_str("\n\n");
+                    }
+                }
+                
+                // Add Python imports for Frame modules
+                output.push_str("# Frame module imports\n");
+                output.push_str(&python_imports);
+                output.push_str("\n");
+                
+                // Add the rest of the code (skipping version comment if present)
+                let start_idx = if lines.first().map_or(false, |l| l.starts_with("#Emitted")) { 1 } else { 0 };
+                for line in &lines[start_idx..] {
+                    output.push_str(line);
+                    output.push('\n');
+                }
+                
+                module_code = output;
+            }
+            
+            // Write to file
+            let py_file_name = format!("{}.py", py_module_name);
+            let py_file_path = output_dir.join(&py_file_name);
+            
+            fs::write(&py_file_path, module_code).map_err(|e| {
+                ModuleError::new(
+                    ModuleErrorKind::IOError {
+                        path: py_file_path.clone(),
+                        error: e.to_string(),
+                    },
+                    format!("Failed to write Python file: {}", py_file_path.display()),
+                )
+            })?;
+            
+            generated_files.push(py_file_path);
+        }
+        
+        // Create __init__.py if requested
+        if create_package {
+            let init_path = output_dir.join("__init__.py");
+            let init_content = "# Frame package\n# Auto-generated by Frame Transpiler v0.57\n";
+            fs::write(&init_path, init_content).map_err(|e| {
+                ModuleError::new(
+                    ModuleErrorKind::IOError {
+                        path: init_path.clone(),
+                        error: e.to_string(),
+                    },
+                    format!("Failed to write __init__.py: {}", init_path.display()),
+                )
+            })?;
+            generated_files.push(init_path);
+        }
+        
+        // Return a summary of what was generated
+        let mut summary = String::new();
+        summary.push_str(&format!("# Generated {} Python files in {}\n", 
+            generated_files.len(), output_dir.display()));
+        for file in &generated_files {
+            summary.push_str(&format!("# - {}\n", file.display()));
+        }
+        
+        Ok(summary)
+    }
+    
+    /// Convert Frame file path to Python module name
+    fn frame_path_to_python_module(&self, frame_path: &Path) -> String {
+        // Get the file stem (filename without extension)
+        frame_path.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("module")
+            .to_string()
+    }
+    
+    /// Generate Python import statements for Frame imports
+    fn generate_python_imports(&self, ast: &crate::frame_c::ast::FrameModule, 
+                               module_map: &HashMap<PathBuf, String>,
+                               current_path: &Path) -> String {
+        use crate::frame_c::ast::ImportType;
+        
+        let mut imports = Vec::new();
+        
+        for import_node in &ast.imports {
+            match &import_node.import_type {
+                ImportType::FrameModule { module_name, file_path } => {
+                    // Calculate the Python module name for the imported Frame file
+                    let import_path = current_path.parent()
+                        .unwrap_or(Path::new("."))
+                        .join(file_path.trim_start_matches("./"));
+                    
+                    if let Some(py_module) = module_map.get(&import_path) {
+                        imports.push(format!("from {} import {}", py_module, module_name));
+                    } else {
+                        // Fall back to deriving from file path
+                        let py_module = self.frame_path_to_python_module(&import_path);
+                        imports.push(format!("from {} import {}", py_module, module_name));
+                    }
+                }
+                ImportType::FrameModuleAliased { module_name, file_path, alias } => {
+                    let import_path = current_path.parent()
+                        .unwrap_or(Path::new("."))
+                        .join(file_path.trim_start_matches("./"));
+                    
+                    if let Some(py_module) = module_map.get(&import_path) {
+                        imports.push(format!("from {} import {} as {}", py_module, module_name, alias));
+                    } else {
+                        let py_module = self.frame_path_to_python_module(&import_path);
+                        imports.push(format!("from {} import {} as {}", py_module, module_name, alias));
+                    }
+                }
+                ImportType::FrameSelective { items, file_path } => {
+                    let import_path = current_path.parent()
+                        .unwrap_or(Path::new("."))
+                        .join(file_path.trim_start_matches("./"));
+                    
+                    if let Some(py_module) = module_map.get(&import_path) {
+                        let items_str = items.join(", ");
+                        imports.push(format!("from {} import {}", py_module, items_str));
+                    } else {
+                        let py_module = self.frame_path_to_python_module(&import_path);
+                        let items_str = items.join(", ");
+                        imports.push(format!("from {} import {}", py_module, items_str));
+                    }
+                }
+                _ => {
+                    // Skip Python imports, they're already handled
+                }
+            }
+        }
+        
+        imports.join("\n")
     }
     
     /// Optimized linking with dead code elimination (future)

@@ -182,6 +182,21 @@ import Lib from "../lib/helpers.frm"   # Parent directory
 
 **Cause**: Two or more modules import each other
 
+#### Separate File Generation Issues
+**Symptom**: Generated Python files can't import each other
+
+**Solution**:
+```bash
+# Ensure using -o flag for separate files
+framec -m main.frm -l python_3 -o ./output
+
+# Check generated __init__.py exists
+ls output/__init__.py
+
+# Verify Python imports were generated
+grep "from .* import" output/*.py
+```
+
 **Solution**: Restructure code to avoid circular imports
 
 #### Module Access Syntax

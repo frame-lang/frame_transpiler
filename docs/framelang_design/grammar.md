@@ -130,14 +130,19 @@ fn main() {
 Frame provides automatic multi-file compilation with the `-m` flag:
 
 ```bash
-# Compile multi-file Frame project
+# Compile multi-file Frame project (concatenation mode - default)
 framec -m main.frm -l python_3
+
+# Generate separate Python files (NEW in v0.57!)
+framec -m main.frm -l python_3 -o /output/dir
 
 # The compiler automatically:
 # 1. Discovers all imported .frm files
 # 2. Resolves dependencies with cycle detection
 # 3. Compiles in topological order
-# 4. Links modules into single output file
+# 4. Links modules based on strategy:
+#    - Default: Concatenates into single output file
+#    - With -o flag: Generates separate .py files with proper imports
 ```
 
 ### Module Generation

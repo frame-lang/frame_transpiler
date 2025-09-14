@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::io;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // Re-export this enum here since it's part of the interface for the run functions. The definition
 // lives with visitors since adding a new visitor requires extending the enum and its trait impls.
@@ -85,6 +85,7 @@ impl Exe {
         &self,
         entry_path: &Path,
         target_language: Option<TargetLanguage>,
+        output_dir: Option<PathBuf>,
     ) -> Result<String, RunError> {
         // For now, only support Python target for multi-file
         let lang = target_language.unwrap_or(TargetLanguage::Python3);
@@ -100,6 +101,11 @@ impl Exe {
         let mut compiler = MultiFileCompiler::new_for_entry(config, entry_path).map_err(|e| {
             RunError::new(frame_exitcode::PARSE_ERR, &format!("Failed to create multi-file compiler: {}", e))
         })?;
+        
+        // If output_dir is specified, use separate files strategy
+        if let Some(dir) = output_dir {
+            compiler.set_output_dir(dir);
+        }
         
         let output = compiler.compile(entry_path).map_err(|e| {
             RunError::new(frame_exitcode::PARSE_ERR, &format!("Multi-file compilation failed: {}", e))
