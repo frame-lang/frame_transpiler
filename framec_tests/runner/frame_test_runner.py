@@ -18,6 +18,7 @@ import sys
 import subprocess
 import json
 import argparse
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
@@ -39,6 +40,133 @@ class FrameTestRunner:
         self.results = []
         self.verbose = False
         
+    def is_negative_test(self, frm_file: str) -> bool:
+        """
+        Check if a test is expected to fail (negative test)
+        
+        Args:
+            frm_file: Path to the .frm file
+            
+        Returns:
+            True if the test is in negative_tests directory
+        """
+        return 'negative_tests' in frm_file
+    
+    def parse_test_expectations(self, frm_file: str) -> Dict:
+        """
+        Parse test expectations from structured comments in Frame file
+        
+        Args:
+            frm_file: Path to the .frm file
+            
+        Returns:
+            Dictionary with test expectations
+        """
+        expectations = {
+            'expect': None,  # 'error' or 'warning'
+            'error_message': None,
+            'error_pattern': None,  # regex pattern for flexible matching
+            'error_type': None,
+            'error_line': None,
+            'warning_message': None
+        }
+        
+        try:
+            with open(frm_file, 'r') as f:
+                # Only check first 20 lines for expectations
+                for i, line in enumerate(f):
+                    if i > 20:  # Stop after 20 lines
+                        break
+                    
+                    line = line.strip()
+                    if not line.startswith('#'):
+                        continue
+                    
+                    # Remove # and any leading space
+                    line = line[1:].strip()
+                    
+                    # Parse @test-expect directive
+                    if line.startswith('@test-expect:'):
+                        expectations['expect'] = line.split(':', 1)[1].strip()
+                    elif line.startswith('@error-message:'):
+                        expectations['error_message'] = line.split(':', 1)[1].strip().strip('"')
+                    elif line.startswith('@error-pattern:'):
+                        expectations['error_pattern'] = line.split(':', 1)[1].strip().strip('"')
+                    elif line.startswith('@error-type:'):
+                        expectations['error_type'] = line.split(':', 1)[1].strip()
+                    elif line.startswith('@error-line:'):
+                        expectations['error_line'] = line.split(':', 1)[1].strip()
+                    elif line.startswith('@warning-message:'):
+                        expectations['warning_message'] = line.split(':', 1)[1].strip().strip('"')
+        except:
+            pass
+        
+        return expectations
+    
+    def validate_error_expectation(self, expected: Dict, actual_error: str) -> Tuple[bool, str]:
+        """
+        Validate if actual error matches expected error
+        
+        Args:
+            expected: Dictionary with expected error details
+            actual_error: Actual error message from transpiler
+            
+        Returns:
+            Tuple of (matches, reason)
+        """
+        if not expected.get('expect'):
+            # No expectations defined
+            return True, "No expectations defined"
+        
+        if expected['expect'] == 'error':
+            if not actual_error:
+                return False, "Expected error but transpilation succeeded"
+            
+            # Check error message exact match
+            if expected.get('error_message'):
+                if expected['error_message'] not in actual_error:
+                    return False, f"Error message mismatch. Expected: '{expected['error_message']}'"
+            
+            # Check error pattern regex match
+            if expected.get('error_pattern'):
+                pattern = re.compile(expected['error_pattern'], re.IGNORECASE)
+                if not pattern.search(actual_error):
+                    return False, f"Error doesn't match pattern: '{expected['error_pattern']}'"
+            
+            # Check error type
+            if expected.get('error_type'):
+                if expected['error_type'] not in actual_error:
+                    return False, f"Error type mismatch. Expected: '{expected['error_type']}'"
+            
+            # Check error line if specified
+            if expected.get('error_line'):
+                # Look for line number in error message
+                line_pattern = re.compile(r'line (\d+)', re.IGNORECASE)
+                match = line_pattern.search(actual_error)
+                if match:
+                    actual_line = int(match.group(1))
+                    expected_line = expected['error_line']
+                    
+                    # Handle range like "5-6"
+                    if '-' in str(expected_line):
+                        start, end = map(int, expected_line.split('-'))
+                        if not (start <= actual_line <= end):
+                            return False, f"Error line mismatch. Expected: {expected_line}, Got: {actual_line}"
+                    else:
+                        if actual_line != int(expected_line):
+                            return False, f"Error line mismatch. Expected: {expected_line}, Got: {actual_line}"
+            
+            return True, "Error matches expectations"
+        
+        elif expected['expect'] == 'warning':
+            # For now, we'll just check if there's a warning in output
+            if expected.get('warning_message'):
+                if expected['warning_message'] not in actual_error:
+                    return False, f"Warning message not found: '{expected['warning_message']}'"
+            return True, "Warning matches expectations"
+        
+        return True, "Unknown expectation type"
+    
     def is_multifile_test(self, frm_file: str) -> bool:
         """
         Check if a Frame file requires multifile compilation
@@ -125,15 +253,60 @@ class FrameTestRunner:
             Dictionary with test results
         """
         py_file = frm_file.replace('.frm', '.py')
+        is_negative = self.is_negative_test(frm_file)
+        
+        # Parse test expectations from file
+        expectations = self.parse_test_expectations(frm_file) if is_negative else {}
         
         # Transpile
         transpile_success, transpile_out, transpile_err = self.run_transpiler(frm_file)
         
+        # For negative tests, validate against expectations
+        if is_negative:
+            if expectations.get('expect'):
+                # Validate against structured expectations
+                matches, reason = self.validate_error_expectation(expectations, transpile_err)
+                
+                return {
+                    'file': os.path.basename(frm_file),
+                    'transpile': False,  # Expected to fail
+                    'execute': False,    # N/A for negative tests
+                    'negative_test': True,
+                    'expected_failure': True,
+                    'expectation_match': matches,
+                    'expectation_reason': reason,
+                    'expectations': expectations,
+                    'error': transpile_err[:500] if transpile_err else "No error output"
+                }
+            else:
+                # No structured expectations, use old behavior
+                if not transpile_success:
+                    return {
+                        'file': os.path.basename(frm_file),
+                        'transpile': False,  # Expected to fail
+                        'execute': False,    # N/A for negative tests
+                        'negative_test': True,
+                        'expected_failure': True,
+                        'error': transpile_err[:200] if transpile_err else "Transpilation failed (expected)"
+                    }
+                else:
+                    # Negative test passed transpilation unexpectedly
+                    return {
+                        'file': os.path.basename(frm_file),
+                        'transpile': True,
+                        'execute': False,
+                        'negative_test': True,
+                        'expected_failure': False,
+                        'error': "Negative test unexpectedly passed transpilation"
+                    }
+        
+        # Positive test - normal flow
         if not transpile_success:
             return {
                 'file': os.path.basename(frm_file),
                 'transpile': False,
                 'execute': False,
+                'negative_test': False,
                 'error': transpile_err[:200] if transpile_err else "Transpilation failed"
             }
         
@@ -148,6 +321,7 @@ class FrameTestRunner:
             'file': os.path.basename(frm_file),
             'transpile': True,
             'execute': execute_success,
+            'negative_test': False,
             'output': execute_out[:200] if execute_out else None,
             'error': execute_err[:200] if execute_err and not execute_success else None
         }
@@ -166,13 +340,35 @@ class FrameTestRunner:
         if test_list:
             test_files = test_list
         else:
-            # Find all test files matching pattern
-            test_files = sorted([
-                os.path.join(self.test_dir, f) 
-                for f in os.listdir(self.test_dir) 
-                if f.startswith(test_pattern.replace('*.frm', '').replace('*', '')) 
-                and f.endswith('.frm')
-            ])
+            # Find all test files in new directory structure
+            test_files = []
+            
+            # Search in positive_tests (including multifile subdirectories)
+            positive_dir = os.path.join(self.test_dir, 'positive_tests')
+            if os.path.exists(positive_dir):
+                for root, dirs, files in os.walk(positive_dir):
+                    for f in files:
+                        if f.endswith('.frm') and f.startswith('test_'):
+                            test_files.append(os.path.join(root, f))
+            
+            # Search in negative_tests (including multifile subdirectories)
+            negative_dir = os.path.join(self.test_dir, 'negative_tests')
+            if os.path.exists(negative_dir):
+                for root, dirs, files in os.walk(negative_dir):
+                    for f in files:
+                        if f.endswith('.frm') and f.startswith('test_'):
+                            test_files.append(os.path.join(root, f))
+            
+            # If new structure doesn't exist, fall back to old structure
+            if not test_files:
+                test_files = [
+                    os.path.join(self.test_dir, f) 
+                    for f in os.listdir(self.test_dir) 
+                    if f.startswith(test_pattern.replace('*.frm', '').replace('*', '')) 
+                    and f.endswith('.frm')
+                ]
+            
+            test_files = sorted(test_files)
         
         print(f"Found {len(test_files)} test files")
         
@@ -185,7 +381,19 @@ class FrameTestRunner:
             self.results.append(result)
             
             if self.verbose:
-                if result['transpile'] and result['execute']:
+                if result.get('negative_test', False):
+                    # Negative test
+                    if result.get('expectation_match') is not None:
+                        # Has structured expectations
+                        if result['expectation_match']:
+                            print("✅ PASS (Expected Error Matched)")
+                        else:
+                            print(f"❌ FAIL ({result.get('expectation_reason', 'Expectation mismatch')})")
+                    elif result.get('expected_failure', False):
+                        print("✅ PASS (Expected Failure)")
+                    else:
+                        print("❌ FAIL (Should have failed)")
+                elif result['transpile'] and result['execute']:
                     print("✅ PASS")
                 elif result['transpile']:
                     print("⚠️ Transpile OK, Execute FAIL")
@@ -211,7 +419,11 @@ class FrameTestRunner:
         total = len(self.results)
         transpile_success = sum(1 for r in self.results if r['transpile'])
         execute_success = sum(1 for r in self.results if r['execute'])
-        complete_success = sum(1 for r in self.results if r['transpile'] and r['execute'])
+        # Count positive tests that pass normally and negative tests that correctly match expectations
+        complete_success = sum(1 for r in self.results if 
+                              (r['transpile'] and r['execute']) or  # Normal passing tests
+                              (r.get('negative_test', False) and r.get('expectation_match', False) == True)  # Negative tests with matched expectations
+                              )
         
         # Generate markdown report
         os.makedirs(self.output_dir, exist_ok=True)
@@ -279,7 +491,11 @@ class FrameTestRunner:
         total = len(self.results)
         transpile_success = sum(1 for r in self.results if r['transpile'])
         execute_success = sum(1 for r in self.results if r['execute'])
-        complete_success = sum(1 for r in self.results if r['transpile'] and r['execute'])
+        # Count positive tests that pass normally and negative tests that correctly match expectations
+        complete_success = sum(1 for r in self.results if 
+                              (r['transpile'] and r['execute']) or  # Normal passing tests
+                              (r.get('negative_test', False) and r.get('expectation_match', False) == True)  # Negative tests with matched expectations
+                              )
         
         with open(json_path, 'w') as f:
             json.dump({
@@ -384,7 +600,11 @@ Examples:
     
     # Print summary
     total = len(results)
-    complete_success = sum(1 for r in results if r['transpile'] and r['execute'])
+    # Count positive tests that pass normally and negative tests that correctly match expectations
+    complete_success = sum(1 for r in results if 
+                          (r['transpile'] and r['execute']) or  # Normal passing tests
+                          (r.get('negative_test', False) and r.get('expectation_match', False) == True)  # Negative tests with matched expectations
+                          )
     
     print(f"\n=== SUMMARY ===")
     print(f"Total Tests: {total}")

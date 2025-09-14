@@ -13,7 +13,8 @@ module utils {
 fn main() {
     # Direct call (works now)
     print("Testing module qualified names")
-    
+
+
     # Qualified call (to be implemented)
     # var result = utils.helper()
     # print(str(result))

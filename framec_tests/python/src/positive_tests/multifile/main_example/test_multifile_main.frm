@@ -8,7 +8,7 @@ fn main() {
     # Create calculator instance
     var calc = Calculator()
     
-    # Test basic operations
+    # Test basic operations (instance methods use .)
     print("5 + 3 = " + calc.add(5, 3))
     print("4 * 7 = " + calc.multiply(4, 7))
     
@@ -24,9 +24,9 @@ fn main() {
         print("7 is odd")
     }
     
-    # Direct module access
-    print("Direct calculation: " + str(MathUtils.add(100, 200)))
-    print("PI value: " + str(MathUtils.PI))
+    # Direct module access (use :: for module functions)
+    print("Direct calculation: " + str(MathUtils::add(100, 200)))
+    print("PI value: " + str(MathUtils::PI))
 }
 
 # Call main function

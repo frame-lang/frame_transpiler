@@ -78,6 +78,9 @@ pub struct ModuleExports {
     
     /// Nested modules
     pub modules: HashSet<String>,
+    
+    /// Nested module exports (module_name -> exports)
+    pub nested_exports: HashMap<String, ModuleExports>,
 }
 
 impl ModuleExports {
@@ -89,6 +92,7 @@ impl ModuleExports {
             enums: HashSet::new(),
             variables: HashSet::new(),
             modules: HashSet::new(),
+            nested_exports: HashMap::new(),
         }
     }
     
@@ -121,9 +125,42 @@ impl ModuleExports {
             exports.variables.insert(var.borrow().name.clone());
         }
         
-        // Extract nested module names
+        // Extract nested modules and their exports
         for module in &ast.modules {
-            exports.modules.insert(module.borrow().name.clone());
+            let module_ref = module.borrow();
+            let module_name = module_ref.name.clone();
+            exports.modules.insert(module_name.clone());
+            
+            // Recursively extract exports from nested module
+            let nested = Self::from_module_node(&module_ref);
+            exports.nested_exports.insert(module_name, nested);
+        }
+        
+        exports
+    }
+    
+    /// Extract exports from a module node
+    fn from_module_node(module_node: &crate::frame_c::ast::ModuleNode) -> Self {
+        let mut exports = Self::new();
+        
+        // Extract functions from the module
+        for func in &module_node.functions {
+            exports.functions.insert(func.borrow().name.clone());
+        }
+        
+        // Extract variables from the module
+        for var in &module_node.variables {
+            exports.variables.insert(var.borrow().name.clone());
+        }
+        
+        // Extract nested modules recursively
+        for nested_module in &module_node.modules {
+            let nested_ref = nested_module.borrow();
+            let nested_name = nested_ref.name.clone();
+            exports.modules.insert(nested_name.clone());
+            
+            let nested_exports = Self::from_module_node(&nested_ref);
+            exports.nested_exports.insert(nested_name, nested_exports);
         }
         
         exports
@@ -417,14 +454,23 @@ impl MultiFileCompiler {
                                     module: file_path.clone(),
                                     searched_paths: vec![path.clone()],
                                 },
-                                module_name.clone(),
+                                format!("Cannot find module file: {}", file_path),
                             ))?;
                         
-                        // Module import - check if module name matches or is available
-                        if !target_module.exports.modules.contains(module_name) &&
-                           !module_name.is_empty() {
-                            // Allow importing the file itself as a module
-                            // The module name should match something exported
+                        // Validate the imported module/system/class exists
+                        if !target_module.exports.has_symbol(module_name) {
+                            // Check if any module/system/class exists in the target file
+                            let available = self.get_available_symbols(&target_module.exports);
+                            return Err(ModuleError::new(
+                                ModuleErrorKind::ImportError {
+                                    import: module_name.clone(),
+                                    reason: format!(
+                                        "Symbol '{}' not found in '{}'. Available symbols: {}",
+                                        module_name, file_path, available
+                                    ),
+                                },
+                                format!("In file: {}", path.display()),
+                            ));
                         }
                     }
                     ImportType::FrameModuleAliased { module_name, file_path, .. } => {
@@ -435,13 +481,22 @@ impl MultiFileCompiler {
                                     module: file_path.clone(),
                                     searched_paths: vec![path.clone()],
                                 },
-                                module_name.clone(),
+                                format!("Cannot find module file: {}", file_path),
                             ))?;
                         
-                        // Similar validation as FrameModule
-                        if !target_module.exports.modules.contains(module_name) &&
-                           !module_name.is_empty() {
-                            // Allow importing the file itself as a module
+                        // Validate the imported module/system/class exists
+                        if !target_module.exports.has_symbol(module_name) {
+                            let available = self.get_available_symbols(&target_module.exports);
+                            return Err(ModuleError::new(
+                                ModuleErrorKind::ImportError {
+                                    import: module_name.clone(),
+                                    reason: format!(
+                                        "Symbol '{}' not found in '{}'. Available symbols: {}",
+                                        module_name, file_path, available
+                                    ),
+                                },
+                                format!("In file: {}", path.display()),
+                            ));
                         }
                     }
                     ImportType::FrameSelective { items, file_path } => {
@@ -458,12 +513,16 @@ impl MultiFileCompiler {
                         // Check each imported item exists
                         for item in items {
                             if !target_module.exports.has_symbol(item) {
+                                let available = self.get_available_symbols(&target_module.exports);
                                 return Err(ModuleError::new(
                                     ModuleErrorKind::ImportError {
                                         import: item.clone(),
-                                        reason: format!("Symbol '{}' not found in module", item),
+                                        reason: format!(
+                                            "Symbol '{}' not found in '{}'. Available symbols: {}",
+                                            item, file_path, available
+                                        ),
                                     },
-                                    file_path.clone(),
+                                    format!("In file: {}", path.display()),
                                 ));
                             }
                         }
@@ -476,6 +535,36 @@ impl MultiFileCompiler {
         }
         
         Ok(())
+    }
+    
+    /// Get a formatted list of available symbols for error messages
+    fn get_available_symbols(&self, exports: &ModuleExports) -> String {
+        let mut symbols = Vec::new();
+        
+        for func in &exports.functions {
+            symbols.push(format!("function '{}'", func));
+        }
+        for class in &exports.classes {
+            symbols.push(format!("class '{}'", class));
+        }
+        for system in &exports.systems {
+            symbols.push(format!("system '{}'", system));
+        }
+        for module in &exports.modules {
+            symbols.push(format!("module '{}'", module));
+        }
+        for enum_name in &exports.enums {
+            symbols.push(format!("enum '{}'", enum_name));
+        }
+        for var in &exports.variables {
+            symbols.push(format!("variable '{}'", var));
+        }
+        
+        if symbols.is_empty() {
+            "none".to_string()
+        } else {
+            symbols.join(", ")
+        }
     }
     
     /// Link all modules into final output

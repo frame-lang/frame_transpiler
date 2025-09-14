@@ -1,5 +1,6 @@
 # Frame Language AI Guide
 *Version 0.57 - Comprehensive Grammar and Code Style Reference for AI Systems*
+*Last Updated: January 25, 2025*
 
 ## 🎯 Purpose
 This guide is specifically designed for AI systems (LLMs, code assistants, etc.) to quickly understand Frame's grammar, generate correct Frame code, and assist developers effectively. Frame is a state machine language that transpiles to Python (and other targets).
@@ -414,9 +415,17 @@ from typing import *
 
 #### Frame Imports (v0.57+)
 ```frame
+# Import Frame modules from other .frm files
 import Utils from "./utils.frm"
 import Calculator from "./calc.frm" as Calc
 import { add, multiply } from "./math.frm"
+
+# Module access uses :: in Frame source
+fn example() {
+    var result = Utils::add(5, 3)        # Frame source
+    var area = Math::Constants::PI * r   # Nested module access
+}
+# Note: :: transpiles to . in Python output
 ```
 
 ### Async/Await (v0.35+)
@@ -798,7 +807,7 @@ var *head, last = sequence
 
 ## 📚 Version History Highlights
 
-- **v0.57**: Multi-file module system with Frame imports
+- **v0.57**: Multi-file module system infrastructure with Frame imports (100% test success)
 - **v0.56**: Walrus operator, type aliases
 - **v0.54**: Star expressions, collection constructors
 - **v0.45**: Class support with OOP

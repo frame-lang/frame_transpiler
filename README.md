@@ -3,16 +3,25 @@
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
 **Current Version**: v0.57  
-**Test Success Rate**: 100% (341/341 tests passing) 🎉  
+**Test Success Rate**: 100% (374/374 tests passing) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-09-13
+**Last Updated**: 2025-01-25
 
 ## Current Features (v0.57)
+
+### Multi-File Module System (NEW in v0.57)
+- **Frame File Imports**: Import modules from other `.frm` files
+- **Three Import Syntaxes**: Standard, aliased, and selective imports
+- **Dependency Resolution**: Automatic discovery and compilation ordering
+- **Circular Detection**: Identifies and reports circular dependencies
+- **Security Validation**: Path traversal protection and validation
+- **Incremental Compilation**: SHA-256 based caching for efficiency
+- **Module Access**: Use `::` for static access in Frame (transpiles to `.` in Python)
 
 ### Core Language
 - **State Machines**: Hierarchical state machines with enter/exit handlers
 - **Multi-Entity Support**: Multiple functions and systems per module
-- **Module System**: Named modules with qualified access (`module.function()`)
+- **Module System**: Named modules with qualified access (`module::function()`)
 - **Event Handlers**: Named events, enter (`$>`), and exit (`<$`) handlers
 - **Transitions**: State transitions with parameters and event forwarding
 
@@ -98,6 +107,43 @@ You can also learn more about programming with automata at Reddit ![re](https://
 ## Frame Community
 
 Connect with me and other Frame enthusists on the Frame **Discord channel** -  [The Art of the State](https://discord.com/invite/CfbU4QCbSD). You can also connect with me directly on [LinkedIn](https://www.linkedin.com/in/marktruluck/).
+
+## Quick Start - Multi-File Module Example
+
+Here's a simple multi-file Frame project example:
+
+**utils.frm:**
+```frame
+module MathUtils {
+    fn add(a, b) {
+        return a + b
+    }
+    
+    fn multiply(a, b) {
+        return a * b
+    }
+}
+```
+
+**main.frm:**
+```frame
+import MathUtils from "./utils.frm"
+
+fn main() {
+    var sum = MathUtils::add(5, 3)      # Use :: for module access
+    var product = MathUtils::multiply(4, 7)
+    print("Sum: " + str(sum))           # Output: Sum: 8
+    print("Product: " + str(product))   # Output: Product: 28
+}
+
+main()
+```
+
+**Compile:**
+```bash
+framec -m main.frm -l python_3 > output.py
+python3 output.py
+```
 
 ## Frame Examples
 

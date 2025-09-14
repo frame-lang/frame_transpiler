@@ -80,7 +80,9 @@ pub struct PythonVisitor {
     pending_assert: bool,                    // v0.45: Track if we just output an assert and need to suppress next newline
     generating_state_vars_init: bool,        // v0.55: Track if we're generating state variable initializers in transition
     current_module_name: Option<String>,     // v0.57: Track current module being generated
+    current_module_path: Vec<String>,        // v0.57: Track full module path hierarchy
     current_module_variables: HashSet<String>, // v0.57: Track variables in current module
+    nested_module_names: HashSet<String>,    // v0.57: Track nested module names in current module
     in_class_method: bool,                   // v0.45: Track if we're in a class method
 }
 
@@ -175,7 +177,9 @@ impl PythonVisitor {
             in_class_method: false,
             generating_state_vars_init: false,
             current_module_name: None,
+            current_module_path: Vec::new(),
             current_module_variables: HashSet::new(),
+            nested_module_names: HashSet::new(),
         }
     }
 
@@ -4413,14 +4417,27 @@ impl PythonVisitor {
 impl PythonVisitor {
     // v0.57: Module support for multi-file compilation
     fn generate_module_as_class(&mut self, module_node: &ModuleNode) {
+        // Save parent context before setting new context
+        let saved_module_name = self.current_module_name.clone();
+        let saved_nested_names = self.nested_module_names.clone();
+        let saved_module_variables = self.current_module_variables.clone();
+        
         // Set module context
         self.current_module_name = Some(module_node.name.clone());
+        self.current_module_path.push(module_node.name.clone());
         self.current_module_variables.clear();
+        self.nested_module_names.clear();
         
         // Collect module variable names
         for var_node_rcref in &module_node.variables {
             let var = var_node_rcref.borrow();
             self.current_module_variables.insert(var.name.clone());
+        }
+        
+        // Collect nested module names for sibling resolution
+        for nested_module_rcref in &module_node.modules {
+            let nested = nested_module_rcref.borrow();
+            self.nested_module_names.insert(nested.name.clone());
         }
         
         // Generate a Python class to act as namespace for the module
@@ -4444,7 +4461,16 @@ impl PythonVisitor {
             has_content = true;
         }
         
-        // Process module functions as static methods
+        // Process nested modules recursively
+        for nested_module_rcref in &module_node.modules {
+            if has_content {
+                self.newline();
+            }
+            self.generate_module_as_class(&nested_module_rcref.borrow());
+            has_content = true;
+        }
+        
+        // Process module functions as static methods AFTER nested modules
         for func_node_rcref in &module_node.functions {
             if has_content {
                 self.newline();
@@ -4471,6 +4497,9 @@ impl PythonVisitor {
             self.indent();
             
             // Generate function body
+            eprintln!("DEBUG: Generating function '{}' in module '{:?}'", func.name, self.current_module_name);
+            eprintln!("  Current module path: {:?}", self.current_module_path);
+            eprintln!("  Nested module names: {:?}", self.nested_module_names);
             if !func.statements.is_empty() {
                 // Mark that we're in a standalone function
                 let was_in_function = self.in_standalone_function;
@@ -4521,15 +4550,6 @@ impl PythonVisitor {
             has_content = true;
         }
         
-        // Process nested modules recursively
-        for nested_module_rcref in &module_node.modules {
-            if has_content {
-                self.newline();
-            }
-            self.generate_module_as_class(&nested_module_rcref.borrow());
-            has_content = true;
-        }
-        
         if !has_content {
             // Empty module - add pass statement
             self.newline();
@@ -4539,9 +4559,11 @@ impl PythonVisitor {
         self.outdent();
         self.newline();
         
-        // Clear module context
-        self.current_module_name = None;
-        self.current_module_variables.clear();
+        // Restore parent context
+        self.current_module_name = saved_module_name;
+        self.current_module_path.pop();
+        self.current_module_variables = saved_module_variables;
+        self.nested_module_names = saved_nested_names;
     }
     
     // v0.45: Helper method to visit statement types
@@ -7034,6 +7056,8 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     eprintln!("DEBUG: Accepting UndeclaredIdentifier '{}'", id_node.name.lexeme);
                     eprintln!("  Current system enums: {:?}", self.current_system_enums);
+                    eprintln!("  Nested module names: {:?}", self.nested_module_names);
+                    eprintln!("  Current module path: {:?}", self.current_module_path);
                     eprintln!("  Checking if '{}' is in enum set", id_node.name.lexeme);
                     
                     // v0.46: Handle 'super' in call chains
@@ -7041,6 +7065,19 @@ impl AstVisitor for PythonVisitor {
                         self.add_code("super()");
                         // Skip adding the separator after super()
                         separator = "";
+                        continue;
+                    }
+                    
+                    // v0.57: Check if this is a nested module reference within the current module
+                    // When inside a module function and referencing a nested module, qualify it with the module name
+                    if !self.current_module_path.is_empty() && self.nested_module_names.contains(&id_node.name.lexeme) {
+                        eprintln!("  Found nested module reference '{}' inside module - qualifying with full module path", id_node.name.lexeme);
+                        // In Python, static methods need to qualify nested class references with the parent class name
+                        // E.g., inside Engineering.getTotalSize(), reference Frontend as Engineering.Frontend
+                        // Build the full path to the nested module
+                        let qualified_name = self.current_module_path.join(".") + "." + &id_node.name.lexeme;
+                        eprintln!("  Qualified name: {}", qualified_name);
+                        self.add_code(&qualified_name);
                         continue;
                     }
                     
@@ -7573,9 +7610,18 @@ impl AstVisitor for PythonVisitor {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     eprintln!("DEBUG _to_string: UndeclaredIdentifier '{}'", id_node.name.lexeme);
                     eprintln!("  Current system enums: {:?}", self.current_system_enums);
-                    // Check if this identifier is an enum defined in the current system
-                    // If so, qualify it with the system name
-                    if self.current_system_enums.contains(&id_node.name.lexeme) {
+                    eprintln!("  Nested module names: {:?}", self.nested_module_names);
+                    eprintln!("  Current module path: {:?}", self.current_module_path);
+                    
+                    // v0.57: Check if this is a nested module reference within the current module
+                    if !self.current_module_path.is_empty() && self.nested_module_names.contains(&id_node.name.lexeme) {
+                        eprintln!("  Found nested module reference '{}' - qualifying with full module path", id_node.name.lexeme);
+                        // In Python, static methods need to qualify nested class references with the parent class name
+                        let qualified_name = self.current_module_path.join(".") + "." + &id_node.name.lexeme;
+                        eprintln!("  Qualified name: {}", qualified_name);
+                        output.push_str(&qualified_name);
+                    } else if self.current_system_enums.contains(&id_node.name.lexeme) {
+                        // Check if this identifier is an enum defined in the current system
                         eprintln!("  YES - qualifying: {}_{}", self.system_name, id_node.name.lexeme);
                         output.push_str(&format!("{}_{}", self.system_name, id_node.name.lexeme));
                     } else {

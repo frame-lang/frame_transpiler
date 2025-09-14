@@ -1,5 +1,6 @@
 # Frame AI Troubleshooting Guide
 *Common Issues and Solutions for AI-Generated Frame Code*
+*Last Updated: January 25, 2025 - v0.57*
 
 ## 🚨 Most Common Errors
 
@@ -157,6 +158,43 @@ import Utils from utils.frm  # Missing quotes
 ```frame
 # CORRECT
 import Utils from "./utils.frm"  # Quoted path
+```
+
+### Multi-File Module Errors (v0.57+)
+
+#### Module Not Found
+**Symptom**: `Module not found: './utils.frm'`
+
+**Causes**:
+1. File doesn't exist at specified path
+2. Wrong relative path
+3. Missing .frm extension
+
+**Solution**:
+```frame
+# Check file exists and path is correct
+import Utils from "./utils.frm"        # Same directory
+import Lib from "../lib/helpers.frm"   # Parent directory
+```
+
+#### Circular Dependency
+**Symptom**: `Circular dependency detected: a.frm → b.frm → a.frm`
+
+**Cause**: Two or more modules import each other
+
+**Solution**: Restructure code to avoid circular imports
+
+#### Module Access Syntax
+**Problem**: Using wrong separator for module access
+```frame
+# WRONG - Will fail
+var result = Utils.add(5, 3)  # Wrong in Frame source
+```
+
+**Solution**: Use :: for module static access in Frame
+```frame
+# CORRECT - Frame source
+var result = Utils::add(5, 3)  # Transpiles to . in Python
 ```
 
 ### Symbol table construction failed

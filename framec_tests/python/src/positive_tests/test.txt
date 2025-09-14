@@ -1,0 +1,5 @@
+This is a test file for Frame with statement testing.
+Line 2: Hello from Frame v0.57!
+Line 3: Multi-file module system is working.
+Line 4: Testing file operations.
+Line 5: End of test file.

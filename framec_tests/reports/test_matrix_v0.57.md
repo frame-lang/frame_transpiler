@@ -1,40 +1,74 @@
-# Frame v0.31 Test Matrix
+# Frame v0.57 Test Matrix
 
-**Generated**: 2025-09-14 08:49  
-**Total Tests**: 360  
-**Current Branch**: v0.31  
+**Generated**: 2025-09-14 09:56  
+**Total Tests**: 374  
+**Current Branch**: v0.57  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 360 | 100% |
-| **Transpilation Success** | 357 | 99.2% |
-| **Execution Success** | 357 | 99.2% |
-| **Complete Success** | 357 | 99.2% |
-
-## v0.31 Features
-
-✅ **IMPORT STATEMENTS**: Native import support without backticks
-✅ **SELF EXPRESSION**: Standalone self usage (e.g., `jsonpickle.encode(self)`)
-✅ **STATIC METHOD VALIDATION**: Parse-time validation for @staticmethod
-✅ **OPERATIONS DEFAULT**: Operations are instance methods by default
+| **Total Tests** | 374 | 100% |
+| **Transpilation Success** | 371 | 99.2% |
+| **Execution Success** | 371 | 99.2% |
+| **Complete Success** | 374 | 100.0% |
 
 ## Failed Tests
 
 | Test File | Transpile | Execute | Error |
 |-----------|-----------|---------|-------|
-| test_circular_a.frm | ❌ | ❌ | DEBUG: Starting multi-file compilation from "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_circular_a.frm"
-Warning: Function symbol 'functionA' not found during AST associa |
-| test_circular_b.frm | ❌ | ❌ | DEBUG: Starting multi-file compilation from "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_circular_b.frm"
-Warning: Function symbol 'functionB' not found during AST associa |
-| test_circular_main.frm | ❌ | ❌ | DEBUG: Starting multi-file compilation from "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/test_circular_main.frm"
-Warning: Function symbol 'functionA' not found during AST asso |
+| test_circular_a.frm | ❌ | ❌ | DEBUG: Starting multi-file compilation from "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/test_circular_a.frm"
+Warning: Function symbol 'functionA' not found during AST association
+Warning: Function symbol 'functionB' not found during AST association
+DEBUG: Discovered 2 modules
+Framec failed with an error:
+Multi-file compilation failed: Error: Circular dependency detected: unknown → unknown
+
+ |
+| test_circular_b.frm | ❌ | ❌ | DEBUG: Starting multi-file compilation from "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/test_circular_b.frm"
+Warning: Function symbol 'functionB' not found during AST association
+Warning: Function symbol 'functionA' not found during AST association
+DEBUG: Discovered 2 modules
+Framec failed with an error:
+Multi-file compilation failed: Error: Circular dependency detected: unknown → unknown
+
+ |
+| test_circular_main.frm | ❌ | ❌ | DEBUG: Starting multi-file compilation from "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/test_circular_main.frm"
+Warning: Function symbol 'functionA' not found during AST association
+Warning: Function symbol 'functionB' not found during AST association
+DEBUG: Discovered 3 modules
+Framec failed with an error:
+Multi-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_test |
 
 ## Test Details
 
 | Test File | Transpile | Execute | Status |
 |-----------|-----------|---------|--------|
+| test_circular_a.frm | ❌ | ❌ | ❌ FAIL |
+| test_circular_b.frm | ❌ | ❌ | ❌ FAIL |
+| test_circular_main.frm | ❌ | ❌ | ❌ FAIL |
+| test_multifile_calculator.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_math.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_utils.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_complex.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_formatters.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_math.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_strings.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_calculator.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_large.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_main.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_utils.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module1.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module2.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module3.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module4.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module5.frm | ✅ | ✅ | ✅ PASS |
+| test_multifile_performance.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module1.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module2.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module3.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module4.frm | ✅ | ✅ | ✅ PASS |
+| test_perf_module5.frm | ✅ | ✅ | ✅ PASS |
 | test_access_modifiers_v048.frm | ✅ | ✅ | ✅ PASS |
 | test_all_8_collection_patterns.frm | ✅ | ✅ | ✅ PASS |
 | test_all_blocks_comprehensive.frm | ✅ | ✅ | ✅ PASS |
@@ -64,9 +98,6 @@ Warning: Function symbol 'functionA' not found during AST asso |
 | test_call_chain_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_call_chain_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_chaining.frm | ✅ | ✅ | ✅ PASS |
-| test_circular_a.frm | ❌ | ❌ | ❌ FAIL |
-| test_circular_b.frm | ❌ | ❌ | ❌ FAIL |
-| test_circular_main.frm | ❌ | ❌ | ❌ FAIL |
 | test_class_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_class_simple_v046.frm | ✅ | ✅ | ✅ PASS |
 | test_class_v046.frm | ✅ | ✅ | ✅ PASS |
@@ -252,14 +283,6 @@ Warning: Function symbol 'functionA' not found during AST asso |
 | test_multi_systems_with_interface.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_systems_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_systems_with_transitions.frm | ✅ | ✅ | ✅ PASS |
-| test_multifile_calculator.frm | ✅ | ✅ | ✅ PASS |
-| test_multifile_complex.frm | ✅ | ✅ | ✅ PASS |
-| test_multifile_formatters.frm | ✅ | ✅ | ✅ PASS |
-| test_multifile_large.frm | ✅ | ✅ | ✅ PASS |
-| test_multifile_main.frm | ✅ | ✅ | ✅ PASS |
-| test_multifile_math.frm | ✅ | ✅ | ✅ PASS |
-| test_multifile_performance.frm | ✅ | ✅ | ✅ PASS |
-| test_multifile_strings.frm | ✅ | ✅ | ✅ PASS |
 | test_multifile_utils.frm | ✅ | ✅ | ✅ PASS |
 | test_multiple_assignment_v052.frm | ✅ | ✅ | ✅ PASS |
 | test_multiple_systems_valid.frm | ✅ | ✅ | ✅ PASS |

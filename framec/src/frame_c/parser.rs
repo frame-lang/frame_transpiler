@@ -11108,9 +11108,9 @@ impl<'a> Parser<'a> {
                                 }
                             }
                             None => {
-                                // Check if this could be an imported module (has a dot after it)
-                                // This allows us to support things like math.pi, dt.datetime.now() without backticks
-                                if self.peek().token_type == TokenType::Dot {
+                                // Check if this could be an imported module (has :: after it)
+                                // This allows us to support things like Math::PI, Module::function() 
+                                if self.peek().token_type == TokenType::ColonColon {
                                     // This could be an imported module, allow it as an undeclared identifier
                                     // The visitor will handle the actual module resolution
                                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
@@ -11302,9 +11302,13 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            // end of chain if no  '.'
-            if !self.match_token(&[TokenType::Dot]) {
-                break;
+            // Check for module separator :: or instance member .
+            // Module access uses :: while instance members use .
+            let is_module_access = self.match_token(&[TokenType::ColonColon]);
+            let is_member_access = !is_module_access && self.match_token(&[TokenType::Dot]);
+            
+            if !is_module_access && !is_member_access {
+                break;  // End of chain
             }
 
             if self.match_token(&[TokenType::Identifier]) {
@@ -11760,6 +11764,10 @@ impl<'a> Parser<'a> {
                     }
                     SymbolType::FunctionScope { .. } => {
                         // v0.38: Functions can be used as values (first-class functions)
+                        scope = IdentifierDeclScope::UnknownScope;
+                    }
+                    SymbolType::Module { .. } => {
+                        // v0.57: Modules can be accessed with :: separator
                         scope = IdentifierDeclScope::UnknownScope;
                     }
                     _ => {
@@ -14088,25 +14096,55 @@ impl<'a> Parser<'a> {
     fn parse_bracket_expression(&mut self) -> Result<BracketExpressionType, ParseError> {
         // Simple decision tree approach
         
+        // Check for :: (ColonColon) which in bracket context means slice with no start/end
+        if self.check(TokenType::ColonColon) {
+            // [::step] pattern - module separator :: is two colons in slice context
+            self.advance(); // consume '::'
+            
+            let mut step_expr: Option<Box<ExprType>> = None;
+            if !self.check(TokenType::RBracket) {
+                let tokens = self.collect_tokens_until(&[TokenType::RBracket]);
+                step_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
+            }
+            
+            self.consume(TokenType::RBracket, "Expected ']'")?;
+            
+            return Ok(BracketExpressionType::Slice {
+                start: None,
+                end: None,
+                step: step_expr,
+            });
+        }
+        
         // Look at what comes first: expression, colon, or bracket
         if self.check(TokenType::Colon) {
-            // Starts with colon: slice like [:end] or [:end:step]
-            self.advance(); // consume ':'
+            // Starts with colon: slice like [:end] or [:end:step] or [::step]
+            self.advance(); // consume first ':'
             
             let mut end_expr: Option<Box<ExprType>> = None;
             let mut step_expr: Option<Box<ExprType>> = None;
             
-            // Parse end if not another colon or bracket
-            if !self.check(TokenType::Colon) && !self.check(TokenType::RBracket) {
-                let tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
-                end_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
-            }
-            
-            // Check for step
-            if self.match_token(&[TokenType::Colon]) {
+            // Check if this is [::step] pattern (double colon at start)
+            if self.check(TokenType::Colon) {
+                // It's [::step] - skip end, go straight to step
+                self.advance(); // consume second ':'
                 if !self.check(TokenType::RBracket) {
                     let tokens = self.collect_tokens_until(&[TokenType::RBracket]);
                     step_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
+                }
+            } else {
+                // Parse end if not bracket
+                if !self.check(TokenType::RBracket) {
+                    let tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
+                    end_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
+                }
+                
+                // Check for step after end
+                if self.match_token(&[TokenType::Colon]) {
+                    if !self.check(TokenType::RBracket) {
+                        let tokens = self.collect_tokens_until(&[TokenType::RBracket]);
+                        step_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
+                    }
                 }
             }
             
@@ -14126,7 +14164,7 @@ impl<'a> Parser<'a> {
             
         } else {
             // Starts with expression
-            let first_tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
+            let first_tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::ColonColon, TokenType::RBracket]);
             let first_expr = self.parse_token_sequence_as_expr(first_tokens)?;
             
             if self.check(TokenType::RBracket) {
@@ -14136,10 +14174,29 @@ impl<'a> Parser<'a> {
                 if let Some(expr) = first_expr {
                     Ok(BracketExpressionType::Index(expr))
                 } else {
+                    // Empty brackets [] are not allowed for indexing
                     let err_msg = "Missing index expression";
                     self.error_at_previous(err_msg);
                     Err(ParseError::new(err_msg))
                 }
+                
+            } else if self.check(TokenType::ColonColon) {
+                // It's a slice with no end: expr::step
+                self.advance(); // consume '::'
+                
+                let mut step_expr: Option<Box<ExprType>> = None;
+                if !self.check(TokenType::RBracket) {
+                    let tokens = self.collect_tokens_until(&[TokenType::RBracket]);
+                    step_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
+                }
+                
+                self.consume(TokenType::RBracket, "Expected ']'")?;
+                
+                Ok(BracketExpressionType::Slice {
+                    start: first_expr.map(Box::new),
+                    end: None,
+                    step: step_expr,
+                })
                 
             } else if self.check(TokenType::Colon) {
                 // It's a slice: expr:...

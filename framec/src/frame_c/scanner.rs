@@ -391,7 +391,10 @@ impl Scanner {
                 self.add_token(TokenType::CloseBrace);
             }
             ':' => {
-                if self.match_char('|') {
+                if self.match_char(':') {
+                    // Module separator for qualified names
+                    self.add_token(TokenType::ColonColon);
+                } else if self.match_char('|') {
                     // Test terminator removed
                     self.error(self.line, "Test terminator ':|' has been removed. Use if/elif/else statements instead.");
                 } else if self.match_char('/') {
@@ -1055,6 +1058,7 @@ pub enum TokenType {
     StateStackOperationPop,  // $$[-]
     ParentState,             // $^ - parent state reference
     Dot,                     // .
+    ColonColon,              // :: - module separator for qualified names
     At,                      // @ - matrix multiplication (v0.40)
     AtEqual,                 // @= - matrix multiplication compound assignment (v0.40)
     AtAt,                    // @@ - reserved for future use
