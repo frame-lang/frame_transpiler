@@ -53,15 +53,31 @@ system TrafficLight {
         var timer = 0
 }
 
-# Classes (v0.45+)
+# Classes (v0.45+, v0.58 decorators)
+# v0.58: Added decorator support
+from dataclasses import dataclass
+
+@dataclass  # v0.58: Class decorators
 class Point {
-    fn init(x, y) {        # Constructor (special name)
-        self.x = x
-        self.y = y
+    var x = 0  # Class variables for dataclass
+    var y = 0
+}
+
+# Traditional class without decorators
+class Rectangle {
+    fn init(width, height) {  # Constructor (special name)
+        self.width = width
+        self.height = height
     }
     
-    fn distance() {
-        return (self.x ** 2 + self.y ** 2) ** 0.5
+    @property  # v0.55: Property decorator
+    fn area() {
+        return self.width * self.height
+    }
+    
+    @staticmethod  # Static methods
+    fn square(size) {
+        return Rectangle(size, size)
     }
 }
 ```
@@ -815,7 +831,8 @@ var *head, last = sequence
 
 ## 📚 Version History Highlights
 
-- **v0.57** (Sept 2025): Multi-file module system with Frame imports, separate file generation (374/374 tests)
+- **v0.58** (Sept 2025): Class decorators with Python pass-through (374/374 tests)
+- **v0.57**: Multi-file module system with Frame imports, separate file generation (374/374 tests)
 - **v0.56**: Walrus operator, type aliases, enhanced numerics
 - **v0.55**: State parameters fixed, 100% test success achieved
 - **v0.54**: Star expressions, collection constructors

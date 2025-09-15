@@ -5,17 +5,17 @@ This project contains the code for building the Frame Language Transpiler - the 
 **Current Version**: v0.58  
 **Test Success Rate**: 100% (374/374 tests passing) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-09-14
+**Last Updated**: 2025-09-15
 
 ## Current Features (v0.58)
 
-### Project Configuration System (NEW in v0.58)
-- **frame.toml**: Standardized project configuration file
-- **`framec init`**: Initialize new Frame projects with boilerplate
-- **`framec build`**: Build projects using configuration settings
-- **Flexible Output**: Configure concatenated or separate file generation
-- **Custom Scripts**: Define project-specific build commands
-- **Path Aliases**: Create import path shortcuts for cleaner code
+### Class Decorators (NEW in v0.58)
+- **Python Decorator Pass-Through**: Support for Python decorators on classes
+- **Decorator Arguments**: Decorators with parenthesized arguments supported
+- **Multiple Decorators**: Stack multiple decorators on a single class
+- **Method Decorators Preserved**: `@staticmethod` and `@property` continue working
+- **Common Use Cases**: `@dataclass`, `@total_ordering`, custom decorators
+- **Smart Parser**: Context-aware parsing distinguishes class from method decorators
 
 ## Previous Features (v0.57)
 

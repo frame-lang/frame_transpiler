@@ -1,5 +1,5 @@
 # Frame Language Quick Reference Card
-*AI-Optimized Cheat Sheet for Frame v0.57 - Updated September 14, 2025*
+*AI-Optimized Cheat Sheet for Frame v0.58 - Updated September 15, 2025*
 
 ## 🎯 One-Line Summary
 Frame is a Python-like state machine language where systems contain states ($Name) that respond to events with transitions (->).
@@ -26,13 +26,12 @@ fn add(x, y) {
 }
 ```
 
-### Class
+### Class (v0.58: decorators)
 ```frame
+@dataclass  # v0.58: Class decorators
 class Point {
-    fn init(x, y) {
-        self.x = x
-        self.y = y
-    }
+    var x = 0
+    var y = 0
 }
 ```
 

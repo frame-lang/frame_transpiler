@@ -745,6 +745,7 @@ impl NodeElement for ModuleNode {
 pub struct ClassNode {
     pub name: String,
     pub parent: Option<String>,  // Parent class name for inheritance
+    pub decorators: Vec<String>,  // v0.58: Class decorators (pass-through to Python)
     pub methods: Vec<Rc<RefCell<MethodNode>>>,
     pub static_methods: Vec<Rc<RefCell<MethodNode>>>,
     pub class_methods: Vec<Rc<RefCell<MethodNode>>>,  // @classmethod methods
@@ -759,6 +760,7 @@ impl ClassNode {
     pub fn new(
         name: String,
         parent: Option<String>,
+        decorators: Vec<String>,
         methods: Vec<Rc<RefCell<MethodNode>>>,
         static_methods: Vec<Rc<RefCell<MethodNode>>>,
         class_methods: Vec<Rc<RefCell<MethodNode>>>,
@@ -771,6 +773,7 @@ impl ClassNode {
         ClassNode {
             name,
             parent,
+            decorators,
             methods,
             static_methods,
             class_methods,

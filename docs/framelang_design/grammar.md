@@ -236,16 +236,18 @@ fn main() {
 - 🔄 **Import Parsing**: Parser extensions for import statements (next phase)
 - 🔄 **Cross-File Compilation**: Full multi-file project compilation (next phase)
 
-## Classes (v0.45)
+## Classes (v0.45, Enhanced v0.58)
 
-Frame v0.45 introduces class support for object-oriented programming, providing a familiar syntax for defining classes with methods and variables.
+Frame v0.45 introduces class support for object-oriented programming, providing a familiar syntax for defining classes with methods and variables. v0.58 adds support for class decorators.
 
 ```bnf
-class_decl: 'class' IDENTIFIER '{' class_body '}'
-class_body: (var_decl | method_decl | static_method_decl)*
+class_decl: decorator* 'class' IDENTIFIER '{' class_body '}'  // v0.58: Added decorator support
+decorator: '@' IDENTIFIER ('(' arguments? ')')?  // v0.58: Class decorators
+class_body: (var_decl | method_decl | static_method_decl | property_method_decl)*
 
 method_decl: 'fn' IDENTIFIER '(' parameters? ')' (':' type)? '{' statements '}'
 static_method_decl: '@staticmethod' 'fn' IDENTIFIER '(' parameters? ')' (':' type)? '{' statements '}'
+property_method_decl: '@property' 'fn' IDENTIFIER '(' ')' (':' type)? '{' statements '}'  // v0.55
 ```
 
 ### Class Features
@@ -255,6 +257,7 @@ static_method_decl: '@staticmethod' 'fn' IDENTIFIER '(' parameters? ')' (':' typ
 - **Static Methods**: Methods decorated with `@staticmethod` (no implicit `self`)
 - **Class Variables**: Variables declared at class level (shared across instances)
 - **Property Methods**: Methods decorated with `@property` for computed attributes (v0.55)
+- **Class Decorators**: Python decorator pass-through for classes (v0.58)
 - **Instance Variables**: Variables assigned via `self.varname` in methods
 - **Method Calls**: Instance methods called via `object.method()`, static via `ClassName.method()`
 
@@ -336,12 +339,57 @@ fn main() {
 }
 ```
 
+### Class Decorators (v0.58)
+
+Frame v0.58 supports Python decorator pass-through for classes, enabling integration with Python's decorator ecosystem:
+
+```frame
+from dataclasses import dataclass
+
+# Simple decorator
+@dataclass
+class Point {
+    var x = 0
+    var y = 0
+}
+
+# Decorator with arguments
+@dataclass(frozen=True)
+class ImmutablePoint {
+    var x = 0
+    var y = 0
+}
+
+# Multiple decorators
+@dataclass
+@total_ordering
+class ComparablePoint {
+    var x = 0
+    var y = 0
+    
+    fn __eq__(other) {
+        return self.x == other.x and self.y == other.y
+    }
+    
+    fn __lt__(other) {
+        return self.x < other.x or (self.x == other.x and self.y < other.y)
+    }
+}
+```
+
+**Decorator Features**:
+- **Pass-through**: Decorators are passed unchanged to Python output
+- **Arguments Support**: Decorators can include parenthesized arguments
+- **Multiple Decorators**: Multiple decorators can be stacked on a class
+- **Method Decorators Preserved**: `@staticmethod` and `@property` continue to work for methods
+
 ### Key Differences from Traditional OOP
 
 - **Implicit `self`**: Method signatures don't include `self` parameter (added automatically)
 - **No Inheritance**: Frame v0.45 supports single classes without inheritance
 - **No Access Modifiers**: All members are public
 - **Python-style Special Methods**: Use `__str__`, `__repr__`, etc. for special behavior
+- **Decorator Pass-through**: Python decorators work directly (v0.58)
 
 ## Scope Rules (v0.31)
 

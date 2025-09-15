@@ -4775,6 +4775,18 @@ impl AstVisitor for PythonVisitor {
     // v0.45: Class support
     fn visit_class_node(&mut self, class_node: &ClassNode) {
         self.newline();
+        
+        // v0.58: Emit class decorators
+        for decorator in &class_node.decorators {
+            self.newline();
+            self.add_code(decorator);  // Decorators are stored as complete strings like "@dataclass"
+        }
+        
+        // Add newline before class definition if there were decorators
+        if !class_node.decorators.is_empty() {
+            self.newline();
+        }
+        
         // Handle inheritance
         if let Some(ref parent) = class_node.parent {
             self.add_code(&format!("class {}({}):", class_node.name, parent));

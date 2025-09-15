@@ -1,4 +1,53 @@
-# Frame v0.57 Development Notes
+# Frame v0.58 Development Notes
+
+## v0.58 Class Decorators - COMPLETE! (2025-09-15)
+
+### Python Decorator Pass-Through for Classes
+
+Frame v0.58 adds support for Python decorators on class declarations, enabling seamless integration with Python's decorator ecosystem while maintaining **100% test success rate** with all 374 tests passing.
+
+**New Decorator Features:**
+1. **Class Decorators** - Python decorator syntax on class declarations
+2. **Pass-Through Generation** - Decorators emitted unchanged to Python
+3. **Arguments Support** - Decorators with parenthesized arguments work
+4. **Multiple Decorators** - Stack multiple decorators on a single class
+5. **Method Decorators Preserved** - `@staticmethod` and `@property` continue working
+6. **Smart Parser** - Context-aware parsing distinguishes class from method decorators
+
+### Class Decorator Examples
+
+```frame
+from dataclasses import dataclass
+from functools import total_ordering
+
+# Simple decorator
+@dataclass
+class Point {
+    var x = 0
+    var y = 0
+}
+
+# Decorator with arguments
+@dataclass(frozen=True)
+class ImmutablePoint {
+    var x = 0
+    var y = 0
+}
+
+# Multiple decorators
+@dataclass
+@total_ordering
+class ComparablePoint {
+    var x = 0
+    var y = 0
+}
+```
+
+**Implementation Highlights:**
+- AST enhanced with `decorators: Vec<String>` field on ClassNode
+- Parser uses lookahead to distinguish class vs method decorators
+- Python visitor emits decorators before class definition
+- Full backward compatibility - all existing tests continue passing
 
 ## v0.57 Multi-File Module System Infrastructure - COMPLETE! (2025-09-14)
 

@@ -298,7 +298,46 @@ impl<'a> Parser<'a> {
                 continue;
             }
             
-            // Check for class declarations
+            // Check for class decorators (only if @ is followed eventually by 'class')
+            // We need to look ahead to see if this is a decorator for a class
+            if self.check(TokenType::At) {
+                // Save position in case we need to backtrack
+                let saved_pos = self.current;
+                let mut temp_decorators = Vec::new();
+                
+                // Try to parse decorators
+                while self.check(TokenType::At) {
+                    match self.parse_class_decorator() {
+                        Ok(decorator_str) => temp_decorators.push(decorator_str),
+                        Err(_) => {
+                            // Not a valid decorator, backtrack
+                            self.current = saved_pos;
+                            break;
+                        }
+                    }
+                }
+                
+                // Check if followed by 'class'
+                if self.check(TokenType::Class) {
+                    // This is a decorated class
+                    self.advance();  // consume 'class'
+                    match self.class_decl_with_decorators(temp_decorators) {
+                        Ok(class_decl) => {
+                            classes.push(class_decl);
+                        }
+                        Err(e) => return Err(e),
+                    }
+                    continue;
+                } else if !temp_decorators.is_empty() {
+                    // We parsed decorators but no class follows
+                    return Err(ParseError::new("Expected 'class' after decorators"));
+                } else {
+                    // No decorators parsed, backtrack completely
+                    self.current = saved_pos;
+                }
+            }
+            
+            // Check for undecorated class declarations
             if self.match_token(&[TokenType::Class]) {
                 match self.class_decl() {
                     Ok(class_decl) => {
@@ -380,7 +419,7 @@ impl<'a> Parser<'a> {
                 if entity_attributes_opt.is_some() {
                     return Err(ParseError::new("Classes do not support attributes in the current implementation."));
                 }
-                let class = self.class_declaration()?;
+                let class = self.class_decl()?;
                 classes.push(class);
             } else if entity_attributes_opt.is_some() {
                 // We parsed attributes but found no system or function - this is an error
@@ -3595,6 +3634,8 @@ impl<'a> Parser<'a> {
             }
             else {
                 eprintln!("DEBUG: Unexpected token in class body: {:?}", self.peek());
+                eprintln!("DEBUG: Current position: {}", self.current);
+                eprintln!("DEBUG: Previous token: {:?}", self.previous());
                 self.error_at_current("Expected method or variable declaration in class body");
                 return Err(ParseError::new("Unexpected token in class body"));
             }
@@ -3609,6 +3650,7 @@ impl<'a> Parser<'a> {
         let class_node = ClassNode::new(
             class_name,
             parent,
+            Vec::new(),  // v0.58: No decorators in this path (comes from class_declaration)
             methods,
             static_methods,
             class_methods,
@@ -13299,6 +13341,7 @@ impl<'a> Parser<'a> {
         Ok(Rc::new(RefCell::new(ClassNode::new(
             class_name,
             None,  // parent - not supported in this old function
+            Vec::new(),  // v0.58: No decorators in this old path
             methods,
             static_methods,
             Vec::new(),  // class_methods - not supported in this old function  
@@ -14303,6 +14346,95 @@ impl<'a> Parser<'a> {
         }
         
         Ok(ExprListNode::new(args))
+    }
+
+    // ===================== Frame v0.58 Class Decorators =====================
+    
+    fn parse_class_decorator(&mut self) -> Result<String, ParseError> {
+        // Consume the @ symbol
+        if !self.match_token(&[TokenType::At]) {
+            return Err(ParseError::new("Expected '@' for decorator"));
+        }
+        
+        // Get the decorator name
+        if !self.match_token(&[TokenType::Identifier]) {
+            self.error_at_current("Expected decorator name after '@'");
+            return Err(ParseError::new("Expected decorator name after '@'"));
+        }
+        
+        let mut decorator_str = format!("@{}", self.previous().lexeme);
+        
+        // Check for decorator arguments (optional)
+        if self.match_token(&[TokenType::LParen]) {
+            decorator_str.push('(');
+            
+            // For decorator arguments, just collect the raw tokens until closing paren
+            // This preserves the exact Python syntax for pass-through
+            let mut depth = 1;
+            let mut arg_tokens = Vec::new();
+            
+            while depth > 0 && !self.is_at_end() {
+                let token = self.peek();
+                
+                if token.token_type == TokenType::LParen {
+                    depth += 1;
+                } else if token.token_type == TokenType::RParen {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;  // Don't include the final closing paren
+                    }
+                }
+                
+                // Collect the token for pass-through
+                arg_tokens.push(token.lexeme.clone());
+                self.advance();
+            }
+            
+            // Join all tokens with appropriate spacing
+            decorator_str.push_str(&arg_tokens.join(""));
+            
+            if !self.match_token(&[TokenType::RParen]) {
+                self.error_at_current("Expected ')' after decorator arguments");
+                return Err(ParseError::new("Expected ')' after decorator arguments"));
+            }
+            decorator_str.push(')');
+        }
+        
+        Ok(decorator_str)
+    }
+    
+    fn class_decl_with_decorators(&mut self, decorators: Vec<String>) -> Result<Rc<RefCell<ClassNode>>, ParseError> {
+        // We've already consumed 'class' keyword, now delegate to existing class_decl
+        // but we need to modify it to accept decorators
+        
+        // Get the class using existing logic
+        let class_node = self.class_decl()?;
+        
+        // Update the class node with decorators
+        {
+            let mut class = class_node.borrow_mut();
+            class.decorators = decorators;
+        }
+        
+        Ok(class_node)
+    }
+    
+    // Helper function to convert expression to string for decorator pass-through
+    fn expr_to_string(&self, expr: &ExprType) -> String {
+        // Simplified expression to string conversion
+        // In a full implementation, this would be more comprehensive
+        match expr {
+            ExprType::LiteralExprT { literal_expr_node } => {
+                // Handle different literal types
+                match literal_expr_node.token_t {
+                    TokenType::String | TokenType::RawString => format!("\"{}\"", literal_expr_node.value),
+                    _ => literal_expr_node.value.clone(),
+                }
+            }
+            ExprType::VariableExprT { var_node } => var_node.id_node.name.lexeme.clone(),
+            ExprType::NilExprT => "None".to_string(),
+            _ => "...".to_string(), // Placeholder for complex expressions
+        }
     }
 }
 
