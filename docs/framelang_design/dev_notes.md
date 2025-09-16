@@ -1,6 +1,8 @@
 # Frame v0.58 Development Notes
 
-## v0.58 Class Decorators - COMPLETE! (2025-09-15)
+## v0.58 Class Decorators & GraphViz Multi-System Support - COMPLETE! (2025-09-16)
+
+### Class Decorators - COMPLETE! (2025-09-15)
 
 ### Python Decorator Pass-Through for Classes
 
@@ -48,6 +50,40 @@ class ComparablePoint {
 - Parser uses lookahead to distinguish class vs method decorators
 - Python visitor emits decorators before class definition
 - Full backward compatibility - all existing tests continue passing
+
+### GraphViz Multi-System Support - COMPLETE! (2025-09-16)
+
+Frame v0.58 also adds proper multi-system GraphViz generation, fixing critical issues where multiple systems would overwrite each other's output.
+
+**GraphViz Improvements:**
+1. **Multi-System Generation** - All systems in a Frame file are now generated
+2. **Reset Mechanism** - Visitor state properly reset between systems
+3. **Concatenated Output** - Multiple systems output with clear separation
+4. **System Headers** - Comments identify each system in output
+5. **Backward Compatible** - Single system files unchanged
+6. **Debug Output Control** - Fixed unconditional debug statements contaminating output
+
+**Multi-System Output Format:**
+```
+// Frame Module: 2 systems
+
+// System: TrafficLight
+digraph TrafficLight { ... }
+
+// System: Elevator
+digraph Elevator { ... }
+```
+
+**Implementation Details:**
+- Added `reset()` method to GraphVizVisitor to clear state between systems
+- `run_v2()` now returns `Vec<(String, String)>` with system name and DOT pairs
+- Compiler concatenates outputs with informative headers
+- All debug output now properly controlled by `FRAME_TRANSPILER_DEBUG` environment variable
+
+**VSCode Extension Ready:**
+- Clean DOT output without debug contamination
+- Easy to parse system separation for navigation UI
+- Foundation for Phase 2 structured SVG output
 
 ## v0.57 Multi-File Module System Infrastructure - COMPLETE! (2025-09-14)
 

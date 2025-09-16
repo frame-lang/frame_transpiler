@@ -1,5 +1,5 @@
 # Frame Language Quick Reference Card
-*AI-Optimized Cheat Sheet for Frame v0.58 - Updated September 15, 2025*
+*AI-Optimized Cheat Sheet for Frame v0.58 - Updated September 16, 2025*
 
 ## 🎯 One-Line Summary
 Frame is a Python-like state machine language where systems contain states ($Name) that respond to events with transitions (->).

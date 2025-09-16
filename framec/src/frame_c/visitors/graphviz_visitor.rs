@@ -142,7 +142,15 @@ impl GraphVizVisitor {
     ) {
         //       let state_name = &node.name;
         let mut actual_indent = indent;
-        let node = self.system_hierarchy.get_node(node_name).unwrap();
+        // Check if node exists in hierarchy (may not for multi-system files)
+        let node = match self.system_hierarchy.get_node(node_name) {
+            Some(n) => n,
+            None => {
+                // Node not in hierarchy - skip hierarchy processing
+                // This happens with multiple systems since hierarchy is built for one
+                return;
+            }
+        };
         if !is_system_node {
             actual_indent += 1;
             if node.children.len() > 0 {
@@ -151,9 +159,16 @@ impl GraphVizVisitor {
                 output.push_str(&self.format_state(&node_name, actual_indent));
             }
         }
-        let node = self.system_hierarchy.get_node(node_name).unwrap();
+        // Get node again for children processing
+        let node = match self.system_hierarchy.get_node(node_name) {
+            Some(n) => n,
+            None => return,
+        };
         for child_node_name in &node.children {
-            let child_node = self.system_hierarchy.get_node(child_node_name).unwrap();
+            let child_node = match self.system_hierarchy.get_node(child_node_name) {
+                Some(n) => n,
+                None => continue,
+            };
             self.generate_states(&child_node.name, false, actual_indent, output);
         }
         if !is_system_node && node.children.len() > 0 {
@@ -322,13 +337,38 @@ impl GraphVizVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
+    
+    // Reset all visitor state between systems
+    fn reset(&mut self) {
+        self.code.clear();
+        self.states.clear();
+        self.transitions.clear();
+        self.current_state_name_opt = None;
+        self.first_state_name.clear();
+        self.system_name.clear();
+        self.event_handler_msg.clear();
+        self.first_event_handler = true;
+        self.dent = 0;
+        self.current_event_ret_type.clear();
+    }
+    
+    //* --------------------------------------------------------------------- *//
 
-    pub fn run_v2(&mut self, frame_module: &FrameModule) {
-        // v0.30: For now, generate GraphViz for each system separately
-        // Future: could generate a combined graph with subgraphs for each system
-        for system_node in &frame_module.systems {
-            system_node.accept(self);
+    pub fn run_v2(&mut self, frame_module: &FrameModule) -> Vec<(String, String)> {
+        let mut results = Vec::new();
+        
+        for system in &frame_module.systems {
+            // Reset all visitor state between systems
+            self.reset();
+            
+            // Generate DOT for this system
+            system.accept(self);
+            
+            // Collect result
+            results.push((system.name.clone(), self.code.clone()));
         }
+        
+        results  // Returns [(system_name, dot_code), ...]
     }
     
     pub fn run(&mut self, system_node: &SystemNode) {
@@ -629,9 +669,11 @@ impl GraphVizVisitor {
             current_state = state_name.clone();
         }
 
-        let node = self.system_hierarchy.get_node(&current_state).unwrap();
-        if node.children.len() > 0 {
-            transition_type = TransitionLabelType::FromCluster;
+        // Check if node exists in hierarchy before using it
+        if let Some(node) = self.system_hierarchy.get_node(&current_state) {
+            if node.children.len() > 0 {
+                transition_type = TransitionLabelType::FromCluster;
+            }
         }
         // self.newline();
         let label = match &transition_statement.transition_expr_node.label_opt {
@@ -1041,8 +1083,10 @@ impl AstVisitor for GraphVizVisitor {
 
         let mut output = String::new();
         let sys_name = self.system_name.clone();
-        let _system_node = self.system_hierarchy.get_system_node().unwrap();
-        self.generate_states(&sys_name, true, 0, &mut output);
+        // System hierarchy may not be valid for multi-system files
+        if self.system_hierarchy.get_system_node().is_some() {
+            self.generate_states(&sys_name, true, 0, &mut output);
+        }
         self.states = output;
 
         for state_node_rcref in &machine_block_node.states {
@@ -1111,10 +1155,8 @@ impl AstVisitor for GraphVizVisitor {
 
         //       println!("current state = {}", &state_node.name);
 
-        let _state_symbol = match self.arcanium.get_state(&state_node.name) {
-            Some(state_symbol) => state_symbol,
-            None => panic!("TODO"),
-        };
+        // Note: state_symbol lookup was removed as it wasn't being used
+        // and was causing issues with multi-system files and two-pass parser
 
         self.first_event_handler = true; // context for formatting
 

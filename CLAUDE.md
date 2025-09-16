@@ -40,7 +40,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 
 **Branch**: `v0.30`  
 **Version**: `v0.58`  
-**Status**: ✅ **100% TEST SUCCESS RATE** - Class Decorators Support COMPLETE (374/374 tests passing)
+**Status**: ✅ **100% TEST SUCCESS RATE** - Class Decorators & GraphViz Multi-System Support Complete
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)

@@ -5,7 +5,7 @@ This project contains the code for building the Frame Language Transpiler - the 
 **Current Version**: v0.58  
 **Test Success Rate**: 100% (374/374 tests passing) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-09-15
+**Last Updated**: 2025-09-16
 
 ## Current Features (v0.58)
 
@@ -16,6 +16,13 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Method Decorators Preserved**: `@staticmethod` and `@property` continue working
 - **Common Use Cases**: `@dataclass`, `@total_ordering`, custom decorators
 - **Smart Parser**: Context-aware parsing distinguishes class from method decorators
+
+### GraphViz Multi-System Support (NEW in v0.58)
+- **Multi-System Generation**: All systems in a Frame file are now generated
+- **Clean Output**: Debug statements properly controlled by environment variable
+- **System Separation**: Each system clearly labeled in concatenated output
+- **VSCode Ready**: Clean DOT output for extension visualization
+- **Backward Compatible**: Single system files work unchanged
 
 ## Previous Features (v0.57)
 

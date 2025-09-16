@@ -261,6 +261,46 @@ property_method_decl: '@property' 'fn' IDENTIFIER '(' ')' (':' type)? '{' statem
 - **Instance Variables**: Variables assigned via `self.varname` in methods
 - **Method Calls**: Instance methods called via `object.method()`, static via `ClassName.method()`
 
+### Class Decorators (v0.58)
+
+Frame v0.58 adds support for Python class decorators, allowing direct pass-through of decorator syntax:
+
+```frame
+# Dataclass decorator
+@dataclass
+class Person {
+    fn init(name, age) {
+        self.name = name
+        self.age = age
+    }
+}
+
+# Multiple decorators
+@dataclass
+@frozen
+class ImmutablePoint {
+    fn init(x, y) {
+        self.x = x
+        self.y = y
+    }
+}
+
+# Decorators with arguments
+@decorator_with_args("value", key=42)
+class ConfiguredClass {
+    fn method() {
+        return "configured"
+    }
+}
+```
+
+**Decorator Features**:
+- **Python Pass-Through**: Decorators are passed directly to Python output
+- **Multiple Decorators**: Stack multiple decorators on a single class
+- **Parameterized Decorators**: Support for decorators with arguments
+- **Standard Library**: Works with Python's built-in decorators (`@dataclass`, etc.)
+- **Custom Decorators**: Compatible with user-defined decorators
+
 ### Class Examples
 
 ```frame

@@ -3493,7 +3493,9 @@ impl<'a> Parser<'a> {
         
         // Parse class body
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
-            eprintln!("DEBUG: In class body, current token: {:?}", self.peek());
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: In class body, current token: {:?}", self.peek());
+            }
             
             // Skip comments
             if self.match_token(&[TokenType::PythonComment]) {
@@ -3633,9 +3635,11 @@ impl<'a> Parser<'a> {
                 continue;
             }
             else {
-                eprintln!("DEBUG: Unexpected token in class body: {:?}", self.peek());
-                eprintln!("DEBUG: Current position: {}", self.current);
-                eprintln!("DEBUG: Previous token: {:?}", self.previous());
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Unexpected token in class body: {:?}", self.peek());
+                    eprintln!("DEBUG: Current position: {}", self.current);
+                    eprintln!("DEBUG: Previous token: {:?}", self.previous());
+                }
                 self.error_at_current("Expected method or variable declaration in class body");
                 return Err(ParseError::new("Unexpected token in class body"));
             }
@@ -3674,7 +3678,9 @@ impl<'a> Parser<'a> {
             true => self.previous().lexeme.clone(),
         };
         
-        eprintln!("DEBUG: Parsing method '{}'", method_name);
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Parsing method '{}'", method_name);
+        }
         
         let line = self.previous().line;
         let is_constructor = method_name == "init" || method_name == "__init__";
@@ -7497,7 +7503,9 @@ impl<'a> Parser<'a> {
             }
         } else if self.match_token(&[TokenType::Self_]) {
             // Frame v0.31: Handle explicit self.method() and self.variable syntax
-            eprintln!("DEBUG: Found Self_ token in parse_special_keywords");
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Found Self_ token in parse_special_keywords");
+            }
             return self.parse_self_context();
         } else if self.match_token(&[TokenType::SystemReturn]) {
             // Frame v0.31: Handle system.return special variable
@@ -10915,9 +10923,13 @@ impl<'a> Parser<'a> {
                                         let interface_method_symbol_opt =
                                             self.arcanum.lookup_interface_method(&method_name);
 
-                                        eprintln!("DEBUG PARSER: Looking up interface method '{}', result: {:?}", method_name, interface_method_symbol_opt.is_some());
+                                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                                            eprintln!("DEBUG PARSER: Looking up interface method '{}', result: {:?}", method_name, interface_method_symbol_opt.is_some());
+                                        }
                                         if let Some(interface_method_symbol) = interface_method_symbol_opt {
-                                            eprintln!("DEBUG PARSER: Found interface method, processing...");
+                                            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                                                eprintln!("DEBUG PARSER: Found interface method, processing...");
+                                            }
                                             // first node is an interface call.
                                             if self.is_action_scope {
                                                 // iface calls disallowed in actions.
@@ -11704,7 +11716,9 @@ impl<'a> Parser<'a> {
                 };
                 
                 // Return as a BuiltInCallExprT
-                eprintln!("DEBUG: Returning BuiltInCallExprT for FSL operation: {}", base_id.name.lexeme);
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Returning BuiltInCallExprT for FSL operation: {}", base_id.name.lexeme);
+                }
                 return Ok(Some(BuiltInCallExprT {
                     builtin_call_node: Box::new(builtin_call_node),
                 })); */
@@ -12956,8 +12970,10 @@ impl<'a> Parser<'a> {
     fn parse_self_context(&mut self) -> Result<Option<ExprType>, ParseError> {
         use crate::frame_c::ast::SelfExprNode;
         
-        eprintln!("DEBUG parse_self_context: is_class_method={}, is_static_operation={}", 
-                  self.is_class_method, self.is_static_operation);
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG parse_self_context: is_class_method={}, is_static_operation={}", 
+                      self.is_class_method, self.is_static_operation);
+        }
         
         // Check if we're in a static operation - if so, self is not allowed
         if self.is_static_operation {
@@ -13310,7 +13326,9 @@ impl<'a> Parser<'a> {
                     if constructor.is_some() {
                         return Err(ParseError::new("Class can only have one constructor"));
                     }
-                    eprintln!("DEBUG: Setting constructor for class, statements count: {}", method_ref.statements.len());
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: Setting constructor for class, statements count: {}", method_ref.statements.len());
+                    }
                     drop(method_ref); // Release borrow
                     constructor = Some(method.clone());
                 } else if is_static {
@@ -13412,9 +13430,13 @@ impl<'a> Parser<'a> {
             } else if let Some(stmt) = self.statement()? {
                 let decl_or_stmt = DeclOrStmtType::StmtT { stmt_t: stmt };
                 statements.push(decl_or_stmt);
-                eprintln!("DEBUG: Added statement to class method");
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Added statement to class method");
+                }
             } else {
-                eprintln!("DEBUG: statement() returned None in class method");
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: statement() returned None in class method");
+                }
             }
         }
         

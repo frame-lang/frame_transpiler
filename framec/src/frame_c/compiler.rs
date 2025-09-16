@@ -170,7 +170,7 @@ impl Exe {
         hasher.update(&content);
         // let sha256 = &format!("{:x}", hasher.finalize());
 
-        let output;
+        let mut output;
         //        let mut output= String::new(); ^^^^ See above! ^^^^
 
         let scanner = Scanner::new(content);
@@ -325,8 +325,28 @@ impl Exe {
                             FRAMEC_VERSION,
                             comments,
                         );
-                        visitor.run_v2(&frame_module);
-                        output = visitor.get_code();
+                        let results = visitor.run_v2(&frame_module);
+                        
+                        // For backward compatibility, concatenate all system DOT outputs
+                        // with comments separating them
+                        if results.is_empty() {
+                            output = String::from(
+                                "digraph structs { node [shape=plaintext] \
+                                                        struct1 [label=\"No System\"]; \
+                                                      }",
+                            );
+                        } else if results.len() == 1 {
+                            // Single system - just output the DOT directly
+                            output = results[0].1.clone();
+                        } else {
+                            // Multiple systems - concatenate with comments
+                            output = format!("// Frame Module: {} systems\n", results.len());
+                            for (system_name, dot_code) in results {
+                                output.push_str(&format!("\n// System: {}\n", system_name));
+                                output.push_str(&dot_code);
+                                output.push_str("\n");
+                            }
+                        }
                     } else {
                         output = String::from(
                             "digraph structs { node [shape=plaintext] \
