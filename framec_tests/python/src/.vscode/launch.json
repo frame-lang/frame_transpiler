@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+    
+        {
+            "type": "frame",
+            "request": "launch",
+            "name": "Debug Frame State Machine",
+            "program": "${file}",
+            "stopOnEntry": true,
+            "targetLanguage": "python"
+        },
+        {
+            "name": "Debug Frame State Machine",
+            "type": "frame",
+            "request": "launch",
+            "program": "${file}",
+            "stopOnEntry": true,
+            "targetLanguage": "python"
+        }
+    ]
+}

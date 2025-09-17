@@ -11,6 +11,7 @@ use crate::frame_c::ast::DeclOrStmtType;
 use crate::frame_c::ast::DeclOrStmtType::{StmtT, VarDeclT};
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
+use crate::frame_c::source_map::SourceMapBuilder;
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
@@ -87,6 +88,10 @@ pub struct PythonVisitor {
     module_level_enums: HashSet<String>,     // Track enum names defined at module level
     system_has_async_runtime: bool,          // v0.37: Track if current system needs async runtime
     pending_assert: bool,                    // v0.45: Track if we just output an assert and need to suppress next newline
+    
+    // Source map tracking
+    source_map_builder: Option<Rc<RefCell<SourceMapBuilder>>>,  // Optional source map builder for debug mode
+    current_line: usize,                                       // Current line number in generated code
     generating_state_vars_init: bool,        // v0.55: Track if we're generating state variable initializers in transition
     current_module_name: Option<String>,     // v0.57: Track current module being generated
     current_module_path: Vec<String>,        // v0.57: Track full module path hierarchy
@@ -189,6 +194,20 @@ impl PythonVisitor {
             current_module_path: Vec::new(),
             current_module_variables: HashSet::new(),
             nested_module_names: HashSet::new(),
+            source_map_builder: None,
+            current_line: 1,
+        }
+    }
+    
+    /// Set a source map builder for tracking line mappings during code generation
+    pub fn set_source_map_builder(&mut self, builder: Rc<RefCell<SourceMapBuilder>>) {
+        self.source_map_builder = Some(builder);
+    }
+    
+    /// Record a mapping from Frame source line to current Python line
+    fn add_source_mapping(&mut self, frame_line: usize) {
+        if let Some(ref builder) = self.source_map_builder {
+            builder.borrow_mut().add_simple_mapping(frame_line, self.current_line);
         }
     }
 
@@ -2478,6 +2497,7 @@ impl PythonVisitor {
 
     fn skip_next_newline(&mut self) {
         self.code.push_str(&*format!("\n{}", self.dent()));
+        self.current_line += 1;  // Track line numbers for source maps
         self.skip_next_newline = true;
     }
 
@@ -2488,6 +2508,7 @@ impl PythonVisitor {
             self.skip_next_newline = false;
         } else {
             self.code.push_str(&*format!("\n{}", self.dent()));
+            self.current_line += 1;  // Track line numbers for source maps
         }
     }
     //* --------------------------------------------------------------------- *//
@@ -2500,6 +2521,7 @@ impl PythonVisitor {
             self.pending_assert = false;
         } else {
             self.code.push_str(&*format!("\n{}", self.dent()));
+            self.current_line += 1;  // Track line numbers for source maps
         }
     }
 
@@ -5305,6 +5327,10 @@ impl AstVisitor for PythonVisitor {
         let system_name = &system_instance_expr_node.identifier.name.lexeme;
 
         self.newline();
+        
+        // Add source mapping for system instantiation
+        self.add_source_mapping(system_instance_expr_node.identifier.line);
+        
         self.add_code(&format!("{}", system_name));
         self.add_code("(");
         let mut separator = "";
@@ -5490,6 +5516,10 @@ impl AstVisitor for PythonVisitor {
         self.in_standalone_function = true;
         
         self.newline();
+        
+        // Add source mapping for function definition
+        self.add_source_mapping(function_node.line);
+        
         // v0.35: Generate async def for async functions
         if function_node.is_async {
             self.add_code(&format!("async def {}(", function_node.name));
@@ -6035,6 +6065,10 @@ impl AstVisitor for PythonVisitor {
         if self.generate_comment(state_node.line) {
             self.newline();
         }
+        
+        // Add source mapping for state definition
+        self.add_source_mapping(state_node.line);
+        
         self.current_state_name_opt = Some(state_node.name.clone());
         
         // Track parent state for => $^ dispatch in event handlers
@@ -6313,6 +6347,9 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
         self.debug_enter(&format!("visit_call_expression_node({})", method_call.identifier.name.lexeme));
+        
+        // Add source mapping for this call expression
+        self.add_source_mapping(method_call.identifier.line);
         
         // Debug: log the call chain to understand what's happening
         if let Some(call_chain) = &method_call.call_chain {
@@ -10520,6 +10557,10 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
         self.generate_comment(assignment_stmt_node.get_line());
         self.newline();
+        
+        // Add source mapping for assignment statement
+        self.add_source_mapping(assignment_stmt_node.get_line());
+        
         assignment_stmt_node.assignment_expr_node.accept(self);
     }
 

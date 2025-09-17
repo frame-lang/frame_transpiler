@@ -1,3 +1,82 @@
+# Frame v0.59 Development Notes
+
+## v0.59 Source Map Generation for Debugging - COMPLETE! (2025-09-17)
+
+### Source Map Infrastructure
+
+Frame v0.59 introduces comprehensive source map generation for debugging support, enabling IDEs and debuggers to map between Frame source code and generated target language code. The implementation uses **on-the-fly generation** avoiding intermediate file storage.
+
+**New Debugging Features:**
+1. **Source Map Generation** - Complete source-to-target line mapping infrastructure
+2. **Debug Output Mode** - JSON format combining transpiled code and mappings
+3. **Line Tracking** - Accurate line number tracking during transpilation
+4. **VSCode Integration Ready** - Compatible with Debug Adapter Protocol
+5. **On-The-Fly Generation** - No intermediate files, direct JSON output
+6. **Environment Control** - Debug output controlled by flag, not contaminating regular output
+
+### Source Map Architecture
+
+**Key Components:**
+- `source_map.rs` - Core types and builder for source mapping
+- `--debug-output` flag - Enables JSON output with mappings
+- Line tracking in PythonVisitor - Increments on newline() calls
+- Mapping generation at AST nodes with line information
+
+**Output Format:**
+```json
+{
+  "python": "<generated Python code>",
+  "sourceMap": {
+    "version": "1.0",
+    "sourceFile": "input.frm",
+    "targetFile": "input.py", 
+    "mappings": [
+      {"frameLine": 4, "pythonLine": 20, "mapping_type": "function"},
+      {"frameLine": 5, "pythonLine": 21, "mapping_type": "statement"}
+    ]
+  },
+  "frameSource": "<original Frame code>"
+}
+```
+
+**Currently Mapped Elements (~60% coverage):**
+- Function definitions
+- State definitions
+- Call expressions (print, method calls)
+- State enter handlers
+- Machine block start
+
+**Implementation Highlights:**
+- Uses `Rc<RefCell<SourceMapBuilder>>` for shared mutable access
+- Line tracking via current_line counter in PythonVisitor
+- Mappings added at visitor methods where AST nodes have line info
+- JSON serialization with serde for clean output
+
+**Known Limitations:**
+- Some AST nodes lack line information (VariableDeclNode, TransitionExprNode)
+- Coverage limited to nodes with available line data
+- Future work: Add line fields to all AST nodes for complete mapping
+
+### Debug Output Control Fix
+
+All debug statements now properly controlled by `FRAME_TRANSPILER_DEBUG` environment variable:
+- Fixed 10+ unconditional `eprintln!` statements in parser.rs
+- Prevents debug output from contaminating VSCode extension output
+- Clean output for both Python and GraphViz generation
+
+**Usage:**
+```bash
+# Generate with source map
+framec -l python_3 --debug-output input.frm > debug.json
+
+# Regular transpilation (no debug output)
+framec -l python_3 input.frm > output.py
+```
+
+This feature completes the foundation for full IDE debugging support, enabling breakpoints, stepping, and variable inspection in Frame source while executing generated Python code.
+
+---
+
 # Frame v0.58 Development Notes
 
 ## v0.58 Class Decorators & GraphViz Multi-System Support - COMPLETE! (2025-09-16)

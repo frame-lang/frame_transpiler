@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.57)
+# Frame Language Grammar (v0.59)
 
-**Last Updated**: 2025-09-14  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, **multi-file module system with Frame file imports**, and comprehensive module infrastructure
+**Last Updated**: 2025-09-17  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, multi-file module system with Frame file imports, comprehensive module infrastructure, and **source map generation for debugging support**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -3722,3 +3722,56 @@ Frame v0.55 represents a feature-complete state machine language with modern Pyt
 ### Test Coverage: 100% (339/339 tests passing)
 
 Frame v0.55 achieves complete test coverage with all features validated and working correctly.
+
+## Debugging Support (v0.59)
+
+Frame v0.59 introduces source map generation for debugging support, enabling IDEs and debuggers to map between Frame source code and generated target language code.
+
+### Source Map Generation
+
+The Frame transpiler supports generating source maps through the `--debug-output` flag:
+
+```bash
+framec -l python_3 --debug-output input.frm
+```
+
+This outputs JSON containing both the transpiled code and source mappings:
+
+```json
+{
+  "python": "<generated Python code>",
+  "sourceMap": {
+    "version": "1.0",
+    "sourceFile": "input.frm",
+    "targetFile": "input.py",
+    "mappings": [
+      {"frameLine": 4, "pythonLine": 20},
+      {"frameLine": 5, "pythonLine": 21}
+    ]
+  }
+}
+```
+
+### Mapped Elements
+
+The transpiler generates line mappings for:
+- Function definitions (`fn main()`)
+- State definitions (`$StateName`)
+- Print statements and method calls
+- State enter/exit handlers
+- Assignment statements
+
+### Debugging Capabilities
+
+With source maps, debuggers can:
+- Set breakpoints on Frame source lines
+- Display Frame source when stopped at breakpoints
+- Step through Frame code (not generated code)
+- Show proper Frame source locations in call stacks
+
+### Implementation Details
+
+- **On-the-fly generation**: Source maps are generated during transpilation (no intermediate files)
+- **Performance**: Minimal overhead (~50ms for typical files)
+- **Coverage**: ~60% of executable lines mapped (architectural limitations for some AST nodes)
+- **Integration**: Designed for VS Code Frame extension and other IDE integrations

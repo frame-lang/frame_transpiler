@@ -9,6 +9,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+chrono = "0.4"
 clap = { version = "4.5" }
 convert_case = "0.6"
 downcast-rs = "1.2.0"

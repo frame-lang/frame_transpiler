@@ -1,11 +1,14 @@
 use crate::frame_c::config::FrameConfig;
 use crate::frame_c::parser::*;
 use crate::frame_c::scanner::*;
+use crate::frame_c::source_map::SourceMapBuilder;
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
 use crate::frame_c::modules::MultiFileCompiler;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use exitcode::USAGE;
 use sha2::{Digest, Sha256};
@@ -63,6 +66,31 @@ impl Exe {
             Ok(content) => {
                 Exe::debug_print(&content);
                 self.run(input_path.to_str(), content, target_language)
+            }
+            Err(err) => {
+                let error_msg = format!("Error reading input file: {}", err);
+                let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
+                Err(run_error)
+            }
+        }
+    }
+    
+    /// Run the Frame compiler with debug output (JSON with code and source map)
+    ///
+    /// # Arguments
+    ///
+    /// * `input_path` - Path to the file containing the Frame specification.
+    ///
+    /// * `target_language` - The target language to compile the specification to.
+    pub fn run_file_debug(
+        &self,
+        input_path: &Path,
+        target_language: Option<TargetLanguage>,
+    ) -> Result<String, RunError> {
+        match fs::read_to_string(input_path) {
+            Ok(content) => {
+                Exe::debug_print(&content);
+                self.run_debug(input_path, content, target_language)
             }
             Err(err) => {
                 let error_msg = format!("Error reading input file: {}", err);
@@ -374,6 +402,231 @@ impl Exe {
         }
 
         Ok(output)
+    }
+    
+    /// Run the Frame compiler with source map tracking
+    fn run_with_source_map(
+        &self,
+        _input_path_str: Option<&str>,
+        content: String,
+        mut target_language: Option<TargetLanguage>,
+        source_map_builder: Rc<RefCell<SourceMapBuilder>>,
+    ) -> Result<String, RunError> {
+        // This is mostly the same as run(), but passes source_map_builder to PythonVisitor
+        
+        let mut hasher = Sha256::new();
+        hasher.update(&content);
+
+        let output;
+
+        let scanner = Scanner::new(content);
+
+        let (has_errors, errors, tokens) = scanner.scan_tokens();
+        if has_errors {
+            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);
+            return Err(run_error);
+        }
+
+        for token in &tokens {
+            Exe::debug_print(&format!("{:?}", token));
+        }
+
+        let mut arcanum = Arcanum::new();
+        let mut comments = Vec::new();
+        // First pass: syntactic parsing to build symbol table
+        {
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Starting first pass - building symbol table");
+            }
+            let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Created syntactic parser with is_building_symbol_table=true");
+            }
+
+            // Check for parser errors before parsing
+            if syntactic_parser.had_error() {
+                let mut errors = "Initial parser errors:\n".to_string();
+                errors.push_str(&syntactic_parser.get_errors());
+                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                return Err(run_error);
+            }
+
+            match syntactic_parser.parse() {
+                Ok(_) => {
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: First pass parsing succeeded");
+                    }
+                    // Check for errors after parsing but before consuming the parser
+                    if syntactic_parser.had_error() {
+                        let mut errors = "First pass parsing errors:\n".to_string();
+                        errors.push_str(&syntactic_parser.get_errors());
+                        let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                        return Err(run_error);
+                    }
+                    // Symbol table building successful, extract arcanum for second pass
+                    arcanum = syntactic_parser.get_arcanum();
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: Extracted arcanum from first pass");
+                    }
+                    // Debug: Check what symbols are in the arcanum before second pass
+                    let current_table = arcanum.current_symtab.borrow();
+                    let symbol_keys: Vec<String> = current_table.symbols.keys().cloned().collect();
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: Symbols in arcanum after first pass: {:?}", symbol_keys);
+                    }
+                }
+                Err(parse_error) => {
+                    let mut errors = "First pass parse error:\n".to_string();
+                    errors.push_str(&parse_error.error);
+                    errors.push_str("\n\nSymbol table construction failed. Please check your Frame syntax.");
+                    let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                    return Err(run_error);
+                }
+            }
+        }
+
+        let mut comments2 = comments.clone();
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Starting second pass - semantic analysis");
+        }
+        // Debug: Check if symbols are still there before creating second parser
+        let module_table = arcanum.module_symtab.borrow();
+        let module_symbol_keys: Vec<String> = module_table.symbols.keys().cloned().collect();
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Symbols in module scope before second pass: {:?}", module_symbol_keys);
+        }
+        drop(module_table);
+        let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
+        }
+        
+        // Parse with proper error handling - no more fallback architecture
+        let frame_module = match semantic_parser.parse() {
+            Ok(module) => module,
+            Err(parse_error) => {
+                let mut errors = "Parse error:\n".to_string();
+                errors.push_str(&parse_error.error);
+                errors.push_str("\n\nParsing failed. Please check your Frame syntax and try again.");
+                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                return Err(run_error);
+            }
+        };
+        
+        if semantic_parser.had_error() {
+            let mut errors = "Terminating with errors.\n".to_string();
+            errors.push_str(&semantic_parser.get_errors());
+            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+            return Err(run_error);
+        }
+
+        let _generate_state_context = semantic_parser.generate_state_context;
+        let generate_state_stack = semantic_parser.generate_state_stack;
+        let generate_change_state = semantic_parser.generate_change_state;
+        let _generate_transition_state = semantic_parser.generate_transition_state;
+
+        // load configuration - always use defaults
+        let config = FrameConfig::default();
+
+        // check for language attribute override in spec specifying target language
+        // v0.30: Check all systems for language attribute
+        for system in &frame_module.systems {
+            match &system.system_attributes_opt {
+                Some(attributes) => {
+                    if let Some(attr_node) = attributes.get("language") {
+                        match attr_node {
+                            AttributeNode::MetaNameValueStr { attr } => {
+                                if let Ok(result) = TargetLanguage::try_from(attr.value.as_str()) {
+                                    target_language = Some(result);
+                                    break; // Use first language attribute found
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                None => {}
+            }
+        }
+
+        match target_language {
+            None => {
+                let run_error = RunError::new(USAGE, "No target language specified.");
+                return Err(run_error);
+            }
+            Some(lang) => match lang {
+                TargetLanguage::Python3 => {
+                    let mut visitor = PythonVisitor::new(
+                        semantic_parser.get_arcanum(),
+                        generate_state_stack,
+                        generate_change_state,
+                        FRAMEC_VERSION,
+                        comments,
+                        config,
+                    );
+                    // Set the source map builder
+                    visitor.set_source_map_builder(source_map_builder);
+                    visitor.run_v2(&frame_module);
+                    output = visitor.get_code();
+                }
+                _ => {
+                    let run_error = RunError::new(USAGE, "Source maps only supported for Python target.");
+                    return Err(run_error);
+                }
+            },
+        }
+
+        Ok(output)
+    }
+    
+    /// Run the Frame compiler with debug output, generating both code and source map
+    pub fn run_debug(
+        &self,
+        input_path: &Path,
+        content: String,
+        mut target_language: Option<TargetLanguage>,
+    ) -> Result<String, RunError> {
+        use crate::frame_c::source_map::DebugOutput;
+        
+        // For now, only support Python for source maps
+        if !matches!(target_language, Some(TargetLanguage::Python3) | None) {
+            let error_msg = "Source map generation currently only supports Python target";
+            return Err(RunError::new(exitcode::USAGE, error_msg));
+        }
+        
+        // Set default to Python3 if not specified
+        target_language = target_language.or(Some(TargetLanguage::Python3));
+        
+        // Create source map builder
+        let source_file = input_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown.frm")
+            .to_string();
+        let target_file = source_file.replace(".frm", ".py");
+        let source_map_builder = Rc::new(RefCell::new(SourceMapBuilder::new(source_file, target_file)));
+        
+        // Run compilation with source map tracking
+        let python_code = self.run_with_source_map(
+            input_path.to_str(),
+            content.clone(),
+            target_language,
+            source_map_builder.clone()
+        )?;
+        
+        // Build the final source map
+        let source_map = source_map_builder.borrow().build();
+        
+        // Create debug output
+        let debug_output = DebugOutput::new(python_code, source_map, &content);
+        
+        // Serialize to JSON
+        match serde_json::to_string_pretty(&debug_output) {
+            Ok(json) => Ok(json),
+            Err(e) => {
+                let error_msg = format!("Failed to serialize debug output: {}", e);
+                Err(RunError::new(exitcode::SOFTWARE, &error_msg))
+            }
+        }
     }
 }
 

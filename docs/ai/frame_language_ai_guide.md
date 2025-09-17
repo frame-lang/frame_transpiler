@@ -1,6 +1,6 @@
 # Frame Language AI Guide
-*Version 0.58 - Comprehensive Grammar and Code Style Reference for AI Systems*
-*Last Updated: September 16, 2025*
+*Version 0.59 - Comprehensive Grammar and Code Style Reference for AI Systems*
+*Last Updated: September 17, 2025*
 
 ## 🎯 Purpose
 This guide is specifically designed for AI systems (LLMs, code assistants, etc.) to quickly understand Frame's grammar, generate correct Frame code, and assist developers effectively. Frame is a state machine language that transpiles to Python (and other targets).
@@ -831,7 +831,8 @@ var *head, last = sequence
 
 ## 📚 Version History Highlights
 
-- **v0.58** (Sept 2025): Class decorators, GraphViz multi-system support, debug output control (374/374 tests)
+- **v0.59** (Sept 2025): Source map generation for debugging support via --debug-output flag (374/374 tests)
+- **v0.58**: Class decorators, GraphViz multi-system support, debug output control (374/374 tests)
 - **v0.57**: Multi-file module system with Frame imports, separate file generation (374/374 tests)
 - **v0.56**: Walrus operator, type aliases, enhanced numerics
 - **v0.55**: State parameters fixed, 100% test success achieved

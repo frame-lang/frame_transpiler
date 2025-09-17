@@ -25,6 +25,9 @@ pub struct Cli {
     /// Path to frame.toml config file
     config: Option<PathBuf>,
     
+    /// Debug output mode - returns JSON with code and source map
+    debug_output: bool,
+    
     /// Subcommand (build, init, etc.)
     command: Option<String>,
 }
@@ -83,6 +86,12 @@ impl Cli {
                     .value_name("FILE")
                     .num_args(1),
             )
+            .arg(
+                Arg::new("debug-output")
+                    .long("debug-output")
+                    .help("Generate JSON output with transpiled code and source map for debugging")
+                    .action(clap::ArgAction::SetTrue),
+            )
             .get_matches();
 
         // Check for subcommands first
@@ -110,6 +119,8 @@ impl Cli {
         
         let config = matches.get_one::<String>("config");
         let config_opt = config.map(|cfg| PathBuf::from(cfg.clone()));
+        
+        let debug_output = matches.get_flag("debug-output");
 
         Cli {
             stdin_flag: stdin,
@@ -118,6 +129,7 @@ impl Cli {
             multifile,
             output_dir: output_dir_opt,
             config: config_opt,
+            debug_output,
             command,
         }
     }
@@ -181,7 +193,10 @@ pub fn run_with(args: Cli) {
         }
     } else {
         let path = args.path.unwrap();
-        let result = if args.multifile {
+        let result = if args.debug_output {
+            // Debug output mode - generate JSON with code and source map
+            exe.run_file_debug(&path, target_language)
+        } else if args.multifile {
             exe.run_multifile(&path, target_language, args.output_dir)
         } else {
             exe.run_file(&path, target_language)

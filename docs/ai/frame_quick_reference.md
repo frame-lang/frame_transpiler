@@ -1,5 +1,5 @@
 # Frame Language Quick Reference Card
-*AI-Optimized Cheat Sheet for Frame v0.58 - Updated September 16, 2025*
+*AI-Optimized Cheat Sheet for Frame v0.59 - Updated September 17, 2025*
 
 ## 🎯 One-Line Summary
 Frame is a Python-like state machine language where systems contain states ($Name) that respond to events with transitions (->).
@@ -95,8 +95,10 @@ import { add, mul } from "./ops.frm" # Selective (NEW!)
 
 ### Compilation
 ```bash
-framec -m main.frm -l python_3       # Concatenated (default)
-framec -m main.frm -l python_3 -o dir # Separate files (NEW!)
+framec -l python_3 input.frm         # Regular transpilation
+framec -l python_3 --debug-output input.frm  # With source map (v0.59!)
+framec -m main.frm -l python_3       # Multi-file concatenated
+framec -m main.frm -l python_3 -o dir # Multi-file separate (v0.57)
 ```
 
 ## 🚨 Critical Rules
@@ -218,6 +220,8 @@ type Point = tuple[float, float]
 
 | Version | Key Features |
 |---------|-------------|
+| v0.59 | Source map debugging |
+| v0.58 | Class decorators |
 | v0.57 | Multi-file imports |
 | v0.56 | Walrus operator := |
 | v0.45 | Classes |
