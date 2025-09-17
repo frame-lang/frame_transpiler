@@ -1106,6 +1106,7 @@ impl NodeElement for LoopVariableDeclNode {
 // from external variable references.
 
 pub struct VariableNode {
+    pub line: usize,
     pub id_node: IdentifierNode,
     pub scope: IdentifierDeclScope,
     pub symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>, // TODO: consider a new enum for just variable types
@@ -1113,11 +1114,13 @@ pub struct VariableNode {
 }
 impl VariableNode {
     pub fn new(
+        line: usize,
         id_node: IdentifierNode,
         scope: IdentifierDeclScope,
         symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>,
     ) -> VariableNode {
         VariableNode {
+            line,
             id_node,
             scope, // TODO: consider accessor or moving out of IdentifierNode
             symbol_type_rcref_opt,
@@ -1126,12 +1129,14 @@ impl VariableNode {
     }
     
     pub fn new_with_self(
+        line: usize,
         id_node: IdentifierNode,
         scope: IdentifierDeclScope,
         symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>,
         is_self: bool,
     ) -> VariableNode {
         VariableNode {
+            line,
             id_node,
             scope,
             symbol_type_rcref_opt,
@@ -2473,12 +2478,14 @@ pub enum DeclOrStmtType {
 //-----------------------------------------------------//
 
 pub struct SystemInstanceStmtNode {
+    pub line: usize,
     pub system_instance_expr_node: SystemInstanceExprNode,
 }
 
 impl SystemInstanceStmtNode {
-    pub fn new(system_instance_expr_node: SystemInstanceExprNode) -> SystemInstanceStmtNode {
+    pub fn new(line: usize, system_instance_expr_node: SystemInstanceExprNode) -> SystemInstanceStmtNode {
         SystemInstanceStmtNode {
+            line,
             system_instance_expr_node,
         }
     }
@@ -2493,12 +2500,14 @@ impl NodeElement for SystemInstanceStmtNode {
 //-----------------------------------------------------//
 
 pub struct SystemTypeStmtNode {
+    pub line: usize,
     pub system_type_expr_node: SystemTypeExprNode,
 }
 
 impl SystemTypeStmtNode {
-    pub fn new(system_type_expr_node: SystemTypeExprNode) -> SystemTypeStmtNode {
+    pub fn new(line: usize, system_type_expr_node: SystemTypeExprNode) -> SystemTypeStmtNode {
         SystemTypeStmtNode {
+            line,
             system_type_expr_node,
         }
     }
@@ -2513,12 +2522,13 @@ impl NodeElement for SystemTypeStmtNode {
 //-----------------------------------------------------//
 
 pub struct CallStmtNode {
+    pub line: usize,
     pub call_expr_node: CallExprNode,
 }
 
 impl CallStmtNode {
-    pub fn new(call_expr_node: CallExprNode) -> CallStmtNode {
-        CallStmtNode { call_expr_node }
+    pub fn new(line: usize, call_expr_node: CallExprNode) -> CallStmtNode {
+        CallStmtNode { line, call_expr_node }
     }
 }
 
@@ -2531,12 +2541,14 @@ impl NodeElement for CallStmtNode {
 //-----------------------------------------------------//
 
 pub struct ActionCallStmtNode {
+    pub line: usize,
     pub action_call_expr_node: ActionCallExprNode,
 }
 
 impl ActionCallStmtNode {
-    pub fn new(action_call_expr_node: ActionCallExprNode) -> ActionCallStmtNode {
+    pub fn new(line: usize, action_call_expr_node: ActionCallExprNode) -> ActionCallStmtNode {
         ActionCallStmtNode {
+            line,
             action_call_expr_node,
         }
     }
@@ -2592,18 +2604,20 @@ impl NodeElement for CallChainStmtNode {
 //-----------------------------------------------------//
 
 pub struct AssignmentStmtNode {
+    pub line: usize,
     pub assignment_expr_node: AssignmentExprNode,
 }
 
 impl AssignmentStmtNode {
-    pub fn new(assignment_expr_node: AssignmentExprNode) -> AssignmentStmtNode {
+    pub fn new(line: usize, assignment_expr_node: AssignmentExprNode) -> AssignmentStmtNode {
         AssignmentStmtNode {
+            line,
             assignment_expr_node,
         }
     }
 
     pub fn get_line(&self) -> usize {
-        self.assignment_expr_node.line
+        self.line
     }
 }
 
@@ -2656,6 +2670,7 @@ impl AssignmentExprNode {
         // Create a dummy for compatibility
         let dummy_l_value = ExprType::VariableExprT {
             var_node: VariableNode::new(
+                line,
                 IdentifierNode::new(
                     Token::new(TokenType::Identifier, "_multi".to_string(), TokenLiteral::None, line, 0, 6),
                     None,
@@ -2696,16 +2711,17 @@ impl NodeElement for AssignmentExprNode {
 //-----------------------------------------------------//
 
 pub struct VariableStmtNode {
+    pub line: usize,
     pub var_node: VariableNode,
 }
 
 impl VariableStmtNode {
-    pub fn new(var_node: VariableNode) -> VariableStmtNode {
-        VariableStmtNode { var_node }
+    pub fn new(line: usize, var_node: VariableNode) -> VariableStmtNode {
+        VariableStmtNode { line, var_node }
     }
 
     pub fn get_line(&self) -> usize {
-        self.var_node.id_node.line
+        self.line
     }
 }
 
@@ -2787,6 +2803,7 @@ impl NodeElement for BinaryStmtNode {
 //-----------------------------------------------------//
 
 pub struct IfStmtNode {
+    pub line: usize,
     pub condition: ExprType,
     pub if_block: BlockStmtNode,
     pub elif_clauses: Vec<ElifClause>,
@@ -2794,18 +2811,21 @@ pub struct IfStmtNode {
 }
 
 pub struct ElifClause {
+    pub line: usize,
     pub condition: ExprType,
     pub block: BlockStmtNode,
 }
 
 impl IfStmtNode {
     pub fn new(
+        line: usize,
         condition: ExprType,
         if_block: BlockStmtNode,
         elif_clauses: Vec<ElifClause>,
         else_block: Option<BlockStmtNode>,
     ) -> IfStmtNode {
         IfStmtNode {
+            line,
             condition,
             if_block,
             elif_clauses,
@@ -2823,6 +2843,7 @@ impl NodeElement for IfStmtNode {
 //-----------------------------------------------------//
 
 pub struct ForStmtNode {
+    pub line: usize,
     pub variable: Option<VariableNode>, // for var x in items
     pub identifier: Option<IdentifierNode>, // for x in items
     pub iterable: ExprType,
@@ -2834,12 +2855,14 @@ pub struct ForStmtNode {
 
 impl ForStmtNode {
     pub fn new(
+        line: usize,
         variable: Option<VariableNode>,
         identifier: Option<IdentifierNode>,
         iterable: ExprType,
         block: BlockStmtNode,
     ) -> ForStmtNode {
         ForStmtNode {
+            line,
             variable,
             identifier,
             iterable,
@@ -2851,6 +2874,7 @@ impl ForStmtNode {
     }
     
     pub fn with_else(
+        line: usize,
         variable: Option<VariableNode>,
         identifier: Option<IdentifierNode>,
         iterable: ExprType,
@@ -2858,6 +2882,7 @@ impl ForStmtNode {
         else_block: BlockStmtNode,
     ) -> ForStmtNode {
         ForStmtNode {
+            line,
             variable,
             identifier,
             iterable,
@@ -2869,6 +2894,7 @@ impl ForStmtNode {
     }
     
     pub fn new_enum_iteration(
+        line: usize,
         variable: Option<VariableNode>,
         identifier: Option<IdentifierNode>,
         iterable: ExprType,
@@ -2876,6 +2902,7 @@ impl ForStmtNode {
         enum_type_name: String,
     ) -> ForStmtNode {
         ForStmtNode {
+            line,
             variable,
             identifier,
             iterable,
@@ -2896,22 +2923,25 @@ impl NodeElement for ForStmtNode {
 //-----------------------------------------------------//
 
 pub struct WhileStmtNode {
+    pub line: usize,
     pub condition: ExprType,
     pub block: BlockStmtNode,
     pub else_block: Option<BlockStmtNode>, // v0.51: else clause for loops
 }
 
 impl WhileStmtNode {
-    pub fn new(condition: ExprType, block: BlockStmtNode) -> WhileStmtNode {
+    pub fn new(line: usize, condition: ExprType, block: BlockStmtNode) -> WhileStmtNode {
         WhileStmtNode { 
+            line,
             condition, 
             block,
             else_block: None,
         }
     }
     
-    pub fn with_else(condition: ExprType, block: BlockStmtNode, else_block: BlockStmtNode) -> WhileStmtNode {
+    pub fn with_else(line: usize, condition: ExprType, block: BlockStmtNode, else_block: BlockStmtNode) -> WhileStmtNode {
         WhileStmtNode { 
+            line,
             condition, 
             block,
             else_block: Some(else_block),
@@ -2928,12 +2958,13 @@ impl NodeElement for WhileStmtNode {
 //-----------------------------------------------------//
 
 pub struct LoopStmtNode {
+    pub line: usize,
     pub loop_types: LoopStmtTypes,
 }
 
 impl LoopStmtNode {
-    pub fn new(loop_types: LoopStmtTypes) -> LoopStmtNode {
-        LoopStmtNode { loop_types }
+    pub fn new(line: usize, loop_types: LoopStmtTypes) -> LoopStmtNode {
+        LoopStmtNode { line, loop_types }
     }
 
     // TODO
@@ -2988,6 +3019,7 @@ impl NodeElement for TargetStateContextNode {
 //-----------------------------------------------------//
 
 pub struct TransitionExprNode {
+    pub line: usize,
     pub target_state_context_t: TargetStateContextType,
     pub label_opt: Option<String>,
     pub forward_event: bool,
@@ -2995,11 +3027,13 @@ pub struct TransitionExprNode {
 
 impl TransitionExprNode {
     pub fn new(
+        line: usize,
         target_state_context_t: TargetStateContextType,
         label_opt: Option<String>,
         forward_event: bool,
     ) -> TransitionExprNode {
         TransitionExprNode {
+            line,
             target_state_context_t,
             label_opt,
             forward_event,
@@ -3016,6 +3050,7 @@ impl NodeElement for TransitionExprNode {
 //-----------------------------------------------------//
 
 pub struct TransitionStatementNode {
+    pub line: usize,
     pub transition_expr_node: TransitionExprNode,
     pub exit_args_opt: Option<ExprListNode>,
 }
@@ -3023,10 +3058,12 @@ pub struct TransitionStatementNode {
 // TODO - why is new() commented out?
 impl TransitionStatementNode {
     pub fn new(
+        line: usize,
         transition_expr_node: TransitionExprNode,
         exit_args_opt: Option<ExprListNode>,
     ) -> TransitionStatementNode {
         TransitionStatementNode {
+            line,
             transition_expr_node,
             exit_args_opt,
         }
@@ -3105,6 +3142,7 @@ pub enum CallOrigin {
 }
 
 pub struct InterfaceMethodCallExprNode {
+    pub line: usize,
     pub identifier: IdentifierNode,
     pub call_expr_list: CallExprListNode,
     pub call_origin: CallOrigin,
@@ -3116,10 +3154,12 @@ impl InterfaceMethodCallExprNode {
     // It will be discarded.
 
     pub fn new(
+        line: usize,
         call_expr_node: CallExprNode,
         interface_method_call_t: CallOrigin,
     ) -> InterfaceMethodCallExprNode {
         InterfaceMethodCallExprNode {
+            line,
             identifier: call_expr_node.identifier,
             call_expr_list: call_expr_node.call_expr_list,
             interface_symbol_rcref_opt: None,
@@ -3154,6 +3194,7 @@ impl fmt::Display for InterfaceMethodCallExprNode {
 //-----------------------------------------------------//
 
 pub struct ActionCallExprNode {
+    pub line: usize,
     pub identifier: IdentifierNode,
     pub call_expr_list: CallExprListNode,
     pub action_symbol_rcref_opt: Option<Rc<RefCell<ActionScopeSymbol>>>,
@@ -3163,8 +3204,9 @@ impl ActionCallExprNode {
     // Harvest the id and arguments from the CallExpressionNode.
     // It will be discarded.
 
-    pub fn new(call_expr_node: CallExprNode) -> ActionCallExprNode {
+    pub fn new(line: usize, call_expr_node: CallExprNode) -> ActionCallExprNode {
         ActionCallExprNode {
+            line,
             identifier: call_expr_node.identifier,
             call_expr_list: call_expr_node.call_expr_list,
             action_symbol_rcref_opt: None,
@@ -3195,6 +3237,7 @@ impl fmt::Display for ActionCallExprNode {
 //-----------------------------------------------------//
 
 pub struct OperationCallExprNode {
+    pub line: usize,
     pub identifier: IdentifierNode,
     pub call_expr_list: CallExprListNode,
     pub operation_symbol_rcref_opt: Option<Rc<RefCell<OperationScopeSymbol>>>,
@@ -3204,8 +3247,9 @@ impl OperationCallExprNode {
     // Harvest the id and arguments from the CallExpressionNode.
     // It will be discarded.
 
-    pub fn new(call_expr_node: CallExprNode) -> OperationCallExprNode {
+    pub fn new(line: usize, call_expr_node: CallExprNode) -> OperationCallExprNode {
         OperationCallExprNode {
+            line,
             identifier: call_expr_node.identifier,
             call_expr_list: call_expr_node.call_expr_list,
             operation_symbol_rcref_opt: None,
@@ -3278,12 +3322,13 @@ pub enum LoopStmtTypes {
 //-----------------------------------------------------//
 
 pub struct LoopInfiniteStmtNode {
+    pub line: usize,
     pub statements: Vec<DeclOrStmtType>,
 }
 
 impl LoopInfiniteStmtNode {
-    pub fn new(statements: Vec<DeclOrStmtType>) -> LoopInfiniteStmtNode {
-        LoopInfiniteStmtNode { statements }
+    pub fn new(line: usize, statements: Vec<DeclOrStmtType>) -> LoopInfiniteStmtNode {
+        LoopInfiniteStmtNode { line, statements }
     }
 }
 
@@ -3296,6 +3341,7 @@ impl NodeElement for LoopInfiniteStmtNode {
 //-----------------------------------------------------//
 
 pub struct LoopInStmtNode {
+    pub line: usize,
     pub loop_first_stmt: LoopFirstStmt,
     pub iterable_expr: Box<ExprType>,
     pub statements: Vec<DeclOrStmtType>,
@@ -3303,11 +3349,13 @@ pub struct LoopInStmtNode {
 
 impl LoopInStmtNode {
     pub fn new(
+        line: usize,
         loop_first_stmt: LoopFirstStmt,
         iterable_expr: Box<ExprType>,
         statements: Vec<DeclOrStmtType>,
     ) -> LoopInStmtNode {
         LoopInStmtNode {
+            line,
             loop_first_stmt,
             iterable_expr,
             statements,
@@ -3380,6 +3428,7 @@ impl NodeElement for LoopFirstStmt {
 //-----------------------------------------------------//
 
 pub struct LoopForStmtNode {
+    pub line: usize,
     pub loop_init_expr_rcref_opt: Option<Rc<RefCell<LoopFirstStmt>>>,
     pub test_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
     pub post_expr_rcref_opt: Option<Rc<RefCell<ExprType>>>,
@@ -3388,6 +3437,7 @@ pub struct LoopForStmtNode {
 
 impl LoopForStmtNode {
     pub fn new(
+        line: usize,
         loop_init_expr_opt: Option<LoopFirstStmt>,
         test_expr_opt: Option<ExprType>,
         inc_dec_expr_opt: Option<ExprType>,
@@ -3406,6 +3456,7 @@ impl LoopForStmtNode {
             id_rcref_opt = Some(Rc::new(RefCell::new(expr_t)));
         }
         LoopForStmtNode {
+            line,
             loop_init_expr_rcref_opt: lie_rcref_opt,
             test_expr_rcref_opt: te_rcref_opt,
             post_expr_rcref_opt: id_rcref_opt,
@@ -3441,11 +3492,13 @@ impl NodeElement for BlockStmtNode {
 //-----------------------------------------------------//
 
 #[derive(Clone)]
-pub struct ContinueStmtNode {}
+pub struct ContinueStmtNode {
+    pub line: usize,
+}
 
 impl ContinueStmtNode {
-    pub fn new() -> ContinueStmtNode {
-        ContinueStmtNode {}
+    pub fn new(line: usize) -> ContinueStmtNode {
+        ContinueStmtNode { line }
     }
 }
 
@@ -3458,11 +3511,13 @@ impl NodeElement for ContinueStmtNode {
 //-----------------------------------------------------//
 
 #[derive(Clone)]
-pub struct BreakStmtNode {}
+pub struct BreakStmtNode {
+    pub line: usize,
+}
 
 impl BreakStmtNode {
-    pub fn new() -> BreakStmtNode {
-        BreakStmtNode {}
+    pub fn new(line: usize) -> BreakStmtNode {
+        BreakStmtNode { line }
     }
 }
 
@@ -3476,12 +3531,13 @@ impl NodeElement for BreakStmtNode {
 
 // v0.50: Del statement support
 pub struct DelStmtNode {
+    pub line: usize,
     pub target: ExprType,  // The expression to delete (e.g., list[i], dict[key], var)
 }
 
 impl DelStmtNode {
-    pub fn new(target: ExprType) -> DelStmtNode {
-        DelStmtNode { target }
+    pub fn new(line: usize, target: ExprType) -> DelStmtNode {
+        DelStmtNode { line, target }
     }
 }
 
@@ -3493,12 +3549,13 @@ impl NodeElement for DelStmtNode {
 
 // v0.46: Assert statement support
 pub struct AssertStmtNode {
+    pub line: usize,
     pub expr: ExprType,
 }
 
 impl AssertStmtNode {
-    pub fn new(expr: ExprType) -> AssertStmtNode {
-        AssertStmtNode { expr }
+    pub fn new(line: usize, expr: ExprType) -> AssertStmtNode {
+        AssertStmtNode { line, expr }
     }
 }
 
@@ -3511,6 +3568,7 @@ impl NodeElement for AssertStmtNode {
 //-----------------------------------------------------//
 
 pub struct TryStmtNode {
+    pub line: usize,
     pub try_block: BlockStmtNode,
     pub except_clauses: Vec<ExceptClauseNode>,
     pub else_block: Option<BlockStmtNode>,
@@ -3519,12 +3577,14 @@ pub struct TryStmtNode {
 
 impl TryStmtNode {
     pub fn new(
+        line: usize,
         try_block: BlockStmtNode,
         except_clauses: Vec<ExceptClauseNode>,
         else_block: Option<BlockStmtNode>,
         finally_block: Option<BlockStmtNode>,
     ) -> TryStmtNode {
         TryStmtNode {
+            line,
             try_block,
             except_clauses,
             else_block,
@@ -3570,16 +3630,19 @@ impl NodeElement for ExceptClauseNode {
 //-----------------------------------------------------//
 
 pub struct RaiseStmtNode {
+    pub line: usize,
     pub exception_expr: Option<ExprType>,      // What to raise
     pub from_expr: Option<ExprType>,           // Optional 'from' expression for chaining
 }
 
 impl RaiseStmtNode {
     pub fn new(
+        line: usize,
         exception_expr: Option<ExprType>,
         from_expr: Option<ExprType>,
     ) -> RaiseStmtNode {
         RaiseStmtNode {
+            line,
             exception_expr,
             from_expr,
         }
@@ -3595,6 +3658,7 @@ impl NodeElement for RaiseStmtNode {
 //-----------------------------------------------------//
 
 pub struct WithStmtNode {
+    pub line: usize,
     pub is_async: bool,
     pub context_expr: ExprType,
     pub target_var: Option<String>,
@@ -3603,12 +3667,14 @@ pub struct WithStmtNode {
 
 impl WithStmtNode {
     pub fn new(
+        line: usize,
         is_async: bool,
         context_expr: ExprType,
         target_var: Option<String>,
         with_block: BlockStmtNode,
     ) -> WithStmtNode {
         WithStmtNode {
+            line,
             is_async,
             context_expr,
             target_var,
@@ -3626,13 +3692,14 @@ impl NodeElement for WithStmtNode {
 //-----------------------------------------------------//
 // Match statement node (v0.44)
 pub struct MatchStmtNode {
+    pub line: usize,
     pub match_expr: ExprType,
     pub cases: Vec<CaseNode>,
 }
 
 impl MatchStmtNode {
-    pub fn new(match_expr: ExprType, cases: Vec<CaseNode>) -> MatchStmtNode {
-        MatchStmtNode { match_expr, cases }
+    pub fn new(line: usize, match_expr: ExprType, cases: Vec<CaseNode>) -> MatchStmtNode {
+        MatchStmtNode { line, match_expr, cases }
     }
 }
 
@@ -3938,13 +4005,15 @@ impl OperatorType {
 //-----------------------------------------------------//
 
 pub struct UnaryExprNode {
+    pub line: usize,
     pub operator: OperatorType,
     pub right_rcref: Rc<RefCell<ExprType>>,
 }
 
 impl UnaryExprNode {
-    pub fn new(operator: OperatorType, right: ExprType) -> UnaryExprNode {
+    pub fn new(line: usize, operator: OperatorType, right: ExprType) -> UnaryExprNode {
         UnaryExprNode {
+            line,
             operator,
             right_rcref: Rc::new(RefCell::new(right)),
         }
@@ -3964,14 +4033,16 @@ impl NodeElement for UnaryExprNode {
 //-----------------------------------------------------//
 
 pub struct BinaryExprNode {
+    pub line: usize,
     pub left_rcref: Rc<RefCell<ExprType>>,
     pub operator: OperatorType,
     pub right_rcref: Rc<RefCell<ExprType>>,
 }
 
 impl BinaryExprNode {
-    pub fn new(left: ExprType, operator: OperatorType, right: ExprType) -> BinaryExprNode {
+    pub fn new(line: usize, left: ExprType, operator: OperatorType, right: ExprType) -> BinaryExprNode {
         BinaryExprNode {
+            line,
             left_rcref: Rc::new(RefCell::new(left)),
             operator,
             right_rcref: Rc::new(RefCell::new(right)),
@@ -3992,6 +4063,7 @@ impl NodeElement for BinaryExprNode {
 //-----------------------------------------------------//
 
 pub struct CallExprNode {
+    pub line: usize,
     pub identifier: IdentifierNode,
     pub call_expr_list: CallExprListNode,
     pub call_chain: Option<Vec<Box<dyn CallableExpr>>>,
@@ -4000,11 +4072,13 @@ pub struct CallExprNode {
 
 impl CallExprNode {
     pub fn new(
+        line: usize,
         identifier: IdentifierNode,
         call_expr_list: CallExprListNode,
         call_chain: Option<Vec<Box<dyn CallableExpr>>>,
     ) -> CallExprNode {
         CallExprNode {
+            line,
             identifier,
             call_expr_list,
             call_chain,
@@ -4013,12 +4087,14 @@ impl CallExprNode {
     }
     
     pub fn new_with_context(
+        line: usize,
         identifier: IdentifierNode,
         call_expr_list: CallExprListNode,
         call_chain: Option<Vec<Box<dyn CallableExpr>>>,
         context: CallContextType,
     ) -> CallExprNode {
         CallExprNode {
+            line,
             identifier,
             call_expr_list,
             call_chain,
@@ -4186,6 +4262,7 @@ impl fmt::Display for IdentifierNode {
 
 #[derive(Clone)]
 pub struct LiteralExprNode {
+    pub line: usize,
     pub token_t: TokenType,
     pub value: String,
     pub is_reference: bool,
@@ -4193,8 +4270,9 @@ pub struct LiteralExprNode {
 }
 
 impl LiteralExprNode {
-    pub fn new(token_t: TokenType, value: String) -> LiteralExprNode {
+    pub fn new(line: usize, token_t: TokenType, value: String) -> LiteralExprNode {
         LiteralExprNode {
+            line,
             token_t,
             value,
             is_reference: false,
@@ -4221,7 +4299,7 @@ impl CallChainLiteralExprNode {
 impl NodeElement for CallChainLiteralExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         // For now, treat it like a regular literal
-        ast_visitor.visit_literal_expression_node(&LiteralExprNode {
+        ast_visitor.visit_literal_expression_node(&LiteralExprNode { line: 0,
             token_t: self.token_t.clone(),
             value: self.value.clone(),
             is_reference: false,
@@ -4230,7 +4308,7 @@ impl NodeElement for CallChainLiteralExprNode {
     }
     
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
-        ast_visitor.visit_literal_expression_node_to_string(&LiteralExprNode {
+        ast_visitor.visit_literal_expression_node_to_string(&LiteralExprNode { line: 0,
             token_t: self.token_t.clone(),
             value: self.value.clone(),
             is_reference: false,
@@ -4757,6 +4835,7 @@ impl NodeElement for EnumMatchTestPatternNode {
 //-----------------------------------------------------//
 
 pub struct SystemInstanceExprNode {
+    pub line: usize,
     pub identifier: IdentifierNode,
     pub start_state_state_args_opt: Option<ExprListNode>,
     pub start_state_enter_args_opt: Option<ExprListNode>,
@@ -4765,12 +4844,14 @@ pub struct SystemInstanceExprNode {
 
 impl SystemInstanceExprNode {
     pub fn new(
+        line: usize,
         identifier: IdentifierNode,
         start_state_state_args_opt: Option<ExprListNode>,
         start_state_enter_args_opt: Option<ExprListNode>,
         domain_args_opt: Option<ExprListNode>,
     ) -> SystemInstanceExprNode {
         SystemInstanceExprNode {
+            line,
             identifier,
             start_state_state_args_opt,
             start_state_enter_args_opt,
@@ -4819,16 +4900,19 @@ impl NodeElement for SelfExprNode {
 //-----------------------------------------------------//
 
 pub struct SystemTypeExprNode {
+    pub line: usize,
     pub identifier: IdentifierNode,
     pub call_chain_opt: Box<Option<ExprType>>,
 }
 
 impl SystemTypeExprNode {
     pub fn new(
+        line: usize,
         identifier: IdentifierNode,
         call_chain_opt: Box<Option<ExprType>>,
     ) -> SystemTypeExprNode {
         SystemTypeExprNode {
+            line,
             identifier,
             call_chain_opt,
         }
@@ -5093,12 +5177,14 @@ impl NodeElement for DictUnpackExprNode {
 
 // AwaitExprNode for await expressions (v0.35)
 pub struct AwaitExprNode {
+    pub line: usize,
     pub expr: Box<ExprType>,
 }
 
 impl AwaitExprNode {
-    pub fn new(expr: ExprType) -> AwaitExprNode {
+    pub fn new(line: usize, expr: ExprType) -> AwaitExprNode {
         AwaitExprNode {
+            line,
             expr: Box::new(expr),
         }
     }
@@ -5106,12 +5192,14 @@ impl AwaitExprNode {
 
 // YieldExprNode for yield expressions (v0.42)
 pub struct YieldExprNode {
+    pub line: usize,
     pub expr: Option<Box<ExprType>>,  // yield can be used without value
 }
 
 impl YieldExprNode {
-    pub fn new(expr: Option<ExprType>) -> YieldExprNode {
+    pub fn new(line: usize, expr: Option<ExprType>) -> YieldExprNode {
         YieldExprNode {
+            line,
             expr: expr.map(Box::new),
         }
     }
@@ -5119,12 +5207,14 @@ impl YieldExprNode {
 
 // YieldFromExprNode for yield from expressions (v0.42)
 pub struct YieldFromExprNode {
+    pub line: usize,
     pub expr: Box<ExprType>,  // yield from requires an iterable
 }
 
 impl YieldFromExprNode {
-    pub fn new(expr: ExprType) -> YieldFromExprNode {
+    pub fn new(line: usize, expr: ExprType) -> YieldFromExprNode {
         YieldFromExprNode {
+            line,
             expr: Box::new(expr),
         }
     }
@@ -5132,6 +5222,7 @@ impl YieldFromExprNode {
 
 // GeneratorExprNode for generator expressions (v0.42)
 pub struct GeneratorExprNode {
+    pub line: usize,
     pub expr: Box<ExprType>,
     pub target: String,
     pub iter: Box<ExprType>,
@@ -5139,8 +5230,9 @@ pub struct GeneratorExprNode {
 }
 
 impl GeneratorExprNode {
-    pub fn new(expr: ExprType, target: String, iter: ExprType, condition: Option<ExprType>) -> GeneratorExprNode {
+    pub fn new(line: usize, expr: ExprType, target: String, iter: ExprType, condition: Option<ExprType>) -> GeneratorExprNode {
         GeneratorExprNode {
+            line,
             expr: Box::new(expr),
             target,
             iter: Box::new(iter),
@@ -5193,13 +5285,15 @@ impl NodeElement for GeneratorExprNode {
 
 // LambdaExprNode for lambda expressions (v0.38)
 pub struct LambdaExprNode {
+    pub line: usize,
     pub params: Vec<String>,           // Parameter names
     pub body: Box<ExprType>,           // Lambda body expression
 }
 
 impl LambdaExprNode {
-    pub fn new(params: Vec<String>, body: ExprType) -> LambdaExprNode {
+    pub fn new(line: usize, params: Vec<String>, body: ExprType) -> LambdaExprNode {
         LambdaExprNode {
+            line,
             params,
             body: Box::new(body),
         }
@@ -5332,12 +5426,13 @@ impl NodeElement for SetComprehensionNode {
 // ReturnAssignStmtNode captures "return = expr" statements (v0.20 syntax).
 
 pub struct ReturnAssignStmtNode {
+    pub line: usize,
     pub expr_t: ExprType,
 }
 
 impl ReturnAssignStmtNode {
-    pub fn new(expr_t: ExprType) -> ReturnAssignStmtNode {
-        ReturnAssignStmtNode { expr_t }
+    pub fn new(line: usize, expr_t: ExprType) -> ReturnAssignStmtNode {
+        ReturnAssignStmtNode { line, expr_t }
     }
 }
 
@@ -5354,12 +5449,13 @@ impl NodeElement for ReturnAssignStmtNode {
 //-----------------------------------------------------//
 
 pub struct ReturnStmtNode {
+    pub line: usize,
     pub expr_t_opt: Option<ExprType>,
 }
 
 impl ReturnStmtNode {
-    pub fn new(expr_t_opt: Option<ExprType>) -> ReturnStmtNode {
-        ReturnStmtNode { expr_t_opt }
+    pub fn new(line: usize, expr_t_opt: Option<ExprType>) -> ReturnStmtNode {
+        ReturnStmtNode { line, expr_t_opt }
     }
 }
 

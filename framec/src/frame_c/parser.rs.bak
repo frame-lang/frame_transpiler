@@ -5577,7 +5577,7 @@ impl<'a> Parser<'a> {
             };
             
             // Create an assert statement node
-            let assert_stmt_node = AssertStmtNode::new(self.previous().line, expr);
+            let assert_stmt_node = AssertStmtNode::new(expr);
             let stmt_type = StatementType::AssertStmt { assert_stmt_node };
             return Ok(Some(stmt_type));
         }
@@ -5618,12 +5618,12 @@ impl<'a> Parser<'a> {
         
         match expr_t {
             SystemInstanceExprT { system_instance_expr_node } => {
-                let system_instance_stmt_node = SystemInstanceStmtNode::new(system_instance_expr_node.line, system_instance_expr_node);
+                let system_instance_stmt_node = SystemInstanceStmtNode::new(system_instance_expr_node);
                 let expr_stmt_t = SystemInstanceStmtT { system_instance_stmt_node };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             SystemTypeExprT { system_type_expr_node } => {
-                let system_type_stmt_node = SystemTypeStmtNode::new(system_type_expr_node.line, system_type_expr_node);
+                let system_type_stmt_node = SystemTypeStmtNode::new(system_type_expr_node);
                 let expr_stmt_t = SystemTypeStmtT { system_type_stmt_node };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
@@ -5674,13 +5674,12 @@ impl<'a> Parser<'a> {
                 Err(ParseError::new("TODO"))
             }
             VariableExprT { var_node } => {
-                let line = var_node.line;
-                let variable_stmt_node = VariableStmtNode::new(line, var_node);
+                let variable_stmt_node = VariableStmtNode::new(var_node);
                 let expr_stmt_t = VariableStmtT { variable_stmt_node };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             ActionCallExprT { action_call_expr_node } => {
-                let action_call_stmt_node = ActionCallStmtNode::new(self.previous().line, action_call_expr_node);
+                let action_call_stmt_node = ActionCallStmtNode::new(action_call_expr_node);
                 let expr_stmt_t = ActionCallStmtT { action_call_stmt_node };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
@@ -5697,7 +5696,7 @@ impl<'a> Parser<'a> {
                 }))
             }
             AssignmentExprT { assignment_expr_node } => {
-                let assignment_stmt_node = AssignmentStmtNode::new(assignment_expr_node.line, assignment_expr_node);
+                let assignment_stmt_node = AssignmentStmtNode::new(assignment_expr_node);
                 let expr_stmt_t = AssignmentStmtT { assignment_stmt_node };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
@@ -5717,7 +5716,7 @@ impl<'a> Parser<'a> {
             }
             TransitionExprT { transition_expr_node } => {
                 let transition_statement_node =
-                    TransitionStatementNode::new(transition_expr_node.line, transition_expr_node, None);
+                    TransitionStatementNode::new(transition_expr_node, None);
                 Ok(Some(StatementType::TransitionStmt {
                     transition_statement_node,
                 }))
@@ -6549,7 +6548,7 @@ impl<'a> Parser<'a> {
         // Parse the body expression - use assignment() to allow nested lambdas
         let body_result = self.assignment()?;
         if let Some(body) = body_result {
-            let lambda_expr_node = LambdaExprNode::new(self.previous().line, params, body);
+            let lambda_expr_node = LambdaExprNode::new(params, body);
             return Ok(Some(LambdaExprT { lambda_expr_node }));
         } else {
             return Err(ParseError::new("Expected expression as lambda body"));
@@ -6610,7 +6609,6 @@ impl<'a> Parser<'a> {
             let line = self.previous().line;
             l_value = ExprType::VariableExprT {
                 var_node: VariableNode::new(
-                    line,
                     IdentifierNode::new(
                         Token::new(TokenType::Identifier, "_multi".to_string(), TokenLiteral::None, line, 0, 6),
                         None,
@@ -6813,7 +6811,7 @@ impl<'a> Parser<'a> {
             //     self.error_at_current(err_msg);
             // }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -6847,7 +6845,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -6872,7 +6870,7 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
             };
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
         
@@ -6906,7 +6904,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -6945,7 +6943,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -6979,7 +6977,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7022,7 +7020,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7047,7 +7045,7 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
             };
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7074,7 +7072,7 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
             };
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7103,7 +7101,6 @@ impl<'a> Parser<'a> {
                     id_token.line,
                 );
                 let var_node = VariableNode::new(
-                    id_node.line,
                     id_node,
                     IdentifierDeclScope::UnknownScope,
                     None,
@@ -7205,7 +7202,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7239,7 +7236,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7273,7 +7270,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node = BinaryExprNode::new(l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7433,7 +7430,7 @@ impl<'a> Parser<'a> {
         
         let expr_result = self.unary_expression()?;
         if let Some(expr) = expr_result {
-            let await_expr_node = AwaitExprNode::new(self.previous().line, expr);
+            let await_expr_node = AwaitExprNode::new(expr);
             Ok(Some(AwaitExprT { await_expr_node }))
         } else {
             Err(ParseError::new("Expected expression after 'await'"))
@@ -7449,7 +7446,7 @@ impl<'a> Parser<'a> {
             // yield from expression
             let expr_result = self.unary_expression()?;
             if let Some(expr) = expr_result {
-                let yield_from_expr_node = YieldFromExprNode::new(self.previous().line, expr);
+                let yield_from_expr_node = YieldFromExprNode::new(expr);
                 Ok(Some(YieldFromExprT { yield_from_expr_node }))
             } else {
                 Err(ParseError::new("Expected expression after 'yield from'"))
@@ -7473,7 +7470,7 @@ impl<'a> Parser<'a> {
                 None
             };
             
-            let yield_expr_node = YieldExprNode::new(self.previous().line, expr_result);
+            let yield_expr_node = YieldExprNode::new(expr_result);
             Ok(Some(YieldExprT { yield_expr_node }))
         }
     }
@@ -7490,7 +7487,7 @@ impl<'a> Parser<'a> {
         
         match self.unary_expression() {
             Ok(Some(x)) => {
-                let unary_expr_node = UnaryExprNode::new(self.previous().line, operator_type, x);
+                let unary_expr_node = UnaryExprNode::new(operator_type, x);
                 Ok(Some(UnaryExprT { unary_expr_node }))
             }
             Err(parse_error) => Err(parse_error),
@@ -7540,7 +7537,6 @@ impl<'a> Parser<'a> {
         let line_number = system_return_token.line;
         
         let system_return_node = VariableNode::new(
-            line_number,
             IdentifierNode::new(
                 Token {
                     token_type: system_return_token.token_type,
@@ -7578,7 +7574,7 @@ impl<'a> Parser<'a> {
                 let var_scope = id_node.scope.clone();
                 let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
 
-                let var_node = VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
+                let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
                 if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
@@ -7598,7 +7594,7 @@ impl<'a> Parser<'a> {
                 );
                 let var_scope = id_node.scope.clone();
                 let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-                let var_node = VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
+                let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
                 Ok(Some(VariableExprT { var_node }))
             } else {
                 self.error_at_current("Expected identifier.");
@@ -7622,7 +7618,7 @@ impl<'a> Parser<'a> {
             );
             let var_scope = id_node.scope.clone();
             let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-            let var_node = VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
+            let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             
             if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                 return Err(parse_error);
@@ -7648,7 +7644,7 @@ impl<'a> Parser<'a> {
             
             let var_scope = id_node.scope.clone();
             let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-            let var_node = VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
+            let var_node = VariableNode::new(id_node, var_scope, symbol_type_rcref_opt);
             Ok(Some(VariableExprT { var_node }))
         } else {
             self.error_at_current("Expected identifier.");
@@ -7824,7 +7820,7 @@ impl<'a> Parser<'a> {
             //         self.previous().line,
             //     );
             //     let var_scope = id_node.scope.clone();
-            //     let var_node = VariableNode::new(id_node.line, id_node, var_scope, None);
+            //     let var_node = VariableNode::new(id_node, var_scope, None);
             //     return Ok(Some(VariableExprT { var_node }));
             // }
 
@@ -7988,7 +7984,6 @@ impl<'a> Parser<'a> {
                     
                     // Create a variable node wrapping the literal
                     let _var_node = VariableNode::new(
-                        temp_id.line,
                         temp_id,
                         IdentifierDeclScope::UnknownScope,
                         None,
@@ -8045,7 +8040,7 @@ impl<'a> Parser<'a> {
                                 CallExprListNode::new(Vec::new())
                             };
                             
-                            let call_expr_node = CallExprNode::new(method_id.line, 
+                            let call_expr_node = CallExprNode::new(
                                 method_id,
                                 call_expr_list,
                                 None,  // No call chain continuation
@@ -8057,7 +8052,6 @@ impl<'a> Parser<'a> {
                         } else {
                             // It's property access (rare for literals but possible)
                             let var_node = VariableNode::new(
-                                method_id.line,
                                 method_id,
                                 IdentifierDeclScope::UnknownScope,
                                 None,
@@ -8411,7 +8405,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("Try statement must have either 'except' clauses or 'finally' block."));
         }
 
-        let try_stmt_node = TryStmtNode::new(self.previous().line, 
+        let try_stmt_node = TryStmtNode::new(
             try_block,
             except_clauses,
             else_block,
@@ -8443,7 +8437,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let raise_stmt_node = RaiseStmtNode::new(self.previous().line, exception_expr, from_expr);
+        let raise_stmt_node = RaiseStmtNode::new(exception_expr, from_expr);
 
         Ok(Some(StatementType::RaiseStmt { raise_stmt_node }))
     }
@@ -8484,7 +8478,7 @@ impl<'a> Parser<'a> {
             Err(e) => return Err(e),
         };
 
-        let with_stmt_node = WithStmtNode::new(self.previous().line, 
+        let with_stmt_node = WithStmtNode::new(
             is_async,
             context_expr,
             target_var,
@@ -8572,7 +8566,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("Expected '}' after match cases."));
         }
 
-        let match_stmt_node = MatchStmtNode::new(self.previous().line, match_expr, cases);
+        let match_stmt_node = MatchStmtNode::new(match_expr, cases);
         Ok(Some(StatementType::MatchStmt { match_stmt_node }))
     }
 
@@ -8592,7 +8586,7 @@ impl<'a> Parser<'a> {
             let token_type = token.token_type;
             let lexeme = token.lexeme.clone();
             self.advance();
-            Ok(LiteralExprNode::new(self.previous().line, token_type, lexeme))
+            Ok(LiteralExprNode::new(token_type, lexeme))
         } else {
             Err(ParseError::new("Expected literal value"))
         }
@@ -8855,6 +8849,8 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn for_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        let for_line = self.previous().line;  // Get line from 'for' token
+        
         // Check if this is a C-style for loop by looking for var declaration followed by semicolon
         // or an assignment followed by semicolon
         let checkpoint = self.current;
@@ -8970,14 +8966,14 @@ impl<'a> Parser<'a> {
             }
             
             // Create a LoopForStmtNode using existing loop infrastructure
-            let loop_for_stmt_node = LoopForStmtNode::new(self.previous().line, 
+            let loop_for_stmt_node = LoopForStmtNode::new(
                 Some(init_stmt),
                 condition_expr_t_opt,
                 inc_expr_t_opt,
                 statements,
             );
             
-            let loop_stmt_node = LoopStmtNode::new(self.previous().line, LoopStmtTypes::LoopForStmt {
+            let loop_stmt_node = LoopStmtNode::new(LoopStmtTypes::LoopForStmt {
                 loop_for_stmt_node,
             });
             
@@ -9015,7 +9011,7 @@ impl<'a> Parser<'a> {
                         false,
                         0,
                     );
-                    let var_node = VariableNode::new(id_node.line, id_node, IdentifierDeclScope::LoopVarScope, None);
+                    let var_node = VariableNode::new(id_node, IdentifierDeclScope::LoopVarScope, None);
                     variable = Some(var_node);
                 }
                 Err(parse_error) => return Err(parse_error),
@@ -9251,7 +9247,7 @@ impl<'a> Parser<'a> {
         };
 
         // Create the del statement node
-        let del_stmt_node = DelStmtNode::new(self.previous().line, target);
+        let del_stmt_node = DelStmtNode::new(target);
         Ok(Some(StatementType::DelStmt { del_stmt_node }))
     }
 
@@ -9380,9 +9376,9 @@ impl<'a> Parser<'a> {
             return Err(parse_error);
         }
 
-        let loop_infinite_stmt_node = LoopInfiniteStmtNode::new(self.previous().line, statements);
+        let loop_infinite_stmt_node = LoopInfiniteStmtNode::new(statements);
 
-        let loop_stmt_node = LoopStmtNode::new(self.previous().line, LoopStmtTypes::LoopInfiniteStmt {
+        let loop_stmt_node = LoopStmtNode::new(LoopStmtTypes::LoopInfiniteStmt {
             loop_infinite_stmt_node,
         });
         let stmt_type = StatementType::LoopStmt { loop_stmt_node };
@@ -9430,10 +9426,10 @@ impl<'a> Parser<'a> {
             }
 
             let loop_for_stmt_node =
-                LoopForStmtNode::new(self.previous().line, init_stmt, test_expr_opt, inc_dec_expr_opt, statements);
+                LoopForStmtNode::new(init_stmt, test_expr_opt, inc_dec_expr_opt, statements);
 
             let loop_stmt_node =
-                LoopStmtNode::new(self.previous().line, LoopStmtTypes::LoopForStmt { loop_for_stmt_node });
+                LoopStmtNode::new(LoopStmtTypes::LoopForStmt { loop_for_stmt_node });
             let stmt_type = StatementType::LoopStmt { loop_stmt_node };
             return Ok(Some(stmt_type));
         } else {
@@ -9480,9 +9476,9 @@ impl<'a> Parser<'a> {
             //         return Err(ParseError::new(err_msg));
             //     }
             // };
-            let loop_in_stmt_node = LoopInStmtNode::new(self.previous().line, loop_first_stmt, iterable_expr, statements);
+            let loop_in_stmt_node = LoopInStmtNode::new(loop_first_stmt, iterable_expr, statements);
 
-            let loop_stmt_node = LoopStmtNode::new(self.previous().line, LoopStmtTypes::LoopInStmt { loop_in_stmt_node });
+            let loop_stmt_node = LoopStmtNode::new(LoopStmtTypes::LoopInStmt { loop_in_stmt_node });
             let stmt_type = StatementType::LoopStmt { loop_stmt_node };
             return Ok(Some(stmt_type));
         } else {
@@ -10297,7 +10293,7 @@ impl<'a> Parser<'a> {
                         return Err(ParseError::new("Expected ')' after generator expression"));
                     }
                     
-                    let generator_expr_node = GeneratorExprNode::new(self.previous().line, expr, target, iter, condition);
+                    let generator_expr_node = GeneratorExprNode::new(expr, target, iter, condition);
                     self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                     return Ok(Some(GeneratorExprT { generator_expr_node }));
                 }
@@ -10491,7 +10487,7 @@ impl<'a> Parser<'a> {
                                domain_scope_symbol_rcref,
                            }) => {
                             let x = Some(domain_scope_symbol_rcref.clone());
-                            let var_node = VariableNode::new(id_node.line, 
+                            let var_node = VariableNode::new(
                                 id_node,
                                 IdentifierDeclScope::DomainBlockScope,
                                 x,
@@ -11065,7 +11061,7 @@ impl<'a> Parser<'a> {
                                         // If not, this is a reference to the enum type itself (e.g., for iteration)
                                         if !self.match_token(&[TokenType::Dot]) {
                                             // Return just the enum type identifier (for iteration over enum)
-                                            let var_node = VariableNode::new(id_node.line, 
+                                            let var_node = VariableNode::new(
                                                 id_node,
                                                 IdentifierDeclScope::UnknownScope,
                                                 symbol_type_rcref_opt.clone(),
@@ -11167,7 +11163,7 @@ impl<'a> Parser<'a> {
                                                 Err(err) => return Err(err),
                                             }
                                         } else {
-                                            let var_node = VariableNode::new(id_node.line, 
+                                            let var_node = VariableNode::new(
                                                 id_node,
                                                 scope.clone(),
                                                 (&symbol_type_rcref_opt).clone(),
@@ -11347,7 +11343,6 @@ impl<'a> Parser<'a> {
                                 // Create a call expression node for the indexed call
                                 let call_expr_list = CallExprListNode::new(args);
                                 let call_expr_node = CallExprNode::new(
-                                    self.previous().line,  // Add line parameter
                                     IdentifierNode::new(
                                         Token::new(
                                             TokenType::Identifier, 
@@ -11480,7 +11475,7 @@ impl<'a> Parser<'a> {
         
         self.validate_call_arguments(&call_expr_node, parameter_node_vec_opt, "interface method");
         
-        let mut interface_method_call_expr_node = InterfaceMethodCallExprNode::new(call_expr_node.line, 
+        let mut interface_method_call_expr_node = InterfaceMethodCallExprNode::new(
             call_expr_node,
             origin,
         );
@@ -11504,7 +11499,7 @@ impl<'a> Parser<'a> {
         
         self.validate_call_arguments(&call_expr_node, parameter_node_vec_opt, "operation");
         
-        let mut operation_call_expr_node = OperationCallExprNode::new(call_expr_node.line, call_expr_node);
+        let mut operation_call_expr_node = OperationCallExprNode::new(call_expr_node);
         operation_call_expr_node.set_operation_symbol(operation_symbol_rcref);
         
         CallChainNodeType::OperationCallT {
@@ -11525,7 +11520,7 @@ impl<'a> Parser<'a> {
         
         self.validate_call_arguments(&call_expr_node, parameter_node_vec_opt, "action");
         
-        let mut action_call_expr_node = ActionCallExprNode::new(call_expr_node.line, call_expr_node);
+        let mut action_call_expr_node = ActionCallExprNode::new(call_expr_node);
         action_call_expr_node.set_action_symbol(action_symbol_rcref);
         
         CallChainNodeType::ActionCallT {
@@ -11904,7 +11899,7 @@ impl<'a> Parser<'a> {
             CallContextType::ExternalCall  // Default
         };
 
-        let call_expr_node = CallExprNode::new_with_context(identifer_node.line, identifer_node, call_expr_list_node, None, call_context);
+        let call_expr_node = CallExprNode::new_with_context(identifer_node, call_expr_list_node, None, call_context);
         //        let method_call_expression_type = ExpressionType::MethodCallExprType {method_call_expr_node};
         Ok(call_expr_node)
     }
@@ -11931,7 +11926,7 @@ impl<'a> Parser<'a> {
 
         for literal_tok in literal_tokens {
             if self.match_token(&[literal_tok]) {
-                return Ok(Some(LiteralExprNode::new(self.previous().line, 
+                return Ok(Some(LiteralExprNode::new(
                     literal_tok,
                     self.previous().lexeme.clone(),
                 )));
@@ -12180,7 +12175,7 @@ impl<'a> Parser<'a> {
         match self.transition_expr() {
             Ok(transition_expr_node) => {
                 let transition_stmt_node =
-                    TransitionStatementNode::new(transition_expr_node.line, transition_expr_node, exit_args_opt);
+                    TransitionStatementNode::new(transition_expr_node, exit_args_opt);
                 Ok(transition_stmt_node)
             }
             Err(parse_err) => Err(parse_err),
@@ -12269,10 +12264,8 @@ impl<'a> Parser<'a> {
         // top of the event handler.
         self.event_handler_has_transition = true;
 
-        // Use the line from the previous token (which should be from the target state)
-        let transition_line = self.previous().line;
         let transition_expr_node =
-            TransitionExprNode::new(transition_line, target_state_context_t, label_opt, forward_event);
+            TransitionExprNode::new(target_state_context_t, label_opt, forward_event);
 
         Ok(transition_expr_node)
     }
@@ -13026,7 +13019,7 @@ impl<'a> Parser<'a> {
                 false,
                 self.previous().line,
             );
-            let var_node = VariableNode::new_with_self(id_node.line, 
+            let var_node = VariableNode::new_with_self(
                 id_node,
                 IdentifierDeclScope::SystemScope,
                 None,  // Symbol will be resolved later
@@ -13063,7 +13056,7 @@ impl<'a> Parser<'a> {
             // NOTE: expr_list() already consumes the RParen token, so we don't need to consume it again
             
             let call_expr_list = CallExprListNode::new(params);
-            let call_expr = CallExprNode::new_with_context(id_node.line, 
+            let call_expr = CallExprNode::new_with_context(
                 id_node,
                 call_expr_list,
                 None,
@@ -13079,7 +13072,7 @@ impl<'a> Parser<'a> {
             let self_expr_node = SelfExprNode::new();
             
             // Then create the variable node for the property
-            let var_node = VariableNode::new(id_node.line, 
+            let var_node = VariableNode::new(
                 id_node,
                 IdentifierDeclScope::DomainBlockScope,
                 None,
@@ -13115,7 +13108,7 @@ impl<'a> Parser<'a> {
                     };
                     
                     let call_expr_list = CallExprListNode::new(params);
-                    let call_expr = CallExprNode::new(next_id.line, next_id, call_expr_list, None);
+                    let call_expr = CallExprNode::new(next_id, call_expr_list, None);
                     call_chain.push_back(CallChainNodeType::UndeclaredCallT {
                         call_node: call_expr,
                     });
