@@ -1,6 +1,6 @@
 # Frame AI Troubleshooting Guide
 *Common Issues and Solutions for AI-Generated Frame Code*
-*Last Updated: January 25, 2025 - v0.57*
+*Last Updated: September 17, 2025 - v0.59*
 
 ## 🚨 Most Common Errors
 
@@ -515,6 +515,33 @@ $State {
 }
 ```
 
+## 🐛 Debugging Issues (v0.59)
+
+### Problem: Can't Debug Frame Code
+```frame
+# Can't set breakpoints or step through Frame code
+```
+
+### Solution: Use Debug Output
+```bash
+# Generate source maps for debugging
+framec -l python_3 --debug-output file.frm > debug.json
+
+# VSCode will use the source map to enable Frame debugging
+```
+
+### Problem: Dictionary Comprehension Wrong Order
+```frame
+# WRONG (pre-v0.59 bug)
+var dict = {x * x: x for x in range(5)}  # Generated wrong
+```
+
+### Solution: Fixed in v0.59
+```frame
+# CORRECT (v0.59+)
+var dict = {x: x * x for x in range(5)}  # Now generates correctly
+```
+
 ## 📊 Error Message Decoder
 
 | Error Message | Likely Cause | Solution |
@@ -523,6 +550,7 @@ $State {
 | "Unknown identifier" | Undefined variable/function | Declare before use |
 | "Expected state name" | Missing $ prefix | Add $ to state names |
 | "Blocks must be in order" | Wrong block sequence | Reorder blocks |
+| "unhashable type: 'dict'" | Nested dict comprehension bug | Update to v0.59+ |
 | "Expected 'import'" | Malformed import | Check import syntax |
 | "Symbol table construction failed" | Various syntax errors | Check all identifiers |
 | "Parse error" | Syntax violation | Review nearby syntax |

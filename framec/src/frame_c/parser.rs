@@ -3973,7 +3973,7 @@ impl<'a> Parser<'a> {
             // If we have multiple values, create a tuple. If single value, use it directly
             if values.len() > 1 {
                 Rc::new(ExprType::TupleLiteralT {
-                    tuple_literal_node: TupleLiteralNode::new(values),
+                    tuple_literal_node: TupleLiteralNode::new(self.previous().line, values),
                 })
             } else {
                 // Single value - use it directly (for unpacking like a, b, c = lst)
@@ -6602,7 +6602,7 @@ impl<'a> Parser<'a> {
             if self.peek().token_type != TokenType::Equals {
                 // Not an assignment - return as tuple
                 return Ok(Some(ExprType::TupleLiteralT {
-                    tuple_literal_node: TupleLiteralNode::new(l_values),
+                    tuple_literal_node: TupleLiteralNode::new(self.previous().line, l_values),
                 }));
             }
             
@@ -6717,7 +6717,7 @@ impl<'a> Parser<'a> {
                     self.is_parsing_rhs = false;
                     // Return as tuple for multiple RHS values
                     ExprType::TupleLiteralT {
-                        tuple_literal_node: TupleLiteralNode::new(rhs_values),
+                        tuple_literal_node: TupleLiteralNode::new(self.previous().line, rhs_values),
                     }
                 } else {
                     self.is_parsing_rhs = false;
@@ -7683,7 +7683,7 @@ impl<'a> Parser<'a> {
                     let _ = self.consume(TokenType::RParen, "Expected ')'");
                     // Return empty tuple for consistency with Python
                     return Ok(Some(TupleLiteralT {
-                        tuple_literal_node: TupleLiteralNode::new(Vec::new()),
+                        tuple_literal_node: TupleLiteralNode::new(self.previous().line, Vec::new()),
                     }))
                 }
             }
@@ -9611,7 +9611,7 @@ impl<'a> Parser<'a> {
             self.advance(); // consume '}'
             self.is_parsing_collection = was_parsing_collection;  // Restore flag
             return Ok(ExprType::DictLiteralT { 
-                dict_literal_node: DictLiteralNode::new(Vec::new())
+                dict_literal_node: DictLiteralNode::new(self.previous().line, Vec::new())
             });
         }
         
@@ -9622,7 +9622,7 @@ impl<'a> Parser<'a> {
                 self.advance(); // consume '}'
                 self.is_parsing_collection = was_parsing_collection;  // Restore flag
                 return Ok(ExprType::SetLiteralT {
-                    set_literal_node: SetLiteralNode::new(Vec::new())
+                    set_literal_node: SetLiteralNode::new(self.previous().line, Vec::new())
                 });
             } else {
                 self.is_parsing_collection = was_parsing_collection;  // Restore flag
@@ -9727,7 +9727,7 @@ impl<'a> Parser<'a> {
             
             self.is_parsing_collection = was_parsing_collection;  // Restore flag
             return Ok(ExprType::DictLiteralT { 
-                dict_literal_node: DictLiteralNode::new(pairs)
+                dict_literal_node: DictLiteralNode::new(self.previous().line, pairs)
             });
         }
         
@@ -9741,7 +9741,7 @@ impl<'a> Parser<'a> {
                     self.advance();
                     self.is_parsing_collection = was_parsing_collection;  // Restore flag
                     return Ok(ExprType::DictLiteralT { 
-                        dict_literal_node: DictLiteralNode::new(Vec::new())
+                        dict_literal_node: DictLiteralNode::new(self.previous().line, Vec::new())
                     });
                 }
                 self.is_parsing_collection = was_parsing_collection;  // Restore flag
@@ -9857,7 +9857,7 @@ impl<'a> Parser<'a> {
             
             self.is_parsing_collection = was_parsing_collection;  // Restore flag
             Ok(ExprType::DictLiteralT { 
-                dict_literal_node: DictLiteralNode::new(pairs)
+                dict_literal_node: DictLiteralNode::new(self.previous().line, pairs)
             })
         } else {
             // It's a set or set comprehension
@@ -9880,7 +9880,7 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::CloseBrace]) {
                 self.is_parsing_collection = was_parsing_collection;  // Restore flag
                 return Ok(ExprType::SetLiteralT { 
-                    set_literal_node: SetLiteralNode::new(elements)
+                    set_literal_node: SetLiteralNode::new(self.previous().line, elements)
                 });
             }
             
@@ -9922,7 +9922,7 @@ impl<'a> Parser<'a> {
             
             self.is_parsing_collection = was_parsing_collection;  // Restore flag
             Ok(ExprType::SetLiteralT { 
-                set_literal_node: SetLiteralNode::new(elements)
+                set_literal_node: SetLiteralNode::new(self.previous().line, elements)
             })
         }
     }
@@ -9997,7 +9997,7 @@ impl<'a> Parser<'a> {
 
         // v0.53: Restore the original flag value
         self.is_parsing_collection = was_parsing_collection;
-        Ok(ListNode::new(expressions))
+        Ok(ListNode::new(self.previous().line, expressions))
     }
     
     // Parse dictionary comprehension: {key: value for var in iterable if condition}
@@ -10052,7 +10052,7 @@ impl<'a> Parser<'a> {
         
         // DO NOT consume closing brace - let dict_or_set_literal handle it
         
-        let comprehension_node = DictComprehensionNode::new(key_expr, value_expr, target, iter, condition);
+        let comprehension_node = DictComprehensionNode::new(self.previous().line, key_expr, value_expr, target, iter, condition);
         Ok(ExprType::DictComprehensionExprT { 
             dict_comprehension_node: comprehension_node 
         })
@@ -10096,7 +10096,7 @@ impl<'a> Parser<'a> {
         
         // DO NOT consume closing brace - let dict_or_set_literal handle it
         
-        let comprehension_node = SetComprehensionNode::new(expr, target, iter, condition);
+        let comprehension_node = SetComprehensionNode::new(self.previous().line, expr, target, iter, condition);
         Ok(ExprType::SetComprehensionExprT { 
             set_comprehension_node: comprehension_node 
         })
@@ -10153,13 +10153,13 @@ impl<'a> Parser<'a> {
         }
         
         // Create comprehension node and wrap it in a list
-        let comprehension_node = ListComprehensionNode::new(expr, target, iter, condition);
+        let comprehension_node = ListComprehensionNode::new(self.previous().line, expr, target, iter, condition);
         let comp_expr = ExprType::ListComprehensionExprT { 
             list_comprehension_node: comprehension_node 
         };
         
         // Return as a ListNode with a single comprehension expression
-        Ok(ListNode::new(vec![comp_expr]))
+        Ok(ListNode::new(self.previous().line, vec![comp_expr]))
     }
 
     /* --------------------------------------------------------------------- */
@@ -10249,7 +10249,7 @@ impl<'a> Parser<'a> {
             // Empty () is an empty tuple
             self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
             return Ok(Some(TupleLiteralT {
-                tuple_literal_node: TupleLiteralNode::new(Vec::new()),
+                tuple_literal_node: TupleLiteralNode::new(self.previous().line, Vec::new()),
             }));
         }
 
@@ -10309,7 +10309,7 @@ impl<'a> Parser<'a> {
                 if self.match_token(&[TokenType::RParen]) {
                     self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
                     return Ok(Some(TupleLiteralT {
-                        tuple_literal_node: TupleLiteralNode::new(Vec::new()),
+                        tuple_literal_node: TupleLiteralNode::new(self.previous().line, Vec::new()),
                     }));
                 }
                 self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
@@ -10385,7 +10385,7 @@ impl<'a> Parser<'a> {
         if expressions.len() > 1 || has_trailing_comma {
             self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
             Ok(Some(TupleLiteralT {
-                tuple_literal_node: TupleLiteralNode::new(expressions),
+                tuple_literal_node: TupleLiteralNode::new(self.previous().line, expressions),
             }))
         } else {
             // Single expression without comma - return the expression itself
@@ -11154,6 +11154,7 @@ impl<'a> Parser<'a> {
                                                 }
                                                 Ok(BracketExpressionType::Slice { start, end, step }) => {
                                                     let slice_node = SliceNode {
+                                            line: self.previous().line,
                                                         identifier: id_node,
                                                         scope: scope.clone(),
                                                         start_expr: start,
@@ -11206,6 +11207,7 @@ impl<'a> Parser<'a> {
                                         }
                                         Ok(BracketExpressionType::Slice { start, end, step }) => {
                                             let slice_node = SliceNode {
+                                        line: self.previous().line,
                                                 identifier: id_node,
                                                 scope: scope.clone(),
                                                 start_expr: start,
@@ -11240,6 +11242,7 @@ impl<'a> Parser<'a> {
                             }
                             Ok(BracketExpressionType::Slice { start, end, step }) => {
                                 let slice_node = SliceNode {
+                                    line: self.previous().line,
                                     identifier: id_node,
                                     scope: scope.clone(),
                                     start_expr: start,
@@ -11318,6 +11321,7 @@ impl<'a> Parser<'a> {
                                             self.previous().line,
                                         );
                                         let slice_node = SliceNode {
+                                        line: self.previous().line,
                                             identifier: synthetic_id,
                                             scope: scope.clone(),
                                             start_expr: start,

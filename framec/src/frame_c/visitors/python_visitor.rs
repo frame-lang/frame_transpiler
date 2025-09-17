@@ -7799,6 +7799,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_if_stmt_node(&mut self, if_stmt_node: &IfStmtNode) {
         self.newline();
+        self.add_source_mapping(if_stmt_node.line);  // Map Frame line to Python line
         self.add_code("if ");
         if_stmt_node.condition.accept(self);
         self.add_code(":");
@@ -7823,6 +7824,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_for_stmt_node(&mut self, for_stmt_node: &ForStmtNode) {
         self.newline();
+        self.add_source_mapping(for_stmt_node.line);  // Map Frame line to Python line
         self.add_code("for ");
         
         // Emit the loop variable
@@ -7876,6 +7878,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_while_stmt_node(&mut self, while_stmt_node: &WhileStmtNode) {
         self.newline();
+        self.add_source_mapping(while_stmt_node.line);  // Map Frame line to Python line
         self.add_code("while ");
         while_stmt_node.condition.accept(self);
         self.add_code(":");
@@ -8852,6 +8855,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_return_stmt_node(&mut self, return_stmt_node: &ReturnStmtNode) {
         self.newline();
+        self.add_source_mapping(return_stmt_node.line);  // Map Frame line to Python line
         if let Some(expr_t) = &return_stmt_node.expr_t_opt {
             if self.should_use_direct_return() {
                 // In functions/actions/operations: direct return
@@ -10398,6 +10402,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_variable_expr_node(&mut self, variable_node: &VariableNode) {
+        self.add_source_mapping(variable_node.line);  // Map Frame line to Python line
         let code = self.format_variable_expr(variable_node);
         self.add_code(&code);
     }
@@ -10426,6 +10431,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
+        self.add_source_mapping(assignment_expr_node.line);  // Map Frame line to Python line
         // self.generate_comment(assignment_expr_node.line);
         // self.newline();
         // inc/dec all *rvalue* expressions before generating the

@@ -1,6 +1,11 @@
 # Frame Language Quick Reference Card
 *AI-Optimized Cheat Sheet for Frame v0.59 - Updated September 17, 2025*
 
+## 🎉 v0.59 Highlights
+- **100% Debugging Support**: All 122 AST nodes line-tracked for source maps
+- **100% Test Success**: All 374 tests passing
+- **VSCode DAP Ready**: Complete Debug Adapter Protocol support
+
 ## 🎯 One-Line Summary
 Frame is a Python-like state machine language where systems contain states ($Name) that respond to events with transitions (->).
 
@@ -216,11 +221,38 @@ fn add(a: float, b: float) -> float { }
 type Point = tuple[float, float]
 ```
 
+## 🐛 Debugging (v0.59)
+
+### Generate Source Maps
+```bash
+# Generate JSON with code and source maps
+framec -l python_3 --debug-output file.frm > debug.json
+
+# Extract Python code
+python3 -c "import json; print(json.load(open('debug.json'))['python'])" > file.py
+```
+
+### Debug Output Format
+```json
+{
+  "python": "<generated code>",
+  "sourceMap": {
+    "mappings": [
+      {"frameLine": 4, "pythonLine": 20}
+    ]
+  },
+  "metadata": {
+    "frameVersion": "0.30.0",
+    "generatedAt": "2025-09-17T13:35:58Z"
+  }
+}
+```
+
 ## 📊 Version Feature Map
 
 | Version | Key Features |
 |---------|-------------|
-| v0.59 | Source map debugging |
+| v0.59 | 100% AST debugging, source maps, DAP support |
 | v0.58 | Class decorators |
 | v0.57 | Multi-file imports |
 | v0.56 | Walrus operator := |

@@ -1,7 +1,7 @@
 # Frame Test Suite Status Report
 
-**Last Run**: September 15, 2025  
-**Frame Version**: v0.58  
+**Last Run**: September 17, 2025  
+**Frame Version**: v0.59  
 **Total Tests**: 374  
 **Passed**: 374  
 **Failed**: 0  
