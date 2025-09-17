@@ -1242,13 +1242,15 @@ impl NodeElement for EnumeratorDeclNode {
 
 #[derive(Clone)]
 pub struct EnumeratorExprNode {
+    pub line: usize,
     pub enum_type: String,
     pub enumerator: String,
 }
 
 impl EnumeratorExprNode {
-    pub fn new(enum_type: String, enumerator: String) -> EnumeratorExprNode {
+    pub fn new(line: usize, enum_type: String, enumerator: String) -> EnumeratorExprNode {
         EnumeratorExprNode {
+            line,
             enum_type,
             enumerator,
         }
@@ -2564,12 +2566,14 @@ impl NodeElement for ActionCallStmtNode {
 
 #[derive(Clone)]
 pub struct EnumeratorStmtNode {
+    pub line: usize,
     pub enumerator_expr_node: EnumeratorExprNode,
 }
 
 impl EnumeratorStmtNode {
-    pub fn new(enumerator_expr_node: EnumeratorExprNode) -> EnumeratorStmtNode {
+    pub fn new(line: usize, enumerator_expr_node: EnumeratorExprNode) -> EnumeratorStmtNode {
         EnumeratorStmtNode {
+            line,
             enumerator_expr_node,
         }
     }
@@ -2584,12 +2588,14 @@ impl NodeElement for EnumeratorStmtNode {
 //-----------------------------------------------------//
 
 pub struct CallChainStmtNode {
+    pub line: usize,
     pub call_chain_literal_expr_node: CallChainExprNode,
 }
 
 impl CallChainStmtNode {
-    pub fn new(call_chain_literal_expr_node: CallChainExprNode) -> CallChainStmtNode {
+    pub fn new(line: usize, call_chain_literal_expr_node: CallChainExprNode) -> CallChainStmtNode {
         CallChainStmtNode {
+            line,
             call_chain_literal_expr_node,
         }
     }
@@ -2734,12 +2740,13 @@ impl NodeElement for VariableStmtNode {
 //-----------------------------------------------------//
 
 pub struct ListStmtNode {
+    pub line: usize,
     pub list_node: ListNode,
 }
 
 impl ListStmtNode {
-    pub fn new(list_node: ListNode) -> ListStmtNode {
-        ListStmtNode { list_node }
+    pub fn new(line: usize, list_node: ListNode) -> ListStmtNode {
+        ListStmtNode { line, list_node }
     }
 
     // TODO
@@ -2756,12 +2763,13 @@ impl NodeElement for ListStmtNode {
 //-----------------------------------------------------//
 
 pub struct ExprListStmtNode {
+    pub line: usize,
     pub expr_list_node: ExprListNode,
 }
 
 impl ExprListStmtNode {
-    pub fn new(expr_list_node: ExprListNode) -> ExprListStmtNode {
-        ExprListStmtNode { expr_list_node }
+    pub fn new(line: usize, expr_list_node: ExprListNode) -> ExprListStmtNode {
+        ExprListStmtNode { line, expr_list_node }
     }
 
     // TODO
@@ -2779,12 +2787,13 @@ impl NodeElement for ExprListStmtNode {
 //-----------------------------------------------------//
 
 pub struct BinaryStmtNode {
+    pub line: usize,
     pub binary_expr_node: BinaryExprNode,
 }
 
 impl BinaryStmtNode {
-    pub fn new(binary_expr_node: BinaryExprNode) -> BinaryStmtNode {
-        BinaryStmtNode { binary_expr_node }
+    pub fn new(line: usize, binary_expr_node: BinaryExprNode) -> BinaryStmtNode {
+        BinaryStmtNode { line, binary_expr_node }
     }
 
     // TODO
@@ -3280,12 +3289,13 @@ impl fmt::Display for OperationCallExprNode {
 //-----------------------------------------------------//
 
 pub struct OperationRefExprNode {
+    pub line: usize,
     pub name: String,
 }
 
 impl OperationRefExprNode {
-    pub fn new(name: String) -> OperationRefExprNode {
-        OperationRefExprNode { name }
+    pub fn new(line: usize, name: String) -> OperationRefExprNode {
+        OperationRefExprNode { line, name }
     }
 }
 
@@ -3768,14 +3778,16 @@ pub enum IncDecExpr {
 // No idea why I thought this was a literal.
 
 pub struct CallChainExprNode {
+    pub line: usize,
     pub call_chain: VecDeque<CallChainNodeType>,
     pub is_new_expr: bool,
     pub inc_dec: IncDecExpr,
 }
 
 impl CallChainExprNode {
-    pub fn new(call_chain: VecDeque<CallChainNodeType>) -> CallChainExprNode {
+    pub fn new(line: usize, call_chain: VecDeque<CallChainNodeType>) -> CallChainExprNode {
         CallChainExprNode {
+            line,
             call_chain,
             is_new_expr: false,
             inc_dec: IncDecExpr::None,
@@ -4135,12 +4147,17 @@ impl fmt::Display for CallExprNode {
 
 // #[derive(Clone)]
 pub struct CallExprListNode {
+    pub line: usize,
     pub exprs_t: Vec<ExprType>,
 }
 
 impl CallExprListNode {
     pub fn new(exprs_t: Vec<ExprType>) -> CallExprListNode {
-        CallExprListNode { exprs_t }
+        CallExprListNode { line: 0, exprs_t }
+    }
+
+    pub fn new_with_line(line: usize, exprs_t: Vec<ExprType>) -> CallExprListNode {
+        CallExprListNode { line, exprs_t }
     }
 }
 
@@ -4161,6 +4178,7 @@ impl NodeElement for CallExprListNode {
 
 // #[derive(Clone)]
 pub struct ExprListNode {
+    pub line: usize,
     pub exprs_t: Vec<ExprType>,
     //    pub inc_dec: IncDecExpr,
 }
@@ -4168,6 +4186,15 @@ pub struct ExprListNode {
 impl ExprListNode {
     pub fn new(exprs_t: Vec<ExprType>) -> ExprListNode {
         ExprListNode {
+            line: 0,
+            exprs_t,
+            //            inc_dec: IncDecExpr::None,
+        }
+    }
+
+    pub fn new_with_line(line: usize, exprs_t: Vec<ExprType>) -> ExprListNode {
+        ExprListNode {
+            line,
             exprs_t,
             //            inc_dec: IncDecExpr::None,
         }
@@ -4283,13 +4310,15 @@ impl LiteralExprNode {
 
 // Node for literal expressions in call chains (e.g., "string".upper())
 pub struct CallChainLiteralExprNode {
+    pub line: usize,
     pub token_t: TokenType,
     pub value: String,
 }
 
 impl CallChainLiteralExprNode {
-    pub fn new(token_t: TokenType, value: String) -> CallChainLiteralExprNode {
+    pub fn new(line: usize, token_t: TokenType, value: String) -> CallChainLiteralExprNode {
         CallChainLiteralExprNode {
+            line,
             token_t,
             value,
         }
@@ -4879,11 +4908,12 @@ impl fmt::Display for SystemInstanceExprNode {
 //-----------------------------------------------------//
 
 pub struct SelfExprNode {
+    pub line: usize,
 }
 
 impl SelfExprNode {
-    pub fn new() -> SelfExprNode {
-        SelfExprNode {}
+    pub fn new(line: usize) -> SelfExprNode {
+        SelfExprNode { line }
     }
 }
 
@@ -4939,13 +4969,14 @@ impl fmt::Display for SystemTypeExprNode {
 
 // #[derive(Clone)]
 pub struct ListNode {
+    pub line: usize,
     pub exprs_t: Vec<ExprType>,
     //    pub inc_dec: IncDecExpr,
 }
 
 impl ListNode {
-    pub fn new(exprs_t: Vec<ExprType>) -> ListNode {
-        ListNode { exprs_t }
+    pub fn new(line: usize, exprs_t: Vec<ExprType>) -> ListNode {
+        ListNode { line, exprs_t }
     }
 }
 
@@ -4963,12 +4994,13 @@ impl NodeElement for ListNode {
 
 // Dictionary literal node for {key: value, ...} syntax
 pub struct DictLiteralNode {
+    pub line: usize,
     pub pairs: Vec<(ExprType, ExprType)>, // (key, value) pairs
 }
 
 impl DictLiteralNode {
-    pub fn new(pairs: Vec<(ExprType, ExprType)>) -> DictLiteralNode {
-        DictLiteralNode { pairs }
+    pub fn new(line: usize, pairs: Vec<(ExprType, ExprType)>) -> DictLiteralNode {
+        DictLiteralNode { line, pairs }
     }
 }
 
@@ -4986,12 +5018,13 @@ impl NodeElement for DictLiteralNode {
 
 // Set literal node for {1, 2, 3} syntax
 pub struct SetLiteralNode {
+    pub line: usize,
     pub elements: Vec<ExprType>,
 }
 
 impl SetLiteralNode {
-    pub fn new(elements: Vec<ExprType>) -> SetLiteralNode {
-        SetLiteralNode { elements }
+    pub fn new(line: usize, elements: Vec<ExprType>) -> SetLiteralNode {
+        SetLiteralNode { line, elements }
     }
 }
 
@@ -5009,12 +5042,13 @@ impl NodeElement for SetLiteralNode {
 
 // Tuple literal node for (1, 2, 3) syntax
 pub struct TupleLiteralNode {
+    pub line: usize,
     pub elements: Vec<ExprType>,
 }
 
 impl TupleLiteralNode {
-    pub fn new(elements: Vec<ExprType>) -> TupleLiteralNode {
-        TupleLiteralNode { elements }
+    pub fn new(line: usize, elements: Vec<ExprType>) -> TupleLiteralNode {
+        TupleLiteralNode { line, elements }
     }
 }
 
@@ -5055,6 +5089,7 @@ impl ListElementNode {
 // SliceNode captures slice operations such as
 // text[1:5], array[:10], list[5:], data[::2]
 pub struct SliceNode {
+    pub line: usize,
     pub identifier: IdentifierNode,
     pub scope: IdentifierDeclScope,
     pub start_expr: Option<Box<ExprType>>,
@@ -5064,6 +5099,7 @@ pub struct SliceNode {
 
 impl SliceNode {
     pub fn new(
+        line: usize,
         identifier: IdentifierNode,
         scope: IdentifierDeclScope,
         start_expr: Option<Box<ExprType>>,
@@ -5071,6 +5107,7 @@ impl SliceNode {
         step_expr: Option<Box<ExprType>>,
     ) -> SliceNode {
         SliceNode {
+            line,
             identifier,
             scope,
             start_expr,
@@ -5104,12 +5141,14 @@ impl NodeElement for SliceNode {
 
 // UnpackExprNode for *args unpacking (v0.34)
 pub struct UnpackExprNode {
+    pub line: usize,
     pub expr: Box<ExprType>,
 }
 
 impl UnpackExprNode {
-    pub fn new(expr: ExprType) -> UnpackExprNode {
+    pub fn new(line: usize, expr: ExprType) -> UnpackExprNode {
         UnpackExprNode {
+            line,
             expr: Box::new(expr),
         }
     }
@@ -5129,12 +5168,13 @@ impl NodeElement for UnpackExprNode {
 
 // StarExprNode for *var unpacking (v0.54)
 pub struct StarExprNode {
+    pub line: usize,
     pub identifier: String,
 }
 
 impl StarExprNode {
-    pub fn new(identifier: String) -> StarExprNode {
-        StarExprNode { identifier }
+    pub fn new(line: usize, identifier: String) -> StarExprNode {
+        StarExprNode { line, identifier }
     }
 }
 
@@ -5152,12 +5192,14 @@ impl NodeElement for StarExprNode {
 
 // DictUnpackExprNode for **kwargs unpacking (v0.38)
 pub struct DictUnpackExprNode {
+    pub line: usize,
     pub expr: Box<ExprType>,
 }
 
 impl DictUnpackExprNode {
-    pub fn new(expr: ExprType) -> DictUnpackExprNode {
+    pub fn new(line: usize, expr: ExprType) -> DictUnpackExprNode {
         DictUnpackExprNode {
+            line,
             expr: Box::new(expr),
         }
     }
@@ -5314,6 +5356,7 @@ impl NodeElement for LambdaExprNode {
 
 // ListComprehensionNode for [expr for var in iterable if condition] (v0.34)
 pub struct ListComprehensionNode {
+    pub line: usize,
     pub expr: Box<ExprType>,            // The expression to evaluate
     pub target: String,                 // Loop variable name
     pub iter: Box<ExprType>,            // The iterable to loop over
@@ -5322,12 +5365,14 @@ pub struct ListComprehensionNode {
 
 impl ListComprehensionNode {
     pub fn new(
+        line: usize,
         expr: ExprType,
         target: String,
         iter: ExprType,
         condition: Option<ExprType>,
     ) -> ListComprehensionNode {
         ListComprehensionNode {
+            line,
             expr: Box::new(expr),
             target,
             iter: Box::new(iter),
@@ -5350,6 +5395,7 @@ impl NodeElement for ListComprehensionNode {
 
 // DictComprehensionNode for {key: value for var in iterable if condition} (v0.38)
 pub struct DictComprehensionNode {
+    pub line: usize,
     pub key_expr: Box<ExprType>,        // The key expression to evaluate
     pub value_expr: Box<ExprType>,      // The value expression to evaluate
     pub target: String,                 // Loop variable name
@@ -5359,6 +5405,7 @@ pub struct DictComprehensionNode {
 
 impl DictComprehensionNode {
     pub fn new(
+        line: usize,
         key_expr: ExprType,
         value_expr: ExprType,
         target: String,
@@ -5366,6 +5413,7 @@ impl DictComprehensionNode {
         condition: Option<ExprType>,
     ) -> DictComprehensionNode {
         DictComprehensionNode {
+            line,
             key_expr: Box::new(key_expr),
             value_expr: Box::new(value_expr),
             target,
@@ -5389,6 +5437,7 @@ impl NodeElement for DictComprehensionNode {
 
 // SetComprehensionNode for {expr for var in iterable if condition} (v0.41)
 pub struct SetComprehensionNode {
+    pub line: usize,
     pub expr: Box<ExprType>,            // The expression to evaluate
     pub target: String,                 // Loop variable name
     pub iter: Box<ExprType>,            // The iterable to loop over
@@ -5397,12 +5446,14 @@ pub struct SetComprehensionNode {
 
 impl SetComprehensionNode {
     pub fn new(
+        line: usize,
         expr: ExprType,
         target: String,
         iter: ExprType,
         condition: Option<ExprType>,
     ) -> SetComprehensionNode {
         SetComprehensionNode {
+            line,
             expr: Box::new(expr),
             target,
             iter: Box::new(iter),

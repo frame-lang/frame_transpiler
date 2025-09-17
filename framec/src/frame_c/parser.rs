@@ -5628,7 +5628,7 @@ impl<'a> Parser<'a> {
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             ListT { list_node } => {
-                let list_stmt_node = ListStmtNode::new(list_node);
+                let list_stmt_node = ListStmtNode::new(self.previous().line, list_node);
                 let expr_stmt_t = ListStmtT { list_stmt_node };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
@@ -5658,7 +5658,7 @@ impl<'a> Parser<'a> {
                     }
                 } else {
                     // Just a group not associated with a transition.
-                    let expr_list_stmt_node = ExprListStmtNode::new(expr_list_node);
+                    let expr_list_stmt_node = ExprListStmtNode::new(self.previous().line, expr_list_node);
                     let expr_stmt_t = ExprListStmtT { expr_list_stmt_node };
                     Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
                 }
@@ -5685,7 +5685,7 @@ impl<'a> Parser<'a> {
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             CallChainExprT { call_chain_expr_node } => {
-                let call_chain_literal_stmt_node = CallChainStmtNode::new(call_chain_expr_node);
+                let call_chain_literal_stmt_node = CallChainStmtNode::new(call_chain_expr_node.line, call_chain_expr_node);
                 let expr_stmt_t = CallChainStmtT { call_chain_literal_stmt_node };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
@@ -5702,12 +5702,12 @@ impl<'a> Parser<'a> {
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             EnumeratorExprT { enum_expr_node } => {
-                let enumerator_stmt_node = EnumeratorStmtNode::new(enum_expr_node);
+                let enumerator_stmt_node = EnumeratorStmtNode::new(enum_expr_node.line, enum_expr_node);
                 let expr_stmt_t = EnumeratorStmtT { enumerator_stmt_node };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             BinaryExprT { binary_expr_node } => {
-                let binary_stmt_node = BinaryStmtNode::new(binary_expr_node);
+                let binary_stmt_node = BinaryStmtNode::new(binary_expr_node.line, binary_expr_node);
                 let expr_stmt_t = BinaryStmtT { binary_stmt_node };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
@@ -5759,7 +5759,7 @@ impl<'a> Parser<'a> {
                 let expr_list_node = ExprListNode::new(vec![AwaitExprT { await_expr_node }]);
                 let stmt = StatementType::ExpressionStmt {
                     expr_stmt_t: ExprListStmtT {
-                        expr_list_stmt_node: ExprListStmtNode::new(expr_list_node),
+                        expr_list_stmt_node: ExprListStmtNode::new(0, expr_list_node),
                     },
                 };
                 Ok(Some(stmt))
@@ -5781,7 +5781,7 @@ impl<'a> Parser<'a> {
                 let expr_list_node = ExprListNode::new(vec![YieldExprT { yield_expr_node }]);
                 let stmt = StatementType::ExpressionStmt {
                     expr_stmt_t: ExprListStmtT {
-                        expr_list_stmt_node: ExprListStmtNode::new(expr_list_node),
+                        expr_list_stmt_node: ExprListStmtNode::new(0, expr_list_node),
                     },
                 };
                 Ok(Some(stmt))
@@ -5791,7 +5791,7 @@ impl<'a> Parser<'a> {
                 let expr_list_node = ExprListNode::new(vec![YieldFromExprT { yield_from_expr_node }]);
                 let stmt = StatementType::ExpressionStmt {
                     expr_stmt_t: ExprListStmtT {
-                        expr_list_stmt_node: ExprListStmtNode::new(expr_list_node),
+                        expr_list_stmt_node: ExprListStmtNode::new(0, expr_list_node),
                     },
                 };
                 Ok(Some(stmt))
@@ -8000,7 +8000,7 @@ impl<'a> Parser<'a> {
                     // Add the literal as a special node type that will be handled by the visitor
                     // We'll use CallChainNodeType::CallChainLiteralExprT to represent this
                     call_chain.push_back(CallChainNodeType::CallChainLiteralExprT { 
-                        call_chain_literal_expr_node: CallChainLiteralExprNode::new(
+                        call_chain_literal_expr_node: CallChainLiteralExprNode::new(literal_expr_node.line, 
                             literal_expr_node.token_t.clone(),
                             literal_expr_node.value.clone(),
                         ),
@@ -8068,7 +8068,7 @@ impl<'a> Parser<'a> {
                     
                     // If we built a call chain, return it
                     if call_chain.len() > 1 {
-                        let call_chain_expr_node = CallChainExprNode::new(call_chain);
+                        let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
                         return Ok(Some(CallChainExprT { call_chain_expr_node }));
                     }
                 }
@@ -9640,7 +9640,7 @@ impl<'a> Parser<'a> {
                 Ok(Some(expr)) => {
                     // For dict unpacking, we only need to store it once as a key
                     // The visitor will recognize this pattern
-                    let dict_unpack = DictUnpackExprNode::new(expr);
+                    let dict_unpack = DictUnpackExprNode::new(self.previous().line, expr);
                     pairs.push((
                         ExprType::DictUnpackExprT { dict_unpack_expr_node: dict_unpack },
                         ExprType::NilExprT  // Placeholder value for unpacking
@@ -9673,7 +9673,7 @@ impl<'a> Parser<'a> {
                 if self.match_token(&[TokenType::StarStar]) {
                     match self.expression() {
                         Ok(Some(expr)) => {
-                            let dict_unpack = DictUnpackExprNode::new(expr);
+                            let dict_unpack = DictUnpackExprNode::new(self.previous().line, expr);
                             pairs.push((
                                 ExprType::DictUnpackExprT { dict_unpack_expr_node: dict_unpack },
                                 ExprType::NilExprT  // Placeholder value for unpacking
@@ -9804,7 +9804,7 @@ impl<'a> Parser<'a> {
                     // Dict unpacking in the middle
                     match self.expression() {
                         Ok(Some(expr)) => {
-                            let dict_unpack = DictUnpackExprNode::new(expr);
+                            let dict_unpack = DictUnpackExprNode::new(self.previous().line, expr);
                             pairs.push((
                                 ExprType::DictUnpackExprT { dict_unpack_expr_node: dict_unpack },
                                 ExprType::NilExprT  // Placeholder value for unpacking
@@ -9968,7 +9968,7 @@ impl<'a> Parser<'a> {
                 // Parse unpacked expression
                 match self.expression() {
                     Ok(Some(expr)) => {
-                        let unpack_node = UnpackExprNode::new(expr);
+                        let unpack_node = UnpackExprNode::new(self.previous().line, expr);
                         expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
                     }
                     Ok(None) => {
@@ -10183,7 +10183,7 @@ impl<'a> Parser<'a> {
                 // Parse unpacked expression
                 match self.expression() {
                     Ok(Some(expr)) => {
-                        let unpack_node = UnpackExprNode::new(expr);
+                        let unpack_node = UnpackExprNode::new(self.previous().line, expr);
                         expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
                     }
                     Ok(None) => {
@@ -10343,7 +10343,7 @@ impl<'a> Parser<'a> {
                 if self.match_token(&[TokenType::Star]) {
                     match self.expression() {
                         Ok(Some(expr)) => {
-                            let unpack_node = UnpackExprNode::new(expr);
+                            let unpack_node = UnpackExprNode::new(self.previous().line, expr);
                             expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
                         }
                         Ok(None) => {
@@ -10501,7 +10501,7 @@ impl<'a> Parser<'a> {
                         }
                         Ok(SystemSymbolType::OperationSymbol { .. }) => {
                             let operation_ref_expr_node =
-                                OperationRefExprNode::new(id_node.name.lexeme.clone());
+                                OperationRefExprNode::new(id_node.line, id_node.name.lexeme.clone());
                             CallChainNodeType::OperationRefT {
                                 operation_ref_expr_node,
                             }
@@ -10634,7 +10634,7 @@ impl<'a> Parser<'a> {
                                         }
                                     }
                                     
-                                    let call_chain_expr_node = CallChainExprNode::new(call_chain);
+                                    let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
                                     return Ok(Some(CallChainExprT {
                                         call_chain_expr_node,
                                     }));
@@ -10678,7 +10678,7 @@ impl<'a> Parser<'a> {
                         
                         // IMPORTANT: Always return the call chain here, even if no further dots were found
                         // We've already parsed self.property and need to return that chain
-                        let call_chain_expr_node = CallChainExprNode::new(call_chain);
+                        let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
                         return Ok(Some(CallChainExprT {
                             call_chain_expr_node,
                         }));
@@ -10692,7 +10692,7 @@ impl<'a> Parser<'a> {
                     return Err(parse_error);
                 }
             } else {
-                let self_expr_node = SelfExprNode::new();
+                let self_expr_node = SelfExprNode::new(self.previous().line);
                 return Ok(Some(SelfExprT {self_expr_node}));
             }
         }
@@ -11100,7 +11100,7 @@ impl<'a> Parser<'a> {
                                                 // Create an EnumeratorExprNode for the enum member access
                                                 // This is the proper way to represent enum member access in the AST
                                                 // The visitor will then properly qualify the enum name with the system name
-                                                let enum_expr_node = EnumeratorExprNode::new(
+                                                let enum_expr_node = EnumeratorExprNode::new(self.previous().line, 
                                                     enum_symbol.name.clone(),
                                                     enumerator_name.clone(),
                                                 );
@@ -11421,7 +11421,7 @@ impl<'a> Parser<'a> {
             }
         }
         
-        let call_chain_expr_node = CallChainExprNode::new(call_chain);
+        let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
         Ok(Some(CallChainExprT {
             call_chain_expr_node,
         }))
@@ -11613,7 +11613,7 @@ impl<'a> Parser<'a> {
         
         // Convert to legacy CallChainExprNode for compatibility
         let legacy_chain = self.convert_v2_to_legacy_chain(chain)?;
-        let call_chain_expr_node = CallChainExprNode::new(legacy_chain);
+        let call_chain_expr_node = CallChainExprNode::new(self.previous().line, legacy_chain);
         
         Ok(Some(CallChainExprT {
             call_chain_expr_node,
@@ -11766,7 +11766,7 @@ impl<'a> Parser<'a> {
             existing_chain.push_back(node);
         }
         
-        let call_chain_expr_node = CallChainExprNode::new(existing_chain);
+        let call_chain_expr_node = CallChainExprNode::new(self.previous().line, existing_chain);
         Ok(Some(CallChainExprT {
             call_chain_expr_node,
         }))
@@ -13076,7 +13076,7 @@ impl<'a> Parser<'a> {
             // This is needed so that assignments can recognize self.variable patterns
             
             // First create the 'self' node using the proper SelfT variant
-            let self_expr_node = SelfExprNode::new();
+            let self_expr_node = SelfExprNode::new(self.previous().line);
             
             // Then create the variable node for the property
             let var_node = VariableNode::new(id_node.line, 
@@ -13127,7 +13127,7 @@ impl<'a> Parser<'a> {
                 }
             }
             
-            let call_chain_expr_node = CallChainExprNode::new(call_chain);
+            let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
             
             return Ok(Some(ExprType::CallChainExprT { call_chain_expr_node }));
         }
