@@ -2,12 +2,21 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-**Current Version**: v0.60  
+**Current Version**: v0.61  
 **Test Success Rate**: 100% (378/378 tests passing) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-09-20
 
-## Current Features (v0.60) ✅ COMPLETE
+## Current Features (v0.61) ✅ COMPLETE
+
+### Call Chain Analysis and Documentation (NEW in v0.61)
+- **Comprehensive Analysis**: Analyzed 350+ lines of complex call chain handling logic
+- **Refactoring Modules**: Created foundation for future incremental improvements
+- **Documentation**: Detailed architectural insights and refactoring strategy
+- **Lessons Learned**: Understanding complexity before attempting to simplify
+- **100% Test Success**: Maintained stability throughout analysis and experimentation
+
+## Previous Features (v0.60) ✅ COMPLETE
 
 ### Critical Bug Fix & Complete AST Dump Feature (NEW in v0.60)
 - **Double-Call Bug Fixed**: Resolved critical issue where action calls in assignments generated incorrect double parameters

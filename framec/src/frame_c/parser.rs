@@ -15,9 +15,11 @@ use super::ast::*;
 use super::ast::TargetStateContextType;
 use std::collections::VecDeque;
 use super::scanner::*;
+use super::semantic_analyzer::SemanticAnalyzer;
 use super::symbol_table::*;
 use crate::frame_c::ast::ModuleElement;
 use crate::frame_c::ast::CallContextType;
+use crate::frame_c::ast::ResolvedCallType;
 use crate::frame_c::utils::SystemHierarchy;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -129,6 +131,7 @@ pub struct Parser<'a> {
     is_parsing_rhs: bool,
     is_parsing_collection: bool,  // v0.53: Track when inside collection literals
     event_handler_has_transition: bool,
+    enable_semantic_resolution: bool,  // v0.62: Feature flag for semantic call resolution
     is_action_scope: bool,
     operation_scope_depth: i32,
     is_static_operation: bool,
@@ -194,6 +197,7 @@ impl<'a> Parser<'a> {
             is_parsing_rhs: false,
             is_parsing_collection: false,  // v0.53: Initialize
             event_handler_has_transition: false,
+            enable_semantic_resolution: false,  // v0.62: Default to false for gradual migration
             generate_enter_args: false,
             generate_exit_args: false,
             generate_state_context: false,

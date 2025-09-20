@@ -18,6 +18,9 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
+// Include the simplified call chain handling
+mod call_chain_simplified;
+
 // Debug macro that only prints when FRAME_TRANSPILER_DEBUG is set
 macro_rules! debug_print {
     ($($arg:tt)*) => {

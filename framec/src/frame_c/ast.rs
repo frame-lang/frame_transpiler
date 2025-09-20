@@ -273,8 +273,27 @@ pub enum CallTargetType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CallContextType {
     SelfCall,           // self.method() - calls action or operation
-    StaticCall(String), // ClassName.method() - static operation call
-    ExternalCall,       // function() - external function or local
+    StaticCall(String), // DEPRECATED: Never set by parser, kept for backward compatibility
+                        // Originally intended for ClassName.method() static calls
+                        // TODO: Remove in v0.62 after confirming no impact
+    ExternalCall,       // function() - external function or local (default)
+}
+
+// v0.62: Semantic call resolution (to replace CallContextType)
+// This represents the actual semantic meaning of a call, determined during parsing
+#[derive(Debug, Clone, PartialEq)]
+pub enum ResolvedCallType {
+    Action(String),              // Internal action call (needs _ prefix)
+    Operation(String),           // Internal operation call  
+    SystemOperation {            // Qualified system operation call
+        system: String,
+        operation: String,
+    },
+    ModuleFunction {             // Qualified module function call
+        module: String,
+        function: String,
+    },
+    External(String),            // True external function call
 }
 
 // New simplified call chain node types
@@ -4083,6 +4102,7 @@ pub struct CallExprNode {
     pub call_expr_list: CallExprListNode,
     pub call_chain: Option<Vec<Box<dyn CallableExpr>>>,
     pub context: CallContextType,  // NEW: explicit self/system context
+    pub resolved_type: Option<ResolvedCallType>,  // v0.62: Semantic resolution (gradual migration)
 }
 
 impl CallExprNode {
@@ -4098,6 +4118,7 @@ impl CallExprNode {
             call_expr_list,
             call_chain,
             context: CallContextType::ExternalCall,  // Default to external
+            resolved_type: None,  // Will be set by semantic analysis
         }
     }
     
@@ -4114,6 +4135,7 @@ impl CallExprNode {
             call_expr_list,
             call_chain,
             context,
+            resolved_type: None,  // Will be set by semantic analysis
         }
     }
 }
