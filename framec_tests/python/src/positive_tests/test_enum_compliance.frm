@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test enum compliance with Python standards
 
 system ColorSystem {

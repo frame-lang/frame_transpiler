@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Performance module 2
 
 module Module2 {

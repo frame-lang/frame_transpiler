@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Simple test of string slicing without negative indices
 
 fn test_basic_slicing() {

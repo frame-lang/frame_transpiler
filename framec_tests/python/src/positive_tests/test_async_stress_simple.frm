@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 # Simplified async stress test for Frame v0.37
 # Tests core async functionality without complex backtick blocks

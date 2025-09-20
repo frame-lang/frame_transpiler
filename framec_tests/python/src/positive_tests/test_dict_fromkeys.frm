@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test dict.fromkeys() method
 
 fn test_fromkeys() {

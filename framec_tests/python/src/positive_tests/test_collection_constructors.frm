@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # test_collection_constructors.frm
 # Test collection constructors with arguments in Frame v0.38
 

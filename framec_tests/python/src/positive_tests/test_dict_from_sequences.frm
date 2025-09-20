@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # test_dict_from_sequences.frm
 # Test dict construction from various sequences
 

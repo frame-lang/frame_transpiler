@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test string slicing operations - Phase 1
 # Testing comprehensive string slicing support
 

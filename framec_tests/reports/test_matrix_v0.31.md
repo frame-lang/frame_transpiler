@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-17 10:50  
-**Total Tests**: 374  
+**Generated**: 2025-09-20 11:18  
+**Total Tests**: 378  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 374 | 100% |
-| **Transpilation Success** | 371 | 99.2% |
-| **Execution Success** | 371 | 99.2% |
-| **Complete Success** | 374 | 100.0% |
+| **Total Tests** | 378 | 100% |
+| **Transpilation Success** | 375 | 99.2% |
+| **Execution Success** | 375 | 99.2% |
+| **Complete Success** | 378 | 100.0% |
 
 ## v0.31 Features
 
@@ -94,6 +94,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_call_chain_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_chaining.frm | ✅ | ✅ | ✅ PASS |
 | test_class_basic.frm | ✅ | ✅ | ✅ PASS |
+| test_class_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_class_simple_v046.frm | ✅ | ✅ | ✅ PASS |
 | test_class_v046.frm | ✅ | ✅ | ✅ PASS |
 | test_collection_constructors.frm | ✅ | ✅ | ✅ PASS |
@@ -111,6 +112,9 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_current_limitations.frm | ✅ | ✅ | ✅ PASS |
 | test_debug.frm | ✅ | ✅ | ✅ PASS |
 | test_debug_nil.frm | ✅ | ✅ | ✅ PASS |
+| test_debug_simple.frm | ✅ | ✅ | ✅ PASS |
+| test_debug_system.frm | ✅ | ✅ | ✅ PASS |
+| test_debug_systems.frm | ✅ | ✅ | ✅ PASS |
 | test_del_statement.frm | ✅ | ✅ | ✅ PASS |
 | test_dict.frm | ✅ | ✅ | ✅ PASS |
 | test_dict_advanced_patterns.frm | ✅ | ✅ | ✅ PASS |

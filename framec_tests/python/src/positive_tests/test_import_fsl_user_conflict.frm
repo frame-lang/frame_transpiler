@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test FSL with user-defined function conflict - v0.34
 # This should fail to compile because FSL str conflicts with user function
 

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Multi-file test: Utility module
 # This module provides utility functions for other modules
 

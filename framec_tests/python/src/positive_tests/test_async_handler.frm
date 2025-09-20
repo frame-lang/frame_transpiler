@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test async interface methods with proper event handlers
 
 system AsyncHandler {

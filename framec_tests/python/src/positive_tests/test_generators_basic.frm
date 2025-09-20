@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test basic generator features in Frame v0.42
 
 # Test generator function with yield

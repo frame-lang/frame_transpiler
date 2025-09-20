@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 
 
@@ -270,8 +271,8 @@ fn main() {
     # ========== TRY-EXCEPT-FINALLY ==========
     try {
         print("TRY: Attempting division")
-        var result = safe_divide(10, 2)
-        print("TRY: Division result = " + str(result))
+        var result1 = safe_divide(10, 2)
+        print("TRY: Division result = " + str(result1))
     } except {
         print("EXCEPT: Division failed")
     } finally {
@@ -281,7 +282,7 @@ fn main() {
     # Try with actual exception
     try {
         print("TRY: Attempting risky operation")
-        var result = safe_divide(10, 0)  # Will throw
+        var result2 = safe_divide(10, 0)  # Will throw
         print("TRY: This should not print")
     } except {
         print("EXCEPT: Caught division by zero")
@@ -496,61 +497,56 @@ class Person {
     var age = 0
     var email = ""
     
-    fn __init__(self, name, age, email) {
+    fn init(name, age, email) {
         self.name = name
         self.age = age
         self.email = email
-        print("  [Person.__init__] Created person: " + name)
+        print("  [Person.init] Created person: " + name)
     }
     
-    fn greet(self) {
+    fn greet() {
         print("  [Person.greet] Hello, I'm " + self.name + " and I'm " + str(self.age) + " years old")
         return "Greeting from " + self.name
     }
     
-    fn get_info(self) {
+    fn get_info() {
         print("  [Person.get_info] Getting info for " + self.name)
         return {"name": self.name, "age": self.age, "email": self.email}
     }
     
-    fn have_birthday(self) {
+    fn have_birthday() {
         print("  [Person.have_birthday] " + self.name + " is having a birthday!")
         self.age = self.age + 1
         return self.age
     }
 }
 
-class Student {
-    var name = ""
-    var age = 0
-    var email = ""
+class Student extends Person {
     var student_id = ""
     var grades = []
     var courses = []
     
-    fn __init__(self, name, age, email, student_id) {
-        self.name = name
-        self.age = age
-        self.email = email
+    fn init(name, age, email, student_id) {
+        super.init(name, age, email)  # Call parent constructor
         self.student_id = student_id
         self.grades = []
         self.courses = []
-        print("  [Student.__init__] Created student with ID: " + student_id)
+        print("  [Student.init] Created student with ID: " + student_id)
     }
     
-    fn enroll(self, course) {
+    fn enroll(course) {
         print("  [Student.enroll] " + self.name + " enrolling in " + course)
         self.courses.append(course)
         return len(self.courses)
     }
     
-    fn add_grade(self, course, grade) {
+    fn add_grade(course, grade) {
         print("  [Student.add_grade] Adding grade " + str(grade) + " for " + course)
         self.grades.append({"course": course, "grade": grade})
         return self.calculate_gpa()
     }
     
-    fn calculate_gpa(self) {
+    fn calculate_gpa() {
         print("  [Student.calculate_gpa] Calculating GPA")
         if len(self.grades) == 0 {
             return 0.0
@@ -563,7 +559,7 @@ class Student {
         return gpa
     }
     
-    fn greet(self) {
+    fn greet() {
         # Override parent method
         print("  [Student.greet] Hi! I'm student " + self.name + " (ID: " + self.student_id + ")")
         return "Student greeting from " + self.name
@@ -574,38 +570,38 @@ class Calculator {
     var memory = 0
     var history = []
     
-    fn __init__(self) {
+    fn init() {
         self.memory = 0
         self.history = []
-        print("  [Calculator.__init__] Calculator initialized")
+        print("  [Calculator.init] Calculator initialized")
     }
     
-    fn add(self, a, b) {
+    fn add(a, b) {
         print("  [Calculator.add] Adding " + str(a) + " + " + str(b))
-        var result = a + b
-        self.history.append("add(" + str(a) + ", " + str(b) + ") = " + str(result))
-        return result
+        var add_result = a + b
+        self.history.append("add(" + str(a) + ", " + str(b) + ") = " + str(add_result))
+        return add_result
     }
     
-    fn multiply(self, a, b) {
+    fn multiply(a, b) {
         print("  [Calculator.multiply] Multiplying " + str(a) + " * " + str(b))
-        var result = a * b
-        self.history.append("multiply(" + str(a) + ", " + str(b) + ") = " + str(result))
-        return result
+        var mult_result = a * b
+        self.history.append("multiply(" + str(a) + ", " + str(b) + ") = " + str(mult_result))
+        return mult_result
     }
     
-    fn store(self, value) {
+    fn store(value) {
         print("  [Calculator.store] Storing " + str(value) + " in memory")
         self.memory = value
         return self.memory
     }
     
-    fn recall(self) {
+    fn recall() {
         print("  [Calculator.recall] Recalling from memory: " + str(self.memory))
         return self.memory
     }
     
-    fn clear_history(self) {
+    fn clear_history() {
         print("  [Calculator.clear_history] Clearing history")
         var old_count = len(self.history)
         self.history = []

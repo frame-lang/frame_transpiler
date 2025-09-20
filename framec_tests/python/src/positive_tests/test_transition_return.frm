@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Minimal test case for transition + return in if/elif/else
 fn main() {
     var sys = TransitionTest()

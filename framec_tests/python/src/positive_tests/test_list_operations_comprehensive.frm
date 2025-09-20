@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive test for all list operations in Frame
 # This test demonstrates that Frame supports all Python list methods
 # through natural pass-through to the target language

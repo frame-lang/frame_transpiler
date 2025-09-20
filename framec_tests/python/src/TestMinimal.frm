@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # EXPECTED_OUTPUT: started
 fn main() {
     var sys = NoParamsSystem()

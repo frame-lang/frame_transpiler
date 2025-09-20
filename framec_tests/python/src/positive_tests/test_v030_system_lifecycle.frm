@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: System lifecycle management with state-driven instantiation/destruction
 # Tests v0.30 multi-entity support with complex system interactions
 

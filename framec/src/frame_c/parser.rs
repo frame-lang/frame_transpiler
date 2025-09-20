@@ -3524,7 +3524,7 @@ impl<'a> Parser<'a> {
                     if decorator_name == "staticmethod" {
                         self.advance(); // consume "staticmethod"
                         if self.match_token(&[TokenType::Function]) {
-                            let method = self.method_decl(true, false)?;
+                            let method = self.parse_class_method_v2(true, false)?;
                             static_methods.push(method);
                             continue;
                         } else {
@@ -3534,7 +3534,7 @@ impl<'a> Parser<'a> {
                     } else if decorator_name == "classmethod" {
                         self.advance(); // consume "classmethod"
                         if self.match_token(&[TokenType::Function]) {
-                            let method = self.method_decl(false, true)?;
+                            let method = self.parse_class_method_v2(false, true)?;
                             class_methods.push(method);
                             continue;
                         } else {
@@ -3544,7 +3544,7 @@ impl<'a> Parser<'a> {
                     } else if decorator_name == "property" {
                         self.advance(); // consume "property"
                         if self.match_token(&[TokenType::Function]) {
-                            let getter = self.method_decl(false, false)?;
+                            let getter = self.parse_class_method_v2(false, false)?;
                             let prop_name = getter.borrow().name.clone();
                             let prop = Rc::new(RefCell::new(PropertyNode::new(prop_name)));
                             prop.borrow_mut().getter = Some(getter);
@@ -3577,7 +3577,7 @@ impl<'a> Parser<'a> {
                                     
                                     if let Some(prop) = found_property {
                                         if self.match_token(&[TokenType::Function]) {
-                                            let method = self.method_decl(false, false)?;
+                                            let method = self.parse_class_method_v2(false, false)?;
                                             if decorator_type == "setter" {
                                                 prop.borrow_mut().setter = Some(method);
                                             } else {
@@ -3617,7 +3617,7 @@ impl<'a> Parser<'a> {
             }
             // Check for function/method
             else if self.match_token(&[TokenType::Function]) {
-                let method = self.method_decl(false, false)?;
+                let method = self.parse_class_method_v2(false, false)?;
                 // Check if it's a constructor
                 if method.borrow().name == "init" || method.borrow().name == "__init__" || method.borrow().is_constructor {
                     constructor = Some(method);
@@ -3668,7 +3668,9 @@ impl<'a> Parser<'a> {
         Ok(Rc::new(RefCell::new(class_node)))
     }
     
-    fn method_decl(&mut self, is_static: bool, is_class: bool) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
+    // v0.45: The active class method parser (supports @classmethod)
+    // TODO: Merge with parse_class_method and remove duplication
+    fn parse_class_method_v2(&mut self, is_static: bool, is_class: bool) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
         // Get method name
         let method_name = match self.match_token(&[TokenType::Identifier]) {
             false => {
@@ -3684,6 +3686,12 @@ impl<'a> Parser<'a> {
         
         let line = self.previous().line;
         let is_constructor = method_name == "init" || method_name == "__init__";
+        
+        // Set is_class_method flag for non-static methods
+        let saved_is_class_method = self.is_class_method;
+        let saved_is_static = self.is_static_operation;
+        self.is_class_method = !is_static && !is_class;
+        self.is_static_operation = is_static || is_class;
         
         // Parse parameters - parentheses are required for methods
         if !self.match_token(&[TokenType::LParen]) {
@@ -3713,10 +3721,26 @@ impl<'a> Parser<'a> {
         
         // Parse method body
         let mut statements = Vec::new();
+        let mut explicit_return_expr_opt: Option<ExprType> = None;
+        
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            // Check for explicit return statement as terminator
+            if self.check(TokenType::Return_) {
+                self.advance(); // consume 'return'
+                
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Found return in method_decl, is_class_method={}", self.is_class_method);
+                }
+                
+                // Parse the return expression
+                explicit_return_expr_opt = self.expression()?;
+                
+                // A return statement should be the last thing in the method
+                break;
+            }
             // Use EventHandlerVarScope for local variables in methods
             // This prevents them from getting the self. prefix
-            if let Some(stmt) = self.decl_or_stmt(IdentifierDeclScope::EventHandlerVarScope)? {
+            else if let Some(stmt) = self.decl_or_stmt(IdentifierDeclScope::EventHandlerVarScope)? {
                 statements.push(stmt);
             }
         }
@@ -3727,12 +3751,16 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("Expected '}' after method body"));
         }
         
-        // Default terminator
+        // Use explicit return expression if found, otherwise empty terminator
         let terminator_expr = TerminatorExpr::new(
             TerminatorType::Return,
-            None,
+            explicit_return_expr_opt,
             line,
         );
+        
+        // Restore flags
+        self.is_class_method = saved_is_class_method;
+        self.is_static_operation = saved_is_static;
         
         let method_node = MethodNode::new(
             method_name,
@@ -13404,6 +13432,8 @@ impl<'a> Parser<'a> {
         ))))
     }
     
+    // DEPRECATED: Old class method parser - doesn't support @classmethod
+    // TODO: Remove this and use parse_class_method_v2 everywhere
     fn parse_class_method(&mut self, is_static: bool, is_constructor: bool) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
         // We've already consumed 'fn' token
         if !self.match_token(&[TokenType::Identifier]) {
@@ -13452,9 +13482,37 @@ impl<'a> Parser<'a> {
         
         // Parse statements
         let mut statements = Vec::new();
+        let mut explicit_return_expr_opt: Option<ExprType> = None;
+        
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Starting to parse class method body, is_class_method={}", self.is_class_method);
+        }
+        
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Parsing statement in class method, current token: {:?}", self.peek());
+            }
+            
+            // Check for explicit return statement as terminator
+            if self.check(TokenType::Return_) {
+                self.advance(); // consume 'return'
+                
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Found return statement in class method, is_class_method={}", self.is_class_method);
+                }
+                
+                // Parse the return expression
+                explicit_return_expr_opt = self.expression()?;
+                
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Parsed explicit return expression in class method");
+                }
+                
+                // A return statement should be the last thing in the method
+                break;
+            }
             // Check for variable declarations
-            if self.check(TokenType::Var) || self.check(TokenType::Const) {
+            else if self.check(TokenType::Var) || self.check(TokenType::Const) {
                 self.match_token(&[TokenType::Var, TokenType::Const]);
                 // Use EventHandlerVarScope for method local variables (similar to how event handlers work)
                 let var_decl = self.var_declaration(IdentifierDeclScope::EventHandlerVarScope)?;
@@ -13479,8 +13537,8 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new(err_msg));
         }
         
-        // Create terminator (implicit return for methods)
-        let terminator = TerminatorExpr::new(TerminatorType::Return, None, line);
+        // Create terminator - use explicit return expression if found, otherwise implicit empty return
+        let terminator = TerminatorExpr::new(TerminatorType::Return, explicit_return_expr_opt, line);
         
         // Restore flags
         self.is_class_method = saved_is_class_method;

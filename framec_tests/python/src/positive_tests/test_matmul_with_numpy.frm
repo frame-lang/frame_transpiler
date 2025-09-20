@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test matrix multiplication with NumPy (v0.40)
 # This test uses actual NumPy arrays to test @ operator functionality
 

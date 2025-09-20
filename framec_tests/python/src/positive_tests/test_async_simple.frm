@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 async fn fetch_data(url) {
     print("Fetching from " + url)

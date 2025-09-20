@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # test_collections_all.frm
 # Test all collection syntax in Frame v0.38
 

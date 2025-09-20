@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test the 'in' operator for membership testing
 
 fn test_in_with_lists() {

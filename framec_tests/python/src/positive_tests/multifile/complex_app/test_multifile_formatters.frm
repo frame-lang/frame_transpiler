@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Formatter functions for complex multi-file test
 # This module exports individual functions, not a module
 

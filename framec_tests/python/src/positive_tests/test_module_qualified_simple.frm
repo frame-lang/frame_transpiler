@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test simple module qualified names (v0.34)
 # This is a simplified test to check basic module.function() syntax
 

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test collection syntax that was supposed to be implemented
 fn test_current_support() {
     # Lists - these should work

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test simple operations block - single system only
 system SimpleOperationsTest {
     operations:

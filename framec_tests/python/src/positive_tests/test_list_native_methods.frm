@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test native list methods - currently using backticks (v0.33 WIP)
 fn main() {
     # Test list.append()

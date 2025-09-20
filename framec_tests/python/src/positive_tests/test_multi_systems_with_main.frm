@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: Multi-system with main function (v0.30)
 # Validates multiple systems in multi-entity format
 

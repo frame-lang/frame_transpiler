@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # test_dict_constructor_patterns.frm
 # Test various Python dict constructor patterns
 

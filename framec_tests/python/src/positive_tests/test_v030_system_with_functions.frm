@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: System with functions (v0.30)
 # Validates interaction between systems and functions
 

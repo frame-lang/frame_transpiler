@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test matrix multiplication syntax transpilation (v0.40)
 # This test validates @ operator transpilation without execution
 # Uses mock data that won't actually execute but proves syntax generation

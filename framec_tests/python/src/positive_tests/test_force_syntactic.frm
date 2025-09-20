@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Force syntactic parsing by having 2 systems
 
 system Dummy {

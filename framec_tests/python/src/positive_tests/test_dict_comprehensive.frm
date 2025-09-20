@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # test_dict_comprehensive.frm
 # Comprehensive dictionary tests for Frame v0.38 - matching Python's actual dict syntax
 

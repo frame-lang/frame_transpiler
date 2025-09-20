@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test that functions are properly isolated from system internals
 # Functions should NOT be able to access system actions/operations
 

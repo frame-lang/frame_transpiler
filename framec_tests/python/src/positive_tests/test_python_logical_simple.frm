@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Simple test for Python logical operators: and, or, not
 
 fn test_logical_operators() {

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test Python logical keywords (and, or, not)
 # v0.38 - Support both C-style and Python-style
 

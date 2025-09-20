@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test module-level function-to-function calls
 # This tests if functions can see each other at module scope
 

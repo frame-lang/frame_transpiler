@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test special dictionary types from collections module
 
 from collections import defaultdict, OrderedDict, Counter, ChainMap

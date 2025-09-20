@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test Frame's new XOR operator syntax (v0.38)
 # Simplified version without complex precedence tests
 

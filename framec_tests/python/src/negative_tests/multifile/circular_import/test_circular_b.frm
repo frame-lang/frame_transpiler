@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # @test-expect: error
 # @error-pattern: Circular dependency detected
 # @error-type: Multi-file compilation failed

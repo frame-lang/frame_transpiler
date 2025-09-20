@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
     print("Testing basic scope")
     var module_var = "module_value"

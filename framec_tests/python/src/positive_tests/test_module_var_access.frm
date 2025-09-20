@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test module-level variable access from function
 # This tests the module_scope() implementation
 

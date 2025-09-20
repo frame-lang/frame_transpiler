@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test using native Python print without Frame built-in
 # No import needed since print is a Python built-in
 

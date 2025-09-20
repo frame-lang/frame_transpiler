@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # test_dict_unpacking.frm
 # Test dictionary unpacking operator (**) support in Frame v0.38
 

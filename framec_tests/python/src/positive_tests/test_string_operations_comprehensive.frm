@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive test for all string operations in Frame
 # This test demonstrates that Frame supports all Python string methods
 # through natural pass-through to the target language

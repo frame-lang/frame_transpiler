@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test operations in a single-entity context (no functions)
 system SingleEntityOperationsTest {
     operations:

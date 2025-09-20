@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test dictionary comprehensions from the user's images
 
 fn test_dict_comprehensions() {

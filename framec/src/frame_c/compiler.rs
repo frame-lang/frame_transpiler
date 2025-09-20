@@ -7,6 +7,7 @@ use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
 use crate::frame_c::modules::MultiFileCompiler;
+use crate::frame_c::ast_serialize::{serialize_ast_to_json, save_ast_to_file, ast_summary, generate_line_map};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -300,6 +301,44 @@ impl Exe {
             errors.push_str(&semantic_parser.get_errors());
             let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
             return Err(run_error);
+        }
+
+        // AST Serialization for debugging (v0.60)
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: AST Serialization enabled");
+            
+            // Generate AST summary
+            let summary = ast_summary(&frame_module);
+            eprintln!("DEBUG: {}", summary);
+            
+            // Generate line map
+            let line_map = generate_line_map(&frame_module);
+            eprintln!("DEBUG: Line Map:\n{}", line_map);
+            
+            // Full AST serialization
+            match serialize_ast_to_json(&frame_module) {
+                Ok(json) => {
+                    eprintln!("DEBUG: Full AST JSON available (length: {} chars)", json.len());
+                    
+                    // Save to file if requested
+                    if let Ok(output_file) = std::env::var("FRAME_AST_OUTPUT") {
+                        match save_ast_to_file(&frame_module, &output_file) {
+                            Ok(()) => eprintln!("DEBUG: AST saved to file: {}", output_file),
+                            Err(e) => eprintln!("DEBUG: Failed to save AST to file: {}", e),
+                        }
+                    } else {
+                        eprintln!("DEBUG: Set FRAME_AST_OUTPUT=filename.json to save AST to file");
+                    }
+                    
+                    // Only print full JSON if explicitly requested (can be very large)
+                    if std::env::var("FRAME_TRANSPILER_DEBUG_VERBOSE").is_ok() {
+                        eprintln!("DEBUG: Full AST JSON:\n{}", json);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("DEBUG: AST serialization error: {}", e);
+                }
+            }
         }
 
         // let generate_enter_args = semantic_parser.generate_enter_args;

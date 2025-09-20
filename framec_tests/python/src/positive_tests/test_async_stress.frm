@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive async stress test for Frame v0.37
 # Tests parallel processing, error handling, timeouts with mock functions
 

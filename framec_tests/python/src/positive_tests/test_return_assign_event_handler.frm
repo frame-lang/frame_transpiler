@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: return = expr syntax in event handlers
 fn main() {
     var calculator = Calculator()

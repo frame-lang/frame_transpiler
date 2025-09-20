@@ -5038,8 +5038,15 @@ impl AstVisitor for PythonVisitor {
         
         // Generate method body
         if method_node.statements.is_empty() {
-            self.newline();
-            self.add_code("pass");
+            // Check if there's a terminator with return expression
+            if let Some(expr) = &method_node.terminator_expr.return_expr_t_opt {
+                self.newline();
+                self.add_code("return ");
+                expr.accept(self);
+            } else {
+                self.newline();
+                self.add_code("pass");
+            }
         } else {
             for stmt in &method_node.statements {
                 self.newline();
@@ -6522,6 +6529,27 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         
+        // Handle SelfCall first (for class methods)
+        if let CallContextType::SelfCall = &method_call.context {
+            let method_name = &method_call.identifier.name.lexeme;
+            
+            // If we're in a class method, output self.method() directly
+            if self.in_class_method {
+                output.push_str(&format!("self.{}", method_name));
+                method_call.call_expr_list.accept_to_string(self, output);
+                return;
+            }
+            // Otherwise use the regular self call handling
+            let saved_code = self.code.clone();
+            self.code.clear();
+            self.handle_self_call(method_call);
+            // BUG FIX v0.60: handle_self_call already processes call_expr_list.accept(self)
+            // Don't call it again to prevent double parameters: self._myAction(42)(42)
+            output.push_str(&self.code);
+            self.code = saved_code;
+            return;
+        }
+        
         // Handle call context first - but still check for actions/operations even for ExternalCall
         if let CallContextType::ExternalCall = &method_call.context {
             // Process call chain first (for object.method() syntax)
@@ -6764,14 +6792,21 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
         let action_name = &action_call.identifier.name.lexeme;
-        
-        self.debug_print(&format!("visit_action_call_expression_node({}) - in_standalone_function: {}", action_name, self.in_standalone_function));
-        
-        // ActionCallExprNode represents explicit action calls like self.action_one()
-        // These should ALWAYS generate self._action() format, regardless of context
-        self.debug_print("ActionCallExprNode - generating self._action call");
         let formatted_action_name = self.format_action_name(action_name);
-        self.add_code(&format!("self.{}", formatted_action_name));
+        
+        self.debug_print(&format!("visit_action_call_expression_node({}) - in_standalone_function: {}, in_call_chain: {}", action_name, self.in_standalone_function, self.in_call_chain));
+        
+        // BUG FIX v0.60: When in a call chain, don't output "self." prefix as it's already
+        // provided by the SelfT node in the chain. This prevents double-call bugs.
+        if self.in_call_chain {
+            // In call chain: just output the formatted action name
+            self.debug_print("ActionCallExprNode - in call chain, omitting self. prefix");
+            self.add_code(&formatted_action_name);
+        } else {
+            // Standalone action call: include "self." prefix
+            self.debug_print("ActionCallExprNode - standalone call, including self. prefix");
+            self.add_code(&format!("self.{}", formatted_action_name));
+        }
 
         action_call.call_expr_list.accept(self);
     }
@@ -6784,11 +6819,18 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         let action_name = &action_call.identifier.name.lexeme;
-        
-        // ActionCallExprNode represents explicit action calls like self.action_one()
-        // These should ALWAYS generate self._action() format, regardless of context
         let formatted_action_name = self.format_action_name(action_name);
-        output.push_str(&format!("self.{}", formatted_action_name));
+        
+        // BUG FIX v0.60: When in a call chain, don't output "self." prefix as it's already
+        // provided by the SelfT node in the chain. This prevents double-call bugs like:
+        // var result = self.myAction(42) → result = self._myAction(42)(42)
+        if self.in_call_chain {
+            // In call chain: just output the formatted action name
+            output.push_str(&formatted_action_name);
+        } else {
+            // Standalone action call: include "self." prefix
+            output.push_str(&format!("self.{}", formatted_action_name));
+        }
 
         action_call.call_expr_list.accept_to_string(self, output);
     }

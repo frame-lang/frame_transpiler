@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test exponent-like operations (** operator not supported in Frame yet)
 
 fn test_exponent() {

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test matrix multiplication transpilation (v0.40)
 # This test verifies @ and @= operators transpile correctly
 # Transpilation-only test - demonstrates syntax generation

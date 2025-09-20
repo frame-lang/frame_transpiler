@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test what currently doesn't work without backticks
 
 fn test_module_access() {

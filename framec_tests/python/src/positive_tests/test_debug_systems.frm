@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive debugging test with Frame systems (state machines)
 # Tests debugging through state machines and transitions
 

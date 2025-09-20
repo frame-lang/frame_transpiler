@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test advanced match-case patterns in Frame v0.44
 # Tests OR patterns (using 'or' keyword) and star patterns
 

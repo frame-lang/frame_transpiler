@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: Mixed entities with complex interactions (v0.30)
 # Functions, multiple systems, parameters, operations
 

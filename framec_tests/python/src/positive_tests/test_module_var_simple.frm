@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Simple module-level variable test with system only
 
 # Module-level variable declaration  

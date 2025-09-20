@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test advanced dictionary patterns - Fixed version
 # Working around 'in' operator limitations in if conditions
 

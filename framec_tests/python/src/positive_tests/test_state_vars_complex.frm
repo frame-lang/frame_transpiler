@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Complex state variable test - multiple states with different variables
 fn main() {
     var manager = StateManager()

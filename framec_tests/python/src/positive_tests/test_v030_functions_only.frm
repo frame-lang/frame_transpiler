@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: Functions-only module (v0.30)
 # Validates function-only modules without systems
 

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test to debug self.method() vs obj.method() call chain processing
 
 fn main() {

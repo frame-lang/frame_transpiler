@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 # Test basic async/await functionality in Frame v0.35
 # This tests async functions, async operations, and async interface methods

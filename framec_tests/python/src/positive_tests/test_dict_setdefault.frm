@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test setdefault method for dynamic dictionary creation
 
 fn test_setdefault_basic() {

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test type annotations in Frame v0.43
 # This test demonstrates Frame's Python type hint support
 

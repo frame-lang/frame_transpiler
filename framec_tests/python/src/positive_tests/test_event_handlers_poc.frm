@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 # Proof of Concept: Event-handlers-as-functions architecture
 # This demonstrates the proposed v0.36 architecture where each event

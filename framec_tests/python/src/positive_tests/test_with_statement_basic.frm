@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test file for with statement support in Frame v0.37 - Basic version
 import tempfile
 import os

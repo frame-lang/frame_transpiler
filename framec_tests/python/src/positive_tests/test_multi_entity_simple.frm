@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.30 Simple Multi-Entity Demo
 # This demonstrates multiple functions and systems working together
 # without domain variables (to avoid current code generation bug)

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test assert statement functionality (v0.47)
 
 fn test_basic_assertions() {

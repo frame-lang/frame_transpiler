@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Large multi-file compilation test
 # Tests performance with many modules and cross-dependencies
 

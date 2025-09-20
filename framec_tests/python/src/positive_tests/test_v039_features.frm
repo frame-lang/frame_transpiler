@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test current Frame v0.38 capabilities (v0.39 features not yet implemented)
 # This test demonstrates what Frame can do today
 

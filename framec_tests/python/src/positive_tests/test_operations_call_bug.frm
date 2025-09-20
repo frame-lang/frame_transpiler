@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test case for operations call transpiler bug
 # sys3.run() should generate sys3.run(), not sys3.self.run()
 

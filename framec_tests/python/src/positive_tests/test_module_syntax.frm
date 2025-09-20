@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test module syntax parsing (v0.34)
 # This tests that the module keyword and syntax are recognized
 

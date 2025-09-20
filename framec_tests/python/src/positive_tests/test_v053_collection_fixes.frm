@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test v0.53 collection literal fixes
 # This test verifies that list/dict/set/tuple literals with commas work correctly
 

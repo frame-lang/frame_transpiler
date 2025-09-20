@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 {-- Test basic exception handling in Frame
     This test covers try/except/else/finally blocks and raise statements --}
 

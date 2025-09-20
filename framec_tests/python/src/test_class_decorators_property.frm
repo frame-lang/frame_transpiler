@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test class decorators for property decorators (v0.58)
 
 # Simple class with property decorator usage demonstration

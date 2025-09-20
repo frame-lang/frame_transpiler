@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Real test for async with statement in Frame v0.37
 # Tests actual async with functionality without mocking
 import asyncio

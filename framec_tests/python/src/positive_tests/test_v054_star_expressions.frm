@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.54 - Star Expressions for Unpacking
 
 fn test_star_basic() {

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
     var result = Utils.add(5, 3)
     print("5 + 3 = " + str(result))

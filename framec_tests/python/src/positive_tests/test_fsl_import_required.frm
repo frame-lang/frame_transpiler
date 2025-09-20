@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test that FSL operations require explicit import in v0.34
 
 # This should work - FSL is explicitly imported

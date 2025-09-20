@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Performance test - main file with many dependencies
 # Tests compilation performance with multiple modules
 

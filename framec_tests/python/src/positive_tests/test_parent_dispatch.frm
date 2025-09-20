@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test for => $^ parent dispatch syntax
 # This test validates:
 # 1. => $^ as a statement (not terminator) - can appear anywhere in event handler

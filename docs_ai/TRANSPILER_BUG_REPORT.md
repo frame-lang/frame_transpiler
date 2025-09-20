@@ -64,3 +64,9 @@ The v0.60 release fixed the critical double-call bug in `visit_call_expression_n
 - **Root Cause**: Duplicate parameter processing in call expression handling  
 - **Impact**: All call chains, including class method calls, now work correctly
 - **Status**: ✅ **RESOLVED** - Test suite shows 100% success rate (378/378 tests passing)
+
+### ✅ Additional v0.60 Improvements
+- **AST Dump Feature**: Complete AST serialization infrastructure for debugging
+- **Environment Variables**: `FRAME_TRANSPILER_DEBUG=1`, `FRAME_AST_OUTPUT=file.json`
+- **Debug Capabilities**: AST summary, line mapping, JSON export for external analysis
+- **Test Coverage**: 100% test success rate maintained with enhanced debugging tools

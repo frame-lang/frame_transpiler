@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test dictionary as switch statement pattern
 
 # Note: Frame doesn't support lambda syntax yet, so we'll use regular functions

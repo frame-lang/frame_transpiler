@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test v0.40 string features: f-strings, raw strings, byte strings, triple-quoted strings, % formatting
 
 fn test_fstrings() {

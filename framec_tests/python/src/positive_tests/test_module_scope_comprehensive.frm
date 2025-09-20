@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive test of module scope variables in Frame v0.30
 # Tests all permutations of module variable access and modification
 

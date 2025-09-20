@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test special dictionary patterns using Frame's native capabilities
 # Fixed version - works around 'in' operator and nested function limitations
 

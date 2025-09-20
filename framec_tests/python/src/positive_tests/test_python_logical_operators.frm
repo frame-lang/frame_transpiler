@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test Python logical operators: and, or, not
 # v0.38 Feature: Python-style logical operators
 

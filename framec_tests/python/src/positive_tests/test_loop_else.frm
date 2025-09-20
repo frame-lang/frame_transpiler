@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test loop else clauses - v0.51
 # Expected: else blocks execute when loops complete normally (without break)
 

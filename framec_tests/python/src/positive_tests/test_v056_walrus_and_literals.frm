@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.56 - Walrus Operator, Numeric Underscores, and Complex Numbers
 
 fn test_walrus_operator() {

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test match-case pattern matching in Frame v0.44
 # This test demonstrates Frame's Python match-case support
 

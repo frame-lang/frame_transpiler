@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # test_dict_in_system.frm
 # Test dictionary literals in systems
 

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test lambda expressions in Frame v0.38
 # WORKING: Full Python lambda syntax is supported!
 

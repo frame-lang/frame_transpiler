@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Calculator system for main example
 
 import MathUtils from "./test_multifile_utils.frm"

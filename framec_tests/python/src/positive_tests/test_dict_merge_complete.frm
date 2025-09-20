@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Complete dictionary merging test
 
 fn test_all_merge_methods() {

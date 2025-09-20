@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test file for validating proper scope isolation
 # Functions should NOT be able to access system internals (actions/operations)
 # Systems should NOT be able to access other systems' internals

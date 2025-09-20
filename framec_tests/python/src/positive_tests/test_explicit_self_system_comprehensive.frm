@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive test for explicit self/system syntax in Frame v0.31
 fn main() {
     var sys = ComprehensiveSystem()

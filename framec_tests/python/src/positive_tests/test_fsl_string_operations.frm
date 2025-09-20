@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test FSL string operations - Phase 3
 # These should work WITHOUT backticks
 

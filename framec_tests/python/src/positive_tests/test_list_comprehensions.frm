@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test list comprehension support - v0.34
 # Expected: List comprehensions work with Frame syntax
 

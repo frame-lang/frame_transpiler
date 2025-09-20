@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test that FSL operations fail without import in v0.34
 
 # No FSL import - operations should NOT be recognized as FSL

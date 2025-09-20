@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Basic LEGB scope resolution test - simplified syntax
 
 fn main() {

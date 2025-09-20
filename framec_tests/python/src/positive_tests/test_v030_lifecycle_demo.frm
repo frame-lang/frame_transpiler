@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Demonstration of system lifecycle management concept
 # This test shows the architecture without relying on event handler code generation
 

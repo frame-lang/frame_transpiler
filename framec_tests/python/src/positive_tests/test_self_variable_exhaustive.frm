@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Exhaustive test for self.variable as lvalue, rvalue, and in nested expressions
 
 

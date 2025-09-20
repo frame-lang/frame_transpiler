@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Multi-file test: Calculator system
 # This module imports utilities and implements a calculator
 

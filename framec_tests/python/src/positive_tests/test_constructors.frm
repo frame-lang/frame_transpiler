@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test collection constructor functions
 fn main() {
     # Test list constructor with iterable

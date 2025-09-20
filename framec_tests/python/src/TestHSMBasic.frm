@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
     var sys = HSM1()
     sys.a()

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Basic dictionary comprehension test without tuple unpacking
 
 fn test_basic_dict_comprehensions() {

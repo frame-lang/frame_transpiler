@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test Python-style access modifiers (v0.48)
 
 class BankAccount {

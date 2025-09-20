@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test async generators in Frame v0.42
 # This demonstrates Frame's support for async generators combining v0.35 async and v0.42 generators
 

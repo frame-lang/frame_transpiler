@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test exponent operator ** in Frame v0.38
 
 fn testBasicExponent() {

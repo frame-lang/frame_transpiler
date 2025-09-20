@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # test_all_8_collection_patterns.frm
 # Test all 8 collection patterns from the user's request
 

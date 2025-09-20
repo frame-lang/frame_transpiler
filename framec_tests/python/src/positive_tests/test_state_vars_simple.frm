@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Simple state variable test - counter that increments on each trigger
 fn main() {
     var counter = SimpleCounter()

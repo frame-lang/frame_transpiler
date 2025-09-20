@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test all collection constructors
 fn main() {
     # These generate but may not work correctly

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Simplified system lifecycle test to verify basic functionality
 
 fn main() {

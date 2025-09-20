@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn test_basic_try_except() {
     try {
         var x = 10 / 0  # This will raise ZeroDivisionError

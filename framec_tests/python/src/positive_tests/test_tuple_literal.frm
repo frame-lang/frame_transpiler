@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test tuple literal syntax
 fn main() {
     # Try tuple literal as specified

@@ -2,14 +2,26 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-**Current Version**: v0.59  
-**Test Success Rate**: 100% (374/374 tests passing) 🎉  
+**Current Version**: v0.60  
+**Test Success Rate**: 100% (378/378 tests passing) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-09-17
+**Last Updated**: 2025-09-20
 
-## Current Features (v0.59) ✅ COMPLETE
+## Current Features (v0.60) ✅ COMPLETE
 
-### 100% Source Map Generation for Debugging (NEW in v0.59)
+### Critical Bug Fix & Complete AST Dump Feature (NEW in v0.60)
+- **Double-Call Bug Fixed**: Resolved critical issue where action calls in assignments generated incorrect double parameters
+- **Complete AST Serialization**: Full JSON serialization of Frame AST for debugging and validation
+- **AST Summary Output**: Concise overview with counts: `Systems (1): TestSystem (2 states), Functions (1): hello`
+- **Line Mapping**: Hierarchical listing of all AST elements with accurate line numbers
+- **File Export**: Save complete AST to JSON file for external analysis and validation
+- **Environment Variables**: `FRAME_TRANSPILER_DEBUG=1`, `FRAME_AST_OUTPUT=filename.json`
+- **Enhanced Debugging**: Foundation for advanced transpiler development and validation
+- **100% Test Success**: All 378 tests now passing with improved reliability
+
+## Previous Features (v0.59)
+
+### 100% Source Map Generation for Debugging
 - **Complete AST Coverage**: All 122 AST nodes now have line tracking (100% coverage)
 - **Debug Output Mode**: Generate JSON with transpiled code and source mappings via `--debug-output` flag
 - **Full Line Mapping**: Maps ALL Frame source lines to generated Python lines

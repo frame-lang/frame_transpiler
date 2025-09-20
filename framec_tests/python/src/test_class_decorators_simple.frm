@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test class decorators pass-through for Python (v0.58)
 # Simplified version without complex decorator arguments
 

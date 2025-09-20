@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: Mixed usage of return and return = in different contexts
 fn main() {
     var analyzer = TextAnalyzer()

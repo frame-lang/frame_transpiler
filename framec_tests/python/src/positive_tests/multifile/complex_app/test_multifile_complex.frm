@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Complex multi-file test - main entry point
 # Tests: nested imports, multiple dependencies, module functions
 

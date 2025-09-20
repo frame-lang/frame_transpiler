@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test module declarations (v0.34)
 # This tests that module declarations parse correctly
 # but doesn't use qualified names yet

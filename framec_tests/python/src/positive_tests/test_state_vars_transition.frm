@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test state variable transition issue - simple two-state machine  
 fn main() {
     var fsm = TwoState()

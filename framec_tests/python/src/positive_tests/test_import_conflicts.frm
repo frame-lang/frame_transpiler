@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test import edge cases and potential conflicts - v0.34
 # Expected: User functions can coexist with imports when no FSL imported
 

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 system Grocery {
     interface:
         getFruitOfTheDay(): string

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test scope boundaries in multi-entity files
 # Multiple functions and systems should maintain proper isolation
 

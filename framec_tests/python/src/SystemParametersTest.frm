@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
     # Test v0.20 parameter syntax - flattened argument list
     var sys = SystemInitializationDemo("a", "b", "c", "d", "e", "f")

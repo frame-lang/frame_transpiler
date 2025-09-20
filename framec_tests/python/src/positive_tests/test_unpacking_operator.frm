@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test unpacking operator (*args) support - v0.34
 # Expected: Unpacking operators work in list literals
 

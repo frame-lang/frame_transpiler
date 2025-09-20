@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-17T10:50:18.062074",
+  "timestamp": "2025-09-20T11:18:25.068961",
   "version": "v0.31",
   "summary": {
-    "total": 374,
-    "transpile_success": 371,
-    "execute_success": 371,
-    "complete_success": 374,
+    "total": 378,
+    "transpile_success": 375,
+    "execute_success": 375,
+    "complete_success": 378,
     "success_rate": "100.0%"
   },
   "results": [
@@ -480,6 +480,14 @@
       "error": null
     },
     {
+      "file": "test_class_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "negative_test": false,
+      "output": "Result: 15\n",
+      "error": null
+    },
+    {
       "file": "test_class_simple_v046.frm",
       "transpile": true,
       "execute": true,
@@ -613,6 +621,30 @@
       "execute": true,
       "negative_test": false,
       "output": "Testing\n",
+      "error": null
+    },
+    {
+      "file": "test_debug_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "negative_test": false,
+      "output": "=== Starting Comprehensive Debug Test ===\nVariable declaration: x = 101\nMultiple types: y=20, z=30.5, flag=True, name=Frame\n  [divmod] Dividing 17 by 5\nMultiple assignment: a=3, b=2\n  [unpack_three] R",
+      "error": null
+    },
+    {
+      "file": "test_debug_system.frm",
+      "transpile": true,
+      "execute": true,
+      "negative_test": false,
+      "output": "=== Starting System Debug Test ===\n  [Red.$enter] Light is now RED - STOP\nInitial state: should be Red\n    [Action] Transitioning: Red -> Green\n    [Action] Waiting 5 seconds...\n  [Red.$exit] Leaving ",
+      "error": null
+    },
+    {
+      "file": "test_debug_systems.frm",
+      "transpile": true,
+      "execute": true,
+      "negative_test": false,
+      "output": null,
       "error": null
     },
     {
@@ -972,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1004,7 +1036,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1012,7 +1044,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {

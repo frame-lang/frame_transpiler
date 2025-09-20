@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test individual FSL imports - v0.34 comprehensive test
 # Expected output: All FSL operations work correctly with individual imports
 

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # test_dict_literal.frm
 # Test dictionary literal support in Frame v0.38
 

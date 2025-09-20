@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test mixed FSL and Python imports - v0.34
 # Expected: Both FSL and Python imports work together
 

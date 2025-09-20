@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test FSL extended list operations
 # These should work WITHOUT backticks
 

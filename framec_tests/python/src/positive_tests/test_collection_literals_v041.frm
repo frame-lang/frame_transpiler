@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test Collection Literals - v0.41 Status Check
 # What actually works vs what's documented
 

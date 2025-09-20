@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: return = expr syntax in action methods
 fn main() {
     var processor = DataProcessor()

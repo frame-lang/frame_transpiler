@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: Module qualified names without backticks
 # This tests the improved parser's ability to handle module.attribute 
 # and module.method() calls without requiring backticks

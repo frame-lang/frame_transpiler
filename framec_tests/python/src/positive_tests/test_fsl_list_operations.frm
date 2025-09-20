@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test FSL list operations - Phase 2
 # These should work WITHOUT backticks
 

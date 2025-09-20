@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test bitwise XOR operator ^ (v0.40)
 # Tests both the bitwise XOR operator and compound assignment
 

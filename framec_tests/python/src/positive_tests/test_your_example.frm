@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test hierarchical state machines without infinite loop
 fn main() {
     var hsm = SimpleHSM()

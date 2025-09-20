@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test FSL conversion operations (str, int, float) without backticks
 
 fn test_string_conversion() {

@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test workaround for nested dict indexing
 # Since parser doesn't support dict["key1"]["key2"] directly,
 # we use intermediate variables as a workaround

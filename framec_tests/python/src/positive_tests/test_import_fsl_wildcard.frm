@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test wildcard FSL imports - v0.34
 # Expected output: All FSL operations work with wildcard import
 

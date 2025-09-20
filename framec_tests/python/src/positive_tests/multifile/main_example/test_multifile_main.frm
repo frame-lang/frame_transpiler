@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Multi-file test: Main entry point
 # This is the main module that uses the calculator
 

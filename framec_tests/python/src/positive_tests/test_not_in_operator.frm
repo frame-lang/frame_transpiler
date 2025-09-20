@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test the 'not in' operator - now works directly!
 
 fn test_not_in_lists() {

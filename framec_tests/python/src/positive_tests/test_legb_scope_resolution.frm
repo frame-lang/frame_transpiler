@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test LEGB (Local, Enclosing, Global, Built-in) scope resolution order
 # This test validates proper symbol lookup following Python's LEGB rule
 

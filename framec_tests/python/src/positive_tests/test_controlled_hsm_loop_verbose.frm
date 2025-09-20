@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test controlled HSM loop with counter and debug output
 fn main() {
     var hsm = SimpleHSM()

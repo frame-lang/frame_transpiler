@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test FSL operations WITHOUT import - should use external functions
 # This test verifies that without FSL import, operations are treated as external
 

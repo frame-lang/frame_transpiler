@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test set comprehensions added in v0.41
 
 fn test_set_comprehensions() {

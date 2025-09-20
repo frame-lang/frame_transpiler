@@ -1,3 +1,4 @@
+# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.53 - Multiple Variable Declarations Test
 
 fn test_multi_var_basic() {
