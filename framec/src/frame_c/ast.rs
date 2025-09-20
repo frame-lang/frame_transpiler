@@ -273,9 +273,8 @@ pub enum CallTargetType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CallContextType {
     SelfCall,           // self.method() - calls action or operation
-    StaticCall(String), // DEPRECATED: Never set by parser, kept for backward compatibility
-                        // Originally intended for ClassName.method() static calls
-                        // TODO: Remove in v0.62 after confirming no impact
+    StaticCall(String), // For static method calls: System.operation() or Class.method() with @staticmethod
+                        // TODO v0.62: Parser should detect and set this for static call patterns
     ExternalCall,       // function() - external function or local (default)
 }
 
@@ -288,6 +287,12 @@ pub enum ResolvedCallType {
     SystemOperation {            // Qualified system operation call
         system: String,
         operation: String,
+        is_static: bool,         // True if marked with @staticmethod
+    },
+    ClassMethod {                // Qualified class method call
+        class: String,
+        method: String,
+        is_static: bool,         // True if marked with @staticmethod
     },
     ModuleFunction {             // Qualified module function call
         module: String,

@@ -30,7 +30,8 @@ impl<'a> SemanticAnalyzer<'a> {
             return self.resolve_self_call(method_name);
         }
         
-        // Check if it's a call chain (e.g., Utils.add)
+        // Check if it's a call chain (e.g., System.operation)
+        // This would be parsed as a call chain with System as the first part
         if let Some(chain) = &call_expr.call_chain {
             if !chain.is_empty() {
                 return self.resolve_chained_call(identifier, chain);
@@ -88,12 +89,30 @@ impl<'a> SemanticAnalyzer<'a> {
     }
     
     fn resolve_chained_call(&self, first: &str, _chain: &[Box<dyn CallableExpr>]) -> ResolvedCallType {
-        // Check if first part references a system (by checking for its operations)
-        // Since we can't directly lookup systems, we check if any operation exists in a system with this name
-        // This is a temporary implementation until we have better system lookup
+        // Check if this is a System.operation() or Class.method() pattern
+        // The parser creates this as a chain where 'first' is the system/class name
+        // and chain[0] would be the operation/method call
         
-        // For now, treat all chains as external unless proven otherwise
-        // TODO: Implement proper chain resolution when we have system registry
+        // Try to get the operation/method name from the chain
+        // TODO: Extract name from chain properly
+        // For now, we need to understand the chain structure better
+        
+        // Check if any system has an operation with this pattern
+        // by looking for operations in all systems
+        if let Some(_op_symbol) = self.arcanum.lookup_operation_in_all_systems(first) {
+            // Found an operation - but we're calling it as System.operation
+            // This suggests it's a static call pattern
+            // TODO: Check if the operation has @staticmethod attribute
+            return ResolvedCallType::SystemOperation {
+                system: first.to_string(),
+                operation: "unknown".to_string(), // TODO: Extract from chain
+                is_static: true, // TODO: Check actual attribute
+            };
+        }
+        
+        // Check if this is a class (Frame v0.45+ supports classes)
+        // TODO: Add class lookup to arcanum
+        // For now, we can't distinguish class static calls
         
         ResolvedCallType::External(first.to_string())
     }
@@ -116,6 +135,17 @@ impl<'a> SemanticAnalyzer<'a> {
         // Use the arcanum's lookup methods
         self.arcanum.lookup_operation(operation_name).is_some() ||
         self.arcanum.lookup_operation_in_all_systems(operation_name).is_some()
+    }
+    
+    fn is_static_operation(&self, _system_name: &str, operation_name: &str) -> bool {
+        // Check if an operation is marked with @staticmethod
+        // This requires looking at the operation's attributes
+        if let Some(op_symbol) = self.arcanum.lookup_operation(operation_name) {
+            // Check the operation's AST node for staticmethod attribute
+            // TODO: Implement attribute checking
+            return false; // Placeholder
+        }
+        false
     }
     
     pub fn enter_system(&mut self, system_name: &'a str) {
