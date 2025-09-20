@@ -2,6 +2,7 @@
 # Validates multiple systems in multi-entity format
 
 fn main() {
+    var a = 1
     var sys1 = FirstSystem()
     sys1.start()
     

@@ -1,0 +1,83 @@
+{
+  "python": "#Emitted from framec_v0.30.0\n\n\nclass FrameEvent:\n    def __init__(self, message, parameters):\n        self._message = message\n        self._parameters = parameters\n\nclass FrameCompartment:\n    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):\n        self.state = state\n        self.forward_event = forward_event\n        self.exit_args = exit_args\n        self.enter_args = enter_args\n        self.parent_compartment = parent_compartment\n        self.state_vars = state_vars or {}\n        self.state_args = state_args or {}\n\n\ndef main():\n    a = 1\n    sys1 = FirstSystem()\n    sys2 = SecondSystem()\n    sys2.activate()\n    return\nclass FirstSystem:\n    def __init__(self):\n        # Create and initialize start state compartment\n        self.__compartment = FrameCompartment('__firstsystem_state_Idle', None, None, None, None, {}, {})\n        self.__next_compartment = None\n        self.return_stack = [None]\n        \n        # Send system start event\n        frame_event = FrameEvent(\"$>\", None)\n        self.__kernel(frame_event)\n    # ==================== Interface Block ================== #\n    \n    def start(self,):\n        self.return_stack.append(None)\n        __e = FrameEvent(\"start\",None)\n        self.__kernel(__e)\n        return self.return_stack.pop(-1)\n    \n    # ===================== Machine Block =================== #\n    \n    \n    def __handle_idle_start(self, __e, compartment):\n        print(\"FirstSystem starting\")\n        \n        \n        next_compartment = FrameCompartment('__firstsystem_state_Running', None, None, None, None, {}, {})\n        self.__transition(next_compartment)\n        return\n    \n    # ----------------------------------------\n    # $Idle\n    \n    def __firstsystem_state_Idle(self, __e, compartment):\n        if __e._message == \"start\":\n            return self.__handle_idle_start(__e, compartment)\n        \n    \n    \n    def __handle_running_enter(self, __e, compartment):\n        print(\"FirstSystem running\")\n        return\n    \n    # ----------------------------------------\n    # $Running\n    \n    def __firstsystem_state_Running(self, __e, compartment):\n        if __e._message == \"$>\":\n            return self.__handle_running_enter(__e, compartment)\n        \n    \n    # ===================== State Dispatchers =================== #\n    \n    def _sIdle(self, __e):\n        return self.__firstsystem_state_Idle(__e, None)\n    def _sRunning(self, __e):\n        return self.__firstsystem_state_Running(__e, None)\n    \n    # ==================== System Runtime =================== #\n    \n    def __kernel(self, __e):\n        # send event to current state\n        self.__router(__e)\n        \n        # loop until no transitions occur\n        while self.__next_compartment != None:\n            next_compartment = self.__next_compartment\n            self.__next_compartment = None\n            \n            # exit current state\n            self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))\n            # change state\n            self.__compartment = next_compartment\n            \n            if next_compartment.forward_event is None:\n                # send normal enter event\n                self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))\n            else:\n                # forwarded event\n                if next_compartment.forward_event._message == \"$>\":\n                    self.__router(next_compartment.forward_event)\n                else:\n                    self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))\n                    self.__router(next_compartment.forward_event)\n                next_compartment.forward_event = None\n    \n    def __router(self, __e, compartment=None):\n        target_compartment = compartment or self.__compartment\n        if target_compartment.state == '__firstsystem_state_Idle':\n            self.__firstsystem_state_Idle(__e, target_compartment)\n        elif target_compartment.state == '__firstsystem_state_Running':\n            self.__firstsystem_state_Running(__e, target_compartment)\n    \n    def __transition(self, next_compartment):\n        self.__next_compartment = next_compartment\nclass SecondSystem:\n    def __init__(self):\n        # Create and initialize start state compartment\n        self.__compartment = FrameCompartment('__secondsystem_state_Waiting', None, None, None, None, {}, {})\n        self.__next_compartment = None\n        self.return_stack = [None]\n        \n        # Send system start event\n        frame_event = FrameEvent(\"$>\", None)\n        self.__kernel(frame_event)\n    # ==================== Interface Block ================== #\n    \n    def activate(self,):\n        self.return_stack.append(None)\n        __e = FrameEvent(\"activate\",None)\n        self.__kernel(__e)\n        return self.return_stack.pop(-1)\n    \n    # ===================== Machine Block =================== #\n    \n    \n    def __handle_waiting_activate(self, __e, compartment):\n        print(\"SecondSystem activating\")\n        \n        next_compartment = FrameCompartment('__secondsystem_state_Active', None, None, None, None, {}, {})\n        self.__transition(next_compartment)\n        return\n    \n    # ----------------------------------------\n    # $Waiting\n    \n    def __secondsystem_state_Waiting(self, __e, compartment):\n        if __e._message == \"activate\":\n            return self.__handle_waiting_activate(__e, compartment)\n        \n    \n    \n    def __handle_active_enter(self, __e, compartment):\n        print(\"SecondSystem active\")\n        return\n    \n    # ----------------------------------------\n    # $Active\n    \n    def __secondsystem_state_Active(self, __e, compartment):\n        if __e._message == \"$>\":\n            return self.__handle_active_enter(__e, compartment)\n        \n    \n    # ===================== State Dispatchers =================== #\n    \n    def _sWaiting(self, __e):\n        return self.__secondsystem_state_Waiting(__e, None)\n    def _sActive(self, __e):\n        return self.__secondsystem_state_Active(__e, None)\n    \n    # ==================== System Runtime =================== #\n    \n    def __kernel(self, __e):\n        # send event to current state\n        self.__router(__e)\n        \n        # loop until no transitions occur\n        while self.__next_compartment != None:\n            next_compartment = self.__next_compartment\n            self.__next_compartment = None\n            \n            # exit current state\n            self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))\n            # change state\n            self.__compartment = next_compartment\n            \n            if next_compartment.forward_event is None:\n                # send normal enter event\n                self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))\n            else:\n                # forwarded event\n                if next_compartment.forward_event._message == \"$>\":\n                    self.__router(next_compartment.forward_event)\n                else:\n                    self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))\n                    self.__router(next_compartment.forward_event)\n                next_compartment.forward_event = None\n    \n    def __router(self, __e, compartment=None):\n        target_compartment = compartment or self.__compartment\n        if target_compartment.state == '__secondsystem_state_Waiting':\n            self.__secondsystem_state_Waiting(__e, target_compartment)\n        elif target_compartment.state == '__secondsystem_state_Active':\n            self.__secondsystem_state_Active(__e, target_compartment)\n    \n    def __transition(self, next_compartment):\n        self.__next_compartment = next_compartment\n\nif __name__ == '__main__':\n    main()",
+  "sourceMap": {
+    "version": "1.0",
+    "sourceFile": "test_multi_systems_with_main.frm",
+    "targetFile": "test_multi_systems_with_main.py",
+    "mappings": [
+      {
+        "frameLine": 4,
+        "pythonLine": 20
+      },
+      {
+        "frameLine": 5,
+        "pythonLine": 21
+      },
+      {
+        "frameLine": 6,
+        "pythonLine": 22
+      },
+      {
+        "frameLine": 9,
+        "pythonLine": 23
+      },
+      {
+        "frameLine": 10,
+        "pythonLine": 24
+      },
+      {
+        "frameLine": 18,
+        "pythonLine": 46
+      },
+      {
+        "frameLine": 20,
+        "pythonLine": 48
+      },
+      {
+        "frameLine": 21,
+        "pythonLine": 49
+      },
+      {
+        "frameLine": 26,
+        "pythonLine": 62
+      },
+      {
+        "frameLine": 28,
+        "pythonLine": 64
+      },
+      {
+        "frameLine": 29,
+        "pythonLine": 65
+      },
+      {
+        "frameLine": 39,
+        "pythonLine": 139
+      },
+      {
+        "frameLine": 41,
+        "pythonLine": 141
+      },
+      {
+        "frameLine": 42,
+        "pythonLine": 142
+      },
+      {
+        "frameLine": 47,
+        "pythonLine": 155
+      },
+      {
+        "frameLine": 49,
+        "pythonLine": 157
+      },
+      {
+        "frameLine": 50,
+        "pythonLine": 158
+      }
+    ]
+  },
+  "metadata": {
+    "frameVersion": "0.30.0",
+    "generatedAt": "2025-09-18T02:19:51.870296+00:00",
+    "checksum": "sha256:7a8dd6fba6dffc07e3960c45168f97bbf62c007c921b4c1dffcad04f9ec03e41"
+  }
+}

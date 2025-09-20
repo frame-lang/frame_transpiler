@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.49)
+# Frame Language Grammar (v0.60)
 
-**Last Updated**: 2025-09-11  
-**Status**: v0.49 - Complete error handling support with try/finally fix. **100% test success rate with comprehensive error handling**.
+**Last Updated**: 2025-09-20  
+**Status**: v0.60 - Critical bug fixes and enhanced debugging infrastructure. **100% test success rate (378/378 tests passing) with action call assignment bug fixed and AST serialization infrastructure**.
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 

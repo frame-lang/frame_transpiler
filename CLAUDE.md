@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (class support with OOP features), v0.46 (assert statement support), v0.47 (with statement support), v0.48 (Python-style access modifiers), v0.49 (complete error handling), v0.50 (del statement support), v0.51 (loop else clauses), v0.52 (multiple assignment), v0.53 (critical bug fixes for collections and multiple variable declarations), v0.54 (star expressions for unpacking), v0.55 (state parameters fixed, type annotations and @property confirmed working), v0.56 (Python enhancement features including walrus operator, type aliases, and enhanced numerics), v0.57 (multi-file module system infrastructure with Frame file imports), v0.58 (class decorators with Python pass-through and GraphViz multi-system support), and v0.59 (source map generation for debugging support).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (class support with OOP features), v0.46 (assert statement support), v0.47 (with statement support), v0.48 (Python-style access modifiers), v0.49 (complete error handling), v0.50 (del statement support), v0.51 (loop else clauses), v0.52 (multiple assignment), v0.53 (critical bug fixes for collections and multiple variable declarations), v0.54 (star expressions for unpacking), v0.55 (state parameters fixed, type annotations and @property confirmed working), v0.56 (Python enhancement features including walrus operator, type aliases, and enhanced numerics), v0.57 (multi-file module system infrastructure with Frame file imports), v0.58 (class decorators with Python pass-through and GraphViz multi-system support), v0.59 (source map generation for debugging support), and v0.60 (critical double-call bug fix and AST serialization infrastructure).
 
 ## File Locations
 
@@ -39,8 +39,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.59`  
-**Status**: ✅ **100% TEST SUCCESS RATE** - Source Map Generation for Debugging Support Complete
+**Version**: `v0.60`  
+**Status**: ✅ **100% TEST SUCCESS RATE** - Critical Bug Fixes and Enhanced Debugging Infrastructure Complete
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -73,6 +73,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.57 achievements, see**: [`docs/v0.57_achievements.md`](docs/v0.57_achievements.md)
 📊 **For v0.58 achievements, see**: [`docs/v0.58_achievements.md`](docs/v0.58_achievements.md)
 📊 **For v0.59 achievements, see**: [`docs/v0.59_achievements.md`](docs/v0.59_achievements.md)
+📊 **For v0.60 achievements, see**: [`docs/v0.60_achievements.md`](docs/v0.60_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
@@ -1028,6 +1029,33 @@ var pure_imaginary = 2.5j
 - **Workaround**: Comment out type() calls or use `__class__` attribute
 - **Future**: Consider context-sensitive keyword recognition
 
+### v0.60 Critical Bug Fixes and Debugging Infrastructure (COMPLETE) ✅
+
+Frame v0.60 represents a significant quality and reliability milestone, achieving 100% test success and resolving critical runtime bugs that affected action call assignments.
+
+#### Double-Call Bug Fix ✅
+- **Issue Fixed**: Action calls in variable assignments generated incorrect double parameters
+- **Before**: `var result = self.myAction(42)` → `result = self._myAction(42)(42)` ❌
+- **After**: `var result = self.myAction(42)` → `result = self._myAction(42)` ✅
+- **Root Cause**: Duplicate parameter processing in `visit_call_expression_node_to_string`
+- **Impact**: Resolves runtime errors and incorrect behavior in action call assignments
+
+#### AST Serialization Infrastructure ✅
+- **New Module**: `framec/src/frame_c/ast_serialize.rs`
+- **Purpose**: JSON serialization of Frame AST for debugging and testing
+- **Features**:
+  - Complete AST structure serialization
+  - Expression-level debugging with `debug_expression()`
+  - Integration with compiler debug output
+  - Future-ready for automated testing and validation
+- **Usage**: Enable with `FRAME_TRANSPILER_DEBUG=1` environment variable
+
+#### Test Suite Improvements ✅
+- **Fixed**: `test_class_simple.frm` syntax and logic errors
+- **Corrected**: Frame class method syntax (removed explicit `self` parameters)
+- **Updated**: Class constructor call patterns to match Frame language specification
+- **Result**: 100% test success rate (378/378 tests passing)
+
 ### v0.57 Multi-File Module System (COMPLETE) ✅
 
 Frame v0.57 delivers a fully functional multi-file module system enabling Frame projects to be organized across multiple `.frm` files with automatic compilation, dependency management, and 100% test success.
@@ -1659,8 +1687,8 @@ cargo build && ./target/debug/framec -l python_3 test_file.frm
 - **Await expressions**: ✅ Full parsing and Python `await` generation
 - **Async propagation**: ✅ State handlers automatically async for async interface events
 
-### v0.57 Test Success - All Tests Passing
-- **Total Tests**: 344/344 (100% success rate) 🎉
+### v0.60 Test Success - All Tests Passing
+- **Total Tests**: 378/378 (100% success rate) 🎉
 - **Module System Tests**: All passing (preserved from v0.34)
 - **Native Python Operation Tests**: All passing
 - **Async Function Tests**: All 7 async tests passing

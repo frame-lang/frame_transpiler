@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.59)
+# Frame Language Grammar (v0.60)
 
-**Last Updated**: 2025-09-17  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, multi-file module system with Frame file imports, comprehensive module infrastructure, **100% source map generation for debugging support with all AST nodes line-tracked**, and **100% test success rate (374/374 tests passing)**
+**Last Updated**: 2025-09-20  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, multi-file module system with Frame file imports, comprehensive module infrastructure, **100% source map generation for debugging support with all AST nodes line-tracked**, **critical double-call bug fix for action call assignments**, **AST serialization infrastructure for debugging**, and **100% test success rate (378/378 tests passing)**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 

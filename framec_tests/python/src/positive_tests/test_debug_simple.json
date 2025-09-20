@@ -1,0 +1,51 @@
+{
+  "python": "#Emitted from framec_v0.30.0\n\n\nclass FrameEvent:\n    def __init__(self, message, parameters):\n        self._message = message\n        self._parameters = parameters\n\nclass FrameCompartment:\n    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):\n        self.state = state\n        self.forward_event = forward_event\n        self.exit_args = exit_args\n        self.enter_args = enter_args\n        self.parent_compartment = parent_compartment\n        self.state_vars = state_vars or {}\n        self.state_args = state_args or {}\n\n\ndef main():\n    print(\"Line 4: Start\")\n    x = 10\n    print(\"Line 6: x = \" + str(x))\n    y = 20\n    print(\"Line 8: y = \" + str(y))\n    z = x + y\n    print(\"Line 10: z = \" + str(z))\n    print(\"Line 11: End\")\n    return\n\nif __name__ == '__main__':\n    main()",
+  "sourceMap": {
+    "version": "1.0",
+    "sourceFile": "test_debug_simple.frm",
+    "targetFile": "test_debug_simple.py",
+    "mappings": [
+      {
+        "frameLine": 3,
+        "pythonLine": 20
+      },
+      {
+        "frameLine": 4,
+        "pythonLine": 21
+      },
+      {
+        "frameLine": 5,
+        "pythonLine": 22
+      },
+      {
+        "frameLine": 6,
+        "pythonLine": 23
+      },
+      {
+        "frameLine": 7,
+        "pythonLine": 24
+      },
+      {
+        "frameLine": 8,
+        "pythonLine": 25
+      },
+      {
+        "frameLine": 9,
+        "pythonLine": 26
+      },
+      {
+        "frameLine": 10,
+        "pythonLine": 27
+      },
+      {
+        "frameLine": 11,
+        "pythonLine": 28
+      }
+    ]
+  },
+  "metadata": {
+    "frameVersion": "0.30.0",
+    "generatedAt": "2025-09-18T04:02:44.541586+00:00",
+    "checksum": "sha256:13738c50292beb17ec5fa5c8555b2c347f172b3b99efc13591d743637e333f54"
+  }
+}

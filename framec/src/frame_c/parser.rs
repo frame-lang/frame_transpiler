@@ -3755,7 +3755,9 @@ impl<'a> Parser<'a> {
         &mut self,
         identifier_decl_scope: IdentifierDeclScope,
     ) -> Result<Rc<RefCell<VariableDeclNode>>, ParseError> {
-        let is_constant = match self.previous().token_type {
+        let var_token = self.previous().clone();
+        let var_line = var_token.line;
+        let is_constant = match var_token.token_type {
             TokenType::Var => false,
             TokenType::Const => true,
             _ => return Err(ParseError::new("TODO")),
@@ -3804,7 +3806,7 @@ impl<'a> Parser<'a> {
         // If we have multiple names or a star expression, handle it specially
         // Note: Single star expression (*rest = ...) is also handled as multiple var declaration
         if names.len() > 1 || first_name.starts_with("*") {
-            return self.handle_multiple_var_declaration(names, is_constant, identifier_decl_scope);
+            return self.handle_multiple_var_declaration(var_line, names, is_constant, identifier_decl_scope);
         }
         
         // For single regular variable, use the name directly
@@ -3839,6 +3841,7 @@ impl<'a> Parser<'a> {
         //     value.debug_print();
         // }
         let variable_decl_node = VariableDeclNode::new(
+            var_line,
             name.clone(),
             type_node_opt.clone(),
             is_constant,
@@ -3925,6 +3928,7 @@ impl<'a> Parser<'a> {
     // v0.52: Handle multiple variable declaration (var x, y = ...)
     fn handle_multiple_var_declaration(
         &mut self,
+        var_line: usize,
         names: Vec<String>,
         is_constant: bool,
         identifier_decl_scope: IdentifierDeclScope,
@@ -3994,6 +3998,7 @@ impl<'a> Parser<'a> {
                 
                 // Create a simple placeholder node for each variable
                 let var_node = VariableDeclNode::new(
+                    var_line,
                     actual_name.clone(),
                     None,
                     is_constant,
@@ -4017,6 +4022,7 @@ impl<'a> Parser<'a> {
         // We'll use a comma-separated string in the name field as a signal to the visitor
         let multi_var_marker = format!("__multi_var__:{}", names.join(","));
         let variable_decl_node = VariableDeclNode::new(
+            var_line,
             multi_var_marker,
             None,
             is_constant,

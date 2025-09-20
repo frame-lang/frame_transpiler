@@ -1026,6 +1026,7 @@ impl NodeElement for OperationNode {
 //-----------------------------------------------------//
 
 pub struct VariableDeclNode {
+    pub line: usize,
     pub name: String,
     pub type_opt: Option<TypeNode>,
     pub is_constant: bool,
@@ -1036,6 +1037,7 @@ pub struct VariableDeclNode {
 
 impl VariableDeclNode {
     pub fn new(
+        line: usize,
         name: String,
         type_opt: Option<TypeNode>,
         is_constant: bool,
@@ -1044,6 +1046,7 @@ impl VariableDeclNode {
         identifier_decl_scope: IdentifierDeclScope,
     ) -> VariableDeclNode {
         VariableDeclNode {
+            line,
             name,
             type_opt,
             is_constant,

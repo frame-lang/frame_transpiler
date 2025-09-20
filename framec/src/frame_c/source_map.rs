@@ -104,14 +104,21 @@ impl SourceMapBuilder {
     
     // Simple mapping for Phase 1 - just line numbers
     pub fn add_simple_mapping(&mut self, frame_line: usize, python_line: usize) {
-        self.mappings.push(SourceMapping {
-            frame_line,
-            python_line,
-            frame_column: None,
-            python_column: None,
-            mapping_type: None,
-            name: None,
-        });
+        // Check if this exact mapping already exists to prevent duplicates
+        let duplicate_exists = self.mappings.iter().any(|m| 
+            m.frame_line == frame_line && m.python_line == python_line
+        );
+        
+        if !duplicate_exists {
+            self.mappings.push(SourceMapping {
+                frame_line,
+                python_line,
+                frame_column: None,
+                python_column: None,
+                mapping_type: None,
+                name: None,
+            });
+        }
     }
     
     // Full mapping with type for Phase 2

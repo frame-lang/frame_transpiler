@@ -92,6 +92,7 @@ pub struct PythonVisitor {
     // Source map tracking
     source_map_builder: Option<Rc<RefCell<SourceMapBuilder>>>,  // Optional source map builder for debug mode
     current_line: usize,                                       // Current line number in generated code
+    in_statement_context: bool,                                // Track if we're visiting expressions within a statement
     generating_state_vars_init: bool,        // v0.55: Track if we're generating state variable initializers in transition
     current_module_name: Option<String>,     // v0.57: Track current module being generated
     current_module_path: Vec<String>,        // v0.57: Track full module path hierarchy
@@ -196,6 +197,7 @@ impl PythonVisitor {
             nested_module_names: HashSet::new(),
             source_map_builder: None,
             current_line: 1,
+            in_statement_context: false,
         }
     }
     
@@ -6339,7 +6341,14 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         self.newline();
+        // Add source mapping for the call statement
+        self.add_source_mapping(method_call_statement.line);
+        
+        // Set flag to prevent duplicate mapping in expression
+        let was_in_statement = self.in_statement_context;
+        self.in_statement_context = true;
         method_call_statement.call_expr_node.accept(self);
+        self.in_statement_context = was_in_statement;
         self.newline();
     }
 
@@ -6348,8 +6357,9 @@ impl AstVisitor for PythonVisitor {
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
         self.debug_enter(&format!("visit_call_expression_node({})", method_call.identifier.name.lexeme));
         
-        // Add source mapping for this call expression
-        self.add_source_mapping(method_call.identifier.line);
+        // Don't add source mapping here to avoid duplicates when visited as part of a statement
+        // The statement-level visitors (CallStmtNode, CallChainStmtNode) handle the mapping
+        // self.add_source_mapping(method_call.identifier.line);
         
         // Debug: log the call chain to understand what's happening
         if let Some(call_chain) = &method_call.call_chain {
@@ -6793,6 +6803,9 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
+        // Add source mapping for the transition statement
+        self.newline();
+        self.add_source_mapping(transition_statement.transition_expr_node.line);
         match &transition_statement
             .transition_expr_node
             .target_state_context_t
@@ -6814,6 +6827,9 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_expr_node(&mut self, transition_expr_node: &TransitionExprNode) {
+        // Add source mapping for the transition expression
+        self.newline();
+        self.add_source_mapping(transition_expr_node.line);
         match &transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(&transition_expr_node, &None)
@@ -6945,7 +6961,11 @@ impl AstVisitor for PythonVisitor {
         debug_print!("DEBUG visit_call_chain_statement_node: {} nodes", 
             method_call_chain_stmt_node.call_chain_literal_expr_node.call_chain.len());
         
+        // First add the newline for the statement
         self.skip_next_newline();
+        
+        // Then map the Frame source line to the Python line where the statement is being generated
+        self.add_source_mapping(method_call_chain_stmt_node.line);
         // special case for interface method calls
         let call_chain = &method_call_chain_stmt_node
             .call_chain_literal_expr_node
@@ -8047,7 +8067,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_loop_infinite_stmt_node(&mut self, loop_in_expr_node: &LoopInfiniteStmtNode) {
         self.continue_post_expr_vec.push(None);
         self.newline();
-
+        self.add_source_mapping(loop_in_expr_node.line);
         self.add_code(&format!("while True:"));
 
         self.indent();
@@ -8069,7 +8089,7 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_continue_stmt_node(&mut self, _: &ContinueStmtNode) {
+    fn visit_continue_stmt_node(&mut self, continue_stmt_node: &ContinueStmtNode) {
         // THE FOLLOWING COMMENT IS NOT VALID. LEAVING UNTIL
         // FINAL FIX IS DECIDED ON ABOUT AUTO INC/DEC.
         // In the context of a for loop, the auto inc/dec clause needs to
@@ -8099,6 +8119,7 @@ impl AstVisitor for PythonVisitor {
         }
 
         self.newline();
+        self.add_source_mapping(continue_stmt_node.line);
         self.add_code("continue");
     }
 
@@ -8108,8 +8129,9 @@ impl AstVisitor for PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_break_stmt_node(&mut self, _: &BreakStmtNode) {
+    fn visit_break_stmt_node(&mut self, break_stmt_node: &BreakStmtNode) {
         self.newline();
+        self.add_source_mapping(break_stmt_node.line);
         self.add_code("break");
     }
 
@@ -8117,6 +8139,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_assert_stmt_node(&mut self, assert_stmt_node: &AssertStmtNode) {
         self.newline();
+        self.add_source_mapping(assert_stmt_node.line);
         self.add_code("assert ");
         assert_stmt_node.expr.accept(self);
     }
@@ -8126,6 +8149,7 @@ impl AstVisitor for PythonVisitor {
     // v0.50: Del statement support
     fn visit_del_stmt_node(&mut self, del_stmt_node: &DelStmtNode) {
         self.newline();
+        self.add_source_mapping(del_stmt_node.line);
         self.add_code("del ");
         del_stmt_node.target.accept(self);
     }
@@ -10235,6 +10259,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
         self.newline();
+        self.add_source_mapping(variable_decl_node.line);
         let var_type = match &variable_decl_node.type_opt {
             Some(type_node) => self.format_type(type_node),
             None => String::from(""),
@@ -10431,7 +10456,10 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
-        self.add_source_mapping(assignment_expr_node.line);  // Map Frame line to Python line
+        // Only add mapping if not already in a statement context
+        if !self.in_statement_context {
+            self.add_source_mapping(assignment_expr_node.line);  // Map Frame line to Python line
+        }
         // self.generate_comment(assignment_expr_node.line);
         // self.newline();
         // inc/dec all *rvalue* expressions before generating the
@@ -10567,7 +10595,11 @@ impl AstVisitor for PythonVisitor {
         // Add source mapping for assignment statement
         self.add_source_mapping(assignment_stmt_node.get_line());
         
+        // Set flag to prevent duplicate mapping in expression
+        let was_in_statement = self.in_statement_context;
+        self.in_statement_context = true;
         assignment_stmt_node.assignment_expr_node.accept(self);
+        self.in_statement_context = was_in_statement;
     }
 
     //* --------------------------------------------------------------------- *//
