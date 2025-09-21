@@ -19,7 +19,6 @@ use super::semantic_analyzer::SemanticAnalyzer;
 use super::symbol_table::*;
 use crate::frame_c::ast::ModuleElement;
 use crate::frame_c::ast::CallContextType;
-use crate::frame_c::ast::ResolvedCallType;
 use crate::frame_c::utils::SystemHierarchy;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -131,7 +130,7 @@ pub struct Parser<'a> {
     is_parsing_rhs: bool,
     is_parsing_collection: bool,  // v0.53: Track when inside collection literals
     event_handler_has_transition: bool,
-    enable_semantic_resolution: bool,  // v0.62: Feature flag for semantic call resolution
+    pub enable_semantic_resolution: bool,  // v0.62: Feature flag for semantic call resolution
     is_action_scope: bool,
     operation_scope_depth: i32,
     is_static_operation: bool,
@@ -8083,11 +8082,14 @@ impl<'a> Parser<'a> {
                                 CallExprListNode::new(Vec::new())
                             };
                             
-                            let call_expr_node = CallExprNode::new(method_id.line, 
+                            let mut call_expr_node = CallExprNode::new(method_id.line, 
                                 method_id,
                                 call_expr_list,
                                 None,  // No call chain continuation
                             );
+                            
+                            // v0.62: Perform semantic resolution if enabled
+                            self.resolve_call_expr(&mut call_expr_node);
                             
                             call_chain.push_back(CallChainNodeType::UndeclaredCallT { 
                                 call_node: call_expr_node 
@@ -11388,7 +11390,7 @@ impl<'a> Parser<'a> {
                                 
                                 // Create a call expression node for the indexed call
                                 let call_expr_list = CallExprListNode::new(args);
-                                let call_expr_node = CallExprNode::new(
+                                let mut call_expr_node = CallExprNode::new(
                                     self.previous().line,  // Add line parameter
                                     IdentifierNode::new(
                                         Token::new(
@@ -11407,6 +11409,9 @@ impl<'a> Parser<'a> {
                                     call_expr_list,
                                     None,  // No call chain for the synthetic call
                                 );
+                                
+                                // v0.62: Perform semantic resolution if enabled
+                                self.resolve_call_expr(&mut call_expr_node);
                                 
                                 // Add the call to the chain
                                 call_chain.push_back(CallChainNodeType::UndeclaredCallT {
@@ -11946,7 +11951,11 @@ impl<'a> Parser<'a> {
             CallContextType::ExternalCall  // Default
         };
 
-        let call_expr_node = CallExprNode::new_with_context(identifer_node.line, identifer_node, call_expr_list_node, None, call_context);
+        let mut call_expr_node = CallExprNode::new_with_context(identifer_node.line, identifer_node, call_expr_list_node, None, call_context);
+        
+        // v0.62: Perform semantic resolution if enabled
+        self.resolve_call_expr(&mut call_expr_node);
+        
         //        let method_call_expression_type = ExpressionType::MethodCallExprType {method_call_expr_node};
         Ok(call_expr_node)
     }
@@ -12605,6 +12614,31 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
+    
+    // v0.62: Helper method to resolve call expression types during semantic analysis
+    fn resolve_call_expr(&mut self, call_expr_node: &mut CallExprNode) {
+        // Only perform resolution during second pass with feature flag enabled
+        if self.is_building_symbol_table || !self.enable_semantic_resolution {
+            return;
+        }
+        
+        // Create a temporary semantic analyzer
+        let analyzer = SemanticAnalyzer::new(&self.arcanum);
+        
+        // Resolve the call type
+        let resolved_type = analyzer.resolve_call(call_expr_node);
+        
+        // Store the resolution in the AST node
+        call_expr_node.resolved_type = Some(resolved_type);
+        
+        if self.debug_mode {
+            eprintln!("DEBUG: Resolved call {} to {:?}", 
+                call_expr_node.identifier.name.lexeme, 
+                call_expr_node.resolved_type);
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
 
     // pub fn get_system_hierarchy(self) -> SystemHierarchy {
     //     self.system_hierarchy_opt.unwrap()
@@ -13105,12 +13139,15 @@ impl<'a> Parser<'a> {
             // NOTE: expr_list() already consumes the RParen token, so we don't need to consume it again
             
             let call_expr_list = CallExprListNode::new(params);
-            let call_expr = CallExprNode::new_with_context(id_node.line, 
+            let mut call_expr = CallExprNode::new_with_context(id_node.line, 
                 id_node,
                 call_expr_list,
                 None,
                 CallContextType::SelfCall,
             );
+            
+            // v0.62: Perform semantic resolution if enabled
+            self.resolve_call_expr(&mut call_expr);
             
             return Ok(Some(ExprType::CallExprT { call_expr_node: call_expr }));
         } else {
@@ -13157,7 +13194,11 @@ impl<'a> Parser<'a> {
                     };
                     
                     let call_expr_list = CallExprListNode::new(params);
-                    let call_expr = CallExprNode::new(next_id.line, next_id, call_expr_list, None);
+                    let mut call_expr = CallExprNode::new(next_id.line, next_id, call_expr_list, None);
+                    
+                    // v0.62: Perform semantic resolution if enabled
+                    self.resolve_call_expr(&mut call_expr);
+                    
                     call_chain.push_back(CallChainNodeType::UndeclaredCallT {
                         call_node: call_expr,
                     });

@@ -153,6 +153,7 @@ pub enum SerializableExpression {
     Call {
         function: String,
         arguments: Vec<SerializableExpression>,
+        resolved_type: Option<String>,  // v0.62: Semantic resolution result
     },
     ActionCall {
         action: String,
@@ -346,6 +347,8 @@ pub fn expr_to_serializable(expr: &ExprType) -> SerializableExpression {
                     .iter()
                     .map(|e| expr_to_serializable(e))
                     .collect(),
+                // v0.62: Include semantic resolution result
+                resolved_type: call_expr_node.resolved_type.as_ref().map(|rt| format!("{:?}", rt)),
             }
         }
         ExprType::BinaryExprT { binary_expr_node } => {

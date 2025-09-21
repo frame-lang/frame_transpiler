@@ -280,6 +280,15 @@ impl Exe {
         }
         drop(module_table);
         let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
+        
+        // v0.62: Enable semantic resolution feature flag if environment variable is set
+        if std::env::var("FRAME_SEMANTIC_RESOLUTION").is_ok() {
+            semantic_parser.enable_semantic_resolution = true;
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Semantic resolution enabled for v0.62 call chain refactoring");
+            }
+        }
+        
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
         }
@@ -536,6 +545,15 @@ impl Exe {
         }
         drop(module_table);
         let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
+        
+        // v0.62: Enable semantic resolution feature flag if environment variable is set
+        if std::env::var("FRAME_SEMANTIC_RESOLUTION").is_ok() {
+            semantic_parser.enable_semantic_resolution = true;
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Semantic resolution enabled for v0.62 call chain refactoring");
+            }
+        }
+        
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
         }

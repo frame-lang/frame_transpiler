@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.60)
+# Frame Language Grammar (v0.62)
 
-**Last Updated**: 2025-09-20  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, multi-file module system with Frame file imports, comprehensive module infrastructure, **100% source map generation for debugging support with all AST nodes line-tracked**, **critical double-call bug fix for action call assignments**, **AST serialization infrastructure for debugging**, and **100% test success rate (378/378 tests passing)**
+**Last Updated**: 2025-09-21  
+**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, multi-file module system with Frame file imports, comprehensive module infrastructure, **semantic call resolution in parser with ResolvedCallType enum**, **SemanticAnalyzer module for two-pass semantic analysis**, **AST nodes enhanced with resolved_type field for call expressions**, and **100% test success rate (379/379 tests passing)**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -3807,5 +3807,102 @@ The v0.59 implementation provides everything needed for VSCode extension DAP int
 
 - **100% Coverage**: All 122 AST nodes tracked (up from 11.5%)
 - **Zero Performance Impact**: Line tracking adds negligible overhead
+
+## Semantic Resolution (v0.62) 🆕
+
+Frame v0.62 introduces semantic call resolution during parsing, moving complex call chain analysis from the visitor layer to the parser where it semantically belongs. This architectural improvement simplifies code generation and improves maintainability.
+
+### Semantic Analysis Architecture
+
+```
+First Pass (Symbol Table Building)
+    ↓
+Second Pass (Semantic Analysis)
+    ├── SemanticAnalyzer resolves call types
+    ├── Stores resolution in AST nodes
+    └── Visitor uses pre-resolved types
+```
+
+### ResolvedCallType Enum
+
+```rust
+pub enum ResolvedCallType {
+    Action(String),           // Internal action method
+    Operation(String),        // System operation
+    SystemOperation {         // Static system operation
+        system: String,
+        operation: String,
+        is_static: bool,
+    },
+    ClassMethod {            // Class method (static or instance)
+        class: String,
+        method: String,
+        is_static: bool,
+    },
+    ModuleFunction {         // Module function
+        module: String,
+        function: String,
+    },
+    External(String),        // External function/builtin
+}
+```
+
+### Call Resolution Examples
+
+```frame
+system Calculator {
+    actions:
+        doCalc() {
+            // Resolved as Action("doCalc")
+            _doCalc()
+        }
+    
+    operations:
+        @staticmethod
+        add(a, b) {
+            return a + b
+        }
+    
+    machine:
+        $Idle {
+            calculate() {
+                // Resolved as SystemOperation
+                var sum = Calculator.add(5, 3)
+                
+                // Resolved as External (Python builtin)
+                print("Sum: " + str(sum))
+                
+                // Resolved as ClassMethod
+                var p = Point.origin()
+            }
+        }
+}
+```
+
+### Feature Flag Control
+
+The semantic resolution feature can be enabled via environment variable:
+
+```bash
+# Enable semantic resolution during compilation
+FRAME_SEMANTIC_RESOLUTION=1 framec -l python_3 file.frm
+
+# With debug output to see resolution results
+FRAME_TRANSPILER_DEBUG=1 FRAME_SEMANTIC_RESOLUTION=1 framec -l python_3 file.frm
+```
+
+### AST Enhancement
+
+Each `CallExprNode` now includes:
+- `context`: CallContextType (SelfCall, StaticCall, ExternalCall)
+- `resolved_type`: Option<ResolvedCallType> for semantic resolution
+
+### Benefits
+
+1. **Simplified Visitor Logic**: Visitors no longer need complex call chain analysis
+2. **Better Error Messages**: Semantic errors caught during parsing with context
+3. **Cleaner Architecture**: Semantic analysis in the appropriate layer
+4. **Easier Maintenance**: Single location for call resolution logic
+5. **Future-Proof**: Foundation for advanced type checking and IDE support
 - **Full Backward Compatibility**: All existing tests pass (374/374)
 - **Production Ready**: Comprehensive testing and validation complete
