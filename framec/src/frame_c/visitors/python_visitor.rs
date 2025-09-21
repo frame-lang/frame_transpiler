@@ -211,6 +211,22 @@ impl PythonVisitor {
             builder.borrow_mut().add_simple_mapping(frame_line, self.current_line);
         }
     }
+    
+    /// Record a mapping with an offset (used for event handler functions)
+    fn add_source_mapping_with_offset(&mut self, frame_line: usize, offset: i32) {
+        if let Some(ref builder) = self.source_map_builder {
+            let target_line = (self.current_line as i32 + offset) as usize;
+            builder.borrow_mut().add_simple_mapping(frame_line, target_line);
+        }
+    }
+    
+    /// v0.69: Add newline and then map to the new line for correct positioning
+    /// This ensures the mapping points to the line where code will actually be written
+    fn newline_and_map(&mut self, frame_line: usize) {
+        self.newline();
+        // Now current_line has been incremented by newline(), so we map to the current line
+        self.add_source_mapping(frame_line);
+    }
 
     //* --------------------------------------------------------------------- *//
     
@@ -469,16 +485,15 @@ impl PythonVisitor {
         // 2. The system has async runtime (for uniform awaiting)
         let handler_needs_async = evt_handler_node.is_async || self.system_has_async_runtime;
         
-        self.newline();
-        
-        // Add source mapping for the event handler function definition
-        self.add_source_mapping(evt_handler_node.line);
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(evt_handler_node.line);
         
         if handler_needs_async {
             self.add_code(&format!("async def {}(self, __e, compartment):", handler_name));
         } else {
             self.add_code(&format!("def {}(self, __e, compartment):", handler_name));
         }
+        
         self.indent();
         
         // Clear global vars tracking for this handler
@@ -1721,7 +1736,8 @@ impl PythonVisitor {
         self.add_code(&format!("class {}:", system_node.name));
         self.indent();
         
-        // Constructor
+        // v0.70: Add spacing before __init__
+        self.newline();
         self.newline();
         
         // Generate constructor parameters based on system parameters
@@ -2114,7 +2130,7 @@ impl PythonVisitor {
         }
         self.outdent();
         
-        // Generate __transition method
+        // v0.70: Add spacing before __transition
         self.newline();
         self.newline();
         self.add_code("def __transition(self, next_compartment):");
@@ -6568,9 +6584,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
-        self.newline();
-        // Add source mapping for the call statement
-        self.add_source_mapping(method_call_statement.line);
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(method_call_statement.line);
         
         // Set flag to prevent duplicate mapping in expression
         let was_in_statement = self.in_statement_context;
@@ -6783,9 +6798,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_statement_node(&mut self, transition_statement: &TransitionStatementNode) {
-        // Add source mapping for the transition statement
-        self.newline();
-        self.add_source_mapping(transition_statement.transition_expr_node.line);
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(transition_statement.transition_expr_node.line);
         match &transition_statement
             .transition_expr_node
             .target_state_context_t
@@ -6807,9 +6821,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_transition_expr_node(&mut self, transition_expr_node: &TransitionExprNode) {
-        // Add source mapping for the transition expression
-        self.newline();
-        self.add_source_mapping(transition_expr_node.line);
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(transition_expr_node.line);
         match &transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { .. } => {
                 self.generate_state_ref_transition(&transition_expr_node, &None)
@@ -7798,8 +7811,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_if_stmt_node(&mut self, if_stmt_node: &IfStmtNode) {
-        self.newline();
-        self.add_source_mapping(if_stmt_node.line);  // Map Frame line to Python line
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(if_stmt_node.line);
         self.add_code("if ");
         if_stmt_node.condition.accept(self);
         self.add_code(":");
@@ -7823,8 +7836,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_for_stmt_node(&mut self, for_stmt_node: &ForStmtNode) {
-        self.newline();
-        self.add_source_mapping(for_stmt_node.line);  // Map Frame line to Python line
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(for_stmt_node.line);
         self.add_code("for ");
         
         // Emit the loop variable
@@ -7877,8 +7890,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_while_stmt_node(&mut self, while_stmt_node: &WhileStmtNode) {
-        self.newline();
-        self.add_source_mapping(while_stmt_node.line);  // Map Frame line to Python line
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(while_stmt_node.line);
         self.add_code("while ");
         while_stmt_node.condition.accept(self);
         self.add_code(":");
@@ -8098,8 +8111,8 @@ impl AstVisitor for PythonVisitor {
             self.add_code(new_str.as_str());
         }
 
-        self.newline();
-        self.add_source_mapping(continue_stmt_node.line);
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(continue_stmt_node.line);
         self.add_code("continue");
     }
 
@@ -8110,16 +8123,16 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_break_stmt_node(&mut self, break_stmt_node: &BreakStmtNode) {
-        self.newline();
-        self.add_source_mapping(break_stmt_node.line);
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(break_stmt_node.line);
         self.add_code("break");
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_assert_stmt_node(&mut self, assert_stmt_node: &AssertStmtNode) {
-        self.newline();
-        self.add_source_mapping(assert_stmt_node.line);
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(assert_stmt_node.line);
         self.add_code("assert ");
         assert_stmt_node.expr.accept(self);
     }
@@ -8128,8 +8141,8 @@ impl AstVisitor for PythonVisitor {
 
     // v0.50: Del statement support
     fn visit_del_stmt_node(&mut self, del_stmt_node: &DelStmtNode) {
-        self.newline();
-        self.add_source_mapping(del_stmt_node.line);
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(del_stmt_node.line);
         self.add_code("del ");
         del_stmt_node.target.accept(self);
     }
@@ -8858,8 +8871,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_return_stmt_node(&mut self, return_stmt_node: &ReturnStmtNode) {
-        self.newline();
-        self.add_source_mapping(return_stmt_node.line);  // Map Frame line to Python line
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(return_stmt_node.line);
         if let Some(expr_t) = &return_stmt_node.expr_t_opt {
             if self.should_use_direct_return() {
                 // In functions/actions/operations: direct return
@@ -10235,8 +10248,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_variable_decl_node(&mut self, variable_decl_node: &VariableDeclNode) {
-        self.newline();
-        self.add_source_mapping(variable_decl_node.line);
+        // v0.69: Use newline_and_map for correct line mapping
+        self.newline_and_map(variable_decl_node.line);
         let var_type = match &variable_decl_node.type_opt {
             Some(type_node) => self.format_type(type_node),
             None => String::from(""),

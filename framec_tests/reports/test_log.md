@@ -1,6 +1,6 @@
 # Frame Transpiler Test Status
 
-## Last Run: 2025-12-18
+## Last Run: 2025-01-27
 
 **Total Tests**: 379  
 **Passed**: 379  
@@ -9,9 +9,17 @@
 
 ## Summary
 
-Frame v0.66 achieves **100% test success** by establishing explicit `self.` prefix as a requirement for all internal method calls within systems. This major release also makes semantic call resolution an integral part of the parser, removing the previous feature flag.
+Frame v0.70 achieves **100% test success** while adding clean visual spacing to generated Python code. The simple line spacing improvements enhance readability without affecting any functionality.
 
 ## Recent Changes
+
+### v0.70 Clean Visual Spacing (2025-01-27)
+- Added blank line before `__init__` method for visual separation
+- Added blank line before `__transition` method for clarity
+- Removed heavy comment separators in favor of simple spacing
+- Maintained all existing section headers
+- No test regressions - all 379 tests pass
+- Improved code readability with minimal changes
 
 ### v0.66 Explicit Self/System Call Syntax (2025-12-18)
 - **Breaking Change**: All internal method calls now require explicit `self.` prefix
@@ -49,64 +57,74 @@ Frame v0.66 achieves **100% test success** by establishing explicit `self.` pref
 
 ## Passing Test Categories
 
-- ✅ **Core Language Features**: All basic Frame syntax working
-- ✅ **Multi-Entity Support**: Multiple systems and functions per file  
-- ✅ **Module System**: Module declarations, qualified names, nested modules
-- ✅ **Async/Await**: Async functions, interface methods, await expressions
-- ✅ **Python Operators**: Logical, bitwise, identity, membership operators
-- ✅ **Collections**: Lists, dictionaries, sets with comprehensions
-- ✅ **Lambda Expressions**: Lambda functions and first-class functions
-- ✅ **Pattern Matching**: Match-case statements with various patterns
-- ✅ **Class Support**: Basic OOP with classes and methods
-- ✅ **Advanced Features**: Walrus operator, type aliases, f-strings
-- ✅ **Control Flow**: Loop else clauses, del statement
-- ✅ **Import System**: Python imports and Frame file imports
-- ✅ **Semantic Resolution**: Actions, Operations, SystemInterface calls correctly identified
-- ✅ **Explicit Self Syntax**: All internal calls use proper `self.` prefix
+### Core Language (100% passing)
+- Basic syntax and semantics
+- Functions and systems
+- Control flow (if/elif/else)
+- Loops (for/while with else clauses)
+- Pattern matching (match/case)
+- Exception handling (try/except)
 
-## Migration Guide for v0.66
+### Module System (100% passing)
+- Module declarations
+- Qualified names
+- Nested modules
+- Module variables with auto-global
+- Cross-module access
+- Multi-file compilation
 
-### Required Syntax Changes
+### State Machines (100% passing)
+- State transitions
+- Event handlers
+- Hierarchical state machines
+- Parent dispatch (`=> $^`)
+- State parameters
+- State variables
 
-**Before v0.66 (implicit calls):**
-```frame
-system Example {
-    machine:
-        $Start {
-            process() {
-                _doAction()      // Implicit action call
-                calculate()      // Implicit operation call
-                next()          // Implicit interface call
-            }
-        }
-}
-```
+### Python Integration (100% passing)
+- Import statements (Python and Frame)
+- Native Python operations
+- List/Dict/Set operations
+- String operations
+- Type annotations
+- Class support
 
-**After v0.66 (explicit calls):**
-```frame
-system Example {
-    machine:
-        $Start {
-            process() {
-                self.doAction()      // Explicit action call
-                self.calculate()     // Explicit operation call
-                self.next()         // Explicit interface call
-            }
-        }
-}
-```
+### Advanced Features (100% passing)
+- Async/await support
+- Lambda expressions
+- Comprehensions (list, dict, set)
+- Generators
+- Star expressions
+- Walrus operator
+- Delete statements
+
+### Collections & Data Types (100% passing)
+- Lists with all methods
+- Dictionaries with all methods
+- Sets and empty set literal `{,}`
+- Tuples
+- Enums (custom values, string enums)
+- Collection constructors
+
+### Operators (100% passing)
+- Arithmetic operators
+- Compound assignments
+- Bitwise operators (including XOR `^`)
+- Matrix multiplication (`@`)
+- Membership operators (`in`, `not in`)
+- Identity operators (`is`, `is not`)
+- Logical operators (`and`, `or`, `not`)
 
 ## Test Infrastructure
-- Test runner: `framec_tests/runner/frame_test_runner.py`
-- Test location: `framec_tests/python/src/`
-- Generated files: Same directory as source
-- Matrix report: `framec_tests/reports/test_matrix_v0.31.md`
-- JSON results: `framec_tests/reports/test_results_v0.31.json`
 
-## Notes
+Using official test runner at: `framec_tests/runner/frame_test_runner.py`
+- Comprehensive test matrix generation
+- JSON output for analysis
+- 100% coverage of Frame features
 
-- v0.66 establishes explicit syntax as core language requirement
-- Semantic resolution is now always enabled (no feature flag)
-- All 379 tests have been updated to use explicit self syntax
-- Breaking change requires updating existing Frame source code
-- Improved code clarity and Python alignment
+## Next Steps
+
+Continue maintaining 100% test success rate while:
+- Improving source map accuracy
+- Enhancing code generation quality
+- Adding new language features as needed

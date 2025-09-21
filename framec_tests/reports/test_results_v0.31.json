@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-21T09:35:22.538805",
+  "timestamp": "2025-09-21T16:31:21.281725",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 376,
-    "execute_success": 371,
-    "complete_success": 374,
-    "success_rate": "98.7%"
+    "execute_success": 376,
+    "complete_success": 379,
+    "success_rate": "100.0%"
   },
   "results": [
     {
@@ -634,10 +634,10 @@
     {
       "file": "test_debug_system.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "=== Starting System Debug Test ===\n  [Red.$enter] Light is now RED - STOP\nInitial state: should be Red\n    [Action] Transitioning: Red -> Green\n    [Action] Waiting 5 seconds...\n  [Red.$exit] Leaving ",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_debug_system.py\", line 447, in <module>\n    main()\n    ~~~~^^\n  File"
+      "error": null
     },
     {
       "file": "test_debug_systems.frm",
@@ -1004,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1034,17 +1034,17 @@
     {
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_grocery_demo.py\", line 138, in <module>\n    main()\n    ~~~"
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "error": null
     },
     {
       "file": "test_enums_doc_grocery_full.frm",
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1626,10 +1626,10 @@
     {
       "file": "test_legb_resolution.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "=== LEGB Resolution Test ===\n\n--- Testing Local Shadowing ---\nLocal shadowing: local_shadowed\nBuilt-in print still works\n\n--- Testing Enclosing Scope ---\nOuter var: outer_scope\nInner can see outer: ou",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_legb_resolution.py\", line 179, in <module>\n    main()\n    ~~~~^^\n  F"
+      "error": null
     },
     {
       "file": "test_legb_scope_resolution.frm",
@@ -2242,10 +2242,10 @@
     {
       "file": "test_scope_isolation.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "=== Scope Isolation Test ===\nTesting function scope isolation\nadd(5, 3) = 8\nmath.pi = 3.141592653589793\nSystemA test()\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_scope_isolation.py\", line 225, in <module>\n    main()\n    ~~~~^^\n  F"
+      "output": "=== Scope Isolation Test ===\nTesting function scope isolation\nadd(5, 3) = 8\nmath.pi = 3.141592653589793\nSystemA test()\nSystemA privateAction\nSystemA publicOperation\nSystemB test()\nSystemB ownAction\nSy",
+      "error": null
     },
     {
       "file": "test_scope_operations.frm",
@@ -2914,10 +2914,10 @@
     {
       "file": "test_v031_comprehensive.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Doing work...\nCounter: 10\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_v031_comprehensive.py\", line 133, in <module>\n    main()\n    ~~~~^^\n"
+      "output": "Doing work...\nCounter: 10\nGot: Test value from interface\n",
+      "error": null
     },
     {
       "file": "test_v039_features.frm",
