@@ -470,6 +470,10 @@ impl PythonVisitor {
         let handler_needs_async = evt_handler_node.is_async || self.system_has_async_runtime;
         
         self.newline();
+        
+        // Add source mapping for the event handler function definition
+        self.add_source_mapping(evt_handler_node.line);
+        
         if handler_needs_async {
             self.add_code(&format!("async def {}(self, __e, compartment):", handler_name));
         } else {

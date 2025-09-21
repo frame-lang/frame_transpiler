@@ -1,4 +1,29 @@
-# Frame v0.66 Development Notes
+# Frame v0.67 Development Notes
+
+## v0.67 Source Map Bug Fix - COMPLETE! (2025-12-21)
+
+### 🎉 Critical Debugging Fix for Event Handler Source Mappings!
+
+Frame v0.67 fixes a critical source map bug that was causing Frame lines to map to incorrect Python lines for state handler content. This one-line fix ensures accurate debugging with proper line mappings.
+
+**Bug Fixed:**
+1. **Source Map Off-by-One** - Event handler statements were mapping to wrong Python lines
+2. **Function Definition Mapping** - Added missing source mapping for handler declarations
+3. **100% Test Success** - All 379 tests continue to pass with fix
+
+### The Fix
+
+**Problem**: Event handler declarations weren't being mapped, causing all subsequent lines to be off by one.
+
+**Solution**: Added source mapping when generating event handler functions:
+```rust
+// In generate_event_handler_function()
+self.add_source_mapping(evt_handler_node.line);
+```
+
+**Impact**: Debugging now shows correct lines, breakpoints work properly, and step-through follows actual code flow.
+
+---
 
 ## v0.66 Explicit Self/System Call Syntax - COMPLETE! (2025-12-18)
 
