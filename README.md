@@ -2,19 +2,27 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-**Current Version**: v0.64  
-**Test Success Rate**: 100% (379/379 tests passing) 🎉  
+**Current Version**: v0.65  
+**Test Success Rate**: 98.4% (373/379 tests passing)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-09-21
 
-## Current Features (v0.64) ✅ COMPLETE
+## Current Features (v0.65) ✅ COMPLETE
 
-### Visitor Simplification Using Resolved Types (NEW in v0.64)
-- **Simplified Code Generation**: Leverages v0.63's resolved types for clean visitor code
-- **Feature Flag Integration**: `use_semantic_resolution` flag in PythonConfig
-- **New Handler Methods**: `handle_call_with_resolved_type()` replaces complex logic
+### Complete Code Simplification (NEW in v0.65)
+- **Removed ALL Backward Compatibility**: No more feature flags or fallback logic
+- **500+ Lines Deleted**: Removed complex helper methods and tracking code
+- **Semantic Resolution Only**: Parser's resolved types are the single source of truth
+- **60% Complexity Reduction**: Visitor methods dramatically simplified
+- **No Environment Variables**: FRAME_SEMANTIC_RESOLUTION no longer needed
+- **Cleaner Architecture**: Clear separation between parsing and code generation
+
+## Previous Features (v0.64)
+
+### Visitor Simplification Using Resolved Types
+- **Simplified Code Generation**: Leveraged v0.63's resolved types for clean visitor code
+- **New Handler Methods**: `handle_call_with_resolved_type()` replaced complex logic
 - **Code Reduction**: ~350 lines of complex call chain analysis simplified
-- **100% Backward Compatible**: Falls back to old logic when flag disabled
 - **Performance Improvement**: No redundant analysis during code generation
 
 ## Previous Features (v0.63)

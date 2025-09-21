@@ -27,7 +27,7 @@ use std::convert::TryFrom;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "Emitted from framec_v0.30.0";
+static FRAMEC_VERSION: &str = "Emitted from framec_v0.66.0";
 
 /* --------------------------------------------------------------------- */
 
@@ -281,13 +281,6 @@ impl Exe {
         drop(module_table);
         let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
         
-        // v0.62: Enable semantic resolution feature flag if environment variable is set
-        if std::env::var("FRAME_SEMANTIC_RESOLUTION").is_ok() {
-            semantic_parser.enable_semantic_resolution = true;
-            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                eprintln!("DEBUG: Semantic resolution enabled for v0.62 call chain refactoring");
-            }
-        }
         
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
@@ -432,14 +425,6 @@ impl Exe {
                     }
                 }
                 TargetLanguage::Python3 => {
-                    // v0.64: Set semantic resolution flag if environment variable is set
-                    let mut python_config = config.clone();
-                    if std::env::var("FRAME_SEMANTIC_RESOLUTION").is_ok() {
-                        python_config.python.use_semantic_resolution = true;
-                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                            eprintln!("DEBUG v0.64: Enabling use_semantic_resolution in PythonConfig");
-                        }
-                    }
                     let mut visitor = PythonVisitor::new(
                         semantic_parser.get_arcanum(),
                         // generate_exit_args,
@@ -449,7 +434,7 @@ impl Exe {
                         // generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
-                        python_config,
+                        config,
                     );
                     visitor.run_v2(&frame_module);
                     output = visitor.get_code();
@@ -554,13 +539,6 @@ impl Exe {
         drop(module_table);
         let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
         
-        // v0.62: Enable semantic resolution feature flag if environment variable is set
-        if std::env::var("FRAME_SEMANTIC_RESOLUTION").is_ok() {
-            semantic_parser.enable_semantic_resolution = true;
-            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                eprintln!("DEBUG: Semantic resolution enabled for v0.62 call chain refactoring");
-            }
-        }
         
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
@@ -621,21 +599,13 @@ impl Exe {
             }
             Some(lang) => match lang {
                 TargetLanguage::Python3 => {
-                    // v0.64: Set semantic resolution flag if environment variable is set
-                    let mut python_config = config.clone();
-                    if std::env::var("FRAME_SEMANTIC_RESOLUTION").is_ok() {
-                        python_config.python.use_semantic_resolution = true;
-                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                            eprintln!("DEBUG v0.64: Enabling use_semantic_resolution in PythonConfig");
-                        }
-                    }
                     let mut visitor = PythonVisitor::new(
                         semantic_parser.get_arcanum(),
                         generate_state_stack,
                         generate_change_state,
                         FRAMEC_VERSION,
                         comments,
-                        python_config,
+                        config,
                     );
                     // Set the source map builder
                     visitor.set_source_map_builder(source_map_builder);

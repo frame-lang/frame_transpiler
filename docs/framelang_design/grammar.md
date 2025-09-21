@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.62)
+# Frame Language Grammar (v0.66)
 
-**Last Updated**: 2025-09-21  
-**Status**: Complete with class support, comprehensive pattern matching (match-case), Python-aligned operators including bitwise XOR, matrix multiplication, compound assignments, floor division, Python-style comments, enhanced numeric literals with underscores and complex numbers, walrus operator (assignment expressions), type aliases, comprehensive string literal support, string literal method calls, del statement support, loop else clauses, multiple assignment/tuple unpacking, multiple variable declarations, star expressions for unpacking, state parameters, type annotations, multi-file module system with Frame file imports, comprehensive module infrastructure, **semantic call resolution in parser with ResolvedCallType enum**, **SemanticAnalyzer module for two-pass semantic analysis**, **AST nodes enhanced with resolved_type field for call expressions**, and **100% test success rate (379/379 tests passing)**
+**Last Updated**: 2025-12-18  
+**Status**: Complete with explicit self/system call syntax, interface method resolution, removed semantic resolution feature flag, enhanced ResolvedCallType with SystemInterface variant, **100% test success rate (379/379 tests passing)**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -2864,9 +2864,11 @@ tuple_constructor: 'tuple' '(' arg_list? ')'   // → (args...)
 dict_constructor: 'dict' '(' ')'               // → dict() (Python-compliant)
 ```
 
-**Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
+**Action Call Syntax (v0.66)**: Action calls MUST use explicit `self.actionName()` syntax. The underscore prefix is added automatically during Python code generation. Interface methods called from within the system also require `self.methodName()` prefix.
 
-**Self Expression (v0.31)**: The `self` keyword can be used as a standalone expression (e.g., as a function argument) or with dotted access to reference instance members. Static methods cannot use `self` in any form.
+**Operation Call Syntax (v0.66)**: Operation calls from within the system MUST use explicit `self.operationName()` syntax.
+
+**Self Expression**: The `self` keyword is required for all action, operation, and interface method calls within a system. Static methods marked with `@staticmethod` cannot use `self` in any form.
 
 ### Assignment Expressions / Walrus Operator (v0.56)
 
@@ -3847,14 +3849,55 @@ pub enum ResolvedCallType {
 }
 ```
 
-### Call Resolution Examples
+## Semantic Call Resolution (v0.66)
+
+Frame v0.66 makes semantic call resolution an integral part of the parser, removing the previous feature flag and ensuring all calls are properly resolved during parsing. The parser performs two-pass analysis:
+
+1. **First Pass**: Builds the symbol table with all definitions
+2. **Second Pass**: Resolves all call expressions to their semantic types
+
+### ResolvedCallType Enum
+
+The parser resolves all call expressions to one of these semantic types:
+
+```rust
+pub enum ResolvedCallType {
+    Action(String),              // Internal action call (adds _ prefix in Python)
+    Operation(String),           // Internal operation call  
+    SystemInterface {            // Interface method call from within system (v0.66)
+        system: String,
+        method: String,
+    },
+    SystemOperation {            // Qualified system operation call
+        system: String,
+        operation: String,
+        is_static: bool,
+    },
+    ClassMethod {                // Class method call
+        class: String,
+        method: String,
+        is_static: bool,
+    },
+    ModuleFunction {             // Module function call
+        module: String,
+        function: String,
+    },
+    External(String),            // External function call (built-ins, imports)
+}
+```
+
+### Call Resolution Examples (v0.66)
 
 ```frame
 system Calculator {
+    interface:
+        compute()
+        reset()
+        
     actions:
         doCalc() {
-            // Resolved as Action("doCalc")
-            _doCalc()
+            // v0.66: MUST use explicit self prefix
+            self.doCalc()           // Resolved as Action("doCalc")
         }
     
     operations:
@@ -3862,6 +3905,22 @@ system Calculator {
         add(a, b) {
             return a + b
         }
+        
+        multiply(a, b) {
+            // Instance operation can call actions
+            self.doCalc()           // Resolved as Action("doCalc")
+            return a * b
+        }
+        
+    machine:
+        $Start {
+            compute() {
+                // All internal calls require self prefix
+                self.multiply(2, 3)  // Resolved as Operation("multiply")
+                self.doCalc()       // Resolved as Action("doCalc")
+                self.reset()        // Resolved as SystemInterface("Calculator", "reset")
+                Calculator.add(1,2) // Resolved as SystemOperation (static)
+            }
     
     machine:
         $Idle {

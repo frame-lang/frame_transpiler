@@ -1,5 +1,5 @@
-// Semantic Analysis for Frame v0.62
-// This module performs semantic analysis on the AST during the second parser pass
+// Semantic Call Analysis for Frame v0.62
+// This module performs semantic analysis on call expressions during the second parser pass
 // Primary responsibility: Resolve call types to their actual semantic meaning
 
 use crate::frame_c::ast::*;
@@ -7,7 +7,7 @@ use crate::frame_c::symbol_table::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct SemanticAnalyzer<'a> {
+pub struct SemanticCallAnalyzer<'a> {
     arcanum: &'a Arcanum,
     current_system: Option<&'a str>,
     current_class: Option<&'a str>,
@@ -17,9 +17,9 @@ pub struct SemanticAnalyzer<'a> {
     current_system_symbol: Option<Rc<RefCell<SystemSymbol>>>,
 }
 
-impl<'a> SemanticAnalyzer<'a> {
+impl<'a> SemanticCallAnalyzer<'a> {
     pub fn new(arcanum: &'a Arcanum) -> Self {
-        SemanticAnalyzer {
+        SemanticCallAnalyzer {
             arcanum,
             current_system: None,
             current_class: None,
@@ -33,7 +33,19 @@ impl<'a> SemanticAnalyzer<'a> {
     pub fn resolve_call(&self, call_expr: &CallExprNode) -> ResolvedCallType {
         let identifier = &call_expr.identifier.name.lexeme;
         
-        // Handle self calls first
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() && (identifier.starts_with('_') || identifier == "test_action") {
+            eprintln!("DEBUG v0.66: resolve_call() for '{}', current_system={:?}, current_class={:?}, context={:?}", 
+                identifier, self.current_system, self.current_class, call_expr.context);
+        }
+        
+        // Check the call context first (set by parser)
+        if let CallContextType::SelfCall = &call_expr.context {
+            // Parser has already identified this as a self call
+            // The identifier has already had "self." stripped
+            return self.resolve_self_call(identifier);
+        }
+        
+        // Handle self calls first (backward compatibility for identifier-based detection)
         if identifier.starts_with("self.") {
             let method_name = &identifier[5..]; // Strip "self."
             return self.resolve_self_call(method_name);
@@ -53,31 +65,68 @@ impl<'a> SemanticAnalyzer<'a> {
         }
         
         // Check if it's an action (with or without underscore)
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() && identifier.starts_with('_') {
+            eprintln!("DEBUG v0.66: Checking action - identifier.starts_with('_')={}, current_system={:?}", 
+                identifier.starts_with('_'), self.current_system);
+        }
+        
         if identifier.starts_with('_') {
-            let action_name = &identifier[1..];
-            if let Some(_system) = self.current_system {
+            if let Some(system) = self.current_system {
+                // v0.66: Keep the underscore prefix for actions
                 // Actions are only valid in system context
-                return ResolvedCallType::Action(action_name.to_string());
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG v0.66: Resolving {} as Action in system {}", identifier, system);
+                }
+                return ResolvedCallType::Action(identifier.to_string());
+            } else {
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG v0.66: Cannot resolve {} as Action - no current_system", identifier);
+                }
             }
         }
         
         // Check in current system context
-        if let Some(_system) = self.current_system {
+        if let Some(system) = self.current_system {
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() && identifier == "test_action" {
+                eprintln!("DEBUG v0.66: In system context '{}', checking identifier '{}'", 
+                    system, identifier);
+            }
+            
             // Check if it's an operation in the current system
             if self.is_operation_in_current_system(identifier) {
                 return ResolvedCallType::Operation(identifier.to_string());
             }
             
             // Check if it's an action (without underscore)
-            if self.is_action_in_current_system(identifier) {
+            let is_action = self.is_action_in_current_system(identifier);
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() && identifier == "test_action" {
+                eprintln!("DEBUG v0.66: Is '{}' an action in system '{}': {}", 
+                    identifier, system, is_action);
+            }
+            if is_action {
                 return ResolvedCallType::Action(identifier.to_string());
+            }
+        } else {
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() && identifier == "test_action" {
+                eprintln!("DEBUG v0.66: No current system context for identifier '{}'", identifier);
             }
         }
         
         // Check in current class context
-        if let Some(_class) = self.current_class {
-            // In a class, methods are resolved differently
-            // For now, treat as external until we have better class method tracking
+        if let Some(_class_name) = self.current_class {
+            // In a class context, only resolve as ClassMethod if it's NOT a known built-in
+            // Check for common Python built-ins that shouldn't be class methods
+            let builtins = ["str", "int", "float", "bool", "len", "range", "print", 
+                           "list", "dict", "set", "tuple", "type", "isinstance",
+                           "hasattr", "getattr", "setattr", "delattr", "super",
+                           "abs", "round", "min", "max", "sum", "any", "all"];
+            
+            if !builtins.contains(&identifier.as_str()) {
+                // Not a built-in, could be a class method
+                // But only if we're not explicitly calling an external function
+                // For now, don't automatically assume it's a class method
+                // Fall through to check other contexts
+            }
         }
         
         // Check if it's a known function in the symbol table
@@ -90,20 +139,45 @@ impl<'a> SemanticAnalyzer<'a> {
     }
     
     fn resolve_self_call(&self, method_name: &str) -> ResolvedCallType {
-        // Strip underscore if present
-        let clean_name = if method_name.starts_with('_') {
-            &method_name[1..]
-        } else {
-            method_name
-        };
+        // Check if we're in a class context first
+        if let Some(class_name) = self.current_class {
+            // In a class, self.method() is always a class method call
+            return ResolvedCallType::ClassMethod {
+                class: class_name.to_string(),
+                method: method_name.to_string(),
+                is_static: false, // self calls are always instance methods
+            };
+        }
         
+        // v0.66: Check for system methods
         if let Some(system) = self.current_system {
-            if self.is_action_in_system(system, clean_name) {
-                return ResolvedCallType::Action(clean_name.to_string());
+            // First check if it's an action with underscore prefix
+            if method_name.starts_with('_') {
+                let clean_name = &method_name[1..]; // Strip underscore for lookup
+                if self.is_action_in_system(system, clean_name) {
+                    // Return with the original underscore intact
+                    return ResolvedCallType::Action(method_name.to_string());
+                }
             }
             
-            if self.is_operation_in_system(system, clean_name) {
-                return ResolvedCallType::Operation(clean_name.to_string());
+            // Check if it's an action without underscore
+            if self.is_action_in_system(system, method_name) {
+                return ResolvedCallType::Action(method_name.to_string());
+            }
+            
+            // Check if it's an operation
+            if self.is_operation_in_system(system, method_name) {
+                return ResolvedCallType::Operation(method_name.to_string());
+            }
+            
+            // v0.66: Check if it's an interface method
+            if self.is_interface_method_in_system(system, method_name) {
+                // Interface methods called from within the system need special handling
+                // They should go through the system's interface (self.method())
+                return ResolvedCallType::SystemInterface {
+                    system: system.to_string(),
+                    method: method_name.to_string(),
+                };
             }
         }
         
@@ -264,7 +338,34 @@ impl<'a> SemanticAnalyzer<'a> {
                 let actions_symtab = &actions.borrow().symtab_rcref;
                 for (_name, symbol_rcref) in &actions_symtab.borrow().symbols {
                     if let SymbolType::ActionScope { action_scope_symbol_rcref } = &*symbol_rcref.borrow() {
-                        if action_scope_symbol_rcref.borrow().name == action_name {
+                        let action_scope_name = &action_scope_symbol_rcref.borrow().name;
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() && action_name.contains("process") {
+                            eprintln!("DEBUG v0.66: Comparing action '{}' with '{}'", 
+                                action_scope_name, action_name);
+                        }
+                        // v0.66: Check both with and without underscore prefix
+                        if action_scope_name == action_name || 
+                           (action_scope_name.starts_with('_') && &action_scope_name[1..] == action_name) ||
+                           (action_name.starts_with('_') && action_scope_name == &action_name[1..]) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+    
+    fn is_interface_method_in_system(&self, system_name: &str, method_name: &str) -> bool {
+        // v0.66: Check if a method is in the system's interface
+        if let Some(system_symbol) = self.arcanum.get_system_by_name(system_name) {
+            let sys = system_symbol.borrow();
+            if let Some(ref interface) = sys.interface_block_symbol_opt {
+                // Interface methods are in the symbol table of the interface block
+                let interface_symtab = &interface.borrow().symtab_rcref;
+                for (_name, symbol_rcref) in &interface_symtab.borrow().symbols {
+                    if let SymbolType::InterfaceMethod { interface_method_symbol_rcref } = &*symbol_rcref.borrow() {
+                        if interface_method_symbol_rcref.borrow().name == method_name {
                             return true;
                         }
                     }
@@ -308,6 +409,10 @@ impl<'a> SemanticAnalyzer<'a> {
         self.current_system = Some(system_name);
         self.current_class = None;
         self.in_standalone_function = false;
+        
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG v0.66: SemanticCallAnalyzer::enter_system({})", system_name);
+        }
         
         // v0.63: Cache the system symbol for efficient lookups
         if let Some(sys_symbol) = self.arcanum.get_system_by_name(system_name) {

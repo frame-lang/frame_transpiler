@@ -13,12 +13,12 @@ system TestSystem {
     machine:
         $Ready {
             testFruit() {
-                _testFruit()
+                self.testFruit()
                 return
             }
             
             describeFruit(fruit_value: Fruit) {
-                _describeFruit(fruit_value)
+                self.describeFruit(fruit_value)
                 return
             }
         }

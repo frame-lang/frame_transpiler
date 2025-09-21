@@ -284,6 +284,10 @@ pub enum CallContextType {
 pub enum ResolvedCallType {
     Action(String),              // Internal action call (needs _ prefix)
     Operation(String),           // Internal operation call  
+    SystemInterface {            // Interface method call from within system
+        system: String,
+        method: String,
+    },
     SystemOperation {            // Qualified system operation call
         system: String,
         operation: String,

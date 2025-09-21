@@ -73,7 +73,7 @@ system ScopeTestSystem {
                 print("Using built-in print")
                 
                 # Can call own action
-                _systemAction()
+                self.systemAction()
                 
                 return
             }

@@ -1,4 +1,39 @@
-# Frame v0.59 Development Notes
+# Frame v0.66 Development Notes
+
+## v0.66 Explicit Self/System Call Syntax - COMPLETE! (2025-12-18)
+
+### 🎉 Explicit Call Syntax Now Required for All Internal Methods!
+
+Frame v0.66 establishes **explicit `self.` prefix** as a requirement for all internal method calls within systems, improving code clarity and aligning with Python semantics. Additionally, semantic call resolution is now an integral part of the parser.
+
+**Major Achievements:**
+1. **Explicit Self Syntax** - All internal calls require `self.` prefix
+2. **SystemInterface Resolution** - New variant for interface methods called within systems
+3. **Semantic Resolution Always On** - Removed feature flag, always enabled
+4. **100% Test Success** - All 379 tests passing with updated syntax
+
+### Key Changes
+
+**Required Syntax Updates:**
+```frame
+// Before v0.66 (implicit calls)
+_doAction()         // Action call
+calculate()         // Operation call
+next()             // Interface call
+
+// After v0.66 (explicit calls)
+self.doAction()     // Action call
+self.calculate()    // Operation call
+self.next()        // Interface call
+```
+
+**Technical Implementation:**
+- Added `ResolvedCallType::SystemInterface` for interface methods
+- Removed `FRAME_SEMANTIC_RESOLUTION` environment variable
+- Enhanced `SemanticCallAnalyzer` with interface method resolution
+- Python visitor generates proper `self.` prefix for all internal calls
+
+---
 
 ## v0.59 Source Map Generation for Debugging - COMPLETE! (2025-09-17) 
 

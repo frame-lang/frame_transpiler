@@ -15,7 +15,7 @@ use super::ast::*;
 use super::ast::TargetStateContextType;
 use std::collections::VecDeque;
 use super::scanner::*;
-use super::semantic_analyzer::SemanticAnalyzer;
+use super::semantic_analyzer::SemanticCallAnalyzer;
 use super::symbol_table::*;
 use crate::frame_c::ast::ModuleElement;
 use crate::frame_c::ast::CallContextType;
@@ -130,7 +130,6 @@ pub struct Parser<'a> {
     is_parsing_rhs: bool,
     is_parsing_collection: bool,  // v0.53: Track when inside collection literals
     event_handler_has_transition: bool,
-    pub enable_semantic_resolution: bool,  // v0.62: Feature flag for semantic call resolution
     is_action_scope: bool,
     operation_scope_depth: i32,
     is_static_operation: bool,
@@ -200,7 +199,6 @@ impl<'a> Parser<'a> {
             is_parsing_rhs: false,
             is_parsing_collection: false,  // v0.53: Initialize
             event_handler_has_transition: false,
-            enable_semantic_resolution: false,  // v0.62: Default to false for gradual migration
             generate_enter_args: false,
             generate_exit_args: false,
             generate_state_context: false,
@@ -3490,6 +3488,12 @@ impl<'a> Parser<'a> {
         
         let line = self.previous().line;
         
+        // v0.66: Set current class context for semantic resolution
+        self.current_class_name = Some(class_name.clone());
+        if self.debug_mode {
+            eprintln!("DEBUG v0.66: Set current_class_name to {}", class_name);
+        }
+        
         // Check for inheritance with 'extends' keyword
         let parent = if self.match_token(&[TokenType::Extends]) {
             if !self.match_token(&[TokenType::Identifier]) {
@@ -3688,6 +3692,12 @@ impl<'a> Parser<'a> {
             constructor,
             line,
         );
+        
+        // v0.66: Clear class context after parsing
+        if self.debug_mode {
+            eprintln!("DEBUG v0.66: Clearing current_class_name (was {:?})", self.current_class_name);
+        }
+        self.current_class_name = None;
         
         Ok(Rc::new(RefCell::new(class_node)))
     }
@@ -12638,25 +12648,26 @@ impl<'a> Parser<'a> {
     
     // v0.62: Helper method to resolve call expression types during semantic analysis
     fn resolve_call_expr(&mut self, call_expr_node: &mut CallExprNode) {
-        // Only perform resolution during second pass with feature flag enabled
-        if self.is_building_symbol_table || !self.enable_semantic_resolution {
+        // Only perform resolution during second pass
+        if self.is_building_symbol_table {
             return;
         }
         
         // Create a temporary semantic analyzer
-        let mut analyzer = SemanticAnalyzer::new(&self.arcanum);
+        let mut analyzer = SemanticCallAnalyzer::new(&self.arcanum);
         
         // v0.63: Set context in the analyzer for accurate resolution
-        if let Some(ref system_name) = self.current_system_name {
-            if self.debug_mode {
-                eprintln!("DEBUG: Setting system context: {}", system_name);
-            }
-            analyzer.enter_system(system_name);
-        } else if let Some(ref class_name) = self.current_class_name {
+        // Check class context first (most specific for method calls)
+        if let Some(ref class_name) = self.current_class_name {
             if self.debug_mode {
                 eprintln!("DEBUG: Setting class context: {}", class_name);
             }
             analyzer.enter_class(class_name);
+        } else if let Some(ref system_name) = self.current_system_name {
+            if self.debug_mode {
+                eprintln!("DEBUG: Setting system context: {}", system_name);
+            }
+            analyzer.enter_system(system_name);
         } else if let Some(ref function_name) = self.current_function_name {
             if self.debug_mode {
                 eprintln!("DEBUG: Setting function context: {}", function_name);
@@ -13379,6 +13390,9 @@ impl<'a> Parser<'a> {
         
         // v0.63: Set current class context for semantic resolution
         self.current_class_name = Some(class_name.clone());
+        if self.debug_mode {
+            eprintln!("DEBUG: Set current_class_name to {}", class_name);
+        }
         
         if !self.match_token(&[TokenType::OpenBrace]) {
             let err_msg = "Expected '{' after class name";
@@ -13514,6 +13528,9 @@ impl<'a> Parser<'a> {
         }
         
         // v0.63: Clear class context after parsing
+        if self.debug_mode {
+            eprintln!("DEBUG: Clearing current_class_name (was {:?})", self.current_class_name);
+        }
         self.current_class_name = None;
         
         Ok(Rc::new(RefCell::new(ClassNode::new(

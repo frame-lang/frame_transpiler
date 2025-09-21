@@ -35,7 +35,7 @@ pub struct Cli {
 impl Cli {
     pub fn new() -> Cli {
         let matches = Command::new("framec")
-            .version("0.30.0")
+            .version("0.66.0")
             .about("Frame language transpiler")
             .subcommand_required(false)
             .arg_required_else_help(false)

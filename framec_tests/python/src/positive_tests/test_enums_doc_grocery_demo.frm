@@ -15,7 +15,7 @@ system Grocery {
     machine:
         $Start {
             getFruitOfTheDay(): string {
-                var f: Fruit = _getRandomFruit()
+                var f: Fruit = self.getRandomFruit()
 
                 # Demonstrate boolean tests for enums and return
                 if f == Fruit.Peach {

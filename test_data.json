@@ -1,0 +1,9 @@
+{
+  "project": "Frame v0.38",
+  "features": [
+    "json",
+    "config",
+    "env"
+  ],
+  "test_date": "2025-01-23"
+}

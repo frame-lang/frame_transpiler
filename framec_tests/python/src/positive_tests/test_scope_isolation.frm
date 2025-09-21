@@ -42,8 +42,8 @@ system SystemA {
         $Start {
             test() {
                 print("SystemA test()")
-                _privateAction()
-                publicOperation()
+                self.privateAction()
+                self.publicOperation()
                 return
             }
         }
@@ -68,8 +68,8 @@ system SystemB {
         $Start {
             test() {
                 print("SystemB test()")
-                _ownAction()
-                ownOperation()
+                self.ownAction()
+                self.ownOperation()
                 
                 # These would be errors if uncommented - cannot access other system's internals
                 # _privateAction()  // SystemA's action - not accessible

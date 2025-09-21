@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (class support with OOP features), v0.46 (assert statement support), v0.47 (with statement support), v0.48 (Python-style access modifiers), v0.49 (complete error handling), v0.50 (del statement support), v0.51 (loop else clauses), v0.52 (multiple assignment), v0.53 (critical bug fixes for collections and multiple variable declarations), v0.54 (star expressions for unpacking), v0.55 (state parameters fixed, type annotations and @property confirmed working), v0.56 (Python enhancement features including walrus operator, type aliases, and enhanced numerics), v0.57 (multi-file module system infrastructure with Frame file imports), v0.58 (class decorators with Python pass-through and GraphViz multi-system support), v0.59 (source map generation for debugging support), v0.60 (critical double-call bug fix and complete AST dump feature), v0.61 (comprehensive call chain analysis and refactoring planning), v0.62 (semantic call resolution infrastructure), v0.63 (accurate semantic call resolution with Actions, Operations, and External calls correctly identified), and v0.64 (visitor simplification using resolved types).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (class support with OOP features), v0.46 (assert statement support), v0.47 (with statement support), v0.48 (Python-style access modifiers), v0.49 (complete error handling), v0.50 (del statement support), v0.51 (loop else clauses), v0.52 (multiple assignment), v0.53 (critical bug fixes for collections and multiple variable declarations), v0.54 (star expressions for unpacking), v0.55 (state parameters fixed, type annotations and @property confirmed working), v0.56 (Python enhancement features including walrus operator, type aliases, and enhanced numerics), v0.57 (multi-file module system infrastructure with Frame file imports), v0.58 (class decorators with Python pass-through and GraphViz multi-system support), v0.59 (source map generation for debugging support), v0.60 (critical double-call bug fix and complete AST dump feature), v0.61 (comprehensive call chain analysis and refactoring planning), v0.62 (semantic call resolution infrastructure), v0.63 (accurate semantic call resolution with Actions, Operations, and External calls correctly identified), v0.64 (visitor simplification using resolved types), v0.65 (complete visitor call unification), and v0.66 (explicit self/system call syntax with semantic resolution always enabled).
 
 ## File Locations
 
@@ -39,8 +39,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.64`  
-**Status**: ✅ **100% TEST SUCCESS RATE** - Visitor Simplification Using Resolved Types Complete
+**Version**: `v0.66`  
+**Status**: ✅ **100% TEST SUCCESS RATE** - Explicit Self/System Call Syntax with Semantic Resolution Always Enabled
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
@@ -78,6 +78,8 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.62 achievements, see**: [`docs/v0.62_achievements.md`](docs/v0.62_achievements.md)
 📊 **For v0.63 achievements, see**: [`docs/v0.63_achievements.md`](docs/v0.63_achievements.md)
 📊 **For v0.64 achievements, see**: [`docs/v0.64_achievements.md`](docs/v0.64_achievements.md)
+📊 **For v0.65 achievements, see**: [`docs/v0.65_achievements.md`](docs/v0.65_achievements.md)
+📊 **For v0.66 achievements, see**: [`docs/v0.66_achievements.md`](docs/v0.66_achievements.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)
@@ -1712,6 +1714,50 @@ cargo build && ./target/debug/framec -l python_3 test_file.frm
 - Multi-file module imports from other .frm files
 - Advanced module features (access control, aliasing)
 - Build system integration and packaging
+
+## v0.66 Explicit Self/System Syntax (REQUIRED)
+
+Frame v0.66 enforces explicit `self.` prefix for all internal method calls within systems:
+
+### Required Syntax
+- **Action calls**: `self.actionName()` (underscore added during Python generation)
+- **Operation calls**: `self.operationName()` 
+- **Interface method calls from within system**: `self.methodName()`
+- **Static operation calls**: `SystemName.operationName()` (with @staticmethod)
+
+### Examples
+```frame
+system Example {
+    interface:
+        process()
+        
+    operations:
+        calculate(x) {
+            self.doWork()  // v0.66: Required explicit self
+            return x * 2
+        }
+        
+    machine:
+        $Start {
+            process() {
+                self.calculate(5)    // Operation call
+                self.handleData()    // Action call
+                self.process()       // Interface method call (recursive)
+            }
+        }
+        
+    actions:
+        handleData() {
+            print("Handling data")
+        }
+}
+```
+
+### Semantic Resolution
+- **Always enabled**: No feature flag needed (removed in v0.66)
+- **Two-pass parsing**: First builds symbol table, second resolves all calls
+- **ResolvedCallType**: Every call is resolved to its semantic type
+- **SystemInterface**: New variant for interface methods called within system
 
 ## Important Notes for Development
 

@@ -83,8 +83,6 @@ pub struct PythonVisitor {
     action_scope_depth: i32,
     system_node_rcref_opt: Option<Rc<RefCell<SystemNode>>>,
     in_standalone_function: bool,  // Track if we're currently in a standalone function context
-    current_system_operations: Vec<String>,  // Track operations defined in the current system
-    current_system_actions: Vec<String>,     // Track actions defined in the current system
     required_imports: HashSet<String>,       // Track imports that are actually needed
     global_vars_in_function: HashSet<String>, // Track global variables accessed in current function
     current_system_enums: HashSet<String>,   // Track enum names defined in the current system
@@ -184,8 +182,6 @@ impl PythonVisitor {
             action_scope_depth: 0,
             system_node_rcref_opt: None,
             in_standalone_function: false,
-            current_system_operations: Vec::new(),
-            current_system_actions: Vec::new(),
             required_imports: HashSet::new(),
             global_vars_in_function: HashSet::new(),
             current_system_enums: HashSet::new(),
@@ -1946,14 +1942,6 @@ impl PythonVisitor {
         // Generate interface block
         if let Some(ref interface_block_node) = system_node.interface_block_node_opt {
             interface_block_node.accept(self);
-        }
-        
-        // Pre-populate actions list before processing machine block (for call resolution)
-        if let Some(ref actions_block_node) = system_node.actions_block_node_opt {
-            for action_node_rcref in &actions_block_node.actions {
-                let action_node = action_node_rcref.borrow();
-                self.current_system_actions.push(action_node.name.clone());
-            }
         }
         
         // Generate machine block
@@ -4399,52 +4387,6 @@ impl PythonVisitor {
         }
     }
     
-    /// Handle self.method() calls - explicit action/operation calls
-    fn handle_self_call(&mut self, method_call: &CallExprNode) {
-        let method_name = &method_call.identifier.name.lexeme;
-        
-        // Check if it's an action (highest precedence) - look across all systems
-        if let Some((_action_symbol, _system_symbol)) = self.arcanium.lookup_action_in_all_systems(method_name) {
-            self.add_code(&format!("self._{}", method_name));
-        }
-        // Check if it's an operation - look across all systems
-        else if let Some((_operation_symbol, system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
-            if !self.in_standalone_function {
-                self.add_code(&format!("self.{}", method_name));
-            } else {
-                let system_name = &system_symbol.borrow().name;
-                self.add_code(&format!("{}.{}", system_name, method_name));
-            }
-        }
-        // Domain method or error
-        else {
-            // Could be domain variable access in future or error
-            self.add_code(&format!("self.{}", method_name));
-        }
-        
-        method_call.call_expr_list.accept(self);
-    }
-    
-    /// Debug helper to show available action names
-    fn get_debug_action_names(&self) -> Vec<String> {
-        // This is a debug helper - we'll try to get action names from current system
-        Vec::new() // Placeholder for now
-    }
-    
-    /// Check if a method name is an interface method in any system
-    fn is_interface_method(&self, method_name: &str) -> bool {
-        self.arcanium.lookup_interface_method_in_all_systems(method_name).is_some()
-    }
-
-    /// Handle ClassName.method() calls - static operation calls  
-    fn handle_static_call(&mut self, method_call: &CallExprNode, class_name: &str) {
-        let method_name = &method_call.identifier.name.lexeme;
-        
-        // Generate static method call
-        self.add_code(&format!("{}.{}", class_name, method_name));
-        method_call.call_expr_list.accept(self);
-    }
-    
     /// v0.64: Handle calls using semantic resolution (to_string variant)
     /// This method uses the resolved_type field to generate the correct call syntax
     /// without needing complex call chain analysis
@@ -4468,7 +4410,9 @@ impl PythonVisitor {
                 if !self.in_standalone_function {
                     output.push_str("self.");
                 }
-                output.push_str(&format!("_{}", name));
+                // v0.66: Use format_action_name for consistency with action definitions
+                let formatted_name = self.format_action_name(name);
+                output.push_str(&formatted_name);
                 method_call.call_expr_list.accept_to_string(self, output);
                 true
             }
@@ -4478,6 +4422,16 @@ impl PythonVisitor {
                     output.push_str("self.");
                 }
                 output.push_str(name);
+                method_call.call_expr_list.accept_to_string(self, output);
+                true
+            }
+            ResolvedCallType::SystemInterface { system: _, method } => {
+                // v0.66: Interface method called from within the system
+                // Generate self.method() to call through the interface
+                if !self.in_standalone_function {
+                    output.push_str("self.");
+                }
+                output.push_str(method);
                 method_call.call_expr_list.accept_to_string(self, output);
                 true
             }
@@ -4497,8 +4451,13 @@ impl PythonVisitor {
                 if *is_static {
                     output.push_str(&format!("{}.{}", class, method));
                 } else {
-                    // Instance method - would need instance reference
-                    output.push_str(&format!("{}_instance.{}", class, method));
+                    // Instance method - use self when in class context
+                    if self.in_class_method {
+                        output.push_str(&format!("self.{}", method));
+                    } else {
+                        // Outside class, would need instance reference
+                        output.push_str(&format!("{}_instance.{}", class, method));
+                    }
                 }
                 method_call.call_expr_list.accept_to_string(self, output);
                 true
@@ -4510,23 +4469,63 @@ impl PythonVisitor {
                 true
             }
             ResolvedCallType::External(name) => {
-                // External function - no prefix needed
-                // But still need to handle call chain if present
-                if let Some(call_chain) = &method_call.call_chain {
-                    if !call_chain.is_empty() {
-                        for callable in call_chain {
-                            let saved_code = self.code.clone();
-                            self.code.clear();
-                            callable.callable_accept(self);
-                            output.push_str(&self.code);
-                            output.push('.');
-                            self.code = saved_code;
+                // v0.66: Special handling for Python collection constructors
+                if name == "set" || name == "list" || name == "tuple" {
+                    // Handle call chain if present
+                    if let Some(call_chain) = &method_call.call_chain {
+                        if !call_chain.is_empty() {
+                            for callable in call_chain {
+                                let saved_code = self.code.clone();
+                                self.code.clear();
+                                callable.callable_accept(self);
+                                output.push_str(&self.code);
+                                output.push('.');
+                                self.code = saved_code;
+                            }
                         }
                     }
+                    
+                    output.push_str(name);
+                    output.push('(');
+                    
+                    let expr_count = method_call.call_expr_list.exprs_t.len();
+                    
+                    if expr_count > 1 {
+                        // Multiple arguments: wrap them in a list
+                        output.push('[');
+                        let mut separator = "";
+                        for expr in &method_call.call_expr_list.exprs_t {
+                            output.push_str(separator);
+                            expr.accept_to_string(self, output);
+                            separator = ",";
+                        }
+                        output.push(']');
+                    } else if expr_count == 1 {
+                        let arg = &method_call.call_expr_list.exprs_t[0];
+                        arg.accept_to_string(self, output);
+                    }
+                    
+                    output.push(')');
+                    true
+                } else {
+                    // Regular external function - no prefix needed
+                    // But still need to handle call chain if present
+                    if let Some(call_chain) = &method_call.call_chain {
+                        if !call_chain.is_empty() {
+                            for callable in call_chain {
+                                let saved_code = self.code.clone();
+                                self.code.clear();
+                                callable.callable_accept(self);
+                                output.push_str(&self.code);
+                                output.push('.');
+                                self.code = saved_code;
+                            }
+                        }
+                    }
+                    output.push_str(name);
+                    method_call.call_expr_list.accept_to_string(self, output);
+                    true
                 }
-                output.push_str(name);
-                method_call.call_expr_list.accept_to_string(self, output);
-                true
             }
         }
     }
@@ -4535,11 +4534,7 @@ impl PythonVisitor {
     /// This method uses the resolved_type field to generate the correct call syntax
     /// without needing complex call chain analysis
     fn handle_call_with_resolved_type(&mut self, method_call: &CallExprNode) -> bool {
-        // Only use resolved types if feature is enabled
-        if !self.config.use_semantic_resolution {
-            return false;
-        }
-        
+        // v0.65: Always use resolved types when available (removed flag check)
         // Check if we have a resolved type
         let resolved_type = match &method_call.resolved_type {
             Some(rt) => rt,
@@ -4559,7 +4554,9 @@ impl PythonVisitor {
                 if !self.in_standalone_function {
                     self.add_code("self.");
                 }
-                self.add_code(&format!("_{}", name));
+                // v0.66: Use format_action_name for consistency with action definitions
+                let formatted_name = self.format_action_name(name);
+                self.add_code(&formatted_name);
                 method_call.call_expr_list.accept(self);
                 true
             }
@@ -4569,6 +4566,16 @@ impl PythonVisitor {
                     self.add_code("self.");
                 }
                 self.add_code(name);
+                method_call.call_expr_list.accept(self);
+                true
+            }
+            ResolvedCallType::SystemInterface { system: _, method } => {
+                // v0.66: Interface method called from within the system
+                // Generate self.method() to call through the interface
+                if !self.in_standalone_function {
+                    self.add_code("self.");
+                }
+                self.add_code(method);
                 method_call.call_expr_list.accept(self);
                 true
             }
@@ -4588,8 +4595,13 @@ impl PythonVisitor {
                 if *is_static {
                     self.add_code(&format!("{}.{}", class, method));
                 } else {
-                    // Instance method - would need instance reference
-                    self.add_code(&format!("{}_instance.{}", class, method));
+                    // Instance method - use self when in class context
+                    if self.in_class_method {
+                        self.add_code(&format!("self.{}", method));
+                    } else {
+                        // Outside class, would need instance reference
+                        self.add_code(&format!("{}_instance.{}", class, method));
+                    }
                 }
                 method_call.call_expr_list.accept(self);
                 true
@@ -4601,19 +4613,55 @@ impl PythonVisitor {
                 true
             }
             ResolvedCallType::External(name) => {
-                // External function - no prefix needed
-                // But still need to handle call chain if present
-                if let Some(call_chain) = &method_call.call_chain {
-                    if !call_chain.is_empty() {
-                        for callable in call_chain {
-                            callable.callable_accept(self);
-                            self.add_code(".");
+                // v0.66: Special handling for Python collection constructors
+                if name == "set" || name == "list" || name == "tuple" {
+                    // Handle call chain if present
+                    if let Some(call_chain) = &method_call.call_chain {
+                        if !call_chain.is_empty() {
+                            for callable in call_chain {
+                                callable.callable_accept(self);
+                                self.add_code(".");
+                            }
                         }
                     }
+                    
+                    self.add_code(name);
+                    self.add_code("(");
+                    
+                    let expr_count = method_call.call_expr_list.exprs_t.len();
+                    
+                    if expr_count > 1 {
+                        // Multiple arguments: wrap them in a list
+                        self.add_code("[");
+                        let mut separator = "";
+                        for expr in &method_call.call_expr_list.exprs_t {
+                            self.add_code(separator);
+                            expr.accept(self);
+                            separator = ",";
+                        }
+                        self.add_code("]");
+                    } else if expr_count == 1 {
+                        let arg = &method_call.call_expr_list.exprs_t[0];
+                        arg.accept(self);
+                    }
+                    
+                    self.add_code(")");
+                    true
+                } else {
+                    // Regular external function - no prefix needed
+                    // But still need to handle call chain if present
+                    if let Some(call_chain) = &method_call.call_chain {
+                        if !call_chain.is_empty() {
+                            for callable in call_chain {
+                                callable.callable_accept(self);
+                                self.add_code(".");
+                            }
+                        }
+                    }
+                    self.add_code(name);
+                    method_call.call_expr_list.accept(self);
+                    true
                 }
-                self.add_code(name);
-                method_call.call_expr_list.accept(self);
-                true
             }
         }
     }
@@ -5255,10 +5303,6 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
         // NOTE: This method is LEGACY and not used in v0.30 run_v2() flow
-        
-        // Reset operations and actions lists for this system
-        self.current_system_operations.clear();
-        self.current_system_actions.clear();
         
         self.add_code(&format!("#{}", self.compiler_version));
         self.newline();
@@ -6001,9 +6045,6 @@ impl AstVisitor for PythonVisitor {
     fn visit_operation_node(&mut self, operation_node: &OperationNode) {
         self.operation_scope_depth += 1;
         
-        // Track this operation name for method call resolution
-        self.current_system_operations.push(operation_node.name.clone());
-        
         self.newline();
         self.newline();
         let operation_name = self.format_operation_name(&operation_node.name);
@@ -6540,167 +6581,55 @@ impl AstVisitor for PythonVisitor {
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
         self.debug_enter(&format!("visit_call_expression_node({})", method_call.identifier.name.lexeme));
         
-        // Don't add source mapping here to avoid duplicates when visited as part of a statement
-        // The statement-level visitors (CallStmtNode, CallChainStmtNode) handle the mapping
-        // self.add_source_mapping(method_call.identifier.line);
-        
-        // v0.64: Try to use semantic resolution first if available
-        if self.handle_call_with_resolved_type(method_call) {
-            self.debug_exit("visit_call_expression_node");
-            return;
-        }
-        
-        // Debug: log the call chain to understand what's happening
-        if let Some(call_chain) = &method_call.call_chain {
-            debug_print!("DEBUG visit_call_expression_node: method={}, call_chain length={}, context={:?}", 
-                method_call.identifier.name.lexeme, call_chain.len(), method_call.context);
-            for (i, _callable) in call_chain.iter().enumerate() {
-                debug_print!("  Call chain[{}]: <callable>", i);
-            }
-        } else {
-            debug_print!("DEBUG visit_call_expression_node: method={}, NO call_chain, context={:?}", 
-                method_call.identifier.name.lexeme, method_call.context);
-        }
-        
-        // Frame v0.31: Handle explicit self/system context
-        match &method_call.context {
-            CallContextType::SelfCall => {
-                self.handle_self_call(method_call);
-                return;
-            }
-            CallContextType::StaticCall(class_name) => {
-                self.handle_static_call(method_call, class_name);
-                return;
-            }
-            CallContextType::ExternalCall => {
-                // Process call chain first (for object.method() syntax)
-                let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
-                    if !call_chain.is_empty() {
-                        for callable in call_chain {
-                            callable.callable_accept(self);
-                            self.add_code(".");
-                        }
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
-                
-                // Even for ExternalCall, check if it's actually an action or operation
-                // BUT ONLY if there's no call chain (actions/operations are internal only)
-                let method_name = &method_call.identifier.name.lexeme;
-                
-                debug_print!("DEBUG REGULAR: method_name={}, has_call_chain={}", method_name, has_call_chain);
-                
-                // If there's a call chain, it's an external call (e.g., sys.testFruit())
-                // Don't apply action/operation transformations
-                if !has_call_chain {
-                    // If the method name starts with underscore, it's an action call in Frame syntax
-                    // Strip the underscore to look up the actual action name
-                    let action_name = if method_name.starts_with('_') {
-                        &method_name[1..]
-                    } else {
-                        method_name
-                    };
-                    
-                    // Check if it's an action first
-                    if let Some((_action_symbol, _system_symbol)) = self.arcanium.lookup_action_in_all_systems(action_name) {
-                        // Only add self. prefix if we're in a system context (not in a standalone function)
-                        if !self.in_standalone_function {
-                            self.add_code("self.");
-                        }
-                        // For standalone functions, we'd need to call it on a system instance
-                        // For now, just generate the action name without self
-                        self.add_code(&format!("_{}", action_name));
-                        method_call.call_expr_list.accept(self);
-                        self.debug_exit("visit_call_expression_node");
-                        return;
-                    }
-                    // Check if it's an operation (operations typically don't have underscore prefix)
-                    else if let Some((_operation_symbol, system_symbol)) = self.arcanium.lookup_operation_in_all_systems(action_name) {
-                        if !self.in_standalone_function {
-                            // In system context, use instance method
-                            self.add_code("self.");
-                        } else {
-                            // In standalone function, use static method call
-                            let system_name = &system_symbol.borrow().name;
-                            self.add_code(&format!("{}.", system_name));
-                        }
-                        self.add_code(action_name);
-                        method_call.call_expr_list.accept(self);
-                        self.debug_exit("visit_call_expression_node");
-                        return;
-                    }
-                    // Check tracked lists as fallback
-                    else if self.current_system_actions.contains(&method_name.to_string()) {
-                        if !self.in_standalone_function {
-                            self.add_code("self.");
-                        }
-                        self.add_code(&format!("_{}", method_name));
-                        method_call.call_expr_list.accept(self);
-                        self.debug_exit("visit_call_expression_node");
-                        return;
-                    }
-                    else if self.current_system_operations.contains(&method_name.to_string()) {
-                        if !self.in_standalone_function {
-                            self.add_code("self.");
-                        }
-                        self.add_code(method_name);
-                        method_call.call_expr_list.accept(self);
-                        self.debug_exit("visit_call_expression_node");
-                        return;
+        // v0.65: ONLY use semantic resolution - no backward compatibility
+        if !self.handle_call_with_resolved_type(method_call) {
+            // If no resolved type, just generate the call as-is
+            // This handles special collection constructors and basic external calls
+            
+            // Process call chain if present
+            if let Some(call_chain) = &method_call.call_chain {
+                if !call_chain.is_empty() {
+                    for callable in call_chain {
+                        callable.callable_accept(self);
+                        self.add_code(".");
                     }
                 }
+            }
+            
+            let method_name = &method_call.identifier.name.lexeme;
+            
+            // Special handling for Python collection constructors
+            if method_name == "set" || method_name == "list" || method_name == "tuple" {
+                self.add_code(method_name);
+                self.add_code("(");
                 
-                // Only treat as true external call if not an action or operation
-                // Special handling for collection constructors with arguments
-                let method_name = &method_call.identifier.name.lexeme;
+                let expr_count = method_call.call_expr_list.exprs_t.len();
                 
-                // Special handling for Python collection constructors
-                // set(), list(), tuple() need special handling when called with multiple arguments
-                // because Python's constructors expect a single iterable, not multiple args
-                if method_name == "set" || method_name == "list" || method_name == "tuple" {
-                    self.add_code(method_name);
-                    self.add_code("(");
-                    
-                    let expr_count = method_call.call_expr_list.exprs_t.len();
-                    
-                    if expr_count > 1 {
-                        // Multiple arguments: wrap them in a list
-                        // set(1, 2, 3) -> set([1, 2, 3])
-                        self.add_code("[");
-                        let mut separator = "";
-                        for expr in &method_call.call_expr_list.exprs_t {
-                            self.add_code(separator);
-                            expr.accept(self);
-                            separator = ",";
-                        }
-                        self.add_code("]");
-                    } else if expr_count == 1 {
-                        // Single argument: check if it's already an iterable (list, tuple, etc.)
-                        // or if it needs wrapping (for set with non-iterable)
-                        let arg = &method_call.call_expr_list.exprs_t[0];
-                        
-                        // For all constructors, just pass the argument as-is
-                        // Python will handle the type checking
-                        arg.accept(self);
+                if expr_count > 1 {
+                    // Multiple arguments: wrap them in a list
+                    self.add_code("[");
+                    let mut separator = "";
+                    for expr in &method_call.call_expr_list.exprs_t {
+                        self.add_code(separator);
+                        expr.accept(self);
+                        separator = ",";
                     }
-                    // expr_count == 0 case: empty constructor like set()
-                    
-                    self.add_code(")");
-                } else if method_name == "dict" {
-                    // Keep dict() as-is since it's valid Python
-                    self.handle_collection_constructor(method_call);
-                } else {
-                    self.add_code(&method_call.identifier.name.lexeme);
-                    method_call.call_expr_list.accept(self);
+                    self.add_code("]");
+                } else if expr_count == 1 {
+                    let arg = &method_call.call_expr_list.exprs_t[0];
+                    arg.accept(self);
                 }
-                self.debug_exit("visit_call_expression_node");
-                return;
+                
+                self.add_code(")");
+            } else if method_name == "dict" {
+                self.handle_collection_constructor(method_call);
+            } else {
+                self.add_code(&method_call.identifier.name.lexeme);
+                method_call.call_expr_list.accept(self);
             }
         }
+        
+        self.debug_exit("visit_call_expression_node");
     }
 
     //* --------------------------------------------------------------------- *//
@@ -6710,239 +6639,56 @@ impl AstVisitor for PythonVisitor {
         method_call: &CallExprNode,
         output: &mut String,
     ) {
-        // v0.64: Try to use semantic resolution first if available
-        if self.config.use_semantic_resolution {
-            if self.handle_call_with_resolved_type_to_string(method_call, output) {
-                return;
-            }
-        }
-        
-        // Handle SelfCall first (for class methods)
-        if let CallContextType::SelfCall = &method_call.context {
-            let method_name = &method_call.identifier.name.lexeme;
-            
-            // If we're in a class method, output self.method() directly
-            if self.in_class_method {
-                output.push_str(&format!("self.{}", method_name));
-                method_call.call_expr_list.accept_to_string(self, output);
-                return;
-            }
-            // Otherwise use the regular self call handling
-            let saved_code = self.code.clone();
-            self.code.clear();
-            self.handle_self_call(method_call);
-            // BUG FIX v0.60: handle_self_call already processes call_expr_list.accept(self)
-            // Don't call it again to prevent double parameters: self._myAction(42)(42)
-            output.push_str(&self.code);
-            self.code = saved_code;
+        // v0.65: ONLY use semantic resolution - no backward compatibility
+        if self.handle_call_with_resolved_type_to_string(method_call, output) {
             return;
         }
         
-        // Handle call context first - but still check for actions/operations even for ExternalCall
-        if let CallContextType::ExternalCall = &method_call.context {
-            // Process call chain first (for object.method() syntax)
-            let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
-                if !call_chain.is_empty() {
-                    for callable in call_chain {
-                        let saved_code = self.code.clone();
-                        self.code.clear();
-                        callable.callable_accept(self);
-                        output.push_str(&self.code);
-                        output.push('.');
-                        self.code = saved_code;
-                    }
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
-            
-            // Even for ExternalCall, check if it's actually an action or operation
-            // BUT ONLY if there's no call chain (actions/operations are internal only)
-            let method_name = &method_call.identifier.name.lexeme;
-            
-            debug_print!("DEBUG: method_name={}, has_call_chain={}, output so far='{}'", method_name, has_call_chain, output);
-            
-            // If there's a call chain, it's an external call (e.g., sys.testFruit())
-            // Don't apply action/operation transformations
-            if !has_call_chain {
-                // If the method name starts with underscore, it's an action call in Frame syntax
-                // Strip the underscore to look up the actual action name
-                let action_name = if method_name.starts_with('_') {
-                    &method_name[1..]
-                } else {
-                    method_name
-                };
-                
-                // Check if it's an action first
-                if let Some((_action_symbol, _system_symbol)) = self.arcanium.lookup_action_in_all_systems(action_name) {
-                    if !self.in_standalone_function {
-                        output.push_str("self.");
-                    }
-                    output.push_str(&format!("_{}", action_name));
-                    method_call.call_expr_list.accept_to_string(self, output);
-                    return;
-                }
-                // Check if it's an operation (operations typically don't have underscore prefix)
-                else if let Some((_operation_symbol, _system_symbol)) = self.arcanium.lookup_operation_in_all_systems(action_name) {
-                    // Only add self. if we're not calling a static method on another system
-                    // Check if output already ends with a system name (e.g., "UtilitySystem.")
-                    let is_static_call_on_other_system = output.ends_with(".");
-                    
-                    if !self.in_standalone_function && !is_static_call_on_other_system {
-                        output.push_str("self.");
-                    }
-                    // For standalone functions, don't add system prefix here - it's already in the call chain
-                    output.push_str(action_name);
-                    method_call.call_expr_list.accept_to_string(self, output);
-                    return;
-                }
-                // Check tracked lists as fallback
-                else if self.current_system_actions.contains(&method_name.to_string()) {
-                    if !self.in_standalone_function {
-                        output.push_str("self.");
-                    }
-                    output.push_str(&format!("_{}", method_name));
-                    method_call.call_expr_list.accept_to_string(self, output);
-                    return;
-                }
-                else if self.current_system_operations.contains(&method_name.to_string()) {
-                    if !self.in_standalone_function {
-                        output.push_str("self.");
-                    }
-                    output.push_str(method_name);
-                    method_call.call_expr_list.accept_to_string(self, output);
-                    return;
-                }
-            }
-            
-            // Only treat as true external call if not an action or operation
-            // Special handling for collection constructors with arguments
-            let method_name = &method_call.identifier.name.lexeme;
-            
-            // Special handling for Python collection constructors
-            // set(), list(), tuple() need special handling when called with multiple arguments
-            // because Python's constructors expect a single iterable, not multiple args
-            if method_name == "set" || method_name == "list" || method_name == "tuple" {
-                output.push_str(method_name);
-                output.push_str("(");
-                
-                let expr_count = method_call.call_expr_list.exprs_t.len();
-                
-                if expr_count > 1 {
-                    // Multiple arguments: wrap them in a list
-                    // set(1, 2, 3) -> set([1, 2, 3])
-                    output.push_str("[");
-                    let mut separator = "";
-                    for expr in &method_call.call_expr_list.exprs_t {
-                        output.push_str(separator);
-                        expr.accept_to_string(self, output);
-                        separator = ",";
-                    }
-                    output.push_str("]");
-                } else if expr_count == 1 {
-                    // Single argument: check if it's already an iterable (list, tuple, etc.)
-                    // or if it needs wrapping (for set with non-iterable)
-                    let arg = &method_call.call_expr_list.exprs_t[0];
-                    
-                    // For all constructors, just pass the argument as-is
-                    // Python will handle the type checking
-                    arg.accept_to_string(self, output);
-                }
-                // expr_count == 0 case: empty constructor like set()
-                
-                output.push_str(")");
-            } else if method_name == "dict" {
-                // Keep dict() as-is since it's valid Python
-                self.handle_collection_constructor_to_string(method_call, output);
-            } else {
-                output.push_str(&method_call.identifier.name.lexeme);
-                method_call.call_expr_list.accept_to_string(self, output);
-            }
-            return;
-        }
-        
-        // Check if call chain already has content (like "self.")
-        let has_call_chain = if let Some(call_chain) = &method_call.call_chain {
+        // If no resolved type, generate basic call
+        // Process call chain if present
+        if let Some(call_chain) = &method_call.call_chain {
             if !call_chain.is_empty() {
                 for callable in call_chain {
-                    // Save current code state and clear for callable output
                     let saved_code = self.code.clone();
                     self.code.clear();
-                    
-                    // Let callable write to self.code
                     callable.callable_accept(self);
-                    
-                    // Capture the output and add to result string
                     output.push_str(&self.code);
                     output.push('.');
-                    
-                    // Restore original code state
                     self.code = saved_code;
                 }
-                true
-            } else {
-                false
             }
-        } else {
-            false
-        };
-
-        // Check if this is an action or operation call that needs special handling
-        // Only add self. if there's no existing call chain
+        }
+        
         let method_name = &method_call.identifier.name.lexeme;
         
-        // Check if it's an action (needs _ prefix always, self. prefix if not present)
-        if let Some((_action_symbol, _system_symbol)) = self.arcanium.lookup_action_in_all_systems(method_name) {
-            if !has_call_chain {
-                output.push_str("self.");
-            }
-            // Always add _ prefix for actions, regardless of call chain
-            output.push_str(&format!("_{}", method_name));
-        }
-        // Check if it's an operation (needs self. prefix if not present)
-        else if let Some((_operation_symbol, system_symbol)) = self.arcanium.lookup_operation_in_all_systems(method_name) {
-            if !has_call_chain {
-                if !self.in_standalone_function {
-                    output.push_str("self.");
-                } else {
-                    let system_name = &system_symbol.borrow().name;
-                    output.push_str(&format!("{}.", system_name));
+        // Special handling for Python collection constructors
+        if method_name == "set" || method_name == "list" || method_name == "tuple" {
+            output.push_str(method_name);
+            output.push_str("(");
+            
+            let expr_count = method_call.call_expr_list.exprs_t.len();
+            
+            if expr_count > 1 {
+                output.push_str("[");
+                let mut separator = "";
+                for expr in &method_call.call_expr_list.exprs_t {
+                    output.push_str(separator);
+                    expr.accept_to_string(self, output);
+                    separator = ",";
                 }
+                output.push_str("]");
+            } else if expr_count == 1 {
+                let arg = &method_call.call_expr_list.exprs_t[0];
+                arg.accept_to_string(self, output);
             }
-            output.push_str(method_name);
+            
+            output.push_str(")");
+        } else if method_name == "dict" {
+            self.handle_collection_constructor_to_string(method_call, output);
+        } else {
+            output.push_str(&method_call.identifier.name.lexeme);
+            method_call.call_expr_list.accept_to_string(self, output);
         }
-        // Fallback: check if it's in our tracked operations list (when symbol table fails)
-        else if self.current_system_operations.contains(&method_name.to_string()) {
-            if !has_call_chain {
-                output.push_str("self.");
-            }
-            output.push_str(method_name);
-        }
-        // Fallback: check if it's in our tracked actions list (when symbol table fails)
-        else if self.current_system_actions.contains(&method_name.to_string()) {
-            // For actions, we ALWAYS want self._action format
-            if has_call_chain {
-                // If we already output "self.", that's correct, just add _action
-                output.push_str(&format!("_{}", method_name));
-            } else {
-                // No call chain, add full self._action
-                output.push_str(&format!("self._{}", method_name));
-            }
-        }
-        // Check if it's an interface method (needs self. prefix) - only when inside system context AND no call chain
-        else if !self.in_standalone_function && !has_call_chain && self.is_interface_method(method_name) && !output.ends_with('.') {
-            output.push_str("self.");
-            output.push_str(method_name);
-        }
-        // Otherwise output as-is (external function call)
-        else {
-            output.push_str(method_name);
-        }
-        
-        method_call.call_expr_list.accept_to_string(self, output);
     }
 
     //* --------------------------------------------------------------------- *//
@@ -10274,9 +10020,6 @@ impl AstVisitor for PythonVisitor {
     fn visit_action_node(&mut self, action_node: &ActionNode) {
         self.action_scope_depth += 1;
         
-        // Track this action name for method call resolution
-        self.current_system_actions.push(action_node.name.clone());
-
         let mut subclass_code = String::new();
 
         self.newline();

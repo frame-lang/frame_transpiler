@@ -2,7 +2,6 @@
 // This is a more conservative refactoring that simplifies without major restructuring
 
 use super::*;
-use crate::frame_c::ast::*;
 
 impl PythonVisitor {
     /// Simplified method to handle any call expression
@@ -10,20 +9,9 @@ impl PythonVisitor {
     pub fn handle_call_simplified(&mut self, method_call: &CallExprNode) {
         self.debug_enter(&format!("handle_call_simplified({})", method_call.identifier.name.lexeme));
         
-        // Handle call context
-        match &method_call.context {
-            CallContextType::SelfCall => {
-                self.handle_self_call(method_call);
-            }
-            
-            CallContextType::StaticCall(class_name) => {
-                self.handle_static_call(method_call, class_name);
-            }
-            
-            CallContextType::ExternalCall => {
-                self.handle_external_call(method_call);
-            }
-        }
+        // v0.65: Simplified - always handle as external call
+        // The semantic resolution now determines the correct prefix
+        self.handle_external_call(method_call);
         
         self.debug_exit("handle_call_simplified");
     }
@@ -32,8 +20,6 @@ impl PythonVisitor {
     fn handle_external_call(&mut self, method_call: &CallExprNode) {
         // Process call chain first (for object.method() syntax)
         let has_call_chain = self.process_call_chain(method_call);
-        
-        let method_name = &method_call.identifier.name.lexeme;
         
         // If there's a call chain, it's definitely external
         if has_call_chain {
@@ -92,14 +78,12 @@ impl PythonVisitor {
     
     /// Check if a name is an action
     fn is_action(&self, name: &str) -> bool {
-        self.arcanium.lookup_action_in_all_systems(name).is_some() ||
-        self.current_system_actions.iter().any(|s| s == name)
+        self.arcanium.lookup_action_in_all_systems(name).is_some()
     }
     
     /// Check if a name is an operation
     fn is_operation(&self, name: &str) -> bool {
-        self.arcanium.lookup_operation_in_all_systems(name).is_some() ||
-        self.current_system_operations.iter().any(|s| s == name)
+        self.arcanium.lookup_operation_in_all_systems(name).is_some()
     }
     
     /// Generate an action call
@@ -172,26 +156,7 @@ impl PythonVisitor {
         method_call: &CallExprNode,
         output: &mut String,
     ) {
-        // Handle SelfCall first (for class methods)
-        if let CallContextType::SelfCall = &method_call.context {
-            if self.in_class_method {
-                let method_name = &method_call.identifier.name.lexeme;
-                output.push_str(&format!("self.{}", method_name));
-                method_call.call_expr_list.accept_to_string(self, output);
-                return;
-            }
-            
-            // Use regular self call handling
-            let saved_code = self.code.clone();
-            self.code.clear();
-            self.handle_self_call(method_call);
-            // BUG FIX v0.60: handle_self_call already processes call_expr_list
-            output.push_str(&self.code);
-            self.code = saved_code;
-            return;
-        }
-        
-        // For other cases, reuse the simplified logic
+        // v0.65: Use unified external call handling
         let saved_code = self.code.clone();
         self.code.clear();
         self.handle_call_simplified(method_call);

@@ -1,17 +1,35 @@
 # Frame Transpiler Test Status
 
-## Last Run: 2025-09-21
+## Last Run: 2025-12-18
 
 **Total Tests**: 379  
 **Passed**: 379  
 **Failed**: 0  
-**Success Rate**: 100.0% 🎉
+**Success Rate**: 100%
 
 ## Summary
 
-The Frame transpiler maintains **100% test success rate** with all 379 tests passing! The v0.64 visitor simplification using resolved types has been successfully integrated without regressions.
+Frame v0.66 achieves **100% test success** by establishing explicit `self.` prefix as a requirement for all internal method calls within systems. This major release also makes semantic call resolution an integral part of the parser, removing the previous feature flag.
 
 ## Recent Changes
+
+### v0.66 Explicit Self/System Call Syntax (2025-12-18)
+- **Breaking Change**: All internal method calls now require explicit `self.` prefix
+- Added `ResolvedCallType::SystemInterface` for interface methods called within systems
+- Removed `FRAME_SEMANTIC_RESOLUTION` feature flag - semantic resolution always enabled
+- Updated all 379 tests to use explicit self syntax
+- Enhanced `SemanticCallAnalyzer` to properly resolve interface methods
+- Fixed action/operation resolution with underscore prefix handling
+- Achieved 100% test success rate (379/379 passing)
+
+### v0.65 Complete Code Simplification (2025-09-21)
+- Removed ALL backward compatibility code
+- Deleted ~500 lines of complex helper methods and tracking code
+- Removed use_semantic_resolution flag completely
+- Made semantic resolution the only code path
+- Simplified visit_call_expression_node from ~200 to ~50 lines
+- Achieved 60% complexity reduction in visitor methods
+- No environment variables needed (FRAME_SEMANTIC_RESOLUTION removed)
 
 ### v0.64 Visitor Simplification (2025-09-21)
 - Implemented simplified call generation using resolved types
@@ -19,7 +37,7 @@ The Frame transpiler maintains **100% test success rate** with all 379 tests pas
 - Created handle_call_with_resolved_type() methods
 - Reduced complex call chain analysis logic
 - Feature flag integration via FRAME_SEMANTIC_RESOLUTION=1
-- No test regressions - all 379 tests continue to pass
+- No test regressions - all 379 tests continued to pass
 
 ### v0.63 Accurate Semantic Resolution (2025-09-21)
 - Implemented accurate semantic call resolution
@@ -27,18 +45,7 @@ The Frame transpiler maintains **100% test success rate** with all 379 tests pas
 - Operations correctly identified via symbol table lookups
 - External calls properly distinguished from internal calls
 - Parser maintains system/class/function context throughout parsing
-- No test regressions - all 379 tests continue to pass
-
-### v0.62 Semantic Resolution Infrastructure (2025-09-21)
-- Added ResolvedCallType enum for call categorization
-- Created SemanticAnalyzer module for two-pass analysis
-- Enhanced AST with resolved_type field
-- Feature flag control via FRAME_SEMANTIC_RESOLUTION=1
-
-### v0.60-v0.61 Previous Improvements
-- Fixed double-call bug for parameterized operations/actions
-- Added complete AST dump feature for debugging
-- Comprehensive call chain analysis and documentation
+- No test regressions - all 379 tests continued to pass
 
 ## Passing Test Categories
 
@@ -54,7 +61,40 @@ The Frame transpiler maintains **100% test success rate** with all 379 tests pas
 - ✅ **Advanced Features**: Walrus operator, type aliases, f-strings
 - ✅ **Control Flow**: Loop else clauses, del statement
 - ✅ **Import System**: Python imports and Frame file imports
-- ✅ **Semantic Resolution**: Actions, Operations, External calls correctly identified
+- ✅ **Semantic Resolution**: Actions, Operations, SystemInterface calls correctly identified
+- ✅ **Explicit Self Syntax**: All internal calls use proper `self.` prefix
+
+## Migration Guide for v0.66
+
+### Required Syntax Changes
+
+**Before v0.66 (implicit calls):**
+```frame
+system Example {
+    machine:
+        $Start {
+            process() {
+                _doAction()      // Implicit action call
+                calculate()      // Implicit operation call
+                next()          // Implicit interface call
+            }
+        }
+}
+```
+
+**After v0.66 (explicit calls):**
+```frame
+system Example {
+    machine:
+        $Start {
+            process() {
+                self.doAction()      // Explicit action call
+                self.calculate()     // Explicit operation call
+                self.next()         // Explicit interface call
+            }
+        }
+}
+```
 
 ## Test Infrastructure
 - Test runner: `framec_tests/runner/frame_test_runner.py`
@@ -65,7 +105,8 @@ The Frame transpiler maintains **100% test success rate** with all 379 tests pas
 
 ## Notes
 
-- Semantic resolution feature (`FRAME_SEMANTIC_RESOLUTION=1`) fully functional
-- All tests execute successfully without runtime errors
-- Full Python 3 feature compatibility confirmed
-- No known regressions from v0.63 changes
+- v0.66 establishes explicit syntax as core language requirement
+- Semantic resolution is now always enabled (no feature flag)
+- All 379 tests have been updated to use explicit self syntax
+- Breaking change requires updating existing Frame source code
+- Improved code clarity and Python alignment
