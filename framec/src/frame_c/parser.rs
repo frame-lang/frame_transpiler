@@ -138,6 +138,10 @@ pub struct Parser<'a> {
     is_function_scope: bool,
     is_system_scope: bool,
     is_loop_scope: bool,
+    // v0.63: Context tracking for accurate semantic resolution
+    current_system_name: Option<String>,
+    current_class_name: Option<String>,
+    current_function_name: Option<String>,
     stmt_idx: i32,
     interface_method_called: bool,
     pub generate_enter_args: bool,
@@ -210,6 +214,9 @@ impl<'a> Parser<'a> {
             is_function_scope: false,
             is_system_scope: false,
             is_loop_scope: false,
+            current_system_name: None,  // v0.63
+            current_class_name: None,   // v0.63
+            current_function_name: None, // v0.63
             stmt_idx: 0,
             interface_method_called: false,
             sync_tokens_from_error_context: Vec::new(),
@@ -569,6 +576,10 @@ impl<'a> Parser<'a> {
 
         // SystemHierarchy is used in the GraphViz visitor rather than the AST
         self.system_hierarchy_opt = Some(SystemHierarchy::new(system_name.clone()));
+        
+        // v0.63: Set current system context for semantic resolution
+        self.current_system_name = Some(system_name.clone());
+        self.is_system_scope = true;
 
         // Parse system parameters and set up scope
         let (system_start_state_state_params_opt, system_enter_params_opt, domain_params_opt) = 
@@ -610,6 +621,10 @@ impl<'a> Parser<'a> {
         let line = self.previous().line;
 
         self.arcanum.exit_scope();
+        
+        // v0.63: Clear system context after parsing
+        self.current_system_name = None;
+        self.is_system_scope = false;
 
         let module = match module_opt {
             Some(m) => m,
@@ -1502,6 +1517,9 @@ impl<'a> Parser<'a> {
         // to be called in the context of an function. Transitions, for example, are not
         // allowed.
         self.is_function_scope = true;
+        
+        // v0.63: Set current function context for semantic resolution
+        self.current_function_name = Some(function_name.clone());
 
         if self.is_building_symbol_table {
             // lexical pass
@@ -1572,6 +1590,9 @@ impl<'a> Parser<'a> {
         // Reset scope context back to Global (module level)
         self.arcanum.set_scope_context(ScopeContext::Global);
         self.is_function_scope = false;
+        
+        // v0.63: Clear function context after parsing
+        self.current_function_name = None;
         ret
     }
 
@@ -12623,7 +12644,34 @@ impl<'a> Parser<'a> {
         }
         
         // Create a temporary semantic analyzer
-        let analyzer = SemanticAnalyzer::new(&self.arcanum);
+        let mut analyzer = SemanticAnalyzer::new(&self.arcanum);
+        
+        // v0.63: Set context in the analyzer for accurate resolution
+        if let Some(ref system_name) = self.current_system_name {
+            if self.debug_mode {
+                eprintln!("DEBUG: Setting system context: {}", system_name);
+            }
+            analyzer.enter_system(system_name);
+        } else if let Some(ref class_name) = self.current_class_name {
+            if self.debug_mode {
+                eprintln!("DEBUG: Setting class context: {}", class_name);
+            }
+            analyzer.enter_class(class_name);
+        } else if let Some(ref function_name) = self.current_function_name {
+            if self.debug_mode {
+                eprintln!("DEBUG: Setting function context: {}", function_name);
+            }
+            analyzer.enter_function();
+        } else {
+            if self.debug_mode {
+                eprintln!("DEBUG: No context set for resolution");
+            }
+        }
+        
+        // Check if we're in a static context
+        if self.is_static_operation {
+            analyzer.set_static_context(true);
+        }
         
         // Resolve the call type
         let resolved_type = analyzer.resolve_call(call_expr_node);
@@ -13329,6 +13377,9 @@ impl<'a> Parser<'a> {
         let class_name = self.previous().lexeme.clone();
         let line = self.previous().line;
         
+        // v0.63: Set current class context for semantic resolution
+        self.current_class_name = Some(class_name.clone());
+        
         if !self.match_token(&[TokenType::OpenBrace]) {
             let err_msg = "Expected '{' after class name";
             self.error_at_current(err_msg);
@@ -13461,6 +13512,9 @@ impl<'a> Parser<'a> {
         if self.is_building_symbol_table {
             self.arcanum.exit_scope();
         }
+        
+        // v0.63: Clear class context after parsing
+        self.current_class_name = None;
         
         Ok(Rc::new(RefCell::new(ClassNode::new(
             class_name,

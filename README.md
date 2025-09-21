@@ -2,14 +2,23 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-**Current Version**: v0.62  
+**Current Version**: v0.63  
 **Test Success Rate**: 100% (379/379 tests passing) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-09-21
 
-## Current Features (v0.62) ✅ COMPLETE
+## Current Features (v0.63) ✅ COMPLETE
 
-### Semantic Call Resolution in Parser (NEW in v0.62)
+### Accurate Semantic Call Resolution (NEW in v0.63)
+- **Accurate Type Detection**: Actions, Operations, and External calls correctly identified
+- **Context-Aware Resolution**: Parser maintains system/class/function context throughout
+- **Symbol Table Integration**: Direct lookups in actual symbol table data
+- **Verified Accuracy**: Test output confirms correct resolution of all call types
+- **100% Test Success**: All 379 tests passing with improved resolution
+
+## Previous Features (v0.62)
+
+### Semantic Call Resolution Infrastructure
 - **ResolvedCallType Enum**: Comprehensive categorization of all call types (Action, Operation, SystemOperation, ClassMethod, ModuleFunction, External)
 - **SemanticAnalyzer Module**: Dedicated semantic analysis during parser's second pass
 - **Enhanced AST**: CallExprNode includes `resolved_type` field for semantic resolution
@@ -18,7 +27,7 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Architectural Improvement**: Moves 350+ lines of complex logic from visitor to parser
 - **100% Test Success**: All existing tests pass with new architecture
 
-## Previous Features (v0.61) ✅ COMPLETE
+## Previous Features (v0.61)
 
 ### Call Chain Analysis and Documentation (NEW in v0.61)
 - **Comprehensive Analysis**: Analyzed 350+ lines of complex call chain handling logic
