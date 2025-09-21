@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-09-20T14:18:30.886033",
+  "timestamp": "2025-09-20T22:04:44.269327",
   "version": "v0.31",
   "summary": {
-    "total": 378,
-    "transpile_success": 375,
-    "execute_success": 375,
-    "complete_success": 378,
+    "total": 379,
+    "transpile_success": 376,
+    "execute_success": 376,
+    "complete_success": 379,
     "success_rate": "100.0%"
   },
   "results": [
@@ -61,7 +61,7 @@
         "error_line": null,
         "warning_message": null
       },
-      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /"
+      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /"
     },
     {
       "file": "test_multifile_calculator.frm",
@@ -1004,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1036,7 +1036,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1044,7 +1044,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -2597,6 +2597,14 @@
       "execute": true,
       "negative_test": false,
       "output": "Result: 84\nMessage: Formatted: Hello\n",
+      "error": null
+    },
+    {
+      "file": "test_static_comprehensive_v062.frm",
+      "transpile": true,
+      "execute": true,
+      "negative_test": false,
+      "output": "From function: 30\nOrigin: (0, 0)\n5 + 7 = 12\n3 * 4 = 12\nDistance: 17.0\nFrom function: 30\nOrigin: (0, 0)\n5 + 7 = 12\n3 * 4 = 12\nDistance: 17.0\n",
       "error": null
     },
     {

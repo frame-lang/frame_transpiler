@@ -188,6 +188,10 @@ pub struct PythonConfig {
     /// Generate public compartment (rarely used)
     #[serde(default)]
     pub public_compartment: bool,
+    
+    /// Use semantic resolution for simplified code generation (v0.64 feature)
+    #[serde(default)]
+    pub use_semantic_resolution: bool,
 }
 
 impl Default for PythonConfig {
@@ -198,6 +202,7 @@ impl Default for PythonConfig {
             min_version: None,
             public_state_info: false,
             public_compartment: false,
+            use_semantic_resolution: false, // Default off for backward compatibility
         }
     }
 }

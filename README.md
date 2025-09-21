@@ -2,14 +2,24 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-**Current Version**: v0.63  
+**Current Version**: v0.64  
 **Test Success Rate**: 100% (379/379 tests passing) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-09-21
 
-## Current Features (v0.63) ✅ COMPLETE
+## Current Features (v0.64) ✅ COMPLETE
 
-### Accurate Semantic Call Resolution (NEW in v0.63)
+### Visitor Simplification Using Resolved Types (NEW in v0.64)
+- **Simplified Code Generation**: Leverages v0.63's resolved types for clean visitor code
+- **Feature Flag Integration**: `use_semantic_resolution` flag in PythonConfig
+- **New Handler Methods**: `handle_call_with_resolved_type()` replaces complex logic
+- **Code Reduction**: ~350 lines of complex call chain analysis simplified
+- **100% Backward Compatible**: Falls back to old logic when flag disabled
+- **Performance Improvement**: No redundant analysis during code generation
+
+## Previous Features (v0.63)
+
+### Accurate Semantic Call Resolution
 - **Accurate Type Detection**: Actions, Operations, and External calls correctly identified
 - **Context-Aware Resolution**: Parser maintains system/class/function context throughout
 - **Symbol Table Integration**: Direct lookups in actual symbol table data

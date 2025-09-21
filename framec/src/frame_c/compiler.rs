@@ -432,6 +432,14 @@ impl Exe {
                     }
                 }
                 TargetLanguage::Python3 => {
+                    // v0.64: Set semantic resolution flag if environment variable is set
+                    let mut python_config = config.clone();
+                    if std::env::var("FRAME_SEMANTIC_RESOLUTION").is_ok() {
+                        python_config.python.use_semantic_resolution = true;
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG v0.64: Enabling use_semantic_resolution in PythonConfig");
+                        }
+                    }
                     let mut visitor = PythonVisitor::new(
                         semantic_parser.get_arcanum(),
                         // generate_exit_args,
@@ -441,7 +449,7 @@ impl Exe {
                         // generate_transition_state,
                         FRAMEC_VERSION,
                         comments,
-                        config,
+                        python_config,
                     );
                     visitor.run_v2(&frame_module);
                     output = visitor.get_code();
@@ -613,13 +621,21 @@ impl Exe {
             }
             Some(lang) => match lang {
                 TargetLanguage::Python3 => {
+                    // v0.64: Set semantic resolution flag if environment variable is set
+                    let mut python_config = config.clone();
+                    if std::env::var("FRAME_SEMANTIC_RESOLUTION").is_ok() {
+                        python_config.python.use_semantic_resolution = true;
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG v0.64: Enabling use_semantic_resolution in PythonConfig");
+                        }
+                    }
                     let mut visitor = PythonVisitor::new(
                         semantic_parser.get_arcanum(),
                         generate_state_stack,
                         generate_change_state,
                         FRAMEC_VERSION,
                         comments,
-                        config,
+                        python_config,
                     );
                     // Set the source map builder
                     visitor.set_source_map_builder(source_map_builder);

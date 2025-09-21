@@ -4444,6 +4444,179 @@ impl PythonVisitor {
         self.add_code(&format!("{}.{}", class_name, method_name));
         method_call.call_expr_list.accept(self);
     }
+    
+    /// v0.64: Handle calls using semantic resolution (to_string variant)
+    /// This method uses the resolved_type field to generate the correct call syntax
+    /// without needing complex call chain analysis
+    fn handle_call_with_resolved_type_to_string(&mut self, method_call: &CallExprNode, output: &mut String) -> bool {
+        // Check if we have a resolved type
+        let resolved_type = match &method_call.resolved_type {
+            Some(rt) => rt,
+            None => return false, // No resolution, fall back to old logic
+        };
+        
+        // Debug output
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG v0.64: Using resolved type {:?} for {} (to_string)", 
+                resolved_type, method_call.identifier.name.lexeme);
+        }
+        
+        // Generate code based on resolved type
+        match resolved_type {
+            ResolvedCallType::Action(name) => {
+                // Actions need underscore prefix and self (when in system context)
+                if !self.in_standalone_function {
+                    output.push_str("self.");
+                }
+                output.push_str(&format!("_{}", name));
+                method_call.call_expr_list.accept_to_string(self, output);
+                true
+            }
+            ResolvedCallType::Operation(name) => {
+                // Operations need self (when in system context)
+                if !self.in_standalone_function {
+                    output.push_str("self.");
+                }
+                output.push_str(name);
+                method_call.call_expr_list.accept_to_string(self, output);
+                true
+            }
+            ResolvedCallType::SystemOperation { system, operation, is_static } => {
+                // Qualified system operation call
+                if *is_static {
+                    output.push_str(&format!("{}.{}", system, operation));
+                } else {
+                    // Instance method on system - need instance reference
+                    output.push_str(&format!("{}_instance.{}", system, operation));
+                }
+                method_call.call_expr_list.accept_to_string(self, output);
+                true
+            }
+            ResolvedCallType::ClassMethod { class, method, is_static } => {
+                // Class method call
+                if *is_static {
+                    output.push_str(&format!("{}.{}", class, method));
+                } else {
+                    // Instance method - would need instance reference
+                    output.push_str(&format!("{}_instance.{}", class, method));
+                }
+                method_call.call_expr_list.accept_to_string(self, output);
+                true
+            }
+            ResolvedCallType::ModuleFunction { module, function } => {
+                // Module function call
+                output.push_str(&format!("{}.{}", module, function));
+                method_call.call_expr_list.accept_to_string(self, output);
+                true
+            }
+            ResolvedCallType::External(name) => {
+                // External function - no prefix needed
+                // But still need to handle call chain if present
+                if let Some(call_chain) = &method_call.call_chain {
+                    if !call_chain.is_empty() {
+                        for callable in call_chain {
+                            let saved_code = self.code.clone();
+                            self.code.clear();
+                            callable.callable_accept(self);
+                            output.push_str(&self.code);
+                            output.push('.');
+                            self.code = saved_code;
+                        }
+                    }
+                }
+                output.push_str(name);
+                method_call.call_expr_list.accept_to_string(self, output);
+                true
+            }
+        }
+    }
+    
+    /// v0.64: Handle calls using semantic resolution
+    /// This method uses the resolved_type field to generate the correct call syntax
+    /// without needing complex call chain analysis
+    fn handle_call_with_resolved_type(&mut self, method_call: &CallExprNode) -> bool {
+        // Only use resolved types if feature is enabled
+        if !self.config.use_semantic_resolution {
+            return false;
+        }
+        
+        // Check if we have a resolved type
+        let resolved_type = match &method_call.resolved_type {
+            Some(rt) => rt,
+            None => return false, // No resolution, fall back to old logic
+        };
+        
+        // Debug output
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG v0.64: Using resolved type {:?} for {}", 
+                resolved_type, method_call.identifier.name.lexeme);
+        }
+        
+        // Generate code based on resolved type
+        match resolved_type {
+            ResolvedCallType::Action(name) => {
+                // Actions need underscore prefix and self (when in system context)
+                if !self.in_standalone_function {
+                    self.add_code("self.");
+                }
+                self.add_code(&format!("_{}", name));
+                method_call.call_expr_list.accept(self);
+                true
+            }
+            ResolvedCallType::Operation(name) => {
+                // Operations need self (when in system context)
+                if !self.in_standalone_function {
+                    self.add_code("self.");
+                }
+                self.add_code(name);
+                method_call.call_expr_list.accept(self);
+                true
+            }
+            ResolvedCallType::SystemOperation { system, operation, is_static } => {
+                // Qualified system operation call
+                if *is_static {
+                    self.add_code(&format!("{}.{}", system, operation));
+                } else {
+                    // Instance method on system - need instance reference
+                    self.add_code(&format!("{}_instance.{}", system, operation));
+                }
+                method_call.call_expr_list.accept(self);
+                true
+            }
+            ResolvedCallType::ClassMethod { class, method, is_static } => {
+                // Class method call
+                if *is_static {
+                    self.add_code(&format!("{}.{}", class, method));
+                } else {
+                    // Instance method - would need instance reference
+                    self.add_code(&format!("{}_instance.{}", class, method));
+                }
+                method_call.call_expr_list.accept(self);
+                true
+            }
+            ResolvedCallType::ModuleFunction { module, function } => {
+                // Module function call
+                self.add_code(&format!("{}.{}", module, function));
+                method_call.call_expr_list.accept(self);
+                true
+            }
+            ResolvedCallType::External(name) => {
+                // External function - no prefix needed
+                // But still need to handle call chain if present
+                if let Some(call_chain) = &method_call.call_chain {
+                    if !call_chain.is_empty() {
+                        for callable in call_chain {
+                            callable.callable_accept(self);
+                            self.add_code(".");
+                        }
+                    }
+                }
+                self.add_code(name);
+                method_call.call_expr_list.accept(self);
+                true
+            }
+        }
+    }
 }
 
 //* --------------------------------------------------------------------- *//
@@ -6371,6 +6544,12 @@ impl AstVisitor for PythonVisitor {
         // The statement-level visitors (CallStmtNode, CallChainStmtNode) handle the mapping
         // self.add_source_mapping(method_call.identifier.line);
         
+        // v0.64: Try to use semantic resolution first if available
+        if self.handle_call_with_resolved_type(method_call) {
+            self.debug_exit("visit_call_expression_node");
+            return;
+        }
+        
         // Debug: log the call chain to understand what's happening
         if let Some(call_chain) = &method_call.call_chain {
             debug_print!("DEBUG visit_call_expression_node: method={}, call_chain length={}, context={:?}", 
@@ -6531,6 +6710,12 @@ impl AstVisitor for PythonVisitor {
         method_call: &CallExprNode,
         output: &mut String,
     ) {
+        // v0.64: Try to use semantic resolution first if available
+        if self.config.use_semantic_resolution {
+            if self.handle_call_with_resolved_type_to_string(method_call, output) {
+                return;
+            }
+        }
         
         // Handle SelfCall first (for class methods)
         if let CallContextType::SelfCall = &method_call.context {

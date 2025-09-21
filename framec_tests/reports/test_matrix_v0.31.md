@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-20 14:18  
-**Total Tests**: 378  
+**Generated**: 2025-09-20 22:04  
+**Total Tests**: 379  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 378 | 100% |
-| **Transpilation Success** | 375 | 99.2% |
-| **Execution Success** | 375 | 99.2% |
-| **Complete Success** | 378 | 100.0% |
+| **Total Tests** | 379 | 100% |
+| **Transpilation Success** | 376 | 99.2% |
+| **Execution Success** | 376 | 99.2% |
+| **Complete Success** | 379 | 100.0% |
 
 ## v0.31 Features
 
@@ -33,7 +33,7 @@ Multi-file compilation failed: Error: Circular dependency detected: unknown → 
 
  |
 | test_circular_main.frm | ❌ | ❌ | Framec failed with an error:
-Multi-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm → / |
+Multi-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm → / |
 
 ## Test Details
 
@@ -359,6 +359,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_state_vars_transition.frm | ✅ | ✅ | ✅ PASS |
 | test_states_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_static_calls.frm | ✅ | ✅ | ✅ PASS |
+| test_static_comprehensive_v062.frm | ✅ | ✅ | ✅ PASS |
 | test_static_operations.frm | ✅ | ✅ | ✅ PASS |
 | test_string_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_string_slicing_phase1.frm | ✅ | ✅ | ✅ PASS |
