@@ -518,7 +518,7 @@ fn serialize_enum(enum_node: &Rc<RefCell<EnumDeclNode>>) -> SerializableEnum {
 }
 
 /// Serialize a statement
-fn serialize_statement(stmt: &StatementType) -> SerializableStatement {
+fn serialize_statement(_stmt: &StatementType) -> SerializableStatement {
     // For now, create simplified placeholder for all statement types
     // TODO: Implement proper serialization for each statement type
     SerializableStatement::Expression {

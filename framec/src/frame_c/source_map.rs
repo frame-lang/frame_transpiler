@@ -110,6 +110,7 @@ impl SourceMapBuilder {
         );
         
         if !duplicate_exists {
+            // v0.73: Store as 1-based internally, will convert to 0-based on output
             self.mappings.push(SourceMapping {
                 frame_line,
                 python_line,
@@ -175,6 +176,11 @@ impl SourceMapBuilder {
         self.functions.push(info);
     }
     
+    /// Clear all existing mappings (v0.71: used for marker-based replacement)
+    pub fn clear_mappings(&mut self) {
+        self.mappings.clear();
+    }
+    
     pub fn build(&self) -> SourceMap {
         let debug_info = if !self.systems.is_empty() || !self.functions.is_empty() {
             Some(DebugInfo {
@@ -185,12 +191,25 @@ impl SourceMapBuilder {
             None
         };
         
+        // v0.73: Convert 1-based line numbers to 0-based for debugger compatibility
+        // Most debuggers expect 0-based line numbers in source maps
+        let zero_based_mappings: Vec<SourceMapping> = self.mappings.iter().map(|m| {
+            SourceMapping {
+                frame_line: m.frame_line.saturating_sub(1),  // Convert to 0-based
+                python_line: m.python_line.saturating_sub(1), // Convert to 0-based
+                frame_column: m.frame_column,
+                python_column: m.python_column,
+                mapping_type: m.mapping_type.clone(),
+                name: m.name.clone(),
+            }
+        }).collect();
+        
         SourceMap {
             version: "1.0".to_string(),
             generator: format!("framec_v{}", env!("CARGO_PKG_VERSION")),
             source_file: self.source_file.clone(),
             target_file: self.target_file.clone(),
-            mappings: self.mappings.clone(),
+            mappings: zero_based_mappings,
             debug_info,
         }
     }

@@ -12,6 +12,7 @@ use crate::frame_c::ast::DeclOrStmtType::{StmtT, VarDeclT};
 use crate::frame_c::ast::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::source_map::SourceMapBuilder;
+use crate::frame_c::source_mapping::{SourceMappingRegistry, NodeType, process_marked_code};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
@@ -94,6 +95,7 @@ pub struct PythonVisitor {
     source_map_builder: Option<Rc<RefCell<SourceMapBuilder>>>,  // Optional source map builder for debug mode
     current_line: usize,                                       // Current line number in generated code
     in_statement_context: bool,                                // Track if we're visiting expressions within a statement
+    source_mapping_registry: Option<SourceMappingRegistry>,    // v0.73: Marker-based source mapping
     generating_state_vars_init: bool,        // v0.55: Track if we're generating state variable initializers in transition
     current_module_name: Option<String>,     // v0.57: Track current module being generated
     current_module_path: Vec<String>,        // v0.57: Track full module path hierarchy
@@ -197,6 +199,9 @@ impl PythonVisitor {
             source_map_builder: None,
             current_line: 1,
             in_statement_context: false,
+            // v0.73: Always create registry for marker-based source mapping
+            // The registry is lightweight and only used when source_map_builder is set
+            source_mapping_registry: Some(SourceMappingRegistry::new()),
         }
     }
     
@@ -485,13 +490,23 @@ impl PythonVisitor {
         // 2. The system has async runtime (for uniform awaiting)
         let handler_needs_async = evt_handler_node.is_async || self.system_has_async_runtime;
         
-        // v0.69: Use newline_and_map for correct line mapping
-        self.newline_and_map(evt_handler_node.line);
+        // v0.73: Add blank line for visual spacing
+        self.newline();
         
+        // v0.73: Generate the function definition
         if handler_needs_async {
             self.add_code(&format!("async def {}(self, __e, compartment):", handler_name));
         } else {
             self.add_code(&format!("def {}(self, __e, compartment):", handler_name));
+        }
+        
+        // v0.73: Map the event handler line to the function definition
+        // This must happen AFTER the function def is added to get the correct line
+        self.add_source_mapping(evt_handler_node.line);
+        
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG v0.73: Generated marker for Frame line {} in handler {}", 
+                     evt_handler_node.line, handler_name);
         }
         
         self.indent();
@@ -539,6 +554,10 @@ impl PythonVisitor {
         // v0.37: Use system-wide async runtime flag
         let state_needs_async = self.system_has_async_runtime;
         
+        // v0.73: State dispatchers should NOT have source mappings
+        // The state declaration line (e.g., "$Running {") doesn't generate executable code
+        // Only the event handlers inside generate actual Python functions
+        
         self.newline();
         self.add_code("# ----------------------------------------");
         self.newline();
@@ -546,6 +565,8 @@ impl PythonVisitor {
         self.newline();
         self.newline();
         
+        // v0.73: Generate state dispatcher without source mapping
+        // State declarations don't map to executable code
         if state_needs_async {
             self.add_code(&format!(
                 "async def {}(self, __e, compartment):",
@@ -1059,7 +1080,7 @@ impl PythonVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    pub fn get_code(&self) -> String {
+    pub fn get_code(&mut self) -> String {
         if !self.errors.is_empty() {
             let mut error_list = String::new();
             for error in &self.errors {
@@ -1068,7 +1089,37 @@ impl PythonVisitor {
             error_list
         } else {
             // v0.30: Workaround for syntactic parsing corruption - fix "returnel" 
-            self.code.replace("returnel", "return")
+            let code = self.code.replace("returnel", "return");
+            
+            // v0.73: Process markers if registry exists
+            if let Some(ref registry) = self.source_mapping_registry {
+                let (clean_code, mappings) = process_marked_code(&code, registry);
+                
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG v0.73: Marker processing returned {} mappings", mappings.len());
+                }
+                
+                // Update source map builder if it exists
+                if let Some(ref builder) = self.source_map_builder {
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG v0.73: Updating source map builder with marker-based mappings");
+                    }
+                    // v0.73 FIX: Don't clear existing mappings - merge marker mappings with existing ones
+                    // This preserves mappings from add_source_mapping calls for statements
+                    let mut builder_mut = builder.borrow_mut();
+                    for (frame_line, python_line) in mappings {
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG v0.73: Adding marker mapping to builder: Frame {} -> Python {}", 
+                                     frame_line, python_line);
+                        }
+                        builder_mut.add_simple_mapping(frame_line, python_line);
+                    }
+                }
+                
+                clean_code
+            } else {
+                code
+            }
         }
     }
 
@@ -5764,16 +5815,35 @@ impl AstVisitor for PythonVisitor {
         let prev_in_standalone_function = self.in_standalone_function;
         self.in_standalone_function = true;
         
+        // v0.73: Create marker for function if registry exists
+        let marker = if let Some(ref mut registry) = self.source_mapping_registry {
+            let description = format!("Function {}", function_node.name);
+            Some(registry.create_marker(function_node.line, NodeType::FunctionDef, description))
+        } else {
+            None
+        };
+        
         self.newline();
         
-        // Add source mapping for function definition
-        self.add_source_mapping(function_node.line);
-        
-        // v0.35: Generate async def for async functions
-        if function_node.is_async {
-            self.add_code(&format!("async def {}(", function_node.name));
+        // v0.73: Generate function with marker or use old direct mapping
+        if let Some(marker) = marker {
+            // v0.35: Generate async def for async functions with marker
+            if function_node.is_async {
+                self.add_code(&format!("{}async def {}(", marker, function_node.name));
+            } else {
+                self.add_code(&format!("{}def {}(", marker, function_node.name));
+            }
         } else {
-            self.add_code(&format!("def {}(", function_node.name));
+            // No marker system, use old approach
+            // Add source mapping for function definition
+            self.add_source_mapping(function_node.line);
+            
+            // v0.35: Generate async def for async functions
+            if function_node.is_async {
+                self.add_code(&format!("async def {}(", function_node.name));
+            } else {
+                self.add_code(&format!("def {}(", function_node.name));
+            }
         }
 
         self.format_parameter_list(&function_node.params);
@@ -6312,8 +6382,9 @@ impl AstVisitor for PythonVisitor {
             self.newline();
         }
         
-        // Add source mapping for state definition
-        self.add_source_mapping(state_node.line);
+        // v0.73: REMOVED source mapping for state declaration line
+        // State declarations (e.g., "$Running {") don't generate executable Python code
+        // Only event handlers inside states generate actual function definitions
         
         self.current_state_name_opt = Some(state_node.name.clone());
         

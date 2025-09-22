@@ -207,7 +207,7 @@ impl<'a> SemanticCallAnalyzer<'a> {
             if let Some(ref operations) = sys.operations_block_symbol_opt {
                 let ops_symtab = &operations.borrow().symtab_rcref;
                 for (_name, symbol_rcref) in &ops_symtab.borrow().symbols {
-                    if let SymbolType::OperationScope { operation_scope_symbol_rcref } = &*symbol_rcref.borrow() {
+                    if let SymbolType::OperationScope { operation_scope_symbol_rcref: _ } = &*symbol_rcref.borrow() {
                         // For now, assume static if called with System.operation syntax
                         // TODO: Check actual @staticmethod attribute
                         return ResolvedCallType::SystemOperation {
@@ -321,7 +321,7 @@ impl<'a> SemanticCallAnalyzer<'a> {
         false
     }
     
-    fn resolve_module_call(&self, module_name: &str) -> ResolvedCallType {
+    fn _resolve_module_call(&self, module_name: &str) -> ResolvedCallType {
         // This is a simplified version - need to look at the actual chain
         ResolvedCallType::ModuleFunction {
             module: module_name.to_string(),
@@ -394,10 +394,10 @@ impl<'a> SemanticCallAnalyzer<'a> {
         false
     }
     
-    fn is_static_operation(&self, _system_name: &str, operation_name: &str) -> bool {
+    fn _is_static_operation(&self, _system_name: &str, operation_name: &str) -> bool {
         // Check if an operation is marked with @staticmethod
         // This requires looking at the operation's attributes
-        if let Some(op_symbol) = self.arcanum.lookup_operation(operation_name) {
+        if let Some(_op_symbol) = self.arcanum.lookup_operation(operation_name) {
             // Check the operation's AST node for staticmethod attribute
             // TODO: Implement attribute checking
             return false; // Placeholder

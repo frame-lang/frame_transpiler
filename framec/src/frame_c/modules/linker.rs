@@ -108,7 +108,7 @@ impl ModuleLinker {
         
         // Generate code for each module using PythonVisitor
         let config = FrameConfig::default();
-        let framec_version = "Emitted from framec_v0.70.0";
+        let framec_version = "Emitted from framec_v0.74.0";
         
         // Collect all generated code first
         let mut module_codes = Vec::new();
@@ -142,10 +142,10 @@ impl ModuleLinker {
             if let Some(line) = first_code.lines().find(|l| l.starts_with("#Emitted from framec")) {
                 line.to_string()
             } else {
-                "#Emitted from framec_v0.70.0".to_string()
+                "#Emitted from framec_v0.74.0".to_string()
             }
         } else {
-            "#Emitted from framec_v0.70.0".to_string()
+            "#Emitted from framec_v0.74.0".to_string()
         };
         
         // Add version comment
@@ -380,7 +380,7 @@ impl ModuleLinker {
         })?;
         
         let config = FrameConfig::default();
-        let framec_version = "Emitted from framec_v0.70.0";
+        let framec_version = "Emitted from framec_v0.74.0";
         
         // Process each module and generate its Python file
         let modules = std::mem::take(&mut self.modules);
@@ -556,7 +556,7 @@ impl ModuleLinker {
     }
     
     /// Generate common imports needed by all modules
-    fn generate_common_imports(&self) -> String {
+    fn _generate_common_imports(&self) -> String {
         let mut imports = String::new();
         
         // Standard imports for Frame runtime
@@ -567,14 +567,14 @@ impl ModuleLinker {
         
         // Add any Frame-specific runtime classes
         imports.push_str("\n# Frame runtime classes\n");
-        imports.push_str(self.generate_frame_runtime().as_str());
+        imports.push_str(self._generate_frame_runtime().as_str());
         
         imports.push_str("\n");
         imports
     }
     
     /// Generate Frame runtime helper classes
-    fn generate_frame_runtime(&self) -> String {
+    fn _generate_frame_runtime(&self) -> String {
         r#"
 class FrameEvent:
     def __init__(self, message, parameters):
@@ -593,7 +593,7 @@ class FrameCompartment:
     }
     
     /// Build global symbol resolution table
-    fn build_symbol_table(&mut self) -> ModuleResult<()> {
+    fn _build_symbol_table(&mut self) -> ModuleResult<()> {
         self.symbol_table.clear();
         
         for module in &self.modules {
@@ -602,7 +602,7 @@ class FrameCompartment:
             
             // Add module prefix to all symbols
             let module_path_str = module.file_path.to_string_lossy();
-            let _module_prefix = self.get_module_prefix(&module_path_str);
+            let _module_prefix = self._get_module_prefix(&module_path_str);
             
             // TODO: Extract symbols from module and add to global table
             // This will be implemented when we have proper symbol extraction
@@ -612,7 +612,7 @@ class FrameCompartment:
     }
     
     /// Get a unique prefix for a module
-    fn get_module_prefix(&self, module_path: &str) -> String {
+    fn _get_module_prefix(&self, module_path: &str) -> String {
         // Convert path to a valid Python identifier
         module_path
             .replace("/", "_")
@@ -622,7 +622,7 @@ class FrameCompartment:
     }
     
     /// Detect and report symbol conflicts
-    fn check_symbol_conflicts(&self) -> ModuleResult<Vec<String>> {
+    fn _check_symbol_conflicts(&self) -> ModuleResult<Vec<String>> {
         let mut conflicts = Vec::new();
         let symbol_sources: HashMap<String, Vec<String>> = HashMap::new();
         

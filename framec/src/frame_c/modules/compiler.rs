@@ -31,7 +31,7 @@ pub struct MultiFileCompiler {
     linker: ModuleLinker,
     
     /// Configuration
-    config: FrameConfig,
+    _config: FrameConfig,
     
     /// Parsed modules indexed by file path
     parsed_modules: HashMap<PathBuf, CompiledModule>,
@@ -191,7 +191,7 @@ impl MultiFileCompiler {
             dependency_graph,
             module_cache,
             linker,
-            config,
+            _config: config,
             parsed_modules: HashMap::new(),
         })
     }
@@ -209,7 +209,7 @@ impl MultiFileCompiler {
             dependency_graph,
             module_cache,
             linker,
-            config,
+            _config: config,
             parsed_modules: HashMap::new(),
         })
     }

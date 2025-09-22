@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.66)
+# Frame Language Grammar (v0.74)
 
-**Last Updated**: 2025-12-18  
-**Status**: Complete with explicit self/system call syntax, interface method resolution, removed semantic resolution feature flag, enhanced ResolvedCallType with SystemInterface variant, **100% test success rate (379/379 tests passing)**
+**Last Updated**: 2025-12-22  
+**Status**: Complete with source map architecture, marker file linter for validation, comprehensive debugging support, **100% test success rate (379/379 tests passing)**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 

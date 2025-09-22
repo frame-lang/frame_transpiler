@@ -1,4 +1,41 @@
-# Frame v0.67 Development Notes
+# Frame v0.74 Development Notes
+
+## v0.74 Source Map Architecture & Marker Linter - COMPLETE! (2025-12-22)
+
+### 🎉 Comprehensive Source Mapping Documentation and Validation Tools!
+
+Frame v0.74 delivers a complete source mapping solution with architectural documentation and a marker file linter for early detection of mapping issues during compilation.
+
+**Major Achievements:**
+1. **Source Map Architecture Documentation** - Complete guide to the mapping system
+2. **Marker File Linter** - Validates intermediate files for mapping correctness
+3. **Bug #6 Investigation** - Determined to be false positive, v0.73 mappings are correct
+4. **100% Test Success** - All 379 tests continue to pass
+
+### Key Components
+
+**Source Map Architecture (`source_map_architecture.md`):**
+- Detailed explanation of mapping systems (direct vs marker-based)
+- Line tracking implementation details
+- Common pitfalls and solutions
+- Historical bug fixes and resolutions
+- Debugging methodology and tools
+
+**Marker File Linter (`marker_linter.rs`):**
+- Detects duplicate markers
+- Identifies unresolved markers
+- Finds conflicting mappings (Frame line → multiple Python lines)
+- Detects out-of-order mappings
+- Warns about mappings to blank lines
+- Validates critical constructs have mappings
+
+**Benefits:**
+- Catches mapping issues during compilation, not just at debug time
+- Provides clear error messages about what's wrong
+- Comprehensive documentation for maintainers
+- Systematic approach to source map quality
+
+---
 
 ## v0.67 Source Map Bug Fix - COMPLETE! (2025-12-21)
 
