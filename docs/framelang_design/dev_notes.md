@@ -1,4 +1,27 @@
-# Frame v0.74 Development Notes
+# Frame v0.74.1 Development Notes
+
+## v0.74.1 Source Map Bug Fix #7 - COMPLETE! (2025-12-22)
+
+### 🎉 Fixed Event Handler Mapping Off-by-One Error!
+
+Frame v0.74.1 fixes Bug #7 where event handler source mappings were off by one line due to extra blank lines in state node generation. The fix removes unnecessary blank line generation and adds proper offset handling.
+
+**Bug Fixed:**
+1. **Event Handler Mapping** - Frame event handler declarations now correctly map to Python function definitions
+2. **Removed Extra Blank Line** - Eliminated unnecessary newline from state node comment generation
+3. **Added Proper Offset** - Account for visual spacing blank line with +1 offset
+4. **100% Test Success** - All tests pass with corrected mappings
+
+**Technical Details:**
+- Removed the `generate_comment()` call in `visit_state_node()` that always added an extra blank line
+- Added `+1` offset to event handler mapping to account for visual spacing
+- Fixed 0-based to 1-based conversion issue in source_map.rs
+
+**Known Issue:**
+- Current architecture is fragile - uses manual offsets instead of automatic line tracking
+- Next version will implement proper CodeBuilder architecture for robust mapping
+
+---
 
 ## v0.74 Source Map Architecture & Marker Linter - COMPLETE! (2025-12-22)
 

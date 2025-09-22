@@ -212,6 +212,10 @@ impl PythonVisitor {
     
     /// Record a mapping from Frame source line to current Python line
     fn add_source_mapping(&mut self, frame_line: usize) {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: add_source_mapping called - Frame line {} -> Python line {}", 
+                     frame_line, self.current_line);
+        }
         if let Some(ref builder) = self.source_map_builder {
             builder.borrow_mut().add_simple_mapping(frame_line, self.current_line);
         }
@@ -462,6 +466,9 @@ impl PythonVisitor {
     
     /// Generate an individual event handler as a function (v0.36)
     fn generate_event_handler_function(&mut self, state_node: &StateNode, evt_handler_node: &EventHandlerNode) {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Entering generate_event_handler_function - current_line = {}", self.current_line);
+        }
         // For enter/exit events, convert special characters for valid Python function names
         let handler_name = match &evt_handler_node.msg_t {
             MessageType::CustomMessage { message_node } => {
@@ -490,19 +497,26 @@ impl PythonVisitor {
         // 2. The system has async runtime (for uniform awaiting)
         let handler_needs_async = evt_handler_node.is_async || self.system_has_async_runtime;
         
-        // v0.73: Add blank line for visual spacing
+        // v0.74.1: Add blank line for visual spacing
         self.newline();
         
-        // v0.73: Generate the function definition
+        // v0.74.1: Debug - what is current_line after newline?
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG v0.74.1: After newline, current_line = {}", self.current_line);
+        }
+        
+        // v0.74.1: After newline(), current_line has been incremented
+        // The blank line is at current_line-1, function will be at current_line
+        // BUT actually the function ends up at current_line+1 due to something else
+        // So we need to add 1 to the mapping
+        self.add_source_mapping_with_offset(evt_handler_node.line, 1);
+        
+        // v0.74.1: Generate the function definition on the current line
         if handler_needs_async {
             self.add_code(&format!("async def {}(self, __e, compartment):", handler_name));
         } else {
             self.add_code(&format!("def {}(self, __e, compartment):", handler_name));
         }
-        
-        // v0.73: Map the event handler line to the function definition
-        // This must happen AFTER the function def is added to get the correct line
-        self.add_source_mapping(evt_handler_node.line);
         
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG v0.73: Generated marker for Frame line {} in handler {}", 
@@ -2585,7 +2599,11 @@ impl PythonVisitor {
             self.pending_assert = false;
         } else {
             self.code.push_str(&*format!("\n{}", self.dent()));
+            let old_line = self.current_line;
             self.current_line += 1;  // Track line numbers for source maps
+            if std::env::var("FRAME_TRANSPILER_DEBUG_LINES").is_ok() {
+                eprintln!("DEBUG: newline() incremented current_line from {} to {}", old_line, self.current_line);
+            }
         }
     }
 
@@ -6378,9 +6396,11 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_state_node(&mut self, state_node: &StateNode) {
-        if self.generate_comment(state_node.line) {
-            self.newline();
-        }
+        // v0.74.1: Skip the comment generation that adds an extra newline
+        // The comment system always returns true and adds a blank line we don't need
+        // if self.generate_comment(state_node.line) {
+        //     self.newline();
+        // }
         
         // v0.73: REMOVED source mapping for state declaration line
         // State declarations (e.g., "$Running {") don't generate executable Python code

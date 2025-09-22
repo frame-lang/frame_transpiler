@@ -108,7 +108,7 @@ impl ModuleLinker {
         
         // Generate code for each module using PythonVisitor
         let config = FrameConfig::default();
-        let framec_version = "Emitted from framec_v0.74.0";
+        let framec_version = "Emitted from framec_v0.74.1";
         
         // Collect all generated code first
         let mut module_codes = Vec::new();
@@ -142,10 +142,10 @@ impl ModuleLinker {
             if let Some(line) = first_code.lines().find(|l| l.starts_with("#Emitted from framec")) {
                 line.to_string()
             } else {
-                "#Emitted from framec_v0.74.0".to_string()
+                "#Emitted from framec_v0.74.1".to_string()
             }
         } else {
-            "#Emitted from framec_v0.74.0".to_string()
+            "#Emitted from framec_v0.74.1".to_string()
         };
         
         // Add version comment
@@ -380,7 +380,7 @@ impl ModuleLinker {
         })?;
         
         let config = FrameConfig::default();
-        let framec_version = "Emitted from framec_v0.74.0";
+        let framec_version = "Emitted from framec_v0.74.1";
         
         // Process each module and generate its Python file
         let modules = std::mem::take(&mut self.modules);

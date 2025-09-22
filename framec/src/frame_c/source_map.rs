@@ -182,6 +182,13 @@ impl SourceMapBuilder {
     }
     
     pub fn build(&self) -> SourceMap {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: SourceMapBuilder::build() - raw mappings before conversion:");
+            for mapping in &self.mappings {
+                eprintln!("  Frame {} -> Python {}", mapping.frame_line, mapping.python_line);
+            }
+        }
+        
         let debug_info = if !self.systems.is_empty() || !self.functions.is_empty() {
             Some(DebugInfo {
                 systems: self.systems.clone(),
@@ -191,18 +198,10 @@ impl SourceMapBuilder {
             None
         };
         
-        // v0.73: Convert 1-based line numbers to 0-based for debugger compatibility
-        // Most debuggers expect 0-based line numbers in source maps
-        let zero_based_mappings: Vec<SourceMapping> = self.mappings.iter().map(|m| {
-            SourceMapping {
-                frame_line: m.frame_line.saturating_sub(1),  // Convert to 0-based
-                python_line: m.python_line.saturating_sub(1), // Convert to 0-based
-                frame_column: m.frame_column,
-                python_column: m.python_column,
-                mapping_type: m.mapping_type.clone(),
-                name: m.name.clone(),
-            }
-        }).collect();
+        // v0.74.1: Keep 1-based line numbers for human-readable output
+        // The JSON output is primarily for debugging, not for actual debuggers
+        // If we need 0-based for real debuggers later, we can add a flag
+        let zero_based_mappings: Vec<SourceMapping> = self.mappings.clone();
         
         SourceMap {
             version: "1.0".to_string(),
