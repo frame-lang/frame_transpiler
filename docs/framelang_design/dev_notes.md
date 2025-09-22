@@ -1,16 +1,17 @@
 # Frame v0.75 Development Notes
 
-## v0.75 CodeBuilder Architecture Foundation - IN PROGRESS (2025-12-22)
+## v0.75 CodeBuilder Architecture - COMPLETE! (2025-12-22)
 
-### 🚧 Implementing Robust Line-Aware Code Generation!
+### ✅ Robust Line-Aware Code Generation Architecture!
 
-Frame v0.75 introduces the CodeBuilder architecture, a complete solution for automatic line tracking and source mapping that eliminates manual offset adjustments and fragile workarounds.
+Frame v0.75 successfully introduces the CodeBuilder architecture, providing automatic character-level tracking and source mapping that completely eliminates manual offset adjustments and fragile workarounds.
 
-**Work in Progress:**
-1. **CodeBuilder Module** - Core line-aware code builder with automatic tracking
-2. **PythonVisitorV2** - New visitor using CodeBuilder (not yet complete)
-3. **Automatic Mapping** - Every character tracked, mappings maintained automatically
-4. **Fragment Composition** - Support for non-linear code generation
+**Completed Features:**
+1. **CodeBuilder Module** - Core line-aware code builder with automatic tracking ✅
+2. **PythonVisitorV2** - New visitor using CodeBuilder (fully functional) ✅
+3. **Automatic Mapping** - Every character tracked, mappings maintained automatically ✅
+4. **Fragment Composition** - Support for non-linear code generation ✅
+5. **Default Visitor** - V2 is now the default Python visitor ✅
 
 **Architecture Benefits:**
 - No more manual `current_line` tracking
@@ -18,12 +19,20 @@ Frame v0.75 introduces the CodeBuilder architecture, a complete solution for aut
 - Composable code fragments for non-linear generation
 - Perfect source mappings without offsets
 - Support for child builders and merging
+- Character-level precision for all tracking
 
-**Next Steps:**
-- Complete PythonVisitorV2 implementation
-- Migrate from old visitor to new
-- Remove all manual offset workarounds
-- Add comprehensive testing
+**Implementation Details:**
+- `CodeBuilder` tracks position automatically as characters are written
+- `map_next()` method for deferred mapping (next write gets the mapping)
+- `add_source_mapping()` for immediate mapping
+- Child builders for complex nested generation
+- V1 visitor remains available via `USE_PYTHON_V1` environment variable
+
+**Testing:**
+- Simple functions work correctly
+- Systems with state machines generate properly
+- Binary expressions, function calls, return statements all working
+- Complex Frame programs transpile successfully
 
 ---
 

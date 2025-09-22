@@ -425,19 +425,37 @@ impl Exe {
                     }
                 }
                 TargetLanguage::Python3 => {
-                    let mut visitor = PythonVisitor::new(
-                        semantic_parser.get_arcanum(),
-                        // generate_exit_args,
-                        // generate_enter_args || generate_state_context,
-                        generate_state_stack,
-                        generate_change_state,
-                        // generate_transition_state,
-                        FRAMEC_VERSION,
-                        comments,
-                        config,
-                    );
-                    visitor.run_v2(&frame_module);
-                    output = visitor.get_code();
+                    // V2 is now the default, use USE_PYTHON_V1 to fallback to old visitor
+                    if std::env::var("USE_PYTHON_V1").is_ok() {
+                        // Use old visitor for backward compatibility testing
+                        let mut visitor = PythonVisitor::new(
+                            semantic_parser.get_arcanum(),
+                            // generate_exit_args,
+                            // generate_enter_args || generate_state_context,
+                            generate_state_stack,
+                            generate_change_state,
+                            // generate_transition_state,
+                            FRAMEC_VERSION,
+                            comments,
+                            config,
+                        );
+                        visitor.run_v2(&frame_module);
+                        output = visitor.get_code();
+                    } else {
+                        // Use new V2 visitor with CodeBuilder architecture
+                        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
+                        use crate::frame_c::symbol_table::SymbolConfig;
+                        
+                        let arcanum = semantic_parser.get_arcanum();
+                        let arcanum_vec = vec![arcanum];
+                        let mut visitor = PythonVisitorV2::new(
+                            arcanum_vec,
+                            SymbolConfig::new(),
+                            config.clone(),
+                            comments,
+                        );
+                        output = visitor.run(&frame_module);
+                    }
                 }
             },
         }
@@ -599,18 +617,39 @@ impl Exe {
             }
             Some(lang) => match lang {
                 TargetLanguage::Python3 => {
-                    let mut visitor = PythonVisitor::new(
-                        semantic_parser.get_arcanum(),
-                        generate_state_stack,
-                        generate_change_state,
-                        FRAMEC_VERSION,
-                        comments,
-                        config,
-                    );
-                    // Set the source map builder
-                    visitor.set_source_map_builder(source_map_builder);
-                    visitor.run_v2(&frame_module);
-                    output = visitor.get_code();
+                    // V2 is now the default with proper CodeBuilder source mapping
+                    if std::env::var("USE_PYTHON_V1").is_ok() {
+                        // Use old visitor if explicitly requested
+                        let mut visitor = PythonVisitor::new(
+                            semantic_parser.get_arcanum(),
+                            generate_state_stack,
+                            generate_change_state,
+                            FRAMEC_VERSION,
+                            comments,
+                            config,
+                        );
+                        // Set the source map builder
+                        visitor.set_source_map_builder(source_map_builder);
+                        visitor.run_v2(&frame_module);
+                        output = visitor.get_code();
+                    } else {
+                        // Use new V2 visitor with built-in CodeBuilder source mapping
+                        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
+                        use crate::frame_c::symbol_table::SymbolConfig;
+                        
+                        let arcanum = semantic_parser.get_arcanum();
+                        let arcanum_vec = vec![arcanum];
+                        let mut visitor = PythonVisitorV2::new(
+                            arcanum_vec,
+                            SymbolConfig::new(),
+                            config.clone(),
+                            comments,
+                        );
+                        // Set the external source map builder for --debug-output integration
+                        visitor.set_source_map_builder(source_map_builder);
+                        output = visitor.run(&frame_module);
+                        // V2 has integrated source mapping via CodeBuilder
+                    }
                 }
                 _ => {
                     let run_error = RunError::new(USAGE, "Source maps only supported for Python target.");

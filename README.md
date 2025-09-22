@@ -7,14 +7,16 @@ This project contains the code for building the Frame Language Transpiler - the 
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-12-22
 
-## Current Features (v0.75) 🚧 IN PROGRESS
+## Current Features (v0.75) ✅ COMPLETE
 
-### CodeBuilder Architecture Foundation (NEW in v0.75)
+### CodeBuilder Architecture with PythonVisitorV2 (NEW in v0.75)
 - **Line-Aware Code Generation**: Automatic tracking of every character and line
-- **No Manual Offsets**: Eliminates fragile +1/-1 adjustments
-- **Fragment Composition**: Support for non-linear code generation
+- **No Manual Offsets**: Eliminates all fragile +1/-1 adjustments
+- **Fragment Composition**: Full support for non-linear code generation
 - **Perfect Mappings**: Automatic source mapping maintenance
-- **Work in Progress**: PythonVisitorV2 implementation using CodeBuilder
+- **PythonVisitorV2 Default**: New visitor with CodeBuilder is now the default
+- **Legacy Support**: Original visitor available via USE_PYTHON_V1 environment variable
+- **100% Backward Compatible**: Identical output with robust architecture
 
 ## Previous Features (v0.74.1) ✅ COMPLETE
 

@@ -40,7 +40,7 @@ impl TryFrom<String> for TargetLanguage {
 
 pub mod graphviz_visitor;
 pub mod python_visitor;
-// pub mod python_visitor_v2;  // v0.75: TODO - Complete implementation using CodeBuilder
+pub mod python_visitor_v2;  // v0.75: Complete implementation using CodeBuilder
 
 use super::ast::*;
 
