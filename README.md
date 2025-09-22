@@ -2,12 +2,21 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-**Current Version**: v0.74.1  
+**Current Version**: v0.75.0  
 **Test Success Rate**: 100% (379/379 tests passing)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-12-22
 
-## Current Features (v0.74.1) ✅ COMPLETE
+## Current Features (v0.75) 🚧 IN PROGRESS
+
+### CodeBuilder Architecture Foundation (NEW in v0.75)
+- **Line-Aware Code Generation**: Automatic tracking of every character and line
+- **No Manual Offsets**: Eliminates fragile +1/-1 adjustments
+- **Fragment Composition**: Support for non-linear code generation
+- **Perfect Mappings**: Automatic source mapping maintenance
+- **Work in Progress**: PythonVisitorV2 implementation using CodeBuilder
+
+## Previous Features (v0.74.1) ✅ COMPLETE
 
 ### Source Map Bug Fix #7 (NEW in v0.74.1)
 - **Event Handler Mapping Fix**: Corrected off-by-one error in event handler source mappings

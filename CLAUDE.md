@@ -39,7 +39,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.74.1`  
+**Version**: `v0.75.0`  
 **Status**: ✅ **100% TEST SUCCESS RATE** - Source Map Architecture & Validation Tools Complete
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)

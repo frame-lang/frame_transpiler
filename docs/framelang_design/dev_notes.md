@@ -1,3 +1,32 @@
+# Frame v0.75 Development Notes
+
+## v0.75 CodeBuilder Architecture Foundation - IN PROGRESS (2025-12-22)
+
+### 🚧 Implementing Robust Line-Aware Code Generation!
+
+Frame v0.75 introduces the CodeBuilder architecture, a complete solution for automatic line tracking and source mapping that eliminates manual offset adjustments and fragile workarounds.
+
+**Work in Progress:**
+1. **CodeBuilder Module** - Core line-aware code builder with automatic tracking
+2. **PythonVisitorV2** - New visitor using CodeBuilder (not yet complete)
+3. **Automatic Mapping** - Every character tracked, mappings maintained automatically
+4. **Fragment Composition** - Support for non-linear code generation
+
+**Architecture Benefits:**
+- No more manual `current_line` tracking
+- Automatic handling of newlines in strings
+- Composable code fragments for non-linear generation
+- Perfect source mappings without offsets
+- Support for child builders and merging
+
+**Next Steps:**
+- Complete PythonVisitorV2 implementation
+- Migrate from old visitor to new
+- Remove all manual offset workarounds
+- Add comprehensive testing
+
+---
+
 # Frame v0.74.1 Development Notes
 
 ## v0.74.1 Source Map Bug Fix #7 - COMPLETE! (2025-12-22)

@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.74.1)
+# Frame Language Grammar (v0.75)
 
 **Last Updated**: 2025-12-22  
-**Status**: Complete with source map bug fixes, improved event handler mapping accuracy, comprehensive debugging support, **100% test success rate (379/379 tests passing)**
+**Status**: Implementing CodeBuilder architecture for robust line-aware code generation, **100% test success rate (379/379 tests passing)**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 

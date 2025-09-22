@@ -1,6 +1,7 @@
 mod ast;
 pub mod ast_serialize; // AST serialization for debugging (v0.60)
 pub mod cli;
+pub mod code_builder; // Robust line-aware code generation (v0.75)
 pub mod compiler;
 pub mod config;     // Project configuration system (v0.58)
 pub mod modules;     // Multi-file module system (v0.57)
