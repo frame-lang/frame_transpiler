@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-23T07:15:30.483093",
+  "timestamp": "2025-09-23T07:43:39.250846",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 376,
-    "execute_success": 296,
-    "complete_success": 299,
-    "success_rate": "78.9%"
+    "execute_success": 310,
+    "complete_success": 313,
+    "success_rate": "82.6%"
   },
   "results": [
     {
@@ -61,7 +61,7 @@
         "error_line": null,
         "warning_message": null
       },
-      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /"
+      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /"
     },
     {
       "file": "test_multifile_calculator.frm",
@@ -346,10 +346,10 @@
     {
       "file": "test_async_stress_fixed.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "Frame v0.37 Async Stress Test Suite - Fixed\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------",
-      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress_fixed.py:150: RuntimeWarning: coroutine 'AsyncDataPipeline.__kernel' was never awaited\n  self.__ke"
+      "error": null
     },
     {
       "file": "test_async_stress_simple.frm",
@@ -373,15 +373,15 @@
       "execute": false,
       "negative_test": false,
       "output": "Starting proper async with validation...\n======================================================================\nFrame v0.37 Async With Statement Tests - PROPER VALIDATION\n=============================",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_with_proper.py\", line 276, in <module>\n    main()\n    ~~~~^^\n "
+      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_with_proper.py:157: RuntimeWarning: coroutine 'AsyncResourceManager.__kernel' was never awaited\n  self.__"
     },
     {
       "file": "test_async_with_real.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "Starting REAL async with validation (requires internet)...\n============================================================\nFrame v0.37 Async With - REAL TESTS (No Mocking!)\n==============================",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_with_real.py\", line 208, in <module>\n    main()\n    ~~~~^^\n  F"
+      "error": null
     },
     {
       "file": "test_backtick_removal.frm",
@@ -549,7 +549,7 @@
       "execute": false,
       "negative_test": false,
       "output": "=== Module Level (main function) ===\n=== Function Scope ===\nfunction_variable\nif_block_variable\nnested_if_variable\nloop_variable\nLoop iteration\nloop_variable\nLoop iteration\nloop_variable\nLoop iteratio",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_comprehensive_scope_validation.py\", line 251, in <module>\n    main()"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_comprehensive_scope_validation.py\", line 252, in <module>\n    main()"
     },
     {
       "file": "test_comprehensive_v0_20_features.frm",
@@ -557,7 +557,7 @@
       "execute": false,
       "negative_test": false,
       "output": "=== Frame v0.20 Comprehensive Feature Test ===\nProcessor ready in Idle state\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_comprehensive_v0_20_features.py\", line 258, in <module>\n    main()\n "
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_comprehensive_v0_20_features.py\", line 262, in <module>\n    main()\n "
     },
     {
       "file": "test_const.frm",
@@ -637,7 +637,7 @@
       "execute": false,
       "negative_test": false,
       "output": "=== Starting System Debug Test ===\n  [Red.$enter] Light is now RED - STOP\nInitial state: should be Red\n    [Action] Transitioning: Red -> Green\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_debug_system.py\", line 398, in <module>\n    main()\n    ~~~~^^\n  File"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_debug_system.py\", line 402, in <module>\n    main()\n    ~~~~^^\n  File"
     },
     {
       "file": "test_debug_systems.frm",
@@ -762,10 +762,10 @@
     {
       "file": "test_dict_in_system.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Testing dictionary in system...\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_dict_in_system.py\", line 118, in <module>\n    main()\n    ~~~~^^\n  Fi"
+      "output": "Testing dictionary in system...\nReceived config: {'mode': 'production', 'debug': False}\nConfigure response: {'status': 'ok', 'data': {'mode': 'production', 'debug': False}}\nSettings: {'mode': 'test', ",
+      "error": null
     },
     {
       "file": "test_dict_lambda.frm",
@@ -797,7 +797,7 @@
       "execute": false,
       "negative_test": false,
       "output": "Testing dictionary literals...\nEmpty dict: {}\nPerson dict: {'name': 'Alice', 'age': '30', 'city': 'NYC'}\nNumbers dict: {1: 'one', 2: 'two', 3: 'three'}\nMixed dict: {'key1': 100, 'key2': 200, 42: 'answ",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_dict_literal.py\", line 146, in <module>\n    main()\n    ~~~~^^\n  File"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_dict_literal.py\", line 147, in <module>\n    main()\n    ~~~~^^\n  File"
     },
     {
       "file": "test_dict_merge.frm",
@@ -981,15 +981,15 @@
       "execute": false,
       "negative_test": false,
       "output": "=== Menu Options ===\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enum_iteration.py\", line 206, in <module>\n    main()\n    ~~~~^^\n  Fi"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enum_iteration.py\", line 207, in <module>\n    main()\n    ~~~~^^\n  Fi"
     },
     {
       "file": "test_enum_module_scope.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Global status: Active\nPriority value: 10\nEnvironment: prod\nAll environments:\n  - Development: dev\n  - Staging: staging\n  - Production: prod\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enum_module_scope.py\", line 149, in <module>\n    main()\n    ~~~~^^\n "
+      "output": "Global status: Active\nPriority value: 10\nEnvironment: prod\nAll environments:\n  - Development: dev\n  - Staging: staging\n  - Production: prod\nSystem checking status: Active\nStatus is ACTIVE\nSetting prio",
+      "error": null
     },
     {
       "file": "test_enum_string_values.frm",
@@ -1029,7 +1029,7 @@
       "execute": false,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_function.py\", line 136, in <module>\n    main()\n    ~~~~^^\n"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_function.py\", line 137, in <module>\n    main()\n    ~~~~^^\n"
     },
     {
       "file": "test_enums_doc_grocery_demo.frm",
@@ -1108,8 +1108,8 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_explicit_self_system_comprehensive.py\", line 230, in <module>\n    ma"
+      "output": "Logging task: task1\nPublic operation\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_explicit_self_system_comprehensive.py\", line 233, in <module>\n    ma"
     },
     {
       "file": "test_exponent_operator.frm",
@@ -1306,10 +1306,10 @@
     {
       "file": "test_functions_basic.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_functions_basic.py\", line 122, in <module>\n    main()\n    ~~~~^^\n  F"
+      "output": "5 + 3 = 8\n42 is: double digit\n",
+      "error": null
     },
     {
       "file": "test_functions_event_handler.frm",
@@ -1317,7 +1317,7 @@
       "execute": false,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_functions_event_handler.py\", line 112, in <module>\n    main()\n    ~~"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_functions_event_handler.py\", line 113, in <module>\n    main()\n    ~~"
     },
     {
       "file": "test_functions_simple.frm",
@@ -1348,8 +1348,8 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": "State: idle\nStarting work\nEntered working state\nState: working\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_handlers_simple.py\", line 156, in <module>\n    main()\n    ~~~~^^\n  F"
+      "output": "State: idle\nStarting work\nEntered working state\nState: working\nDoing work with: task1\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_handlers_simple.py\", line 157, in <module>\n    main()\n    ~~~~^^\n  F"
     },
     {
       "file": "test_hierarchy.frm",
@@ -1370,10 +1370,10 @@
     {
       "file": "test_if_elif_returns.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "=== Grade System Tests ===\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_if_elif_returns.py\", line 169, in <module>\n    main()\n    ~~~~^^\n  F"
+      "output": "=== Grade System Tests ===\nScore 95 -> Grade: A+\nScore 85 -> Grade: B\nScore 75 -> Grade: C\nScore 65 -> Grade: D\nScore 55 -> Grade: F\nScore 5 -> Grade: F\nScore 105 -> Grade: Invalid: score too high\n\n==",
+      "error": null
     },
     {
       "file": "test_if_simple.frm",
@@ -1506,10 +1506,10 @@
     {
       "file": "test_interface_type_annotation.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_interface_type_annotation.py\", line 98, in <module>\n    main()\n    ~"
+      "output": "hello\n",
+      "error": null
     },
     {
       "file": "test_json_file.frm",
@@ -1826,10 +1826,10 @@
     {
       "file": "test_mixed_returns.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_mixed_returns.py\", line 132, in <module>\n    main()\n    ~~~~^^\n  Fil"
+      "output": "Empty: empty input\nCategory from action: short\nhello: short text: hello\nCategory from action: caps\nHELLO WORLD: LOUD TEXT: HELLO WORLD\nCategory from action: normal\nFrame v0.20 is great!: normal text: ",
+      "error": null
     },
     {
       "file": "test_mixed_system_states.frm",
@@ -1893,7 +1893,7 @@
       "execute": false,
       "negative_test": false,
       "output": "\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n\n=== test_read_access ===\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 369, in <module>\n    main()\n   "
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 370, in <module>\n    main()\n   "
     },
     {
       "file": "test_module_scope_variables.frm",
@@ -1901,7 +1901,7 @@
       "execute": false,
       "negative_test": false,
       "output": "PI = None\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_variables.py\", line 121, in <module>\n    main()\n    ~~~"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_variables.py\", line 122, in <module>\n    main()\n    ~~~"
     },
     {
       "file": "test_module_syntax.frm",
@@ -2050,10 +2050,10 @@
     {
       "file": "test_none_keyword.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "x is None\nFunction returned None\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_none_keyword.py\", line 128, in <module>\n    main()\n    ~~~~^^\n  File"
+      "output": "x is None\nFunction returned None\nReceived None\nReceived value: 42\nSystem returned None\nTest complete\n",
+      "error": null
     },
     {
       "file": "test_not_in_operator.frm",
@@ -2218,18 +2218,18 @@
     {
       "file": "test_return_assign_actions.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_return_assign_actions.py\", line 113, in <module>\n    main()\n    ~~~~"
+      "output": "Action returned: validation_passed\nInterface return: success: processed test data\n",
+      "error": null
     },
     {
       "file": "test_return_assign_event_handler.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Default value: default_value\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_return_assign_event_handler.py\", line 133, in <module>\n    main()\n  "
+      "output": "Default value: default_value\nCalculated sum: 15\n10 + 5 = 15\n10 / 0 = error: division by zero\n10 / 2 = 5.0\n",
+      "error": null
     },
     {
       "file": "test_safe_dict_parsing.frm",
@@ -2418,10 +2418,10 @@
     {
       "file": "test_simple_seat.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "=== Simple Seat Test ===\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_simple_seat.py\", line 115, in <module>\n    main()\n    ~~~~^^\n  File "
+      "output": "=== Simple Seat Test ===\nSelected seat: A1\nSeat is now selected\n",
+      "error": null
     },
     {
       "file": "test_simple_system.frm",
@@ -2541,7 +2541,7 @@
       "execute": false,
       "negative_test": false,
       "output": "Configured with range: <built-in function min> to <built-in function max>\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_state_parameters.py\", line 164, in <module>\n    main()\n    ~~~~^^\n  "
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_state_parameters.py\", line 167, in <module>\n    main()\n    ~~~~^^\n  "
     },
     {
       "file": "test_state_parameters_simple.frm",
@@ -2788,8 +2788,8 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_type_annotation_fix.py\", line 99, in <module>\n    main()\n    ~~~~^^\n"
+      "output": "hello\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_type_annotation_fix.py\", line 100, in <module>\n    main()\n    ~~~~^^"
     },
     {
       "file": "test_type_annotations.frm",
@@ -3013,7 +3013,7 @@
       "execute": false,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_validation_comprehensive.py\", line 288, in <module>\n    main()\n    ~"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_validation_comprehensive.py\", line 289, in <module>\n    main()\n    ~"
     },
     {
       "file": "test_validation_with_main.frm",
@@ -3026,18 +3026,18 @@
     {
       "file": "test_with_statement.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "Testing with statement support in Frame v0.37\n==================================================\n\n1. Testing regular with statement:\nFile content: This is a test file for Frame with statement testing.",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_with_statement.py\", line 259, in <module>\n    main()\n    ~~~~^^\n  Fi"
+      "error": null
     },
     {
       "file": "test_with_statement_basic.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "==================================================\nTesting with statement support in Frame v0.37\n==================================================\n\nTest 1: Basic with statement\n----------------------",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_with_statement_basic.py\", line 216, in <module>\n    main()\n    ~~~~^"
+      "error": null
     },
     {
       "file": "test_working_features.frm",

@@ -11,7 +11,7 @@ use crate::frame_c::source_map::SourceMapBuilder;
 use crate::frame_c::symbol_table::{SymbolConfig, Arcanum, SymbolType};
 use crate::frame_c::visitors::AstVisitor;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -36,6 +36,7 @@ pub struct PythonVisitorV2 {
     // System metadata
     system_name: String,
     system_has_async_runtime: bool,
+    interface_methods: HashMap<String, Vec<String>>, // method_name -> parameter_names
     
     // Import tracking
     imports: Vec<String>,
@@ -65,6 +66,7 @@ impl PythonVisitorV2 {
             current_event_ret_type: String::new(),
             system_name: String::new(),
             system_has_async_runtime: false,
+            interface_methods: HashMap::new(),
             imports: Vec::new(),
             used_modules: HashSet::new(),
             global_vars: HashSet::new(),
@@ -349,6 +351,21 @@ impl AstVisitor for PythonVisitorV2 {
     fn visit_system_node(&mut self, system_node: &SystemNode) {
         self.system_name = system_node.name.clone();
         self.system_has_async_runtime = self.check_system_async(system_node);
+        
+        // Store interface method parameters for later use in event handlers
+        if let Some(interface) = &system_node.interface_block_node_opt {
+            for method in &interface.interface_methods {
+                let method_borrow = method.borrow();
+                let param_names = if let Some(params) = &method_borrow.params {
+                    params.iter()
+                        .map(|p| p.param_name.clone())
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+                self.interface_methods.insert(method_borrow.name.clone(), param_names);
+            }
+        }
         
         // Generate class
         self.builder.write_class(&system_node.name, None, Some(system_node.line));
@@ -1046,16 +1063,34 @@ impl PythonVisitorV2 {
         );
         
         // Extract parameters from event if present
-        // TODO: The parser doesn't properly populate event_symbol_params_opt
-        // This is a known issue that needs to be fixed in the parser/semantic analyzer
+        // First try the event_symbol_params_opt (which the parser should populate but doesn't)
         let event_symbol = evt_handler.event_symbol_rcref.borrow();
-        if let Some(params) = &event_symbol.event_symbol_params_opt {
+        let params_extracted = if let Some(params) = &event_symbol.event_symbol_params_opt {
             if !params.is_empty() {
                 for param in params {
                     self.builder.writeln(&format!(
                         "{} = __e._parameters.get(\"{}\") if __e._parameters else None",
                         param.name, param.name
                     ));
+                }
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        
+        // If no parameters were extracted from event_symbol, try to get them from interface method
+        if !params_extracted {
+            if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
+                if let Some(param_names) = self.interface_methods.get(&message_node.name) {
+                    for param_name in param_names {
+                        self.builder.writeln(&format!(
+                            "{} = __e._parameters.get(\"{}\") if __e._parameters else None",
+                            param_name, param_name
+                        ));
+                    }
                 }
             }
         }
@@ -2226,6 +2261,39 @@ impl PythonVisitorV2 {
             is_async,
             evt_handler.line
         );
+        
+        // Extract parameters from event if present
+        // First try the event_symbol_params_opt (which the parser should populate but doesn't)
+        let event_symbol = evt_handler.event_symbol_rcref.borrow();
+        let params_extracted = if let Some(params) = &event_symbol.event_symbol_params_opt {
+            if !params.is_empty() {
+                for param in params {
+                    self.builder.writeln(&format!(
+                        "{} = __e._parameters.get(\"{}\") if __e._parameters else None",
+                        param.name, param.name
+                    ));
+                }
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        
+        // If no parameters were extracted from event_symbol, try to get them from interface method
+        if !params_extracted {
+            if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
+                if let Some(param_names) = self.interface_methods.get(&message_node.name) {
+                    for param_name in param_names {
+                        self.builder.writeln(&format!(
+                            "{} = __e._parameters.get(\"{}\") if __e._parameters else None",
+                            param_name, param_name
+                        ));
+                    }
+                }
+            }
+        }
         
         // Visit statements in the event handler
         for stmt in &evt_handler.statements {
