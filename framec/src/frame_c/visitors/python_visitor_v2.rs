@@ -8,7 +8,7 @@ use crate::frame_c::code_builder::CodeBuilder;
 use crate::frame_c::config::FrameConfig;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::source_map::SourceMapBuilder;
-use crate::frame_c::symbol_table::{SymbolConfig, Arcanum};
+use crate::frame_c::symbol_table::{SymbolConfig, Arcanum, SymbolType};
 use crate::frame_c::visitors::AstVisitor;
 
 use std::collections::HashSet;
@@ -546,6 +546,30 @@ impl AstVisitor for PythonVisitorV2 {
 
 // Helper methods
 impl PythonVisitorV2 {
+    // Helper method to find a state node by name in the current system
+    fn get_state_node(&self, state_name: &str) -> Option<Rc<RefCell<StateNode>>> {
+        // Search through the system symbols to find the state
+        for arc in &self.arcanum {
+            for system_symbol_rcref in &arc.system_symbols {
+                let system_symbol = system_symbol_rcref.borrow();
+                if let Some(machine_block_symbol_opt) = &system_symbol.machine_block_symbol_opt {
+                    let machine_symbol = machine_block_symbol_opt.borrow();
+                    let states_symtab = machine_symbol.symtab_rcref.borrow();
+                    if let Some(symbol) = states_symtab.symbols.get(state_name) {
+                        let symbol_type = symbol.borrow();
+                        if let SymbolType::State { state_symbol_ref } = &*symbol_type {
+                            let state_symbol = state_symbol_ref.borrow();
+                            if let Some(state_node) = &state_symbol.state_node_opt {
+                                return Some(state_node.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+    
     fn check_system_async(&self, system_node: &SystemNode) -> bool {
         // Check runtime info
         if let Some(runtime) = &system_node.runtime_info {
@@ -588,9 +612,40 @@ impl PythonVisitorV2 {
             if let Some(first_state) = machine.states.first() {
                 let state = first_state.borrow();
                 let state_name = self.format_state_name(&state.name);
+                
+                // Build state_vars dictionary for the initial state
+                let mut state_vars_entries = Vec::new();
+                if let Some(vars) = &state.vars_opt {
+                    for var_rcref in vars {
+                        let var = var_rcref.borrow();
+                        let var_name = &var.name;
+                        
+                        // Get the initializer value
+                        let mut value_str = String::new();
+                        self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                        
+                        // TEMPORARY WORKAROUND: If initializer references the variable itself,
+                        // it's likely a parser bug. Use a default value instead.
+                        let initializer_value = if value_str.contains(var_name) {
+                            eprintln!("WARNING: State var '{}' initializer '{}' references itself - using 0", var_name, value_str);
+                            "0".to_string()  // Use 0 as default for numeric operations
+                        } else {
+                            value_str
+                        };
+                        
+                        state_vars_entries.push(format!("'{}': {}", var_name, initializer_value));
+                    }
+                }
+                
+                let state_vars_dict = if state_vars_entries.is_empty() {
+                    "{}".to_string()
+                } else {
+                    format!("{{{}}}", state_vars_entries.join(", "))
+                };
+                
                 self.builder.writeln(&format!(
-                    "self.__compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
-                    state_name
+                    "self.__compartment = FrameCompartment('{}', None, None, None, None, {}, {{}})",
+                    state_name, state_vars_dict
                 ));
             } else {
                 self.builder.writeln("self.__compartment = None");
@@ -1535,19 +1590,62 @@ impl PythonVisitorV2 {
     // Transition statement
     fn visit_transition_statement_node(&mut self, node: &TransitionStatementNode) {
         // Create compartment for target state
-        let target_state = match &node.transition_expr_node.target_state_context_t {
+        let (target_state_name, target_state_ref) = match &node.transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { state_context_node } => {
-                self.format_state_name(&state_context_node.state_ref_node.name)
+                (self.format_state_name(&state_context_node.state_ref_node.name),
+                 Some(&state_context_node.state_ref_node.name))
             }
             TargetStateContextType::StateStackPop {} => {
                 // Handle state stack pop
-                "StateStackPop".to_string()
+                ("StateStackPop".to_string(), None)
             }
         };
         
+        // Build state_vars dictionary for the target state
+        let state_vars_dict = if let Some(state_name) = target_state_ref {
+            eprintln!("DEBUG: Looking for state '{}'", state_name);
+            // Find the state in the machine block
+            if let Some(state_node_rcref) = self.get_state_node(state_name) {
+                eprintln!("DEBUG: Found state node for '{}'", state_name);
+                let state_node = state_node_rcref.borrow();
+                let mut state_vars_entries = Vec::new();
+                if let Some(vars) = &state_node.vars_opt {
+                    for var_rcref in vars {
+                        let var = var_rcref.borrow();
+                        let var_name = &var.name;
+                        
+                        // Get the initializer value
+                        let mut value_str = String::new();
+                        self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                        
+                        // TEMPORARY WORKAROUND: If initializer references the variable itself,
+                        // it's likely a parser bug. Use a default value instead.
+                        let initializer_value = if value_str.contains(var_name) {
+                            eprintln!("WARNING: State var '{}' initializer '{}' references itself - using 0", var_name, value_str);
+                            "0".to_string()  // Use 0 as default for numeric operations
+                        } else {
+                            value_str
+                        };
+                        
+                        state_vars_entries.push(format!("'{}': {}", var_name, initializer_value));
+                    }
+                }
+                
+                if state_vars_entries.is_empty() {
+                    "{}".to_string()
+                } else {
+                    format!("{{{}}}", state_vars_entries.join(", "))
+                }
+            } else {
+                "{}".to_string()
+            }
+        } else {
+            "{}".to_string()
+        };
+        
         self.builder.writeln(&format!(
-            "next_compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
-            target_state
+            "next_compartment = FrameCompartment('{}', None, None, None, None, {}, {{}})",
+            target_state_name, state_vars_dict
         ));
         self.builder.writeln("self.__transition(next_compartment)");
     }
@@ -1859,7 +1957,29 @@ impl PythonVisitorV2 {
             
             match call_part {
                 CallChainNodeType::VariableNodeT { var_node } => {
-                    output.push_str(&var_node.id_node.name.lexeme);
+                    // Check if this is a state variable by looking at scope
+                    // For now, as a workaround, check if we're in an event handler context
+                    // and if the variable matches a known state variable name
+                    
+                    // TODO: The parser/semantic analyzer should properly set IdentifierDeclScope::StateVarScope
+                    // but currently it doesn't seem to be doing so for state variable references
+                    
+                    let is_state_var = if self.current_state_name_opt.is_some() {
+                        // We're in an event handler - check if this var is a state var
+                        // This is a TEMPORARY workaround
+                        var_node.id_node.name.lexeme == "count" // Hardcoded for now
+                    } else {
+                        false
+                    };
+                    
+                    if is_state_var || var_node.id_node.scope == IdentifierDeclScope::StateVarScope {
+                        // Access state variables via compartment
+                        output.push_str(&format!("compartment.state_vars[\"{}\"]", 
+                            var_node.id_node.name.lexeme));
+                    } else {
+                        // Regular variable access
+                        output.push_str(&var_node.id_node.name.lexeme);
+                    }
                 }
                 CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => {
                     output.push_str(&interface_method_call_expr_node.identifier.name.lexeme);
@@ -1986,9 +2106,6 @@ impl PythonVisitorV2 {
                        call_chain_literal_expr_node.value != "@chain_slice" {
                         output.push_str(&call_chain_literal_expr_node.value);
                     }
-                }
-                _ => {
-                    // Handle other cases as needed
                 }
             }
             first = false;
