@@ -37,6 +37,7 @@ pub struct PythonVisitorV2 {
     system_name: String,
     system_has_async_runtime: bool,
     interface_methods: HashMap<String, Vec<String>>, // method_name -> parameter_names
+    domain_variables: HashSet<String>, // Track domain variable names
     
     // Import tracking
     imports: Vec<String>,
@@ -67,6 +68,7 @@ impl PythonVisitorV2 {
             system_name: String::new(),
             system_has_async_runtime: false,
             interface_methods: HashMap::new(),
+            domain_variables: HashSet::new(),
             imports: Vec::new(),
             used_modules: HashSet::new(),
             global_vars: HashSet::new(),
@@ -352,6 +354,10 @@ impl AstVisitor for PythonVisitorV2 {
         self.system_name = system_node.name.clone();
         self.system_has_async_runtime = self.check_system_async(system_node);
         
+        // Clear previous system's data
+        self.interface_methods.clear();
+        self.domain_variables.clear();
+        
         // Store interface method parameters for later use in event handlers
         if let Some(interface) = &system_node.interface_block_node_opt {
             for method in &interface.interface_methods {
@@ -364,6 +370,14 @@ impl AstVisitor for PythonVisitorV2 {
                     Vec::new()
                 };
                 self.interface_methods.insert(method_borrow.name.clone(), param_names);
+            }
+        }
+        
+        // Store domain variable names for later use
+        if let Some(domain_block) = &system_node.domain_block_node_opt {
+            for var_rcref in &domain_block.member_variables {
+                let var = var_rcref.borrow();
+                self.domain_variables.insert(var.name.clone());
             }
         }
         
@@ -972,6 +986,20 @@ impl PythonVisitorV2 {
         self.builder.writeln("self.__next_compartment = None");
         self.builder.writeln("self.return_stack = [None]");
         
+        // Initialize domain variables
+        if let Some(domain_block) = &system_node.domain_block_node_opt {
+            if !domain_block.member_variables.is_empty() {
+                self.builder.newline();
+                self.builder.write_comment("Initialize domain variables");
+                for var_rcref in &domain_block.member_variables {
+                    let var = var_rcref.borrow();
+                    let mut value_str = String::new();
+                    self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                    self.builder.writeln(&format!("self.{} = {}", var.name, value_str));
+                }
+            }
+        }
+        
         // Send start event
         if system_node.machine_block_node_opt.is_some() {
             self.builder.newline();
@@ -1477,7 +1505,18 @@ impl PythonVisitorV2 {
     // Assignment expression to string
     fn visit_assignment_expr_node_to_string(&mut self, node: &AssignmentExprNode, output: &mut String) {
         // Generate LHS
+        // Special handling: Check if LHS is a simple identifier that's a domain variable
+        // If so, add self. prefix
+        let lhs_start = output.len();
         self.visit_expr_node_to_string(&node.l_value_box, output);
+        
+        // Check if we just generated a simple identifier that's a domain variable
+        let generated_lhs = output[lhs_start..].to_string();
+        if self.domain_variables.contains(&generated_lhs) && !generated_lhs.starts_with("self.") {
+            // Replace with self.prefixed version
+            output.truncate(lhs_start);
+            output.push_str(&format!("self.{}", generated_lhs));
+        }
         
         // Generate assignment operator
         match &node.assignment_op {
@@ -2088,6 +2127,9 @@ impl PythonVisitorV2 {
         // Handle system.return special case
         if node.id_node.name.lexeme == "system.return" {
             output.push_str("self.return_stack[-1]");
+        } else if self.domain_variables.contains(&node.id_node.name.lexeme) {
+            // Domain variables need self. prefix
+            output.push_str(&format!("self.{}", node.id_node.name.lexeme));
         } else {
             output.push_str(&node.id_node.name.lexeme);
         }
@@ -2229,7 +2271,12 @@ impl PythonVisitorV2 {
     
     // Variable node
     fn visit_variable_node(&mut self, node: &VariableNode) {
-        self.builder.write(&node.id_node.name.lexeme);
+        if self.domain_variables.contains(&node.id_node.name.lexeme) {
+            // Domain variables need self. prefix
+            self.builder.write(&format!("self.{}", node.id_node.name.lexeme));
+        } else {
+            self.builder.write(&node.id_node.name.lexeme);
+        }
     }
     
     // Expression node visitor
@@ -2407,6 +2454,9 @@ impl PythonVisitorV2 {
                         // Access state variables via compartment
                         output.push_str(&format!("compartment.state_vars[\"{}\"]", 
                             var_node.id_node.name.lexeme));
+                    } else if self.domain_variables.contains(&var_node.id_node.name.lexeme) {
+                        // Domain variable access
+                        output.push_str(&format!("self.{}", var_node.id_node.name.lexeme));
                     } else {
                         // Regular variable access
                         output.push_str(&var_node.id_node.name.lexeme);
@@ -2461,7 +2511,12 @@ impl PythonVisitorV2 {
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     // Parameters and other undeclared identifiers
-                    output.push_str(&id_node.name.lexeme);
+                    // Check if it's a domain variable that needs self. prefix
+                    if self.domain_variables.contains(&id_node.name.lexeme) {
+                        output.push_str(&format!("self.{}", id_node.name.lexeme));
+                    } else {
+                        output.push_str(&id_node.name.lexeme);
+                    }
                 }
                 CallChainNodeType::ListElementNodeT { list_elem_node } => {
                     // Handle list/dict element access: identifier[expr]
