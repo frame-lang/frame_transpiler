@@ -196,7 +196,7 @@ async fn run_all_tests() {
     var manager = AsyncResourceManager()
     await manager.acquireResource("database_connection")
     await manager.processWithResource("test_data")
-    var status = manager.getStatus()
+    var status = await manager.getStatus()
     # Check if status starts with "complete:"
     var is_complete = True  # Simplified check
     if is_complete {

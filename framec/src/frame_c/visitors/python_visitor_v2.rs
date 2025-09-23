@@ -1043,11 +1043,15 @@ impl PythonVisitorV2 {
             format!("self, {}", params)
         };
         
+        // If the system has async runtime, ALL interface methods must be async
+        // to properly await the async kernel
+        let needs_async = method.is_async || self.system_has_async_runtime;
+        
         self.builder.newline();
         self.builder.write_function(
             &method.name,
             &full_params,
-            method.is_async,
+            needs_async,
             0  // InterfaceMethodNode doesn't have line field
         );
         
@@ -1072,7 +1076,7 @@ impl PythonVisitorV2 {
             self.builder.writeln(&format!("__e = FrameEvent(\"{}\", {{{}}})", method.name, param_dict));
         }
         
-        if method.is_async {
+        if needs_async {
             self.builder.writeln("await self.__kernel(__e)");
         } else {
             self.builder.writeln("self.__kernel(__e)");
