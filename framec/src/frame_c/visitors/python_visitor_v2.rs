@@ -698,8 +698,19 @@ impl PythonVisitorV2 {
         if params.is_empty() {
             self.builder.writeln(&format!("__e = FrameEvent(\"{}\", None)", method.name));
         } else {
-            // TODO: Pack parameters properly
-            self.builder.writeln(&format!("__e = FrameEvent(\"{}\", None)", method.name));
+            // Pack parameters into a dictionary
+            let param_names: Vec<String> = if let Some(params) = &method.params {
+                params.iter().map(|p| p.param_name.clone()).collect()
+            } else {
+                vec![]
+            };
+            
+            let param_dict = param_names.iter()
+                .map(|name| format!("\"{}\": {}", name, name))
+                .collect::<Vec<_>>()
+                .join(", ");
+            
+            self.builder.writeln(&format!("__e = FrameEvent(\"{}\", {{{}}})", method.name, param_dict));
         }
         
         if method.is_async {
@@ -724,6 +735,21 @@ impl PythonVisitorV2 {
             is_async,
             evt_handler.line
         );
+        
+        // Extract parameters from event if present
+        // TODO: The parser doesn't properly populate event_symbol_params_opt
+        // This is a known issue that needs to be fixed in the parser/semantic analyzer
+        let event_symbol = evt_handler.event_symbol_rcref.borrow();
+        if let Some(params) = &event_symbol.event_symbol_params_opt {
+            if !params.is_empty() {
+                for param in params {
+                    self.builder.writeln(&format!(
+                        "{} = __e._parameters.get(\"{}\") if __e._parameters else None",
+                        param.name, param.name
+                    ));
+                }
+            }
+        }
         
         // Generate statements
         for stmt in &evt_handler.statements {
@@ -2357,6 +2383,31 @@ impl PythonVisitorV2 {
         let mut target_str = String::new();
         self.visit_expr_node_to_string(&node.target, &mut target_str);
         self.builder.writeln(&format!("del {}", target_str));
+    }
+
+    fn visit_raise_stmt_node(&mut self, node: &RaiseStmtNode) {
+        // Map the raise statement line
+        self.builder.map_next(node.line);
+        
+        let mut raise_str = String::from("raise");
+        
+        // Add exception expression if present
+        if let Some(exc_expr) = &node.exception_expr {
+            raise_str.push(' ');
+            let mut exc_str = String::new();
+            self.visit_expr_node_to_string(exc_expr, &mut exc_str);
+            raise_str.push_str(&exc_str);
+        }
+        
+        // Add 'from' clause if present
+        if let Some(from_expr) = &node.from_expr {
+            raise_str.push_str(" from ");
+            let mut from_str = String::new();
+            self.visit_expr_node_to_string(from_expr, &mut from_str);
+            raise_str.push_str(&from_str);
+        }
+        
+        self.builder.writeln(&raise_str);
     }
 
     fn visit_try_stmt_node(&mut self, node: &TryStmtNode) {
