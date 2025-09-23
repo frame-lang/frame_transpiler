@@ -79,7 +79,7 @@ impl PythonVisitorV2 {
     
     pub fn run(&mut self, frame_module: &FrameModule) -> String {
         // Add header
-        self.builder.write_comment("Emitted from framec_v0.75.0");
+        self.builder.write_comment("Emitted from framec_v0.76.0");
         self.builder.newline();
         self.builder.newline();
         
@@ -910,10 +910,12 @@ impl PythonVisitorV2 {
             StatementType::LoopStmt { loop_stmt_node } => {
                 self.visit_loop_stmt_node(loop_stmt_node);
             }
-            StatementType::ContinueStmt { .. } => {
+            StatementType::ContinueStmt { continue_stmt_node } => {
+                self.builder.map_next(continue_stmt_node.line);
                 self.builder.writeln("continue");
             }
-            StatementType::BreakStmt { .. } => {
+            StatementType::BreakStmt { break_stmt_node } => {
+                self.builder.map_next(break_stmt_node.line);
                 self.builder.writeln("break");
             }
             StatementType::BlockStmt { block_stmt_node } => {
@@ -973,11 +975,9 @@ impl PythonVisitorV2 {
     fn visit_event_handler_terminator_node(&mut self, terminator: &TerminatorExpr) {
         match &terminator.terminator_type {
             TerminatorType::Return => {
-                if let Some(_return_expr) = &terminator.return_expr_t_opt {
-                    // Handle return with value
-                    self.builder.writeln("# Return with value");
-                    self.builder.writeln("return");
-                } else {
+                // Only add return if there's no explicit return value
+                // (explicit returns are handled as statements)
+                if terminator.return_expr_t_opt.is_none() {
                     self.builder.writeln("return");
                 }
             }
@@ -1018,6 +1018,8 @@ impl PythonVisitorV2 {
     
     // Assignment statement
     fn visit_assignment_statement_node(&mut self, node: &AssignmentStmtNode) {
+        // Map the statement line before writing
+        self.builder.map_next(node.line);
         let mut output = String::new();
         self.visit_assignment_expr_node_to_string(&node.assignment_expr_node, &mut output);
         self.builder.writeln(&output);
@@ -1145,6 +1147,8 @@ impl PythonVisitorV2 {
     
     // If statement
     fn visit_if_stmt_node(&mut self, node: &IfStmtNode) {
+        // Map the if statement line
+        self.builder.map_next(node.line);
         // If condition
         let mut cond_str = String::new();
         self.visit_expr_node_to_string(&node.condition, &mut cond_str);
@@ -1439,6 +1443,8 @@ impl PythonVisitorV2 {
     
     // Return statement
     fn visit_return_stmt_node(&mut self, node: &ReturnStmtNode) {
+        // Map the statement line before writing
+        self.builder.map_next(node.line);
         if let Some(expr) = &node.expr_t_opt {
             let mut output = String::new();
             self.visit_expr_node_to_string(expr, &mut output);
@@ -1453,7 +1459,7 @@ impl PythonVisitorV2 {
         let mut output = String::new();
         self.visit_expr_node_to_string(&node.expr_t, &mut output);
         self.builder.writeln_mapped(
-            &format!("_return = {}", output),
+            &format!("self.return_stack[-1] = {}", output),
             node.line
         );
     }
@@ -1476,11 +1482,18 @@ impl PythonVisitorV2 {
     
     // Variable node to string (needed for VariableExprT)
     fn visit_variable_node_to_string(&mut self, node: &VariableNode, output: &mut String) {
-        output.push_str(&node.id_node.name.lexeme);
+        // Handle system.return special case
+        if node.id_node.name.lexeme == "system.return" {
+            output.push_str("self.return_stack[-1]");
+        } else {
+            output.push_str(&node.id_node.name.lexeme);
+        }
     }
     
     // Call chain statement
     fn visit_call_chain_statement_node(&mut self, node: &CallChainStmtNode) {
+        // Map the statement line before writing
+        self.builder.map_next(node.line);
         let mut output = String::new();
         self.visit_call_chain_node_to_string(&node.call_chain_literal_expr_node, &mut output);
         self.builder.writeln(&output);
@@ -1494,6 +1507,8 @@ impl PythonVisitorV2 {
     
     // Call statement
     fn visit_call_statement_node(&mut self, node: &CallStmtNode) {
+        // Map the statement line before writing
+        self.builder.map_next(node.line);
         let mut output = String::new();
         self.visit_call_expression_node_to_string(&node.call_expr_node, &mut output);
         self.builder.writeln(&output);
@@ -1501,6 +1516,8 @@ impl PythonVisitorV2 {
     
     // Binary statement
     fn visit_binary_stmt_node(&mut self, node: &BinaryStmtNode) {
+        // Map the statement line before writing
+        self.builder.map_next(node.line);
         let mut output = String::new();
         self.visit_binary_expr_node_to_string(&node.binary_expr_node, &mut output);
         self.builder.writeln(&output);
@@ -1508,6 +1525,8 @@ impl PythonVisitorV2 {
     
     // Variable statement
     fn visit_variable_stmt_node(&mut self, node: &VariableStmtNode) {
+        // Map the statement line before writing
+        self.builder.map_next(node.var_node.line);
         let mut output = String::new();
         self.visit_variable_node_to_string(&node.var_node, &mut output);
         self.builder.writeln(&output);
@@ -1515,6 +1534,8 @@ impl PythonVisitorV2 {
     
     // Expression list statement
     fn visit_expr_list_stmt_node(&mut self, node: &ExprListStmtNode) {
+        // Map the statement line before writing
+        self.builder.map_next(node.line);
         let mut output = String::new();
         for (i, expr) in node.expr_list_node.exprs_t.iter().enumerate() {
             if i > 0 {
@@ -1639,10 +1660,18 @@ impl PythonVisitorV2 {
             self.visit_decl_or_stmt(stmt);
         }
         
-        // Handle terminator
+        // Check if the last statement was a return to avoid duplicates
+        let last_is_return = evt_handler.statements.last().map_or(false, |stmt| {
+            matches!(stmt, DeclOrStmtType::StmtT { stmt_t } if matches!(stmt_t, StatementType::ReturnStmt { .. }))
+        });
+        
+        // Handle terminator (only if last statement wasn't already a return)
         if let Some(terminator) = &evt_handler.terminator_node {
-            self.visit_event_handler_terminator_node(&terminator);
-        } else {
+            if !last_is_return {
+                self.visit_event_handler_terminator_node(&terminator);
+            }
+        } else if !last_is_return {
+            // Add implicit return if there was no explicit return
             self.builder.writeln("return");
         }
         
@@ -1744,6 +1773,364 @@ impl PythonVisitorV2 {
                 }
             }
             first = false;
+        }
+    }
+
+    fn visit_loop_stmt_node(&mut self, loop_stmt_node: &LoopStmtNode) {
+        match &loop_stmt_node.loop_types {
+            LoopStmtTypes::LoopForStmt { loop_for_stmt_node } => {
+                self.visit_loop_for_stmt_node(loop_for_stmt_node);
+            }
+            LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+                self.visit_loop_in_stmt_node(loop_in_stmt_node);
+            }
+            LoopStmtTypes::LoopInfiniteStmt { loop_infinite_stmt_node } => {
+                self.visit_loop_infinite_stmt_node(loop_infinite_stmt_node);
+            }
+        }
+    }
+
+    fn visit_loop_for_stmt_node(&mut self, node: &LoopForStmtNode) {
+        // Map the loop statement line
+        self.builder.map_next(node.line);
+        
+        // Handle initialization
+        if let Some(init_expr) = &node.loop_init_expr_rcref_opt {
+            let init = init_expr.borrow();
+            // Handle the various LoopFirstStmt types
+            match &*init {
+                LoopFirstStmt::VarAssign { assign_expr_node } => {
+                    let mut left_str = String::new();
+                    self.visit_expr_node_to_string(&assign_expr_node.l_value_box, &mut left_str);
+                    let mut right_str = String::new();
+                    self.visit_expr_node_to_string(&assign_expr_node.r_value_rc, &mut right_str);
+                    self.builder.writeln(&format!("{} = {}", left_str, right_str));
+                }
+                LoopFirstStmt::Var { var_node } => {
+                    self.builder.writeln(&var_node.id_node.name.lexeme);
+                }
+                LoopFirstStmt::CallChain { call_chain_expr_node } => {
+                    let mut output = String::new();
+                    self.visit_call_chain_expr_node_to_string(call_chain_expr_node, &mut output);
+                    self.builder.writeln(&output);
+                }
+                LoopFirstStmt::VarDecl { var_decl_node_rcref } => {
+                    let var_decl = var_decl_node_rcref.borrow();
+                    self.visit_variable_decl_node(&*var_decl);
+                }
+                LoopFirstStmt::VarDeclAssign { var_decl_node_rcref } => {
+                    let var_decl = var_decl_node_rcref.borrow();
+                    self.visit_variable_decl_node(&*var_decl);
+                }
+                LoopFirstStmt::None => {
+                    // No initialization
+                }
+            }
+        }
+        
+        // Start while loop with condition
+        let mut condition_str = String::new();
+        if let Some(test_expr) = &node.test_expr_rcref_opt {
+            let test = test_expr.borrow();
+            self.visit_expr_node_to_string(&*test, &mut condition_str);
+        } else {
+            condition_str.push_str("True");
+        }
+        self.builder.writeln(&format!("while {}:", condition_str));
+        self.builder.indent();
+        
+        // Visit loop body
+        if node.statements.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for decl_or_stmt in &node.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        self.visit_variable_decl_node(&*var_decl);
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_statement(stmt_t);
+                    }
+                }
+            }
+        }
+        
+        // Handle post expression (increment/decrement)
+        if let Some(post_expr) = &node.post_expr_rcref_opt {
+            let post = post_expr.borrow();
+            let mut post_str = String::new();
+            self.visit_expr_node_to_string(&*post, &mut post_str);
+            self.builder.writeln(&post_str);
+        }
+        
+        self.builder.dedent();
+    }
+
+    fn visit_loop_in_stmt_node(&mut self, node: &LoopInStmtNode) {
+        // Map the loop statement line
+        self.builder.map_next(node.line);
+        
+        let var_name = match &node.loop_first_stmt {
+            LoopFirstStmt::VarAssign { assign_expr_node } => {
+                // Extract identifier from left value
+                if let ExprType::VariableExprT { var_node } = &*assign_expr_node.l_value_box {
+                    var_node.id_node.name.lexeme.clone()
+                } else {
+                    "_".to_string()
+                }
+            }
+            LoopFirstStmt::Var { var_node } => {
+                var_node.id_node.name.lexeme.clone()
+            }
+            LoopFirstStmt::CallChain { .. } => {
+                "_".to_string()  // Fallback for complex expressions
+            }
+            LoopFirstStmt::VarDecl { var_decl_node_rcref } => {
+                let var_decl = var_decl_node_rcref.borrow();
+                var_decl.name.clone()
+            }
+            LoopFirstStmt::VarDeclAssign { var_decl_node_rcref } => {
+                let var_decl = var_decl_node_rcref.borrow();
+                var_decl.name.clone()
+            }
+            LoopFirstStmt::None => {
+                "_".to_string()
+            }
+        };
+        
+        let mut expr_str = String::new();
+        self.visit_expr_node_to_string(&node.iterable_expr, &mut expr_str);
+        
+        self.builder.writeln(&format!("for {} in {}:", var_name, expr_str));
+        self.builder.indent();
+        
+        if node.statements.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for decl_or_stmt in &node.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        self.visit_variable_decl_node(&*var_decl);
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_statement(stmt_t);
+                    }
+                }
+            }
+        }
+        
+        self.builder.dedent();
+    }
+
+    fn visit_loop_infinite_stmt_node(&mut self, node: &LoopInfiniteStmtNode) {
+        // Map the loop statement line
+        self.builder.map_next(node.line);
+        
+        self.builder.writeln("while True:");
+        self.builder.indent();
+        
+        if node.statements.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for decl_or_stmt in &node.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        self.visit_variable_decl_node(&*var_decl);
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_statement(stmt_t);
+                    }
+                }
+            }
+        }
+        
+        self.builder.dedent();
+    }
+
+    fn visit_while_stmt_node(&mut self, node: &WhileStmtNode) {
+        // Map the while statement line
+        self.builder.map_next(node.line);
+        
+        let mut condition_str = String::new();
+        self.visit_expr_node_to_string(&node.condition, &mut condition_str);
+        
+        self.builder.writeln(&format!("while {}:", condition_str));
+        self.builder.indent();
+        
+        if node.block.statements.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for decl_or_stmt in &node.block.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        self.visit_variable_decl_node(&*var_decl);
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_statement(stmt_t);
+                    }
+                }
+            }
+        }
+        
+        // Handle else clause if present
+        if let Some(else_block) = &node.else_block {
+            self.builder.dedent();
+            self.builder.writeln("else:");
+            self.builder.indent();
+            
+            if else_block.statements.is_empty() {
+                self.builder.writeln("pass");
+            } else {
+                for decl_or_stmt in &else_block.statements {
+                    match decl_or_stmt {
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            let var_decl = var_decl_t_rcref.borrow();
+                            self.visit_variable_decl_node(&*var_decl);
+                        }
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            self.visit_statement(stmt_t);
+                        }
+                    }
+                }
+            }
+        }
+        
+        self.builder.dedent();
+    }
+
+    fn visit_assert_stmt_node(&mut self, node: &AssertStmtNode) {
+        // Map the assert statement line
+        self.builder.map_next(node.line);
+        
+        let mut condition_str = String::new();
+        self.visit_expr_node_to_string(&node.expr, &mut condition_str);
+        self.builder.writeln(&format!("assert {}", condition_str));
+    }
+
+    fn visit_del_stmt_node(&mut self, node: &DelStmtNode) {
+        // Map the del statement line
+        self.builder.map_next(node.line);
+        
+        let mut target_str = String::new();
+        self.visit_expr_node_to_string(&node.target, &mut target_str);
+        self.builder.writeln(&format!("del {}", target_str));
+    }
+
+    fn visit_try_stmt_node(&mut self, node: &TryStmtNode) {
+        // Map the try statement line
+        self.builder.map_next(node.line);
+        
+        self.builder.writeln("try:");
+        self.builder.indent();
+        
+        if node.try_block.statements.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for decl_or_stmt in &node.try_block.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        self.visit_variable_decl_node(&*var_decl);
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_statement(stmt_t);
+                    }
+                }
+            }
+        }
+        self.builder.dedent();
+        
+        // Handle except clauses
+        for except in &node.except_clauses {
+            let mut except_line = String::from("except");
+            
+            if let Some(exception_types) = &except.exception_types {
+                if !exception_types.is_empty() {
+                    except_line.push(' ');
+                    if exception_types.len() == 1 {
+                        except_line.push_str(&exception_types[0]);
+                    } else {
+                        except_line.push('(');
+                        except_line.push_str(&exception_types.join(", "));
+                        except_line.push(')');
+                    }
+                }
+                
+                if let Some(var_name) = &except.var_name {
+                    except_line.push_str(" as ");
+                    except_line.push_str(var_name);
+                }
+            }
+            
+            self.builder.writeln(&format!("{}:", except_line));
+            self.builder.indent();
+            
+            if except.block.statements.is_empty() {
+                self.builder.writeln("pass");
+            } else {
+                for decl_or_stmt in &except.block.statements {
+                    match decl_or_stmt {
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            let var_decl = var_decl_t_rcref.borrow();
+                            self.visit_variable_decl_node(&*var_decl);
+                        }
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            self.visit_statement(stmt_t);
+                        }
+                    }
+                }
+            }
+            self.builder.dedent();
+        }
+        
+        // Handle else clause
+        if let Some(else_block) = &node.else_block {
+            self.builder.writeln("else:");
+            self.builder.indent();
+            
+            if else_block.statements.is_empty() {
+                self.builder.writeln("pass");
+            } else {
+                for decl_or_stmt in &else_block.statements {
+                    match decl_or_stmt {
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            let var_decl = var_decl_t_rcref.borrow();
+                            self.visit_variable_decl_node(&*var_decl);
+                        }
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            self.visit_statement(stmt_t);
+                        }
+                    }
+                }
+            }
+            self.builder.dedent();
+        }
+        
+        // Handle finally clause
+        if let Some(finally_block) = &node.finally_block {
+            self.builder.writeln("finally:");
+            self.builder.indent();
+            
+            if finally_block.statements.is_empty() {
+                self.builder.writeln("pass");
+            } else {
+                for decl_or_stmt in &finally_block.statements {
+                    match decl_or_stmt {
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            let var_decl = var_decl_t_rcref.borrow();
+                            self.visit_variable_decl_node(&*var_decl);
+                        }
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            self.visit_statement(stmt_t);
+                        }
+                    }
+                }
+            }
+            self.builder.dedent();
         }
     }
     
