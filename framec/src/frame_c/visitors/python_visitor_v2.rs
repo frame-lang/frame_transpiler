@@ -415,6 +415,14 @@ impl AstVisitor for PythonVisitorV2 {
         }
     }
     
+    fn visit_actions_block_node(&mut self, actions_block: &ActionsBlockNode) {
+        // Generate each action in the actions block
+        for action_rcref in &actions_block.actions {
+            let action_node = action_rcref.borrow();
+            self.visit_action_node(&*action_node);
+        }
+    }
+    
     fn visit_action_node(&mut self, action_node: &ActionNode) {
         let params = if let Some(params) = &action_node.params {
             params.iter()
@@ -433,16 +441,19 @@ impl AstVisitor for PythonVisitorV2 {
         
         self.builder.newline();
         self.builder.write_function(
-            &format!("_{}", action_node.name),
+            &format!("__{}__{}", self.system_name, action_node.name),
             &full_params,
             action_node.is_async,
             0  // ActionNode doesn't have line field
         );
         
-        if let Some(_code) = &action_node.code_opt {
-            self.builder.writeln(&format!("# Action implementation"));
-            self.builder.writeln("pass");
+        // Generate the action body
+        if let Some(code) = &action_node.code_opt {
+            // If there's code_opt, use it
+            self.builder.writeln(&format!("# TODO: Python code opt not implemented"));
+            self.builder.writeln(&code);
         } else if !action_node.statements.is_empty() {
+            // Otherwise generate from statements
             let statements = &action_node.statements;
             for stmt in statements {
                 self.visit_decl_or_stmt(stmt);
@@ -1101,6 +1112,107 @@ impl PythonVisitorV2 {
             ExprType::EnumeratorExprT { enum_expr_node } => {
                 output.push_str(&format!("{}.{}", enum_expr_node.enum_type, enum_expr_node.enumerator));
             }
+            ExprType::WalrusExprT { assignment_expr_node } => {
+                // Assignment expression: (var := expr)
+                output.push('(');
+                self.visit_expr_node_to_string(&assignment_expr_node.l_value_box, output);
+                output.push_str(" := ");
+                self.visit_expr_node_to_string(&assignment_expr_node.r_value_rc, output);
+                output.push(')');
+            }
+            ExprType::LambdaExprT { lambda_expr_node } => {
+                // Lambda expression: lambda params: expr
+                output.push_str("lambda ");
+                if !lambda_expr_node.params.is_empty() {
+                    let mut first = true;
+                    for param in &lambda_expr_node.params {
+                        if !first {
+                            output.push_str(", ");
+                        }
+                        output.push_str(param);
+                        first = false;
+                    }
+                }
+                output.push_str(": ");
+                self.visit_expr_node_to_string(&lambda_expr_node.body, output);
+            }
+            ExprType::FunctionRefT { name } => {
+                // Function reference (just the name, no call)
+                output.push_str(name);
+            }
+            ExprType::ListComprehensionExprT { list_comprehension_node } => {
+                // List comprehension: [expr for var in iter if cond]
+                output.push('[');
+                self.visit_expr_node_to_string(&list_comprehension_node.expr, output);
+                output.push_str(" for ");
+                output.push_str(&list_comprehension_node.target);
+                output.push_str(" in ");
+                self.visit_expr_node_to_string(&list_comprehension_node.iter, output);
+                if let Some(cond) = &list_comprehension_node.condition {
+                    output.push_str(" if ");
+                    self.visit_expr_node_to_string(cond, output);
+                }
+                output.push(']');
+            }
+            ExprType::SetComprehensionExprT { set_comprehension_node } => {
+                // Set comprehension: {expr for var in iter if cond}
+                output.push('{');
+                self.visit_expr_node_to_string(&set_comprehension_node.expr, output);
+                output.push_str(" for ");
+                output.push_str(&set_comprehension_node.target);
+                output.push_str(" in ");
+                self.visit_expr_node_to_string(&set_comprehension_node.iter, output);
+                if let Some(cond) = &set_comprehension_node.condition {
+                    output.push_str(" if ");
+                    self.visit_expr_node_to_string(cond, output);
+                }
+                output.push('}');
+            }
+            ExprType::DictComprehensionExprT { dict_comprehension_node } => {
+                // Dict comprehension: {key: value for var in iter if cond}
+                output.push('{');
+                self.visit_expr_node_to_string(&dict_comprehension_node.key_expr, output);
+                output.push_str(": ");
+                self.visit_expr_node_to_string(&dict_comprehension_node.value_expr, output);
+                output.push_str(" for ");
+                output.push_str(&dict_comprehension_node.target);
+                output.push_str(" in ");
+                self.visit_expr_node_to_string(&dict_comprehension_node.iter, output);
+                if let Some(cond) = &dict_comprehension_node.condition {
+                    output.push_str(" if ");
+                    self.visit_expr_node_to_string(cond, output);
+                }
+                output.push('}');
+            }
+            ExprType::GeneratorExprT { generator_expr_node } => {
+                // Generator expression: (expr for var in iter if cond)
+                output.push('(');
+                self.visit_expr_node_to_string(&generator_expr_node.expr, output);
+                output.push_str(" for ");
+                output.push_str(&generator_expr_node.target);
+                output.push_str(" in ");
+                self.visit_expr_node_to_string(&generator_expr_node.iter, output);
+                if let Some(cond) = &generator_expr_node.condition {
+                    output.push_str(" if ");
+                    self.visit_expr_node_to_string(cond, output);
+                }
+                output.push(')');
+            }
+            ExprType::AwaitExprT { await_expr_node } => {
+                // Await expression
+                output.push_str("await ");
+                self.visit_expr_node_to_string(&await_expr_node.expr, output);
+            }
+            ExprType::StarExprT { star_expr_node } => {
+                // Unpacking operator: *expr
+                output.push('*');
+                output.push_str(&star_expr_node.identifier);
+            }
+            ExprType::DictUnpackExprT { dict_unpack_expr_node } => {
+                // Dictionary unpacking: **expr
+                output.push_str("**");
+                self.visit_expr_node_to_string(&dict_unpack_expr_node.expr, output);
+            }
             _ => {
                 // Handle other expression types as needed
                 // output.push_str("# TODO: expr type");
@@ -1200,8 +1312,7 @@ impl PythonVisitorV2 {
         if let Some(resolved_type) = &node.resolved_type {
             match resolved_type {
                 ResolvedCallType::Action(_) => {
-                    output.push_str("self._");
-                    output.push_str(&node.identifier.name.lexeme);
+                    output.push_str(&format!("self.__{}__{}", self.system_name, node.identifier.name.lexeme));
                 }
                 ResolvedCallType::Operation(_) => {
                     output.push_str("self.");
@@ -1711,9 +1822,41 @@ impl PythonVisitorV2 {
     fn visit_call_chain_expr_node_to_string(&mut self, node: &CallChainExprNode, output: &mut String) {
         let mut first = true;
         for call_part in &node.call_chain {
-            if !first {
+            // Determine if we need a dot separator before this node
+            let needs_dot = if first {
+                false
+            } else {
+                // Check if this is a synthetic node (chained indexing)
+                let is_synthetic = match call_part {
+                    CallChainNodeType::ListElementNodeT { list_elem_node } => {
+                        list_elem_node.identifier.name.lexeme == "@chain_index" || 
+                        list_elem_node.identifier.name.lexeme == "@chain_slice"
+                    }
+                    CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
+                        list_elem_node.identifier.name.lexeme == "@chain_index" ||
+                        list_elem_node.identifier.name.lexeme == "@chain_slice"
+                    }
+                    CallChainNodeType::SliceNodeT { slice_node } => {
+                        slice_node.identifier.name.lexeme == "@chain_index" ||
+                        slice_node.identifier.name.lexeme == "@chain_slice"
+                    }
+                    CallChainNodeType::UndeclaredSliceT { slice_node } => {
+                        slice_node.identifier.name.lexeme == "@chain_index" ||
+                        slice_node.identifier.name.lexeme == "@chain_slice"
+                    }
+                    CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
+                        call_chain_literal_expr_node.value == "@chain_index" ||
+                        call_chain_literal_expr_node.value == "@chain_slice"
+                    }
+                    _ => false
+                };
+                !is_synthetic
+            };
+            
+            if needs_dot {
                 output.push('.');
             }
+            
             match call_part {
                 CallChainNodeType::VariableNodeT { var_node } => {
                     output.push_str(&var_node.id_node.name.lexeme);
@@ -1745,7 +1888,8 @@ impl PythonVisitorV2 {
                     output.push(')');
                 }
                 CallChainNodeType::ActionCallT { action_call_expr_node } => {
-                    output.push_str(&action_call_expr_node.identifier.name.lexeme);
+                    // Actions use name mangling: __SystemName__action_name
+                    output.push_str(&format!("__{}__{}", self.system_name, action_call_expr_node.identifier.name.lexeme));
                     output.push('(');
                     let mut first_arg = true;
                     for arg in &action_call_expr_node.call_expr_list.exprs_t {
@@ -1767,6 +1911,81 @@ impl PythonVisitorV2 {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     // Parameters and other undeclared identifiers
                     output.push_str(&id_node.name.lexeme);
+                }
+                CallChainNodeType::ListElementNodeT { list_elem_node } => {
+                    // Handle list/dict element access: identifier[expr]
+                    // Check for synthetic identifier used for chained indexing
+                    if list_elem_node.identifier.name.lexeme != "@chain_index" && 
+                       list_elem_node.identifier.name.lexeme != "@chain_slice" {
+                        output.push_str(&list_elem_node.identifier.name.lexeme);
+                    }
+                    output.push('[');
+                    self.visit_expr_node_to_string(&list_elem_node.expr_t, output);
+                    output.push(']');
+                }
+                CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
+                    // Same as ListElementNodeT for now
+                    // Check for synthetic identifier used for chained indexing
+                    if list_elem_node.identifier.name.lexeme != "@chain_index" && 
+                       list_elem_node.identifier.name.lexeme != "@chain_slice" {
+                        output.push_str(&list_elem_node.identifier.name.lexeme);
+                    }
+                    output.push('[');
+                    self.visit_expr_node_to_string(&list_elem_node.expr_t, output);
+                    output.push(']');
+                }
+                CallChainNodeType::SliceNodeT { slice_node } => {
+                    // Handle slice operations: identifier[start:end:step]
+                    // Check for synthetic identifier used for chained indexing
+                    if slice_node.identifier.name.lexeme != "@chain_index" && 
+                       slice_node.identifier.name.lexeme != "@chain_slice" {
+                        output.push_str(&slice_node.identifier.name.lexeme);
+                    }
+                    output.push('[');
+                    if let Some(start) = &slice_node.start_expr {
+                        self.visit_expr_node_to_string(start, output);
+                    }
+                    output.push(':');
+                    if let Some(end) = &slice_node.end_expr {
+                        self.visit_expr_node_to_string(end, output);
+                    }
+                    if let Some(step) = &slice_node.step_expr {
+                        output.push(':');
+                        self.visit_expr_node_to_string(step, output);
+                    }
+                    output.push(']');
+                }
+                CallChainNodeType::UndeclaredSliceT { slice_node } => {
+                    // Same as SliceNodeT for now
+                    // Check for synthetic identifier used for chained indexing
+                    if slice_node.identifier.name.lexeme != "@chain_index" && 
+                       slice_node.identifier.name.lexeme != "@chain_slice" {
+                        output.push_str(&slice_node.identifier.name.lexeme);
+                    }
+                    output.push('[');
+                    if let Some(start) = &slice_node.start_expr {
+                        self.visit_expr_node_to_string(start, output);
+                    }
+                    output.push(':');
+                    if let Some(end) = &slice_node.end_expr {
+                        self.visit_expr_node_to_string(end, output);
+                    }
+                    if let Some(step) = &slice_node.step_expr {
+                        output.push(':');
+                        self.visit_expr_node_to_string(step, output);
+                    }
+                    output.push(']');
+                }
+                CallChainNodeType::OperationRefT { operation_ref_expr_node } => {
+                    output.push_str(&operation_ref_expr_node.name);
+                }
+                CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
+                    // Call chain literal (simple value)
+                    // Don't output synthetic markers
+                    if call_chain_literal_expr_node.value != "@chain_index" && 
+                       call_chain_literal_expr_node.value != "@chain_slice" {
+                        output.push_str(&call_chain_literal_expr_node.value);
+                    }
                 }
                 _ => {
                     // Handle other cases as needed
