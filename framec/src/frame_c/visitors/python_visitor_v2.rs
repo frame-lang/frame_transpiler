@@ -820,7 +820,10 @@ impl PythonVisitorV2 {
             self.builder.dedent();
         }
         
-        if !state.evt_handlers_rcref.is_empty() {
+        // If state has no event handlers, add a pass statement
+        if state.evt_handlers_rcref.is_empty() {
+            self.builder.writeln("pass");
+        } else {
             self.builder.newline();
         }
         
