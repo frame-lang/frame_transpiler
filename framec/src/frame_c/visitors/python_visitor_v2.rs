@@ -39,6 +39,7 @@ pub struct PythonVisitorV2 {
     interface_methods: HashMap<String, Vec<String>>, // method_name -> parameter_names
     domain_variables: HashSet<String>, // Track domain variable names
     current_handler_params: HashSet<String>, // Track current event handler parameter names
+    domain_enums: HashSet<String>, // Track domain enum names (without prefix)
     
     // Import tracking
     imports: Vec<String>,
@@ -71,6 +72,7 @@ impl PythonVisitorV2 {
             interface_methods: HashMap::new(),
             domain_variables: HashSet::new(),
             current_handler_params: HashSet::new(),
+            domain_enums: HashSet::new(),
             imports: Vec::new(),
             used_modules: HashSet::new(),
             global_vars: HashSet::new(),
@@ -81,6 +83,50 @@ impl PythonVisitorV2 {
     /// Set an external source map builder for --debug-output integration
     pub fn set_source_map_builder(&mut self, builder: Rc<RefCell<SourceMapBuilder>>) {
         self.external_source_map_builder = Some(builder);
+    }
+    
+    // Helper method to generate enum with a specific name  
+    fn generate_enum_with_name(&mut self, enum_node: &EnumDeclNode, enum_name: &str) {
+        self.builder.newline();
+        
+        // Check if we need Enum import
+        if !self.imports.contains(&"from enum import Enum".to_string()) {
+            self.imports.push("from enum import Enum".to_string());
+        }
+        
+        // Determine base class
+        let base_class = match enum_node.enum_type {
+            EnumType::String => "(str, Enum)",
+            _ => "(Enum)",
+        };
+        
+        self.builder.writeln(&format!("class {}{}:", enum_name, base_class));
+        self.builder.indent();
+        
+        // Generate enum members
+        if enum_node.enums.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for enumerator in &enum_node.enums {
+                let value = match &enumerator.value {
+                    EnumValue::Integer(i) => i.to_string(),
+                    EnumValue::String(s) => format!("\"{}\"", s),
+                    EnumValue::Auto => {
+                        if matches!(enum_node.enum_type, EnumType::String) {
+                            // Auto-generate string value from name
+                            format!("\"{}\"", enumerator.name)
+                        } else {
+                            // Auto-generate numeric value
+                            "auto()".to_string()
+                        }
+                    }
+                };
+                
+                self.builder.writeln(&format!("{} = {}", enumerator.name, value));
+            }
+        }
+        
+        self.builder.dedent();
     }
     
     pub fn run(&mut self, frame_module: &FrameModule) -> String {
@@ -359,6 +405,7 @@ impl AstVisitor for PythonVisitorV2 {
         // Clear previous system's data
         self.interface_methods.clear();
         self.domain_variables.clear();
+        self.domain_enums.clear();
         
         // Store interface method parameters for later use in event handlers
         if let Some(interface) = &system_node.interface_block_node_opt {
@@ -384,8 +431,14 @@ impl AstVisitor for PythonVisitorV2 {
             
             // Generate domain enums BEFORE the class
             // They need to be defined at module level, not inside the class
+            // Domain enums should be prefixed with system name
             for enum_rcref in &domain_block.enums {
-                self.visit_enum_decl_node(&enum_rcref.borrow());
+                let enum_node = enum_rcref.borrow();
+                // Track this as a domain enum
+                self.domain_enums.insert(enum_node.name.clone());
+                // Generate the enum with a prefixed name
+                let prefixed_name = format!("{}_{}", self.system_name, enum_node.name);
+                self.generate_enum_with_name(&enum_node, &prefixed_name);
             }
         }
         
@@ -542,46 +595,8 @@ impl AstVisitor for PythonVisitorV2 {
     }
     
     fn visit_enum_decl_node(&mut self, enum_node: &EnumDeclNode) {
-        self.builder.newline();
-        
-        // Check if we need Enum import
-        if !self.imports.contains(&"from enum import Enum".to_string()) {
-            self.imports.push("from enum import Enum".to_string());
-        }
-        
-        // Determine base class
-        let base_class = match enum_node.enum_type {
-            EnumType::String => "(str, Enum)",
-            _ => "(Enum)",
-        };
-        
-        self.builder.writeln(&format!("class {}{}:", enum_node.name, base_class));
-        self.builder.indent();
-        
-        // Generate enum members
-        if enum_node.enums.is_empty() {
-            self.builder.writeln("pass");
-        } else {
-            for enumerator in &enum_node.enums {
-                let value = match &enumerator.value {
-                    EnumValue::Integer(i) => i.to_string(),
-                    EnumValue::String(s) => format!("\"{}\"", s),
-                    EnumValue::Auto => {
-                        if matches!(enum_node.enum_type, EnumType::String) {
-                            // Auto-generate string value from name
-                            format!("\"{}\"", enumerator.name)
-                        } else {
-                            // Auto-generate numeric value
-                            "auto()".to_string()
-                        }
-                    }
-                };
-                
-                self.builder.writeln(&format!("{} = {}", enumerator.name, value));
-            }
-        }
-        
-        self.builder.dedent();
+        // Module-level enums use their original name
+        self.generate_enum_with_name(enum_node, &enum_node.name);
         
         // Add auto import if needed
         if enum_node.enums.iter().any(|e| matches!(e.value, EnumValue::Auto) && !matches!(enum_node.enum_type, EnumType::String)) {
@@ -1599,7 +1614,13 @@ impl PythonVisitorV2 {
                 output.push_str("None");
             }
             ExprType::EnumeratorExprT { enum_expr_node } => {
-                output.push_str(&format!("{}.{}", enum_expr_node.enum_type, enum_expr_node.enumerator));
+                // Check if this is a domain enum that needs prefixing
+                let enum_name = if self.domain_enums.contains(&enum_expr_node.enum_type) {
+                    format!("{}_{}", self.system_name, enum_expr_node.enum_type)
+                } else {
+                    enum_expr_node.enum_type.clone()
+                };
+                output.push_str(&format!("{}.{}", enum_name, enum_expr_node.enumerator));
             }
             ExprType::WalrusExprT { assignment_expr_node } => {
                 // Assignment expression: (var := expr)
@@ -3241,7 +3262,13 @@ impl PythonVisitorV2 {
         // Handle enum iteration specially
         if node.is_enum_iteration {
             if let Some(enum_name) = &node.enum_type_name {
-                self.builder.writeln(&format!("for {} in {}:", var_name, enum_name));
+                // Check if this is a domain enum that needs prefixing
+                let full_enum_name = if self.domain_enums.contains(enum_name) {
+                    format!("{}_{}", self.system_name, enum_name)
+                } else {
+                    enum_name.clone()
+                };
+                self.builder.writeln(&format!("for {} in {}:", var_name, full_enum_name));
             } else {
                 self.builder.writeln(&format!("for {} in {}:", var_name, iter_str));
             }

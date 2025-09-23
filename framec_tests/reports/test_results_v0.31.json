@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-23T14:22:28.550239",
+  "timestamp": "2025-09-23T15:05:06.520528",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 376,
-    "execute_success": 330,
-    "complete_success": 333,
-    "success_rate": "87.9%"
+    "execute_success": 335,
+    "complete_success": 338,
+    "success_rate": "89.2%"
   },
   "results": [
     {
@@ -341,7 +341,7 @@
       "execute": false,
       "negative_test": false,
       "output": "Frame v0.37 Async Stress Test Suite\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------\n",
-      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress.py:190: RuntimeWarning: coroutine 'AsyncDataPipeline.__kernel' was never awaited\n  self.__kernel(_"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress.py\", line 749, in <module>\n    main()\n    ~~~~^^\n  File"
     },
     {
       "file": "test_async_stress_fixed.frm",
@@ -370,10 +370,10 @@
     {
       "file": "test_async_with_proper.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "Starting proper async with validation...\n======================================================================\nFrame v0.37 Async With Statement Tests - PROPER VALIDATION\n=============================",
-      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_with_proper.py:162: RuntimeWarning: coroutine 'AsyncResourceManager.__kernel' was never awaited\n  self.__"
+      "error": null
     },
     {
       "file": "test_async_with_real.frm",
@@ -746,10 +746,10 @@
     {
       "file": "test_dict_from_sequences.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_dict_from_sequences.py\", line 40\n    copy2 = {**original: None}\n                       ^\nSyntaxError: i"
+      "output": "Frame v0.38 - Dict From Sequences Test\n==================================================\n\n=== Dict From Sequences Test ===\n\n1. From list of tuples:\n   dict([('a', 1), ('b', 2), ('c', 3)]) -> {'a': 1,",
+      "error": null
     },
     {
       "file": "test_dict_fromkeys.frm",
@@ -810,10 +810,10 @@
     {
       "file": "test_dict_merge_complete.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_dict_merge_complete.py\", line 38\n    merged = {**dict1: None, **dict2: None, **dict3: None}\n           "
+      "output": "Frame v0.38 - Dictionary Merging Methods\n==================================================\n\n1. dict.update() - Mutates Original\n   Before: d1 = {'a': 1, 'b': 2}\n   After d1.update(d2) and d1.update(d",
+      "error": null
     },
     {
       "file": "test_dict_nested_indexing_workaround.frm",
@@ -874,18 +874,18 @@
     {
       "file": "test_dict_unpacking.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_dict_unpacking.py\", line 26\n    combined = {**base: None}\n                      ^\nSyntaxError: invalid "
+      "output": "Frame v0.38 - Dict Unpacking Operator Test\n==================================================\n\n=== Testing Dict Unpacking Operator (**) ===\n\n1. Basic unpacking:\n   {**base} -> {'a': 1, 'b': 2}\n\n2. Com",
+      "error": null
     },
     {
       "file": "test_dict_update.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_dict_update.py\", line 39\n    merged = {**d1: None, **d2: None, **d3: None}\n                  ^\nSyntaxEr"
+      "output": "=== Testing dict.update() ===\nBefore update:\nd1 = {'a': 1, 'b': 2}\nAfter d1.update(d2) and d1.update(d3):\nd1 = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}\n\n=== Testing unpacking merge ===\nmerged = {**d1,",
+      "error": null
     },
     {
       "file": "test_domain_assignment.frm",
@@ -1004,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1036,7 +1036,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1044,7 +1044,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1085,7 +1085,7 @@
       "execute": false,
       "negative_test": false,
       "output": "Event-Handlers-as-Functions PoC\n=== Testing Mixed Handler Demo ===\n",
-      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_event_handlers_poc.py:82: RuntimeWarning: coroutine 'MixedHandlerDemo.__kernel' was never awaited\n  self.__kern"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_event_handlers_poc.py\", line 219, in <module>\n    main()\n    ~~~~^^\n"
     },
     {
       "file": "test_exceptions_basic.frm",
