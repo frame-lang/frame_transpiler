@@ -1991,9 +1991,16 @@ impl PythonVisitorV2 {
             }
             first = false;
             
-            self.visit_expr_node_to_string(key, output);
-            output.push_str(": ");
-            self.visit_expr_node_to_string(value, output);
+            // Check if this is a dictionary unpacking expression
+            if matches!(key, ExprType::DictUnpackExprT { .. }) {
+                // For unpacking expressions, just output the unpacking without ": value"
+                self.visit_expr_node_to_string(key, output);
+            } else {
+                // Regular key-value pair
+                self.visit_expr_node_to_string(key, output);
+                output.push_str(": ");
+                self.visit_expr_node_to_string(value, output);
+            }
         }
         output.push('}');
     }
