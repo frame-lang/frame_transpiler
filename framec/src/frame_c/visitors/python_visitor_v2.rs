@@ -379,6 +379,12 @@ impl AstVisitor for PythonVisitorV2 {
                 let var = var_rcref.borrow();
                 self.domain_variables.insert(var.name.clone());
             }
+            
+            // Generate domain enums BEFORE the class
+            // They need to be defined at module level, not inside the class
+            for enum_rcref in &domain_block.enums {
+                self.visit_enum_decl_node(&enum_rcref.borrow());
+            }
         }
         
         // Generate class
@@ -1791,6 +1797,8 @@ impl PythonVisitorV2 {
     
     // Call expression to string
     fn visit_call_expression_node_to_string(&mut self, node: &CallExprNode, output: &mut String) {
+        let func_name = &node.identifier.name.lexeme;
+        
         // Check for resolved call type
         if let Some(resolved_type) = &node.resolved_type {
             match resolved_type {
@@ -1829,10 +1837,19 @@ impl PythonVisitorV2 {
             output.push_str(&node.identifier.name.lexeme);
         }
         
-        // Add arguments
-        output.push('(');
-        self.visit_expr_list_node_to_string(&node.call_expr_list.exprs_t, output);
-        output.push(')');
+        // Special handling for collection constructors with multiple arguments
+        // Python's set(), frozenset() constructors need a single iterable, not multiple args
+        if (func_name == "set" || func_name == "frozenset") && node.call_expr_list.exprs_t.len() > 1 {
+            // Convert set(1, 2, 3) to set([1, 2, 3])
+            output.push_str("([");
+            self.visit_expr_list_node_to_string(&node.call_expr_list.exprs_t, output);
+            output.push_str("])");
+        } else {
+            // Normal function call
+            output.push('(');
+            self.visit_expr_list_node_to_string(&node.call_expr_list.exprs_t, output);
+            output.push(')');
+        }
     }
     
     // Expression list to string
@@ -2087,10 +2104,23 @@ impl PythonVisitorV2 {
     fn visit_return_stmt_node(&mut self, node: &ReturnStmtNode) {
         // Map the statement line before writing
         self.builder.map_next(node.line);
+        
+        // Check if we're in a state handler (interface event handler)
+        // If so, we need to set self.return_stack[-1] instead of returning directly
+        let is_interface_handler = self.current_state_name_opt.is_some();
+        
         if let Some(expr) = &node.expr_t_opt {
             let mut output = String::new();
             self.visit_expr_node_to_string(expr, &mut output);
-            self.builder.writeln(&format!("return {}", output));
+            
+            if is_interface_handler {
+                // In interface handlers, set return_stack and then return
+                self.builder.writeln(&format!("self.return_stack[-1] = {}", output));
+                self.builder.writeln("return");
+            } else {
+                // Regular function return
+                self.builder.writeln(&format!("return {}", output));
+            }
         } else {
             self.builder.writeln("return");
         }
