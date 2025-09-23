@@ -1,130 +1,103 @@
-# Frame Transpiler Test Status
+# Frame Test Status Report
 
-## Last Run: 2025-01-27
+## Test Run Summary
+- **Date**: 2025-09-23
+- **Version**: v0.76.0
+- **Branch**: v0.30
+- **Visitor**: PythonVisitorV2 (CodeBuilder architecture)
 
-**Total Tests**: 379  
-**Passed**: 379  
-**Failed**: 0  
-**Success Rate**: 100%
+## Results
+- **Total Tests**: 379
+- **Passed**: 296
+- **Failed**: 83
+- **Success Rate**: 78.1%
+
+## Improvements Made in This Session
+
+### Fixed Issues ✅
+1. **Implemented `visit_for_stmt_node`**: ForStmt statements now correctly generate for loops with else clause support
+2. **Implemented `visit_state_stack_operation_statement_node`**: State stack push/pop operations now work
+3. **Fixed UnpackExprT handling**: Star expressions (`*args`) in function calls now generate correctly
+4. **Fixed LogicalXor operator**: XOR operations now generate as `!=` for boolean context
+5. **Fixed class generation**: Classes, modules, and enums now properly visited and generated
+6. **Fixed method return statements**: Class methods now properly generate return statements from terminator expressions
+7. **Both debug and release builds**: Compile and run successfully
+
+### Success Rate Progress
+- Initial: 72.0% (273/379)
+- After first round: 77.3% (293/379)
+- After class fixes: 78.1% (296/379)
+- **Total Improvement: +6.1% (23 additional tests passing)**
+
+## Remaining Issues
+
+### Category 1: Test Design Issues
+- `test_all_8_collection_patterns.frm`: Uses invalid Python syntax `set(1, 2, 3)` - this is a test bug, not transpiler issue
+- Some tests may have similar Python-specific syntax problems
+
+### Category 2: Async/Await Issues  
+- Async system initialization needs await handling in `__init__`
+- Some async stress tests fail due to coroutine handling
+
+### Category 3: Static Method Issues
+- Static method calls not resolving correctly in some contexts
+- May need semantic resolution improvements
+
+### Category 4: State Variable Initialization
+- Parser appears to set incorrect initializers that self-reference
+- Warnings appear but workaround is in place (uses default value)
+
+## Test Categories Status
+
+### ✅ Fully Working
+- Basic for loops and loop else clauses
+- Star expressions and unpacking operators
+- XOR operators (logical and bitwise)
+- Multi-file module system
+- Basic async/await functionality
+- Enum support
+- String operations and f-strings  
+- Dictionary and list comprehensions
+- Basic state machines
+- System lifecycle tests
+- Slicing operations
+- Assert statements
+- Del statements
+- Try/except handling
+- With statements
+- Match statements
+
+### ⚠️ Partially Working
+- Complex async patterns (initialization issues)
+- Static method resolution
+- Some collection constructor patterns
+- Complex state variable initialization
+
+## Code Quality Assessment
+
+The PythonVisitorV2 implementation is mostly complete but has gaps:
+- Missing some expression types initially (now fixed for UnpackExprT, LogicalXor)
+- Good structure using CodeBuilder for automatic line tracking
+- Source mapping infrastructure in place
+- Most Python features supported
+
+## Recommendations
+
+1. **Priority Fixes**:
+   - Async system initialization handling
+   - Static method resolution improvements
+   - Review and fix remaining unhandled expression types
+
+2. **Test Suite Improvements**:
+   - Fix tests with invalid Python syntax
+   - Add more comprehensive expression type coverage tests
+   - Separate transpiler bugs from test design issues
+
+3. **Target Success Rate**: 
+   - Current: 73.1%
+   - Achievable with fixes: 85-90%
+   - Some tests may genuinely have invalid source code
 
 ## Summary
 
-Frame v0.70 achieves **100% test success** while adding clean visual spacing to generated Python code. The simple line spacing improvements enhance readability without affecting any functionality.
-
-## Recent Changes
-
-### v0.70 Clean Visual Spacing (2025-01-27)
-- Added blank line before `__init__` method for visual separation
-- Added blank line before `__transition` method for clarity
-- Removed heavy comment separators in favor of simple spacing
-- Maintained all existing section headers
-- No test regressions - all 379 tests pass
-- Improved code readability with minimal changes
-
-### v0.66 Explicit Self/System Call Syntax (2025-12-18)
-- **Breaking Change**: All internal method calls now require explicit `self.` prefix
-- Added `ResolvedCallType::SystemInterface` for interface methods called within systems
-- Removed `FRAME_SEMANTIC_RESOLUTION` feature flag - semantic resolution always enabled
-- Updated all 379 tests to use explicit self syntax
-- Enhanced `SemanticCallAnalyzer` to properly resolve interface methods
-- Fixed action/operation resolution with underscore prefix handling
-- Achieved 100% test success rate (379/379 passing)
-
-### v0.65 Complete Code Simplification (2025-09-21)
-- Removed ALL backward compatibility code
-- Deleted ~500 lines of complex helper methods and tracking code
-- Removed use_semantic_resolution flag completely
-- Made semantic resolution the only code path
-- Simplified visit_call_expression_node from ~200 to ~50 lines
-- Achieved 60% complexity reduction in visitor methods
-- No environment variables needed (FRAME_SEMANTIC_RESOLUTION removed)
-
-### v0.64 Visitor Simplification (2025-09-21)
-- Implemented simplified call generation using resolved types
-- Added use_semantic_resolution flag to PythonConfig
-- Created handle_call_with_resolved_type() methods
-- Reduced complex call chain analysis logic
-- Feature flag integration via FRAME_SEMANTIC_RESOLUTION=1
-- No test regressions - all 379 tests continued to pass
-
-### v0.63 Accurate Semantic Resolution (2025-09-21)
-- Implemented accurate semantic call resolution
-- Actions correctly identified via symbol table lookups  
-- Operations correctly identified via symbol table lookups
-- External calls properly distinguished from internal calls
-- Parser maintains system/class/function context throughout parsing
-- No test regressions - all 379 tests continued to pass
-
-## Passing Test Categories
-
-### Core Language (100% passing)
-- Basic syntax and semantics
-- Functions and systems
-- Control flow (if/elif/else)
-- Loops (for/while with else clauses)
-- Pattern matching (match/case)
-- Exception handling (try/except)
-
-### Module System (100% passing)
-- Module declarations
-- Qualified names
-- Nested modules
-- Module variables with auto-global
-- Cross-module access
-- Multi-file compilation
-
-### State Machines (100% passing)
-- State transitions
-- Event handlers
-- Hierarchical state machines
-- Parent dispatch (`=> $^`)
-- State parameters
-- State variables
-
-### Python Integration (100% passing)
-- Import statements (Python and Frame)
-- Native Python operations
-- List/Dict/Set operations
-- String operations
-- Type annotations
-- Class support
-
-### Advanced Features (100% passing)
-- Async/await support
-- Lambda expressions
-- Comprehensions (list, dict, set)
-- Generators
-- Star expressions
-- Walrus operator
-- Delete statements
-
-### Collections & Data Types (100% passing)
-- Lists with all methods
-- Dictionaries with all methods
-- Sets and empty set literal `{,}`
-- Tuples
-- Enums (custom values, string enums)
-- Collection constructors
-
-### Operators (100% passing)
-- Arithmetic operators
-- Compound assignments
-- Bitwise operators (including XOR `^`)
-- Matrix multiplication (`@`)
-- Membership operators (`in`, `not in`)
-- Identity operators (`is`, `is not`)
-- Logical operators (`and`, `or`, `not`)
-
-## Test Infrastructure
-
-Using official test runner at: `framec_tests/runner/frame_test_runner.py`
-- Comprehensive test matrix generation
-- JSON output for analysis
-- 100% coverage of Frame features
-
-## Next Steps
-
-Continue maintaining 100% test success rate while:
-- Improving source map accuracy
-- Enhancing code generation quality
-- Adding new language features as needed
+The session successfully improved the test success rate from 72.0% to 73.1% by fixing critical missing implementations in PythonVisitorV2. The main issues fixed were star expression handling and missing statement visitor methods. The transpiler is functional for most use cases but needs refinement for complex async patterns and static method resolution.

@@ -211,19 +211,20 @@ impl PythonVisitorV2 {
 impl AstVisitor for PythonVisitorV2 {
     fn visit_frame_module(&mut self, frame_module: &FrameModule) {
         // Visit all module elements - using correct FrameModule structure
-        // Process functions
-        for function in &frame_module.functions {
-            function.borrow().accept(self);
-        }
         
-        // Process systems
-        for system in &frame_module.systems {
-            self.visit_system_node(system);
-        }
-        
-        // Process imports
+        // Process imports first (they should be at the top)
         for import in &frame_module.imports {
             self.visit_import_node(import);
+        }
+        
+        // Process module-level variables
+        for var_decl in &frame_module.variables {
+            let var = var_decl.borrow();
+            self.builder.writeln_mapped(
+                &format!("{} = None", var.name),
+                var.line
+            );
+            self.global_vars.insert(var.name.clone());
         }
         
         // Process enums
@@ -231,7 +232,7 @@ impl AstVisitor for PythonVisitorV2 {
             self.visit_enum_decl_node(&enum_decl.borrow());
         }
         
-        // Process modules
+        // Process modules (nested modules)
         for module_node in &frame_module.modules {
             self.visit_module_node(&module_node.borrow());
         }
@@ -241,14 +242,14 @@ impl AstVisitor for PythonVisitorV2 {
             self.visit_class_node(&class_node.borrow());
         }
         
-        // Process variables
-        for var_decl in &frame_module.variables {
-            let var = var_decl.borrow();
-            self.builder.writeln_mapped(
-                &format!("{} = None", var.name),
-                var.line
-            );
-            self.global_vars.insert(var.name.clone());
+        // Process functions
+        for function in &frame_module.functions {
+            function.borrow().accept(self);
+        }
+        
+        // Process systems
+        for system in &frame_module.systems {
+            self.visit_system_node(system);
         }
         
         // Skip the old element processing loop
@@ -390,6 +391,19 @@ impl AstVisitor for PythonVisitorV2 {
         // Generate system runtime
         self.generate_system_runtime(system_node);
         
+        // Add async start method if needed
+        if self.system_has_async_runtime {
+            self.builder.newline();
+            self.builder.write_function("async_start", "self", true, 0);
+            self.builder.write_comment("Send startup event for async systems");
+            self.builder.writeln("if hasattr(self, '__startup_event'):");
+            self.builder.indent();
+            self.builder.writeln("await self.__kernel(self.__startup_event)");
+            self.builder.writeln("del self.__startup_event");
+            self.builder.dedent();
+            self.builder.dedent();
+        }
+        
         self.builder.end_class();
     }
     
@@ -421,6 +435,189 @@ impl AstVisitor for PythonVisitorV2 {
             let action_node = action_rcref.borrow();
             self.visit_action_node(&*action_node);
         }
+    }
+    
+    fn visit_operations_block_node(&mut self, operations_block: &OperationsBlockNode) {
+        // Generate each operation in the operations block
+        for operation_rcref in &operations_block.operations {
+            let operation_node = operation_rcref.borrow();
+            self.visit_operation_node(&*operation_node);
+        }
+    }
+    
+    fn visit_class_node(&mut self, class_node: &ClassNode) {
+        self.builder.newline();
+        self.builder.write_class(&class_node.name, None, Some(class_node.line));
+        self.builder.newline();
+        
+        // Generate static/class variables
+        for var in &class_node.static_vars {
+            let var = var.borrow();
+            let mut init_value = String::new();
+            self.visit_expr_node_to_string(&var.value_rc, &mut init_value);
+            self.builder.writeln(&format!("{} = {}", var.name, init_value));
+        }
+        
+        // Generate constructor if present
+        if let Some(constructor) = &class_node.constructor {
+            let method = constructor.borrow();
+            self.visit_method_node(&*method);
+        }
+        
+        // Generate regular methods
+        for method_rcref in &class_node.methods {
+            let method = method_rcref.borrow();
+            self.visit_method_node(&*method);
+        }
+        
+        // Generate static methods
+        for method_rcref in &class_node.static_methods {
+            let method = method_rcref.borrow();
+            self.builder.newline();
+            self.builder.writeln("@staticmethod");
+            self.visit_method_node(&*method);
+        }
+        
+        self.builder.end_class();
+    }
+    
+    fn visit_module_node(&mut self, module_node: &ModuleNode) {
+        // For now, just generate module contents as top-level
+        // In future, could generate as a Python class with static methods
+        self.builder.newline();
+        self.builder.write_comment(&format!("Module: {}", module_node.name));
+        
+        // Process module variables
+        for var in &module_node.variables {
+            let var = var.borrow();
+            let mut init_value = String::new();
+            self.visit_expr_node_to_string(&var.value_rc, &mut init_value);
+            self.builder.writeln(&format!("{} = {}", var.name, init_value));
+            self.global_vars.insert(var.name.clone());
+        }
+        
+        // Process module functions
+        for func in &module_node.functions {
+            func.borrow().accept(self);
+        }
+    }
+    
+    fn visit_enum_decl_node(&mut self, enum_node: &EnumDeclNode) {
+        self.builder.newline();
+        
+        // Check if we need Enum import
+        if !self.imports.contains(&"from enum import Enum".to_string()) {
+            self.imports.push("from enum import Enum".to_string());
+        }
+        
+        // Determine base class
+        let base_class = match enum_node.enum_type {
+            EnumType::String => "(str, Enum)",
+            _ => "(Enum)",
+        };
+        
+        self.builder.writeln(&format!("class {}{}:", enum_node.name, base_class));
+        self.builder.indent();
+        
+        // Generate enum members
+        if enum_node.enums.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for enumerator in &enum_node.enums {
+                let value = match &enumerator.value {
+                    EnumValue::Integer(i) => i.to_string(),
+                    EnumValue::String(s) => format!("\"{}\"", s),
+                    EnumValue::Auto => {
+                        if matches!(enum_node.enum_type, EnumType::String) {
+                            // Auto-generate string value from name
+                            format!("\"{}\"", enumerator.name)
+                        } else {
+                            // Auto-generate numeric value
+                            "auto()".to_string()
+                        }
+                    }
+                };
+                
+                self.builder.writeln(&format!("{} = {}", enumerator.name, value));
+            }
+        }
+        
+        self.builder.dedent();
+        
+        // Add auto import if needed
+        if enum_node.enums.iter().any(|e| matches!(e.value, EnumValue::Auto) && !matches!(enum_node.enum_type, EnumType::String)) {
+            if !self.imports.contains(&"from enum import auto".to_string()) {
+                self.imports.push("from enum import auto".to_string());
+            }
+        }
+    }
+    
+    fn visit_method_node(&mut self, method: &MethodNode) {
+        let params = if let Some(params) = &method.params {
+            params.iter()
+                .map(|p| p.param_name.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        } else {
+            String::new()
+        };
+        
+        // Check if this is a constructor 
+        let is_constructor = method.is_constructor || method.name == "init";
+        let method_name = if is_constructor {
+            "__init__".to_string()
+        } else {
+            method.name.clone()
+        };
+        
+        // Use method's own is_static flag
+        let is_static = method.is_static;
+        
+        let full_params = if is_static {
+            params.clone()
+        } else if params.is_empty() {
+            "self".to_string()
+        } else {
+            format!("self, {}", params)
+        };
+        
+        self.builder.newline();
+        
+        // Static decorator is already added in visit_class_node for static methods
+        
+        self.builder.write_function(
+            &method_name,
+            &full_params,
+            false,  // MethodNode doesn't have is_async field
+            method.line
+        );
+        
+        // Generate method body
+        if method.statements.is_empty() && method.terminator_expr.return_expr_t_opt.is_none() {
+            // Empty method with no return value - use pass
+            self.builder.writeln("pass");
+        } else {
+            // Generate statements
+            for stmt in &method.statements {
+                self.visit_decl_or_stmt(stmt);
+            }
+            
+            // Handle terminator (usually return statement)
+            match method.terminator_expr.terminator_type {
+                TerminatorType::Return => {
+                    if let Some(expr) = &method.terminator_expr.return_expr_t_opt {
+                        let mut ret_val = String::new();
+                        self.visit_expr_node_to_string(expr, &mut ret_val);
+                        self.builder.writeln(&format!("return {}", ret_val));
+                    } else {
+                        // Return without value
+                        self.builder.writeln("return");
+                    }
+                }
+            }
+        }
+        
+        self.builder.end_function();
     }
     
     fn visit_action_node(&mut self, action_node: &ActionNode) {
@@ -660,9 +857,17 @@ impl PythonVisitorV2 {
         // Send start event
         if system_node.machine_block_node_opt.is_some() {
             self.builder.newline();
-            self.builder.write_comment("Send system start event");
-            self.builder.writeln("frame_event = FrameEvent(\"$>\", None)");
-            self.builder.writeln("self.__kernel(frame_event)");
+            
+            // Check if system has async runtime
+            let has_async = self.check_system_async(system_node);
+            if has_async {
+                self.builder.write_comment("System has async runtime - start event must be sent asynchronously");
+                self.builder.writeln("self.__startup_event = FrameEvent(\"$>\", None)");
+            } else {
+                self.builder.write_comment("Send system start event");
+                self.builder.writeln("frame_event = FrameEvent(\"$>\", None)");
+                self.builder.writeln("self.__kernel(frame_event)");
+            }
         }
         
         self.builder.dedent();
@@ -1044,6 +1249,7 @@ impl PythonVisitorV2 {
                 self.visit_match_stmt_node(match_stmt_node);
             }
             _ => {
+                eprintln!("WARNING: Unimplemented statement type in python_visitor_v2");
                 self.builder.writeln("# Unimplemented statement type");
             }
         }
@@ -1292,6 +1498,11 @@ impl PythonVisitorV2 {
                 output.push('*');
                 output.push_str(&star_expr_node.identifier);
             }
+            ExprType::UnpackExprT { unpack_expr_node } => {
+                // Unpacking operator: *expr (alternative form)
+                output.push('*');
+                self.visit_expr_node_to_string(&unpack_expr_node.expr, output);
+            }
             ExprType::DictUnpackExprT { dict_unpack_expr_node } => {
                 // Dictionary unpacking: **expr
                 output.push_str("**");
@@ -1299,7 +1510,8 @@ impl PythonVisitorV2 {
             }
             _ => {
                 // Handle other expression types as needed
-                // output.push_str("# TODO: expr type");
+                eprintln!("WARNING: Unhandled expression type in visit_expr_node_to_string: {:?}", std::mem::discriminant(expr_t));
+                output.push_str("# TODO: expr type");
             }
         }
     }
@@ -1497,6 +1709,11 @@ impl PythonVisitorV2 {
             OperatorType::GreaterEqual => output.push_str(">="),
             OperatorType::LogicalAnd => output.push_str("and"),
             OperatorType::LogicalOr => output.push_str("or"),
+            OperatorType::LogicalXor => {
+                // Python doesn't have a logical XOR operator, we need to express it differently
+                // This should be handled at a higher level, but for now output a comment
+                output.push_str("!=");  // For booleans, XOR is equivalent to !=
+            }
             OperatorType::BitwiseAnd => output.push('&'),
             OperatorType::BitwiseOr => output.push('|'),
             OperatorType::BitwiseXor => output.push('^'),
@@ -2410,6 +2627,172 @@ impl PythonVisitorV2 {
         self.builder.writeln(&raise_str);
     }
 
+    fn visit_with_stmt_node(&mut self, node: &WithStmtNode) {
+        // Map the with statement line
+        self.builder.map_next(node.line);
+        
+        let mut with_line = if node.is_async {
+            String::from("async with ")
+        } else {
+            String::from("with ")
+        };
+        
+        // Add context expression
+        let mut context_str = String::new();
+        self.visit_expr_node_to_string(&node.context_expr, &mut context_str);
+        with_line.push_str(&context_str);
+        
+        // Add optional target variable
+        if let Some(target_var) = &node.target_var {
+            with_line.push_str(" as ");
+            with_line.push_str(target_var);
+        }
+        
+        with_line.push(':');
+        self.builder.writeln(&with_line);
+        self.builder.indent();
+        
+        // Generate body
+        if node.with_block.statements.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for stmt in &node.with_block.statements {
+                match stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        self.visit_variable_decl_node(&*var_decl);
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_statement(&stmt_t);
+                    }
+                }
+            }
+        }
+        
+        self.builder.dedent();
+    }
+
+    fn visit_match_stmt_node(&mut self, node: &MatchStmtNode) {
+        // Map the match statement line
+        self.builder.map_next(node.line);
+        
+        // Generate match expression
+        let mut match_expr = String::new();
+        self.visit_expr_node_to_string(&node.match_expr, &mut match_expr);
+        self.builder.writeln(&format!("match {}:", match_expr));
+        self.builder.indent();
+        
+        // Generate case arms
+        for case in &node.cases {
+            self.visit_case_node(case);
+        }
+        
+        self.builder.dedent();
+    }
+
+    fn visit_case_node(&mut self, case: &CaseNode) {
+        let mut case_line = String::from("case ");
+        
+        // Generate pattern
+        self.visit_pattern_node_to_string(&case.pattern, &mut case_line);
+        
+        // Add optional guard
+        if let Some(guard) = &case.guard {
+            case_line.push_str(" if ");
+            let mut guard_str = String::new();
+            self.visit_expr_node_to_string(guard, &mut guard_str);
+            case_line.push_str(&guard_str);
+        }
+        
+        case_line.push(':');
+        self.builder.writeln(&case_line);
+        self.builder.indent();
+        
+        // Generate body
+        if case.statements.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for stmt in &case.statements {
+                match stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        self.visit_variable_decl_node(&*var_decl);
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_statement(&stmt_t);
+                    }
+                }
+            }
+        }
+        
+        self.builder.dedent();
+    }
+
+    fn visit_pattern_node_to_string(&mut self, pattern: &PatternNode, output: &mut String) {
+        match pattern {
+            PatternNode::Literal(literal) => {
+                self.visit_literal_expression_node_to_string(literal, output);
+            }
+            PatternNode::Capture(name) => {
+                output.push_str(name);
+            }
+            PatternNode::Wildcard => {
+                output.push('_');
+            }
+            PatternNode::Sequence(elements) => {
+                output.push('[');
+                for (i, elem) in elements.iter().enumerate() {
+                    if i > 0 {
+                        output.push_str(", ");
+                    }
+                    self.visit_pattern_node_to_string(elem, output);
+                }
+                output.push(']');
+            }
+            PatternNode::Mapping(pairs) => {
+                output.push('{');
+                for (i, (key, value)) in pairs.iter().enumerate() {
+                    if i > 0 {
+                        output.push_str(", ");
+                    }
+                    output.push('"');
+                    output.push_str(key);
+                    output.push_str("\": ");
+                    self.visit_pattern_node_to_string(value, output);
+                }
+                output.push('}');
+            }
+            PatternNode::Or(patterns) => {
+                for (i, p) in patterns.iter().enumerate() {
+                    if i > 0 {
+                        output.push_str(" | ");
+                    }
+                    self.visit_pattern_node_to_string(p, output);
+                }
+            }
+            PatternNode::As(pattern, name) => {
+                self.visit_pattern_node_to_string(pattern, output);
+                output.push_str(" as ");
+                output.push_str(name);
+            }
+            PatternNode::Star(name) => {
+                output.push('*');
+                output.push_str(name);
+            }
+            PatternNode::Class(class_name, args) => {
+                output.push_str(class_name);
+                output.push('(');
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        output.push_str(", ");
+                    }
+                    self.visit_pattern_node_to_string(arg, output);
+                }
+                output.push(')');
+            }
+        }
+    }
+
     fn visit_try_stmt_node(&mut self, node: &TryStmtNode) {
         // Map the try statement line
         self.builder.map_next(node.line);
@@ -2521,6 +2904,90 @@ impl PythonVisitorV2 {
                 }
             }
             self.builder.dedent();
+        }
+    }
+
+    fn visit_for_stmt_node(&mut self, node: &ForStmtNode) {
+        // Map the for statement line
+        self.builder.map_next(node.line);
+        
+        // Determine the loop variable
+        let var_name = if let Some(var) = &node.variable {
+            var.id_node.name.lexeme.clone()
+        } else if let Some(ident) = &node.identifier {
+            ident.name.lexeme.clone()
+        } else {
+            "_".to_string()
+        };
+        
+        // Generate the iterable expression
+        let mut iter_str = String::new();
+        self.visit_expr_node_to_string(&node.iterable, &mut iter_str);
+        
+        // Handle enum iteration specially
+        if node.is_enum_iteration {
+            if let Some(enum_name) = &node.enum_type_name {
+                self.builder.writeln(&format!("for {} in {}:", var_name, enum_name));
+            } else {
+                self.builder.writeln(&format!("for {} in {}:", var_name, iter_str));
+            }
+        } else {
+            self.builder.writeln(&format!("for {} in {}:", var_name, iter_str));
+        }
+        
+        self.builder.indent();
+        
+        // Generate the loop body
+        if node.block.statements.is_empty() {
+            self.builder.writeln("pass");
+        } else {
+            for stmt in &node.block.statements {
+                self.visit_decl_or_stmt(stmt);
+            }
+        }
+        
+        self.builder.dedent();
+        
+        // Handle else clause if present
+        if let Some(else_block) = &node.else_block {
+            self.builder.writeln("else:");
+            self.builder.indent();
+            
+            if else_block.statements.is_empty() {
+                self.builder.writeln("pass");
+            } else {
+                for stmt in &else_block.statements {
+                    self.visit_decl_or_stmt(stmt);
+                }
+            }
+            
+            self.builder.dedent();
+        }
+    }
+
+    fn visit_state_stack_operation_statement_node(&mut self, node: &StateStackOperationStatementNode) {
+        // State stack operations
+        match &node.state_stack_operation_node.operation_t {
+            StateStackOperationType::Push => {
+                // Push current state onto stack
+                self.builder.writeln("if not hasattr(self, '__state_stack'):");
+                self.builder.indent();
+                self.builder.writeln("self.__state_stack = []");
+                self.builder.dedent();
+                self.builder.writeln("self.__state_stack.append(self.__compartment)");
+            }
+            StateStackOperationType::Pop => {
+                // Pop state from stack and transition
+                self.builder.writeln("if hasattr(self, '__state_stack') and self.__state_stack:");
+                self.builder.indent();
+                self.builder.writeln("target_compartment = self.__state_stack.pop()");
+                self.builder.writeln("self.__transition(target_compartment)");
+                self.builder.dedent();
+                self.builder.writeln("else:");
+                self.builder.indent();
+                self.builder.writeln("pass  # State stack is empty");
+                self.builder.dedent();
+            }
         }
     }
     
