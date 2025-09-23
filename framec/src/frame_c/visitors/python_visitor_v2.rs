@@ -1058,9 +1058,9 @@ impl PythonVisitorV2 {
             format!("self, {}", params)
         };
         
-        // If the system has async runtime, ALL interface methods must be async
-        // to properly await the async kernel
-        let needs_async = method.is_async || self.system_has_async_runtime;
+        // Only make the method async if it's explicitly marked as async
+        // or if the handler itself needs to be async
+        let needs_async = method.is_async;
         
         self.builder.newline();
         self.builder.write_function(
