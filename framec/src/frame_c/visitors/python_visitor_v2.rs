@@ -38,6 +38,7 @@ pub struct PythonVisitorV2 {
     system_has_async_runtime: bool,
     interface_methods: HashMap<String, Vec<String>>, // method_name -> parameter_names
     domain_variables: HashSet<String>, // Track domain variable names
+    current_handler_params: HashSet<String>, // Track current event handler parameter names
     
     // Import tracking
     imports: Vec<String>,
@@ -69,6 +70,7 @@ impl PythonVisitorV2 {
             system_has_async_runtime: false,
             interface_methods: HashMap::new(),
             domain_variables: HashSet::new(),
+            current_handler_params: HashSet::new(),
             imports: Vec::new(),
             used_modules: HashSet::new(),
             global_vars: HashSet::new(),
@@ -2157,8 +2159,9 @@ impl PythonVisitorV2 {
         // Handle system.return special case
         if node.id_node.name.lexeme == "system.return" {
             output.push_str("self.return_stack[-1]");
-        } else if self.domain_variables.contains(&node.id_node.name.lexeme) {
-            // Domain variables need self. prefix
+        } else if self.domain_variables.contains(&node.id_node.name.lexeme) &&
+                  !self.current_handler_params.contains(&node.id_node.name.lexeme) {
+            // Domain variables need self. prefix (but not if it's a parameter)
             output.push_str(&format!("self.{}", node.id_node.name.lexeme));
         } else {
             output.push_str(&node.id_node.name.lexeme);
@@ -2331,6 +2334,17 @@ impl PythonVisitorV2 {
         let contains_async_ops = self.check_handler_has_async_operations(evt_handler);
         let is_async = evt_handler.is_async || self.system_has_async_runtime || contains_async_ops;
         
+        // Clear and populate current handler parameters
+        self.current_handler_params.clear();
+        
+        // Get event parameters from the event symbol
+        let event_symbol = evt_handler.event_symbol_rcref.borrow();
+        if let Some(params) = &event_symbol.event_symbol_params_opt {
+            for param in params {
+                self.current_handler_params.insert(param.name.clone());
+            }
+        }
+        
         self.builder.newline();
         self.builder.write_function(
             &handler_name,
@@ -2393,6 +2407,9 @@ impl PythonVisitorV2 {
         }
         
         self.builder.dedent();
+        
+        // Clear current handler parameters
+        self.current_handler_params.clear();
     }
     
     // State node visitor - to track current state
@@ -2427,6 +2444,11 @@ impl PythonVisitorV2 {
     // Call chain expression to string  
     fn visit_call_chain_expr_node_to_string(&mut self, node: &CallChainExprNode, output: &mut String) {
         let mut first = true;
+        
+        // Track if we're in a self. context (first node is SelfT)
+        let in_self_context = !node.call_chain.is_empty() && 
+            matches!(node.call_chain[0], CallChainNodeType::SelfT { .. });
+        
         for call_part in &node.call_chain {
             // Determine if we need a dot separator before this node
             let needs_dot = if first {
@@ -2484,8 +2506,10 @@ impl PythonVisitorV2 {
                         // Access state variables via compartment
                         output.push_str(&format!("compartment.state_vars[\"{}\"]", 
                             var_node.id_node.name.lexeme));
-                    } else if self.domain_variables.contains(&var_node.id_node.name.lexeme) {
-                        // Domain variable access
+                    } else if self.domain_variables.contains(&var_node.id_node.name.lexeme) &&
+                              !self.current_handler_params.contains(&var_node.id_node.name.lexeme) &&
+                              !in_self_context {
+                        // Domain variable access (but not if it's a parameter or already in self. context)
                         output.push_str(&format!("self.{}", var_node.id_node.name.lexeme));
                     } else {
                         // Regular variable access
@@ -2542,7 +2566,12 @@ impl PythonVisitorV2 {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     // Parameters and other undeclared identifiers
                     // Check if it's a domain variable that needs self. prefix
-                    if self.domain_variables.contains(&id_node.name.lexeme) {
+                    // But NOT if:
+                    // 1. It's a parameter
+                    // 2. We're already in a self. context (to avoid self.self.)
+                    if self.domain_variables.contains(&id_node.name.lexeme) &&
+                       !self.current_handler_params.contains(&id_node.name.lexeme) &&
+                       !in_self_context {
                         output.push_str(&format!("self.{}", id_node.name.lexeme));
                     } else {
                         output.push_str(&id_node.name.lexeme);
