@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-22T22:13:47.927473",
+  "timestamp": "2025-09-23T07:15:30.483093",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 376,
-    "execute_success": 290,
-    "complete_success": 293,
-    "success_rate": "77.3%"
+    "execute_success": 296,
+    "complete_success": 299,
+    "success_rate": "78.9%"
   },
   "results": [
     {
@@ -61,7 +61,7 @@
         "error_line": null,
         "warning_message": null
       },
-      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /"
+      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /"
     },
     {
       "file": "test_multifile_calculator.frm",
@@ -474,18 +474,18 @@
     {
       "file": "test_class_basic.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_class_basic.py\", line 40, in <module>\n    main()\n    ~~~~^^\n  File \""
+      "output": "Distance from p1 to p2: 5.0\nTotal points created: 3\nCircle area: 78.53975\np1 is inside the circle\np2 is outside the circle\n",
+      "error": null
     },
     {
       "file": "test_class_simple.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_class_simple.py\", line 28, in <module>\n    main()\n    ~~~~^^\n  File "
+      "output": "Result: 15\n",
+      "error": null
     },
     {
       "file": "test_class_simple_v046.frm",
@@ -628,8 +628,8 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_debug_simple.py\", line 29\n    __multi_var__:a,b = divmod_custom(17, 5)\n                   ^\nSyntaxError"
+      "output": "=== Starting Comprehensive Debug Test ===\nVariable declaration: x = 101\nMultiple types: y=20, z=30.5, flag=True, name=Frame\n  [divmod] Dividing 17 by 5\nMultiple assignment: a=3, b=2\n  [unpack_three] R",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_debug_simple.py\", line 503, in <module>\n    main()\n    ~~~~^^\n  File"
     },
     {
       "file": "test_debug_system.frm",
@@ -988,8 +988,8 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enum_module_scope.py\", line 132, in <module>\n    main()\n    ~~~~^^\n "
+      "output": "Global status: Active\nPriority value: 10\nEnvironment: prod\nAll environments:\n  - Development: dev\n  - Staging: staging\n  - Production: prod\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enum_module_scope.py\", line 149, in <module>\n    main()\n    ~~~~^^\n "
     },
     {
       "file": "test_enum_string_values.frm",
@@ -1357,7 +1357,7 @@
       "execute": false,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_hierarchy.py\", line 31, in <module>\n    main()\n    ~~~~^^\n  File \"/U"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_hierarchy.py\", line 38, in <module>\n    main()\n    ~~~~^^\n  File \"/U"
     },
     {
       "file": "test_history.frm",
@@ -2365,7 +2365,7 @@
       "execute": false,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_simple_hierarchy.py\", line 28, in <module>\n    main()\n    ~~~~^^\n  F"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_simple_hierarchy.py\", line 34, in <module>\n    main()\n    ~~~~^^\n  F"
     },
     {
       "file": "test_simple_hsm_loop.frm",
@@ -2602,10 +2602,10 @@
     {
       "file": "test_static_comprehensive_v062.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "From function: 30\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_static_comprehensive_v062.py\", line 232, in <module>\n    main()\n    "
+      "output": "From function: 30\nOrigin: (0, 0)\n5 + 7 = 12\n3 * 4 = 12\nDistance: 5.0\n",
+      "error": null
     },
     {
       "file": "test_static_operations.frm",
@@ -2954,10 +2954,10 @@
     {
       "file": "test_v053_collection_fixes.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_v053_collection_fixes.py\", line 60\n    __multi_var__:x,y,z = (1, 2, 3)\n                   ^\nSyntaxError"
+      "output": "Testing list literals:\n[1, 2, 3]\n[5, 6, 10]\n[[1, 2], [3, 4], [5, 6]]\n[]\n[42]\n\nTesting dict literals:\n{'a': 1, 'b': 2, 'c': 3}\n{'x': 10, 'y': 11}\n{}\n\nTesting set literals:\n{1, 2, 3}\n\nTesting tuple lite",
+      "error": null
     },
     {
       "file": "test_v053_list_fix.frm",
@@ -2970,10 +2970,10 @@
     {
       "file": "test_v053_multi_var.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_v053_multi_var.py\", line 21\n    __multi_var__:x,y,z = (1, 2, 3)\n                   ^\nSyntaxError: inval"
+      "output": "=== Multiple Variable Declarations Test ===\nx = 1\ny = 2\nz = 3\na = hello\nb = 42\nc = 3.14\np = 10\nq = 20\nr = 30\nm = 100\nn = 200\no = 300\ncoords: 5, 10, 15\nsingle = 100\nmulti_a = 200\nmulti_b = 300\nanother_",
+      "error": null
     },
     {
       "file": "test_v054_collection_constructors.frm",
@@ -2986,10 +2986,10 @@
     {
       "file": "test_v054_star_expressions.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_v054_star_expressions.py\", line 21\n    __multi_var__:first,*rest = [1, 2, 3, 4, 5]\n                    "
+      "output": "=== Star Expression Tests ===\nfirst = 1\nrest = [2, 3, 4, 5]\nbeginning = [10, 20, 30]\nlast = 40\nhead = 100\nmiddle = [200, 300, 400]\ntail = 500\n\n=== Star with Tuples ===\nx = 1\nrest (from tuple) = [2, 3,",
+      "error": null
     },
     {
       "file": "test_v056_features.frm",
@@ -3028,8 +3028,8 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_with_statement.py\", line 196\n    async with aiohttp.ClientSession() as session:\n    ^^^^^^^^^^^^^^^^^^^"
+      "output": "Testing with statement support in Frame v0.37\n==================================================\n\n1. Testing regular with statement:\nFile content: This is a test file for Frame with statement testing.",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_with_statement.py\", line 259, in <module>\n    main()\n    ~~~~^^\n  Fi"
     },
     {
       "file": "test_with_statement_basic.frm",
