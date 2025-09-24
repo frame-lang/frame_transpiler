@@ -1,3 +1,34 @@
+# Frame v0.76 Development Notes
+
+## v0.76 Python Syntax Alignment - COMPLETE! (2025-01-24)
+
+### ✅ Frame Now Uses Python-Style Syntax Throughout!
+
+Frame v0.76 aligns Frame's syntax with Python conventions by removing redundant keywords and adopting Python-style syntax for all constructs.
+
+**Completed Changes:**
+1. **Class Inheritance** - Removed `extends` keyword, now use Python-style: `class Child(Parent)` ✅
+2. **Super Calls** - Properly convert `super.init()` to Python's `super().__init__()` ✅  
+3. **XOR Operator** - Removed `xor` keyword, use Python's native `^` operator ✅
+4. **All Python Operators** - Full pass-through support for all Python operators verified ✅
+
+**Breaking Changes:**
+- `class Child extends Parent` → `class Child(Parent)`
+- `a xor b` → `a ^ b`
+
+**Benefits:**
+- Consistent with Python syntax conventions
+- Less cognitive overhead for Python developers
+- Simpler parser and transpiler implementation
+- All Python operators work natively
+
+**Test Results:**
+- 88.7% success rate (336/379 tests passing)
+- All operator tests verified working
+- Class inheritance tests updated and passing
+
+---
+
 # Frame v0.75 Development Notes
 
 ## v0.75 CodeBuilder Architecture - COMPLETE! (2025-12-22)

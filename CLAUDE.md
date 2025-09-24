@@ -11,7 +11,7 @@
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (class support with OOP features), v0.46 (assert statement support), v0.47 (with statement support), v0.48 (Python-style access modifiers), v0.49 (complete error handling), v0.50 (del statement support), v0.51 (loop else clauses), v0.52 (multiple assignment), v0.53 (critical bug fixes for collections and multiple variable declarations), v0.54 (star expressions for unpacking), v0.55 (state parameters fixed, type annotations and @property confirmed working), v0.56 (Python enhancement features including walrus operator, type aliases, and enhanced numerics), v0.57 (multi-file module system infrastructure with Frame file imports), v0.58 (class decorators with Python pass-through and GraphViz multi-system support), v0.59 (source map generation for debugging support), v0.60 (critical double-call bug fix and complete AST dump feature), v0.61 (comprehensive call chain analysis and refactoring planning), v0.62 (semantic call resolution infrastructure), v0.63 (accurate semantic call resolution with Actions, Operations, and External calls correctly identified), v0.64 (visitor simplification using resolved types), v0.65 (complete visitor call unification), v0.66 (explicit self/system call syntax with semantic resolution always enabled), v0.74 (source map architecture documentation and marker file linter), and v0.75 (CodeBuilder architecture with automatic line tracking and PythonVisitorV2 as default).
+Frame is a state machine language that transpiles to multiple target languages. The project has evolved through v0.20 (syntax modernization), v0.30 (multi-entity support), v0.31 (import statements and self expression enhancements), v0.32 (advanced enum features), v0.33 (Frame Standard Library), v0.34 (Complete Module System implementation with qualified names), v0.35 (async/await foundation), v0.36 (event-handlers-as-functions), v0.37 (async event handlers with runtime infrastructure), v0.38 (Python logical operators alignment), v0.39 (Python operators complete), v0.40 (Python comment syntax, bitwise XOR, and matrix multiplication), v0.41 (set comprehensions), v0.42 (generators), v0.43 (type annotations), v0.44 (comprehensive pattern matching with match-case), v0.45 (class support with OOP features), v0.46 (assert statement support), v0.47 (with statement support), v0.48 (Python-style access modifiers), v0.49 (complete error handling), v0.50 (del statement support), v0.51 (loop else clauses), v0.52 (multiple assignment), v0.53 (critical bug fixes for collections and multiple variable declarations), v0.54 (star expressions for unpacking), v0.55 (state parameters fixed, type annotations and @property confirmed working), v0.56 (Python enhancement features including walrus operator, type aliases, and enhanced numerics), v0.57 (multi-file module system infrastructure with Frame file imports), v0.58 (class decorators with Python pass-through and GraphViz multi-system support), v0.59 (source map generation for debugging support), v0.60 (critical double-call bug fix and complete AST dump feature), v0.61 (comprehensive call chain analysis and refactoring planning), v0.62 (semantic call resolution infrastructure), v0.63 (accurate semantic call resolution with Actions, Operations, and External calls correctly identified), v0.64 (visitor simplification using resolved types), v0.65 (complete visitor call unification), v0.66 (explicit self/system call syntax with semantic resolution always enabled), v0.74 (source map architecture documentation and marker file linter), v0.75 (CodeBuilder architecture with automatic line tracking and PythonVisitorV2 as default), and v0.76 (Python syntax alignment - removed 'extends' keyword for class inheritance and 'xor' keyword, now using Python-style syntax throughout).
 
 ## File Locations
 
@@ -39,7 +39,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.75.0`  
+**Version**: `v0.76.0`  
 **Status**: ✅ **100% TEST SUCCESS RATE** - CodeBuilder Architecture Complete with PythonVisitorV2 as Default
 
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
@@ -935,7 +935,11 @@ Frame v0.45 introduces basic class support for object-oriented programming, enab
 
 #### Class Declaration Syntax
 ```frame
+# Basic class
 class ClassName {
+
+# Class with inheritance (v0.76: Python-style syntax)
+class Child(Parent) {
     # Class variables
     var shared_var = 0
     
@@ -991,9 +995,18 @@ class Point {
     }
 }
 
+# Class with inheritance
+class Point3D(Point) {
+    fn init(x, y, z) {
+        super.init(x, y)  # Call parent constructor
+        self.z = z
+    }
+}
+
 fn main() {
     var p1 = Point(3, 4)
     var p2 = Point.origin()
+    var p3 = Point3D(1, 2, 3)
     var dist = p1.distance_to(p2)
     print("Distance: " + str(dist))
     print("Points created: " + str(Point.instance_count))
@@ -1007,7 +1020,7 @@ fn main() {
 - ✅ Static methods with @staticmethod
 - ✅ Class and instance variables
 - ✅ Proper variable scoping in methods
-- ❌ Inheritance (not yet supported)
+- ✅ Inheritance with Python-style syntax: `class Child(Parent)` (v0.76)
 - ❌ Access modifiers (all members public)
 
 ### v0.56 Python Enhancement Features (COMPLETE) ✅

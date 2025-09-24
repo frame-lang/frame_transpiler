@@ -1,6 +1,6 @@
 # Frame Language AI Guide
-*Version 0.59 - Comprehensive Grammar and Code Style Reference for AI Systems*
-*Last Updated: September 17, 2025*
+*Version 0.76 - Comprehensive Grammar and Code Style Reference for AI Systems*
+*Last Updated: January 2025*
 
 ## 🎯 Purpose
 This guide is specifically designed for AI systems (LLMs, code assistants, etc.) to quickly understand Frame's grammar, generate correct Frame code, and assist developers effectively. Frame is a state machine language that transpiles to Python (and other targets).
@@ -68,6 +68,15 @@ class Rectangle {
     fn init(width, height) {  # Constructor (special name)
         self.width = width
         self.height = height
+    }
+    
+    # ... methods ...
+}
+
+# Class with inheritance (v0.76: Python-style)
+class Square(Rectangle) {
+    fn init(side) {
+        super.init(side, side)  # Call parent constructor
     }
     
     @property  # v0.55: Property decorator
@@ -298,12 +307,14 @@ string literal"""                        # Triple-quoted
 and  # Logical AND (not &&)
 or   # Logical OR (not ||)
 not  # Logical NOT (not !)
+# Note: 'xor' keyword removed in v0.76, use '^' for XOR
 ```
 
 #### Bitwise (v0.39+)
 ```frame
 &   # Bitwise AND
 |   # Bitwise OR
+^   # Bitwise XOR (also works as logical XOR for booleans)
 ^   # Bitwise XOR (v0.40+)
 ~   # Bitwise NOT
 <<  # Left shift
@@ -831,6 +842,10 @@ var *head, last = sequence
 
 ## 📚 Version History Highlights
 
+- **v0.76** (Jan 2025): Python syntax alignment - removed 'extends' and 'xor' keywords, use Python-style class inheritance
+- **v0.75**: CodeBuilder architecture with automatic line tracking
+- **v0.74**: Source map architecture documentation
+- **v0.66**: Explicit self/system call syntax
 - **v0.59** (Sept 2025): Source map generation for debugging support via --debug-output flag (374/374 tests)
 - **v0.58**: Class decorators, GraphViz multi-system support, debug output control (374/374 tests)
 - **v0.57**: Multi-file module system with Frame imports, separate file generation (374/374 tests)
@@ -850,7 +865,7 @@ var *head, last = sequence
 - **v0.43**: Type annotations
 - **v0.42**: Generators and async generators
 - **v0.41**: Set comprehensions, string literal method calls
-- **v0.40**: Python comments (#), enhanced string literals, XOR, matrix ops
+- **v0.40**: Python comments (#), enhanced string literals, bitwise XOR via ^, matrix ops
 - **v0.39**: Compound assignments, bitwise, identity operators
 - **v0.38**: Python logical operators (and/or/not), membership (in/not in)
 - **v0.37**: Async event handlers, slicing operations

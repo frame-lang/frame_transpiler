@@ -241,7 +241,7 @@ fn main() {
 Frame v0.45 introduces class support for object-oriented programming, providing a familiar syntax for defining classes with methods and variables. v0.58 adds support for class decorators.
 
 ```bnf
-class_decl: decorator* 'class' IDENTIFIER '{' class_body '}'  // v0.58: Added decorator support
+class_decl: decorator* 'class' IDENTIFIER ('(' IDENTIFIER ')')? '{' class_body '}'  // v0.58: Decorators, v0.76: Python-style inheritance
 decorator: '@' IDENTIFIER ('(' arguments? ')')?  // v0.58: Class decorators
 class_body: (var_decl | method_decl | static_method_decl | property_method_decl)*
 
@@ -335,10 +335,26 @@ class Point {
     }
 }
 
+# Class inheritance (v0.76: Python-style syntax)
+class Point3D(Point) {
+    fn init(x, y, z) {
+        super.init(x, y)  # Call parent constructor
+        self.z = z
+    }
+    
+    fn distance_to(other) {
+        var dx = self.x - other.x
+        var dy = self.y - other.y
+        var dz = self.z - other.z
+        return ((dx * dx) + (dy * dy) + (dz * dz)) ** 0.5
+    }
+}
+
 # Using classes
 fn main() {
     var p1 = Point(3.0, 4.0)
     var p2 = Point(6.0, 8.0)
+    var p3 = Point3D(1.0, 2.0, 3.0)
     var origin = Point.origin()  # Static method call
     
     var dist = p1.distance_to(p2)  # Instance method call
@@ -426,7 +442,7 @@ class ComparablePoint {
 ### Key Differences from Traditional OOP
 
 - **Implicit `self`**: Method signatures don't include `self` parameter (added automatically)
-- **No Inheritance**: Frame v0.45 supports single classes without inheritance
+- **Inheritance**: Frame v0.76 uses Python-style syntax: `class Child(Parent)`
 - **No Access Modifiers**: All members are public
 - **Python-style Special Methods**: Use `__str__`, `__repr__`, etc. for special behavior
 - **Decorator Pass-through**: Python decorators work directly (v0.58)
@@ -2788,7 +2804,7 @@ binary_expr: expr operator expr
 operator: '+' | '-' | '*' | '/' | '//' | '%' | '**' | '@'  // v0.40: Added floor division and matrix multiplication
         | '==' | '!=' | '<' | '>' | '<=' | '>='
         | '&' | '|' | '^' | '<<' | '>>'  // v0.39-40: Bitwise operators
-        | 'and' | 'or' | 'xor'  // v0.38: Python logical operators
+        | 'and' | 'or'  // v0.38: Python logical operators (xor removed in v0.76)
         | 'is' | 'is not' | 'in' | 'not in'  // v0.39: Identity/membership
 
 unary_expr: ('-' | 'not' | '~') expr  // v0.38-39: Python unary operators
