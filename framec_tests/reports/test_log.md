@@ -8,20 +8,22 @@
 
 ## Results
 - **Total Tests**: 379
-- **Passed**: 344
-- **Failed**: 35
-- **Success Rate**: 90.8% 🎉
+- **Passed**: 345
+- **Failed**: 34
+- **Success Rate**: 91.0% 🎉
 
 ## Improvements Made in v0.76.1 (2025-09-24)
 
 ### Fixed Issues ✅
 1. **Fixed state parameter access bug**: State parameters now correctly accessed via `compartment.state_args["param"]`
-2. **Fixed local variable scoping**: Local variables in for loops no longer incorrectly treated as state variables
-3. **Fixed module variable initialization**: Module variables now properly initialized with values instead of `None`
-4. **Reorganized visitor trait methods**: Moved `visit_variable_decl_node` and `visit_function_node` into AstVisitor impl
+2. **Fixed async/sync interface mixing**: All interface methods now async when system has async runtime
+3. **Fixed local variable scoping**: Local variables in for loops no longer incorrectly treated as state variables
+4. **Fixed module variable initialization**: Module variables now properly initialized with values instead of `None`
+5. **Reorganized visitor trait methods**: Moved `visit_variable_decl_node` and `visit_function_node` into AstVisitor impl
 
 ### Technical Details
 - **State parameter fix**: Changed from checking `var_node.id_node.scope` to `var_node.scope` for proper scope detection
+- **Async interface fix**: Check `system_has_async_runtime` flag when generating interface methods
 - Changed from `value_rc` to `get_initializer_value_rc()` for proper initialization values
 - Added scope checking to distinguish module vs local variables
 - Module variables now generated after systems/classes (matching V1 visitor)
