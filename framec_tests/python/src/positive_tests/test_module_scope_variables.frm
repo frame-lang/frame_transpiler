@@ -3,9 +3,9 @@
 
 import math
 
-# Module-level constants
-const PI = 3.14159
-const VERSION = "1.0.0"
+# Module-level variables (Frame doesn't support const)
+var PI = 3.14159
+var VERSION = "1.0.0"
 
 # Module-level variables
 var counter = 0

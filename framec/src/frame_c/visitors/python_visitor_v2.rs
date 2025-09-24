@@ -274,8 +274,17 @@ impl AstVisitor for PythonVisitorV2 {
         // Process module-level variables
         for var_decl in &frame_module.variables {
             let var = var_decl.borrow();
+            
+            // Generate the initializer value
+            let mut init_value = String::new();
+            self.visit_expr_node_to_string(&*var.value_rc, &mut init_value);
+            
+            if init_value.is_empty() || init_value.contains("TODO") {
+                init_value = "None".to_string();
+            }
+            
             self.builder.writeln_mapped(
-                &format!("{} = None", var.name),
+                &format!("{} = {}", var.name, init_value),
                 var.line
             );
             self.global_vars.insert(var.name.clone());
