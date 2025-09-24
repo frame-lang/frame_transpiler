@@ -8,9 +8,9 @@
 
 ## Results
 - **Total Tests**: 379
-- **Passed**: 346
-- **Failed**: 33
-- **Success Rate**: 91.3% 🎉
+- **Passed**: 347
+- **Failed**: 32
+- **Success Rate**: 91.6% 🎉
 
 ## Improvements Made in v0.76.1 (2025-09-24)
 
@@ -22,6 +22,7 @@
 5. **Reorganized visitor trait methods**: Moved `visit_variable_decl_node` and `visit_function_node` into AstVisitor impl
 6. **Fixed enum accessibility**: Created module-level aliases for domain enums for module function access
 7. **Fixed action accessibility**: Generated module-level wrapper functions for system actions using singleton pattern
+8. **Fixed test syntax issue**: Updated test_class_v046 to use Python-style inheritance syntax instead of 'extends'
 
 ### Technical Details
 - **State parameter fix**: Changed from checking `var_node.id_node.scope` to `var_node.scope` for proper scope detection
