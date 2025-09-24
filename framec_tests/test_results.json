@@ -1,8 +1,8 @@
-Found 209 test files
+Found 379 test files
 JSON results saved to: /Users/marktruluck/projects/frame_transpiler/framec_tests/reports/test_results_v0.31.json
 
 === SUMMARY ===
-Total Tests: 209
-Passed: 202
-Failed: 7
-Success Rate: 96.7%
+Total Tests: 379
+Passed: 350
+Failed: 29
+Success Rate: 92.3%

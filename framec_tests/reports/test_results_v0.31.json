@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-24T09:32:52.432027",
+  "timestamp": "2025-09-24T12:30:43.045186",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 376,
-    "execute_success": 348,
-    "complete_success": 351,
-    "success_rate": "92.6%"
+    "execute_success": 353,
+    "complete_success": 356,
+    "success_rate": "93.9%"
   },
   "results": [
     {
@@ -61,7 +61,7 @@
         "error_line": null,
         "warning_message": null
       },
-      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /"
+      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /"
     },
     {
       "file": "test_multifile_calculator.frm",
@@ -242,10 +242,10 @@
     {
       "file": "test_access_modifiers_v048.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
       "output": null,
-      "error": null
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_access_modifiers_v048.py\", line 71, in <module>\n    ccontinue\nNameEr"
     },
     {
       "file": "test_all_8_collection_patterns.frm",
@@ -276,7 +276,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "=== Testing v0.47 Assert Statements ===\nBasic assertions passed!\nFunction assertions passed!\n=== All Assert Tests Passed! ===\n",
+      "output": "=== Testing v0.47 Assert Statements ===\nBasic assertions passed!\nFunction assertions passed!\n=== All Assert Tests Passed! ===\n=== Testing v0.47 Assert Statements ===\nBasic assertions passed!\nFunction ",
       "error": null
     },
     {
@@ -300,7 +300,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": null,
+      "output": "=== Frame v0.42: Async Generator Support ===\nCreating async generators with 'async fn' + 'yield'\n",
       "error": null
     },
     {
@@ -490,18 +490,18 @@
     {
       "file": "test_class_simple_v046.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
       "output": null,
-      "error": null
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_class_simple_v046.py\", line 36, in <module>\n    test()\n    ~~~~^^\n  "
     },
     {
       "file": "test_class_v046.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
-      "output": null,
-      "error": null
+      "output": "=== Testing v0.46 Class Features ===\n\n--- Testing Inheritance ---\nDog name: Buddy\nDog breed: Golden Retriever\nDog species: Canis familiaris\nDog speaks: Woof! My name is Buddy\nDog moves: Buddy is movin",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_class_v046.py\", line 172, in <module>\n    test_v046_classes()\n    ~~"
     },
     {
       "file": "test_collection_constructors.frm",
@@ -516,7 +516,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": null,
+      "output": "=== Frame v0.41 Collection Support ===\n\n1. Lists:\n  Basic: [1, 2, 3, 4]\n  Empty: []\n  Nested: [[1, 2], [3, 4]]\n\n2. Dictionaries:\n  Basic: {'a': 1, 'b': 2, 'c': 3}\n  Empty: {}\n  Nested: {'outer': {'inn",
       "error": null
     },
     {
@@ -564,7 +564,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": null,
+      "output": "3.14159\n0\n",
       "error": null
     },
     {
@@ -578,18 +578,18 @@
     {
       "file": "test_controlled_hsm_loop.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_controlled_hsm_loop.py\", line 117, in <module>\n    main()\n    ~~~~^^"
+      "error": null
     },
     {
       "file": "test_controlled_hsm_loop_verbose.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Parent enter event\nParent.trigger() called\nCount is now: 1\nTransitioning to Child\nChild enter - dispatching to parent\nChild enter - dispatching to parent\nChild enter - dispatching to parent\nChild ente",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_controlled_hsm_loop_verbose.py\", line 129, in <module>\n    main()\n  "
+      "output": "Parent enter event\nParent.trigger() called\nCount is now: 1\nTransitioning to Child\nChild enter - dispatching to parent\nAfter parent dispatch\nDone!\n",
+      "error": null
     },
     {
       "file": "test_correct_transition.frm",
@@ -948,7 +948,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "=== Empty Set Literal Test ===\nEmpty dict: {}\nType: <class 'dict'>\nEmpty set: set()\nType: <class 'set'>\nNon-empty set: {1, 2, 3}\nAfter adding 42: {42}\n",
+      "output": "=== Empty Set Literal Test ===\nEmpty dict: {}\nType: <class 'dict'>\nEmpty set: set()\nType: <class 'set'>\nNon-empty set: {1, 2, 3}\nAfter adding 42: {42}\n=== Empty Set Literal Test ===\nEmpty dict: {}\nTyp",
       "error": null
     },
     {
@@ -1004,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1036,7 +1036,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1044,7 +1044,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1178,10 +1178,10 @@
     {
       "file": "test_forward_event.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "in child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin child\nin",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_forward_event.py\", line 113, in <module>\n    main()\n    ~~~~^^\n  Fil"
+      "output": "in child\n",
+      "error": null
     },
     {
       "file": "test_fsl_bool.frm",
@@ -1338,10 +1338,10 @@
     {
       "file": "test_generators_basic.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_generators_basic.py\", line 32\n    def test_generator_expressions():\n    ^^^\nIndentationError: expected "
+      "output": "=== Testing Generators ===\nGenerator results: [0, 2, 4, 6, 8]\nEven generator results: [0, 2, 4, 6, 8]\n\n=== Testing yield functions ===\n",
+      "error": null
     },
     {
       "file": "test_handlers_simple.frm",
@@ -1892,16 +1892,16 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": "\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n\n=== test_read_access ===\nmodule_string: initial_string\nmodule_int: 42\nmodule_bool: True\nmodule_float: 3.14\nmodule_none: None\nmodule_list: [1, 2, 3]\n=== test",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 391, in <module>\n    main()\n   "
+      "output": "Module loading - initializing module variables\nInitial shared_counter: 0\n\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n\n=== test_read_access ===\nmodule_string: initial_string\nmodule_int: 42\nmodule_bool: ",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 395, in <module>\n    main()\n   "
     },
     {
       "file": "test_module_scope_variables.frm",
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": "PI = 3.14159\nVERSION = 1.0.0\ncounter = 0\ninitialized = False\n[LOG] Main function called\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_variables.py\", line 128, in <module>\n    main()\n    ~~~"
+      "output": "[LOG] Module initialized\nPI = 3.14159\nVERSION = 1.0.0\ncounter = 0\ninitialized = False\n[LOG] Main function called\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_variables.py\", line 130, in <module>\n    main()\n    ~~~"
     },
     {
       "file": "test_module_syntax.frm",
@@ -1916,7 +1916,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": null,
+      "output": "System started\n",
       "error": null
     },
     {
@@ -2052,7 +2052,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "x is None\nFunction returned None\nReceived None\nReceived value: 42\nSystem returned None\nTest complete\n",
+      "output": "x is None\nFunction returned None\nReceived None\nReceived value: 42\nSystem returned None\nTest complete\nx is None\nFunction returned None\nReceived None\nReceived value: 42\nSystem returned None\nTest complet",
       "error": null
     },
     {
@@ -2106,26 +2106,26 @@
     {
       "file": "test_parent_dispatch.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "test1 handled in parent\ntest2 handled in parent\ntest3 parent triggers transition\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nen",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_parent_dispatch.py\", line 215, in <module>\n    main()\n    ~~~~^^\n  F"
+      "output": "test1 handled in parent\ntest2 handled in parent\ntest3 parent triggers transition\nenter child2\nexit child2\nenter child1\nenter child1 - after parent dispatch\n",
+      "error": null
     },
     {
       "file": "test_parent_dispatch_complete.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "test1 handled in parent\ntest2 handled in parent\ntest3 parent triggers transition\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nenter child2\nen",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_parent_dispatch_complete.py\", line 236, in <module>\n    main()\n    ~"
+      "output": "test1 handled in parent\ntest2 handled in parent\ntest3 parent triggers transition\nenter child2\nexit child2\nenter child1\nenter child1 - after parent dispatch\ntest4 in child\ntest4 continues after parent ",
+      "error": null
     },
     {
       "file": "test_parent_transition_detection.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "=== Testing parent transition detection ===\nChild: Before parent dispatch\nChild: Before parent dispatch\nChild: Before parent dispatch\nChild: Before parent dispatch\nChild: Before parent dispatch\nChild:",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_parent_transition_detection.py\", line 156, in <module>\n    main()\n  "
+      "output": "=== Testing parent transition detection ===\nChild: Before parent dispatch\nERROR: This line should NOT execute due to parent transition!\nERROR: This should not be called - we should be in NewState\n",
+      "error": null
     },
     {
       "file": "test_perf_module1.frm",
@@ -2316,7 +2316,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": null,
+      "output": "Basic set comprehension: PASS\nConditional set comprehension: PASS\nExpression set comprehension: PASS\nMethod call set comprehension: PASS\nComplex set comprehension: PASS\nSet comprehension deduplication",
       "error": null
     },
     {
@@ -2370,17 +2370,17 @@
     {
       "file": "test_simple_hsm_loop.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_simple_hsm_loop.py\", line 113, in <module>\n    main()\n    ~~~~^^\n  F"
+      "error": null
     },
     {
       "file": "test_simple_module.frm",
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": null,
+      "output": "Hello, world!\n",
       "error": null
     },
     {
@@ -2436,7 +2436,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": null,
+      "output": "Machine: Start state entered\nOperations: do_work called\nActions: calling finish_work\nActions: finish_work called\nDomain: counter = 42\n",
       "error": null
     },
     {
@@ -2540,7 +2540,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Configured with range: 1 to 5\nValue set to: 3\nIncremented to: 4\nIncremented to: 5\nWrapped to minimum: 1\nRange: 1 to 5\n",
+      "output": "Configured with range: 1 to 5\nValue set to: 3\nIncremented to: 4\nIncremented to: 5\nWrapped to minimum: 1\nRange: 1 to 5\nConfigured with range: 1 to 5\nValue set to: 3\nIncremented to: 4\nIncremented to: 5\n",
       "error": null
     },
     {
@@ -2604,7 +2604,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "From function: 30\nOrigin: (0, 0)\n5 + 7 = 12\n3 * 4 = 12\nDistance: 5.0\n",
+      "output": "From function: 30\nOrigin: (0, 0)\n5 + 7 = 12\n3 * 4 = 12\nDistance: 5.0\nFrom function: 30\nOrigin: (0, 0)\n5 + 7 = 12\n3 * 4 = 12\nDistance: 5.0\n",
       "error": null
     },
     {
@@ -2796,7 +2796,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Sum: 8\nArea: 213.15\nGreeting: Hello, Frame\nUnique items: {1, 2, 3}\nType annotations test complete\n",
+      "output": "Sum: 8\nArea: 213.15\nGreeting: Hello, Frame\nUnique items: {1, 2, 3}\nType annotations test complete\nSum: 8\nArea: 213.15\nGreeting: Hello, Frame\nUnique items: {1, 2, 3}\nType annotations test complete\n",
       "error": null
     },
     {

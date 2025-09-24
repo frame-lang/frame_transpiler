@@ -31,6 +31,7 @@ pub struct PythonVisitorV2 {
     
     // Current context
     current_state_name_opt: Option<String>,
+    current_state_parent_opt: Option<String>, // HSM parent state tracking
     current_event_ret_type: String,
     current_class_name_opt: Option<String>,
     
@@ -69,6 +70,7 @@ impl PythonVisitorV2 {
             symbol_config,
             arcanum,
             current_state_name_opt: None,
+            current_state_parent_opt: None,
             current_event_ret_type: String::new(),
             current_class_name_opt: None,
             system_name: String::new(),
@@ -614,6 +616,12 @@ impl PythonVisitorV2 {
     fn visit_state_node(&mut self, state_node: &StateNode) {
         self.current_state_name_opt = Some(state_node.name.clone());
         
+        // Track parent state for => $^ dispatch in event handlers (HSM support)
+        self.current_state_parent_opt = match &state_node.dispatch_opt {
+            Some(dispatch) => Some(dispatch.target_state_ref.name.clone()),
+            None => None,
+        };
+        
         // Track state parameters
         self.current_state_params.clear();
         if let Some(params) = &state_node.params_opt {
@@ -629,6 +637,7 @@ impl PythonVisitorV2 {
         }
         
         self.current_state_name_opt = None;
+        self.current_state_parent_opt = None;
         self.current_state_params.clear();
     }
     
@@ -1124,10 +1133,25 @@ impl PythonVisitorV2 {
                     format!("{{{}}}", state_vars_entries.join(", "))
                 };
                 
-                self.builder.writeln(&format!(
-                    "self.__compartment = FrameCompartment('{}', None, None, None, None, {}, {{}})",
-                    state_name, state_vars_dict
-                ));
+                // Check if initial state has a parent (for HSM support)
+                if let Some(dispatch) = &state.dispatch_opt {
+                    // Initial state has a parent - create parent compartment first
+                    let parent_state_name = self.format_state_name(&dispatch.target_state_ref.name);
+                    self.builder.writeln(&format!(
+                        "parent_compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
+                        parent_state_name
+                    ));
+                    self.builder.writeln(&format!(
+                        "self.__compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {{}})",
+                        state_name, state_vars_dict
+                    ));
+                } else {
+                    // No parent - create compartment normally
+                    self.builder.writeln(&format!(
+                        "self.__compartment = FrameCompartment('{}', None, None, None, None, {}, {{}})",
+                        state_name, state_vars_dict
+                    ));
+                }
             } else {
                 self.builder.writeln("self.__compartment = None");
             }
@@ -2353,10 +2377,41 @@ impl PythonVisitorV2 {
             "{}".to_string()
         };
         
-        self.builder.writeln(&format!(
-            "next_compartment = FrameCompartment('{}', None, None, None, None, {}, {})",
-            target_state_name, state_vars_dict, state_args_dict
-        ));
+        // Check if target state has a parent (for HSM support)
+        let parent_compartment_creation = if let Some(target_state_name_str) = target_state_ref {
+            if let Some(target_state_node_rcref) = self.get_state_node(target_state_name_str) {
+                let target_state_node = target_state_node_rcref.borrow();
+                if let Some(dispatch) = &target_state_node.dispatch_opt {
+                    // Target state has a parent - create parent compartment first
+                    let parent_state_name = self.format_state_name(&dispatch.target_state_ref.name);
+                    Some((parent_state_name, true))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        
+        if let Some((parent_state_name, _)) = parent_compartment_creation {
+            // Create parent compartment and then child with parent reference
+            self.builder.writeln(&format!(
+                "parent_compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
+                parent_state_name
+            ));
+            self.builder.writeln(&format!(
+                "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {})",
+                target_state_name, state_vars_dict, state_args_dict
+            ));
+        } else {
+            // No parent - create compartment normally
+            self.builder.writeln(&format!(
+                "next_compartment = FrameCompartment('{}', None, None, None, None, {}, {})",
+                target_state_name, state_vars_dict, state_args_dict
+            ));
+        }
         self.builder.writeln("self.__transition(next_compartment)");
     }
     
@@ -2399,7 +2454,7 @@ impl PythonVisitorV2 {
     // Parent dispatch statement (=> $^)
     fn visit_parent_dispatch_stmt_node(&mut self, node: &ParentDispatchStmtNode) {
         // Dispatch to parent state
-        if let Some(_parent_compartment) = &self.current_state_name_opt {
+        if let Some(_parent_state) = &self.current_state_parent_opt {
             self.builder.writeln_mapped(
                 "self.__router(__e, compartment.parent_compartment)",
                 node.line
