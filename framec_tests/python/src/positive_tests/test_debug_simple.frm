@@ -521,7 +521,7 @@ class Person {
     }
 }
 
-class Student extends Person {
+class Student(Person) {
     var student_id = ""
     var grades = []
     var courses = []

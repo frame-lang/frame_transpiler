@@ -2800,24 +2800,44 @@ impl PythonVisitorV2 {
                     self.visit_call_expression_node_to_string(call_node, output);
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                    // Parameters and other undeclared identifiers
-                    // Check if it's a state parameter
-                    if id_node.name.lexeme == "data" {
-                        eprintln!("DEBUG: Processing 'data' - current_state_params: {:?}", self.current_state_params);
-                    }
-                    if self.current_state_params.contains(&id_node.name.lexeme) {
-                        output.push_str(&format!("compartment.state_args[\"{}\"]", id_node.name.lexeme));
-                    }
-                    // Check if it's a domain variable that needs self. prefix
-                    // But NOT if:
-                    // 1. It's a parameter
-                    // 2. We're already in a self. context (to avoid self.self.)
-                    else if self.domain_variables.contains(&id_node.name.lexeme) &&
-                       !self.current_handler_params.contains(&id_node.name.lexeme) &&
-                       !in_self_context {
-                        output.push_str(&format!("self.{}", id_node.name.lexeme));
+                    // Check for FSL property transformations (e.g., list.length -> len(list))
+                    if id_node.name.lexeme == "length" && !first {
+                        // This is a .length property access
+                        // We need to transform variable.length to len(variable)
+                        // But we've already output the variable and the dot
+                        
+                        // Find where the dot was added (search backwards from end)
+                        if let Some(dot_pos) = output.rfind('.') {
+                            // Extract the variable name (everything after last space or start before the dot)
+                            let var_start = output[..dot_pos].rfind(' ').map(|pos| pos + 1).unwrap_or(0);
+                            let var_name = output[var_start..dot_pos].to_string();
+                            
+                            // Remove everything from var_start to end
+                            output.truncate(var_start);
+                            
+                            // Output len(variable) instead
+                            output.push_str(&format!("len({})", var_name));
+                        }
                     } else {
-                        output.push_str(&id_node.name.lexeme);
+                        // Normal undeclared identifier handling
+                        // Check if it's a state parameter
+                        if id_node.name.lexeme == "data" {
+                            eprintln!("DEBUG: Processing 'data' - current_state_params: {:?}", self.current_state_params);
+                        }
+                        if self.current_state_params.contains(&id_node.name.lexeme) {
+                            output.push_str(&format!("compartment.state_args[\"{}\"]", id_node.name.lexeme));
+                        }
+                        // Check if it's a domain variable that needs self. prefix
+                        // But NOT if:
+                        // 1. It's a parameter
+                        // 2. We're already in a self. context (to avoid self.self.)
+                        else if self.domain_variables.contains(&id_node.name.lexeme) &&
+                           !self.current_handler_params.contains(&id_node.name.lexeme) &&
+                           !in_self_context {
+                            output.push_str(&format!("self.{}", id_node.name.lexeme));
+                        } else {
+                            output.push_str(&id_node.name.lexeme);
+                        }
                     }
                 }
                 CallChainNodeType::ListElementNodeT { list_elem_node } => {
