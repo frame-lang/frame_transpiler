@@ -1112,9 +1112,10 @@ impl PythonVisitorV2 {
             format!("self, {}", params)
         };
         
-        // Only make the method async if it's explicitly marked as async
-        // or if the handler itself needs to be async
-        let needs_async = method.is_async;
+        // Make the method async if:
+        // 1. It's explicitly marked as async, OR
+        // 2. The system has async runtime (kernel is async)
+        let needs_async = method.is_async || self.system_has_async_runtime;
         
         self.builder.newline();
         self.builder.write_function(
