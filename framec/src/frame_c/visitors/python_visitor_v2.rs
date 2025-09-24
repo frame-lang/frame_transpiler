@@ -482,6 +482,10 @@ impl PythonVisitorV2 {
                 // Generate the enum with a prefixed name
                 let prefixed_name = format!("{}_{}", self.system_name, enum_node.name);
                 self.generate_enum_with_name(&enum_node, &prefixed_name);
+                
+                // Create module-level alias for the enum so it can be accessed without prefix
+                self.builder.newline();
+                self.builder.writeln(&format!("{} = {}", enum_node.name, prefixed_name));
             }
         }
         
@@ -540,6 +544,59 @@ impl PythonVisitorV2 {
         }
         
         self.builder.end_class();
+        
+        // Generate module-level wrappers for actions if they exist
+        // This allows module-level functions to call system actions
+        if let Some(actions) = &system_node.actions_block_node_opt {
+            // Create a singleton instance of the system
+            self.builder.newline();
+            self.builder.writeln(&format!("# Module-level singleton instance for {}", system_node.name));
+            self.builder.writeln(&format!("_{}_instance = None", system_node.name.to_lowercase()));
+            self.builder.newline();
+            
+            // Generate wrapper function for each action
+            for action_rcref in &actions.actions {
+                let action = action_rcref.borrow();
+                self.generate_module_level_action_wrapper(&system_node.name, &action);
+            }
+        }
+    }
+    
+    fn generate_module_level_action_wrapper(&mut self, system_name: &str, action: &ActionNode) {
+        // Generate module-level wrapper function for action
+        let params = if let Some(params) = &action.params {
+            params.iter()
+                .map(|p| p.param_name.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        } else {
+            String::new()
+        };
+        
+        self.builder.newline();
+        self.builder.write_function(&action.name, &params, action.is_async, 0);
+        
+        // Get or create singleton instance
+        self.builder.writeln(&format!("global _{}_instance", system_name.to_lowercase()));
+        self.builder.writeln(&format!("if _{}_instance is None:", system_name.to_lowercase()));
+        self.builder.indent();
+        self.builder.writeln(&format!("_{}_instance = {}()", system_name.to_lowercase(), system_name));
+        self.builder.dedent();
+        
+        // Call the action on the singleton (method already has system prefix in its definition)
+        let action_call = if params.is_empty() {
+            format!("_{}_instance._{}__{}__{}()", system_name.to_lowercase(), system_name, system_name, action.name)
+        } else {
+            format!("_{}_instance._{}__{}__{}({})", system_name.to_lowercase(), system_name, system_name, action.name, params)
+        };
+        
+        if action.is_async {
+            self.builder.writeln(&format!("return await {}", action_call));
+        } else {
+            self.builder.writeln(&format!("return {}", action_call));
+        }
+        
+        self.builder.dedent();
     }
     
     fn visit_state_node(&mut self, state_node: &StateNode) {
