@@ -271,25 +271,6 @@ impl AstVisitor for PythonVisitorV2 {
             self.visit_import_node(import);
         }
         
-        // Process module-level variables
-        for var_decl in &frame_module.variables {
-            let var = var_decl.borrow();
-            
-            // Generate the initializer value
-            let mut init_value = String::new();
-            self.visit_expr_node_to_string(&*var.value_rc, &mut init_value);
-            
-            if init_value.is_empty() || init_value.contains("TODO") {
-                init_value = "None".to_string();
-            }
-            
-            self.builder.writeln_mapped(
-                &format!("{} = {}", var.name, init_value),
-                var.line
-            );
-            self.global_vars.insert(var.name.clone());
-        }
-        
         // Process enums
         for enum_decl in &frame_module.enums {
             self.visit_enum_decl_node(&enum_decl.borrow());
@@ -313,6 +294,15 @@ impl AstVisitor for PythonVisitorV2 {
         // Process systems
         for system in &frame_module.systems {
             self.visit_system_node(system);
+        }
+        
+        // Process module-level variables AFTER systems and classes (like V1 does)
+        // This ensures they can reference systems/classes if needed
+        for var_decl in &frame_module.variables {
+            let var = var_decl.borrow();
+            var.accept(self);
+            self.builder.newline(); // V1 adds a newline after each variable
+            self.global_vars.insert(var.name.clone());
         }
         
         // Skip the old element processing loop
@@ -365,6 +355,44 @@ impl AstVisitor for PythonVisitorV2 {
         }
     }
     
+    fn visit_variable_decl_node(&mut self, var_decl: &VariableDeclNode) {
+        // V1 uses get_initializer_value_rc() not value_rc - this is the key difference!
+        let value_expr = var_decl.get_initializer_value_rc();
+        
+        // Generate the initializer value
+        let mut init_value = String::new();
+        self.visit_expr_node_to_string(&*value_expr, &mut init_value);
+        
+        // Don't default to None if we get TODO - that's a sign something is wrong
+        if init_value.contains("TODO") {
+            eprintln!("WARNING: Got TODO for variable '{}' initialization", var_decl.name);
+            init_value = "None".to_string();
+        }
+        
+        // Handle multi-variable declaration
+        let var_name = if var_decl.name.starts_with("__multi_var__:") {
+            // Extract the variable names after the prefix
+            let names = var_decl.name.strip_prefix("__multi_var__:").unwrap_or(&var_decl.name);
+            // Only track as local if NOT module scope
+            if var_decl.identifier_decl_scope != IdentifierDeclScope::ModuleScope {
+                for name in names.split(',') {
+                    self.current_handler_locals.insert(name.trim().to_string());
+                }
+            }
+            names.replace(",", ", ")
+        } else {
+            // Only track as local if NOT module scope
+            // Module variables are tracked in global_vars separately
+            if var_decl.identifier_decl_scope != IdentifierDeclScope::ModuleScope {
+                self.current_handler_locals.insert(var_decl.name.clone());
+            }
+            var_decl.name.clone()
+        };
+        
+        let assignment = format!("{} = {}", var_name, init_value);
+        self.builder.writeln_mapped(&assignment, var_decl.line);
+    }
+    
     fn visit_function_node(&mut self, function_node: &FunctionNode) {
         let params = if let Some(params) = &function_node.params {
             params.iter()
@@ -408,7 +436,9 @@ impl AstVisitor for PythonVisitorV2 {
         
         self.builder.end_function();
     }
-    
+} // impl AstVisitor for PythonVisitorV2
+
+impl PythonVisitorV2 {
     fn visit_system_node(&mut self, system_node: &SystemNode) {
         self.system_name = system_node.name.clone();
         self.system_has_async_runtime = self.check_system_async(system_node);
@@ -1463,39 +1493,6 @@ impl PythonVisitorV2 {
         }
     }
     
-    fn visit_variable_decl_node(&mut self, var_decl: &VariableDeclNode) {
-        // Use value_rc which contains the actual value for constants
-        let value_expr = &var_decl.value_rc;
-        
-        // Generate the initializer value
-        let mut init_value = String::new();
-        self.visit_expr_node_to_string(&*value_expr, &mut init_value);
-        
-        if init_value.is_empty() || init_value.contains("TODO") {
-            init_value = "None".to_string();
-        }
-        
-        // Handle multi-variable declaration
-        let var_name = if var_decl.name.starts_with("__multi_var__:") {
-            // Extract the variable names after the prefix
-            let names = var_decl.name.strip_prefix("__multi_var__:").unwrap_or(&var_decl.name);
-            // Track each individual variable as local
-            for name in names.split(',') {
-                self.current_handler_locals.insert(name.trim().to_string());
-            }
-            names.replace(",", ", ")
-        } else {
-            // Track single variable as local
-            self.current_handler_locals.insert(var_decl.name.clone());
-            var_decl.name.clone()
-        };
-        
-        self.builder.writeln_mapped(
-            &format!("{} = {}", var_name, init_value),
-            var_decl.line
-        );
-    }
-    
     fn visit_event_handler_terminator_node(&mut self, terminator: &TerminatorExpr) {
         match &terminator.terminator_type {
             TerminatorType::Return => {
@@ -2465,19 +2462,6 @@ impl PythonVisitorV2 {
         // Clear current handler parameters and locals
         self.current_handler_params.clear();
         self.current_handler_locals.clear();
-    }
-    
-    // State node visitor - to track current state
-    fn visit_state_node(&mut self, state: &StateNode) {
-        self.current_state_name_opt = Some(state.name.clone());
-        
-        // Visit event handlers
-        for evt_handler_rcref in &state.evt_handlers_rcref {
-            let evt_handler = evt_handler_rcref.borrow();
-            self.visit_event_handler_node(&*evt_handler);
-        }
-        
-        self.current_state_name_opt = None;
     }
     
     // Machine block node visitor
