@@ -32,7 +32,7 @@ class Animal {
 }
 
 # Dog class extending Animal
-class Dog extends Animal {
+class Dog(Animal) {
     fn init(name, breed) {
         super.init(name)  # Call parent constructor
         self.breed = breed
