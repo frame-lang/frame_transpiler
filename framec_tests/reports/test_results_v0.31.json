@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-23T15:05:06.520528",
+  "timestamp": "2025-09-23T18:14:01.585468",
   "version": "v0.31",
   "summary": {
     "total": 379,
-    "transpile_success": 376,
-    "execute_success": 335,
-    "complete_success": 338,
-    "success_rate": "89.2%"
+    "transpile_success": 374,
+    "execute_success": 333,
+    "complete_success": 336,
+    "success_rate": "88.7%"
   },
   "results": [
     {
@@ -341,7 +341,7 @@
       "execute": false,
       "negative_test": false,
       "output": "Frame v0.37 Async Stress Test Suite\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress.py\", line 749, in <module>\n    main()\n    ~~~~^^\n  File"
+      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress.py:190: RuntimeWarning: coroutine 'AsyncDataPipeline.__kernel' was never awaited\n  self.__kernel(_"
     },
     {
       "file": "test_async_stress_fixed.frm",
@@ -370,10 +370,10 @@
     {
       "file": "test_async_with_proper.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
       "output": "Starting proper async with validation...\n======================================================================\nFrame v0.37 Async With Statement Tests - PROPER VALIDATION\n=============================",
-      "error": null
+      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_with_proper.py:162: RuntimeWarning: coroutine 'AsyncResourceManager.__kernel' was never awaited\n  self.__"
     },
     {
       "file": "test_async_with_real.frm",
@@ -497,11 +497,10 @@
     },
     {
       "file": "test_class_v046.frm",
-      "transpile": true,
-      "execute": true,
+      "transpile": false,
+      "execute": false,
       "negative_test": false,
-      "output": null,
-      "error": null
+      "error": "DEBUG: Found @ token\nDEBUG: After @, next token: Token { token_type: ClassMethod, lexeme: \"classmethod\", literal: None, line: 23, start: 525, length: 11 }\nDEBUG: Found @ token\nDEBUG: After @, next tok"
     },
     {
       "file": "test_collection_constructors.frm",
@@ -625,11 +624,10 @@
     },
     {
       "file": "test_debug_simple.frm",
-      "transpile": true,
+      "transpile": false,
       "execute": false,
       "negative_test": false,
-      "output": "=== Starting Comprehensive Debug Test ===\nVariable declaration: x = 101\nMultiple types: y=20, z=30.5, flag=True, name=Frame\n  [divmod] Dividing 17 by 5\nMultiple assignment: a=3, b=2\n  [unpack_three] R",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_debug_simple.py\", line 503, in <module>\n    main()\n    ~~~~^^\n  File"
+      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '{' after class declaration\n\nSymbol table construction failed. Please check your Frame syntax.\n"
     },
     {
       "file": "test_debug_system.frm",
@@ -962,10 +960,10 @@
     {
       "file": "test_enum_compliance.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
-      "output": "Color is red\nPriority is high\nColor value: 1\nPriority value: high\nColor name: RED\nPriority name: HIGH\nAll colors:\n - RED = 1\n - GREEN = 2\n - BLUE = 3\nAll priorities:\n - LOW = low\n - MEDIUM = medium\n -",
-      "error": null
+      "output": null,
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enum_compliance.py\", line 105, in <module>\n    main()\n    ~~~~^^\n  F"
     },
     {
       "file": "test_enum_custom_values.frm",
@@ -1004,7 +1002,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1013,7 +1011,7 @@
       "execute": false,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_calendar.py\", line 22, in <module>\n    class Days(Enum):\n "
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_calendar.py\", line 22, in <module>\n    class CalendarSyste"
     },
     {
       "file": "test_enums_doc_fruitsystem.frm",
@@ -1026,17 +1024,17 @@
     {
       "file": "test_enums_doc_function.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Found a Pear\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_function.py\", line 144, in <module>\n    main()\n    ~~~~^^\n"
+      "output": "Found a Pear\nBananas\n",
+      "error": null
     },
     {
       "file": "test_enums_doc_grocery_demo.frm",
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1044,7 +1042,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1053,7 +1051,7 @@
       "execute": false,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_values.py\", line 22, in <module>\n    class Days(Enum):\n   "
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_values.py\", line 22, in <module>\n    class CalendarSystem_"
     },
     {
       "file": "test_enums_simple.frm",
@@ -1085,7 +1083,7 @@
       "execute": false,
       "negative_test": false,
       "output": "Event-Handlers-as-Functions PoC\n=== Testing Mixed Handler Demo ===\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_event_handlers_poc.py\", line 219, in <module>\n    main()\n    ~~~~^^\n"
+      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_event_handlers_poc.py:82: RuntimeWarning: coroutine 'MixedHandlerDemo.__kernel' was never awaited\n  self.__kern"
     },
     {
       "file": "test_exceptions_basic.frm",
