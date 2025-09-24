@@ -32,6 +32,7 @@ pub struct PythonVisitorV2 {
     // Current context
     current_state_name_opt: Option<String>,
     current_event_ret_type: String,
+    current_class_name_opt: Option<String>,
     
     // System metadata
     system_name: String,
@@ -69,6 +70,7 @@ impl PythonVisitorV2 {
             arcanum,
             current_state_name_opt: None,
             current_event_ret_type: String::new(),
+            current_class_name_opt: None,
             system_name: String::new(),
             system_has_async_runtime: false,
             interface_methods: HashMap::new(),
@@ -647,6 +649,9 @@ impl PythonVisitorV2 {
     }
     
     fn visit_class_node(&mut self, class_node: &ClassNode) {
+        // Track current class context
+        self.current_class_name_opt = Some(class_node.name.clone());
+        
         self.builder.newline();
         // Pass parent class for inheritance
         let parent_class = class_node.parent.as_deref();
@@ -682,6 +687,9 @@ impl PythonVisitorV2 {
         }
         
         self.builder.end_class();
+        
+        // Clear class context
+        self.current_class_name_opt = None;
     }
     
     fn visit_module_node(&mut self, module_node: &ModuleNode) {
@@ -1931,10 +1939,25 @@ impl PythonVisitorV2 {
                     output.push('.');
                     output.push_str(operation);
                 }
-                ResolvedCallType::ClassMethod { class, method, .. } => {
-                    output.push_str(class);
-                    output.push('.');
-                    output.push_str(method);
+                ResolvedCallType::ClassMethod { class, method, is_static } => {
+                    // Check if we're calling a method from within the same class
+                    if let Some(ref current_class) = self.current_class_name_opt {
+                        if current_class == class && !is_static {
+                            // Within same class, use self.method() for instance methods
+                            output.push_str("self.");
+                            output.push_str(method);
+                        } else {
+                            // Different class or static method, use ClassName.method()
+                            output.push_str(class);
+                            output.push('.');
+                            output.push_str(method);
+                        }
+                    } else {
+                        // Not in a class context, use ClassName.method()
+                        output.push_str(class);
+                        output.push('.');
+                        output.push_str(method);
+                    }
                 }
                 ResolvedCallType::ModuleFunction { module, function } => {
                     output.push_str(module);
