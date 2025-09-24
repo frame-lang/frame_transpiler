@@ -1,13 +1,13 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
-# Test Frame's new XOR operator syntax (v0.38)
-# Changed from &| to xor keyword
+# Test Frame's bitwise XOR operator (^)
+# Using Python's native ^ operator for bitwise XOR
 
 fn test_xor() {
     var a = true
     var b = false
     
-    # Frame's new XOR operator 'xor'
-    if a xor b {
+    # Bitwise XOR operator (works as logical XOR for booleans)
+    if a ^ b {
         print("XOR: a is true XOR b is true")
     }
     
@@ -19,7 +19,7 @@ fn test_xor() {
     # Both true - XOR should be false
     var c = true
     var d = true
-    if c xor d {
+    if c ^ d {
         print("This should not print")
     } else {
         print("XOR is false when both are true")
@@ -28,7 +28,7 @@ fn test_xor() {
     # Both false - XOR should be false
     var e = false
     var f = false
-    if e xor f {
+    if e ^ f {
         print("This should not print")
     } else {
         print("XOR is false when both are false")
@@ -37,7 +37,7 @@ fn test_xor() {
     # Complex XOR expressions
     var x = 5
     var y = 10
-    if (x > 0) xor (y < 0) {
+    if (x > 0) ^ (y < 0) {
         print("Complex XOR: exactly one condition is true")
     }
     
@@ -45,7 +45,7 @@ fn test_xor() {
     var p = true
     var q = false
     var r = true
-    if p xor q xor r {
+    if p ^ q ^ r {
         print("Chained XOR evaluates left to right")
     }
 }
@@ -56,17 +56,17 @@ fn test_precedence() {
     var c = true
     
     # Test precedence: XOR should have lower precedence than AND/OR
-    if a and b xor c {
+    if a and b ^ c {
         print("This should not print")
     } else {
-        print("Precedence: (a and b) xor c = false xor true = true")
+        print("Precedence: (a and b) ^ c = false ^ true = true")
     }
     
     # Test with comparisons
     var x = 5
     var y = 10
-    if x < y xor a {
-        print("Comparison xor boolean: true xor true = false")
+    if x < y ^ a {
+        print("Comparison ^ boolean: true ^ true = false")
     } else {
         print("Both sides true, XOR is false")
     }

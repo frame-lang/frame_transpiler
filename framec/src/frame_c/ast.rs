@@ -3983,7 +3983,6 @@ pub enum OperatorType {
     Not,
     LogicalAnd,
     LogicalOr,
-    LogicalXor,
     Negated,
     Percent,
     BitwiseOr,  // For dict union operator |
@@ -4029,7 +4028,6 @@ impl OperatorType {
             TokenType::BangEqual => OperatorType::NotEqual,
             TokenType::And => OperatorType::LogicalAnd,  // Python 'and' keyword only
             TokenType::Or => OperatorType::LogicalOr,  // Python 'or' keyword only
-            TokenType::LogicalXor => OperatorType::LogicalXor,
             TokenType::Percent => OperatorType::Percent,
             TokenType::Pipe => OperatorType::BitwiseOr,  // Bitwise OR |
             TokenType::Ampersand => OperatorType::BitwiseAnd,  // Bitwise AND &

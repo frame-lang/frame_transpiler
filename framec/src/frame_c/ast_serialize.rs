@@ -309,7 +309,6 @@ fn operator_to_string(op: &OperatorType) -> String {
         OperatorType::IsNot => "is not".to_string(),
         OperatorType::In => "in".to_string(),
         OperatorType::NotIn => "not in".to_string(),
-        OperatorType::LogicalXor => "xor".to_string(),
         OperatorType::Negated => "-".to_string(),
         OperatorType::Unknown => "???".to_string(),
     }

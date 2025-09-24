@@ -10757,17 +10757,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_binary_expr_node(&mut self, binary_expr_node: &BinaryExprNode) {
         // TODO
         //       self.generate_comment(assignment_expr_node.line);
-        if binary_expr_node.operator == OperatorType::LogicalXor {
-            self.add_code("((");
-            binary_expr_node.left_rcref.borrow().accept(self);
-            self.add_code(") and not (");
-            binary_expr_node.right_rcref.borrow().accept(self);
-            self.add_code(")) or (not (");
-            binary_expr_node.left_rcref.borrow().accept(self);
-            self.add_code(") and (");
-            binary_expr_node.right_rcref.borrow().accept(self);
-            self.add_code("))");
-        } else {
+        {
             // Check if left side is a unary not expression that needs parentheses
             let left_needs_parens = matches!(
                 &*binary_expr_node.left_rcref.borrow(),
@@ -10821,29 +10811,7 @@ impl AstVisitor for PythonVisitor {
         binary_expr_node: &BinaryExprNode,
         output: &mut String,
     ) {
-        if binary_expr_node.operator == OperatorType::LogicalXor {
-            output.push_str("((");
-            binary_expr_node
-                .left_rcref
-                .borrow()
-                .accept_to_string(self, output);
-            output.push_str(") and not (");
-            binary_expr_node
-                .right_rcref
-                .borrow()
-                .accept_to_string(self, output);
-            output.push_str(")) or (not (");
-            binary_expr_node
-                .left_rcref
-                .borrow()
-                .accept_to_string(self, output);
-            output.push_str(") and (");
-            binary_expr_node
-                .right_rcref
-                .borrow()
-                .accept_to_string(self, output);
-            output.push_str("))");
-        } else {
+        {
             // Check if left side is a unary not expression that needs parentheses
             let left_needs_parens = matches!(
                 &*binary_expr_node.left_rcref.borrow(),
@@ -10922,7 +10890,6 @@ impl AstVisitor for PythonVisitor {
             OperatorType::NotEqual => self.add_code(" != "),
             OperatorType::LogicalAnd => self.add_code(" and "),
             OperatorType::LogicalOr => self.add_code(" or "),
-            OperatorType::LogicalXor => self.add_code(" ^ "),
             OperatorType::Percent => self.add_code(" % "),
             OperatorType::BitwiseOr => self.add_code(" | "),
             OperatorType::BitwiseAnd => self.add_code(" & "),
@@ -10959,7 +10926,6 @@ impl AstVisitor for PythonVisitor {
             OperatorType::NotEqual => output.push_str(" != "),
             OperatorType::LogicalAnd => output.push_str(" and "),
             OperatorType::LogicalOr => output.push_str(" or "),
-            OperatorType::LogicalXor => output.push_str(" ^ "),
             OperatorType::Percent => output.push_str(" % "),
             OperatorType::BitwiseOr => output.push_str(" | "),
             OperatorType::BitwiseAnd => output.push_str(" & "),

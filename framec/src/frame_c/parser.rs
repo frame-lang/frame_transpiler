@@ -3494,13 +3494,19 @@ impl<'a> Parser<'a> {
             eprintln!("DEBUG v0.66: Set current_class_name to {}", class_name);
         }
         
-        // Check for inheritance with 'extends' keyword
-        let parent = if self.match_token(&[TokenType::Extends]) {
+        // Check for inheritance with Python-style syntax: class Child(Parent)
+        let parent = if self.match_token(&[TokenType::LParen]) {
             if !self.match_token(&[TokenType::Identifier]) {
-                self.error_at_current("Expected parent class name after 'extends'");
-                return Err(ParseError::new("Expected parent class name after 'extends'"));
+                self.error_at_current("Expected parent class name after '('");
+                return Err(ParseError::new("Expected parent class name after '('"));
             }
-            Some(self.previous().lexeme.clone())
+            let parent_name = self.previous().lexeme.clone();
+            
+            if !self.match_token(&[TokenType::RParen]) {
+                self.error_at_current("Expected ')' after parent class name");
+                return Err(ParseError::new("Expected ')' after parent class name"));
+            }
+            Some(parent_name)
         } else {
             None
         };
@@ -4017,7 +4023,7 @@ impl<'a> Parser<'a> {
             // Otherwise, we need to collect comma-separated values into a tuple
             // Parse the first value
             let mut values = Vec::new();
-            match self.logical_xor() {
+            match self.logical_or() {
                 Ok(Some(expr)) => values.push(expr),
                 Ok(None) => {
                     return Err(ParseError::new("Expected value in multiple variable initialization"));
@@ -4027,7 +4033,7 @@ impl<'a> Parser<'a> {
             
             // Parse remaining comma-separated values
             while self.match_token(&[TokenType::Comma]) {
-                match self.logical_xor() {
+                match self.logical_or() {
                     Ok(Some(expr)) => values.push(expr),
                     Ok(None) => {
                         return Err(ParseError::new("Expected value after comma in multiple variable initialization"));
@@ -6654,7 +6660,7 @@ impl<'a> Parser<'a> {
             
             while self.match_token(&[TokenType::Comma]) {
                 // Parse the next target
-                match self.logical_xor() {
+                match self.logical_or() {
                     Ok(Some(expr_type)) => {
                         l_values.push(expr_type);
                     }
@@ -6750,7 +6756,7 @@ impl<'a> Parser<'a> {
                 }
             } else {
                 // Parse first expression on right side
-                let first_rhs = match self.logical_xor() {
+                let first_rhs = match self.logical_or() {
                     Ok(Some(expr_type)) => expr_type,
                     Ok(None) => {
                         self.is_parsing_rhs = false;
@@ -6767,7 +6773,7 @@ impl<'a> Parser<'a> {
                 if self.peek().token_type == TokenType::Comma && !self.is_parsing_collection {
                     let mut rhs_values = vec![first_rhs];
                     while self.match_token(&[TokenType::Comma]) {
-                        match self.logical_xor() {
+                        match self.logical_or() {
                             Ok(Some(expr_type)) => {
                                 rhs_values.push(expr_type);
                             }
@@ -7179,7 +7185,7 @@ impl<'a> Parser<'a> {
                 let l_value = ExprType::VariableExprT { var_node };
                 
                 // Parse the right side
-                let r_value = match self.logical_xor() {
+                let r_value = match self.logical_or() {
                     Ok(Some(expr_type)) => Rc::new(expr_type),
                     Ok(None) => {
                         self.error_at_current("Expected expression after ':=' operator");
@@ -7203,7 +7209,7 @@ impl<'a> Parser<'a> {
         }
         
         // Not a walrus expression, parse normally
-        let l_value = match self.logical_xor() {
+        let l_value = match self.logical_or() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
             Err(parse_error) => return Err(parse_error),
@@ -7223,7 +7229,7 @@ impl<'a> Parser<'a> {
             }
 
             // Parse the right side (should not recursively call walrus)
-            let r_value = match self.logical_xor() {
+            let r_value = match self.logical_or() {
                 Ok(Some(expr_type)) => Rc::new(expr_type),
                 Ok(None) => {
                     self.error_at_current("Expected expression after ':=' operator");
@@ -7248,37 +7254,6 @@ impl<'a> Parser<'a> {
         Ok(Some(l_value))
     }
 
-    fn logical_xor(&mut self) -> Result<Option<ExprType>, ParseError> {
-        let mut l_value = match self.logical_or() {
-            Ok(Some(expr_type)) => expr_type,
-            Ok(None) => return Ok(None),
-            Err(parse_error) => return Err(parse_error),
-        };
-
-        while self.match_token(&[TokenType::LogicalXor]) {
-            let operator_token = self.previous();
-            let op_type = self.get_operator_type(&operator_token.clone());
-            let r_value = match self.logical_or() {
-                Ok(Some(expr_type)) => expr_type,
-                Ok(None) => return Ok(None),
-                Err(parse_error) => return Err(parse_error),
-            };
-
-            if !l_value.is_valid_binary_expr_type() {
-                let err_msg = "lvalue expr is not a valid binary expression type.";
-                self.error_at_current(err_msg);
-            }
-            if !r_value.is_valid_binary_expr_type() {
-                let err_msg = "rvalue expr is not a valid binary expression type.";
-                self.error_at_current(err_msg);
-            }
-
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
-            l_value = BinaryExprT { binary_expr_node };
-        }
-
-        Ok(Some(l_value))
-    }
 
     /* --------------------------------------------------------------------- */
 

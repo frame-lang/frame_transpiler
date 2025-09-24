@@ -65,12 +65,10 @@ impl Scanner {
             ("and".to_string(), TokenType::And),
             ("or".to_string(), TokenType::Or),
             ("not".to_string(), TokenType::Not),
-            ("xor".to_string(), TokenType::LogicalXor),
             ("is".to_string(), TokenType::Is),
             ("yield".to_string(), TokenType::Yield),
             ("match".to_string(), TokenType::Match),
             ("case".to_string(), TokenType::Case),
-            ("extends".to_string(), TokenType::Extends),
             ("super".to_string(), TokenType::Super),
             // ("type".to_string(), TokenType::Type), // Removed to allow type() function calls
             ("cls".to_string(), TokenType::Cls),
@@ -318,8 +316,8 @@ impl Scanner {
                     // && is no longer supported - use 'and' keyword instead
                     self.error(self.line, "Operator '&&' has been removed. Use 'and' keyword instead.");
                 } else if self.match_char('|') {
-                    // &| operator has been removed - use 'xor' keyword instead
-                    self.error(self.line, "Operator '&|' has been removed. Use 'xor' keyword instead.");
+                    // &| operator has been removed - use '^' operator instead
+                    self.error(self.line, "Operator '&|' has been removed. Use '^' operator for XOR instead.");
                 } else if self.match_char('=') {
                     self.add_token(TokenType::AmpersandEqual);  // &= bitwise AND compound assignment
                 } else {
@@ -969,7 +967,6 @@ pub enum TokenType {
     // REMOVED: Caret (^) - use 'return' keyword
     // REMOVED: ReturnAssign (^=) - use 'return = value'
     LogicalAnd,                   // &&
-    LogicalXor,                   // xor keyword
     System,                       // 'system' keyword for modern syntax (reserved)
     SystemReturn,                 // 'system.return' for setting interface return value
     Self_,                        // self
@@ -1093,7 +1090,6 @@ pub enum TokenType {
     IsNot,                   // 'is not' (handled as two tokens)
     Class,                   // 'class' keyword
     Assert,                  // 'assert' keyword
-    Extends,                 // 'extends' keyword for inheritance
     Super,                   // 'super' keyword for parent class access
     Cls,                     // 'cls' keyword for class methods
     Property,                // 'property' keyword/decorator

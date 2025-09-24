@@ -1942,11 +1942,6 @@ impl PythonVisitorV2 {
             OperatorType::GreaterEqual => output.push_str(">="),
             OperatorType::LogicalAnd => output.push_str("and"),
             OperatorType::LogicalOr => output.push_str("or"),
-            OperatorType::LogicalXor => {
-                // Python doesn't have a logical XOR operator, we need to express it differently
-                // This should be handled at a higher level, but for now output a comment
-                output.push_str("!=");  // For booleans, XOR is equivalent to !=
-            }
             OperatorType::BitwiseAnd => output.push('&'),
             OperatorType::BitwiseOr => output.push('|'),
             OperatorType::BitwiseXor => output.push('^'),
