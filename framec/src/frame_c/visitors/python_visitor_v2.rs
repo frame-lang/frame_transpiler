@@ -1455,12 +1455,12 @@ impl PythonVisitorV2 {
     }
     
     fn visit_variable_decl_node(&mut self, var_decl: &VariableDeclNode) {
-        // Get the initializer value using the proper method
-        let initializer_expr = var_decl.get_initializer_value_rc();
+        // Use value_rc which contains the actual value for constants
+        let value_expr = &var_decl.value_rc;
         
         // Generate the initializer value
         let mut init_value = String::new();
-        self.visit_expr_node_to_string(&*initializer_expr, &mut init_value);
+        self.visit_expr_node_to_string(&*value_expr, &mut init_value);
         
         if init_value.is_empty() || init_value.contains("TODO") {
             init_value = "None".to_string();
