@@ -2177,6 +2177,8 @@ impl PythonVisitorV2 {
     
     // Transition statement
     fn visit_transition_statement_node(&mut self, node: &TransitionStatementNode) {
+        use crate::frame_c::ast::IdentifierDeclScope;
+        
         // Create compartment for target state
         let (target_state_name, target_state_ref, state_args_opt) = match &node.transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { state_context_node } => {
@@ -2196,22 +2198,91 @@ impl PythonVisitorV2 {
             if let Some(state_node_rcref) = self.get_state_node(state_name) {
                 let state_node = state_node_rcref.borrow();
                 let mut state_vars_entries = Vec::new();
+                
+                // Build a map of state param names to their transition argument values
+                let mut state_param_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+                if let (Some(params), Some(state_args)) = (&state_node.params_opt, state_args_opt) {
+                    for (i, param) in params.iter().enumerate() {
+                        if let Some(arg_expr) = state_args.exprs_t.get(i) {
+                            let mut arg_value = String::new();
+                            self.visit_expr_node_to_string(arg_expr, &mut arg_value);
+                            state_param_map.insert(param.param_name.clone(), arg_value);
+                        }
+                    }
+                }
+                
                 if let Some(vars) = &state_node.vars_opt {
                     for var_rcref in vars {
                         let var = var_rcref.borrow();
                         let var_name = &var.name;
                         
-                        // Get the initializer value
-                        let mut value_str = String::new();
-                        self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
-                        
-                        // TEMPORARY WORKAROUND: If initializer references the variable itself,
-                        // it's likely a parser bug. Use a default value instead.
-                        let initializer_value = if value_str.contains(var_name) {
-                            eprintln!("WARNING: State var '{}' initializer '{}' references itself - using 0", var_name, value_str);
-                            "0".to_string()  // Use 0 as default for numeric operations
-                        } else {
-                            value_str
+                        // Check if the initializer is a simple variable reference to a state parameter
+                        // State parameters can be wrapped as either VariableExprT or CallChainExprT
+                        let initializer_value = match var.value_rc.as_ref() {
+                            ExprType::VariableExprT { var_node } => {
+                                if let IdentifierDeclScope::StateParamScope = var_node.scope {
+                                    // This is a state parameter reference - use the transition argument value
+                                    if let Some(param_value) = state_param_map.get(&var_node.id_node.name.lexeme) {
+                                        param_value.clone()
+                                    } else {
+                                        // Shouldn't happen, but fall back to default generation
+                                        let mut value_str = String::new();
+                                        self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                                        value_str
+                                    }
+                                } else {
+                                    // Not a state parameter, generate normally
+                                    let mut value_str = String::new();
+                                    self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                                    value_str
+                                }
+                            }
+                            ExprType::CallChainExprT { call_chain_expr_node } => {
+                                // Check if it's a simple variable in a call chain
+                                if call_chain_expr_node.call_chain.len() == 1 {
+                                    if let Some(crate::frame_c::ast::CallChainNodeType::VariableNodeT { var_node }) = call_chain_expr_node.call_chain.front() {
+                                        if let IdentifierDeclScope::StateParamScope = var_node.scope {
+                                            // This is a state parameter reference wrapped in a call chain
+                                            if let Some(param_value) = state_param_map.get(&var_node.id_node.name.lexeme) {
+                                                param_value.clone()
+                                            } else {
+                                                let mut value_str = String::new();
+                                                self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                                                value_str
+                                            }
+                                        } else {
+                                            // Not a state parameter
+                                            let mut value_str = String::new();
+                                            self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                                            value_str
+                                        }
+                                    } else {
+                                        // Not a simple variable node
+                                        let mut value_str = String::new();
+                                        self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                                        value_str
+                                    }
+                                } else {
+                                    // Complex call chain
+                                    let mut value_str = String::new();
+                                    self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                                    value_str
+                                }
+                            }
+                            _ => {
+                                // Complex expression - generate normally
+                                let mut value_str = String::new();
+                                self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                                
+                                // TEMPORARY WORKAROUND: If initializer references the variable itself,
+                                // it's likely a parser bug. Use a default value instead.
+                                if value_str.contains(var_name) {
+                                    eprintln!("WARNING: State var '{}' initializer '{}' references itself - using 0", var_name, value_str);
+                                    "0".to_string()  // Use 0 as default for numeric operations
+                                } else {
+                                    value_str
+                                }
+                            }
                         };
                         
                         state_vars_entries.push(format!("'{}': {}", var_name, initializer_value));

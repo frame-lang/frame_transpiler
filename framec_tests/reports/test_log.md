@@ -8,9 +8,9 @@
 
 ## Results
 - **Total Tests**: 379
-- **Passed**: 349
-- **Failed**: 30
-- **Success Rate**: 92.1% 🎉
+- **Passed**: 350
+- **Failed**: 29
+- **Success Rate**: 92.3% 🎉
 
 ## Improvements Made in v0.76.1 (2025-09-24)
 
@@ -24,6 +24,7 @@
 7. **Fixed action accessibility**: Generated module-level wrapper functions for system actions using singleton pattern
 8. **Fixed test syntax issues**: Updated tests to use Python-style inheritance syntax instead of deprecated 'extends' keyword
 9. **Fixed FSL property support**: Added automatic transformation of `.length` property to `len()` function for lists
+10. **Fixed class method resolution**: Methods within same class now correctly use `self.method()` instead of `ClassName.method()`
 
 ### Technical Details
 - **State parameter fix**: Changed from checking `var_node.id_node.scope` to `var_node.scope` for proper scope detection
