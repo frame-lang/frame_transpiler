@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-24T04:50:12.510599",
+  "timestamp": "2025-09-24T06:02:56.387995",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 374,
-    "execute_success": 335,
-    "complete_success": 338,
-    "success_rate": "89.2%"
+    "execute_success": 341,
+    "complete_success": 344,
+    "success_rate": "90.8%"
   },
   "results": [
     {
@@ -553,10 +553,10 @@
     {
       "file": "test_comprehensive_v0_20_features.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "=== Frame v0.20 Comprehensive Feature Test ===\nProcessor ready in Idle state\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_comprehensive_v0_20_features.py\", line 262, in <module>\n    main()\n "
+      "output": "=== Frame v0.20 Comprehensive Feature Test ===\nProcessor ready in Idle state\nProcessing: test\nProcessor ready in Idle state\nProcessing: ERROR\nProcessor ready in Idle state\nProcessing: Hello World\nProc",
+      "error": null
     },
     {
       "file": "test_const.frm",
@@ -587,7 +587,7 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": "Parent enter event\nParent.trigger() called\n",
+      "output": "Parent enter event\nParent.trigger() called\nCount is now: 1\nTransitioning to Child\nChild enter - dispatching to parent\nChild enter - dispatching to parent\nChild enter - dispatching to parent\nChild ente",
       "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_controlled_hsm_loop_verbose.py\", line 129, in <module>\n    main()\n  "
     },
     {
@@ -1002,7 +1002,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1034,7 +1034,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1042,7 +1042,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -2538,7 +2538,7 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": "Configured with range: <built-in function min> to <built-in function max>\n",
+      "output": null,
       "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_state_parameters.py\", line 167, in <module>\n    main()\n    ~~~~^^\n  "
     },
     {
@@ -2560,26 +2560,26 @@
     {
       "file": "test_state_vars_complex.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_state_vars_complex.py\", line 186, in <module>\n    main()\n    ~~~~^^\n"
+      "output": "Starting system (attempt #1)\nProcessed item #1, total time: 2.5s\nProcessed item #2, total time: 5.0s\nFinishing work. Processed 2 items in 5.0s\nWork completed at: 2024-08-28T10:30:00Z\nResetting from do",
+      "error": null
     },
     {
       "file": "test_state_vars_simple.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_state_vars_simple.py\", line 114, in <module>\n    main()\n    ~~~~^^\n "
+      "output": "Count incremented to: 1\nCount incremented to: 2\nCount incremented to: 3\nCurrent count is: 3\n",
+      "error": null
     },
     {
       "file": "test_state_vars_transition.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_state_vars_transition.py\", line 123, in <module>\n    main()\n    ~~~~"
+      "output": "StateA: countA = 5\nStateB: countB = 10\n",
+      "error": null
     },
     {
       "file": "test_states_simple.frm",
@@ -2640,10 +2640,10 @@
     {
       "file": "test_system_isolation.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "=== System Isolation Test ===\nSystemOne public method\nSystemOne internal operation\nSystemOne action\nSystemTwo public method\nSystemTwo internal operation\nSystemTwo action\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_system_isolation.py\", line 206, in <module>\n    main()\n    ~~~~^^\n  "
+      "output": "=== System Isolation Test ===\nSystemOne public method\nSystemOne internal operation\nSystemOne action\nSystemTwo public method\nSystemTwo internal operation\nSystemTwo action\nSystemOne public method\nSystem",
+      "error": null
     },
     {
       "file": "test_system_no_function.frm",
@@ -2880,10 +2880,10 @@
     {
       "file": "test_v030_system_lifecycle.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "=== Starting System Lifecycle Test ===\nMainSystem: Entering StateA\nSystemA: Entering Start state\nMainSystem: Created SystemA instance\n\n--- Cycle 1: StateA ---\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_v030_system_lifecycle.py\", line 455, in <module>\n    main()\n    ~~~~"
+      "output": "=== Starting System Lifecycle Test ===\nMainSystem: Entering StateA\nSystemA: Entering Start state\nMainSystem: Created SystemA instance\n\n--- Cycle 1: StateA ---\nSystemA: Start.next() -> Working (returni",
+      "error": null
     },
     {
       "file": "test_v030_system_lifecycle_simple.frm",

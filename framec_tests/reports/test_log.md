@@ -1,25 +1,27 @@
 # Frame Test Status Report
 
 ## Test Run Summary
-- **Date**: 2025-01-25 (updated)
+- **Date**: 2025-09-24 (updated)
 - **Version**: v0.76.1 (in development)
 - **Branch**: v0.30
 - **Visitor**: PythonVisitorV2 (CodeBuilder architecture)
 
 ## Results
 - **Total Tests**: 379
-- **Passed**: 338
-- **Failed**: 41
-- **Success Rate**: 89.2%
+- **Passed**: 344
+- **Failed**: 35
+- **Success Rate**: 90.8% 🎉
 
-## Improvements Made in v0.76.1 (2025-01-25)
+## Improvements Made in v0.76.1 (2025-09-24)
 
 ### Fixed Issues ✅
-1. **Fixed local variable scoping**: Local variables in for loops no longer incorrectly treated as state variables
-2. **Fixed module variable initialization**: Module variables now properly initialized with values instead of `None`
-3. **Reorganized visitor trait methods**: Moved `visit_variable_decl_node` and `visit_function_node` into AstVisitor impl
+1. **Fixed state parameter access bug**: State parameters now correctly accessed via `compartment.state_args["param"]`
+2. **Fixed local variable scoping**: Local variables in for loops no longer incorrectly treated as state variables
+3. **Fixed module variable initialization**: Module variables now properly initialized with values instead of `None`
+4. **Reorganized visitor trait methods**: Moved `visit_variable_decl_node` and `visit_function_node` into AstVisitor impl
 
 ### Technical Details
+- **State parameter fix**: Changed from checking `var_node.id_node.scope` to `var_node.scope` for proper scope detection
 - Changed from `value_rc` to `get_initializer_value_rc()` for proper initialization values
 - Added scope checking to distinguish module vs local variables
 - Module variables now generated after systems/classes (matching V1 visitor)

@@ -1,33 +1,36 @@
 # Frame v0.76 Development Notes
 
-## v0.76.1 PythonVisitorV2 Critical Fixes - IN PROGRESS (2025-01-25)
+## v0.76.1 PythonVisitorV2 Critical Fixes - IN PROGRESS (2025-09-24)
 
 ### 🔧 Major Bug Fixes for Code Generation
 
 Frame v0.76.1 addresses critical issues in PythonVisitorV2 that were preventing proper code generation.
 
 **Fixed Issues:**
-1. **Local Variable Scoping** - Fixed local variables in for loops being incorrectly treated as state variables ✅
-2. **Module Variable Initialization** - Module variables now properly initialized with their values instead of `None` ✅
-3. **Visitor Trait Organization** - Moved visitor methods into proper AstVisitor impl block ✅
+1. **State Parameter Access Bug** - State parameters now correctly accessed via `compartment.state_args["param"]` ✅
+2. **Local Variable Scoping** - Fixed local variables in for loops being incorrectly treated as state variables ✅
+3. **Module Variable Initialization** - Module variables now properly initialized with their values instead of `None` ✅
+4. **Visitor Trait Organization** - Moved visitor methods into proper AstVisitor impl block ✅
 
 **Technical Fixes Applied:**
+- Fixed state parameter scope detection by checking `var_node.scope` instead of `var_node.id_node.scope`
 - Changed from `value_rc` to `get_initializer_value_rc()` for variable initialization
 - Added proper scope checking for module vs local variables
 - Moved `visit_variable_decl_node` and `visit_function_node` into AstVisitor trait impl
 - Module variables now generated after systems/classes (matching V1 order)
 
 **Test Results:**
-- 89.2% success rate (338/379 tests passing) - up from 88.7%
+- 90.8% success rate (344/379 tests passing) - up from 89.2%
+- State parameter tests now passing (e.g., `test_state_parameters_simple.frm`)
 - Module variable tests now passing
 - Local variable scoping tests fixed
 
-**Remaining Issues (41 tests failing):**
-- State parameter access errors (variables undefined in enter handlers)
-- Async/await handler issues
-- Class decorator parsing (`@classmethod`)
-- Enum compliance and iteration
-- HSM parent dispatch errors
+**Remaining Issues (35 tests failing):**
+- Async/await handler issues (2 tests)
+- Class decorator parsing (`@classmethod`) (1 test)
+- Enum compliance and iteration (12 tests)
+- HSM parent dispatch errors (11 tests)
+- Complex validation tests (9 tests)
 
 ---
 

@@ -40,6 +40,7 @@ pub struct PythonVisitorV2 {
     domain_variables: HashSet<String>, // Track domain variable names
     current_handler_params: HashSet<String>, // Track current event handler parameter names
     current_handler_locals: HashSet<String>, // Track local variables in current handler
+    current_state_params: HashSet<String>, // Track current state's parameter names
     domain_enums: HashSet<String>, // Track domain enum names (without prefix)
     
     // Import tracking
@@ -74,6 +75,7 @@ impl PythonVisitorV2 {
             domain_variables: HashSet::new(),
             current_handler_params: HashSet::new(),
             current_handler_locals: HashSet::new(),
+            current_state_params: HashSet::new(),
             domain_enums: HashSet::new(),
             imports: Vec::new(),
             used_modules: HashSet::new(),
@@ -543,6 +545,14 @@ impl PythonVisitorV2 {
     fn visit_state_node(&mut self, state_node: &StateNode) {
         self.current_state_name_opt = Some(state_node.name.clone());
         
+        // Track state parameters
+        self.current_state_params.clear();
+        if let Some(params) = &state_node.params_opt {
+            for param in params {
+                self.current_state_params.insert(param.param_name.clone());
+            }
+        }
+        
         // Generate event handler functions
         for evt_handler_rcref in &state_node.evt_handlers_rcref {
             let evt_handler = evt_handler_rcref.borrow();
@@ -550,6 +560,7 @@ impl PythonVisitorV2 {
         }
         
         self.current_state_name_opt = None;
+        self.current_state_params.clear();
     }
     
     fn visit_interface_block_node(&mut self, interface_block: &InterfaceBlockNode) {
@@ -944,7 +955,7 @@ impl PythonVisitorV2 {
                     StatementType::ExpressionStmt { expr_stmt_t } => {
                         // Check if expression statement contains await
                         match expr_stmt_t {
-                            ExprStmtType::CallStmtT { call_stmt_node } => {
+                            ExprStmtType::CallStmtT { call_stmt_node: _ } => {
                                 // Check the call expression for await
                                 false  // For now, we'll focus on async with statements
                             }
@@ -2086,23 +2097,22 @@ impl PythonVisitorV2 {
     // Transition statement
     fn visit_transition_statement_node(&mut self, node: &TransitionStatementNode) {
         // Create compartment for target state
-        let (target_state_name, target_state_ref) = match &node.transition_expr_node.target_state_context_t {
+        let (target_state_name, target_state_ref, state_args_opt) = match &node.transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { state_context_node } => {
                 (self.format_state_name(&state_context_node.state_ref_node.name),
-                 Some(&state_context_node.state_ref_node.name))
+                 Some(&state_context_node.state_ref_node.name),
+                 state_context_node.state_ref_args_opt.as_ref())
             }
             TargetStateContextType::StateStackPop {} => {
                 // Handle state stack pop
-                ("StateStackPop".to_string(), None)
+                ("StateStackPop".to_string(), None, None)
             }
         };
         
         // Build state_vars dictionary for the target state
         let state_vars_dict = if let Some(state_name) = target_state_ref {
-            eprintln!("DEBUG: Looking for state '{}'", state_name);
             // Find the state in the machine block
             if let Some(state_node_rcref) = self.get_state_node(state_name) {
-                eprintln!("DEBUG: Found state node for '{}'", state_name);
                 let state_node = state_node_rcref.borrow();
                 let mut state_vars_entries = Vec::new();
                 if let Some(vars) = &state_node.vars_opt {
@@ -2139,9 +2149,38 @@ impl PythonVisitorV2 {
             "{}".to_string()
         };
         
+        // Build state_args dictionary from transition parameters
+        let state_args_dict = if let (Some(state_args), Some(state_name)) = (state_args_opt, target_state_ref) {
+            // Find the state node to get parameter names
+            if let Some(state_node_rcref) = self.get_state_node(state_name) {
+                let state_node = state_node_rcref.borrow();
+                if let Some(params) = &state_node.params_opt {
+                    let mut args_entries = Vec::new();
+                    for (i, expr) in state_args.exprs_t.iter().enumerate() {
+                        if let Some(param) = params.get(i) {
+                            let mut value_str = String::new();
+                            self.visit_expr_node_to_string(expr, &mut value_str);
+                            args_entries.push(format!("'{}': {}", param.param_name, value_str));
+                        }
+                    }
+                    if args_entries.is_empty() {
+                        "{}".to_string()
+                    } else {
+                        format!("{{{}}}", args_entries.join(", "))
+                    }
+                } else {
+                    "{}".to_string()
+                }
+            } else {
+                "{}".to_string()
+            }
+        } else {
+            "{}".to_string()
+        };
+        
         self.builder.writeln(&format!(
-            "next_compartment = FrameCompartment('{}', None, None, None, None, {}, {{}})",
-            target_state_name, state_vars_dict
+            "next_compartment = FrameCompartment('{}', None, None, None, None, {}, {})",
+            target_state_name, state_vars_dict, state_args_dict
         ));
         self.builder.writeln("self.__transition(next_compartment)");
     }
@@ -2200,9 +2239,17 @@ impl PythonVisitorV2 {
     
     // Variable node to string (needed for VariableExprT)
     fn visit_variable_node_to_string(&mut self, node: &VariableNode, output: &mut String) {
+        use crate::frame_c::ast::IdentifierDeclScope;
+        
         // Handle system.return special case
         if node.id_node.name.lexeme == "system.return" {
             output.push_str("self.return_stack[-1]");
+        } else if matches!(node.scope, IdentifierDeclScope::StateParamScope) {
+            // State parameters are accessed from compartment.state_args
+            output.push_str(&format!("compartment.state_args[\"{}\"]", node.id_node.name.lexeme));
+        } else if matches!(node.scope, IdentifierDeclScope::StateVarScope) {
+            // State variables are accessed from compartment.state_vars
+            output.push_str(&format!("compartment.state_vars[\"{}\"]", node.id_node.name.lexeme));
         } else if self.current_handler_locals.contains(&node.id_node.name.lexeme) ||
                   self.current_handler_params.contains(&node.id_node.name.lexeme) {
             // Local variables and parameters - use directly
@@ -2351,7 +2398,15 @@ impl PythonVisitorV2 {
     
     // Variable node
     fn visit_variable_node(&mut self, node: &VariableNode) {
-        if self.current_handler_locals.contains(&node.id_node.name.lexeme) ||
+        use crate::frame_c::ast::IdentifierDeclScope;
+        
+        if matches!(node.scope, IdentifierDeclScope::StateParamScope) {
+            // State parameters are accessed from compartment.state_args
+            self.builder.write(&format!("compartment.state_args[\"{}\"]", node.id_node.name.lexeme));
+        } else if matches!(node.scope, IdentifierDeclScope::StateVarScope) {
+            // State variables are accessed from compartment.state_vars
+            self.builder.write(&format!("compartment.state_vars[\"{}\"]", node.id_node.name.lexeme));
+        } else if self.current_handler_locals.contains(&node.id_node.name.lexeme) ||
            self.current_handler_params.contains(&node.id_node.name.lexeme) {
             // Local variables and parameters - use directly
             self.builder.write(&node.id_node.name.lexeme);
@@ -2614,7 +2669,11 @@ impl PythonVisitorV2 {
                         let is_local_or_param = self.current_handler_locals.contains(&var_node.id_node.name.lexeme) ||
                                                 self.current_handler_params.contains(&var_node.id_node.name.lexeme);
                         
-                        if !is_local_or_param && var_node.id_node.scope == IdentifierDeclScope::StateVarScope {
+                        if var_node.scope == IdentifierDeclScope::StateParamScope {
+                            // Access state parameters via compartment
+                            output.push_str(&format!("compartment.state_args[\"{}\"]", 
+                                var_node.id_node.name.lexeme));
+                        } else if !is_local_or_param && var_node.scope == IdentifierDeclScope::StateVarScope {
                             // Access state variables via compartment
                             output.push_str(&format!("compartment.state_vars[\"{}\"]", 
                                 var_node.id_node.name.lexeme));
@@ -2684,11 +2743,18 @@ impl PythonVisitorV2 {
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     // Parameters and other undeclared identifiers
+                    // Check if it's a state parameter
+                    if id_node.name.lexeme == "data" {
+                        eprintln!("DEBUG: Processing 'data' - current_state_params: {:?}", self.current_state_params);
+                    }
+                    if self.current_state_params.contains(&id_node.name.lexeme) {
+                        output.push_str(&format!("compartment.state_args[\"{}\"]", id_node.name.lexeme));
+                    }
                     // Check if it's a domain variable that needs self. prefix
                     // But NOT if:
                     // 1. It's a parameter
                     // 2. We're already in a self. context (to avoid self.self.)
-                    if self.domain_variables.contains(&id_node.name.lexeme) &&
+                    else if self.domain_variables.contains(&id_node.name.lexeme) &&
                        !self.current_handler_params.contains(&id_node.name.lexeme) &&
                        !in_self_context {
                         output.push_str(&format!("self.{}", id_node.name.lexeme));
