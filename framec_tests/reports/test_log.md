@@ -8,9 +8,9 @@
 
 ## Results
 - **Total Tests**: 379
-- **Passed**: 345
-- **Failed**: 34
-- **Success Rate**: 91.0% 🎉
+- **Passed**: 346
+- **Failed**: 33
+- **Success Rate**: 91.3% 🎉
 
 ## Improvements Made in v0.76.1 (2025-09-24)
 
@@ -20,6 +20,8 @@
 3. **Fixed local variable scoping**: Local variables in for loops no longer incorrectly treated as state variables
 4. **Fixed module variable initialization**: Module variables now properly initialized with values instead of `None`
 5. **Reorganized visitor trait methods**: Moved `visit_variable_decl_node` and `visit_function_node` into AstVisitor impl
+6. **Fixed enum accessibility**: Created module-level aliases for domain enums for module function access
+7. **Fixed action accessibility**: Generated module-level wrapper functions for system actions using singleton pattern
 
 ### Technical Details
 - **State parameter fix**: Changed from checking `var_node.id_node.scope` to `var_node.scope` for proper scope detection
@@ -46,11 +48,16 @@
 - Async system initialization needs await handling in `__init__`
 - Some async stress tests fail due to coroutine handling
 
-### Category 3: Static Method Issues
+### Category 3: HSM Parent Dispatch Issues (11 tests)
+- PythonVisitorV2 lacks HSM (Hierarchical State Machine) support
+- Child states need parent compartment references for proper dispatch
+- V1 visitor has working HSM implementation that creates parent compartments
+
+### Category 4: Static Method Issues
 - Static method calls not resolving correctly in some contexts
 - May need semantic resolution improvements
 
-### Category 4: State Variable Initialization
+### Category 5: State Variable Initialization
 - Parser appears to set incorrect initializers that self-reference
 - Warnings appear but workaround is in place (uses default value)
 
