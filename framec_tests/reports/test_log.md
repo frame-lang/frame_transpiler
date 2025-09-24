@@ -1,16 +1,16 @@
 # Frame Test Status Report
 
 ## Test Run Summary
-- **Date**: 2025-09-23
+- **Date**: 2025-01-24
 - **Version**: v0.76.0
 - **Branch**: v0.30
 - **Visitor**: PythonVisitorV2 (CodeBuilder architecture)
 
 ## Results
 - **Total Tests**: 379
-- **Passed**: 296
-- **Failed**: 83
-- **Success Rate**: 78.1%
+- **Passed**: 338
+- **Failed**: 41
+- **Success Rate**: 89.2%
 
 ## Improvements Made in This Session
 
