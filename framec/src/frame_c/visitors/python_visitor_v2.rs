@@ -539,7 +539,9 @@ impl AstVisitor for PythonVisitorV2 {
     
     fn visit_class_node(&mut self, class_node: &ClassNode) {
         self.builder.newline();
-        self.builder.write_class(&class_node.name, None, Some(class_node.line));
+        // Pass parent class for inheritance
+        let parent_class = class_node.parent.as_deref();
+        self.builder.write_class(&class_node.name, parent_class, Some(class_node.line));
         self.builder.newline();
         
         // Generate static/class variables
@@ -2475,6 +2477,79 @@ impl PythonVisitorV2 {
     
     // Call chain expression to string  
     fn visit_call_chain_expr_node_to_string(&mut self, node: &CallChainExprNode, output: &mut String) {
+        // Special case: Check if this is super.method(...) pattern
+        if node.call_chain.len() >= 2 {
+            
+            // Check if first element is super (could be VariableNodeT or UndeclaredIdentifierNodeT)
+            let is_super_chain = if let Some(first) = node.call_chain.get(0) {
+                match first {
+                    CallChainNodeType::VariableNodeT { var_node } => 
+                        var_node.id_node.name.lexeme == "super",
+                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => 
+                        id_node.name.lexeme == "super",
+                    _ => false
+                }
+            } else {
+                false
+            };
+                
+            if is_super_chain {
+                // Generate super() 
+                output.push_str("super()");
+                
+                // Process the rest of the chain starting from index 1
+                for call_part in node.call_chain.iter().skip(1) {
+                    output.push('.');
+                    
+                    match call_part {
+                        CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => {
+                            // Special handling for init -> __init__
+                            let method_name = if interface_method_call_expr_node.identifier.name.lexeme == "init" {
+                                "__init__"
+                            } else {
+                                &interface_method_call_expr_node.identifier.name.lexeme
+                            };
+                            output.push_str(method_name);
+                            output.push('(');
+                            let mut first_arg = true;
+                            for arg in &interface_method_call_expr_node.call_expr_list.exprs_t {
+                                if !first_arg {
+                                    output.push_str(", ");
+                                }
+                                self.visit_expr_node_to_string(arg, output);
+                                first_arg = false;
+                            }
+                            output.push(')');
+                        }
+                        CallChainNodeType::UndeclaredCallT { call_node } => {
+                            // Handle undeclared calls (like init on super)
+                            let method_name = if call_node.identifier.name.lexeme == "init" {
+                                "__init__"
+                            } else {
+                                &call_node.identifier.name.lexeme
+                            };
+                            output.push_str(method_name);
+                            output.push('(');
+                            let mut first_arg = true;
+                            for arg in &call_node.call_expr_list.exprs_t {
+                                if !first_arg {
+                                    output.push_str(", ");
+                                }
+                                self.visit_expr_node_to_string(arg, output);
+                                first_arg = false;
+                            }
+                            output.push(')');
+                        }
+                        _ => {
+                            // Handle other types of chain nodes if needed
+                            // For now, just skip
+                        }
+                    }
+                }
+                return; // We've handled the super chain
+            }
+        }
+        
         let mut first = true;
         
         // Track if we're in a self. context (first node is SelfT)
@@ -2519,37 +2594,48 @@ impl PythonVisitorV2 {
             
             match call_part {
                 CallChainNodeType::VariableNodeT { var_node } => {
-                    // Check if this is a state variable by looking at scope
-                    // For now, as a workaround, check if we're in an event handler context
-                    // and if the variable matches a known state variable name
-                    
-                    // TODO: The parser/semantic analyzer should properly set IdentifierDeclScope::StateVarScope
-                    // but currently it doesn't seem to be doing so for state variable references
-                    
-                    let is_state_var = if self.current_state_name_opt.is_some() {
-                        // We're in an event handler - check if this var is a state var
-                        // This is a TEMPORARY workaround
-                        var_node.id_node.name.lexeme == "count" // Hardcoded for now
+                    // Special handling for super - Python requires super() not just super
+                    if var_node.id_node.name.lexeme == "super" {
+                        output.push_str("super()");
                     } else {
-                        false
-                    };
-                    
-                    if is_state_var || var_node.id_node.scope == IdentifierDeclScope::StateVarScope {
-                        // Access state variables via compartment
-                        output.push_str(&format!("compartment.state_vars[\"{}\"]", 
-                            var_node.id_node.name.lexeme));
-                    } else if self.domain_variables.contains(&var_node.id_node.name.lexeme) &&
-                              !self.current_handler_params.contains(&var_node.id_node.name.lexeme) &&
-                              !in_self_context {
-                        // Domain variable access (but not if it's a parameter or already in self. context)
-                        output.push_str(&format!("self.{}", var_node.id_node.name.lexeme));
-                    } else {
-                        // Regular variable access
-                        output.push_str(&var_node.id_node.name.lexeme);
+                        // Check if this is a state variable by looking at scope
+                        // For now, as a workaround, check if we're in an event handler context
+                        // and if the variable matches a known state variable name
+                        
+                        // TODO: The parser/semantic analyzer should properly set IdentifierDeclScope::StateVarScope
+                        // but currently it doesn't seem to be doing so for state variable references
+                        
+                        let is_state_var = if self.current_state_name_opt.is_some() {
+                            // We're in an event handler - check if this var is a state var
+                            // This is a TEMPORARY workaround
+                            var_node.id_node.name.lexeme == "count" // Hardcoded for now
+                        } else {
+                            false
+                        };
+                        
+                        if is_state_var || var_node.id_node.scope == IdentifierDeclScope::StateVarScope {
+                            // Access state variables via compartment
+                            output.push_str(&format!("compartment.state_vars[\"{}\"]", 
+                                var_node.id_node.name.lexeme));
+                        } else if self.domain_variables.contains(&var_node.id_node.name.lexeme) &&
+                                  !self.current_handler_params.contains(&var_node.id_node.name.lexeme) &&
+                                  !in_self_context {
+                            // Domain variable access (but not if it's a parameter or already in self. context)
+                            output.push_str(&format!("self.{}", var_node.id_node.name.lexeme));
+                        } else {
+                            // Regular variable access
+                            output.push_str(&var_node.id_node.name.lexeme);
+                        }
                     }
                 }
                 CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => {
-                    output.push_str(&interface_method_call_expr_node.identifier.name.lexeme);
+                    // Special handling for init method (should be __init__ in Python)
+                    let method_name = if interface_method_call_expr_node.identifier.name.lexeme == "init" {
+                        "__init__"
+                    } else {
+                        &interface_method_call_expr_node.identifier.name.lexeme
+                    };
+                    output.push_str(method_name);
                     output.push('(');
                     let mut first_arg = true;
                     for arg in &interface_method_call_expr_node.call_expr_list.exprs_t {
