@@ -309,6 +309,16 @@ impl AstVisitor for PythonVisitorV2 {
             self.global_vars.insert(var.name.clone());
         }
         
+        // Process module-level statements (e.g., print statements, function calls at top level)
+        // This must come LAST so all functions, systems, classes are defined before execution
+        if !frame_module.statements.is_empty() {
+            self.builder.newline();
+            self.builder.newline();
+            for stmt in &frame_module.statements {
+                self.visit_decl_or_stmt(stmt);
+            }
+        }
+        
         // Skip the old element processing loop
         /*for element in &frame_module.module_elements {
             match element {
@@ -1821,6 +1831,19 @@ impl PythonVisitorV2 {
                 // Dictionary unpacking: **expr
                 output.push_str("**");
                 self.visit_expr_node_to_string(&dict_unpack_expr_node.expr, output);
+            }
+            ExprType::YieldExprT { yield_expr_node } => {
+                // Yield expression: yield or yield value
+                output.push_str("yield");
+                if let Some(ref expr) = yield_expr_node.expr {
+                    output.push(' ');
+                    self.visit_expr_node_to_string(expr, output);
+                }
+            }
+            ExprType::YieldFromExprT { yield_from_expr_node } => {
+                // Yield from expression: yield from iterable
+                output.push_str("yield from ");
+                self.visit_expr_node_to_string(&yield_from_expr_node.expr, output);
             }
             _ => {
                 // Handle other expression types as needed

@@ -8,9 +8,9 @@
 
 ## Results
 - **Total Tests**: 379
-- **Passed**: 350
-- **Failed**: 29
-- **Success Rate**: 92.3% 🎉
+- **Passed**: 351
+- **Failed**: 28
+- **Success Rate**: 92.6% 🎉
 
 ## Improvements Made in v0.76.1 (2025-09-24)
 
@@ -25,6 +25,7 @@
 8. **Fixed test syntax issues**: Updated tests to use Python-style inheritance syntax instead of deprecated 'extends' keyword
 9. **Fixed FSL property support**: Added automatic transformation of `.length` property to `len()` function for lists
 10. **Fixed class method resolution**: Methods within same class now correctly use `self.method()` instead of `ClassName.method()`
+11. **Fixed state parameter initialization in transitions**: State variable initializers referencing state parameters now use transition argument values
 
 ### Technical Details
 - **State parameter fix**: Changed from checking `var_node.id_node.scope` to `var_node.scope` for proper scope detection

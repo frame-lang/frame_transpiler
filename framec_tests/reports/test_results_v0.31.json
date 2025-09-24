@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-24T06:02:56.387995",
+  "timestamp": "2025-09-24T09:32:52.432027",
   "version": "v0.31",
   "summary": {
     "total": 379,
-    "transpile_success": 374,
-    "execute_success": 341,
-    "complete_success": 344,
-    "success_rate": "90.8%"
+    "transpile_success": 376,
+    "execute_success": 348,
+    "complete_success": 351,
+    "success_rate": "92.6%"
   },
   "results": [
     {
@@ -61,7 +61,7 @@
         "error_line": null,
         "warning_message": null
       },
-      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /"
+      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /"
     },
     {
       "file": "test_multifile_calculator.frm",
@@ -341,7 +341,7 @@
       "execute": false,
       "negative_test": false,
       "output": "Frame v0.37 Async Stress Test Suite\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------\n",
-      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress.py:190: RuntimeWarning: coroutine 'AsyncDataPipeline.__kernel' was never awaited\n  self.__kernel(_"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress.py\", line 769, in <module>\n    main()\n    ~~~~^^\n  File"
     },
     {
       "file": "test_async_stress_fixed.frm",
@@ -370,10 +370,10 @@
     {
       "file": "test_async_with_proper.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "Starting proper async with validation...\n======================================================================\nFrame v0.37 Async With Statement Tests - PROPER VALIDATION\n=============================",
-      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_with_proper.py:162: RuntimeWarning: coroutine 'AsyncResourceManager.__kernel' was never awaited\n  self.__"
+      "error": null
     },
     {
       "file": "test_async_with_real.frm",
@@ -497,10 +497,11 @@
     },
     {
       "file": "test_class_v046.frm",
-      "transpile": false,
-      "execute": false,
+      "transpile": true,
+      "execute": true,
       "negative_test": false,
-      "error": "DEBUG: Found @ token\nDEBUG: After @, next token: Token { token_type: ClassMethod, lexeme: \"classmethod\", literal: None, line: 23, start: 525, length: 11 }\nDEBUG: Found @ token\nDEBUG: After @, next tok"
+      "output": null,
+      "error": null
     },
     {
       "file": "test_collection_constructors.frm",
@@ -624,10 +625,11 @@
     },
     {
       "file": "test_debug_simple.frm",
-      "transpile": false,
-      "execute": false,
+      "transpile": true,
+      "execute": true,
       "negative_test": false,
-      "error": "Framec failed with an error:\nFirst pass parse error:\nExpected '{' after class declaration\n\nSymbol table construction failed. Please check your Frame syntax.\n"
+      "output": "=== Starting Comprehensive Debug Test ===\nVariable declaration: x = 101\nMultiple types: y=20, z=30.5, flag=True, name=Frame\n  [divmod] Dividing 17 by 5\nMultiple assignment: a=3, b=2\n  [unpack_three] R",
+      "error": null
     },
     {
       "file": "test_debug_system.frm",
@@ -960,10 +962,10 @@
     {
       "file": "test_enum_compliance.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enum_compliance.py\", line 105, in <module>\n    main()\n    ~~~~^^\n  F"
+      "output": "Color is red\nPriority is high\nColor value: 1\nPriority value: high\nColor name: RED\nPriority name: HIGH\nAll colors:\n - RED = 1\n - GREEN = 2\n - BLUE = 3\nAll priorities:\n - LOW = low\n - MEDIUM = medium\n -",
+      "error": null
     },
     {
       "file": "test_enum_custom_values.frm",
@@ -1002,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1034,7 +1036,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1042,7 +1044,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1083,7 +1085,7 @@
       "execute": false,
       "negative_test": false,
       "output": "Event-Handlers-as-Functions PoC\n=== Testing Mixed Handler Demo ===\n",
-      "error": "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_event_handlers_poc.py:82: RuntimeWarning: coroutine 'MixedHandlerDemo.__kernel' was never awaited\n  self.__kern"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_event_handlers_poc.py\", line 219, in <module>\n    main()\n    ~~~~^^\n"
     },
     {
       "file": "test_exceptions_basic.frm",
@@ -1208,10 +1210,10 @@
     {
       "file": "test_fsl_list_operations.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "After append: [1, 2, 3, 4, 5]\nPopped: 40\nAfter pop: [10, 20, 30]\nAfter clear: []\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations.py\", line 46, in <module>\n    main()\n    ~~~~^^\n"
+      "output": "After append: [1, 2, 3, 4, 5]\nPopped: 40\nAfter pop: [10, 20, 30]\nAfter clear: []\nLength: 3\nChain test after operations: [1, 2]\nPopped from chain: 3\n",
+      "error": null
     },
     {
       "file": "test_fsl_list_operations_extended.frm",
@@ -1656,17 +1658,17 @@
     {
       "file": "test_list_features.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "First number: 1\nLast string: frame\n\n=== Iterating numbers ===\nNumber: 1\nNumber: 2\nNumber: 3\nNumber: 4\nNumber: 5\n\n=== Iterating strings ===\nString: hello\nString: world\nString: frame\n\n=== Matrix ===\nRow",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_features.py\", line 60, in <module>\n    main()\n    ~~~~^^\n  File"
+      "error": null
     },
     {
       "file": "test_list_native_methods.frm",
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": "After append: [1, 2, 3, 4, 5]\n",
+      "output": "After append: [1, 2, 3, 4, 5]\nLength: 5\n",
       "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_native_methods.py\", line 67, in <module>\n    main()\n    ~~~~^^\n"
     },
     {
@@ -1891,7 +1893,7 @@
       "execute": false,
       "negative_test": false,
       "output": "\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n\n=== test_read_access ===\nmodule_string: initial_string\nmodule_int: 42\nmodule_bool: True\nmodule_float: 3.14\nmodule_none: None\nmodule_list: [1, 2, 3]\n=== test",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 381, in <module>\n    main()\n   "
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 391, in <module>\n    main()\n   "
     },
     {
       "file": "test_module_scope_variables.frm",
@@ -2536,10 +2538,10 @@
     {
       "file": "test_state_parameters.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_state_parameters.py\", line 167, in <module>\n    main()\n    ~~~~^^\n  "
+      "output": "Configured with range: 1 to 5\nValue set to: 3\nIncremented to: 4\nIncremented to: 5\nWrapped to minimum: 1\nRange: 1 to 5\n",
+      "error": null
     },
     {
       "file": "test_state_parameters_simple.frm",
@@ -3011,7 +3013,7 @@
       "execute": false,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_validation_comprehensive.py\", line 293, in <module>\n    main()\n    ~"
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_validation_comprehensive.py\", line 303, in <module>\n    main()\n    ~"
     },
     {
       "file": "test_validation_with_main.frm",
