@@ -39,9 +39,10 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.76.0`  
-**Status**: ✅ **100% TEST SUCCESS RATE** - CodeBuilder Architecture Complete with PythonVisitorV2 as Default
+**Version**: `v0.76.1` (in development)  
+**Status**: 🔧 **89.2% TEST SUCCESS RATE** (338/379) - PythonVisitorV2 bug fixes in progress
 
+📋 **For current work status, see**: [`docs/v0.76_status.md`](docs/v0.76_status.md)
 📋 **For release notes and development status, see**: [`docs/framelang_design/dev_notes.md`](docs/framelang_design/dev_notes.md)
 📊 **For v0.30 achievements, see**: [`docs/v0.30_achievements.md`](docs/v0.30_achievements.md)
 📊 **For v0.31 achievements, see**: [`docs/v0.31_achievements.md`](docs/v0.31_achievements.md)
@@ -82,6 +83,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose --framec /Us
 📊 **For v0.66 achievements, see**: [`docs/v0.66_achievements.md`](docs/v0.66_achievements.md)
 📊 **For v0.74 achievements, see**: [`docs/v0.74_achievements.md`](docs/v0.74_achievements.md)
 📊 **For v0.75 achievements, see**: [`docs/v0.75_achievements.md`](docs/v0.75_achievements.md)
+📊 **For v0.76 work in progress, see**: [`docs/v0.76_status.md`](docs/v0.76_status.md)
 📋 **For v0.34 release notes, see**: [`docs/release_notes_v0.34.md`](docs/release_notes_v0.34.md)
 📋 **For v0.34 roadmap, see**: [`docs/v0.34_roadmap.md`](docs/v0.34_roadmap.md)
 📊 **For latest test results, see**: [`framec_tests/reports/test_log.md`](framec_tests/reports/test_log.md)

@@ -1,8 +1,8 @@
 # Frame Test Status Report
 
 ## Test Run Summary
-- **Date**: 2025-01-24
-- **Version**: v0.76.0
+- **Date**: 2025-01-25 (updated)
+- **Version**: v0.76.1 (in development)
 - **Branch**: v0.30
 - **Visitor**: PythonVisitorV2 (CodeBuilder architecture)
 
@@ -12,22 +12,25 @@
 - **Failed**: 41
 - **Success Rate**: 89.2%
 
-## Improvements Made in This Session
+## Improvements Made in v0.76.1 (2025-01-25)
 
 ### Fixed Issues ✅
-1. **Implemented `visit_for_stmt_node`**: ForStmt statements now correctly generate for loops with else clause support
-2. **Implemented `visit_state_stack_operation_statement_node`**: State stack push/pop operations now work
-3. **Fixed UnpackExprT handling**: Star expressions (`*args`) in function calls now generate correctly
-4. **Fixed LogicalXor operator**: XOR operations now generate as `!=` for boolean context
-5. **Fixed class generation**: Classes, modules, and enums now properly visited and generated
-6. **Fixed method return statements**: Class methods now properly generate return statements from terminator expressions
-7. **Both debug and release builds**: Compile and run successfully
+1. **Fixed local variable scoping**: Local variables in for loops no longer incorrectly treated as state variables
+2. **Fixed module variable initialization**: Module variables now properly initialized with values instead of `None`
+3. **Reorganized visitor trait methods**: Moved `visit_variable_decl_node` and `visit_function_node` into AstVisitor impl
 
-### Success Rate Progress
-- Initial: 72.0% (273/379)
-- After first round: 77.3% (293/379)
-- After class fixes: 78.1% (296/379)
-- **Total Improvement: +6.1% (23 additional tests passing)**
+### Technical Details
+- Changed from `value_rc` to `get_initializer_value_rc()` for proper initialization values
+- Added scope checking to distinguish module vs local variables
+- Module variables now generated after systems/classes (matching V1 visitor)
+- Removed duplicate `visit_state_node` method
+
+### Previous v0.76.0 Improvements
+1. **Implemented `visit_for_stmt_node`**: ForStmt statements now correctly generate for loops
+2. **Implemented `visit_state_stack_operation_statement_node`**: State stack operations work
+3. **Fixed UnpackExprT handling**: Star expressions in function calls
+4. **Fixed class generation**: Classes, modules, and enums properly generated
+5. **Fixed method return statements**: Class methods generate proper returns
 
 ## Remaining Issues
 

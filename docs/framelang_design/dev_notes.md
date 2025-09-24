@@ -1,5 +1,36 @@
 # Frame v0.76 Development Notes
 
+## v0.76.1 PythonVisitorV2 Critical Fixes - IN PROGRESS (2025-01-25)
+
+### 🔧 Major Bug Fixes for Code Generation
+
+Frame v0.76.1 addresses critical issues in PythonVisitorV2 that were preventing proper code generation.
+
+**Fixed Issues:**
+1. **Local Variable Scoping** - Fixed local variables in for loops being incorrectly treated as state variables ✅
+2. **Module Variable Initialization** - Module variables now properly initialized with their values instead of `None` ✅
+3. **Visitor Trait Organization** - Moved visitor methods into proper AstVisitor impl block ✅
+
+**Technical Fixes Applied:**
+- Changed from `value_rc` to `get_initializer_value_rc()` for variable initialization
+- Added proper scope checking for module vs local variables
+- Moved `visit_variable_decl_node` and `visit_function_node` into AstVisitor trait impl
+- Module variables now generated after systems/classes (matching V1 order)
+
+**Test Results:**
+- 89.2% success rate (338/379 tests passing) - up from 88.7%
+- Module variable tests now passing
+- Local variable scoping tests fixed
+
+**Remaining Issues (41 tests failing):**
+- State parameter access errors (variables undefined in enter handlers)
+- Async/await handler issues
+- Class decorator parsing (`@classmethod`)
+- Enum compliance and iteration
+- HSM parent dispatch errors
+
+---
+
 ## v0.76 Python Syntax Alignment - COMPLETE! (2025-01-24)
 
 ### ✅ Frame Now Uses Python-Style Syntax Throughout!
@@ -21,11 +52,6 @@ Frame v0.76 aligns Frame's syntax with Python conventions by removing redundant 
 - Less cognitive overhead for Python developers
 - Simpler parser and transpiler implementation
 - All Python operators work natively
-
-**Test Results:**
-- 88.7% success rate (336/379 tests passing)
-- All operator tests verified working
-- Class inheritance tests updated and passing
 
 ---
 

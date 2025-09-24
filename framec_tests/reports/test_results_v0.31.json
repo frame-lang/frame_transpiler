@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-09-23T18:28:43.093196",
+  "timestamp": "2025-09-24T04:50:12.510599",
   "version": "v0.31",
   "summary": {
     "total": 379,
@@ -1002,7 +1002,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1034,7 +1034,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1042,7 +1042,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1890,16 +1890,16 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": "\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n\n=== test_read_access ===\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 373, in <module>\n    main()\n   "
+      "output": "\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n\n=== test_read_access ===\nmodule_string: initial_string\nmodule_int: 42\nmodule_bool: True\nmodule_float: 3.14\nmodule_none: None\nmodule_list: [1, 2, 3]\n=== test",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 381, in <module>\n    main()\n   "
     },
     {
       "file": "test_module_scope_variables.frm",
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": "PI = None\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_variables.py\", line 122, in <module>\n    main()\n    ~~~"
+      "output": "PI = 3.14159\nVERSION = 1.0.0\ncounter = 0\ninitialized = False\n[LOG] Main function called\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_variables.py\", line 128, in <module>\n    main()\n    ~~~"
     },
     {
       "file": "test_module_syntax.frm",
@@ -1922,7 +1922,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "In main function:\nNone\nLocal variable:\nI am local\nModule variable again:\nNone\nIn test_function:\nNone\n",
+      "output": "In main function:\nI am at module level\nLocal variable:\nI am local\nModule variable again:\nI am at module level\nIn test_function:\nI am at module level\n",
       "error": null
     },
     {
