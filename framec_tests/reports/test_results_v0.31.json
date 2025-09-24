@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-23T18:14:01.585468",
+  "timestamp": "2025-09-23T18:28:43.093196",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 374,
-    "execute_success": 333,
-    "complete_success": 336,
-    "success_rate": "88.7%"
+    "execute_success": 335,
+    "complete_success": 338,
+    "success_rate": "89.2%"
   },
   "results": [
     {
@@ -587,7 +587,7 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": "Parent enter event\nParent.trigger() called\nCount is now: 1\nTransitioning to Child\nChild enter - dispatching to parent\nChild enter - dispatching to parent\nChild enter - dispatching to parent\nChild ente",
+      "output": "Parent enter event\nParent.trigger() called\n",
       "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_controlled_hsm_loop_verbose.py\", line 129, in <module>\n    main()\n  "
     },
     {
@@ -976,10 +976,10 @@
     {
       "file": "test_enum_iteration.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "=== Menu Options ===\n1. NewFile\n2. OpenFile\n3. SaveFile\n4. SaveAs\n5. Exit\nSaveFile is a valid menu option\nInvalidOption is NOT a valid menu option\n=== Processing All Statuses ===\nStatus: Error (code: ",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enum_iteration.py\", line 226, in <module>\n    main()\n    ~~~~^^\n  Fi"
+      "error": null
     },
     {
       "file": "test_enum_module_scope.frm",
@@ -1002,7 +1002,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1034,7 +1034,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1042,7 +1042,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1328,10 +1328,10 @@
     {
       "file": "test_functions_with_system.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_functions_with_system.py\", line 116, in <module>\n    main()\n    ~~~~"
+      "output": "Final count: 3\n",
+      "error": null
     },
     {
       "file": "test_generators_basic.frm",
@@ -2296,10 +2296,10 @@
     {
       "file": "test_self_domain_vars.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_self_domain_vars.py\", line 108, in <module>\n    main()\n    ~~~~^^\n  "
+      "output": "Count is: 10\nCount after increment: 11\nDoubled: 22\nMessage: Hello from self\n",
+      "error": null
     },
     {
       "file": "test_self_variable_exhaustive.frm",
@@ -2568,10 +2568,10 @@
     {
       "file": "test_state_vars_simple.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
-      "output": "Count incremented to: 1\nCount incremented to: 2\nCount incremented to: 3\nCurrent count is: 3\n",
-      "error": null
+      "output": null,
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_state_vars_simple.py\", line 114, in <module>\n    main()\n    ~~~~^^\n "
     },
     {
       "file": "test_state_vars_transition.frm",

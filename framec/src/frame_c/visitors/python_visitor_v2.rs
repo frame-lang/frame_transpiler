@@ -39,6 +39,7 @@ pub struct PythonVisitorV2 {
     interface_methods: HashMap<String, Vec<String>>, // method_name -> parameter_names
     domain_variables: HashSet<String>, // Track domain variable names
     current_handler_params: HashSet<String>, // Track current event handler parameter names
+    current_handler_locals: HashSet<String>, // Track local variables in current handler
     domain_enums: HashSet<String>, // Track domain enum names (without prefix)
     
     // Import tracking
@@ -72,6 +73,7 @@ impl PythonVisitorV2 {
             interface_methods: HashMap::new(),
             domain_variables: HashSet::new(),
             current_handler_params: HashSet::new(),
+            current_handler_locals: HashSet::new(),
             domain_enums: HashSet::new(),
             imports: Vec::new(),
             used_modules: HashSet::new(),
@@ -1467,8 +1469,15 @@ impl PythonVisitorV2 {
         // Handle multi-variable declaration
         let var_name = if var_decl.name.starts_with("__multi_var__:") {
             // Extract the variable names after the prefix
-            var_decl.name.strip_prefix("__multi_var__:").unwrap_or(&var_decl.name).replace(",", ", ")
+            let names = var_decl.name.strip_prefix("__multi_var__:").unwrap_or(&var_decl.name);
+            // Track each individual variable as local
+            for name in names.split(',') {
+                self.current_handler_locals.insert(name.trim().to_string());
+            }
+            names.replace(",", ", ")
         } else {
+            // Track single variable as local
+            self.current_handler_locals.insert(var_decl.name.clone());
             var_decl.name.clone()
         };
         
@@ -2188,9 +2197,12 @@ impl PythonVisitorV2 {
         // Handle system.return special case
         if node.id_node.name.lexeme == "system.return" {
             output.push_str("self.return_stack[-1]");
-        } else if self.domain_variables.contains(&node.id_node.name.lexeme) &&
-                  !self.current_handler_params.contains(&node.id_node.name.lexeme) {
-            // Domain variables need self. prefix (but not if it's a parameter)
+        } else if self.current_handler_locals.contains(&node.id_node.name.lexeme) ||
+                  self.current_handler_params.contains(&node.id_node.name.lexeme) {
+            // Local variables and parameters - use directly
+            output.push_str(&node.id_node.name.lexeme);
+        } else if self.domain_variables.contains(&node.id_node.name.lexeme) {
+            // Domain variables need self. prefix
             output.push_str(&format!("self.{}", node.id_node.name.lexeme));
         } else {
             output.push_str(&node.id_node.name.lexeme);
@@ -2333,7 +2345,11 @@ impl PythonVisitorV2 {
     
     // Variable node
     fn visit_variable_node(&mut self, node: &VariableNode) {
-        if self.domain_variables.contains(&node.id_node.name.lexeme) {
+        if self.current_handler_locals.contains(&node.id_node.name.lexeme) ||
+           self.current_handler_params.contains(&node.id_node.name.lexeme) {
+            // Local variables and parameters - use directly
+            self.builder.write(&node.id_node.name.lexeme);
+        } else if self.domain_variables.contains(&node.id_node.name.lexeme) {
             // Domain variables need self. prefix
             self.builder.write(&format!("self.{}", node.id_node.name.lexeme));
         } else {
@@ -2437,8 +2453,9 @@ impl PythonVisitorV2 {
         
         self.builder.dedent();
         
-        // Clear current handler parameters
+        // Clear current handler parameters and locals
         self.current_handler_params.clear();
+        self.current_handler_locals.clear();
     }
     
     // State node visitor - to track current state
@@ -2600,19 +2617,15 @@ impl PythonVisitorV2 {
                         // TODO: The parser/semantic analyzer should properly set IdentifierDeclScope::StateVarScope
                         // but currently it doesn't seem to be doing so for state variable references
                         
-                        let is_state_var = if self.current_state_name_opt.is_some() {
-                            // We're in an event handler - check if this var is a state var
-                            // This is a TEMPORARY workaround
-                            var_node.id_node.name.lexeme == "count" // Hardcoded for now
-                        } else {
-                            false
-                        };
+                        // Check if this is truly a state variable (not a local or parameter)
+                        let is_local_or_param = self.current_handler_locals.contains(&var_node.id_node.name.lexeme) ||
+                                                self.current_handler_params.contains(&var_node.id_node.name.lexeme);
                         
-                        if is_state_var || var_node.id_node.scope == IdentifierDeclScope::StateVarScope {
+                        if !is_local_or_param && var_node.id_node.scope == IdentifierDeclScope::StateVarScope {
                             // Access state variables via compartment
                             output.push_str(&format!("compartment.state_vars[\"{}\"]", 
                                 var_node.id_node.name.lexeme));
-                        } else if self.domain_variables.contains(&var_node.id_node.name.lexeme) &&
+                        } else if !is_local_or_param && self.domain_variables.contains(&var_node.id_node.name.lexeme) &&
                                   !self.current_handler_params.contains(&var_node.id_node.name.lexeme) &&
                                   !in_self_context {
                             // Domain variable access (but not if it's a parameter or already in self. context)
@@ -3335,6 +3348,9 @@ impl PythonVisitorV2 {
         } else {
             "_".to_string()
         };
+        
+        // Track the loop variable as a local
+        self.current_handler_locals.insert(var_name.clone());
         
         // Generate the iterable expression
         let mut iter_str = String::new();
