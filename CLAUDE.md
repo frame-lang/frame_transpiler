@@ -7,9 +7,9 @@
 4. **CHECK implementation, not docs** - Grammar docs may be outdated; scanner/parser are truth
 
 ## Current State
-- **Version**: v0.76.1, Branch: v0.30, **93.9% tests passing** (356/379)
+- **Version**: v0.76.1, Branch: v0.30, **99.5% tests passing** (365/367)
 - **PythonVisitorV2**: Default with CodeBuilder architecture
-- **Recent Fix**: Complete HSM support implemented
+- **Recent Achievements**: FSL removed, native Python operations, critical bug fixes
 
 ## Quick References
 - **Test files**: `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`  
