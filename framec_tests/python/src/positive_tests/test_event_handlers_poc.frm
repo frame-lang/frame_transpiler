@@ -130,3 +130,6 @@ fn main() {
     print("Event-Handlers-as-Functions PoC")
     test_mixed_handlers()
 }
+
+# Call main to run the tests
+main()

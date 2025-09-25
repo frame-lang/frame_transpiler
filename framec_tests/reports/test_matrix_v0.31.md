@@ -1,17 +1,17 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-24 21:32  
-**Total Tests**: 379  
+**Generated**: 2025-09-25 14:03  
+**Total Tests**: 367  
 **Current Branch**: v0.31  
 
 ## Summary Statistics
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| **Total Tests** | 379 | 100% |
-| **Transpilation Success** | 376 | 99.2% |
-| **Execution Success** | 365 | 96.3% |
-| **Complete Success** | 368 | 97.1% |
+| **Total Tests** | 367 | 100% |
+| **Transpilation Success** | 364 | 99.2% |
+| **Execution Success** | 361 | 98.4% |
+| **Complete Success** | 364 | 99.2% |
 
 ## v0.31 Features
 
@@ -44,46 +44,11 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
     main()
     ~~~~^^
  |
-| test_fsl_list_operations.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations.py", line 46, in <module>
-    main()
-    ~~~~^^
- |
-| test_fsl_list_operations_extended.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations_extended.py", line 58, in <module>
-    main()
-   |
-| test_fsl_string_operations.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_string_operations.py", line 43, in <module>
-    main()
-    ~~~~^ |
-| test_function_refs_complete.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_function_refs_complete.py", line 1, in <module>
-    from fsl import  |
-| test_hierarchy.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_hierarchy.py", line 81, in <module>
-    main()
-    ~~~~^^
-  File "/U |
 | test_list_features.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_features.py", line 60, in <module>
     main()
     ~~~~^^
   File |
-| test_list_native_methods.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_native_methods.py", line 67, in <module>
-    main()
-    ~~~~^^
- |
-| test_module_scope_comprehensive.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py", line 402, in <module>
-    main()
-    |
-| test_multi_entity_demo.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_multi_entity_demo.py", line 404, in <module>
-    main()
-    ~~~~^^
-  |
 
 ## Test Details
 
@@ -232,20 +197,12 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_first_system_only.frm | ✅ | ✅ | ✅ PASS |
 | test_force_syntactic.frm | ✅ | ✅ | ✅ PASS |
 | test_forward_event.frm | ✅ | ✅ | ✅ PASS |
-| test_fsl_bool.frm | ✅ | ✅ | ✅ PASS |
-| test_fsl_conversion_ops.frm | ✅ | ✅ | ✅ PASS |
-| test_fsl_import_required.frm | ✅ | ✅ | ✅ PASS |
-| test_fsl_list_operations.frm | ✅ | ❌ | ❌ FAIL |
-| test_fsl_list_operations_extended.frm | ✅ | ❌ | ❌ FAIL |
-| test_fsl_no_import_error.frm | ✅ | ✅ | ✅ PASS |
-| test_fsl_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_fsl_string_operations.frm | ✅ | ❌ | ❌ FAIL |
 | test_func_ref_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_func_ref_use.frm | ✅ | ✅ | ✅ PASS |
 | test_function_call.frm | ✅ | ✅ | ✅ PASS |
 | test_function_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_function_refs_basic.frm | ✅ | ✅ | ✅ PASS |
-| test_function_refs_complete.frm | ✅ | ❌ | ❌ FAIL |
+| test_function_refs_complete.frm | ✅ | ✅ | ✅ PASS |
 | test_function_scope_isolation.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_functions_event_handler.frm | ✅ | ✅ | ✅ PASS |
@@ -253,17 +210,12 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_functions_with_system.frm | ✅ | ✅ | ✅ PASS |
 | test_generators_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_handlers_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_hierarchy.frm | ✅ | ❌ | ❌ FAIL |
+| test_hierarchy.frm | ✅ | ✅ | ✅ PASS |
 | test_history.frm | ✅ | ✅ | ✅ PASS |
 | test_if_elif_returns.frm | ✅ | ✅ | ✅ PASS |
 | test_if_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_if_with_simple_stmt.frm | ✅ | ✅ | ✅ PASS |
 | test_import_conflicts.frm | ✅ | ✅ | ✅ PASS |
-| test_import_fsl_individual.frm | ✅ | ✅ | ✅ PASS |
-| test_import_fsl_no_import.frm | ✅ | ✅ | ✅ PASS |
-| test_import_fsl_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_import_fsl_user_conflict.frm | ✅ | ✅ | ✅ PASS |
-| test_import_fsl_wildcard.frm | ✅ | ✅ | ✅ PASS |
 | test_import_mixed.frm | ✅ | ✅ | ✅ PASS |
 | test_import_python_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_import_simple.frm | ✅ | ✅ | ✅ PASS |
@@ -292,8 +244,9 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_list_comprehensions.frm | ✅ | ✅ | ✅ PASS |
 | test_list_comprehensions_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_list_features.frm | ✅ | ❌ | ❌ FAIL |
-| test_list_native_methods.frm | ✅ | ❌ | ❌ FAIL |
+| test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
 | test_list_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
+| test_list_ops_native_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_loop_else.frm | ✅ | ✅ | ✅ PASS |
 | test_match_case.frm | ✅ | ✅ | ✅ PASS |
 | test_match_patterns_advanced.frm | ✅ | ✅ | ✅ PASS |
@@ -320,13 +273,13 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_module_imports_no_backticks.frm | ✅ | ✅ | ✅ PASS |
 | test_module_qualified_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_basic.frm | ✅ | ✅ | ✅ PASS |
-| test_module_scope_comprehensive.frm | ✅ | ❌ | ❌ FAIL |
+| test_module_scope_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_variables.frm | ✅ | ✅ | ✅ PASS |
 | test_module_syntax.frm | ✅ | ✅ | ✅ PASS |
 | test_module_system.frm | ✅ | ✅ | ✅ PASS |
 | test_module_var_access.frm | ✅ | ✅ | ✅ PASS |
 | test_module_var_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_multi_entity_demo.frm | ✅ | ❌ | ❌ FAIL |
+| test_multi_entity_demo.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_entity_scopes.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_entity_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_multi_systems_with_interface.frm | ✅ | ✅ | ✅ PASS |

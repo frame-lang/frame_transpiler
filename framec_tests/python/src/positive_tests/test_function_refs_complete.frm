@@ -2,8 +2,6 @@
 # Test complete function references (first-class functions)
 # This tests the new FunctionRefT support added in v0.38
 
-from fsl import str
-
 fn add(a, b) {
     return a + b
 }
@@ -99,3 +97,6 @@ fn main() {
     test_higher_order()
     print("\n=== All Tests Complete ===")
 }
+
+# Call main to run the tests  
+main()

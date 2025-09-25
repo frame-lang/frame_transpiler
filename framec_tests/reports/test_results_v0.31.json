@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-25T07:12:25.432624",
+  "timestamp": "2025-09-25T14:03:24.213979",
   "version": "v0.31",
   "summary": {
-    "total": 379,
-    "transpile_success": 376,
-    "execute_success": 367,
-    "complete_success": 370,
-    "success_rate": "97.6%"
+    "total": 367,
+    "transpile_success": 364,
+    "execute_success": 361,
+    "complete_success": 364,
+    "success_rate": "99.2%"
   },
   "results": [
     {
@@ -1004,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1036,7 +1036,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
@@ -1044,7 +1044,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1184,70 +1184,6 @@
       "error": null
     },
     {
-      "file": "test_fsl_bool.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "bool(1): True\nbool(0): False\nbool(42): True\nbool(-1): True\nbool('hello'): True\nbool(''): False\nbool(3.14): True\nbool(0.0): False\nbool(1) is truthy\nbool(0) is falsy\nbool(x=100): True\nbool(y=0): False\n",
-      "error": null
-    },
-    {
-      "file": "test_fsl_conversion_ops.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "=== Testing FSL Conversion Operations ===\nNumber as string: 42\nPi as string: 3.14159\nBoolean as string: True\nString to int: 123\nFloat to int: 45\nBool to int: 1\nString to float: 3.14\nInt to float: 42.0",
-      "error": null
-    },
-    {
-      "file": "test_fsl_import_required.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "42\n123\n3.14\n",
-      "error": null
-    },
-    {
-      "file": "test_fsl_list_operations.frm",
-      "transpile": true,
-      "execute": false,
-      "negative_test": false,
-      "output": "After append: [1, 2, 3, 4, 5]\nPopped: 40\nAfter pop: [10, 20, 30]\nAfter clear: []\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations.py\", line 46, in <module>\n    main()\n    ~~~~^^\n"
-    },
-    {
-      "file": "test_fsl_list_operations_extended.frm",
-      "transpile": true,
-      "execute": false,
-      "negative_test": false,
-      "output": "After insert: [1, 2, 3, 4, 5]\nAfter remove: [10, 30, 20, 40]\nIndex of banana: 1\nCount of 2: 3\nAfter extend: [1, 2, 3, 4, 5, 6]\nAfter reverse: [5, 4, 3, 2, 1]\nAfter sort: [1, 1, 2, 3, 4, 5, 6, 9]\nOrigi",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations_extended.py\", line 58, in <module>\n    main()\n  "
-    },
-    {
-      "file": "test_fsl_no_import_error.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "42\n",
-      "error": null
-    },
-    {
-      "file": "test_fsl_simple.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "Result: 42\n",
-      "error": null
-    },
-    {
-      "file": "test_fsl_string_operations.frm",
-      "transpile": true,
-      "execute": false,
-      "negative_test": false,
-      "output": "Upper: HELLO\nLower: world\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_string_operations.py\", line 43, in <module>\n    main()\n    ~~~~^"
-    },
-    {
       "file": "test_func_ref_simple.frm",
       "transpile": true,
       "execute": true,
@@ -1290,10 +1226,10 @@
     {
       "file": "test_function_refs_complete.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_function_refs_complete.py\", line 1, in <module>\n    from fsl import "
+      "output": "=== Complete Function Reference Test Suite ===\n\n=== Testing Function References ===\nDirect ref: 3 + 4 = 7\nPass as param: 5 + 3 = 8\nPass as param: 5 * 3 = 15\nReturned func: 6 * 7 = 42\nFrom list[0]: 10 ",
+      "error": null
     },
     {
       "file": "test_function_scope_isolation.frm",
@@ -1397,46 +1333,6 @@
       "execute": true,
       "negative_test": false,
       "output": null,
-      "error": null
-    },
-    {
-      "file": "test_import_fsl_individual.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "=== Testing Individual FSL Imports ===\nstr(42): 42\nstr(3.14159): 3.14159\nstr(true): True\nint('123'): 123\nint(45.67): 45\nint(true): 1\nfloat('3.14'): 3.14\nfloat(42): 42.0\nint(float('123.456')): 123\nstr(",
-      "error": null
-    },
-    {
-      "file": "test_import_fsl_no_import.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "=== Testing FSL Operations Without Import ===\nExternal str(42): 42\nExternal int('123'): 123\n=== Test Complete - Used External Functions ===\n",
-      "error": null
-    },
-    {
-      "file": "test_import_fsl_simple.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "=== Simple FSL Import Test ===\nstr(42): 42\nint('123'): 123\n=== Test Complete ===\n",
-      "error": null
-    },
-    {
-      "file": "test_import_fsl_user_conflict.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "This test should fail at compile time\n",
-      "error": null
-    },
-    {
-      "file": "test_import_fsl_wildcard.frm",
-      "transpile": true,
-      "execute": true,
-      "negative_test": false,
-      "output": "=== FSL Wildcard Import Test ===\n=== Testing All FSL Conversions via Wildcard ===\nstr(42): 42\nstr(3.14159): 3.14159\nstr(true): True\nint('123'): 123\nint(45.67): 45\nint(true): 1\nfloat('99.9'): 99.9\nfloa",
       "error": null
     },
     {
@@ -1666,10 +1562,10 @@
     {
       "file": "test_list_native_methods.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "After append: [1, 2, 3, 4, 5]\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_native_methods.py\", line 67, in <module>\n    main()\n    ~~~~^^\n"
+      "output": "After append: [1, 2, 3, 4, 5]\nLength: 5\nEmpty list is empty: True\nNumbers is empty: False\nAfter clear: []\nPopped: 40\nAfter pop: [10, 20, 30]\nPopped at 1: 20\nAfter pop(1): [10, 30]\nChain test: [1, 2, 3",
+      "error": null
     },
     {
       "file": "test_list_operations_comprehensive.frm",
@@ -1677,6 +1573,14 @@
       "execute": true,
       "negative_test": false,
       "output": "=== COMPREHENSIVE LIST OPERATIONS TEST ===\n\n=== List Creation ===\nEmpty list: []\nNumber list: [1, 2, 3, 4, 5]\nMixed list: [1, 'hello', 3.14, True, None]\nNested list: [[1, 2], [3, 4], [5, 6]]\nFrom rang",
+      "error": null
+    },
+    {
+      "file": "test_list_ops_native_simple.frm",
+      "transpile": true,
+      "execute": true,
+      "negative_test": false,
+      "output": "Testing native Python list operations...\nappend: [1, 2, 3, 4]\npop: 30\nlen: 3\nAll list tests passed!\n",
       "error": null
     },
     {
@@ -1938,10 +1842,10 @@
     {
       "file": "test_multi_entity_demo.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Starting Multi-Entity Demo\n---------------------------\n=== TEST: helper_works ===\nResult: TEST_helper_works\n[LOG] System: CounterSystem, Event: increment\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_multi_entity_demo.py\", line 404, in <module>\n    main()\n    ~~~~^^\n "
+      "output": "Starting Multi-Entity Demo\n---------------------------\n=== TEST: helper_works ===\nResult: TEST_helper_works\n[LOG] System: CounterSystem, Event: increment\nCount incremented to: 1\n[LOG] System: CounterS",
+      "error": null
     },
     {
       "file": "test_multi_entity_scopes.frm",

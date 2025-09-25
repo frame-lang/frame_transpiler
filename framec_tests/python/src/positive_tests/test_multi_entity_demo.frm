@@ -59,18 +59,18 @@ system CounterSystem {
         $Counting {
             increment() {
                 log_event("CounterSystem", "increment")
-                count = count + 1
-                print("Count incremented to: " + str(count))
+                self.count = self.count + 1
+                print("Count incremented to: " + str(self.count))
                 return
             }
             
             get_count() : int {
-                system.return = count
+                system.return = self.count
             }
             
             reset() {
                 log_event("CounterSystem", "reset")
-                count = 0
+                self.count = 0
                 print("Counter reset to 0")
                 return
             }
@@ -173,3 +173,6 @@ system TrafficLight {
             }
         }
 }
+
+# Call main to execute the demo
+main()

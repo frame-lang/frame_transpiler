@@ -7,16 +7,16 @@ fn main() {
     numbers.append(5)
     print("After append:", numbers)  # [1, 2, 3, 4, 5]
     
-    # Test list.length property
-    var length = numbers.length
+    # Test list length using len()
+    var length = len(numbers)
     print("Length:", length)  # 5
     
-    # Test list.is_empty property
+    # Test list emptiness check
     var empty_list = []
-    var is_empty_val = empty_list.is_empty
-    print("Empty list is_empty:", is_empty_val)  # true
-    var nums_empty = numbers.is_empty
-    print("Numbers is_empty:", nums_empty)  # false
+    var is_empty_val = len(empty_list) == 0
+    print("Empty list is empty:", is_empty_val)  # true
+    var nums_empty = len(numbers) == 0
+    print("Numbers is empty:", nums_empty)  # false
     
     # Test list.clear()
     var temp = [1, 2, 3]
@@ -49,11 +49,11 @@ fn main() {
     
     # Test in expressions
     var data = [5, 10, 15]
-    if data.length > 2 {
+    if len(data) > 2 {
         print("List has more than 2 items")
     }
     
-    if data.length > 0 {
+    if len(data) > 0 {
         print("List is not empty")
     }
     
@@ -67,3 +67,6 @@ fn create_list() {
     var list = [1, 2, 3]
     return list
 }
+
+# Call main to run the tests
+main()

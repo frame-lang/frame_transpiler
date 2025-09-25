@@ -58,3 +58,6 @@ fn createList() {
     var result = [10, 20, 30]
     return result
 }
+
+# Call main to run the tests
+main()
