@@ -16,9 +16,8 @@ module_content: (module_decl | enum_decl | var_decl | function | class | system)
 
 **v0.34 Module System (FULLY IMPLEMENTED)**: 
 - ✅ Module keyword and nested module declarations working
-- ✅ FSL requires explicit import (`from fsl import str, int, float`)
+- ✅ Python built-in functions work directly without imports
 - ✅ Symbol table supports nested module scopes
-- ✅ FSL imports filtered from generated code (Python target)
 - ✅ Qualified name resolution (`module.function()`) fully implemented
 - ✅ Cross-module function and variable access working
 - ✅ Module code generation creates proper Python structures
@@ -90,8 +89,8 @@ fn main() {
 
 **All Features Working**:
 - Module syntax parsing and code generation
-- Nested module declarations with full functionality
-- FSL import requirement and filtering
+- Nested module declarations with full functionality  
+- Native Python function support without imports
 - Namespace conflict prevention
 - Qualified name access (`module.function()`, `module.variable`)
 - Cross-module function calls
@@ -143,7 +142,7 @@ fn main() {
 
 ## Import Statements (v0.31/v0.34)
 
-Frame v0.31 introduces native import statement support. v0.34 adds FSL imports.
+Frame v0.31 introduces native import statement support for Python modules and libraries.
 
 ```bnf
 import_stmt: simple_import | aliased_import | from_import
@@ -158,10 +157,8 @@ import_items: IDENTIFIER (',' IDENTIFIER)*
 
 ### Import Examples
 ```frame
-// v0.34: FSL imports (required for FSL operations)
-from fsl import str, int, float, bool
-from fsl import list, map, set
-from fsl import *  // Import all FSL operations
+# Python built-in functions work without imports
+# str(), int(), float(), bool(), len() etc. are available by default
 
 // Simple imports
 import math
@@ -216,7 +213,7 @@ module_body: (import_stmt | module_decl | function | system | var_decl | enum_de
 ### Module Examples (Current Implementation)
 ```frame
 // Single file with explicit modules - fully working
-from fsl import str, int
+# Python built-ins like str() and int() work without imports
 
 // Module with functions and variables
 module math_utils {
@@ -268,39 +265,37 @@ fn main() {
 }
 ```
 
-### FSL as Optional Import (Implemented)
+### Native Python Functions
 ```frame
-// FSL must be explicitly imported - prevents namespace conflicts
-from fsl import str, int, list
+# Python built-in functions work directly without imports
 
-// FSL works with modules
 module utilities {
     fn convertAndFormat(value) {
-        return "Value: " + str(value)  // Uses imported FSL str()
+        return "Value: " + str(value)  # Uses Python's built-in str()
     }
 }
 
 fn main() {
-    var s = str(42)                        // Direct FSL usage
-    var formatted = utilities.convertAndFormat(123)  // Module function using FSL
+    var s = str(42)                        # Direct Python str() usage
+    var formatted = utilities.convertAndFormat(123)  # Module function using Python str()
+    var length = len([1, 2, 3])           # Python's len() function
 }
 
-// Without FSL import, users can define their own versions
+# Users can still define custom functions with the same names locally
 fn customExample() {
-    // Define custom str function (no conflict with FSL)
     fn str(x) {
         return "Custom: " + x
     }
     
-    var result = str(42)  // Uses local custom function
+    var result = str(42)  # Uses local custom function
 }
 ```
 
 ### Symbol Resolution Rules (Implemented)
 1. **Module qualification**: `module.function()` and `module.variable` work correctly
 2. **Nested modules**: `module.submodule.function()` fully supported
-3. **FSL integration**: FSL operations work seamlessly with module system
-4. **Namespace protection**: FSL imports prevent conflicts with user functions
+3. **Python integration**: Python built-in functions work seamlessly with module system
+4. **Namespace protection**: Local definitions override global built-ins
 5. **Scope resolution**: Proper LEGB scoping with module boundaries
 6. **No silent conflicts**: Clear error messages for naming conflicts
 
@@ -2434,7 +2429,7 @@ actions:
 ## Expressions
 
 ```bnf
-expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr | fsl_expr 
+expr: binary_expr | unary_expr | primary_expr | call_expr | self_expr 
     | list_expr | list_comprehension | unpack_expr | index_expr | slice_expr | lambda_expr  // v0.38: Added lambda_expr
 
 binary_expr: expr operator expr
@@ -2475,13 +2470,6 @@ unpack_expr: '*' expr  // v0.34: Unpacking operator for lists
 lambda_expr: 'lambda' param_list? ':' expr
 param_list: IDENTIFIER (',' IDENTIFIER)*
 
-fsl_expr: fsl_conversion | fsl_property | fsl_method  // v0.33: Frame Standard Library
-fsl_conversion: ('str' | 'int' | 'float' | 'bool') '(' expr ')'
-fsl_property: expr '.' ('length' | 'is_empty' | 'name' | 'value')
-fsl_list_method: expr '.' ('append' | 'pop' | 'clear' | 'insert' | 'remove' | 'extend' | 
-                           'reverse' | 'sort' | 'copy' | 'index' | 'count') '(' arg_list? ')'
-fsl_string_method: expr '.' ('trim' | 'upper' | 'lower' | 'replace' | 'split' | 
-                             'contains' | 'substring') '(' arg_list? ')'
 ```
 
 **Action Call Syntax**: Action calls use underscore prefix syntax `_actionName()` to distinguish them from interface method calls. This generates with proper `self._actionName()` syntax in Python target language.
@@ -2926,61 +2914,20 @@ if config["validators"]["positive"](5) {
 
 **Call Chain Support**: Multi-node call chains like `sys.methodName()` correctly generate interface method calls on system instances without adding action prefixes.
 
-**Frame Standard Library (v0.33)**: FSL provides native built-in operations guaranteed across all target languages, eliminating the need for backticks when using common operations like type conversions and collection methods.
+**Native Python Operations (v0.38+)**: Frame directly supports Python's built-in functions and methods without requiring special imports. All Python built-in functions like `str()`, `int()`, `len()`, and object methods like `.append()`, `.upper()`, etc. work natively.
 
-## Frame Standard Library (FSL) - v0.34
-
-The Frame Standard Library provides native built-in operations that work consistently across all target languages. 
-
-**v0.34 Changes (FULLY IMPLEMENTED)**: 
-- ✅ FSL operations require explicit import to prevent namespace conflicts
-- ✅ FSL imports filtered from generated Python code (built into Python)
-- ✅ Without import, operations treated as external function calls
-- ✅ Seamless integration with new module system
-- ✅ All FSL features work with qualified module names
-
-```frame
-// Import specific FSL operations
-from fsl import str, int, float, bool
-
-// Define modules that use FSL
-module converter {
-    fn toString(value) {
-        return str(value)  // Uses FSL str() conversion
-    }
-    
-    fn toNumber(text) {
-        return int(text)   // Uses FSL int() conversion
-    }
-}
-
-// Use FSL with qualified names
-fn main() {
-    var text = converter.toString(42)    // Module function using FSL
-    var num = converter.toNumber("123")  // Module function using FSL
-    var result = float("3.14")          // Direct FSL usage
-}
-
-// Without FSL import, all operations treated as external
-fn withoutImport() {
-    var s = str(42)  // Calls external str() function (not FSL)
-}
-```
-
-**Test Results**: All FSL integration tests passing with 100% success rate.
-
-### Phase 1: Type Conversion Operations ✅
+### Native Python Type Conversions ✅
 ```frame
 fn example() {
     var x = 42
-    var s = str(x)        // Convert to string: "42"
-    var i = int("123")    // Convert to integer: 123
-    var f = float("3.14") // Convert to float: 3.14
-    var b = bool(0)       // Convert to boolean: false
+    var s = str(x)        # Convert to string: "42"
+    var i = int("123")    # Convert to integer: 123
+    var f = float("3.14") # Convert to float: 3.14
+    var b = bool(0)       # Convert to boolean: False
 }
 ```
 
-### Phase 2: List Operations ✅
+### Native Python List Operations ✅
 
 #### List Methods
 ```frame
@@ -3015,10 +2962,10 @@ fn listOperations() {
 ```frame
 fn listProperties() {
     var items = [1, 2, 3]
-    var len = items.length    // Get list length: 3 (converts to len() in Python)
+    var length = len(items)    # Get list length: 3 (native Python len() function)
     
     var empty = []
-    var is_empty = empty.is_empty  // Check if empty: true (converts to len() == 0)
+    var is_empty = len(empty) == 0  # Check if empty: True
 }
 ```
 
@@ -3106,14 +3053,14 @@ fn stringOperations() {
 ```frame
 fn stringProperties() {
     var text = "Hello"
-    var len = text.length        // Get string length: 5 (converts to len() in Python)
+    var length = len(text)        # Get string length: 5 (native Python len() function)
 }
 ```
 
-#### Pending String Operations
-The following operations are recognized by FSL but require additional visitor implementation:
-- `contains(substring)` - Will transform to Python's `in` operator
-- `substring(start, end)` - Will transform to Python's slice syntax `[start:end]`
+#### Native String Operations
+Frame supports all Python string operations directly:
+- Use `"substring" in string` for membership testing
+- Use `string[start:end]` for slicing/substring operations
 
 ### Enum Properties (v0.32) ✅
 ```frame
@@ -3339,7 +3286,7 @@ Frame transpiles to multiple target languages with full feature support:
 |---------|--------|------|-------|-----|------|----|----|
 | Modules | ✅ | ✅ mod | ✅ ES6 | ✅ namespace | ✅ package | ✅ package | 🔄 prefix |
 | Systems | ✅ | ✅ struct | ✅ class | ✅ class | ✅ class | ✅ struct | ✅ struct |
-| FSL | ✅ | ✅ crate | ✅ runtime | ✅ runtime | ✅ runtime | ✅ runtime | ✅ runtime |
+| Built-ins | ✅ | ✅ native | ✅ native | ✅ native | ✅ native | ✅ native | ✅ native |
 | Enums | ✅ | ✅ enum | ✅ object | ✅ enum | ✅ enum | ✅ const | 🔄 define |
 | Async | ✅ | ✅ tokio | ✅ promise | ✅ async | ✅ future | ✅ goroutine | ❌ |
 | Generics | ✅ | ✅ native | ✅ TS | ✅ native | ✅ native | ✅ native | ❌ |

@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-24T18:26:41.058315",
+  "timestamp": "2025-09-25T07:12:25.432624",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 376,
-    "execute_success": 366,
-    "complete_success": 369,
-    "success_rate": "97.4%"
+    "execute_success": 367,
+    "complete_success": 370,
+    "success_rate": "97.6%"
   },
   "results": [
     {
@@ -1004,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1044,7 +1044,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1210,18 +1210,18 @@
     {
       "file": "test_fsl_list_operations.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
-      "output": "After append: [1, 2, 3, 4, 5]\nPopped: 40\nAfter pop: [10, 20, 30]\nAfter clear: []\nLength: 3\nChain test after operations: [1, 2]\nPopped from chain: 3\n",
-      "error": null
+      "output": "After append: [1, 2, 3, 4, 5]\nPopped: 40\nAfter pop: [10, 20, 30]\nAfter clear: []\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations.py\", line 46, in <module>\n    main()\n    ~~~~^^\n"
     },
     {
       "file": "test_fsl_list_operations_extended.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
       "output": "After insert: [1, 2, 3, 4, 5]\nAfter remove: [10, 30, 20, 40]\nIndex of banana: 1\nCount of 2: 3\nAfter extend: [1, 2, 3, 4, 5, 6]\nAfter reverse: [5, 4, 3, 2, 1]\nAfter sort: [1, 1, 2, 3, 4, 5, 6, 9]\nOrigi",
-      "error": null
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations_extended.py\", line 58, in <module>\n    main()\n  "
     },
     {
       "file": "test_fsl_no_import_error.frm",
@@ -1354,10 +1354,10 @@
     {
       "file": "test_hierarchy.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Company: Frame Corp\nEngineering team: 10\nFrontend stack: React, TypeScript, Frame\nBackend stack: Python, FastAPI, PostgreSQL\nTotal engineering: 10\nSales quota: $1000000\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_hierarchy.py\", line 81, in <module>\n    main()\n    ~~~~^^\n  File \"/U"
+      "output": "Company: Frame Corp\nEngineering team: 10\nFrontend stack: React, TypeScript, Frame\nBackend stack: Python, FastAPI, PostgreSQL\nTotal engineering: 10\nSales quota: $1000000\nCompany info: Frame Corp has 15",
+      "error": null
     },
     {
       "file": "test_history.frm",
@@ -1658,18 +1658,18 @@
     {
       "file": "test_list_features.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
       "output": "First number: 1\nLast string: frame\n\n=== Iterating numbers ===\nNumber: 1\nNumber: 2\nNumber: 3\nNumber: 4\nNumber: 5\n\n=== Iterating strings ===\nString: hello\nString: world\nString: frame\n\n=== Matrix ===\nRow",
-      "error": null
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_features.py\", line 60, in <module>\n    main()\n    ~~~~^^\n  File"
     },
     {
       "file": "test_list_native_methods.frm",
       "transpile": true,
-      "execute": true,
+      "execute": false,
       "negative_test": false,
-      "output": "After append: [1, 2, 3, 4, 5]\nLength: 5\nEmpty list is_empty: True\nNumbers is_empty: False\nAfter clear: []\nPopped: 40\nAfter pop: [10, 20, 30]\nPopped at 1: 20\nAfter pop(1): [10, 30]\nChain test: [1, 2, 3",
-      "error": null
+      "output": "After append: [1, 2, 3, 4, 5]\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_native_methods.py\", line 67, in <module>\n    main()\n    ~~~~^^\n"
     },
     {
       "file": "test_list_operations_comprehensive.frm",
@@ -1890,10 +1890,10 @@
     {
       "file": "test_module_scope_comprehensive.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "Module loading - initializing module variables\nInitial shared_counter: 0\n\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n\n=== test_read_access ===\nmodule_string: initial_string\nmodule_int: 42\nmodule_bool: ",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 402, in <module>\n    main()\n   "
+      "error": null
     },
     {
       "file": "test_module_scope_variables.frm",
@@ -2466,10 +2466,10 @@
     {
       "file": "test_single_system_transitions.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_single_system_transitions.py\", line 138, in <module>\n    main()\n    "
+      "output": "Init enter\nA enter, total_loops=0\n  Transitioning to B (loop 1 of 2)\nB enter, total_loops=1\n  Transitioning to A (loop 2 of 2)\nA enter, total_loops=2\n  Staying in A (max_loops 2 reached)\nTest complete",
+      "error": null
     },
     {
       "file": "test_single_transition.frm",
@@ -2858,10 +2858,10 @@
     {
       "file": "test_v030_mixed_entities.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_v030_mixed_entities.py\", line 336, in <module>\n    main()\n    ~~~~^^"
+      "output": "Called from: Worker\nTask: task1, Result: 35\nCalled from: Processor\nProcessing complete\nCalled from: main\n",
+      "error": null
     },
     {
       "file": "test_v030_multi_system_basic.frm",
@@ -3010,10 +3010,10 @@
     {
       "file": "test_validation_comprehensive.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_validation_comprehensive.py\", line 303, in <module>\n    main()\n    ~"
+      "output": "Helper function works\nparameter\ntest\nSystemB active\nSystemC operation running\n",
+      "error": null
     },
     {
       "file": "test_validation_with_main.frm",

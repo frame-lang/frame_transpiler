@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-24 18:26  
+**Generated**: 2025-09-24 21:32  
 **Total Tests**: 379  
 **Current Branch**: v0.31  
 
@@ -10,8 +10,8 @@
 |--------|-------|------------|
 | **Total Tests** | 379 | 100% |
 | **Transpilation Success** | 376 | 99.2% |
-| **Execution Success** | 366 | 96.6% |
-| **Complete Success** | 369 | 97.4% |
+| **Execution Success** | 365 | 96.3% |
+| **Complete Success** | 368 | 97.1% |
 
 ## v0.31 Features
 
@@ -44,6 +44,15 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
     main()
     ~~~~^^
  |
+| test_fsl_list_operations.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations.py", line 46, in <module>
+    main()
+    ~~~~^^
+ |
+| test_fsl_list_operations_extended.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations_extended.py", line 58, in <module>
+    main()
+   |
 | test_fsl_string_operations.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_string_operations.py", line 43, in <module>
     main()
@@ -56,6 +65,16 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
     main()
     ~~~~^^
   File "/U |
+| test_list_features.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_features.py", line 60, in <module>
+    main()
+    ~~~~^^
+  File |
+| test_list_native_methods.frm | ✅ | ❌ | Traceback (most recent call last):
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_native_methods.py", line 67, in <module>
+    main()
+    ~~~~^^
+ |
 | test_module_scope_comprehensive.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py", line 402, in <module>
     main()
@@ -65,18 +84,6 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
     main()
     ~~~~^^
   |
-| test_single_system_transitions.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_single_system_transitions.py", line 138, in <module>
-    main()
-     |
-| test_v030_mixed_entities.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_v030_mixed_entities.py", line 336, in <module>
-    main()
-    ~~~~^^ |
-| test_validation_comprehensive.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_validation_comprehensive.py", line 303, in <module>
-    main()
-    ~ |
 
 ## Test Details
 
@@ -228,8 +235,8 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_fsl_bool.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_conversion_ops.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_import_required.frm | ✅ | ✅ | ✅ PASS |
-| test_fsl_list_operations.frm | ✅ | ✅ | ✅ PASS |
-| test_fsl_list_operations_extended.frm | ✅ | ✅ | ✅ PASS |
+| test_fsl_list_operations.frm | ✅ | ❌ | ❌ FAIL |
+| test_fsl_list_operations_extended.frm | ✅ | ❌ | ❌ FAIL |
 | test_fsl_no_import_error.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_string_operations.frm | ✅ | ❌ | ❌ FAIL |
@@ -284,8 +291,8 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_legb_scope_resolution.frm | ✅ | ✅ | ✅ PASS |
 | test_list_comprehensions.frm | ✅ | ✅ | ✅ PASS |
 | test_list_comprehensions_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_list_features.frm | ✅ | ✅ | ✅ PASS |
-| test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
+| test_list_features.frm | ✅ | ❌ | ❌ FAIL |
+| test_list_native_methods.frm | ✅ | ❌ | ❌ FAIL |
 | test_list_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_loop_else.frm | ✅ | ✅ | ✅ PASS |
 | test_match_case.frm | ✅ | ✅ | ✅ PASS |
@@ -385,7 +392,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_single_lifecycle.frm | ✅ | ✅ | ✅ PASS |
 | test_single_system.frm | ✅ | ✅ | ✅ PASS |
 | test_single_system_only.frm | ✅ | ✅ | ✅ PASS |
-| test_single_system_transitions.frm | ✅ | ❌ | ❌ FAIL |
+| test_single_system_transitions.frm | ✅ | ✅ | ✅ PASS |
 | test_single_transition.frm | ✅ | ✅ | ✅ PASS |
 | test_slicing.frm | ✅ | ✅ | ✅ PASS |
 | test_slicing_comprehensive.frm | ✅ | ✅ | ✅ PASS |
@@ -434,7 +441,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_v030_functions_only.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_hierarchical_systems.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_lifecycle_demo.frm | ✅ | ✅ | ✅ PASS |
-| test_v030_mixed_entities.frm | ✅ | ❌ | ❌ FAIL |
+| test_v030_mixed_entities.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_multi_system_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_simple_lifecycle.frm | ✅ | ✅ | ✅ PASS |
 | test_v030_system_lifecycle.frm | ✅ | ✅ | ✅ PASS |
@@ -453,7 +460,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_v054_star_expressions.frm | ✅ | ✅ | ✅ PASS |
 | test_v056_features.frm | ✅ | ✅ | ✅ PASS |
 | test_v056_walrus_and_literals.frm | ✅ | ✅ | ✅ PASS |
-| test_validation_comprehensive.frm | ✅ | ❌ | ❌ FAIL |
+| test_validation_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_validation_with_main.frm | ✅ | ✅ | ✅ PASS |
 | test_with_statement.frm | ✅ | ✅ | ✅ PASS |
 | test_with_statement_basic.frm | ✅ | ✅ | ✅ PASS |

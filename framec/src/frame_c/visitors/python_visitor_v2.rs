@@ -8,7 +8,7 @@ use crate::frame_c::code_builder::CodeBuilder;
 use crate::frame_c::config::FrameConfig;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::source_map::SourceMapBuilder;
-use crate::frame_c::symbol_table::{SymbolConfig, Arcanum, SymbolType};
+use crate::frame_c::symbol_table::{SymbolConfig, Arcanum, SymbolType, SymbolTable};
 use crate::frame_c::visitors::AstVisitor;
 
 use std::collections::{HashMap, HashSet};
@@ -36,6 +36,7 @@ pub struct PythonVisitorV2 {
     current_class_name_opt: Option<String>,
     module_context: Vec<String>, // Track nested module context
     current_module_variables: HashSet<String>, // Track variables in current module
+    current_module_name_opt: Option<String>, // Track the current module name for qualification
     
     // System metadata
     system_name: String,
@@ -77,6 +78,7 @@ impl PythonVisitorV2 {
             current_class_name_opt: None,
             module_context: Vec::new(),
             current_module_variables: HashSet::new(),
+            current_module_name_opt: None,
             system_name: String::new(),
             system_has_async_runtime: false,
             interface_methods: HashMap::new(),
@@ -769,14 +771,25 @@ impl PythonVisitorV2 {
     }
     
     fn visit_module_node(&mut self, module_node: &ModuleNode) {
+        eprintln!("visit_module_node: {}", module_node.name);
+        // Only save parent state if we're in a nested module (module_context is not empty)
+        let should_restore = !self.module_context.is_empty();
+        let saved_module_name = if should_restore { self.current_module_name_opt.clone() } else { None };
+        let saved_module_variables = if should_restore { self.current_module_variables.clone() } else { HashSet::new() };
+        
         // Push module name to context stack
         self.module_context.push(module_node.name.clone());
         
-        // Clear and populate current module variables
+        // Set current module name to the full path
+        self.current_module_name_opt = Some(self.module_context.join("."));
+        
+        // Clear and set current module's variables (don't inherit parent's)
         self.current_module_variables.clear();
         for var in &module_node.variables {
-            self.current_module_variables.insert(var.borrow().name.clone());
+            let var_name = var.borrow().name.clone();
+            self.current_module_variables.insert(var_name);
         }
+        
         
         // Generate module as a Python class to act as namespace
         self.builder.newline();
@@ -824,7 +837,14 @@ impl PythonVisitorV2 {
             
             // Generate function body
             if func.statements.is_empty() {
-                self.builder.writeln("pass");
+                // Check for terminator expression (return statement in function signature)
+                if let Some(ref return_expr) = func.terminator_expr.return_expr_t_opt {
+                        let mut output = String::new();
+                        self.visit_expr_node_to_string(return_expr, &mut output);
+                    self.builder.writeln(&format!("return {}", output));
+                } else {
+                    self.builder.writeln("pass");
+                }
             } else {
                 for stmt in &func.statements {
                     match stmt {
@@ -851,8 +871,12 @@ impl PythonVisitorV2 {
         
         // Pop module name from context stack
         self.module_context.pop();
-        // Clear module variables
-        self.current_module_variables.clear();
+        
+        // Only restore parent module state if we saved it (i.e., this was a nested module)
+        if should_restore {
+            self.current_module_name_opt = saved_module_name;
+            self.current_module_variables = saved_module_variables;
+        }
     }
     
     fn visit_enum_decl_node(&mut self, enum_node: &EnumDeclNode) {
@@ -1228,7 +1252,21 @@ impl PythonVisitorV2 {
     }
     
     fn generate_system_init(&mut self, system_node: &SystemNode) {
-        self.builder.writeln("def __init__(self):");
+        // Generate __init__ with system parameters
+        let params = if let Some(domain_params) = &system_node.domain_params_opt {
+            let param_names: Vec<String> = domain_params.iter()
+                .map(|p| p.param_name.clone())
+                .collect();
+            if param_names.is_empty() {
+                "self".to_string()
+            } else {
+                format!("self, {}", param_names.join(", "))
+            }
+        } else {
+            "self".to_string()
+        };
+        
+        self.builder.writeln(&format!("def __init__({}):", params));
         self.builder.indent();
         
         self.builder.write_comment("Create and initialize start state compartment");
@@ -1302,11 +1340,26 @@ impl PythonVisitorV2 {
             if !domain_block.member_variables.is_empty() {
                 self.builder.newline();
                 self.builder.write_comment("Initialize domain variables");
+                
+                // Get list of parameter names for checking
+                let param_names: HashSet<String> = if let Some(domain_params) = &system_node.domain_params_opt {
+                    domain_params.iter().map(|p| p.param_name.clone()).collect()
+                } else {
+                    HashSet::new()
+                };
+                
                 for var_rcref in &domain_block.member_variables {
                     let var = var_rcref.borrow();
-                    let mut value_str = String::new();
-                    self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
-                    self.builder.writeln(&format!("self.{} = {}", var.name, value_str));
+                    
+                    // If this variable has the same name as a parameter, use the parameter
+                    // Otherwise use the default value
+                    if param_names.contains(&var.name) {
+                        self.builder.writeln(&format!("self.{} = {}", var.name, var.name));
+                    } else {
+                        let mut value_str = String::new();
+                        self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                        self.builder.writeln(&format!("self.{} = {}", var.name, value_str));
+                    }
                 }
             }
         }
@@ -1391,7 +1444,118 @@ impl PythonVisitorV2 {
         self.builder.dedent();
     }
     
+    fn collect_module_vars_from_stmt(&self, stmt: &DeclOrStmtType, global_vars: &mut Vec<String>, module_symtab: &SymbolTable) {
+        match stmt {
+            DeclOrStmtType::StmtT { stmt_t } => {
+                match stmt_t {
+                    StatementType::ExpressionStmt { expr_stmt_t } => {
+                        match expr_stmt_t {
+                            ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                                // Check if assigning to a module variable
+                                if let ExprType::CallChainExprT { call_chain_expr_node } = &*assignment_stmt_node.assignment_expr_node.l_value_box {
+                                    if call_chain_expr_node.call_chain.len() == 1 {
+                                        if let Some(first) = call_chain_expr_node.call_chain.front() {
+                                            let var_name = match first {
+                                                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => Some(&id_node.name.lexeme),
+                                                CallChainNodeType::VariableNodeT { var_node } => Some(&var_node.id_node.name.lexeme),
+                                                _ => None,
+                                            };
+                                            
+                                            if let Some(name) = var_name {
+                                                // Check if it's a module variable
+                                                if let Some(symbol) = module_symtab.symbols.get(name) {
+                                                    if matches!(&*symbol.borrow(), SymbolType::ModuleVariable { .. }) {
+                                                        global_vars.push(name.clone());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    StatementType::IfStmt { if_stmt_node } => {
+                        for stmt in &if_stmt_node.if_block.statements {
+                            self.collect_module_vars_from_stmt(stmt, global_vars, module_symtab);
+                        }
+                        for elif in &if_stmt_node.elif_clauses {
+                            for stmt in &elif.block.statements {
+                                self.collect_module_vars_from_stmt(stmt, global_vars, module_symtab);
+                            }
+                        }
+                        if let Some(else_block) = &if_stmt_node.else_block {
+                            for stmt in &else_block.statements {
+                                self.collect_module_vars_from_stmt(stmt, global_vars, module_symtab);
+                            }
+                        }
+                    }
+                    StatementType::ForStmt { for_stmt_node } => {
+                        for stmt in &for_stmt_node.block.statements {
+                            self.collect_module_vars_from_stmt(stmt, global_vars, module_symtab);
+                        }
+                    }
+                    StatementType::WhileStmt { while_stmt_node } => {
+                        for stmt in &while_stmt_node.block.statements {
+                            self.collect_module_vars_from_stmt(stmt, global_vars, module_symtab);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    fn collect_modified_module_variables(&self, statements: &Vec<DeclOrStmtType>) -> Vec<String> {
+        eprintln!("DEBUG: collect_modified_module_variables called with {} statements", statements.len());
+        let mut modified_vars = Vec::new();
+        let mut local_vars = HashSet::<String>::new();
+        
+        // First pass: Find all local variable declarations
+        for stmt in statements {
+            if let DeclOrStmtType::VarDeclT { var_decl_t_rcref } = stmt {
+                let var_name = var_decl_t_rcref.borrow().name.clone();
+                eprintln!("DEBUG: Found local var declaration: {}", var_name);
+                local_vars.insert(var_name);
+            }
+        }
+        
+        // Second pass: Find module variables that are modified
+        // Only collect module variables if we have a symbol table
+        if !self.arcanum.is_empty() {
+            let module_symtab = self.arcanum[0].module_symtab.borrow();
+            for stmt in statements {
+                self.collect_module_vars_from_stmt(stmt, &mut modified_vars, &module_symtab);
+            }
+        }
+        
+        eprintln!("DEBUG: Before filtering, modified_vars = {:?}", modified_vars);
+        
+        // Remove duplicates and filter to only module variables
+        // In V2, we need to check the module symbol table to see what's a module variable
+        let mut seen = HashSet::<String>::new();
+        let module_symtab = self.arcanum[0].module_symtab.borrow();
+        modified_vars.retain(|var: &String| {
+            // Only keep if it's a module variable and not locally shadowed
+            if local_vars.contains(var) || !seen.insert(var.clone()) {
+                return false;
+            }
+            
+            // Check if it's a module variable in the symbol table
+            if let Some(symbol) = module_symtab.symbols.get(var) {
+                matches!(&*symbol.borrow(), SymbolType::ModuleVariable { .. })
+            } else {
+                false
+            }
+        });
+        
+        modified_vars
+    }
+    
     fn generate_event_handler(&mut self, state_name: &str, evt_handler: &EventHandlerNode) {
+        eprintln!("DEBUG generate_event_handler: state={}", state_name);
         let handler_name = self.format_handler_name(state_name, &evt_handler.msg_t);
         
         // Check if handler needs to be async
@@ -1405,6 +1569,15 @@ impl PythonVisitorV2 {
             is_async,
             evt_handler.line
         );
+        
+        // Collect and generate global declarations for module variables
+        let global_vars = self.collect_modified_module_variables(&evt_handler.statements);
+        
+        // Generate global declarations
+        if !global_vars.is_empty() {
+            eprintln!("DEBUG: Generating global declaration for: {:?}", global_vars);
+            self.builder.writeln(&format!("global {}", global_vars.join(", ")));
+        }
         
         // Extract parameters from event if present
         // First try the event_symbol_params_opt (which the parser should populate but doesn't)
@@ -1965,13 +2138,23 @@ impl PythonVisitorV2 {
     
     // Expression node to string
     fn visit_expr_node_to_string(&mut self, expr_t: &ExprType, output: &mut String) {
+        // Debug output for module variable tracking
+        if let ExprType::CallChainExprT { call_chain_expr_node } = expr_t {
+            if call_chain_expr_node.call_chain.len() == 1 {
+                if let Some(first) = call_chain_expr_node.call_chain.front() {
+                    if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node } = first {
+                        if self.current_module_variables.contains(&id_node.name.lexeme) {
+                        }
+                    }
+                }
+            }
+        }
+        
         if std::env::var("DEBUG_NEG").is_ok() {
-            eprintln!("DEBUG: visit_expr_node_to_string: {:?}", expr_t.expr_type_name());
         }
         match expr_t {
             ExprType::LiteralExprT { literal_expr_node } => {
                 if std::env::var("DEBUG_NEG").is_ok() {
-                    eprintln!("DEBUG: LiteralExprT value={:?}", literal_expr_node.value);
                 }
                 self.visit_literal_expression_node_to_string(literal_expr_node, output);
             }
@@ -2184,6 +2367,16 @@ impl PythonVisitorV2 {
     
     // Identifier node to string
     fn visit_identifier_node_to_string(&mut self, node: &IdentifierNode, output: &mut String) {
+        // Check if we're in a module and if this is a module variable
+        // Module variables need to be qualified even within the module's static methods
+        if let Some(ref module_name) = self.current_module_name_opt {
+            if self.current_module_variables.contains(&node.name.lexeme) {
+                // This is a module variable, qualify it with the module name
+                output.push_str(&format!("{}.{}", module_name, node.name.lexeme));
+                return;
+            }
+        }
+        
         // IdentifierNode just has a name token, no scope field
         output.push_str(&node.name.lexeme);
     }
@@ -2766,7 +2959,6 @@ impl PythonVisitorV2 {
             // Domain variables need self. prefix
             output.push_str(&format!("self.{}", node.id_node.name.lexeme));
         } else if !self.module_context.is_empty() && self.current_module_variables.contains(&node.id_node.name.lexeme) {
-            eprintln!("DEBUG: Found module variable '{}' in context {:?}", node.id_node.name.lexeme, self.module_context);
             // This is a module variable - need to qualify with module path
             for (i, module) in self.module_context.iter().enumerate() {
                 if i > 0 {
@@ -2775,6 +2967,15 @@ impl PythonVisitorV2 {
                 output.push_str(module);
             }
             output.push('.');
+            output.push_str(&node.id_node.name.lexeme);
+        } else if self.current_module_variables.contains(&node.id_node.name.lexeme) {
+            // We're in a module but module_context is empty - this can happen during function generation
+            // Try to determine the module name from other context
+            eprintln!("WARNING: Module variable '{}' accessed but module_context is empty", node.id_node.name.lexeme);
+            eprintln!("  current_module_variables: {:?}", self.current_module_variables);
+            eprintln!("  module_context: {:?}", self.module_context);
+            // For now, just output the variable name without qualification
+            // This will cause an error in the generated code
             output.push_str(&node.id_node.name.lexeme);
         } else {
             output.push_str(&node.id_node.name.lexeme);
@@ -2978,6 +3179,15 @@ impl PythonVisitorV2 {
             evt_handler.line
         );
         
+        // Collect and generate global declarations for module variables
+        let global_vars = self.collect_modified_module_variables(&evt_handler.statements);
+        
+        // Generate global declarations
+        if !global_vars.is_empty() {
+            eprintln!("DEBUG: Generating global declaration for: {:?}", global_vars);
+            self.builder.writeln(&format!("global {}", global_vars.join(", ")));
+        }
+        
         // Extract parameters from event if present
         // First try the event_symbol_params_opt (which the parser should populate but doesn't)
         let event_symbol = evt_handler.event_symbol_rcref.borrow();
@@ -3056,6 +3266,16 @@ impl PythonVisitorV2 {
     
     // Call chain expression to string  
     fn visit_call_chain_expr_node_to_string(&mut self, node: &CallChainExprNode, output: &mut String) {
+        // Debug output at entry
+        if node.call_chain.len() == 1 {
+            if let Some(first_node) = node.call_chain.front() {
+                match first_node {
+                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                    }
+                    _ => {}
+                }
+            }
+        }
         // Special case: Check if this is super.method(...) pattern
         if node.call_chain.len() >= 2 {
             
@@ -3177,27 +3397,41 @@ impl PythonVisitorV2 {
             
             match call_part {
                 CallChainNodeType::VariableNodeT { var_node } => {
-                    // Special handling for super - Python requires super() not just super
                     if var_node.id_node.name.lexeme == "super" {
                         output.push_str("super()");
                     } else {
                         // Check if we're in a module context and this is a module variable
                         // In module static methods, we need to qualify module variables with the class name
-                        if !self.module_context.is_empty() && first {
+                        
+                        // Check if this is a module variable
+                        let mut qualified = false;
+                        if self.current_module_variables.contains(&var_node.id_node.name.lexeme) && first {
                             // We're in a module function - module variables need qualification
                             // Check if this looks like a module variable (not a parameter or local)
                             let is_local_or_param = self.current_handler_locals.contains(&var_node.id_node.name.lexeme) ||
                                                     self.current_handler_params.contains(&var_node.id_node.name.lexeme);
                             
                             if !is_local_or_param {
-                                // This might be a module variable, qualify it with the module path
-                                for (i, module) in self.module_context.iter().enumerate() {
-                                    if i > 0 {
-                                        output.push('.');
+                                // This is a module variable, qualify it with the module path or saved name
+                                if !self.module_context.is_empty() {
+                                    eprintln!("DEBUG: Qualifying {} with module_context {:?}", var_node.id_node.name.lexeme, self.module_context);
+                                    for (i, module) in self.module_context.iter().enumerate() {
+                                        if i > 0 {
+                                            output.push('.');
+                                        }
+                                        output.push_str(module);
                                     }
-                                    output.push_str(module);
+                                    output.push('.');
+                                    output.push_str(&var_node.id_node.name.lexeme);
+                                    qualified = true;
+                                } else if let Some(ref module_name) = self.current_module_name_opt {
+                                    eprintln!("DEBUG: Qualifying {} with current_module_name_opt {}", var_node.id_node.name.lexeme, module_name);
+                                    // Use saved module name if module_context is empty
+                                    output.push_str(module_name);
+                                    output.push('.');
+                                    output.push_str(&var_node.id_node.name.lexeme);
+                                    qualified = true;
                                 }
-                                output.push('.');
                             }
                         }
                         
@@ -3208,15 +3442,17 @@ impl PythonVisitorV2 {
                         // TODO: The parser/semantic analyzer should properly set IdentifierDeclScope::StateVarScope
                         // but currently it doesn't seem to be doing so for state variable references
                         
-                        // Check if this is truly a state variable (not a local or parameter)
-                        let is_local_or_param = self.current_handler_locals.contains(&var_node.id_node.name.lexeme) ||
-                                                self.current_handler_params.contains(&var_node.id_node.name.lexeme);
-                        
-                        if var_node.scope == IdentifierDeclScope::StateParamScope {
-                            // Access state parameters via compartment
-                            output.push_str(&format!("compartment.state_args[\"{}\"]", 
-                                var_node.id_node.name.lexeme));
-                        } else if !is_local_or_param && var_node.scope == IdentifierDeclScope::StateVarScope {
+                        // Only continue with other checks if we haven't already qualified the variable
+                        if !qualified {
+                            // Check if this is truly a state variable (not a local or parameter)
+                            let is_local_or_param = self.current_handler_locals.contains(&var_node.id_node.name.lexeme) ||
+                                                    self.current_handler_params.contains(&var_node.id_node.name.lexeme);
+                            
+                            if var_node.scope == IdentifierDeclScope::StateParamScope {
+                                // Access state parameters via compartment
+                                output.push_str(&format!("compartment.state_args[\"{}\"]", 
+                                    var_node.id_node.name.lexeme));
+                            } else if !is_local_or_param && var_node.scope == IdentifierDeclScope::StateVarScope {
                             // Access state variables via compartment
                             output.push_str(&format!("compartment.state_vars[\"{}\"]", 
                                 var_node.id_node.name.lexeme));
@@ -3228,6 +3464,7 @@ impl PythonVisitorV2 {
                         } else {
                             // Regular variable access
                             output.push_str(&var_node.id_node.name.lexeme);
+                        }
                         }
                     }
                 }
@@ -3301,10 +3538,41 @@ impl PythonVisitorV2 {
                     }
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                    let mut handled = false;
+                    
+                    // Check if this is a module variable first
+                    if !handled && first && self.current_module_variables.contains(&id_node.name.lexeme) {
+                        // This is a module variable that needs qualification
+                        let is_local_or_param = self.current_handler_locals.contains(&id_node.name.lexeme) ||
+                                                self.current_handler_params.contains(&id_node.name.lexeme);
+                        
+                        if !is_local_or_param {
+                            // Qualify with module name or path
+                            if !self.module_context.is_empty() {
+                                // Use full module path if available
+                                for (i, module) in self.module_context.iter().enumerate() {
+                                    if i > 0 {
+                                        output.push('.');
+                                    }
+                                    output.push_str(module);
+                                }
+                                output.push('.');
+                                output.push_str(&id_node.name.lexeme);
+                                handled = true;
+                            } else if let Some(module_name) = &self.current_module_name_opt {
+                                // Use saved module name if module_context is empty
+                                output.push_str(module_name);
+                                output.push('.');
+                                output.push_str(&id_node.name.lexeme);
+                                handled = true;
+                            }
+                        }
+                    }
+                    
                     // Check if this identifier is a module name that needs qualification
                     // When we're inside a module and reference a sibling module,
                     // we need to qualify it with the parent module path
-                    if first && !self.module_context.is_empty() {
+                    if !handled && first && !self.module_context.is_empty() {
                         // Check if this might be a module reference
                         // For now, we'll check if it starts with uppercase (module convention)
                         if id_node.name.lexeme.chars().next().map_or(false, |c| c.is_uppercase()) {
@@ -3316,15 +3584,13 @@ impl PythonVisitorV2 {
                                 output.push_str(module);
                             }
                             output.push('.');
+                            // Note: we still need to output the identifier name below
                         }
                     }
                     
-                    {
-                        // Normal undeclared identifier handling
+                    // Normal undeclared identifier handling (if not already handled above)
+                    if !handled {
                         // Check if it's a state parameter
-                        if id_node.name.lexeme == "data" {
-                            eprintln!("DEBUG: Processing 'data' - current_state_params: {:?}", self.current_state_params);
-                        }
                         if self.current_state_params.contains(&id_node.name.lexeme) {
                             output.push_str(&format!("compartment.state_args[\"{}\"]", id_node.name.lexeme));
                         }
