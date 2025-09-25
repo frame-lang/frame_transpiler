@@ -34,6 +34,8 @@ pub struct PythonVisitorV2 {
     current_state_parent_opt: Option<String>, // HSM parent state tracking
     current_event_ret_type: String,
     current_class_name_opt: Option<String>,
+    module_context: Vec<String>, // Track nested module context
+    current_module_variables: HashSet<String>, // Track variables in current module
     
     // System metadata
     system_name: String,
@@ -73,6 +75,8 @@ impl PythonVisitorV2 {
             current_state_parent_opt: None,
             current_event_ret_type: String::new(),
             current_class_name_opt: None,
+            module_context: Vec::new(),
+            current_module_variables: HashSet::new(),
             system_name: String::new(),
             system_has_async_runtime: false,
             interface_methods: HashMap::new(),
@@ -282,6 +286,13 @@ impl AstVisitor for PythonVisitorV2 {
             self.visit_enum_decl_node(&enum_decl.borrow());
         }
         
+        // First pass: Collect all global variable names BEFORE processing functions
+        // This is needed so functions can generate proper global declarations
+        for var_decl in &frame_module.variables {
+            let var = var_decl.borrow();
+            self.global_vars.insert(var.name.clone());
+        }
+        
         // Process modules (nested modules)
         for module_node in &frame_module.modules {
             self.visit_module_node(&module_node.borrow());
@@ -292,7 +303,7 @@ impl AstVisitor for PythonVisitorV2 {
             self.visit_class_node(&class_node.borrow());
         }
         
-        // Process functions
+        // Process functions (now with global_vars populated)
         for function in &frame_module.functions {
             function.borrow().accept(self);
         }
@@ -302,13 +313,11 @@ impl AstVisitor for PythonVisitorV2 {
             self.visit_system_node(system);
         }
         
-        // Process module-level variables AFTER systems and classes (like V1 does)
-        // This ensures they can reference systems/classes if needed
+        // Process module-level variables (actual generation)
         for var_decl in &frame_module.variables {
             let var = var_decl.borrow();
             var.accept(self);
             self.builder.newline(); // V1 adds a newline after each variable
-            self.global_vars.insert(var.name.clone());
         }
         
         // Process module-level statements (e.g., print statements, function calls at top level)
@@ -705,6 +714,43 @@ impl PythonVisitorV2 {
             self.visit_method_node(&*method);
         }
         
+        // Generate class methods
+        for method_rcref in &class_node.class_methods {
+            let method = method_rcref.borrow();
+            self.builder.newline();
+            self.builder.writeln("@classmethod");
+            self.visit_method_node(&*method);
+        }
+        
+        // Generate properties
+        for property_rcref in &class_node.properties {
+            let property = property_rcref.borrow();
+            
+            // Generate getter if present
+            if let Some(getter) = &property.getter {
+                let method = getter.borrow();
+                self.builder.newline();
+                self.builder.writeln("@property");
+                self.visit_method_node(&*method);
+            }
+            
+            // Generate setter if present
+            if let Some(setter) = &property.setter {
+                let method = setter.borrow();
+                self.builder.newline();
+                self.builder.writeln(&format!("@{}.setter", property.name));
+                self.visit_method_node(&*method);
+            }
+            
+            // Generate deleter if present (rarely used)
+            if let Some(deleter) = &property.deleter {
+                let method = deleter.borrow();
+                self.builder.newline();
+                self.builder.writeln(&format!("@{}.deleter", property.name));
+                self.visit_method_node(&*method);
+            }
+        }
+        
         self.builder.end_class();
         
         // Clear class context
@@ -712,24 +758,90 @@ impl PythonVisitorV2 {
     }
     
     fn visit_module_node(&mut self, module_node: &ModuleNode) {
-        // For now, just generate module contents as top-level
-        // In future, could generate as a Python class with static methods
-        self.builder.newline();
-        self.builder.write_comment(&format!("Module: {}", module_node.name));
+        // Push module name to context stack
+        self.module_context.push(module_node.name.clone());
         
-        // Process module variables
+        // Clear and populate current module variables
+        self.current_module_variables.clear();
+        for var in &module_node.variables {
+            self.current_module_variables.insert(var.borrow().name.clone());
+        }
+        
+        // Generate module as a Python class to act as namespace
+        self.builder.newline();
+        self.builder.writeln(&format!("class {}:", module_node.name));
+        self.builder.indent();
+        
+        let mut has_content = false;
+        
+        // Process module variables as class variables
         for var in &module_node.variables {
             let var = var.borrow();
             let mut init_value = String::new();
             self.visit_expr_node_to_string(&var.value_rc, &mut init_value);
             self.builder.writeln(&format!("{} = {}", var.name, init_value));
-            self.global_vars.insert(var.name.clone());
+            has_content = true;
         }
         
-        // Process module functions
-        for func in &module_node.functions {
-            func.borrow().accept(self);
+        // Process nested modules recursively
+        for nested_module in &module_node.modules {
+            if has_content {
+                self.builder.newline();
+            }
+            self.visit_module_node(&nested_module.borrow());
+            has_content = true;
         }
+        
+        // Process module functions as static methods
+        for func in &module_node.functions {
+            if has_content {
+                self.builder.newline();
+            }
+            let func = func.borrow();
+            self.builder.writeln("@staticmethod");
+            self.builder.write(&format!("def {}(", func.name));
+            
+            // Generate parameters
+            if let Some(params) = &func.params {
+                let param_names: Vec<String> = params.iter()
+                    .map(|p| p.param_name.clone())
+                    .collect();
+                self.builder.write(&param_names.join(", "));
+            }
+            self.builder.writeln("):"); // Use writeln to add newline after :
+            self.builder.indent();
+            
+            // Generate function body
+            if func.statements.is_empty() {
+                self.builder.writeln("pass");
+            } else {
+                for stmt in &func.statements {
+                    match stmt {
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            self.visit_statement(stmt_t);
+                        }
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            var_decl_t_rcref.borrow().accept(self);
+                        }
+                    }
+                }
+            }
+            self.builder.dedent();
+            self.builder.newline(); // Add newline after function
+            has_content = true;
+        }
+        
+        // If module is empty, add pass
+        if !has_content {
+            self.builder.writeln("pass");
+        }
+        
+        self.builder.dedent();
+        
+        // Pop module name from context stack
+        self.module_context.pop();
+        // Clear module variables
+        self.current_module_variables.clear();
     }
     
     fn visit_enum_decl_node(&mut self, enum_node: &EnumDeclNode) {
@@ -745,11 +857,15 @@ impl PythonVisitorV2 {
     }
     
     fn visit_method_node(&mut self, method: &MethodNode) {
+        // For class methods, filter out 'cls' parameter if present (it's implicit in Python)
         let params = if let Some(params) = &method.params {
-            params.iter()
-                .map(|p| p.param_name.clone())
-                .collect::<Vec<_>>()
-                .join(", ")
+            let param_list: Vec<_> = if method.is_class && !params.is_empty() && params[0].param_name == "cls" {
+                // Skip the first parameter if it's 'cls' in a class method
+                params.iter().skip(1).map(|p| p.param_name.clone()).collect()
+            } else {
+                params.iter().map(|p| p.param_name.clone()).collect()
+            };
+            param_list.join(", ")
         } else {
             String::new()
         };
@@ -762,11 +878,19 @@ impl PythonVisitorV2 {
             method.name.clone()
         };
         
-        // Use method's own is_static flag
+        // Use method's own is_static and is_class flags
         let is_static = method.is_static;
+        let is_class = method.is_class;
         
         let full_params = if is_static {
             params.clone()
+        } else if is_class {
+            // Class methods get 'cls' as the first parameter
+            if params.is_empty() {
+                "cls".to_string()
+            } else {
+                format!("cls, {}", params)
+            }
         } else if params.is_empty() {
             "self".to_string()
         } else {
@@ -1616,8 +1740,109 @@ impl PythonVisitorV2 {
         }
     }
     
-    fn collect_global_vars_in_stmt(&self, _stmt: &DeclOrStmtType, _globals: &mut Vec<String>) {
-        // TODO: Implement global variable detection
+    fn collect_global_vars_in_stmt(&self, stmt: &DeclOrStmtType, globals: &mut Vec<String>) {
+        // Collect global variables that are modified in the statement
+        match stmt {
+            DeclOrStmtType::StmtT { stmt_t } => {
+                self.collect_global_vars_in_statement_type(stmt_t, globals);
+            }
+            DeclOrStmtType::VarDeclT { .. } => {
+                // Variable declarations don't need global declarations
+            }
+        }
+    }
+    
+    fn collect_global_vars_in_statement_type(&self, stmt: &StatementType, globals: &mut Vec<String>) {
+        match stmt {
+            StatementType::ExpressionStmt { expr_stmt_t } => {
+                self.collect_global_vars_in_expr_stmt(expr_stmt_t, globals);
+            }
+            StatementType::IfStmt { if_stmt_node } => {
+                // Check if block
+                for stmt in &if_stmt_node.if_block.statements {
+                    self.collect_global_vars_in_stmt(stmt, globals);
+                }
+                // Check elif branches
+                for elif_clause in &if_stmt_node.elif_clauses {
+                    for stmt in &elif_clause.block.statements {
+                        self.collect_global_vars_in_stmt(stmt, globals);
+                    }
+                }
+                // Check else block
+                if let Some(else_block) = &if_stmt_node.else_block {
+                    for stmt in &else_block.statements {
+                        self.collect_global_vars_in_stmt(stmt, globals);
+                    }
+                }
+            }
+            StatementType::ForStmt { for_stmt_node } => {
+                for stmt in &for_stmt_node.block.statements {
+                    self.collect_global_vars_in_stmt(stmt, globals);
+                }
+            }
+            StatementType::WhileStmt { while_stmt_node } => {
+                for stmt in &while_stmt_node.block.statements {
+                    self.collect_global_vars_in_stmt(stmt, globals);
+                }
+            }
+            _ => {
+                // Other statement types
+            }
+        }
+    }
+    
+    fn collect_global_vars_in_expr_stmt(&self, expr_stmt: &ExprStmtType, globals: &mut Vec<String>) {
+        match expr_stmt {
+            ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                // Check if we're assigning to a global variable
+                if let ExprType::VariableExprT { var_node } = &*assignment_stmt_node.assignment_expr_node.l_value_box {
+                    if self.global_vars.contains(&var_node.id_node.name.lexeme) {
+                        if !globals.contains(&var_node.id_node.name.lexeme) {
+                            globals.push(var_node.id_node.name.lexeme.clone());
+                        }
+                    }
+                }
+                // Also check if we're reading from global variables in the RHS
+                self.collect_global_vars_in_expr(&assignment_stmt_node.assignment_expr_node.r_value_rc, globals);
+            }
+            _ => {
+                // Other expression statement types
+            }
+        }
+    }
+    
+    fn collect_global_vars_in_expr(&self, expr: &ExprType, globals: &mut Vec<String>) {
+        // Check if any global variables are modified in this expression
+        match expr {
+            ExprType::VariableExprT { var_node } => {
+                // We don't add variables just for reading them, only if they're being modified
+                // The modification check is done in the assignment handler above
+            }
+            ExprType::BinaryExprT { binary_expr_node } => {
+                self.collect_global_vars_in_expr(&binary_expr_node.left_rcref.borrow(), globals);
+                self.collect_global_vars_in_expr(&binary_expr_node.right_rcref.borrow(), globals);
+            }
+            ExprType::CallExprT { call_expr_node } => {
+                // Check arguments
+                for arg in &call_expr_node.call_expr_list.exprs_t {
+                    self.collect_global_vars_in_expr(arg, globals);
+                }
+            }
+            ExprType::AssignmentExprT { assignment_expr_node } => {
+                // Handle nested assignments
+                if let ExprType::VariableExprT { var_node } = &*assignment_expr_node.l_value_box {
+                    if self.global_vars.contains(&var_node.id_node.name.lexeme) {
+                        if !globals.contains(&var_node.id_node.name.lexeme) {
+                            globals.push(var_node.id_node.name.lexeme.clone());
+                        }
+                    }
+                }
+                self.collect_global_vars_in_expr(&assignment_expr_node.r_value_rc, globals);
+            }
+            _ => {
+                // Other expression types don't typically modify globals
+            }
+        }
     }
     
     // Expression statement visitor
@@ -1697,8 +1922,14 @@ impl PythonVisitorV2 {
     
     // Expression node to string
     fn visit_expr_node_to_string(&mut self, expr_t: &ExprType, output: &mut String) {
+        if std::env::var("DEBUG_NEG").is_ok() {
+            eprintln!("DEBUG: visit_expr_node_to_string: {:?}", expr_t.expr_type_name());
+        }
         match expr_t {
             ExprType::LiteralExprT { literal_expr_node } => {
+                if std::env::var("DEBUG_NEG").is_ok() {
+                    eprintln!("DEBUG: LiteralExprT value={:?}", literal_expr_node.value);
+                }
                 self.visit_literal_expression_node_to_string(literal_expr_node, output);
             }
             ExprType::VariableExprT { var_node } => {
@@ -2011,7 +2242,11 @@ impl PythonVisitorV2 {
                     output.push('.');
                     output.push_str(function);
                 }
-                ResolvedCallType::External(_) => {
+                ResolvedCallType::External(_name) => {
+                    // Check if this might be a module reference
+                    // When we're inside a module and reference another nested module,
+                    // we need to qualify it with the parent module path
+                    // For now, just use the name as-is
                     output.push_str(&node.identifier.name.lexeme);
                 }
             }
@@ -2116,7 +2351,7 @@ impl PythonVisitorV2 {
     // Unary expression to string
     fn visit_unary_expr_node_to_string(&mut self, node: &UnaryExprNode, output: &mut String) {
         match &node.operator {
-            OperatorType::Minus => output.push('-'),
+            OperatorType::Minus | OperatorType::Negated => output.push('-'),
             OperatorType::Plus => output.push('+'),
             OperatorType::Not => output.push_str("not "),
             OperatorType::BitwiseNot => output.push('~'),
@@ -2487,6 +2722,17 @@ impl PythonVisitorV2 {
         } else if self.domain_variables.contains(&node.id_node.name.lexeme) {
             // Domain variables need self. prefix
             output.push_str(&format!("self.{}", node.id_node.name.lexeme));
+        } else if !self.module_context.is_empty() && self.current_module_variables.contains(&node.id_node.name.lexeme) {
+            eprintln!("DEBUG: Found module variable '{}' in context {:?}", node.id_node.name.lexeme, self.module_context);
+            // This is a module variable - need to qualify with module path
+            for (i, module) in self.module_context.iter().enumerate() {
+                if i > 0 {
+                    output.push('.');
+                }
+                output.push_str(module);
+            }
+            output.push('.');
+            output.push_str(&node.id_node.name.lexeme);
         } else {
             output.push_str(&node.id_node.name.lexeme);
         }
@@ -2873,6 +3119,10 @@ impl PythonVisitorV2 {
                         call_chain_literal_expr_node.value == "@chain_index" ||
                         call_chain_literal_expr_node.value == "@chain_slice"
                     }
+                    CallChainNodeType::UndeclaredCallT { call_node } => {
+                        // @indexed_call is also synthetic
+                        call_node.identifier.name.lexeme == "@indexed_call"
+                    }
                     _ => false
                 };
                 !is_synthetic
@@ -2888,6 +3138,26 @@ impl PythonVisitorV2 {
                     if var_node.id_node.name.lexeme == "super" {
                         output.push_str("super()");
                     } else {
+                        // Check if we're in a module context and this is a module variable
+                        // In module static methods, we need to qualify module variables with the class name
+                        if !self.module_context.is_empty() && first {
+                            // We're in a module function - module variables need qualification
+                            // Check if this looks like a module variable (not a parameter or local)
+                            let is_local_or_param = self.current_handler_locals.contains(&var_node.id_node.name.lexeme) ||
+                                                    self.current_handler_params.contains(&var_node.id_node.name.lexeme);
+                            
+                            if !is_local_or_param {
+                                // This might be a module variable, qualify it with the module path
+                                for (i, module) in self.module_context.iter().enumerate() {
+                                    if i > 0 {
+                                        output.push('.');
+                                    }
+                                    output.push_str(module);
+                                }
+                                output.push('.');
+                            }
+                        }
+                        
                         // Check if this is a state variable by looking at scope
                         // For now, as a workaround, check if we're in an event handler context
                         // and if the variable matches a known state variable name
@@ -2968,10 +3238,44 @@ impl PythonVisitorV2 {
                     output.push_str("self");
                 }
                 CallChainNodeType::UndeclaredCallT { call_node } => {
-                    // External calls like print, str, etc.
-                    self.visit_call_expression_node_to_string(call_node, output);
+                    // Check for special @indexed_call node
+                    if call_node.identifier.name.lexeme == "@indexed_call" {
+                        // This is a synthetic node for array[index](args) or dict[key](args)
+                        // Just output the arguments without any method name
+                        output.push('(');
+                        let mut first_arg = true;
+                        for arg in &call_node.call_expr_list.exprs_t {
+                            if !first_arg {
+                                output.push_str(", ");
+                            }
+                            self.visit_expr_node_to_string(arg, output);
+                            first_arg = false;
+                        }
+                        output.push(')');
+                    } else {
+                        // External calls like print, str, etc.
+                        self.visit_call_expression_node_to_string(call_node, output);
+                    }
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                    // Check if this identifier is a module name that needs qualification
+                    // When we're inside a module and reference a sibling module,
+                    // we need to qualify it with the parent module path
+                    if first && !self.module_context.is_empty() {
+                        // Check if this might be a module reference
+                        // For now, we'll check if it starts with uppercase (module convention)
+                        if id_node.name.lexeme.chars().next().map_or(false, |c| c.is_uppercase()) {
+                            // Qualify with parent module path
+                            for (i, module) in self.module_context.iter().enumerate() {
+                                if i > 0 {
+                                    output.push('.');
+                                }
+                                output.push_str(module);
+                            }
+                            output.push('.');
+                        }
+                    }
+                    
                     // Check for FSL property transformations (e.g., list.length -> len(list))
                     if id_node.name.lexeme == "length" && !first {
                         // This is a .length property access

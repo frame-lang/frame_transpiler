@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-24T12:30:43.045186",
+  "timestamp": "2025-09-24T17:51:52.310186",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 376,
-    "execute_success": 353,
-    "complete_success": 356,
-    "success_rate": "93.9%"
+    "execute_success": 361,
+    "complete_success": 364,
+    "success_rate": "96.0%"
   },
   "results": [
     {
@@ -242,10 +242,10 @@
     {
       "file": "test_access_modifiers_v048.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_access_modifiers_v048.py\", line 71, in <module>\n    ccontinue\nNameEr"
+      "output": "=== Testing Access Modifiers ===\nOwner: Alice\nAccount count: 1\nDeposited: 500\nWithdrew: 200\nInvalid PIN\n=== Access Modifier Tests Complete ===\n",
+      "error": null
     },
     {
       "file": "test_all_8_collection_patterns.frm",
@@ -490,18 +490,18 @@
     {
       "file": "test_class_simple_v046.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_class_simple_v046.py\", line 36, in <module>\n    test()\n    ~~~~^^\n  "
+      "output": "0\n",
+      "error": null
     },
     {
       "file": "test_class_v046.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "=== Testing v0.46 Class Features ===\n\n--- Testing Inheritance ---\nDog name: Buddy\nDog breed: Golden Retriever\nDog species: Canis familiaris\nDog speaks: Woof! My name is Buddy\nDog moves: Buddy is movin",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_class_v046.py\", line 172, in <module>\n    test_v046_classes()\n    ~~"
+      "error": null
     },
     {
       "file": "test_collection_constructors.frm",
@@ -652,7 +652,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "=== Testing Del Statement ===\n\n--- Test 1: Delete list elements ---\nOriginal list: [1, 2, 3, 4, 5]\nAfter del mylist[2]: [1, 2, 4, 5]\nAfter del mylist[-1]: [1, 4, 5]\nFinal result: [1, 4, 5]\n\n--- Test 2",
+      "output": "=== Testing Del Statement ===\n\n--- Test 1: Delete list elements ---\nOriginal list: [1, 2, 3, 4, 5]\nAfter del mylist[2]: [1, 2, 4, 5]\nAfter del mylist[-1]: [1, 2, 4]\nFinal result: [1, 2, 4]\n\n--- Test 2",
       "error": null
     },
     {
@@ -1004,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1036,7 +1036,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1044,7 +1044,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1124,7 +1124,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "=== Frame v0.38 Exponent Operator Test ===\n\n=== Basic Exponent Tests ===\n2 ** 3 = 8\n5 ** 2 = 25\n3 ** 3 = 27\n2.5 ** 2 = 6.25\n10 ** 0 = 1\n(-2) ** 3 = 8\n\n=== Right Associativity Test ===\n2 ** 3 ** 2 = 51",
+      "output": "=== Frame v0.38 Exponent Operator Test ===\n\n=== Basic Exponent Tests ===\n2 ** 3 = 8\n5 ** 2 = 25\n3 ** 3 = 27\n2.5 ** 2 = 6.25\n10 ** 0 = 1\n(-2) ** 3 = -8\n\n=== Right Associativity Test ===\n2 ** 3 ** 2 = 5",
       "error": null
     },
     {
@@ -1293,7 +1293,7 @@
       "execute": false,
       "negative_test": false,
       "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_function_refs_complete.py\", line 62\n    result = operations[0].@indexed_call(10, 5)\n                   "
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_function_refs_complete.py\", line 1, in <module>\n    from fsl import "
     },
     {
       "file": "test_function_scope_isolation.frm",
@@ -1356,8 +1356,8 @@
       "transpile": true,
       "execute": false,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_hierarchy.py\", line 38, in <module>\n    main()\n    ~~~~^^\n  File \"/U"
+      "output": "Company: Frame Corp\nEngineering team: 10\nFrontend stack: React, TypeScript, Frame\nBackend stack: Python, FastAPI, PostgreSQL\nTotal engineering: 10\nSales quota: $1000000\n",
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_hierarchy.py\", line 81, in <module>\n    main()\n    ~~~~^^\n  File \"/U"
     },
     {
       "file": "test_history.frm",
@@ -1372,7 +1372,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "=== Grade System Tests ===\nScore 95 -> Grade: A+\nScore 85 -> Grade: B\nScore 75 -> Grade: C\nScore 65 -> Grade: D\nScore 55 -> Grade: F\nScore 5 -> Grade: F\nScore 105 -> Grade: Invalid: score too high\n\n==",
+      "output": "=== Grade System Tests ===\nScore 95 -> Grade: A+\nScore 85 -> Grade: B\nScore 75 -> Grade: C\nScore 65 -> Grade: D\nScore 55 -> Grade: F\nScore -5 -> Grade: Invalid: negative score\nScore 105 -> Grade: Inva",
       "error": null
     },
     {
@@ -1586,10 +1586,10 @@
     {
       "file": "test_lambda_complete_fixed.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_lambda_complete_fixed.py\", line 48\n    result1 = ops[\"add\"].@indexed_call(5, 3)\n                       "
+      "output": "=== Complete Lambda Test Suite (Fixed) ===\n\n=== Basic Lambda Tests ===\nSquare of 5: 25\nAdd 3 + 4: 7\nPi: 3.14159\n\n=== Lambda Reassignment ===\nDouble 5: 10\nVia another: 14\nNow triple: 21\n\n=== Lambdas in",
+      "error": null
     },
     {
       "file": "test_lambda_simple.frm",
@@ -1602,18 +1602,18 @@
     {
       "file": "test_lambda_simple_collections.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_lambda_simple_collections.py\", line 24\n    print(\"Add result: \" + str(ops[\"add\"].@indexed_call(5, 3)))\n"
+      "output": "=== Testing Lambdas in Collections ===\nDict with lambda created\nAdd result: 8\nList with lambda created\nDouble result: 14\n=== All Tests Passed ===\n",
+      "error": null
     },
     {
       "file": "test_lambda_working.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_lambda_working.py\", line 27\n    print(\"3. Dict lambda: multiply(6, 7) = \" + str(ops[\"multiply\"].@indexe"
+      "output": "=== Lambda Features Test ===\n\n1. Basic lambda: square(5) = 25\n2. Multi-param: add(3, 4) = 7\n3. Dict lambda: multiply(6, 7) = 42\n4. List lambda: transform[0](5) = 15\n5. Closure: scale(3) with factor=10",
+      "error": null
     },
     {
       "file": "test_legb_basic.frm",
@@ -2018,10 +2018,10 @@
     {
       "file": "test_negative_indexing.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Last element [-1]: 20\nSecond to last [-2]: 30\nThird from last [-3]: 40\nAfter setting [-1] to 99: [10, 99, 30, 40, 50]\nAfter setting [-3] to 77: [10, 99, 30, 77, 50]\nnumbers[index] where index=-2: 30\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_negative_indexing.py\", line 44, in <module>\n    main()\n    ~~~~^^\n  "
+      "output": "Last element [-1]: 50\nSecond to last [-2]: 40\nThird from last [-3]: 30\nAfter setting [-1] to 99: [10, 20, 30, 40, 99]\nAfter setting [-3] to 77: [10, 20, 77, 40, 99]\nnumbers[index] where index=-2: 40\nF",
+      "error": null
     },
     {
       "file": "test_nested_dict_simple.frm",
@@ -2362,10 +2362,10 @@
     {
       "file": "test_simple_hierarchy.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_simple_hierarchy.py\", line 34, in <module>\n    main()\n    ~~~~^^\n  F"
+      "output": "7 squared = 49\n5 squared = 25\n7 squared = 49\n5 squared = 25\n",
+      "error": null
     },
     {
       "file": "test_simple_hsm_loop.frm",
@@ -2484,7 +2484,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "First 5 chars: Hello\nLast 6 chars: World!\nMiddle chars: llo, W\nFirst half: [1, 2, 3, 4, 5]\nSecond half: [6, 7, 8, 9, 10]\nMiddle section: [4, 5, 6, 7]\nEvery other: [1, 3, 5, 7, 9]\nReversed: [1, 2, 3, 4",
+      "output": "First 5 chars: Hello\nLast 6 chars: World!\nMiddle chars: llo, W\nFirst half: [1, 2, 3, 4, 5]\nSecond half: [6, 7, 8, 9, 10]\nMiddle section: [4, 5, 6, 7]\nEvery other: [1, 3, 5, 7, 9]\nReversed: [10, 9, 8, ",
       "error": null
     },
     {
@@ -2628,7 +2628,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "=== Basic Slicing ===\nSlice [0:5]: Hello\nSlice [7:13]: World!\nSlice [5:]: , World!\nSlice [:5]: Hello\nSlice [:]: Hello, World!\n\n=== Negative Indexing ===\nSlice [-5:]: n Frame\nSlice [:-6]: Python\nSlice ",
+      "output": "=== Basic Slicing ===\nSlice [0:5]: Hello\nSlice [7:13]: World!\nSlice [5:]: , World!\nSlice [:5]: Hello\nSlice [:]: Hello, World!\n\n=== Negative Indexing ===\nSlice [-5:]: Frame\nSlice [:-6]: Python\nSlice [-",
       "error": null
     },
     {
@@ -2932,7 +2932,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "=== Frame v0.40 Features Test ===\n10 // 3 = 3\n-10 // 3 = 3\nRegular: 3.3333333333333335, Floor: 3\n17 //= 5 = 3\nComments working correctly!\n",
+      "output": "=== Frame v0.40 Features Test ===\n10 // 3 = 3\n-10 // 3 = -4\nRegular: 3.3333333333333335, Floor: 3\n17 //= 5 = 3\nComments working correctly!\n",
       "error": null
     },
     {
