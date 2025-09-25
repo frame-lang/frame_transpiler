@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-25 14:13  
+**Generated**: 2025-09-25 14:22  
 **Total Tests**: 367  
 **Current Branch**: v0.31  
 
@@ -10,8 +10,8 @@
 |--------|-------|------------|
 | **Total Tests** | 367 | 100% |
 | **Transpilation Success** | 364 | 99.2% |
-| **Execution Success** | 362 | 98.6% |
-| **Complete Success** | 365 | 99.5% |
+| **Execution Success** | 364 | 99.2% |
+| **Complete Success** | 367 | 100.0% |
 
 ## v0.31 Features
 
@@ -33,17 +33,7 @@ Multi-file compilation failed: Error: Circular dependency detected: unknown → 
 
  |
 | test_circular_main.frm | ❌ | ❌ | Framec failed with an error:
-Multi-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm → / |
-| test_async_stress.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress.py", line 769, in <module>
-    main()
-    ~~~~^^
-  File |
-| test_event_handlers_poc.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_event_handlers_poc.py", line 219, in <module>
-    main()
-    ~~~~^^
- |
+Multi-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm → / |
 
 ## Test Details
 
@@ -86,7 +76,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_async_interface.frm | ✅ | ✅ | ✅ PASS |
 | test_async_minimal.frm | ✅ | ✅ | ✅ PASS |
 | test_async_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_async_stress.frm | ✅ | ❌ | ❌ FAIL |
+| test_async_stress.frm | ✅ | ✅ | ✅ PASS |
 | test_async_stress_fixed.frm | ✅ | ✅ | ✅ PASS |
 | test_async_stress_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_async_validate.frm | ✅ | ✅ | ✅ PASS |
@@ -179,7 +169,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_enums_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_terminator.frm | ✅ | ✅ | ✅ PASS |
 | test_error_handling_v049.frm | ✅ | ✅ | ✅ PASS |
-| test_event_handlers_poc.frm | ✅ | ❌ | ❌ FAIL |
+| test_event_handlers_poc.frm | ✅ | ✅ | ✅ PASS |
 | test_exceptions_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_explicit_self_syntax.frm | ✅ | ✅ | ✅ PASS |
 | test_explicit_self_system_comprehensive.frm | ✅ | ✅ | ✅ PASS |

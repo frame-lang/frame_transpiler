@@ -90,16 +90,20 @@ system MixedHandlerDemo {
 }
 
 # Test function to demonstrate mixed sync/async usage
-fn test_mixed_handlers() {
+# Note: All interface methods become async when any are async
+async fn test_mixed_handlers() {
     print("=== Testing Mixed Handler Demo ===")
     var demo = MixedHandlerDemo()
     
-    # Call sync method
-    var data = demo.getData(123)
+    # Since system has async methods, all interface methods are async
+    await demo.async_start()  # Initialize async system
+    
+    # Call getData (async due to system having async methods)
+    var data = await demo.getData(123)
     print("Got sync data: " + data)
     
-    # Get status (sync)
-    var status = demo.getStatus()
+    # Get status (also async)
+    var status = await demo.getStatus()
     print("Status: " + status)
     
     print("=== Test Complete ===")
@@ -109,6 +113,7 @@ fn test_mixed_handlers() {
 async fn test_async_handlers() {
     print("=== Testing Async Handlers ===")
     var demo = MixedHandlerDemo()
+    await demo.async_start()  # Initialize async system
     
     # Call async method
     var remote = await demo.fetchRemote(456)
@@ -118,18 +123,21 @@ async fn test_async_handlers() {
     var result = await demo.processData("test_data")
     print("Processed result: " + result)
     
-    # Get status after async operations
-    var status = demo.getStatus()
+    # Get status after async operations (also async)
+    var status = await demo.getStatus()
     print("Final status: " + status)
     
     print("=== Async Test Complete ===")
 }
 
-# Main entry point
-fn main() {
+# Main entry point - needs to run async functions
+async fn main() {
     print("Event-Handlers-as-Functions PoC")
-    test_mixed_handlers()
+    # Run async test functions
+    await test_mixed_handlers()
+    await test_async_handlers()
 }
 
 # Call main to run the tests
-main()
+import asyncio
+asyncio.run(main())

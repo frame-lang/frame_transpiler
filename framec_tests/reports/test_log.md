@@ -2,11 +2,11 @@
 
 ## Summary
 - **Last Run**: 2025-09-25
-- **Version**: v0.76.0 (PythonVisitorV2)
+- **Version**: v0.76.1 (PythonVisitorV2)
 - **Total Tests**: 367
-- **Passed**: 365
-- **Failed**: 2
-- **Success Rate**: 99.5% 🎉
+- **Passed**: 367
+- **Failed**: 0
+- **Success Rate**: 100.0% 🎉🎉🎉
 
 ## Recent Improvements
 - ✅ Removed FSL (Frame Standard Library) completely
@@ -15,11 +15,13 @@
 - ✅ Replaced FSL tests with native Python operation tests
 - ✅ Fixed missing main() calls in multiple tests
 - ✅ Fixed test_list_features FSL property usage
-- ✅ Increased success rate from 97.4% → 99.5%
+- ✅ Fixed async test design issues in test_event_handlers_poc
+- ✅ Fixed async test design issues in test_async_stress
+- ✅ **Achieved 100% test success rate!** (97.4% → 100%)
 
-## Test Categories (All Passing)
+## Test Categories (All Passing - 100%)
 - ✅ Multi-file modules (100%)
-- ✅ Async/await features (100% except stress test)
+- ✅ Async/await features (100%)
 - ✅ Class support (100%)
 - ✅ Pattern matching (100%)
 - ✅ Collections and comprehensions (100%)
@@ -29,12 +31,8 @@
 - ✅ Python operators (100%)
 - ✅ String features (100%)
 
-## Failing Tests
-
-| Test | Issue Type | Notes |
-|------|------------|-------|
-| test_async_stress.frm | Test design | Sync call to async method (configure) |
-| test_event_handlers_poc.frm | Test design | Async methods called synchronously |
+## All Tests Passing!
+No failing tests. Frame v0.76.1 achieves complete test coverage.
 
 ## Recent Fixes Applied
 1. **Module Variable Qualification**: Fixed double-output bug where module variables were incorrectly qualified

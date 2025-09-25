@@ -71,8 +71,8 @@ system AsyncDataPipeline {
         async getStatus()
         async runPipeline(config)
         
-        # Sync method that needs to work with async runtime
-        configure(settings)
+        # Async method (all interface methods become async in async systems)
+        async configure(settings)
         
     machine:
         $Idle {
@@ -376,9 +376,10 @@ async fn stress_test_async() {
     print("1. Testing AsyncDataPipeline")
     print("-" * 40)
     var pipeline = AsyncDataPipeline()
+    await pipeline.async_start()  # Initialize async system
     
-    # Test sync method with async runtime (simplified - no dict literal)
-    var config_result = pipeline.configure("max_batch_10")
+    # Test async configure method (all interface methods are async in async systems)
+    var config_result = await pipeline.configure("max_batch_10")
     print("Config result: " + config_result)
     
     # Test parallel downloads

@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-25T14:13:22.526094",
+  "timestamp": "2025-09-25T14:22:59.678670",
   "version": "v0.31",
   "summary": {
     "total": 367,
     "transpile_success": 364,
-    "execute_success": 362,
-    "complete_success": 365,
-    "success_rate": "99.5%"
+    "execute_success": 364,
+    "complete_success": 367,
+    "success_rate": "100.0%"
   },
   "results": [
     {
@@ -61,7 +61,7 @@
         "error_line": null,
         "warning_message": null
       },
-      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /"
+      "error": "Framec failed with an error:\nMulti-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm \u2192 /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm \u2192 /"
     },
     {
       "file": "test_multifile_calculator.frm",
@@ -338,10 +338,10 @@
     {
       "file": "test_async_stress.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Frame v0.37 Async Stress Test Suite\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress.py\", line 769, in <module>\n    main()\n    ~~~~^^\n  File"
+      "output": "Frame v0.37 Async Stress Test Suite\n==================================================\n=== Starting Async Stress Test ===\n\n1. Testing AsyncDataPipeline\n----------------------------------------\nConfigu",
+      "error": null
     },
     {
       "file": "test_async_stress_fixed.frm",
@@ -1004,7 +1004,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1036,7 +1036,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1044,7 +1044,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
       "error": null
     },
     {
@@ -1082,10 +1082,10 @@
     {
       "file": "test_event_handlers_poc.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "Event-Handlers-as-Functions PoC\n=== Testing Mixed Handler Demo ===\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_event_handlers_poc.py\", line 219, in <module>\n    main()\n    ~~~~^^\n"
+      "output": null,
+      "error": null
     },
     {
       "file": "test_exceptions_basic.frm",
