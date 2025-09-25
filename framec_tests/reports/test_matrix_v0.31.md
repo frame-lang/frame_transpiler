@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-25 14:03  
+**Generated**: 2025-09-25 14:13  
 **Total Tests**: 367  
 **Current Branch**: v0.31  
 
@@ -10,8 +10,8 @@
 |--------|-------|------------|
 | **Total Tests** | 367 | 100% |
 | **Transpilation Success** | 364 | 99.2% |
-| **Execution Success** | 361 | 98.4% |
-| **Complete Success** | 364 | 99.2% |
+| **Execution Success** | 362 | 98.6% |
+| **Complete Success** | 365 | 99.5% |
 
 ## v0.31 Features
 
@@ -33,7 +33,7 @@ Multi-file compilation failed: Error: Circular dependency detected: unknown → 
 
  |
 | test_circular_main.frm | ❌ | ❌ | Framec failed with an error:
-Multi-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm → / |
+Multi-file compilation failed: Error: Circular dependency detected: /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_a.frm → /Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/negative_tests/multifile/circular_import/./test_circular_b.frm → / |
 | test_async_stress.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_async_stress.py", line 769, in <module>
     main()
@@ -44,11 +44,6 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
     main()
     ~~~~^^
  |
-| test_list_features.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_features.py", line 60, in <module>
-    main()
-    ~~~~^^
-  File |
 
 ## Test Details
 
@@ -243,7 +238,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_legb_scope_resolution.frm | ✅ | ✅ | ✅ PASS |
 | test_list_comprehensions.frm | ✅ | ✅ | ✅ PASS |
 | test_list_comprehensions_simple.frm | ✅ | ✅ | ✅ PASS |
-| test_list_features.frm | ✅ | ❌ | ❌ FAIL |
+| test_list_features.frm | ✅ | ✅ | ✅ PASS |
 | test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
 | test_list_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_list_ops_native_simple.frm | ✅ | ✅ | ✅ PASS |

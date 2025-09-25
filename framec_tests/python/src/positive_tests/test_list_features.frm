@@ -35,7 +35,7 @@ fn main() {
     print("\n=== After append ===")
     print("Numbers:", numbers)
     
-    var length = numbers.length
+    var length = len(numbers)
     print("Length:", length)
     
     # Test list as function parameter

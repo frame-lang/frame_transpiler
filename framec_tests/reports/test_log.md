@@ -4,9 +4,9 @@
 - **Last Run**: 2025-09-25
 - **Version**: v0.76.0 (PythonVisitorV2)
 - **Total Tests**: 367
-- **Passed**: 364
-- **Failed**: 3
-- **Success Rate**: 99.2% 🎉
+- **Passed**: 365
+- **Failed**: 2
+- **Success Rate**: 99.5% 🎉
 
 ## Recent Improvements
 - ✅ Removed FSL (Frame Standard Library) completely
@@ -14,7 +14,8 @@
 - ✅ Fixed global declaration generation for module variables in event handlers
 - ✅ Replaced FSL tests with native Python operation tests
 - ✅ Fixed missing main() calls in multiple tests
-- ✅ Increased success rate from 97.4% → 99.2%
+- ✅ Fixed test_list_features FSL property usage
+- ✅ Increased success rate from 97.4% → 99.5%
 
 ## Test Categories (All Passing)
 - ✅ Multi-file modules (100%)
@@ -32,9 +33,8 @@
 
 | Test | Issue Type | Notes |
 |------|------------|-------|
-| test_async_stress.frm | Transpiler/runtime | Complex async stress test |
+| test_async_stress.frm | Test design | Sync call to async method (configure) |
 | test_event_handlers_poc.frm | Test design | Async methods called synchronously |
-| test_list_features.frm | Unknown | Needs investigation |
 
 ## Recent Fixes Applied
 1. **Module Variable Qualification**: Fixed double-output bug where module variables were incorrectly qualified
