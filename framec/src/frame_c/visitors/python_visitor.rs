@@ -5771,32 +5771,23 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
     
     fn visit_import_node(&mut self, import_node: &ImportNode) {
-        // v0.34: Filter out FSL imports - they're built into Python
         // v0.57: Added Frame file import support for multi-file module system
         match &import_node.import_type {
             ImportType::Simple { module } => {
-                if !module.starts_with("fsl") {
-                    self.add_code(&format!("import {}", module));
-                    self.newline();
-                }
+                self.add_code(&format!("import {}", module));
+                self.newline();
             }
             ImportType::Aliased { module, alias } => {
-                if !module.starts_with("fsl") {
-                    self.add_code(&format!("import {} as {}", module, alias));
-                    self.newline();
-                }
+                self.add_code(&format!("import {} as {}", module, alias));
+                self.newline();
             }
             ImportType::FromImport { module, items } => {
-                if !module.starts_with("fsl") {
-                    self.add_code(&format!("from {} import {}", module, items.join(", ")));
-                    self.newline();
-                }
+                self.add_code(&format!("from {} import {}", module, items.join(", ")));
+                self.newline();
             }
             ImportType::FromImportAll { module } => {
-                if !module.starts_with("fsl") {
-                    self.add_code(&format!("from {} import *", module));
-                    self.newline();
-                }
+                self.add_code(&format!("from {} import *", module));
+                self.newline();
             }
             // v0.57: Frame file imports - generate as comments during single-file compilation
             // The multi-file compiler will handle actual module linking
@@ -7243,7 +7234,7 @@ impl AstVisitor for PythonVisitor {
                         continue;
                     }
                     
-                    // Check for FSL property access (e.g., list.length)
+                    // Check for .length property transformation
                     // This is a special case where we need to transform the property access
                     // to a function call in the target language
                     if id_node.name.lexeme == "length" && i > 0 {
@@ -7308,7 +7299,7 @@ impl AstVisitor for PythonVisitor {
                     // For single-node chains (e.g., _testFruit()), let it go through normal processing
                     if self.in_call_chain {
                         // Multi-node chain - check for string method transformations
-                        debug_print!("DEBUG: Multi-node chain - checking for FSL string operations");
+                        debug_print!("DEBUG: Multi-node chain - checking for string operations");
                         
                         // v0.46: Handle super().init() -> super().__init__()
                         // Check if the previous token was super()

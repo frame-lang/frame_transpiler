@@ -119,7 +119,18 @@ impl PythonVisitorV2 {
         if enum_node.enums.is_empty() {
             self.builder.writeln("pass");
         } else {
+            // Track seen names to handle duplicates
+            let mut seen_names = std::collections::HashSet::new();
+            
             for enumerator in &enum_node.enums {
+                // Skip duplicates - Python Enum doesn't allow duplicate names
+                if seen_names.contains(&enumerator.name) {
+                    // Optionally, we could generate a comment about the duplicate
+                    self.builder.writeln(&format!("# Duplicate enum member '{}' skipped", enumerator.name));
+                    continue;
+                }
+                seen_names.insert(enumerator.name.clone());
+                
                 let value = match &enumerator.value {
                     EnumValue::Integer(i) => i.to_string(),
                     EnumValue::String(s) => format!("\"{}\"", s),
@@ -1795,11 +1806,43 @@ impl PythonVisitorV2 {
         match expr_stmt {
             ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
                 // Check if we're assigning to a global variable
-                if let ExprType::VariableExprT { var_node } = &*assignment_stmt_node.assignment_expr_node.l_value_box {
-                    if self.global_vars.contains(&var_node.id_node.name.lexeme) {
-                        if !globals.contains(&var_node.id_node.name.lexeme) {
-                            globals.push(var_node.id_node.name.lexeme.clone());
+                match &*assignment_stmt_node.assignment_expr_node.l_value_box {
+                    ExprType::VariableExprT { var_node } => {
+                        if self.global_vars.contains(&var_node.id_node.name.lexeme) {
+                            if !globals.contains(&var_node.id_node.name.lexeme) {
+                                globals.push(var_node.id_node.name.lexeme.clone());
+                            }
                         }
+                    }
+                    ExprType::CallChainExprT { call_chain_expr_node } => {
+                        // Handle simple variables represented as call chains (common in parser)
+                        if call_chain_expr_node.call_chain.len() == 1 {
+                            if let Some(node) = call_chain_expr_node.call_chain.front() {
+                                match node {
+                                    CallChainNodeType::VariableNodeT { var_node } => {
+                                        if self.global_vars.contains(&var_node.id_node.name.lexeme) {
+                                            if !globals.contains(&var_node.id_node.name.lexeme) {
+                                                globals.push(var_node.id_node.name.lexeme.clone());
+                                            }
+                                        }
+                                    }
+                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                                        // Handle undeclared identifiers which might be global variables
+                                        if self.global_vars.contains(&id_node.name.lexeme) {
+                                            if !globals.contains(&id_node.name.lexeme) {
+                                                globals.push(id_node.name.lexeme.clone());
+                                            }
+                                        }
+                                    }
+                                    _ => {
+                                        // Other node types aren't simple variable references
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        // Other l_value types (e.g., list indexing, attribute access)
                     }
                 }
                 // Also check if we're reading from global variables in the RHS
@@ -3276,25 +3319,7 @@ impl PythonVisitorV2 {
                         }
                     }
                     
-                    // Check for FSL property transformations (e.g., list.length -> len(list))
-                    if id_node.name.lexeme == "length" && !first {
-                        // This is a .length property access
-                        // We need to transform variable.length to len(variable)
-                        // But we've already output the variable and the dot
-                        
-                        // Find where the dot was added (search backwards from end)
-                        if let Some(dot_pos) = output.rfind('.') {
-                            // Extract the variable name (everything after last space or start before the dot)
-                            let var_start = output[..dot_pos].rfind(' ').map(|pos| pos + 1).unwrap_or(0);
-                            let var_name = output[var_start..dot_pos].to_string();
-                            
-                            // Remove everything from var_start to end
-                            output.truncate(var_start);
-                            
-                            // Output len(variable) instead
-                            output.push_str(&format!("len({})", var_name));
-                        }
-                    } else {
+                    {
                         // Normal undeclared identifier handling
                         // Check if it's a state parameter
                         if id_node.name.lexeme == "data" {

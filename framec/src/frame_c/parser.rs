@@ -11744,62 +11744,7 @@ impl<'a> Parser<'a> {
             self.arcanum.debug_dump_arcanum();
         }
         
-        // v0.37: Removed FSL checking - just pass everything through as regular calls
-        // The parser doesn't need to validate if functions exist - Python will do that at runtime
-        // eprintln!("DEBUG: Processing identifier '{}' as regular call - no FSL validation", base_id.name.lexeme);
-        if false {  // Disabled FSL checking
-            // let fsl_operation = fsl_registry.recognize_operation(&base_id.name.lexeme).unwrap();
-            // eprintln!("DEBUG: FSL operation detected in second pass for: {}", base_id.name.lexeme);
-            // This is an FSL operation in the second pass! Parse it as such
-            if self.match_token(&[TokenType::LParen]) {
-                // Parse the arguments
-                let args = match self.expr_list() {
-                    Ok(Some(ExprListT { expr_list_node })) => expr_list_node.exprs_t,
-                    Ok(None) => Vec::new(),
-                    Ok(Some(_)) => return Err(ParseError::new("Invalid argument list for FSL operation")),
-                    Err(err) => return Err(err),
-                };
-                
-                // Validate argument count for conversion operations
-                /* match &fsl_operation {
-                    BuiltInOperation::Conversion(_) => {
-                        if args.len() != 1 {
-                            let err_msg = format!("{}() takes exactly 1 argument ({} given)", 
-                                base_id.name.lexeme, args.len());
-                            self.error_at_previous(&err_msg);
-                            return Err(ParseError::new(&err_msg));
-                        }
-                    }
-                    _ => {} // Other operations will have their own validation
-                } */
-                
-                // Create the FSL built-in call node
-                // For conversion operations, we need to extract the first argument
-                let _target_expr = if args.is_empty() {
-                    // Should not happen due to validation above, but handle gracefully
-                    return Err(ParseError::new("Missing argument for conversion operation"));
-                } else {
-                    args.into_iter().next().unwrap()
-                };
-                
-                /* let builtin_call_node = BuiltInCallNode {
-                    operation: fsl_operation,
-                    target: Box::new(target_expr), // Move the argument, don't clone
-                    arguments: Vec::new(), // Conversion ops don't have additional arguments
-                    line: base_id.name.line,
-                };
-                
-                // Return as a BuiltInCallExprT
-                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG: Returning BuiltInCallExprT for FSL operation: {}", base_id.name.lexeme);
-                }
-                return Ok(Some(BuiltInCallExprT {
-                    builtin_call_node: Box::new(builtin_call_node),
-                })); */
-            }
-        }
-        
-        // Not an FSL operation, continue with regular call chain building
+        // Continue with regular call chain building
         let mut chain: VecDeque<CallChainNodeTypeV2> = VecDeque::new();
         let current_id = base_id;
         
@@ -13650,8 +13595,6 @@ impl<'a> Parser<'a> {
     
     // ===================== Frame v0.31 Import Support =====================
     
-    // v0.34: Helper methods for FSL import tracking
-    
     /// Parse import statement: import module [as alias]
     fn parse_import_statement(&mut self) -> Result<ImportNode, ParseError> {
         // We've already consumed 'import' token
@@ -13687,9 +13630,6 @@ impl<'a> Parser<'a> {
             self.advance(); // Consume the 'from' token
             return self.parse_frame_module_import(module_name, line);
         }
-        
-        // v0.34: Track FSL imports
-        // self.track_fsl_import(&module_name);  // v0.37: FSL removed
         
         // Check for 'as alias' syntax (Python imports)
         if self.match_token(&[TokenType::As]) {
@@ -13767,11 +13707,6 @@ impl<'a> Parser<'a> {
         
         items.push(self.previous().lexeme.clone());
         
-        // v0.34: Track specific FSL imports
-        if module_name == "fsl" {
-            let _operation_name = self.previous().lexeme.clone();
-            // self.track_fsl_operation(&operation_name);  // v0.37: FSL removed
-        }
         
         // Parse additional items separated by commas
         while self.match_token(&[TokenType::Comma]) {
@@ -13783,10 +13718,6 @@ impl<'a> Parser<'a> {
             items.push(self.previous().lexeme.clone());
             
             // v0.34: Track specific FSL imports  
-            if module_name == "fsl" {
-                let _operation_name = self.previous().lexeme.clone();
-                // self.track_fsl_operation(&operation_name);  // v0.37: FSL removed
-            }
         }
         
         Ok(ImportNode::new(

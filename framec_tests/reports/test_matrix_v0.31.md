@@ -1,6 +1,6 @@
 # Frame v0.31 Test Matrix
 
-**Generated**: 2025-09-24 17:51  
+**Generated**: 2025-09-24 18:26  
 **Total Tests**: 379  
 **Current Branch**: v0.31  
 
@@ -10,8 +10,8 @@
 |--------|-------|------------|
 | **Total Tests** | 379 | 100% |
 | **Transpilation Success** | 376 | 99.2% |
-| **Execution Success** | 361 | 95.3% |
-| **Complete Success** | 364 | 96.0% |
+| **Execution Success** | 366 | 96.6% |
+| **Complete Success** | 369 | 97.4% |
 
 ## v0.31 Features
 
@@ -39,21 +39,11 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
     main()
     ~~~~^^
   File |
-| test_enums_doc_calendar.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_calendar.py", line 22, in <module>
-    class CalendarSyste |
-| test_enums_doc_values.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_values.py", line 22, in <module>
-    class CalendarSystem_ |
 | test_event_handlers_poc.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_event_handlers_poc.py", line 219, in <module>
     main()
     ~~~~^^
  |
-| test_fsl_list_operations_extended.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations_extended.py", line 58, in <module>
-    main()
-   |
 | test_fsl_string_operations.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_string_operations.py", line 43, in <module>
     main()
@@ -66,19 +56,10 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
     main()
     ~~~~^^
   File "/U |
-| test_list_native_methods.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_native_methods.py", line 67, in <module>
-    main()
-    ~~~~^^
- |
 | test_module_scope_comprehensive.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py", line 395, in <module>
+  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py", line 402, in <module>
     main()
     |
-| test_module_scope_variables.frm | ✅ | ❌ | Traceback (most recent call last):
-  File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_variables.py", line 130, in <module>
-    main()
-    ~~~ |
 | test_multi_entity_demo.frm | ✅ | ❌ | Traceback (most recent call last):
   File "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_multi_entity_demo.py", line 404, in <module>
     main()
@@ -222,12 +203,12 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_enum_module_scope.frm | ✅ | ✅ | ✅ PASS |
 | test_enum_string_values.frm | ✅ | ✅ | ✅ PASS |
 | test_enums.frm | ✅ | ✅ | ✅ PASS |
-| test_enums_doc_calendar.frm | ✅ | ❌ | ❌ FAIL |
+| test_enums_doc_calendar.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_doc_fruitsystem.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_doc_function.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_doc_grocery_demo.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_doc_grocery_full.frm | ✅ | ✅ | ✅ PASS |
-| test_enums_doc_values.frm | ✅ | ❌ | ❌ FAIL |
+| test_enums_doc_values.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_enums_terminator.frm | ✅ | ✅ | ✅ PASS |
 | test_error_handling_v049.frm | ✅ | ✅ | ✅ PASS |
@@ -248,7 +229,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_fsl_conversion_ops.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_import_required.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_list_operations.frm | ✅ | ✅ | ✅ PASS |
-| test_fsl_list_operations_extended.frm | ✅ | ❌ | ❌ FAIL |
+| test_fsl_list_operations_extended.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_no_import_error.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_fsl_string_operations.frm | ✅ | ❌ | ❌ FAIL |
@@ -304,7 +285,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_list_comprehensions.frm | ✅ | ✅ | ✅ PASS |
 | test_list_comprehensions_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_list_features.frm | ✅ | ✅ | ✅ PASS |
-| test_list_native_methods.frm | ✅ | ❌ | ❌ FAIL |
+| test_list_native_methods.frm | ✅ | ✅ | ✅ PASS |
 | test_list_operations_comprehensive.frm | ✅ | ✅ | ✅ PASS |
 | test_loop_else.frm | ✅ | ✅ | ✅ PASS |
 | test_match_case.frm | ✅ | ✅ | ✅ PASS |
@@ -333,7 +314,7 @@ Multi-file compilation failed: Error: Circular dependency detected: /Users/markt
 | test_module_qualified_simple.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_basic.frm | ✅ | ✅ | ✅ PASS |
 | test_module_scope_comprehensive.frm | ✅ | ❌ | ❌ FAIL |
-| test_module_scope_variables.frm | ✅ | ❌ | ❌ FAIL |
+| test_module_scope_variables.frm | ✅ | ✅ | ✅ PASS |
 | test_module_syntax.frm | ✅ | ✅ | ✅ PASS |
 | test_module_system.frm | ✅ | ✅ | ✅ PASS |
 | test_module_var_access.frm | ✅ | ✅ | ✅ PASS |

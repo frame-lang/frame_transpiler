@@ -180,10 +180,6 @@ This project contains the code for building the Frame Language Transpiler - the 
 - **Triple-quoted**: `"""multi-line"""` - Multi-line strings with preserved formatting
 - **Percent formatting**: `"Hello %s" % name` - Classic Python string formatting
 
-### Frame Standard Library (FSL)
-- **Type Conversions**: `str()`, `int()`, `float()`, `bool()`
-- **List Operations**: `.append()`, `.pop()`, `.sort()`, `.reverse()`, etc.
-- **String Operations**: `.upper()`, `.lower()`, `.split()`, `.replace()`
 
 ### Advanced Features
 - **Pattern Matching**: Full match-case support with guards, OR patterns, star patterns

@@ -1,12 +1,12 @@
 {
-  "timestamp": "2025-09-24T17:51:52.310186",
+  "timestamp": "2025-09-24T18:26:41.058315",
   "version": "v0.31",
   "summary": {
     "total": 379,
     "transpile_success": 376,
-    "execute_success": 361,
-    "complete_success": 364,
-    "success_rate": "96.0%"
+    "execute_success": 366,
+    "complete_success": 369,
+    "success_rate": "97.4%"
   },
   "results": [
     {
@@ -1004,16 +1004,16 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Peach.\nWe are selling Peaches today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_calendar.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_calendar.py\", line 22, in <module>\n    class CalendarSyste"
+      "error": null
     },
     {
       "file": "test_enums_doc_fruitsystem.frm",
@@ -1036,7 +1036,7 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Pear.\nWe sold Pears yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Banana.\nWe are selling Bananas today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Peach.\nWe are selling Peaches tomorrow.\n",
       "error": null
     },
     {
@@ -1044,16 +1044,16 @@
       "transpile": true,
       "execute": true,
       "negative_test": false,
-      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Banana.\nWe sold Bananas yesterday.\nFound a Banana.\nWe are selling Bananas tomorrow.\n",
+      "output": "Found a Pear.\nWe are selling Pears today.\nFound a Peach.\nWe sold Peaches yesterday.\nFound a Pear.\nWe are selling Pears tomorrow.\n",
       "error": null
     },
     {
       "file": "test_enums_doc_values.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": null,
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_enums_doc_values.py\", line 22, in <module>\n    class CalendarSystem_"
+      "error": null
     },
     {
       "file": "test_enums_simple.frm",
@@ -1218,10 +1218,10 @@
     {
       "file": "test_fsl_list_operations_extended.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
       "output": "After insert: [1, 2, 3, 4, 5]\nAfter remove: [10, 30, 20, 40]\nIndex of banana: 1\nCount of 2: 3\nAfter extend: [1, 2, 3, 4, 5, 6]\nAfter reverse: [5, 4, 3, 2, 1]\nAfter sort: [1, 1, 2, 3, 4, 5, 6, 9]\nOrigi",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_fsl_list_operations_extended.py\", line 58, in <module>\n    main()\n  "
+      "error": null
     },
     {
       "file": "test_fsl_no_import_error.frm",
@@ -1666,10 +1666,10 @@
     {
       "file": "test_list_native_methods.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "After append: [1, 2, 3, 4, 5]\nLength: 5\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_list_native_methods.py\", line 67, in <module>\n    main()\n    ~~~~^^\n"
+      "output": "After append: [1, 2, 3, 4, 5]\nLength: 5\nEmpty list is_empty: True\nNumbers is_empty: False\nAfter clear: []\nPopped: 40\nAfter pop: [10, 20, 30]\nPopped at 1: 20\nAfter pop(1): [10, 30]\nChain test: [1, 2, 3",
+      "error": null
     },
     {
       "file": "test_list_operations_comprehensive.frm",
@@ -1893,15 +1893,15 @@
       "execute": false,
       "negative_test": false,
       "output": "Module loading - initializing module variables\nInitial shared_counter: 0\n\n==== MODULE SCOPE COMPREHENSIVE TEST ====\n\n=== test_read_access ===\nmodule_string: initial_string\nmodule_int: 42\nmodule_bool: ",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 395, in <module>\n    main()\n   "
+      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_comprehensive.py\", line 402, in <module>\n    main()\n   "
     },
     {
       "file": "test_module_scope_variables.frm",
       "transpile": true,
-      "execute": false,
+      "execute": true,
       "negative_test": false,
-      "output": "[LOG] Module initialized\nPI = 3.14159\nVERSION = 1.0.0\ncounter = 0\ninitialized = False\n[LOG] Main function called\n",
-      "error": "Traceback (most recent call last):\n  File \"/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/positive_tests/test_module_scope_variables.py\", line 130, in <module>\n    main()\n    ~~~"
+      "output": "[LOG] Module initialized\nPI = 3.14159\nVERSION = 1.0.0\ncounter = 1\ninitialized = True\n[LOG] Main function called\nFinal counter = 2\nPI = 3.14159\nVERSION = 1.0.0\ncounter = 2\ninitialized = True\n[LOG] Main",
+      "error": null
     },
     {
       "file": "test_module_syntax.frm",
