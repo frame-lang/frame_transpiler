@@ -67,5 +67,3 @@ fn main() {
     var range = tester.getRange()
     print(range)
 }
-
-main()

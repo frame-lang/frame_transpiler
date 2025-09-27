@@ -156,5 +156,3 @@ fn main() {
     print("Starting REAL async with validation (requires internet)...")
     asyncio.run(run_tests())
 }
-
-main()

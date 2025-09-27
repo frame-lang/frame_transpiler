@@ -32,5 +32,3 @@ fn main() {
     
     print("=== All Assert Tests Passed! ===")
 }
-
-main()

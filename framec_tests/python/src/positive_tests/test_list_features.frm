@@ -60,4 +60,3 @@ fn createList() {
 }
 
 # Call main to run the tests
-main()

@@ -86,5 +86,3 @@ fn main() {
     test_star_practical()
     print("\n=== All tests complete ===")
 }
-
-main()

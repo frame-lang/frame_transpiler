@@ -1,7 +1,7 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test set comprehensions added in v0.41
 
-fn test_set_comprehensions() {
+fn main() {
     # Basic set comprehension
     var doubled = {x * 2 for x in range(5)}
     assert doubled == {0, 2, 4, 6, 8}
@@ -42,4 +42,3 @@ fn test_set_comprehensions() {
 }
 
 # Run tests
-test_set_comprehensions()

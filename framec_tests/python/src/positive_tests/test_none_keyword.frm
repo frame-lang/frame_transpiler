@@ -55,5 +55,3 @@ fn main() {
     
     print("Test complete")
 }
-
-main()

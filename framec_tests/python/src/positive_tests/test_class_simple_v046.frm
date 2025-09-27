@@ -14,9 +14,7 @@ class Animal {
     }
 }
 
-fn test() {
+fn main() {
     var a = Animal("Dog")
     print(str(Animal.get_count()))
 }
-
-test()

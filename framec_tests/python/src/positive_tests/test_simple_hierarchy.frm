@@ -22,5 +22,3 @@ fn main() {
     var indirect = Utils::useNested()
     print("5 squared = " + str(indirect))
 }
-
-main()

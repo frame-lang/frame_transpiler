@@ -117,5 +117,3 @@ system AdvancedStatic {
             return value + 100
         }
 }
-
-main()

@@ -105,4 +105,3 @@ fn main() {
 }
 
 # Run tests
-main()

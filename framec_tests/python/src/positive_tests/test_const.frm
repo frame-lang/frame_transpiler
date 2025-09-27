@@ -3,9 +3,7 @@
 var PI = 3.14159
 var counter = 0
 
-fn test() {
+fn main() {
     print(PI)
     print(counter)
 }
-
-test()

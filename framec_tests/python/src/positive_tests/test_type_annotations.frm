@@ -89,4 +89,3 @@ fn main() {
 }
 
 # Module initialization
-main()

@@ -69,4 +69,3 @@ fn create_list() {
 }
 
 # Call main to run the tests
-main()

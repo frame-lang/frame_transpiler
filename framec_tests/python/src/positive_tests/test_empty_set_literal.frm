@@ -29,5 +29,3 @@ fn main() {
     testEmptySet()
     return
 }
-
-main()

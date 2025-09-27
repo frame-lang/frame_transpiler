@@ -21,5 +21,7 @@ fn test_decorators() {
     print("ImmutablePoint: (" + str(p.x) + ", " + str(p.y) + ")")
 }
 
-# Run the test
-test_decorators()
+fn main() {
+    # Run the test
+    test_decorators()
+}

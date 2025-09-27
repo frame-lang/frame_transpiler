@@ -61,5 +61,3 @@ fn main() {
     test_multi_var_mixed()
     print("=== All tests complete ===")
 }
-
-main()

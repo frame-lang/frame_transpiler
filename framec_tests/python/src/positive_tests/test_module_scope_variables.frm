@@ -41,17 +41,14 @@ fn test_module_vars() {
     print("initialized = " + str(initialized))
 }
 
-# Module-level statements
-setup()  # Initialize module
-var logger = Logger()  # Instantiate system at module level
-logger.log("Module initialized")
-
 # Main entry point
 fn main() {
+    setup()  # Initialize module
+    var logger = Logger()  # Instantiate system
+    logger.log("Module initialized")
+    
     test_module_vars()
     logger.log("Main function called")
     counter = counter + 1
     print("Final counter = " + str(counter))
 }
-
-main()

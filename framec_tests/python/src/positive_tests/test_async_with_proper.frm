@@ -215,5 +215,3 @@ fn main() {
     print("Starting proper async with validation...")
     asyncio.run(run_all_tests())
 }
-
-main()

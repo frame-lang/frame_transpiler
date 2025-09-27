@@ -434,18 +434,36 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new("Expected 'system' after attributes. Functions do not support attributes."));
             } else if self.check(TokenType::Identifier) {
                 // Frame does not allow module-level statements (like C)
-                // Check if this looks like a function call
+                // Check if this looks like a function call or system instantiation
                 let saved_pos = self.current;
                 let identifier = self.advance();
                 let identifier_name = identifier.lexeme.clone();
                 if self.check(TokenType::LParen) {
-                    // This is a function call at module scope - not allowed
+                    // Check if this is a system instantiation or function call at module scope
+                    // Both are not allowed
                     self.current = saved_pos;  // Reset for better error reporting
-                    return Err(ParseError::new(&format!(
-                        "Module-level function calls are not allowed. Function '{}' cannot be called at module scope. \
-                        Frame automatically calls main() if it exists.",
-                        identifier_name
-                    )));
+                    
+                    // Check if identifier matches any system name or class name
+                    let is_system = systems.iter().any(|s| s.name == identifier_name);
+                    let is_class = classes.iter().any(|c| c.borrow().name == identifier_name);
+                    
+                    // Also check if it starts with uppercase (likely a class/system)
+                    let starts_with_uppercase = identifier_name.chars().next()
+                        .map_or(false, |c| c.is_uppercase());
+                    
+                    if is_system || is_class || starts_with_uppercase {
+                        return Err(ParseError::new(&format!(
+                            "Module-level instantiation is not allowed. '{}' cannot be instantiated at module scope. \
+                            Classes and systems must be instantiated inside functions.",
+                            identifier_name
+                        )));
+                    } else {
+                        return Err(ParseError::new(&format!(
+                            "Module-level function calls are not allowed. Function '{}' cannot be called at module scope. \
+                            Frame automatically calls main() if it exists.",
+                            identifier_name
+                        )));
+                    }
                 } else {
                     // Reset and try to parse as something else
                     self.current = saved_pos;

@@ -50,7 +50,7 @@ class BankAccount {
     }
 }
 
-fn test_access_modifiers() {
+fn main() {
     print("=== Testing Access Modifiers ===")
     
     var account = BankAccount("Alice", 1000)
@@ -66,5 +66,3 @@ fn test_access_modifiers() {
     
     print("=== Access Modifier Tests Complete ===")
 }
-
-test_access_modifiers()

@@ -113,5 +113,3 @@ fn main() {
     test_complex_constructors()
     print("\n=== All tests complete ===")
 }
-
-main()

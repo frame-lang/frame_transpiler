@@ -120,5 +120,3 @@ fn main() {
     print("✓ Nested exception handling")
     print("✓ Try/finally without except blocks")
 }
-
-main()

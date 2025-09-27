@@ -141,7 +141,7 @@ class User {
 }
 
 # Main test function
-fn test_v046_classes() {
+fn main() {
     print("=== Testing v0.46 Class Features ===")
     
     # Test inheritance
@@ -205,6 +205,3 @@ fn test_v046_classes() {
     
     print("\n=== All v0.46 Tests Complete ===")
 }
-
-# Run the test
-test_v046_classes()

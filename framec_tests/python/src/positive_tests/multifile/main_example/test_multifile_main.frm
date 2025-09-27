@@ -31,4 +31,3 @@ fn main() {
 }
 
 # Call main function
-main()

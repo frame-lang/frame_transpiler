@@ -26,5 +26,7 @@ system ListOpsTest {
         }
 }
 
-# Create instance to trigger tests
-ListOpsTest()
+fn main() {
+    # Create instance to trigger tests
+    var test = ListOpsTest()
+}

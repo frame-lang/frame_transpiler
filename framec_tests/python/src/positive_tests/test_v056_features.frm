@@ -104,5 +104,3 @@ fn main() {
     test_type_aliases()
     print("\n=== All v0.56 Features Tested ===")
 }
-
-main()

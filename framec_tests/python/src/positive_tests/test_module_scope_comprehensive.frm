@@ -233,10 +233,6 @@ fn test_advanced_system() {
     print("Query result: " + str(result))
 }
 
-# Module initialization code (runs when module loads)
-print("Module loading - initializing module variables")
-print("Initial shared_counter: " + str(shared_counter))
-
 # Additional module-level function to be called after main
 fn post_main_check() {
     print("\n=== POST MAIN CHECK ===")

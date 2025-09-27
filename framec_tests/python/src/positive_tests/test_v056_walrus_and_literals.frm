@@ -97,5 +97,3 @@ fn main() {
     
     print("\n=== All v0.56 features test complete ===")
 }
-
-main()

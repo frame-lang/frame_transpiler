@@ -54,5 +54,3 @@ fn main() {
     print("Sales quota: $" + str(Company::Sales::getQuota()))
     print("Company info: " + Company::getInfo())
 }
-
-main()

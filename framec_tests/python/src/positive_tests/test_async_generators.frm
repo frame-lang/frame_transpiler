@@ -56,14 +56,16 @@ async fn test_async_gen() {
 }
 
 # Main async function
-async fn main() {
+async fn async_main() {
     await test_async_gen()
     print("All async generator tests complete!")
 }
 
-# Module initialization - demonstrates async generator creation
-print("=== Frame v0.42: Async Generator Support ===")
-print("Creating async generators with 'async fn' + 'yield'")
-
-# Note: To run, Python needs: asyncio.run(main())
-# This would typically be added in a runner script
+fn main() {
+    # Module initialization - demonstrates async generator creation
+    print("=== Frame v0.42: Async Generator Support ===")
+    print("Creating async generators with 'async fn' + 'yield'")
+    
+    # Note: To run, Python needs: asyncio.run(async_main())
+    # This would typically be added in a runner script
+}

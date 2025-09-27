@@ -32,16 +32,18 @@ fn test_generator_expressions() {
     print("Even generator results: " + str(even_results))
 }
 
-# Run tests
-print("=== Testing Generators ===")
-test_generator_expressions()
+fn main() {
+    # Run tests
+    print("=== Testing Generators ===")
+    test_generator_expressions()
 
-print("\n=== Testing yield functions ===")
-for val in count_up_to(5) {
-    print("Value: " + str(val))
-}
+    print("\n=== Testing yield functions ===")
+    for val in count_up_to(5) {
+        print("Value: " + str(val))
+    }
 
-print("\n=== Testing yield from ===")
-for val in delegated_generator() {
-    print("Delegated: " + str(val))
+    print("\n=== Testing yield from ===")
+    for val in delegated_generator() {
+        print("Delegated: " + str(val))
+    }
 }

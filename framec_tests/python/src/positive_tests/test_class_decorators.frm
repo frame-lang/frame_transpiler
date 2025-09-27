@@ -73,5 +73,7 @@ fn my_custom_decorator(cls) {
     return cls
 }
 
-# Run the test
-test_decorators()
+fn main() {
+    # Run the test
+    test_decorators()
+}

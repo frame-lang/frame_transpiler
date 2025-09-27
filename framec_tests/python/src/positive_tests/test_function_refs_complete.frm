@@ -99,4 +99,3 @@ fn main() {
 }
 
 # Call main to run the tests  
-main()

@@ -175,4 +175,3 @@ system TrafficLight {
 }
 
 # Call main to execute the demo
-main()

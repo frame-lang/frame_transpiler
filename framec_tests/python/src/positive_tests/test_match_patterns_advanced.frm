@@ -147,4 +147,3 @@ fn main() {
 }
 
 # Run the tests
-main()

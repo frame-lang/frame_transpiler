@@ -60,5 +60,3 @@ fn main() {
     var parsed = parseNumber("42.5")
     print("Parsed: " + str(parsed))
 }
-
-main()

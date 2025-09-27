@@ -25,5 +25,7 @@ fn test_property() {
     print("Fahrenheit: " + str(temp.fahrenheit))
 }
 
-# Run test
-test_property()
+fn main() {
+    # Run test
+    test_property()
+}

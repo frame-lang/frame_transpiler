@@ -2,7 +2,7 @@
 # Test Collection Literals - v0.41 Status Check
 # What actually works vs what's documented
 
-fn test_collection_support() {
+fn main() {
     print("=== Frame v0.41 Collection Support ===\n")
     
     # ✅ LIST LITERALS - FULLY WORKING
@@ -75,5 +75,3 @@ fn test_collection_support() {
     print("✅ Tuples: Full support (literals)")
     print("✅ Constructors: All work (empty only)")
 }
-
-test_collection_support()

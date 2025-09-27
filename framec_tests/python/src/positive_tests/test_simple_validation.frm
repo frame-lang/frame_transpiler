@@ -33,4 +33,6 @@ system ValidationTest {
         var counter : int = 42
 }
 
-ValidationTest()
+fn main() {
+    var test = ValidationTest()
+}

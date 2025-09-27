@@ -22,5 +22,7 @@ fn test_decorators() {
     print("Point: (" + str(p1.x) + ", " + str(p1.y) + ")")
 }
 
-# Run the test
-test_decorators()
+fn main() {
+    # Run the test
+    test_decorators()
+}

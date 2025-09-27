@@ -25,5 +25,3 @@ fn main() {
     
     print("Performance test completed with " + str(len(results)) + " modules")
 }
-
-main()
