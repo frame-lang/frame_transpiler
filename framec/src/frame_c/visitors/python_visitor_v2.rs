@@ -156,7 +156,7 @@ impl PythonVisitorV2 {
     
     pub fn run(&mut self, frame_module: &FrameModule) -> String {
         // Add header
-        self.builder.write_comment("Emitted from framec_v0.76.1");
+        self.builder.write_comment("Emitted from framec_v0.78.1");
         self.builder.newline();
         self.builder.newline();
         
@@ -3533,8 +3533,20 @@ impl PythonVisitorV2 {
                         }
                         output.push(')');
                     } else {
-                        // External calls like print, str, etc.
-                        self.visit_call_expression_node_to_string(call_node, output);
+                        // This is part of a call chain, so we need to handle it specially
+                        // to avoid adding "self." prefix when it's a static method call
+                        // like TestService.getDefaultConfig()
+                        output.push_str(&call_node.identifier.name.lexeme);
+                        output.push('(');
+                        let mut first_arg = true;
+                        for arg in &call_node.call_expr_list.exprs_t {
+                            if !first_arg {
+                                output.push_str(", ");
+                            }
+                            self.visit_expr_node_to_string(arg, output);
+                            first_arg = false;
+                        }
+                        output.push(')');
                     }
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
