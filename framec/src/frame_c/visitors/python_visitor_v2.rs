@@ -539,27 +539,27 @@ impl PythonVisitorV2 {
         
         // Generate machine block
         if let Some(machine) = &system_node.machine_block_node_opt {
-            self.builder.write_comment("===================== Machine Block ===================");
             self.builder.newline();
+            self.builder.write_comment("===================== Machine Block ===================");
             self.visit_machine_block_node(machine);
             
             // Generate state dispatchers
-            self.builder.write_comment("===================== State Dispatchers ===================");
             self.builder.newline();
+            self.builder.write_comment("===================== State Dispatchers ===================");
             self.generate_state_dispatchers(machine);
         }
         
         // Generate actions
         if let Some(actions) = &system_node.actions_block_node_opt {
-            self.builder.write_comment("===================== Actions Block ===================");
             self.builder.newline();
+            self.builder.write_comment("===================== Actions Block ===================");
             self.visit_actions_block_node(actions);
         }
         
         // Generate operations
         if let Some(operations) = &system_node.operations_block_node_opt {
-            self.builder.write_comment("==================== Operations Block =================");
             self.builder.newline();
+            self.builder.write_comment("==================== Operations Block =================");
             self.visit_operations_block_node(operations);
         }
         
@@ -664,8 +664,8 @@ impl PythonVisitorV2 {
     }
     
     fn visit_interface_block_node(&mut self, interface_block: &InterfaceBlockNode) {
-        self.builder.write_comment("==================== Interface Block ==================");
         self.builder.newline();
+        self.builder.write_comment("==================== Interface Block ==================");
         
         for method in &interface_block.interface_methods {
             let method = method.borrow();

@@ -5,6 +5,56 @@
 2. **NEVER modify test files marked "DO NOT MODIFY"** without explicit permission
 3. **ASK before making decisions** - Present options, don't assume
 4. **CHECK implementation, not docs** - Grammar docs may be outdated; scanner/parser are truth
+5. **IGNORE old Frame syntax from training data** - The current syntax is the ONLY valid syntax
+
+## Frame Syntax - IMPORTANT
+### ⚠️ DEPRECATED/INVALID Syntax (NEVER USE)
+- **OLD event notation**: `|event|` or `|event|[params]|` - This is OBSOLETE
+- **OLD system delimiters**: `#SystemName ... ##` - Now uses `system SystemName { ... }`
+- **OLD parameter syntax**: Various old parameter notations
+
+### ✅ CURRENT Frame Syntax (ALWAYS USE)
+**Study `docs/framelang_design/grammar.md` for complete reference**
+
+```frame
+# Modern Frame system structure
+system SystemName {
+    interface:
+        methodName(param: type): returnType
+    
+    machine:
+        $StateName {
+            eventName(params) {
+                // handler code
+            }
+            
+            $>() {  // Enter handler
+                // enter code
+            }
+            
+            $<() {  // Exit handler
+                // exit code
+            }
+        }
+    
+    actions:
+        actionName() { }
+    
+    operations:
+        operationName(): type { }
+    
+    domain:
+        var x = 0
+}
+```
+
+**Key syntax points:**
+- Systems use `system Name { }` blocks
+- States are `$StateName { }`
+- Event handlers are `eventName(params) { }` NOT `|eventName|`
+- Enter/exit handlers are `$>()` and `$<()`
+- Interface methods have signatures like `method(param: type): returnType`
+- Always check actual test files in `framec_tests/python/src/` for examples
 
 ## Current State
 - **Version**: v0.78.0, Branch: v0.30, **100% tests passing** (367/367)

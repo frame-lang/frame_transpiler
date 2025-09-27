@@ -284,7 +284,7 @@ impl<'a> Parser<'a> {
         let mut variables = Vec::new();
         let mut enums = Vec::new();
         let mut modules = Vec::new();  // v0.34: Nested modules
-        let mut statements = Vec::new();
+        // Note: statements are not allowed at module level (like C)
         
         // Parse all entities in sequence
         loop {
@@ -433,22 +433,24 @@ impl<'a> Parser<'a> {
                 // We parsed attributes but found no system or function - this is an error
                 return Err(ParseError::new("Expected 'system' after attributes. Functions do not support attributes."));
             } else if self.check(TokenType::Identifier) {
-                // Check for module-level statements (like function calls)
-                // This handles things like: main() at module scope
-                match self.statement() {
-                    Ok(Some(stmt)) => {
-                        let decl_or_stmt = DeclOrStmtType::StmtT { stmt_t: stmt };
-                        statements.push(decl_or_stmt);
-                        // TODO: Fix when Clone is available
-                        // Also add to module elements
-                        // if let Some(ref mut elements) = module_elements_opt {
-                        //     elements.push(ModuleElement::Statement { stmt_node: decl_or_stmt });
-                        // }
-                    }
-                    Ok(None) => {
-                        // No statement found, continue
-                    }
-                    Err(e) => return Err(e),
+                // Frame does not allow module-level statements (like C)
+                // Check if this looks like a function call
+                let saved_pos = self.current;
+                let identifier = self.advance();
+                let identifier_name = identifier.lexeme.clone();
+                if self.check(TokenType::LParen) {
+                    // This is a function call at module scope - not allowed
+                    self.current = saved_pos;  // Reset for better error reporting
+                    return Err(ParseError::new(&format!(
+                        "Module-level function calls are not allowed. Function '{}' cannot be called at module scope. \
+                        Frame automatically calls main() if it exists.",
+                        identifier_name
+                    )));
+                } else {
+                    // Reset and try to parse as something else
+                    self.current = saved_pos;
+                    // If we can't parse anything, break out of the loop
+                    break;
                 }
             } else {
                 // No more entities found - exit loop
@@ -470,7 +472,8 @@ impl<'a> Parser<'a> {
             None => crate::frame_c::ast::Module::new(vec![]),
         };
         
-        Ok(FrameModule::new(final_module, imports, functions, systems, classes, variables, enums, modules, statements))
+        // Module-level statements not allowed - pass empty vector
+        Ok(FrameModule::new(final_module, imports, functions, systems, classes, variables, enums, modules, Vec::new()))
     }
 
     /* --------------------------------------------------------------------- */
