@@ -596,6 +596,7 @@ pub struct InterfaceMethodNode {
     pub return_init_expr_opt: Option<ExprType>,
     pub alias: Option<MessageNode>,
     pub is_async: bool,  // v0.35: async interface method support
+    pub line: usize,      // v0.77: source map support for interface definitions
 }
 
 impl InterfaceMethodNode {
@@ -606,6 +607,7 @@ impl InterfaceMethodNode {
         return_init_expr_opt: Option<ExprType>,
         alias: Option<MessageNode>,
         is_async: bool,
+        line: usize,
     ) -> InterfaceMethodNode {
         InterfaceMethodNode {
             name,
@@ -614,6 +616,7 @@ impl InterfaceMethodNode {
             return_init_expr_opt,
             alias,
             is_async,
+            line,
         }
     }
 }

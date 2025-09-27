@@ -1973,7 +1973,9 @@ impl<'a> Parser<'a> {
     // interface_method -> identifier ('[' parameters ']')? (':' return_type)?
 
     fn interface_method(&mut self, is_async: bool) -> Result<Rc<RefCell<InterfaceMethodNode>>, ParseError> {
-        let name = self.previous().lexeme.clone();
+        let method_token = self.previous();
+        let name = method_token.lexeme.clone();
+        let line = method_token.line;
 
         let mut params_opt: Option<Vec<ParameterNode>> = Option::None;
         let mut return_type_opt: Option<TypeNode> = Option::None;
@@ -2145,6 +2147,7 @@ impl<'a> Parser<'a> {
             return_init_expr_opt,
             alias_opt,
             is_async,  // v0.35: async interface methods support
+            line,      // v0.77: source map support for interface definitions
         );
         let interface_method_rcref = Rc::new(RefCell::new(interface_method_node));
 

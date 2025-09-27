@@ -771,7 +771,7 @@ impl PythonVisitorV2 {
     }
     
     fn visit_module_node(&mut self, module_node: &ModuleNode) {
-        eprintln!("visit_module_node: {}", module_node.name);
+        // eprintln!("visit_module_node: {}", module_node.name);
         // Only save parent state if we're in a nested module (module_context is not empty)
         let should_restore = !self.module_context.is_empty();
         let saved_module_name = if should_restore { self.current_module_name_opt.clone() } else { None };
@@ -1409,7 +1409,7 @@ impl PythonVisitorV2 {
             &method.name,
             &full_params,
             needs_async,
-            0  // InterfaceMethodNode doesn't have line field
+            method.line  // v0.77: use line from InterfaceMethodNode for source mapping
         );
         
         self.builder.writeln("self.return_stack.append(None)");
@@ -1509,7 +1509,7 @@ impl PythonVisitorV2 {
     }
     
     fn collect_modified_module_variables(&self, statements: &Vec<DeclOrStmtType>) -> Vec<String> {
-        eprintln!("DEBUG: collect_modified_module_variables called with {} statements", statements.len());
+        // eprintln!("DEBUG: collect_modified_module_variables called with {} statements", statements.len());
         let mut modified_vars = Vec::new();
         let mut local_vars = HashSet::<String>::new();
         
@@ -1517,7 +1517,7 @@ impl PythonVisitorV2 {
         for stmt in statements {
             if let DeclOrStmtType::VarDeclT { var_decl_t_rcref } = stmt {
                 let var_name = var_decl_t_rcref.borrow().name.clone();
-                eprintln!("DEBUG: Found local var declaration: {}", var_name);
+                // eprintln!("DEBUG: Found local var declaration: {}", var_name);
                 local_vars.insert(var_name);
             }
         }
@@ -1531,7 +1531,7 @@ impl PythonVisitorV2 {
             }
         }
         
-        eprintln!("DEBUG: Before filtering, modified_vars = {:?}", modified_vars);
+        // eprintln!("DEBUG: Before filtering, modified_vars = {:?}", modified_vars);
         
         // Remove duplicates and filter to only module variables
         // In V2, we need to check the module symbol table to see what's a module variable
@@ -1555,7 +1555,7 @@ impl PythonVisitorV2 {
     }
     
     fn generate_event_handler(&mut self, state_name: &str, evt_handler: &EventHandlerNode) {
-        eprintln!("DEBUG generate_event_handler: state={}", state_name);
+        // eprintln!("DEBUG generate_event_handler: state={}", state_name);
         let handler_name = self.format_handler_name(state_name, &evt_handler.msg_t);
         
         // Check if handler needs to be async
@@ -1575,7 +1575,7 @@ impl PythonVisitorV2 {
         
         // Generate global declarations
         if !global_vars.is_empty() {
-            eprintln!("DEBUG: Generating global declaration for: {:?}", global_vars);
+            // eprintln!("DEBUG: Generating global declaration for: {:?}", global_vars);
             self.builder.writeln(&format!("global {}", global_vars.join(", ")));
         }
         
@@ -3184,7 +3184,7 @@ impl PythonVisitorV2 {
         
         // Generate global declarations
         if !global_vars.is_empty() {
-            eprintln!("DEBUG: Generating global declaration for: {:?}", global_vars);
+            // eprintln!("DEBUG: Generating global declaration for: {:?}", global_vars);
             self.builder.writeln(&format!("global {}", global_vars.join(", ")));
         }
         
@@ -3414,7 +3414,7 @@ impl PythonVisitorV2 {
                             if !is_local_or_param {
                                 // This is a module variable, qualify it with the module path or saved name
                                 if !self.module_context.is_empty() {
-                                    eprintln!("DEBUG: Qualifying {} with module_context {:?}", var_node.id_node.name.lexeme, self.module_context);
+                                    // eprintln!("DEBUG: Qualifying {} with module_context {:?}", var_node.id_node.name.lexeme, self.module_context);
                                     for (i, module) in self.module_context.iter().enumerate() {
                                         if i > 0 {
                                             output.push('.');
@@ -3425,7 +3425,7 @@ impl PythonVisitorV2 {
                                     output.push_str(&var_node.id_node.name.lexeme);
                                     qualified = true;
                                 } else if let Some(ref module_name) = self.current_module_name_opt {
-                                    eprintln!("DEBUG: Qualifying {} with current_module_name_opt {}", var_node.id_node.name.lexeme, module_name);
+                                    // eprintln!("DEBUG: Qualifying {} with current_module_name_opt {}", var_node.id_node.name.lexeme, module_name);
                                     // Use saved module name if module_context is empty
                                     output.push_str(module_name);
                                     output.push('.');

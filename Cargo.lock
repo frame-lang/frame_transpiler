@@ -245,7 +245,7 @@ checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
 name = "frame_build"
-version = "0.76.1"
+version = "0.78.0"
 dependencies = [
  "anyhow",
  "framec",
@@ -254,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "frame_runtime"
-version = "0.76.1"
+version = "0.78.0"
 dependencies = [
  "indoc 1.0.9",
  "once_cell",
@@ -262,7 +262,7 @@ dependencies = [
 
 [[package]]
 name = "framec"
-version = "0.76.1"
+version = "0.78.0"
 dependencies = [
  "chrono",
  "clap",
