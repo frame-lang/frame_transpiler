@@ -1,0 +1,19 @@
+{"event": "trace", "message": "dispatch_line: func=FrameEvent, python_line=314, first_line=314, frame_line=None"}
+{"event": "trace", "message": "Skipping function definition line for FrameEvent"}
+{"event": "trace", "message": "dispatch_line: func=FrameEvent, python_line=315, first_line=314, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=FrameCompartment, python_line=319, first_line=319, frame_line=None"}
+{"event": "trace", "message": "Skipping function definition line for FrameCompartment"}
+{"event": "trace", "message": "dispatch_line: func=FrameCompartment, python_line=320, first_line=319, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=349, first_line=349, frame_line=None"}
+{"event": "trace", "message": "Skipping function definition line for NoneChecker"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=351, first_line=349, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=366, first_line=349, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=372, first_line=349, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=380, first_line=349, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=388, first_line=349, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=397, first_line=349, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=406, first_line=349, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=432, first_line=349, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=437, first_line=349, frame_line=None"}
+{"event": "trace", "message": "dispatch_line: func=main, python_line=338, first_line=337, frame_line=39"}
+{"event": "breakpoint_hit", "reason": "step", "frame_line": 39, "python_line": 338, "code_name": "main", "call_stack": [{"function": "main", "frame_line": 0}], "local_vars": {}}

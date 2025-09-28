@@ -47,6 +47,7 @@ pub struct PythonVisitorV2 {
     current_handler_locals: HashSet<String>, // Track local variables in current handler
     current_state_params: HashSet<String>, // Track current state's parameter names
     domain_enums: HashSet<String>, // Track domain enum names (without prefix)
+    action_names: HashSet<String>, // Track action names for proper call resolution
     
     // Import tracking
     imports: Vec<String>,
@@ -87,6 +88,7 @@ impl PythonVisitorV2 {
             current_handler_locals: HashSet::new(),
             current_state_params: HashSet::new(),
             domain_enums: HashSet::new(),
+            action_names: HashSet::new(),
             imports: Vec::new(),
             used_modules: HashSet::new(),
             global_vars: HashSet::new(),
@@ -487,6 +489,7 @@ impl PythonVisitorV2 {
         self.interface_methods.clear();
         self.domain_variables.clear();
         self.domain_enums.clear();
+        self.action_names.clear();
         
         // Store interface method parameters for later use in event handlers
         if let Some(interface) = &system_node.interface_block_node_opt {
@@ -537,6 +540,14 @@ impl PythonVisitorV2 {
         // Generate interface methods
         if let Some(interface) = &system_node.interface_block_node_opt {
             self.visit_interface_block_node(interface);
+        }
+        
+        // Collect action names BEFORE processing machine block (for proper call resolution)
+        if let Some(actions) = &system_node.actions_block_node_opt {
+            for action_rcref in &actions.actions {
+                let action_node = action_rcref.borrow();
+                self.action_names.insert(action_node.name.clone());
+            }
         }
         
         // Generate machine block
@@ -676,6 +687,7 @@ impl PythonVisitorV2 {
     }
     
     fn visit_actions_block_node(&mut self, actions_block: &ActionsBlockNode) {
+        // Action names already collected before machine block processing
         // Generate each action in the actions block
         for action_rcref in &actions_block.actions {
             let action_node = action_rcref.borrow();
@@ -2541,8 +2553,15 @@ impl PythonVisitorV2 {
                 }
             }
         } else {
-            // Fallback to name
-            output.push_str(&node.identifier.name.lexeme);
+            // Fallback: check if this is an action call
+            if self.action_names.contains(&node.identifier.name.lexeme) {
+                // Generate action call: self.__SystemName__actionName
+                output.push_str(&format!("self.__{}__{}",
+                    self.system_name, node.identifier.name.lexeme));
+            } else {
+                // Regular function name
+                output.push_str(&node.identifier.name.lexeme);
+            }
         }
         
         // Apply special collection constructor handling
@@ -3583,7 +3602,15 @@ impl PythonVisitorV2 {
                         // to avoid adding "self." prefix when it's a static method call
                         // like TestService.getDefaultConfig()
                         let func_name = &call_node.identifier.name.lexeme;
-                        output.push_str(func_name);
+                        
+                        // Check if this is an action call
+                        if self.action_names.contains(func_name) {
+                            // Generate action call: self.__SystemName__actionName
+                            output.push_str(&format!("self.__{}__{}",
+                                self.system_name, func_name));
+                        } else {
+                            output.push_str(func_name);
+                        }
                         
                         // Special handling for collection constructors with multiple arguments
                         // Python's set(), frozenset() constructors need a single iterable, not multiple args

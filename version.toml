@@ -5,11 +5,11 @@
 # Semantic version (major.minor.patch)
 major = 0
 minor = 78
-patch = 12
+patch = 13
 
 # Full version string (generated from components above)
 # Used for CLI --version, generated code comments, etc.
-full = "0.78.12"
+full = "0.78.13"
 
 # Release metadata (optional)
 [metadata]
