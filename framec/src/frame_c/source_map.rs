@@ -205,7 +205,7 @@ impl SourceMapBuilder {
         
         SourceMap {
             version: "1.0".to_string(),
-            generator: format!("framec_v{}", env!("CARGO_PKG_VERSION")),
+            generator: format!("framec_v{}", env!("FRAME_VERSION")),
             source_file: self.source_file.clone(),
             target_file: self.target_file.clone(),
             mappings: zero_based_mappings,
@@ -246,7 +246,7 @@ impl DebugOutput {
             python,
             source_map,
             metadata: Some(OutputMetadata {
-                frame_version: env!("CARGO_PKG_VERSION").to_string(),
+                frame_version: env!("FRAME_VERSION").to_string(),
                 generated_at: Utc::now().to_rfc3339(),
                 checksum,
             }),
