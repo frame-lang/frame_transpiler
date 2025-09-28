@@ -723,7 +723,8 @@ impl PythonVisitorV2 {
         for method_rcref in &class_node.static_methods {
             let method = method_rcref.borrow();
             self.builder.newline();
-            self.builder.writeln("@staticmethod");
+            // Map decorator to the method line
+            self.builder.writeln_mapped("@staticmethod", method.line);
             self.visit_method_node(&*method);
         }
         
@@ -822,7 +823,8 @@ impl PythonVisitorV2 {
                 self.builder.newline();
             }
             let func = func.borrow();
-            self.builder.writeln("@staticmethod");
+            // Map decorator to the function line
+            self.builder.writeln_mapped("@staticmethod", func.line);
             self.builder.write(&format!("def {}(", func.name));
             
             // Generate parameters
@@ -1038,7 +1040,8 @@ impl PythonVisitorV2 {
         self.builder.newline();
         
         if is_static {
-            self.builder.writeln("@staticmethod");
+            // Map decorator to the operation line
+            self.builder.writeln_mapped("@staticmethod", operation_node.line);
         }
         
         self.builder.write_function(
@@ -1266,7 +1269,8 @@ impl PythonVisitorV2 {
             "self".to_string()
         };
         
-        self.builder.writeln(&format!("def __init__({}):", params));
+        // Map __init__ to the system declaration line
+        self.builder.writeln_mapped(&format!("def __init__({}):", params), system_node.line);
         self.builder.indent();
         
         self.builder.write_comment("Create and initialize start state compartment");
@@ -1310,30 +1314,30 @@ impl PythonVisitorV2 {
                 if let Some(dispatch) = &state.dispatch_opt {
                     // Initial state has a parent - create parent compartment first
                     let parent_state_name = self.format_state_name(&dispatch.target_state_ref.name);
-                    self.builder.writeln(&format!(
+                    self.builder.writeln_mapped(&format!(
                         "parent_compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
                         parent_state_name
-                    ));
-                    self.builder.writeln(&format!(
+                    ), system_node.line);
+                    self.builder.writeln_mapped(&format!(
                         "self.__compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {{}})",
                         state_name, state_vars_dict
-                    ));
+                    ), system_node.line);
                 } else {
                     // No parent - create compartment normally
-                    self.builder.writeln(&format!(
+                    self.builder.writeln_mapped(&format!(
                         "self.__compartment = FrameCompartment('{}', None, None, None, None, {}, {{}})",
                         state_name, state_vars_dict
-                    ));
+                    ), system_node.line);
                 }
             } else {
-                self.builder.writeln("self.__compartment = None");
+                self.builder.writeln_mapped("self.__compartment = None", system_node.line);
             }
         } else {
-            self.builder.writeln("self.__compartment = None");
+            self.builder.writeln_mapped("self.__compartment = None", system_node.line);
         }
         
-        self.builder.writeln("self.__next_compartment = None");
-        self.builder.writeln("self.return_stack = [None]");
+        self.builder.writeln_mapped("self.__next_compartment = None", system_node.line);
+        self.builder.writeln_mapped("self.return_stack = [None]", system_node.line);
         
         // Initialize domain variables
         if let Some(domain_block) = &system_node.domain_block_node_opt {
@@ -1354,11 +1358,11 @@ impl PythonVisitorV2 {
                     // If this variable has the same name as a parameter, use the parameter
                     // Otherwise use the default value
                     if param_names.contains(&var.name) {
-                        self.builder.writeln(&format!("self.{} = {}", var.name, var.name));
+                        self.builder.writeln_mapped(&format!("self.{} = {}", var.name, var.name), var.line);
                     } else {
                         let mut value_str = String::new();
                         self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
-                        self.builder.writeln(&format!("self.{} = {}", var.name, value_str));
+                        self.builder.writeln_mapped(&format!("self.{} = {}", var.name, value_str), var.line);
                     }
                 }
             }
@@ -1372,11 +1376,11 @@ impl PythonVisitorV2 {
             let has_async = self.check_system_async(system_node);
             if has_async {
                 self.builder.write_comment("System has async runtime - start event must be sent asynchronously");
-                self.builder.writeln("self.__startup_event = FrameEvent(\"$>\", None)");
+                self.builder.writeln_mapped("self.__startup_event = FrameEvent(\"$>\", None)", system_node.line);
             } else {
                 self.builder.write_comment("Send system start event");
-                self.builder.writeln("frame_event = FrameEvent(\"$>\", None)");
-                self.builder.writeln("self.__kernel(frame_event)");
+                self.builder.writeln_mapped("frame_event = FrameEvent(\"$>\", None)", system_node.line);
+                self.builder.writeln_mapped("self.__kernel(frame_event)", system_node.line);
             }
         }
         
@@ -1585,10 +1589,11 @@ impl PythonVisitorV2 {
         let params_extracted = if let Some(params) = &event_symbol.event_symbol_params_opt {
             if !params.is_empty() {
                 for param in params {
-                    self.builder.writeln(&format!(
+                    // Map parameter extraction to the handler line
+                    self.builder.writeln_mapped(&format!(
                         "{} = __e._parameters.get(\"{}\") if __e._parameters else None",
                         param.name, param.name
-                    ));
+                    ), evt_handler.line);
                 }
                 true
             } else {
@@ -1603,10 +1608,11 @@ impl PythonVisitorV2 {
             if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
                 if let Some(param_names) = self.interface_methods.get(&message_node.name) {
                     for param_name in param_names {
-                        self.builder.writeln(&format!(
+                        // Map parameter extraction to the handler line
+                        self.builder.writeln_mapped(&format!(
                             "{} = __e._parameters.get(\"{}\") if __e._parameters else None",
                             param_name, param_name
-                        ));
+                        ), evt_handler.line);
                     }
                 }
             }
@@ -1621,7 +1627,8 @@ impl PythonVisitorV2 {
         if let Some(terminator) = &evt_handler.terminator_node {
             self.visit_event_handler_terminator_node(&terminator);
         } else {
-            self.builder.writeln("return");
+            // Map implicit return to the handler line
+            self.builder.writeln_mapped("return", evt_handler.line);
         }
         
         self.builder.dedent();
@@ -1689,11 +1696,12 @@ impl PythonVisitorV2 {
                 MessageType::None => "False".to_string(),
             };
             
+            // Map the conditional to the event handler line
             if first {
-                self.builder.write("if ");
+                self.builder.write_mapped("if ", evt_handler.line);
                 first = false;
             } else {
-                self.builder.write("elif ");
+                self.builder.write_mapped("elif ", evt_handler.line);
             }
             
             self.builder.writeln(&format!("{}:", condition));
@@ -1704,7 +1712,8 @@ impl PythonVisitorV2 {
             } else {
                 format!("return self.{}(__e, compartment)", handler_name)
             };
-            self.builder.writeln(&call);
+            // Map the return statement to the handler line too
+            self.builder.writeln_mapped(&call, evt_handler.line);
             self.builder.dedent();
         }
         
@@ -1918,7 +1927,8 @@ impl PythonVisitorV2 {
                 // Only add return if there's no explicit return value
                 // (explicit returns are handled as statements)
                 if terminator.return_expr_t_opt.is_none() {
-                    self.builder.writeln("return");
+                    // Map return to the terminator line
+                    self.builder.writeln_mapped("return", terminator.line);
                 }
             }
         }
@@ -2398,6 +2408,8 @@ impl PythonVisitorV2 {
         
         // Elif blocks
         for elif in &node.elif_clauses {
+            // Map the elif to its source line
+            self.builder.map_next(elif.line);
             let mut elif_cond = String::new();
             self.visit_expr_node_to_string(&elif.condition, &mut elif_cond);
             self.builder.writeln(&format!("elif {}:", elif_cond));
@@ -2697,6 +2709,9 @@ impl PythonVisitorV2 {
     fn visit_transition_statement_node(&mut self, node: &TransitionStatementNode) {
         use crate::frame_c::ast::IdentifierDeclScope;
         
+        // Map the transition statement to the Frame source line
+        self.builder.map_next(node.line);
+        
         // Create compartment for target state
         let (target_state_name, target_state_ref, state_args_opt) = match &node.transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { state_context_node } => {
@@ -2905,10 +2920,10 @@ impl PythonVisitorV2 {
                 self.builder.writeln("return");
             } else {
                 // Regular function return
-                self.builder.writeln(&format!("return {}", output));
+                self.builder.writeln_mapped(&format!("return {}", output), node.line);
             }
         } else {
-            self.builder.writeln("return");
+            self.builder.writeln_mapped("return", node.line);
         }
     }
     

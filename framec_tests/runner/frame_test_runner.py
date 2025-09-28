@@ -92,6 +92,10 @@ class FrameTestRunner:
                         expectations['error_message'] = line.split(':', 1)[1].strip().strip('"')
                     elif line.startswith('@error-pattern:'):
                         expectations['error_pattern'] = line.split(':', 1)[1].strip().strip('"')
+                    elif line.startswith('@error-patterns:'):
+                        # Support multiple patterns in one line
+                        patterns = line.split(':', 1)[1].strip().strip('"')
+                        expectations['error_pattern'] = patterns
                     elif line.startswith('@error-type:'):
                         expectations['error_type'] = line.split(':', 1)[1].strip()
                     elif line.startswith('@error-line:'):
@@ -129,8 +133,17 @@ class FrameTestRunner:
             
             # Check error pattern regex match
             if expected.get('error_pattern'):
-                pattern = re.compile(expected['error_pattern'], re.IGNORECASE)
-                if not pattern.search(actual_error):
+                # Support multiple patterns separated by |
+                patterns = expected['error_pattern'].split('|') if '|' in expected['error_pattern'] else [expected['error_pattern']]
+                
+                matched = False
+                for pattern_str in patterns:
+                    pattern = re.compile(pattern_str.strip(), re.IGNORECASE | re.MULTILINE)
+                    if pattern.search(actual_error):
+                        matched = True
+                        break
+                
+                if not matched:
                     return False, f"Error doesn't match pattern: '{expected['error_pattern']}'"
             
             # Check error type
@@ -322,8 +335,9 @@ class FrameTestRunner:
             'transpile': True,
             'execute': execute_success,
             'negative_test': False,
-            'output': execute_out[:200] if execute_out else None,
-            'error': execute_err[:200] if execute_err and not execute_success else None
+            'output': execute_out[:500] if execute_out else None,
+            'error': execute_err[:500] if execute_err and not execute_success else None,
+            'runtime_error': execute_err if not execute_success else None  # Full error for debugging
         }
 
     def run_tests(self, test_pattern: str = "test_*.frm", test_list: List[str] = None) -> List[Dict]:
@@ -343,13 +357,18 @@ class FrameTestRunner:
             # Find all test files in new directory structure
             test_files = []
             
+            # Use a set to avoid duplicates
+            test_files_set = set()
+            
             # Search in positive_tests (including multifile subdirectories)
             positive_dir = os.path.join(self.test_dir, 'positive_tests')
             if os.path.exists(positive_dir):
                 for root, dirs, files in os.walk(positive_dir):
                     for f in files:
                         if f.endswith('.frm') and f.startswith('test_'):
-                            test_files.append(os.path.join(root, f))
+                            full_path = os.path.join(root, f)
+                            # Normalize path to avoid duplicates
+                            test_files_set.add(os.path.normpath(full_path))
             
             # Search in negative_tests (including multifile subdirectories)
             negative_dir = os.path.join(self.test_dir, 'negative_tests')
@@ -357,18 +376,19 @@ class FrameTestRunner:
                 for root, dirs, files in os.walk(negative_dir):
                     for f in files:
                         if f.endswith('.frm') and f.startswith('test_'):
-                            test_files.append(os.path.join(root, f))
+                            full_path = os.path.join(root, f)
+                            # Normalize path to avoid duplicates
+                            test_files_set.add(os.path.normpath(full_path))
             
             # If new structure doesn't exist, fall back to old structure
-            if not test_files:
-                test_files = [
-                    os.path.join(self.test_dir, f) 
-                    for f in os.listdir(self.test_dir) 
-                    if f.startswith(test_pattern.replace('*.frm', '').replace('*', '')) 
-                    and f.endswith('.frm')
-                ]
+            if not test_files_set:
+                for f in os.listdir(self.test_dir):
+                    if f.startswith(test_pattern.replace('*.frm', '').replace('*', '')) and f.endswith('.frm'):
+                        full_path = os.path.join(self.test_dir, f)
+                        test_files_set.add(os.path.normpath(full_path))
             
-            test_files = sorted(test_files)
+            # Convert set to sorted list
+            test_files = sorted(list(test_files_set))
         
         print(f"Found {len(test_files)} test files")
         
@@ -388,17 +408,21 @@ class FrameTestRunner:
                         if result['expectation_match']:
                             print("✅ PASS (Expected Error Matched)")
                         else:
-                            print(f"❌ FAIL ({result.get('expectation_reason', 'Expectation mismatch')})")
+                            print(f"❌ FAIL (Negative Test: {result.get('expectation_reason', 'Expectation mismatch')})")
                     elif result.get('expected_failure', False):
                         print("✅ PASS (Expected Failure)")
                     else:
-                        print("❌ FAIL (Should have failed)")
+                        print("❌ FAIL (Negative Test: Should have failed)")
                 elif result['transpile'] and result['execute']:
                     print("✅ PASS")
                 elif result['transpile']:
-                    print("⚠️ Transpile OK, Execute FAIL")
+                    # Show runtime error details
+                    error_msg = result.get('error', 'Unknown error')
+                    if error_msg and len(error_msg) > 100:
+                        error_msg = error_msg[:100] + "..."
+                    print(f"❌ FAIL (Runtime: {error_msg})")
                 else:
-                    print("❌ FAIL")
+                    print("❌ FAIL (Transpilation)")
         
         return self.results
 
@@ -598,19 +622,45 @@ Examples:
         json_path = runner.save_json_results(version=args.version)
         print(f"JSON results saved to: {json_path}")
     
-    # Print summary
+    # Print detailed summary
     total = len(results)
-    # Count positive tests that pass normally and negative tests that correctly match expectations
-    complete_success = sum(1 for r in results if 
-                          (r['transpile'] and r['execute']) or  # Normal passing tests
-                          (r.get('negative_test', False) and r.get('expectation_match', False) == True)  # Negative tests with matched expectations
-                          )
+    
+    # Categorize results
+    positive_pass = sum(1 for r in results if not r.get('negative_test', False) and r['transpile'] and r['execute'])
+    positive_transpile_fail = sum(1 for r in results if not r.get('negative_test', False) and not r['transpile'])
+    positive_runtime_fail = sum(1 for r in results if not r.get('negative_test', False) and r['transpile'] and not r['execute'])
+    
+    negative_pass = sum(1 for r in results if r.get('negative_test', False) and 
+                       (r.get('expectation_match', False) == True or r.get('expected_failure', False)))
+    negative_fail = sum(1 for r in results if r.get('negative_test', False) and 
+                       not (r.get('expectation_match', False) == True or r.get('expected_failure', False)))
+    
+    complete_success = positive_pass + negative_pass
     
     print(f"\n=== SUMMARY ===")
     print(f"Total Tests: {total}")
-    print(f"Passed: {complete_success}")
-    print(f"Failed: {total - complete_success}")
-    print(f"Success Rate: {complete_success/total*100:.1f}%")
+    print(f"Passed: {complete_success} ({complete_success/total*100:.1f}%)")
+    print(f"Failed: {total - complete_success} ({(total - complete_success)/total*100:.1f}%)")
+    
+    print(f"\n=== BREAKDOWN ===")
+    print(f"Positive Tests:")
+    print(f"  ✅ Passed: {positive_pass}")
+    print(f"  ❌ Transpilation Failed: {positive_transpile_fail}")
+    print(f"  ❌ Runtime Failed: {positive_runtime_fail}")
+    
+    print(f"\nNegative Tests:")
+    print(f"  ✅ Passed (Expected Error): {negative_pass}")
+    print(f"  ❌ Failed (Unexpected Result): {negative_fail}")
+    
+    # List runtime failures if any
+    if positive_runtime_fail > 0:
+        print(f"\n=== RUNTIME FAILURES ===")
+        for r in results:
+            if not r.get('negative_test', False) and r['transpile'] and not r['execute']:
+                error = r.get('error', 'Unknown error')
+                if len(error) > 150:
+                    error = error[:150] + "..."
+                print(f"  • {r['file']}: {error}")
     
     return 0 if complete_success == total else 1
 
