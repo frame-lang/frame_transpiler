@@ -158,7 +158,7 @@ impl PythonVisitorV2 {
     
     pub fn run(&mut self, frame_module: &FrameModule) -> String {
         // Add header
-        self.builder.write_comment("Emitted from framec_v0.78.1");
+        self.builder.write_comment("Emitted from framec_v0.78.12");
         self.builder.newline();
         self.builder.newline();
         
