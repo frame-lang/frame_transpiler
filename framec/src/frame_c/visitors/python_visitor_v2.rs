@@ -2482,6 +2482,12 @@ impl PythonVisitorV2 {
     fn visit_call_expression_node_to_string(&mut self, node: &CallExprNode, output: &mut String) {
         let func_name = &node.identifier.name.lexeme;
         
+        
+        // Special handling for collection constructors with multiple arguments
+        // Python's set(), frozenset() constructors need a single iterable, not multiple args
+        // Check this BEFORE writing function name to output
+        let is_special_collection = (func_name == "set" || func_name == "frozenset") && node.call_expr_list.exprs_t.len() > 1;
+        
         // Check for resolved call type
         if let Some(resolved_type) = &node.resolved_type {
             match resolved_type {
@@ -2539,9 +2545,8 @@ impl PythonVisitorV2 {
             output.push_str(&node.identifier.name.lexeme);
         }
         
-        // Special handling for collection constructors with multiple arguments
-        // Python's set(), frozenset() constructors need a single iterable, not multiple args
-        if (func_name == "set" || func_name == "frozenset") && node.call_expr_list.exprs_t.len() > 1 {
+        // Apply special collection constructor handling
+        if is_special_collection {
             // Convert set(1, 2, 3) to set([1, 2, 3])
             output.push_str("([");
             self.visit_expr_list_node_to_string(&node.call_expr_list.exprs_t, output);
@@ -3317,16 +3322,6 @@ impl PythonVisitorV2 {
     
     // Call chain expression to string  
     fn visit_call_chain_expr_node_to_string(&mut self, node: &CallChainExprNode, output: &mut String) {
-        // Debug output at entry
-        if node.call_chain.len() == 1 {
-            if let Some(first_node) = node.call_chain.front() {
-                match first_node {
-                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                    }
-                    _ => {}
-                }
-            }
-        }
         // Special case: Check if this is super.method(...) pattern
         if node.call_chain.len() >= 2 {
             
@@ -3587,17 +3582,36 @@ impl PythonVisitorV2 {
                         // This is part of a call chain, so we need to handle it specially
                         // to avoid adding "self." prefix when it's a static method call
                         // like TestService.getDefaultConfig()
-                        output.push_str(&call_node.identifier.name.lexeme);
-                        output.push('(');
-                        let mut first_arg = true;
-                        for arg in &call_node.call_expr_list.exprs_t {
-                            if !first_arg {
-                                output.push_str(", ");
+                        let func_name = &call_node.identifier.name.lexeme;
+                        output.push_str(func_name);
+                        
+                        // Special handling for collection constructors with multiple arguments
+                        // Python's set(), frozenset() constructors need a single iterable, not multiple args
+                        if (func_name == "set" || func_name == "frozenset") && call_node.call_expr_list.exprs_t.len() > 1 {
+                            // Convert set(1, 2, 3) to set([1, 2, 3])
+                            output.push_str("([");
+                            let mut first_arg = true;
+                            for arg in &call_node.call_expr_list.exprs_t {
+                                if !first_arg {
+                                    output.push_str(", ");
+                                }
+                                self.visit_expr_node_to_string(arg, output);
+                                first_arg = false;
                             }
-                            self.visit_expr_node_to_string(arg, output);
-                            first_arg = false;
+                            output.push_str("])");
+                        } else {
+                            // Normal function call
+                            output.push('(');
+                            let mut first_arg = true;
+                            for arg in &call_node.call_expr_list.exprs_t {
+                                if !first_arg {
+                                    output.push_str(", ");
+                                }
+                                self.visit_expr_node_to_string(arg, output);
+                                first_arg = false;
+                            }
+                            output.push(')');
                         }
-                        output.push(')');
                     }
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
