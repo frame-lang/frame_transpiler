@@ -3093,7 +3093,9 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new(err_msg));
         }
 
-        let operation_name = self.previous().lexeme.clone();
+        let operation_token = self.previous();
+        let operation_name = operation_token.lexeme.clone();
+        let operation_line = operation_token.line;
 
         // The 'is_operation_scope' flag is used to determine which statements are valid
         // to be called in the context of an operation. Transitions, for example, are not
@@ -3127,7 +3129,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let ret = self.operation(operation_name.clone(), attributes_opt, is_async);
+        let ret = self.operation(operation_name.clone(), attributes_opt, is_async, operation_line);
 
         if self.is_building_symbol_table {
             match &ret {
@@ -3160,6 +3162,7 @@ impl<'a> Parser<'a> {
         operation_name: String,
         attributes_opt: Option<HashMap<String, AttributeNode>>,
         is_async: bool,  // v0.35: async operations support
+        operation_line: usize,  // v0.78.2: source map support
     ) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
         // foo(
         if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
@@ -3258,6 +3261,7 @@ impl<'a> Parser<'a> {
             type_opt,
             is_async,  // v0.35: async operations support
             code_opt,
+            operation_line,  // v0.78.2: source map support for operations
         );
 
         let operation_node_ref = RefCell::new(operation_node);

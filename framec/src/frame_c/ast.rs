@@ -1001,6 +1001,7 @@ pub struct OperationNode {
     pub type_opt: Option<TypeNode>,
     pub is_async: bool,  // v0.35: async operation support
     pub code_opt: Option<String>, // TODO - remove
+    pub line: usize,  // v0.78.2: source map support for operations
 }
 
 impl OperationNode {
@@ -1014,6 +1015,7 @@ impl OperationNode {
         type_opt: Option<TypeNode>,
         is_async: bool,
         code_opt: Option<String>,
+        line: usize,
     ) -> OperationNode {
         OperationNode {
             name,
@@ -1025,6 +1027,7 @@ impl OperationNode {
             type_opt,
             is_async,
             code_opt,
+            line,
         }
     }
 

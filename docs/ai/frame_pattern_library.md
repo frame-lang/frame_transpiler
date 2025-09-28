@@ -767,11 +767,6 @@ system ProductFactory {
 ### Data Stream Generator
 ```frame
 system DataStream {
-    interface:
-        generate_numbers(start, end)
-        generate_fibonacci(n)
-        async generate_async_data(count)
-    
     operations:
         generate_numbers(start, end) {
             for i in range(start, end + 1) {

@@ -119,10 +119,10 @@ framec -m main.frm -l python_3 -o dir # Multi-file separate (v0.57)
 ## 📏 Block Order (Must Follow)
 ```frame
 system Name {
-    interface:      # 1. Public API (optional)
-    machine:        # 2. States (optional)
-    actions:        # 3. Helpers (optional)
-    operations:     # 4. Methods (optional)
+    operations:     # 1. Methods (optional)
+    interface:      # 2. Public API (optional)
+    machine:        # 3. States (optional)
+    actions:        # 4. Helpers (optional)
     domain:         # 5. Variables (optional)
 }
 ```

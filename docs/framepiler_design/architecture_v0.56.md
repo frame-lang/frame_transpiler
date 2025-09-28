@@ -63,7 +63,7 @@ Target Code (Python)
 **Parsing Contexts**:
 - Global scope (functions, systems, imports)
 - Function scope (statements, local variables)
-- System scope (interface, machine, actions, operations, domain)
+- System scope (operations, interface, machine, actions, domain)
 - Block scopes (loops, conditionals)
 
 ### AST (`ast.rs`)
@@ -83,7 +83,7 @@ pub struct FrameModule {
 ```
 
 **Key Node Types**:
-- **SystemNode**: Complete system definition with interface, machine, actions, operations, domain
+- **SystemNode**: Complete system definition with operations, interface, machine, actions, domain
 - **FunctionNode**: Function with parameters, body, async flag
 - **StateNode**: State with event handlers, enter/exit events, state variables
 - **ExprNode**: Expression types (binary, unary, call, literal, etc.)
@@ -140,7 +140,7 @@ pub struct Arcanum {
 ## Language Features
 
 ### Core Constructs
-- **Systems**: State machines with interface, machine, actions, operations, domain
+- **Systems**: State machines with operations, interface, machine, actions, domain
 - **Functions**: Standalone functions with parameters, return types
 - **Classes**: Basic OOP with methods and variables
 - **States**: Named states with event handlers, enter/exit events

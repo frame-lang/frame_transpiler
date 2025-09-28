@@ -1045,7 +1045,7 @@ impl PythonVisitorV2 {
             &operation_node.name,
             &full_params,
             operation_node.is_async,
-            0  // OperationNode doesn't have line field
+            operation_node.line  // v0.78.2: Use actual line from Frame source
         );
         
         if !operation_node.statements.is_empty() {

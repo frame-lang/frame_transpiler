@@ -136,10 +136,10 @@ module MathUtils {
 # Systems (state machines)
 system StateMachine {
     # Blocks appear in this order (all optional):
+    operations:   # Public helper methods
     interface:    # Public methods
     machine:      # State definitions
     actions:      # Private methods
-    operations:   # Public helper methods
     domain:       # Instance variables
 }
 ```
@@ -916,7 +916,7 @@ operations:
 ### Parser Limitations
 
 1. **Domain Block Position**: Must be the last block in a system
-2. **Block Order**: interface → machine → actions → operations → domain
+2. **Block Order**: operations → interface → machine → actions → domain
 3. **Method Indexing**: `method()[0]` not supported (use intermediate variable)
 4. **Type Keyword**: Reserved for type aliases, cannot call `type()` function
 5. **Deleted Variables**: Cannot redeclare in same scope after `del`
