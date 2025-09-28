@@ -994,7 +994,7 @@ impl PythonVisitorV2 {
             &format!("__{}__{}", self.system_name, action_node.name),
             &full_params,
             action_node.is_async,
-            0  // ActionNode doesn't have line field
+            action_node.line  // v0.78.7: now has line field for source mapping
         );
         
         // Generate the action body
@@ -3959,11 +3959,20 @@ impl PythonVisitorV2 {
         // Handle else clause if present
         if let Some(else_block) = &node.else_block {
             self.builder.dedent();
-            self.builder.writeln("else:");
+            // Map else to first statement or loop line
+            let else_line = if !else_block.statements.is_empty() {
+                match &else_block.statements[0] {
+                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
+                }
+            } else {
+                node.line
+            };
+            self.builder.writeln_mapped("else:", else_line);
             self.builder.indent();
             
             if else_block.statements.is_empty() {
-                self.builder.writeln("pass");
+                self.builder.writeln_mapped("pass", else_line);
             } else {
                 for decl_or_stmt in &else_block.statements {
                     match decl_or_stmt {
@@ -4107,12 +4116,15 @@ impl PythonVisitorV2 {
         }
         
         case_line.push(':');
-        self.builder.writeln(&case_line);
+        
+        // v0.78.7: Use CaseNode's line field directly for accurate mapping
+        self.builder.writeln_mapped(&case_line, case.line);
         self.builder.indent();
         
         // Generate body
         if case.statements.is_empty() {
-            self.builder.writeln("pass");
+            // v0.78.7: Use case.line for pass statements too
+            self.builder.writeln_mapped("pass", case.line);
         } else {
             for stmt in &case.statements {
                 match stmt {
@@ -4241,11 +4253,12 @@ impl PythonVisitorV2 {
                 }
             }
             
-            self.builder.writeln(&format!("{}:", except_line));
+            // v0.78.7: Use ExceptClauseNode's line field directly for accurate mapping
+            self.builder.writeln_mapped(&format!("{}:", except_line), except.line);
             self.builder.indent();
             
             if except.block.statements.is_empty() {
-                self.builder.writeln("pass");
+                self.builder.writeln_mapped("pass", except.line);
             } else {
                 for decl_or_stmt in &except.block.statements {
                     match decl_or_stmt {
@@ -4264,11 +4277,20 @@ impl PythonVisitorV2 {
         
         // Handle else clause
         if let Some(else_block) = &node.else_block {
-            self.builder.writeln("else:");
+            // Map else to first statement or try line
+            let else_line = if !else_block.statements.is_empty() {
+                match &else_block.statements[0] {
+                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
+                }
+            } else {
+                node.line
+            };
+            self.builder.writeln_mapped("else:", else_line);
             self.builder.indent();
             
             if else_block.statements.is_empty() {
-                self.builder.writeln("pass");
+                self.builder.writeln_mapped("pass", else_line);
             } else {
                 for decl_or_stmt in &else_block.statements {
                     match decl_or_stmt {
@@ -4287,11 +4309,20 @@ impl PythonVisitorV2 {
         
         // Handle finally clause
         if let Some(finally_block) = &node.finally_block {
-            self.builder.writeln("finally:");
+            // Map finally to first statement or try line
+            let finally_line = if !finally_block.statements.is_empty() {
+                match &finally_block.statements[0] {
+                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
+                }
+            } else {
+                node.line
+            };
+            self.builder.writeln_mapped("finally:", finally_line);
             self.builder.indent();
             
             if finally_block.statements.is_empty() {
-                self.builder.writeln("pass");
+                self.builder.writeln_mapped("pass", finally_line);
             } else {
                 for decl_or_stmt in &finally_block.statements {
                     match decl_or_stmt {
@@ -4361,11 +4392,20 @@ impl PythonVisitorV2 {
         
         // Handle else clause if present
         if let Some(else_block) = &node.else_block {
-            self.builder.writeln("else:");
+            // Map else to first statement or for loop line
+            let else_line = if !else_block.statements.is_empty() {
+                match &else_block.statements[0] {
+                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
+                }
+            } else {
+                node.line
+            };
+            self.builder.writeln_mapped("else:", else_line);
             self.builder.indent();
             
             if else_block.statements.is_empty() {
-                self.builder.writeln("pass");
+                self.builder.writeln_mapped("pass", else_line);
             } else {
                 for stmt in &else_block.statements {
                     self.visit_decl_or_stmt(stmt);

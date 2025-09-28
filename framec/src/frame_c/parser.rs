@@ -2775,7 +2775,9 @@ impl<'a> Parser<'a> {
     // the scope symbol creation and association with the AST node.
 
     fn action_scope(&mut self, is_async: bool) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
-        let action_name = self.previous().lexeme.clone();
+        let action_token = self.previous();
+        let action_name = action_token.lexeme.clone();
+        let action_line = action_token.line;
 
         // The 'is_action_context' flag is used to determine which statements are valid
         // to be called in the context of an action. Transitions, for example, are not
@@ -2802,7 +2804,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let ret = self.action(action_name.clone(), is_async);
+        let ret = self.action(action_name.clone(), action_line, is_async);
 
         if self.is_building_symbol_table {
             match &ret {
@@ -2829,7 +2831,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn action(&mut self, action_name: String, is_async: bool) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
+    fn action(&mut self, action_name: String, action_line: usize, is_async: bool) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
         // foo(
         if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
             return Err(parse_error);
@@ -2982,6 +2984,7 @@ impl<'a> Parser<'a> {
         // }
 
         let action_node = ActionNode::new(
+            action_line,  // v0.78.7: source map support
             action_name.clone(),
             params,
             is_implemented,
@@ -8357,6 +8360,9 @@ impl<'a> Parser<'a> {
         
         if has_except {
             loop {
+            // Capture line number for source mapping (v0.78.7)
+            let except_line = self.previous().line;
+            
             // Parse exception specification (optional)
             let mut exception_types = None;
             let mut var_name = None;
@@ -8437,6 +8443,7 @@ impl<'a> Parser<'a> {
             };
 
             except_clauses.push(ExceptClauseNode::new(
+                except_line,  // v0.78.7: source map support
                 exception_types,
                 var_name,
                 except_block,
@@ -8594,6 +8601,9 @@ impl<'a> Parser<'a> {
                 self.error_at_current("Expected 'case' in match statement.");
                 return Err(ParseError::new("Expected 'case' in match statement."));
             }
+            
+            // Capture line number for source mapping (v0.78.7)
+            let case_line = self.previous().line;
 
             // Parse the pattern
             let pattern = match self.parse_pattern() {
@@ -8637,7 +8647,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new("Expected '}' after case body."));
             }
 
-            cases.push(CaseNode::new(pattern, guard, statements));
+            cases.push(CaseNode::new(case_line, pattern, guard, statements));
         }
 
         // Expect closing brace for match statement

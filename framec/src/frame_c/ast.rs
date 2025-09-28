@@ -940,6 +940,7 @@ impl NodeElement for FunctionNode {
 //-----------------------------------------------------//
 
 pub struct ActionNode {
+    pub line: usize,  // v0.78.7: source map support
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
     pub is_implemented: bool,
@@ -952,6 +953,7 @@ pub struct ActionNode {
 
 impl ActionNode {
     pub fn new(
+        line: usize,
         name: String,
         params: Option<Vec<ParameterNode>>,
         is_implemented: bool,
@@ -962,6 +964,7 @@ impl ActionNode {
         code_opt: Option<String>,
     ) -> ActionNode {
         ActionNode {
+            line,
             name,
             params,
             is_implemented,
@@ -3649,6 +3652,7 @@ impl NodeElement for TryStmtNode {
 //-----------------------------------------------------//
 
 pub struct ExceptClauseNode {
+    pub line: usize,  // v0.78.7: source map support
     pub exception_types: Option<Vec<String>>,  // None means catch all
     pub var_name: Option<String>,              // Variable to bind exception to
     pub block: BlockStmtNode,
@@ -3656,11 +3660,13 @@ pub struct ExceptClauseNode {
 
 impl ExceptClauseNode {
     pub fn new(
+        line: usize,
         exception_types: Option<Vec<String>>,
         var_name: Option<String>,
         block: BlockStmtNode,
     ) -> ExceptClauseNode {
         ExceptClauseNode {
+            line,
             exception_types,
             var_name,
             block,
@@ -3758,14 +3764,15 @@ impl NodeElement for MatchStmtNode {
 
 // Case node for match statement (v0.44)
 pub struct CaseNode {
+    pub line: usize,  // v0.78.7: source map support
     pub pattern: PatternNode,
     pub guard: Option<ExprType>,  // Optional guard clause
     pub statements: Vec<DeclOrStmtType>,
 }
 
 impl CaseNode {
-    pub fn new(pattern: PatternNode, guard: Option<ExprType>, statements: Vec<DeclOrStmtType>) -> CaseNode {
-        CaseNode { pattern, guard, statements }
+    pub fn new(line: usize, pattern: PatternNode, guard: Option<ExprType>, statements: Vec<DeclOrStmtType>) -> CaseNode {
+        CaseNode { line, pattern, guard, statements }
     }
 }
 
