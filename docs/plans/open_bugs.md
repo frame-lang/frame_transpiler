@@ -1,16 +1,14 @@
 # Frame Transpiler Open Bugs
 
 **Last Updated:** 2025-09-28  
-**Current Version:** v0.78.11 (source mapping complete)  
-**Active Bugs:** 5 (Bug #11, #13-17, with #14 being duplicated)  
-**Resolved Bugs:** 11 (see bottom of document)
+**Current Version:** v0.78.12 (Bug #15 resolved)  
+**Active Bugs:** 4 (Bug #11, #13-14, #16-17)  
+**Resolved Bugs:** 12 (see bottom of document)
 
-## Bug Summary - 5 Remaining Test Failures
+## Bug Summary - 4 Remaining Test Failures
 
-### Critical Issues (2 bugs affecting transpilation)
-1. **Bug #15**: Set constructor generates invalid Python `set(1, 2, 3)` instead of `set([1, 2, 3])`
-   - Root cause: Special case handling in visitor not triggered
-   - Impact: TypeError at runtime
+### Critical Issues (1 bug affecting transpilation)
+1. ~~**Bug #15**: Set constructor generates invalid Python~~ **RESOLVED ✅ v0.78.12**
    
 2. **Bug #17**: Module-level system instantiation not detected 
    - Root cause: Parser validation incomplete
@@ -21,7 +19,7 @@
 4. **Bug #14a**: test_call_chain_debug.frm - Method chaining failure
 5. **Bug #14b**: test_seat_booking_simple_working.frm - State workflow failure
 
-**Overall Test Status**: 98.7% pass rate (371/376 tests passing)
+**Overall Test Status**: 98.9% pass rate (372/376 tests passing)
 
 ## Recent Improvements
 
@@ -148,11 +146,12 @@ main()
 ### Bug #15: Set Constructor Incorrect Transpilation
 
 **Date Reported:** 2025-01-28  
+**Date Resolved:** 2025-09-28 (v0.78.12)  
 **Severity:** High  
-**Status:** ACTIVE 🔴
+**Status:** RESOLVED ✅
 
 #### Problem Description
-The transpiler generates invalid Python code for `set()` constructor with multiple arguments. It generates `set(1, 2, 3)` instead of `set([1, 2, 3])`.
+The transpiler generated invalid Python code for `set()` constructor with multiple arguments. It generated `set(1, 2, 3)` instead of `set([1, 2, 3])`.
 
 #### Test Case
 Frame code:
@@ -160,41 +159,45 @@ Frame code:
 var s = set(1, 2, 3)  # Multiple args to set constructor
 ```
 
-Generated Python (INCORRECT):
+Generated Python (BEFORE):
 ```python
 s = set(1, 2, 3)  # Invalid Python - TypeError
 ```
 
-Should generate:
+Generated Python (AFTER):
 ```python
 s = set([1, 2, 3])  # Correct - single iterable argument
 ```
 
 #### Root Cause Analysis
-The visitor code in `python_visitor_v2.rs` lines 2496-2500 contains logic to handle this:
+The issue was that `set()` constructor calls were being processed through the UndeclaredCallT handler in call chains, not the direct CallExprT handler where the original fix was located.
+
+#### Solution Implemented (v0.78.12)
+Added special case logic to the UndeclaredCallT handler in `visit_call_chain_expr_node_to_string()`:
 ```rust
-if (func_name == "set" || func_name == "frozenset") && node.call_expr_list.exprs_t.len() > 1 {
-    // Convert set(1, 2, 3) to set([1, 2, 3])
+// Handle set() and frozenset() with multiple args
+if (func_name == "set" || func_name == "frozenset") && call_node.call_expr_list.exprs_t.len() > 1 {
     output.push_str("([");
-    self.visit_expr_list_node_to_string(&node.call_expr_list.exprs_t, output);
+    for (i, expr) in call_node.call_expr_list.exprs_t.iter().enumerate() {
+        if i > 0 {
+            output.push_str(", ");
+        }
+        expr.accept_to_string(self, output);
+    }
     output.push_str("])");
+} else {
+    // Normal argument processing
+    // ...
 }
 ```
 
-However, this code is not being triggered. Likely causes:
-1. The `func_name` variable doesn't contain "set" - it may be qualified or resolved differently
-2. The function name extraction happens before resolution, missing the match
-3. The resolved type for `set` might be `External` or another type that bypasses this check
+#### Test Results
+- **Before Fix**: Test `test_all_8_collection_patterns.frm` failed with `TypeError`
+- **After Fix**: Test passes successfully, outputs "=== All 8 patterns working! ==="
+- **Test Status**: Increased from 365/369 to 366/369 passing tests
 
-#### Fix Required
-1. Debug why `func_name == "set"` condition isn't matching
-2. Check if the function name needs to be extracted differently
-3. Ensure the special case handling occurs regardless of how `set()` is resolved
-
-#### Impact
-- Runtime `TypeError: set expected at most 1 argument, got 3`
-- Test `test_all_8_collection_patterns.frm` fails at runtime
-- Any Frame code using `set()` with multiple arguments will fail
+#### Files Modified
+- `framec/src/frame_c/visitors/python_visitor_v2.rs` - Added special case in UndeclaredCallT handler
 
 ### Bug #14: test_seat_booking_simple_working.frm Runtime Failure
 
