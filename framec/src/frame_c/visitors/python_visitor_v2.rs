@@ -2457,16 +2457,8 @@ impl PythonVisitorV2 {
         
         // Else block
         if let Some(else_block) = &node.else_block {
-            // Map else to the block's first statement line or the if line as fallback
-            let else_line = if !else_block.statements.is_empty() {
-                match &else_block.statements[0] {
-                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
-                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
-                }
-            } else {
-                node.line
-            };
-            self.builder.writeln_mapped("else:", else_line);
+            // v0.78.10: Use BlockStmtNode's line field for accurate mapping
+            self.builder.writeln_mapped("else:", else_block.line);
             self.builder.indent();
             
             self.visit_block_stmt_node(else_block);
@@ -3961,20 +3953,12 @@ impl PythonVisitorV2 {
         // Handle else clause if present
         if let Some(else_block) = &node.else_block {
             self.builder.dedent();
-            // Map else to first statement or loop line
-            let else_line = if !else_block.statements.is_empty() {
-                match &else_block.statements[0] {
-                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
-                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
-                }
-            } else {
-                node.line
-            };
-            self.builder.writeln_mapped("else:", else_line);
+            // v0.78.10: Use BlockStmtNode's line field for accurate mapping
+            self.builder.writeln_mapped("else:", else_block.line);
             self.builder.indent();
             
             if else_block.statements.is_empty() {
-                self.builder.writeln_mapped("pass", else_line);
+                self.builder.writeln_mapped("pass", else_block.line);
             } else {
                 for decl_or_stmt in &else_block.statements {
                     match decl_or_stmt {
@@ -4279,20 +4263,12 @@ impl PythonVisitorV2 {
         
         // Handle else clause
         if let Some(else_block) = &node.else_block {
-            // Map else to first statement or try line
-            let else_line = if !else_block.statements.is_empty() {
-                match &else_block.statements[0] {
-                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
-                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
-                }
-            } else {
-                node.line
-            };
-            self.builder.writeln_mapped("else:", else_line);
+            // v0.78.10: Use BlockStmtNode's line field for accurate mapping
+            self.builder.writeln_mapped("else:", else_block.line);
             self.builder.indent();
             
             if else_block.statements.is_empty() {
-                self.builder.writeln_mapped("pass", else_line);
+                self.builder.writeln_mapped("pass", else_block.line);
             } else {
                 for decl_or_stmt in &else_block.statements {
                     match decl_or_stmt {
@@ -4311,20 +4287,12 @@ impl PythonVisitorV2 {
         
         // Handle finally clause
         if let Some(finally_block) = &node.finally_block {
-            // Map finally to first statement or try line
-            let finally_line = if !finally_block.statements.is_empty() {
-                match &finally_block.statements[0] {
-                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
-                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
-                }
-            } else {
-                node.line
-            };
-            self.builder.writeln_mapped("finally:", finally_line);
+            // v0.78.10: Use BlockStmtNode's line field for accurate mapping
+            self.builder.writeln_mapped("finally:", finally_block.line);
             self.builder.indent();
             
             if finally_block.statements.is_empty() {
-                self.builder.writeln_mapped("pass", finally_line);
+                self.builder.writeln_mapped("pass", finally_block.line);
             } else {
                 for decl_or_stmt in &finally_block.statements {
                     match decl_or_stmt {
@@ -4394,20 +4362,12 @@ impl PythonVisitorV2 {
         
         // Handle else clause if present
         if let Some(else_block) = &node.else_block {
-            // Map else to first statement or for loop line
-            let else_line = if !else_block.statements.is_empty() {
-                match &else_block.statements[0] {
-                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
-                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
-                }
-            } else {
-                node.line
-            };
-            self.builder.writeln_mapped("else:", else_line);
+            // v0.78.10: Use BlockStmtNode's line field for accurate mapping
+            self.builder.writeln_mapped("else:", else_block.line);
             self.builder.indent();
             
             if else_block.statements.is_empty() {
-                self.builder.writeln_mapped("pass", else_line);
+                self.builder.writeln_mapped("pass", else_block.line);
             } else {
                 for stmt in &else_block.statements {
                     self.visit_decl_or_stmt(stmt);

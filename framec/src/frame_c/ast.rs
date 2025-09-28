@@ -2679,11 +2679,11 @@ impl NodeElement for AssignmentStmtNode {
 //-----------------------------------------------------//
 
 pub struct AssignmentExprNode {
+    pub line: usize,
     pub l_value_box: Box<ExprType>,
     pub r_value_rc: Rc<ExprType>,
     pub assignment_op: AssignmentOperator,
     //    pub is_decl: bool,
-    pub line: usize,
     // v0.52: Support for multiple assignment targets
     pub is_multiple_assignment: bool,
     pub l_values: Vec<ExprType>,  // For x, y, z = ...
@@ -3527,12 +3527,13 @@ impl NodeElement for LoopForStmtNode {
 //-----------------------------------------------------//
 
 pub struct BlockStmtNode {
+    pub line: usize,  // v0.78.10: source map support for block start
     pub statements: Vec<DeclOrStmtType>,
 }
 
 impl BlockStmtNode {
-    pub fn new(statements: Vec<DeclOrStmtType>) -> BlockStmtNode {
-        BlockStmtNode { statements }
+    pub fn new(line: usize, statements: Vec<DeclOrStmtType>) -> BlockStmtNode {
+        BlockStmtNode { line, statements }
     }
 }
 

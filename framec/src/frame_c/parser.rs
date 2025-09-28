@@ -5656,7 +5656,8 @@ impl<'a> Parser<'a> {
         }
 
         if self.match_token(&[TokenType::OpenBrace]) {
-            return match self.block_scope() {
+            let block_line = self.previous().line;  // v0.78.10: capture line for block mapping
+            return match self.block_scope(block_line) {
                 Ok(block_stmt_t) => Ok(Some(block_stmt_t)),
                 Err(parse_error) => Err(parse_error),
             };
@@ -6086,7 +6087,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn block_scope(&mut self) -> Result<StatementType, ParseError> {
+    fn block_scope(&mut self, block_line: usize) -> Result<StatementType, ParseError> {
         let scope_name = &format!("block_scope_{}", self.stmt_idx);
 
         if self.is_building_symbol_table {
@@ -6098,7 +6099,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(&format!("Failed to set block scope '{}': {}", scope_name, err)));
             }
         }
-        let ret = self.block();
+        let ret = self.block(block_line);
         // exit block scope
         self.arcanum.exit_scope();
         ret
@@ -6106,14 +6107,14 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn block(&mut self) -> Result<StatementType, ParseError> {
+    fn block(&mut self, block_line: usize) -> Result<StatementType, ParseError> {
         let statements = self.statements(IdentifierDeclScope::BlockVarScope);
 
         if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
             return Err(parse_error);
         }
 
-        let block_stmt_node = BlockStmtNode::new(statements);
+        let block_stmt_node = BlockStmtNode::new(block_line, statements);
         let stmt_type = StatementType::BlockStmt { block_stmt_node };
         Ok(stmt_type)
     }
@@ -8253,6 +8254,8 @@ impl<'a> Parser<'a> {
 
     // Helper function to parse a single statement after colon (Python-style)
     fn parse_single_statement_block(&mut self, scope_prefix: &str) -> Result<BlockStmtNode, ParseError> {
+        // For single statements, use the current position
+        let block_line = self.peek().line;
         self.with_block_scope(scope_prefix, |parser| {
             // Check if next token is an open brace - this is not allowed after colon
             if parser.peek().token_type == TokenType::OpenBrace {
@@ -8261,7 +8264,7 @@ impl<'a> Parser<'a> {
             }
             
             match parser.decl_or_stmt(IdentifierDeclScope::BlockVarScope) {
-                Ok(Some(stmt)) => Ok(BlockStmtNode::new(vec![stmt])),
+                Ok(Some(stmt)) => Ok(BlockStmtNode::new(block_line, vec![stmt])),
                 Ok(None) => {
                     parser.error_at_current("Expected statement after ':'.");
                     Err(ParseError::new("Expected statement after ':'."))
@@ -8275,6 +8278,8 @@ impl<'a> Parser<'a> {
 
     // Helper function to parse a braced block { stmt* }
     fn parse_braced_block(&mut self, scope_prefix: &str) -> Result<BlockStmtNode, ParseError> {
+        // The opening brace should have already been matched, get its line
+        let block_line = self.previous().line;
         self.with_block_scope(scope_prefix, |parser| {
             let statements = parser.statements(IdentifierDeclScope::BlockVarScope);
             
@@ -8282,7 +8287,7 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
             
-            Ok(BlockStmtNode::new(statements))
+            Ok(BlockStmtNode::new(block_line, statements))
         })
     }
 
@@ -8292,6 +8297,7 @@ impl<'a> Parser<'a> {
     fn parse_block_or_statement(&mut self, scope_prefix: &str) -> Result<BlockStmtNode, ParseError> {
         if self.match_token(&[TokenType::OpenBrace]) {
             // Parse block with braces
+            let block_line = self.previous().line;  // v0.78.10: capture line for block mapping
             let scope_name = &format!("{}_{}", scope_prefix, self.stmt_idx);
             if self.is_building_symbol_table {
                 let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
@@ -8311,9 +8317,10 @@ impl<'a> Parser<'a> {
             }
             self.arcanum.exit_scope();
 
-            Ok(BlockStmtNode::new(statements))
+            Ok(BlockStmtNode::new(block_line, statements))
         } else {
             // Parse single statement
+            let stmt_line = self.peek().line;  // v0.78.10: capture line for single statement
             let scope_name = &format!("{}_{}", scope_prefix, self.stmt_idx);
             if self.is_building_symbol_table {
                 let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
@@ -8328,7 +8335,7 @@ impl<'a> Parser<'a> {
             match self.decl_or_stmt(IdentifierDeclScope::BlockVarScope) {
                 Ok(Some(decl_or_stmt)) => {
                     self.arcanum.exit_scope();
-                    Ok(BlockStmtNode::new(vec![decl_or_stmt]))
+                    Ok(BlockStmtNode::new(stmt_line, vec![decl_or_stmt]))
                 }
                 Ok(None) => {
                     self.arcanum.exit_scope();
