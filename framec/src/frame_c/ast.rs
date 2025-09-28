@@ -590,13 +590,13 @@ impl NodeElement for InterfaceBlockNode {
 //-----------------------------------------------------//
 
 pub struct InterfaceMethodNode {
+    pub line: usize,      // v0.77: source map support for interface definitions
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
     pub return_type_opt: Option<TypeNode>,
     pub return_init_expr_opt: Option<ExprType>,
     pub alias: Option<MessageNode>,
     pub is_async: bool,  // v0.35: async interface method support
-    pub line: usize,      // v0.77: source map support for interface definitions
 }
 
 impl InterfaceMethodNode {
@@ -890,6 +890,7 @@ impl NodeElement for MethodNode {
 //-----------------------------------------------------//
 
 pub struct FunctionNode {
+    pub line: usize,
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
     pub is_implemented: bool,
@@ -897,7 +898,6 @@ pub struct FunctionNode {
     pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
     pub is_async: bool,  // v0.35: async function support
-    pub line: usize,
 }
 
 impl FunctionNode {
@@ -1242,14 +1242,16 @@ pub enum EnumValue {
 }
 
 pub struct EnumDeclNode {
+    pub line: usize,  // v0.78.8: source map support
     pub name: String,
     pub enum_type: EnumType,
     pub enums: Vec<Rc<EnumeratorDeclNode>>,
 }
 
 impl EnumDeclNode {
-    pub fn new(identifier: String, enum_type: EnumType, enums: Vec<Rc<EnumeratorDeclNode>>) -> EnumDeclNode {
+    pub fn new(line: usize, identifier: String, enum_type: EnumType, enums: Vec<Rc<EnumeratorDeclNode>>) -> EnumDeclNode {
         EnumDeclNode {
+            line,
             name: identifier,
             enum_type,
             enums,

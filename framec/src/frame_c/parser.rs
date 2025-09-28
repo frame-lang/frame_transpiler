@@ -3356,6 +3356,9 @@ impl<'a> Parser<'a> {
             }
             true => self.previous().lexeme.clone(),
         };
+        
+        // v0.78.8: Capture line for source mapping
+        let enum_line = self.previous().line;
 
         // Check for type annotation (: string or : int)
         let enum_type = if self.match_token(&[TokenType::Colon]) {
@@ -3451,7 +3454,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("TODO"));
         }
 
-        let enum_decl_node = EnumDeclNode::new(identifier.clone(), enum_type, enums);
+        let enum_decl_node = EnumDeclNode::new(enum_line, identifier.clone(), enum_type, enums);
         let enum_decl_node_rcref = Rc::new(RefCell::new(enum_decl_node));
 
         if self.is_building_symbol_table {

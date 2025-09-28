@@ -114,7 +114,8 @@ impl PythonVisitorV2 {
             _ => "(Enum)",
         };
         
-        self.builder.writeln(&format!("class {}{}:", enum_name, base_class));
+        // v0.78.8: Map enum declarations to source
+        self.builder.writeln_mapped(&format!("class {}{}:", enum_name, base_class), enum_node.line);
         self.builder.indent();
         
         // Generate enum members
