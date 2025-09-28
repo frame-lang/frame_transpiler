@@ -4415,12 +4415,13 @@ pub enum StateStackOperationType {
 
 #[derive(Clone)]
 pub struct StateStackOperationNode {
+    pub line: usize,  // v0.78.11: source map support
     pub operation_t: StateStackOperationType,
 }
 
 impl StateStackOperationNode {
-    pub fn new(operation_t: StateStackOperationType) -> StateStackOperationNode {
-        StateStackOperationNode { operation_t }
+    pub fn new(line: usize, operation_t: StateStackOperationType) -> StateStackOperationNode {
+        StateStackOperationNode { line, operation_t }
     }
 }
 

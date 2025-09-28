@@ -8214,12 +8214,14 @@ impl<'a> Parser<'a> {
 
     fn stack_operation(&mut self) -> Result<Option<StateStackOperationNode>, ParseError> {
         if self.match_token(&[TokenType::StateStackOperationPush]) {
+            let line = self.previous().line;  // v0.78.11: capture line for source mapping
             self.generate_state_stack = true;
-            let ssot = StateStackOperationNode::new(StateStackOperationType::Push);
+            let ssot = StateStackOperationNode::new(line, StateStackOperationType::Push);
             return Ok(Some(ssot));
         } else if self.match_token(&[TokenType::StateStackOperationPop]) {
+            let line = self.previous().line;  // v0.78.11: capture line for source mapping
             self.generate_state_stack = true;
-            let ssot = StateStackOperationNode::new(StateStackOperationType::Pop);
+            let ssot = StateStackOperationNode::new(line, StateStackOperationType::Pop);
             return Ok(Some(ssot));
         }
 

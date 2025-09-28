@@ -4379,10 +4379,12 @@ impl PythonVisitorV2 {
     }
 
     fn visit_state_stack_operation_statement_node(&mut self, node: &StateStackOperationStatementNode) {
-        // State stack operations
+        // State stack operations - v0.78.11: Add source mapping
+        let line = node.state_stack_operation_node.line;
         match &node.state_stack_operation_node.operation_t {
             StateStackOperationType::Push => {
                 // Push current state onto stack
+                self.builder.map_next(line);  // Map the $$[+] operation
                 self.builder.writeln("if not hasattr(self, '__state_stack'):");
                 self.builder.indent();
                 self.builder.writeln("self.__state_stack = []");
@@ -4391,6 +4393,7 @@ impl PythonVisitorV2 {
             }
             StateStackOperationType::Pop => {
                 // Pop state from stack and transition
+                self.builder.map_next(line);  // Map the $$[-] operation
                 self.builder.writeln("if hasattr(self, '__state_stack') and self.__state_stack:");
                 self.builder.indent();
                 self.builder.writeln("target_compartment = self.__state_stack.pop()");

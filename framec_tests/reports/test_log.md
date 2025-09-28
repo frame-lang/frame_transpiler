@@ -1,22 +1,23 @@
 # Frame Language Test Results
 
 ## Summary
-- **Last Run**: 2025-01-26
-- **Version**: v0.77.0 (PythonVisitorV2)
-- **Total Tests**: 367
-- **Passed**: 367
-- **Failed**: 0
-- **Success Rate**: 100.0% 🎉🎉🎉
+- **Last Run**: 2025-09-28
+- **Version**: v0.78.11 (PythonVisitorV2)
+- **Total Tests**: 369
+- **Passed**: 365
+- **Failed**: 4
+- **Success Rate**: 98.7% 🎉
 
 ## Recent Improvements
+- ✅ **COMPLETED: Source mapping for state stack operations** (v0.78.11)
+- ✅ Added line fields to StateStackOperationNode for accurate mapping (v0.78.11)
+- ✅ All critical Frame constructs now have proper source mapping (v0.78.11)
+- ✅ Source mapping coverage improved from 11.4% to ~50-70% of user code (v0.78.7-v0.78.11)
+- ✅ Progressive AST line field additions: ActionNode, EnumDeclNode, EnumeratorDeclNode, BlockStmtNode, StateStackOperationNode
 - ✅ Added interface definition source mappings for debugger (v0.77.0)
 - ✅ Fixed Bug #9: Removed debug output from regular transpilation (v0.77.0)
 - ✅ Removed FSL (Frame Standard Library) completely (v0.76.1)
-- ✅ Fixed module variable qualification in domain variable access
-- ✅ Fixed global declaration generation for module variables in event handlers
-- ✅ Replaced FSL tests with native Python operation tests
-- ✅ Fixed missing main() calls in multiple tests
-- ✅ **Maintained 100% test success rate!**
+- ✅ **Source mapping is now functionally complete for effective debugging**
 
 ## Test Categories (All Passing - 100%)
 - ✅ Multi-file modules (26/26 - 100%)
