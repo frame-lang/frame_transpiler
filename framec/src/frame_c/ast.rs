@@ -1266,13 +1266,14 @@ impl NodeElement for EnumDeclNode {
 }
 
 pub struct EnumeratorDeclNode {
+    pub line: usize,  // v0.78.9: source map support
     pub name: String,
     pub value: EnumValue,
 }
 
 impl EnumeratorDeclNode {
-    pub fn new(name: String, value: EnumValue) -> EnumeratorDeclNode {
-        EnumeratorDeclNode { name, value }
+    pub fn new(line: usize, name: String, value: EnumValue) -> EnumeratorDeclNode {
+        EnumeratorDeclNode { line, name, value }
     }
 }
 

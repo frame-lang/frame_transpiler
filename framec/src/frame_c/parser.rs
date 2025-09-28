@@ -3388,7 +3388,9 @@ impl<'a> Parser<'a> {
         let mut enum_value = 0;  // For auto-incrementing integers
         
         while self.match_token(&[TokenType::Identifier]) {
-            let identifier = self.previous().lexeme.clone();
+            let enum_member_token = self.previous();
+            let identifier = enum_member_token.lexeme.clone();
+            let enum_member_line = enum_member_token.line;  // v0.78.9: capture line for source mapping
             let value = if self.match_token(&[TokenType::Equals]) {
                 // Explicit value provided
                 match enum_type {
@@ -3445,7 +3447,7 @@ impl<'a> Parser<'a> {
                 enum_value = val + 1;
             }
             
-            let enumerator_node = Rc::new(EnumeratorDeclNode::new(identifier, value));
+            let enumerator_node = Rc::new(EnumeratorDeclNode::new(enum_member_line, identifier, value));
             enums.push(enumerator_node);
         }
 

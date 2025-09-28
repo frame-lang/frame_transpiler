@@ -148,7 +148,8 @@ impl PythonVisitorV2 {
                     }
                 };
                 
-                self.builder.writeln(&format!("{} = {}", enumerator.name, value));
+                // v0.78.9: Map enum member to source line
+                self.builder.writeln_mapped(&format!("{} = {}", enumerator.name, value), enumerator.line);
             }
         }
         
