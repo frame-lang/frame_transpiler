@@ -1163,6 +1163,38 @@ impl PythonVisitorV2 {
         false
     }
     
+    fn get_statement_line(&self, stmt: &StatementType) -> usize {
+        match stmt {
+            StatementType::ExpressionStmt { expr_stmt_t } => {
+                match expr_stmt_t {
+                    ExprStmtType::CallStmtT { call_stmt_node } => call_stmt_node.line,
+                    ExprStmtType::AssignmentStmtT { assignment_stmt_node } => assignment_stmt_node.line,
+                    ExprStmtType::VariableStmtT { variable_stmt_node } => variable_stmt_node.line,
+                    ExprStmtType::ExprListStmtT { expr_list_stmt_node } => expr_list_stmt_node.line,
+                    ExprStmtType::BinaryStmtT { binary_stmt_node } => binary_stmt_node.line,
+                    _ => 0,
+                }
+            }
+            StatementType::TransitionStmt { transition_statement_node } => transition_statement_node.line,
+            StatementType::StateStackStmt { .. } => 0,
+            StatementType::IfStmt { if_stmt_node } => if_stmt_node.line,
+            StatementType::ForStmt { for_stmt_node } => for_stmt_node.line,
+            StatementType::WhileStmt { while_stmt_node } => while_stmt_node.line,
+            StatementType::LoopStmt { loop_stmt_node } => loop_stmt_node.line,
+            StatementType::ContinueStmt { continue_stmt_node } => continue_stmt_node.line,
+            StatementType::BreakStmt { break_stmt_node } => break_stmt_node.line,
+            StatementType::ReturnStmt { return_stmt_node } => return_stmt_node.line,
+            StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => parent_dispatch_stmt_node.line,
+            StatementType::WithStmt { with_stmt_node } => with_stmt_node.line,
+            StatementType::MatchStmt { match_stmt_node } => match_stmt_node.line,
+            StatementType::TryStmt { try_stmt_node } => try_stmt_node.line,
+            StatementType::AssertStmt { assert_stmt_node } => assert_stmt_node.line,
+            StatementType::DelStmt { del_stmt_node } => del_stmt_node.line,
+            StatementType::RaiseStmt { raise_stmt_node } => raise_stmt_node.line,
+            _ => 0,
+        }
+    }
+    
     fn statement_contains_async(&self, stmt: &DeclOrStmtType) -> bool {
         match stmt {
             DeclOrStmtType::StmtT { stmt_t } => {
@@ -2423,7 +2455,16 @@ impl PythonVisitorV2 {
         
         // Else block
         if let Some(else_block) = &node.else_block {
-            self.builder.writeln("else:");
+            // Map else to the block's first statement line or the if line as fallback
+            let else_line = if !else_block.statements.is_empty() {
+                match &else_block.statements[0] {
+                    DeclOrStmtType::StmtT { stmt_t } => self.get_statement_line(stmt_t),
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => var_decl_t_rcref.borrow().line,
+                }
+            } else {
+                node.line
+            };
+            self.builder.writeln_mapped("else:", else_line);
             self.builder.indent();
             
             self.visit_block_stmt_node(else_block);
