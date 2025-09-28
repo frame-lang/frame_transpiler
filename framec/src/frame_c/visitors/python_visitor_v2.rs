@@ -961,10 +961,10 @@ impl PythonVisitorV2 {
                     if let Some(expr) = &method.terminator_expr.return_expr_t_opt {
                         let mut ret_val = String::new();
                         self.visit_expr_node_to_string(expr, &mut ret_val);
-                        self.builder.writeln(&format!("return {}", ret_val));
+                        self.builder.writeln_mapped(&format!("return {}", ret_val), method.terminator_expr.line);
                     } else {
                         // Return without value
-                        self.builder.writeln("return");
+                        self.builder.writeln_mapped("return", method.terminator_expr.line);
                     }
                 }
             }
@@ -1416,11 +1416,12 @@ impl PythonVisitorV2 {
             method.line  // v0.77: use line from InterfaceMethodNode for source mapping
         );
         
-        self.builder.writeln("self.return_stack.append(None)");
+        // Map interface method internals to the method line
+        self.builder.writeln_mapped("self.return_stack.append(None)", method.line);
         
         // Create event and send to kernel
         if params.is_empty() {
-            self.builder.writeln(&format!("__e = FrameEvent(\"{}\", None)", method.name));
+            self.builder.writeln_mapped(&format!("__e = FrameEvent(\"{}\", None)", method.name), method.line);
         } else {
             // Pack parameters into a dictionary
             let param_names: Vec<String> = if let Some(params) = &method.params {
@@ -1434,16 +1435,16 @@ impl PythonVisitorV2 {
                 .collect::<Vec<_>>()
                 .join(", ");
             
-            self.builder.writeln(&format!("__e = FrameEvent(\"{}\", {{{}}})", method.name, param_dict));
+            self.builder.writeln_mapped(&format!("__e = FrameEvent(\"{}\", {{{}}})", method.name, param_dict), method.line);
         }
         
         if needs_async {
-            self.builder.writeln("await self.__kernel(__e)");
+            self.builder.writeln_mapped("await self.__kernel(__e)", method.line);
         } else {
-            self.builder.writeln("self.__kernel(__e)");
+            self.builder.writeln_mapped("self.__kernel(__e)", method.line);
         }
         
-        self.builder.writeln("return self.return_stack.pop(-1)");
+        self.builder.writeln_mapped("return self.return_stack.pop(-1)", method.line);
         
         self.builder.dedent();
     }
@@ -2887,18 +2888,18 @@ impl PythonVisitorV2 {
                 "parent_compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
                 parent_state_name
             ));
-            self.builder.writeln(&format!(
+            self.builder.writeln_mapped(&format!(
                 "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {})",
                 target_state_name, state_vars_dict, state_args_dict
-            ));
+            ), node.line);
         } else {
             // No parent - create compartment normally
-            self.builder.writeln(&format!(
+            self.builder.writeln_mapped(&format!(
                 "next_compartment = FrameCompartment('{}', None, None, None, None, {}, {})",
                 target_state_name, state_vars_dict, state_args_dict
-            ));
+            ), node.line);
         }
-        self.builder.writeln("self.__transition(next_compartment)");
+        self.builder.writeln_mapped("self.__transition(next_compartment)", node.line);
     }
     
     // Return statement
