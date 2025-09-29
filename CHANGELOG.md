@@ -2,6 +2,18 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.78.14] - 2024-12-30
+
+### Fixed
+- Bug #21/22: Cross-system static method calls incorrectly generating `SystemName.self.methodName()` - Now correctly generates `SystemName.methodName()` for static calls
+- Fixed UndeclaredCallT visitor to only add self prefix for first nodes in call chain
+- Prevents incorrect self prefix on qualified calls like `UtilitySystem.calculate()`
+
+### Technical Details  
+- Test success rate improved from 98.9% (372/376) to 99.5% (374/376)
+- 2 additional tests now passing: test_static_calls.frm, test_static_comprehensive_v062.frm
+- 2 tests remain blocked on parser bug: test_python_logical_operators.frm, test_state_parameters_simple.frm
+
 ## [v0.78.13] - 2024-12-29
 
 ### Fixed

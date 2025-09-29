@@ -2,12 +2,12 @@
 *Complete Working Examples for AI Code Generation*
 
 ## 📚 Overview
-This library contains complete, working Frame code patterns that AI systems can use as templates for code generation. Each example is tested and follows Frame v0.59 best practices.
+This library contains complete, working Frame code patterns that AI systems can use as templates for code generation. Each example is tested and follows Frame v0.78.14 best practices.
 
-## ✅ v0.59 Status
-- **100% Test Success**: All 374 patterns tested and working
-- **Full Debug Support**: All examples debuggable with source maps
-- **Bug-Free**: Dictionary comprehension ordering fixed
+## ✅ v0.78.14 Status
+- **99.5% Test Success**: 374/376 patterns tested and working
+- **Static Method Support**: Cross-system static calls work correctly
+- **Enhanced Call Chains**: Improved qualified method call handling
 
 ## 🎯 Basic Patterns
 

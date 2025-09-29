@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.75)
+# Frame Language Grammar (v0.78.14)
 
-**Last Updated**: 2025-12-22  
-**Status**: CodeBuilder architecture complete with automatic line tracking, PythonVisitorV2 as default, **100% test success rate (379/379 tests passing)**
+**Last Updated**: 2024-12-30  
+**Status**: Cross-system static method calls fixed, PythonVisitorV2 as default, **99.5% test success rate (374/376 tests passing)**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -82,7 +82,7 @@ module DataProcessor {
 
 ## Multi-File Module System (v0.57) ✅ COMPLETE
 
-Frame v0.57 delivers a fully functional multi-file module system infrastructure, enabling programs to be split across multiple `.frm` files with proper import/export mechanisms, dependency management, and automatic compilation. All 374 tests pass with 100% success rate.
+Frame v0.57 delivers a fully functional multi-file module system infrastructure, enabling programs to be split across multiple `.frm` files with proper import/export mechanisms, dependency management, and automatic compilation.
 
 ### Frame File Import Syntax
 

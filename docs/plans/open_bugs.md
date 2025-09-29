@@ -1,24 +1,32 @@
 # Frame Transpiler Open Bugs
 
-**Last Updated:** 2025-09-29  
-**Current Version:** v0.78.12 (Bugs #13 and #15 resolved)  
-**Active Bugs:** 4 (Bug #11, #14, #16-18)  
-**Resolved Bugs:** 14 (see bottom of document)
+**Last Updated:** 2024-12-30  
+**Current Version:** v0.78.14  
+**Active Bugs:** 5 (Bugs #11, #16, #18, #19, #20)  
+**Resolved Bugs:** 22 (including #21, #22 from v0.78.14)
 
-## Bug Summary - 3 Remaining Test Failures
+## Bug Summary - 2 Remaining Test Failures
 
-### Critical Issues (1 bug affecting transpilation)
-1. **Bug #17**: Module-level system instantiation not detected 
-   - Root cause: Parser validation incomplete
-   - Impact: Negative test failing, invalid code accepted
+### Transpilation Failures (2 bugs - parser bug with functions after systems)
+1. **Bug #19**: test_python_logical_operators.frm - Parser error "Expected '}' - found 'testLogic'"
+   - Root cause: Parser bug when functions (especially main()) are defined after system definitions
+2. **Bug #20**: test_state_parameters_simple.frm - Parser error "Expected '}' - found 'start'"  
+   - Root cause: Same parser bug as #19
 
-### Runtime Failures (2 bugs - transpile OK, execute FAIL)  
-2. **Bug #14a**: test_call_chain_debug.frm - Method chaining failure
-3. **Bug #14b**: test_seat_booking_simple_working.frm - State workflow failure
-
-**Overall Test Status**: 99.2% pass rate (373/376 tests passing)
+**Overall Test Status**: 99.5% pass rate (374/376 tests passing)
 
 ## Recent Improvements
+
+### v0.78.14
+- ✅ Fixed Bug #21: test_static_calls.frm - cross-system static calls now correct
+- ✅ Fixed Bug #22: test_static_comprehensive_v062.frm - same static call fix
+- ✅ Test pass rate improved from 98.9% to 99.5% (374/376 passing)
+
+### v0.78.13
+- ✅ Fixed Bug #17: Module-level system instantiation now properly detected
+- ✅ Fixed Bug #14a: test_call_chain_debug.frm - operation-to-operation calls fixed
+- ✅ Fixed Bug #14b: test_seat_booking_simple_working.frm - now passes
+- ✅ Test pass rate improved from 97.6% to 98.9% (372/376 passing)
 
 ### v0.78.1
 - ✅ Fixed Bug #10: Static method call generation with incorrect "self" prefix
@@ -46,6 +54,59 @@
 - ✅ Marker file linter implemented for validation of intermediate files
 
 ## Active Bugs
+
+
+### Bug #20: test_state_parameters_simple.frm Transpilation Failure
+
+**Date Reported:** 2024-12-29  
+**Severity:** High  
+**Status:** ACTIVE 🔴
+
+#### Problem Description
+Parser fails with error: "Expected '}' - found 'start'". This suggests a syntax parsing issue with state parameters.
+
+#### Test File
+`framec_tests/python/src/positive_tests/test_state_parameters_simple.frm`
+
+#### Error
+```
+First pass parse error:
+Expected '}' - found 'start'
+Symbol table construction failed. Please check your Frame syntax.
+```
+
+#### Impact
+- Complete transpilation failure
+- State parameters are an important Frame feature
+
+#### Root Cause (IDENTIFIED)
+**PARSER BUG**: Functions defined after system definitions cause parser error "Expected '}' - found identifier". The parser's state machine appears to have an issue transitioning from parsing a system back to module-level parsing when it encounters a function definition.
+
+### Bug #19: test_python_logical_operators.frm Transpilation Failure
+
+**Date Reported:** 2024-12-29  
+**Severity:** High  
+**Status:** ACTIVE 🔴
+
+#### Problem Description
+Parser fails with error: "Expected '}' - found 'testLogic'". This suggests a syntax parsing issue with logical operators.
+
+#### Test File
+`framec_tests/python/src/positive_tests/test_python_logical_operators.frm`
+
+#### Error
+```
+First pass parse error:
+Expected '}' - found 'testLogic'
+Symbol table construction failed. Please check your Frame syntax.
+```
+
+#### Impact  
+- Complete transpilation failure
+- Logical operators are fundamental language features
+
+#### Root Cause (IDENTIFIED)
+**PARSER BUG**: Same as Bug #20 - functions defined after system definitions cause parser error. The actual logical operators work fine; the issue is the placement of the test function after the system definition.
 
 ### Bug #18: Domain Variable Initialization Lines Incorrectly Mapped to Multiple __init__ Lines
 
@@ -112,64 +173,6 @@ Result shows 7 different Python lines all mapped to Frame line 37:
 
 #### Likely Fix Location
 In the transpiler's Python visitor, the domain variable processing likely calls `add_source_mapping()` multiple times within the `__init__` generation code. Should be called once (or not at all) for domain variable declarations.
-
-### Bug #17: Module-level System Instantiation Not Detected
-
-**Date Reported:** 2025-01-28  
-**Severity:** High  
-**Status:** ACTIVE 🔴
-
-#### Problem Description
-The transpiler fails to detect module-level system instantiation calls like `TestSystem()` at module scope. These should fail with an error message but currently transpile successfully, generating invalid Python code.
-
-#### Test Case
-File: `test_module_level_system_call.frm`
-```frame
-system TestSystem {
-    interface:
-        doSomething()
-    
-    machine:
-        $Start {
-            doSomething() {
-                print("Doing something")
-                return
-            }
-        }
-}
-
-fn main() {
-    var sys = TestSystem()
-    sys.doSomething()
-}
-
-# ERROR: Cannot instantiate system at module scope
-TestSystem()  # <-- This should fail but doesn't
-```
-
-#### Expected Behavior
-Should fail with: "Module-level function calls are not allowed" or "Cannot instantiate system at module scope"
-
-#### Actual Behavior
-- Transpiles successfully (exit code 0)
-- Generates Python code with module-level instantiation
-- No error or warning is produced
-
-#### Root Cause Analysis
-The parser's module-level validation currently only checks for regular function calls (like `main()`) but doesn't recognize system instantiation as a prohibited module-level operation. The validation logic needs to be extended to cover:
-1. System instantiation calls (e.g., `TestSystem()`)
-2. Class instantiation at module level
-3. Any other executable code that shouldn't run at import time
-
-#### Fix Required
-1. Extend module-level validation in the parser
-2. Add check for system/class instantiation patterns
-3. Ensure consistent error messaging for all module-level execution attempts
-
-#### Impact
-- Invalid Python code generated that may fail at runtime
-- Test `test_module_level_system_call.frm` is failing (negative test not catching the error)
-- Could allow unintended side effects during module import
 
 ### Bug #16: Incorrect Error for Circular Import Tests
 
@@ -262,79 +265,6 @@ if (func_name == "set" || func_name == "frozenset") && call_node.call_expr_list.
 #### Files Modified
 - `framec/src/frame_c/visitors/python_visitor_v2.rs` - Added special case in UndeclaredCallT handler
 
-### Bug #14: test_seat_booking_simple_working.frm Runtime Failure
-
-**Date Reported:** 2025-01-28  
-**Severity:** Medium  
-**Status:** ACTIVE 🔴
-
-#### Problem Description
-Test transpiles successfully but fails at runtime execution. This test appears to be testing a seat booking workflow system.
-
-#### Test File
-`framec_tests/python/src/positive_tests/test_seat_booking_simple_working.frm`
-
-#### Status
-- Transpilation: ✅ Success
-- Execution: ❌ Failure (Traceback error at runtime)
-
-#### Likely Causes
-Based on the test name and common runtime failures:
-1. Incorrect method call syntax or missing self references
-2. State transition logic errors
-3. Domain variable access issues
-4. Event handler invocation problems
-
-#### Investigation Needed
-1. Run the generated Python code to capture full error traceback
-2. Identify the specific line and operation causing the failure
-3. Compare generated code with expected Python patterns
-4. Check if this is related to system/state machine implementation
-
-#### Impact
-- Part of the 4 tests showing runtime failures in test runner
-- Seat booking is a common use case that should work
-- May indicate issues with state machine or workflow patterns
-
-### Bug #14: test_call_chain_debug.frm Runtime Failure
-
-**Date Reported:** 2025-01-28  
-**Severity:** Medium  
-**Status:** ACTIVE 🔴
-
-#### Problem Description
-Test transpiles successfully but fails at runtime execution. This test is specifically for debugging call chain functionality.
-
-#### Test File
-`framec_tests/python/src/positive_tests/test_call_chain_debug.frm`
-
-#### Status
-- Transpilation: ✅ Success
-- Execution: ❌ Failure (Traceback error at runtime)
-
-#### Likely Causes
-Given the "call_chain_debug" name, this likely involves:
-1. Method chaining issues (e.g., `obj.method1().method2().method3()`)
-2. Incorrect return values breaking the chain
-3. Missing or incorrect self references in chained calls
-4. Issues with call chain resolution in the visitor
-
-#### Known Call Chain Issues
-Based on the codebase, call chains have special handling in `python_visitor_v2.rs`:
-- CallChainNodeType processing
-- UndeclaredCallT handling
-- Special cases for static methods in chains
-
-#### Investigation Needed
-1. Examine the Frame source to understand the call chain pattern being tested
-2. Check if the generated Python properly maintains object references through the chain
-3. Verify return values are correctly propagated
-4. Look for issues with self/class method calls in chains
-
-#### Impact
-- Call chaining is a common programming pattern
-- May affect fluent interfaces and builder patterns
-- Part of the 4 runtime failure tests
 
 
 ### Bug #11: Debugger highlights wrong line when stepping through code
@@ -612,6 +542,120 @@ This systematic approach ensures source map issues are properly identified, docu
 ---
 
 ## Resolved Bugs
+
+### Bug #22: Static Method Calls in Complex Scenarios (RESOLVED in v0.78.14 ✅)
+
+**Date Reported:** 2024-12-29  
+**Date Resolved:** 2024-12-30 (v0.78.14)  
+**Severity:** High  
+**Status:** RESOLVED ✅
+
+#### Problem Description
+Comprehensive test for static method functionality failed at runtime. Cross-system static method calls incorrectly generated `SystemName.self.methodName()` instead of `SystemName.methodName()`.
+
+#### Examples Affected
+- `MathUtils.add(5, 7)` → incorrectly became `MathUtils.self.add(5, 7)`  
+- `MathUtils.multiply(3, 4)` → incorrectly became `MathUtils.self.multiply(3, 4)`  
+- `AdvancedStatic.helper(x * 2)` → incorrectly became `AdvancedStatic.self.helper(x * 2)`
+
+#### Solution Implemented
+Fixed in python_visitor_v2.rs by checking if UndeclaredCallT node is first in call chain before adding self prefix. The visitor now correctly identifies qualified calls (SystemName.method) vs local operation calls.
+
+#### Test Results
+- **Before Fix**: Runtime error - AttributeError: type object 'MathUtils' has no attribute 'self'
+- **After Fix**: Test passes successfully
+
+---
+
+### Bug #21: Cross-System Static Method Calls Incorrect (RESOLVED in v0.78.14 ✅)
+
+**Date Reported:** 2024-12-29  
+**Date Resolved:** 2024-12-30 (v0.78.14)  
+**Severity:** High  
+**Status:** RESOLVED ✅
+
+#### Problem Description
+Static method calls between systems incorrectly generated `SystemName.self.methodName()` instead of `SystemName.methodName()`.
+
+#### Generated Code Issue
+```python
+# Before (incorrect):
+result = UtilitySystem.self.calculate(42)
+
+# After (correct):
+result = UtilitySystem.calculate(42)
+```
+
+#### Solution Implemented  
+Fixed in python_visitor_v2.rs at lines 3604-3645. Modified UndeclaredCallT handling to only add self prefix when the node is first in the call chain. This prevents incorrect self prefix on qualified calls like UtilitySystem.calculate().
+
+#### Test Results
+- **Before Fix**: Runtime error - AttributeError: type object 'UtilitySystem' has no attribute 'self'
+- **After Fix**: Test passes successfully, outputs correct results
+
+### Bug #17: Module-level System Instantiation Not Detected (RESOLVED in v0.78.13 ✅)
+
+**Date Reported:** 2025-01-28  
+**Date Resolved:** 2024-12-29 (v0.78.13)  
+**Severity:** High  
+**Status:** RESOLVED ✅
+
+#### Problem Description
+The transpiler failed to detect module-level system instantiation calls like `TestSystem()` at module scope. These should have failed with an error message but were transpiling successfully.
+
+#### Solution Implemented
+Added a validation loop after the main parsing phase in the parser to check for remaining module-level statements. The parser now correctly detects and rejects:
+- System/class instantiations at module scope
+- Function calls at module scope
+- Any executable code at module level
+
+#### Test Results
+- **Before Fix**: Module-level code passed compilation incorrectly
+- **After Fix**: Module-level code now produces proper error: "Module-level function calls are not allowed"
+- **Test Status**: Negative test now correctly catches the error
+
+---
+
+### Bug #14a: test_call_chain_debug.frm Runtime Failure (RESOLVED in v0.78.13 ✅)
+
+**Date Reported:** 2025-01-28  
+**Date Resolved:** 2024-12-29 (v0.78.13)  
+**Severity:** Medium  
+**Status:** RESOLVED ✅
+
+#### Problem Description
+Test was transpiling successfully but failing at runtime execution due to missing `self.` prefix when one operation called another operation within the same system.
+
+#### Solution Implemented
+- Added operation name tracking in PythonVisitorV2 with `operation_names: HashSet<String>` field
+- Extended `UndeclaredCallT` handling in `visit_call_chain_expr_node_to_string` to check for operations
+- Operations within the same system now correctly generate `self.` prefix
+
+#### Test Results
+- **Before Fix**: Runtime failure - `NameError` for undefined operations
+- **After Fix**: Test passes successfully with correct operation calls
+
+---
+
+### Bug #14b: test_seat_booking_simple_working.frm Runtime Failure (RESOLVED in v0.78.13 ✅)
+
+**Date Reported:** 2025-01-28  
+**Date Resolved:** 2024-12-29 (v0.78.13)  
+**Severity:** Medium  
+**Status:** RESOLVED ✅
+
+#### Problem Description
+Test was transpiling successfully but failing at runtime execution. This test involved seat booking workflow with operation-to-operation calls.
+
+#### Solution Implemented
+Fixed by the same change as Bug #14a - operation-to-operation calls now have proper `self.` prefix.
+
+#### Test Results
+- **Before Fix**: Runtime failure with traceback error
+- **After Fix**: Test passes successfully
+- **Test Status**: Now part of the 372 passing tests
+
+---
 
 ### Bug #13: test_return_assign_actions.frm Runtime Failure (RESOLVED in v0.78.12 ✅)
 

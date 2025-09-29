@@ -1,5 +1,5 @@
 # Frame Language Comprehensive AI Guide
-*The Authoritative Reference for AI Systems Working with Frame v0.57*
+*The Authoritative Reference for AI Systems Working with Frame v0.78.14*
 
 ## 🎯 Executive Summary
 
@@ -9,7 +9,8 @@ Frame is a state machine language that transpiles to Python (primary target) and
 - Frame transpiles to Python - it's not interpreted
 - State machines are first-class citizens with special syntax
 - Python-like syntax with state machine extensions (`$State`, `->`, events)
-- 100% test success rate as of v0.57 with 341 tests passing
+- 99.5% test success rate as of v0.78.14 with 374/376 tests passing
+- Cross-system static method calls now work correctly
 
 ## 📋 Table of Contents
 

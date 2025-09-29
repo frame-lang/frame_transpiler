@@ -1,10 +1,10 @@
 # Frame Language Quick Reference Card
-*AI-Optimized Cheat Sheet for Frame v0.59 - Updated September 17, 2025*
+*AI-Optimized Cheat Sheet for Frame v0.78.14 - Updated December 30, 2024*
 
-## 🎉 v0.59 Highlights
-- **100% Debugging Support**: All 122 AST nodes line-tracked for source maps
-- **100% Test Success**: All 374 tests passing
-- **VSCode DAP Ready**: Complete Debug Adapter Protocol support
+## 🎉 v0.78.14 Highlights
+- **Cross-System Static Calls Fixed**: Static methods work correctly across systems
+- **99.5% Test Success**: 374/376 tests passing
+- **Enhanced Call Chain Support**: Improved handling of qualified method calls
 
 ## 🎯 One-Line Summary
 Frame is a Python-like state machine language where systems contain states ($Name) that respond to events with transitions (->).

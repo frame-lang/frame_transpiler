@@ -11858,7 +11858,7 @@ impl<'a> Parser<'a> {
 
     // v0.30: Modified build_call_chain_v2 that can append to existing call chain for method calls
     fn build_call_chain_v2_with_existing(&mut self, base_id: IdentifierNode, mut existing_chain: VecDeque<CallChainNodeType>) -> Result<Option<ExprType>, ParseError> {
-        use crate::frame_c::ast::{CallChainNodeTypeV2, ExprType::ExprListT};
+        use crate::frame_c::ast::CallChainNodeTypeV2;
         
         // Debug dump when starting V2 call chain building
         if std::env::var("FRAME_DEBUG").is_ok() {

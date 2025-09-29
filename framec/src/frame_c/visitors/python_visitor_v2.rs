@@ -2101,7 +2101,7 @@ impl PythonVisitorV2 {
     fn collect_global_vars_in_expr(&self, expr: &ExprType, globals: &mut Vec<String>) {
         // Check if any global variables are modified in this expression
         match expr {
-            ExprType::VariableExprT { var_node } => {
+            ExprType::VariableExprT { var_node: _ } => {
                 // We don't add variables just for reading them, only if they're being modified
                 // The modification check is done in the assignment handler above
             }
@@ -3622,16 +3622,25 @@ impl PythonVisitorV2 {
                         // like TestService.getDefaultConfig()
                         let func_name = &call_node.identifier.name.lexeme;
                         
-                        // Check if this is an action or operation call
-                        if self.action_names.contains(func_name) {
-                            // Generate action call: self.__SystemName__actionName
-                            output.push_str(&format!("self.__{}__{}",
-                                self.system_name, func_name));
-                        } else if self.operation_names.contains(func_name) {
-                            // Generate operation call: self.operationName
-                            output.push_str("self.");
-                            output.push_str(func_name);
+                        // Only check for action/operation if this is the first node in the chain
+                        // or if it's not preceded by a system/class name (to avoid incorrect
+                        // self. prefix on cross-system static calls like UtilitySystem.calculate)
+                        if first {
+                            // Check if this is an action or operation call
+                            if self.action_names.contains(func_name) {
+                                // Generate action call: self.__SystemName__actionName
+                                output.push_str(&format!("self.__{}__{}",
+                                    self.system_name, func_name));
+                            } else if self.operation_names.contains(func_name) {
+                                // Generate operation call: self.operationName
+                                output.push_str("self.");
+                                output.push_str(func_name);
+                            } else {
+                                output.push_str(func_name);
+                            }
                         } else {
+                            // Not the first node - this is a qualified call (e.g., System.method)
+                            // Don't add self. prefix
                             output.push_str(func_name);
                         }
                         
