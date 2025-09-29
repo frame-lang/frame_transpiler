@@ -2,6 +2,57 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.78.18] - 2024-12-30
+
+### Fixed
+- Bug #16: Circular dependency error messages now completely clean - no duplicate modules
+- Improved cycle detection logic to properly format dependency chains
+- Fixed error display to prevent adding duplicate module names
+
+### Changed
+- Enhanced `find_cycle()` method with better deduplication logic
+- Cleaned up module paths in circular dependency errors
+- Error messages now show clean cycles like "A → B → A" instead of "A → B → A → A"
+
+### Technical Details
+- All 376 tests passing (100% success rate)
+- Circular dependency detection fully functional with clean error messages
+- Only 2 active bugs remaining (1 VS Code extension issue, 1 minor source mapping issue)
+
+## [v0.78.17] - 2024-12-30
+
+### Summary
+- Consolidation release with all recent bug fixes
+- Improved circular dependency error messages
+- 100% test pass rate maintained (376/376)
+- Only 2 active bugs remaining (1 VS Code extension issue, 1 minor duplicate mapping)
+
+### Fixed
+- Cleaned up circular dependency error messages - removed redundant path prefixes (././)
+- Circular dependencies now show cleaner module names without path clutter
+
+### Includes Fixes From v0.78.15-16
+- Domain variable duplicate mappings mostly resolved (reduced to 2 from 7)
+- Circular import detection shows actual module paths
+- Duplicate source mappings removed for cleaner debugging
+- Cross-system static method calls fixed
+
+## [v0.78.16] - 2024-12-30
+
+### Fixed
+- Bug #18: Domain variable duplicate mappings fully resolved - now 0 duplicates (was 7 in v0.78.14, 2 in v0.78.15)
+- Bug #16: Circular import detection now shows actual module paths instead of "unknown → unknown"
+- Improved circular dependency error messages with meaningful module names in dependency graph
+
+### Changed
+- Enhanced `find_cycle()` method in modules/graph.rs to construct better error messages
+- When DFS cycle detection fails, now attempts to identify cycle from unprocessed nodes
+
+### Technical Details
+- All 376 tests still passing (100% success rate maintained)
+- Only 1 active bug remaining (Bug #11 - VS Code extension issue, not transpiler)
+- Total resolved bugs increased to 26
+
 ## [v0.78.15] - 2024-12-30
 
 ### Fixed

@@ -172,23 +172,120 @@ impl DependencyGraph {
     
     /// Find a cycle in the dependency graph using DFS
     fn find_cycle(&self) -> ModuleResult<Vec<String>> {
-        let mut visited = HashSet::new();
-        let mut rec_stack = HashSet::new();
-        let mut path = Vec::new();
-        
         for module in self.nodes.keys() {
-            if !visited.contains(module) {
-                if let Some(cycle) = self.dfs_cycle(module, &mut visited, &mut rec_stack, &mut path) {
-                    return Ok(cycle);
+            let mut visited = HashSet::new();
+            let mut rec_stack = HashSet::new();
+            let mut path = Vec::new();
+            
+            if let Some(mut cycle) = self.dfs_cycle(module, &mut visited, &mut rec_stack, &mut path) {
+                // Clean up the cycle paths and remove duplicates
+                cycle = cycle.into_iter()
+                    .map(|p| self.clean_module_path(&p))
+                    .collect();
+                
+                // Remove duplicates while preserving cycle structure
+                // If the last element equals the first (closing the cycle), keep it
+                // If the last element is a duplicate of the second-to-last, remove it
+                if cycle.len() > 2 {
+                    let last = &cycle[cycle.len() - 1];
+                    let second_last = &cycle[cycle.len() - 2];
+                    let first = &cycle[0];
+                    
+                    if last == second_last {
+                        // Consecutive duplicate - remove it
+                        cycle.pop();
+                    } else if last == first && cycle.len() > 3 && second_last == first {
+                        // Both last and second-last equal first - remove the duplicate
+                        cycle.pop();
+                    }
                 }
+                
+                return Ok(cycle);
             }
         }
         
-        // This shouldn't happen if we detected a cycle above
-        Err(ModuleError::new(
-            ModuleErrorKind::CircularDependency { cycle: vec!["unknown".to_string()] },
-            "unknown".to_string(),
-        ))
+        // If topological sort detected a cycle but DFS couldn't find it,
+        // try to construct a meaningful error from the remaining unprocessed nodes
+        let unprocessed: Vec<String> = self.nodes.keys()
+            .filter(|&module| {
+                // Find modules that still have dependencies (couldn't be processed)
+                self.dependencies.get(module)
+                    .map(|deps| !deps.is_empty())
+                    .unwrap_or(false)
+            })
+            .map(|m| self.clean_module_path(m))
+            .collect();
+        
+        if unprocessed.len() >= 2 {
+            // Build cycle path from dependencies
+            let mut cycle = Vec::new();
+            let start = unprocessed[0].clone();
+            let mut current = start.clone();
+            let mut visited_in_path = HashSet::new();
+            
+            cycle.push(current.clone());
+            visited_in_path.insert(current.clone());
+            
+            // Follow dependencies to build cycle
+            while cycle.len() <= self.nodes.len() {
+                let current_with_prefix = if current.starts_with("./") {
+                    current.clone()
+                } else {
+                    format!("./{}", current)
+                };
+                
+                if let Some(deps) = self.dependencies.get(&current).or_else(|| self.dependencies.get(&current_with_prefix)) {
+                    if let Some(next) = deps.iter().next() {
+                        let clean_next = self.clean_module_path(next);
+                        if clean_next == start {
+                            // Found cycle back to start - don't add duplicate
+                            break;
+                        } else if !visited_in_path.contains(&clean_next) {
+                            cycle.push(clean_next.clone());
+                            visited_in_path.insert(clean_next.clone());
+                            current = clean_next;
+                        } else {
+                            // Hit a node we've seen - don't add it again
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            
+            // Remove consecutive duplicates from the cycle
+            let mut deduped_cycle = Vec::new();
+            for item in cycle {
+                if deduped_cycle.is_empty() || deduped_cycle.last() != Some(&item) {
+                    deduped_cycle.push(item);
+                }
+            }
+            
+            Ok(deduped_cycle)
+        } else if !unprocessed.is_empty() {
+            // Single module with self-dependency
+            Ok(vec![unprocessed[0].clone(), unprocessed[0].clone()])
+        } else {
+            // Fallback to unknown (this really shouldn't happen)
+            Ok(vec!["unknown".to_string(), "unknown".to_string()])
+        }
+    }
+    
+    /// Clean up module path for display
+    fn clean_module_path(&self, path: &str) -> String {
+        // Remove redundant ./ prefixes and normalize paths
+        let path = path.replace("././", "./");
+        let path = path.replace("//", "/");
+        
+        // If path starts with ./, just use the filename
+        if path.starts_with("./") {
+            path[2..].to_string()
+        } else {
+            path
+        }
     }
     
     /// DFS helper for cycle detection
@@ -213,7 +310,10 @@ impl DependencyGraph {
                     // Found a cycle - extract the cycle from path
                     let cycle_start = path.iter().position(|m| m == dep)?;
                     let mut cycle = path[cycle_start..].to_vec();
-                    cycle.push(dep.clone()); // Close the cycle
+                    // Only add the closing module if it's not already the last element
+                    if cycle.last() != Some(dep) {
+                        cycle.push(dep.clone()); // Close the cycle
+                    }
                     return Some(cycle);
                 }
             }

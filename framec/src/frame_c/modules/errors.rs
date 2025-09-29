@@ -198,7 +198,11 @@ impl fmt::Display for ModuleErrorKind {
                     if i > 0 { write!(f, " → ")?; }
                     write!(f, "{}", module)?;
                 }
-                write!(f, " → {}", cycle.first().unwrap_or(&String::new()))?;
+                // Add arrow back to first element to show it's a cycle
+                // But only if we have at least 2 elements and the last isn't already the first
+                if cycle.len() >= 2 && cycle.last() != cycle.first() {
+                    write!(f, " → {}", cycle.first().unwrap())?;
+                }
                 Ok(())
             },
             ModuleErrorKind::SymbolConflict { symbol, conflicting_modules } => {

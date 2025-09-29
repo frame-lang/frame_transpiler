@@ -245,7 +245,7 @@ checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
 name = "frame_build"
-version = "0.78.14"
+version = "0.78.17"
 dependencies = [
  "anyhow",
  "framec",
@@ -261,7 +261,7 @@ dependencies = [
 
 [[package]]
 name = "framec"
-version = "0.78.14"
+version = "0.78.17"
 dependencies = [
  "chrono",
  "clap",
