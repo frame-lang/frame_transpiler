@@ -73,6 +73,13 @@ Frame line 37 (`var data = None`) is mapped to multiple Python lines within the 
 
 When stepping through the `__init__` method, the debugger incorrectly shows execution at Frame line 37 for all these Python lines.
 
+**Specific debugging issue:**
+- Set breakpoint at Frame line 44 (`print("Function returned None")`)
+- Step over from line 44
+- **Expected**: Should advance to line 47 (next executable line)
+- **Actual**: Jumps backward to line 37 (domain variable declaration)
+- Call stack shows three `__init__` entries all mapped to line 37
+
 #### Expected Behavior
 Domain variable initialization lines should either:
 1. Map to the specific Python line where the variable is initialized (e.g., `self.data = None`)
@@ -92,7 +99,19 @@ The transpiler appears to be generating a source mapping for the domain variable
 framec -l python_3 --debug-output test_none_keyword.frm | grep '"frameLine": 37' -A1 -B1
 ```
 
-Result shows 7 different Python lines all mapped to Frame line 37.
+Result shows 7 different Python lines all mapped to Frame line 37:
+```json
+{ "frameLine": 37, "pythonLine": 40, "type": "function_def" }
+{ "frameLine": 37, "pythonLine": 42, "type": "function_def" }
+{ "frameLine": 37, "pythonLine": 44, "type": "function_def" }
+{ "frameLine": 37, "pythonLine": 45, "type": "function_def" }
+{ "frameLine": 37, "pythonLine": 46, "type": "function_def" }
+{ "frameLine": 37, "pythonLine": 52, "type": "function_def" }
+{ "frameLine": 37, "pythonLine": 53, "type": "function_def" }
+```
+
+#### Likely Fix Location
+In the transpiler's Python visitor, the domain variable processing likely calls `add_source_mapping()` multiple times within the `__init__` generation code. Should be called once (or not at all) for domain variable declarations.
 
 ### Bug #17: Module-level System Instantiation Not Detected
 
