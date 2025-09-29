@@ -471,9 +471,79 @@ impl<'a> Parser<'a> {
                     break;
                 }
             } else {
+                // Skip any token that's not a valid top-level entity
+                // This allows us to continue parsing after close braces from systems/functions
+                if !self.is_at_end() {
+                    // If we see something we don't recognize at the top level,
+                    // it might be the start of the next entity or an error
+                    // For now, just advance past it if it's a close brace or similar
+                    let current_token = self.peek();
+                    if current_token.token_type == TokenType::CloseBrace {
+                        // Skip close braces from previous entities
+                        self.advance();
+                        continue;
+                    }
+                }
                 // No more entities found - exit loop
                 break;
             }
+        }
+        
+        // Check for any remaining module-level statements (which are not allowed)
+        // This catches cases where someone tries to call functions or instantiate systems at module level
+        while !self.is_at_end() {
+            // Skip any remaining comments
+            if self.check(TokenType::PythonComment) || self.check(TokenType::MultiLineComment) {
+                self.advance();
+                continue;
+            }
+            
+            // Debug: print current token
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Checking for module-level statements, current token: {:?}", self.peek());
+            }
+            
+            // Check for identifier followed by parenthesis (function call or instantiation)
+            if self.check(TokenType::Identifier) {
+                let saved_pos = self.current;
+                let identifier = self.advance();
+                let identifier_name = identifier.lexeme.clone();
+                
+                if self.check(TokenType::LParen) {
+                    // This is a module-level call/instantiation - not allowed!
+                    self.current = saved_pos;  // Reset for better error reporting
+                    
+                    // Check if identifier matches any system name or class name
+                    let is_system = systems.iter().any(|s| s.name == identifier_name);
+                    let is_class = classes.iter().any(|c| c.borrow().name == identifier_name);
+                    
+                    // Also check if it starts with uppercase (likely a class/system)
+                    let starts_with_uppercase = identifier_name.chars().next()
+                        .map_or(false, |c| c.is_uppercase());
+                    
+                    if is_system || is_class || starts_with_uppercase {
+                        return Err(ParseError::new(&format!(
+                            "Module-level instantiation is not allowed. '{}' cannot be instantiated at module scope. \
+                            Classes and systems must be instantiated inside functions.",
+                            identifier_name
+                        )));
+                    } else {
+                        return Err(ParseError::new(&format!(
+                            "Module-level function calls are not allowed. Function '{}' cannot be called at module scope. \
+                            Frame automatically calls main() if it exists.",
+                            identifier_name
+                        )));
+                    }
+                }
+                
+                // If it's not a call, it might be an invalid statement
+                // For now, skip it and let the next iteration handle it
+                self.current = saved_pos;
+                break;  // Exit to avoid infinite loop
+            }
+            
+            // If we encounter any other token, break to avoid infinite loop
+            break;
         }
         
         // v0.37: Analyze runtime async requirements for all systems

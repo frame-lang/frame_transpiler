@@ -39,6 +39,7 @@ system NoneChecker {
 fn main() {
     # Test function with None
     var result = testNoneValue()
+    print("here")
     if result == None {
         print("Function returned None")
     }

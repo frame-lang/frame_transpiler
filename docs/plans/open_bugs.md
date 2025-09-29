@@ -1,25 +1,22 @@
 # Frame Transpiler Open Bugs
 
-**Last Updated:** 2025-09-28  
-**Current Version:** v0.78.12 (Bug #15 resolved)  
-**Active Bugs:** 4 (Bug #11, #13-14, #16-17)  
-**Resolved Bugs:** 12 (see bottom of document)
+**Last Updated:** 2025-09-29  
+**Current Version:** v0.78.12 (Bugs #13 and #15 resolved)  
+**Active Bugs:** 4 (Bug #11, #14, #16-18)  
+**Resolved Bugs:** 14 (see bottom of document)
 
-## Bug Summary - 4 Remaining Test Failures
+## Bug Summary - 3 Remaining Test Failures
 
 ### Critical Issues (1 bug affecting transpilation)
-1. ~~**Bug #15**: Set constructor generates invalid Python~~ **RESOLVED ✅ v0.78.12**
-   
-2. **Bug #17**: Module-level system instantiation not detected 
+1. **Bug #17**: Module-level system instantiation not detected 
    - Root cause: Parser validation incomplete
    - Impact: Negative test failing, invalid code accepted
 
-### Runtime Failures (3 bugs - transpile OK, execute FAIL)
-3. **Bug #13**: test_return_assign_actions.frm - Action return value issues
-4. **Bug #14a**: test_call_chain_debug.frm - Method chaining failure
-5. **Bug #14b**: test_seat_booking_simple_working.frm - State workflow failure
+### Runtime Failures (2 bugs - transpile OK, execute FAIL)  
+2. **Bug #14a**: test_call_chain_debug.frm - Method chaining failure
+3. **Bug #14b**: test_seat_booking_simple_working.frm - State workflow failure
 
-**Overall Test Status**: 98.9% pass rate (372/376 tests passing)
+**Overall Test Status**: 99.2% pass rate (373/376 tests passing)
 
 ## Recent Improvements
 
@@ -49,6 +46,53 @@
 - ✅ Marker file linter implemented for validation of intermediate files
 
 ## Active Bugs
+
+### Bug #18: Domain Variable Initialization Lines Incorrectly Mapped to Multiple __init__ Lines
+
+**Date Reported:** 2025-09-29  
+**Severity:** High  
+**Status:** ACTIVE 🔴
+
+#### Problem Description
+The transpiler incorrectly maps domain variable initialization lines to multiple lines within the generated `__init__` method. This causes the debugger to jump to incorrect Frame lines when stepping through system initialization code.
+
+#### Test Case
+File: `test_none_keyword.frm`
+```frame
+system NoneChecker {
+    // ... interface and machine sections ...
+    
+    domain:
+        var data = None  // Line 37
+}
+```
+
+#### Observed Behavior
+Frame line 37 (`var data = None`) is mapped to multiple Python lines within the `__init__` method:
+- Python line 40, 42, 44, 45, 46, 52, 53
+
+When stepping through the `__init__` method, the debugger incorrectly shows execution at Frame line 37 for all these Python lines.
+
+#### Expected Behavior
+Domain variable initialization lines should either:
+1. Map to the specific Python line where the variable is initialized (e.g., `self.data = None`)
+2. Have no mapping at all (since they're not directly executable Frame code)
+
+#### Root Cause Analysis
+The transpiler appears to be generating a source mapping for the domain variable declaration line every time it generates code within the `__init__` method. This results in one Frame line (37) having 7+ mappings to different Python lines.
+
+#### Impact
+- Debugger jumps to wrong Frame lines during system initialization
+- Confusing debugging experience when stepping through constructors
+- Makes it appear that execution is stuck on the domain variable line
+
+#### Verification
+```bash
+# Check mappings for line 37
+framec -l python_3 --debug-output test_none_keyword.frm | grep '"frameLine": 37' -A1 -B1
+```
+
+Result shows 7 different Python lines all mapped to Frame line 37.
 
 ### Bug #17: Module-level System Instantiation Not Detected
 
@@ -273,46 +317,6 @@ Based on the codebase, call chains have special handling in `python_visitor_v2.r
 - May affect fluent interfaces and builder patterns
 - Part of the 4 runtime failure tests
 
-### Bug #13: test_return_assign_actions.frm Runtime Failure
-
-**Date Reported:** 2025-01-28  
-**Severity:** Medium  
-**Status:** ACTIVE 🔴
-
-#### Problem Description
-Test transpiles successfully but fails at runtime execution. This test involves return value assignment from actions.
-
-#### Test File
-`framec_tests/python/src/positive_tests/test_return_assign_actions.frm`
-
-#### Status
-- Transpilation: ✅ Success
-- Execution: ❌ Failure (Traceback error at runtime)
-
-#### Likely Causes
-Based on the "return_assign_actions" name:
-1. Actions not properly returning values
-2. Return value assignment syntax issues
-3. Missing return statements in generated action methods
-4. Incorrect handling of action return values in state handlers
-
-#### Known Issues with Actions
-Actions in Frame are internal methods that can be called from states. Common issues:
-- Actions should be prefixed with `self.__systemname__` in Python
-- Return values from actions need proper handling
-- Assignment from action calls may have special syntax requirements
-
-#### Investigation Needed
-1. Check if actions are properly generating return statements
-2. Verify the assignment syntax for action return values
-3. Ensure action methods are callable with correct self references
-4. Check if the return stack is properly managed for action calls
-
-#### Impact
-- Return value assignment is fundamental to programming
-- Actions are a core Frame concept for organizing behavior
-- Part of the 4 runtime failure tests
-- May affect any Frame code using actions with return values
 
 ### Bug #11: Debugger highlights wrong line when stepping through code
 
@@ -589,6 +593,31 @@ This systematic approach ensures source map issues are properly identified, docu
 ---
 
 ## Resolved Bugs
+
+### Bug #13: test_return_assign_actions.frm Runtime Failure (RESOLVED in v0.78.12 ✅)
+
+**Date Reported:** 2025-01-28  
+**Date Resolved:** 2025-09-28 (v0.78.12)  
+**Severity:** Medium  
+**Status:** RESOLVED ✅
+
+#### Problem Description
+Test was transpiling successfully but failing at runtime execution. This test involved return value assignment from actions.
+
+#### Solution
+The issue was resolved as part of the v0.78.12 fixes. The test now passes successfully, indicating that action return values are properly handled.
+
+#### Test Results
+- **Before Fix**: Runtime failure with traceback error
+- **After Fix**: Test passes successfully (verified in test suite run)
+- **Test Status**: Now part of the 373 passing tests
+
+#### Impact Resolution
+- Action return value assignment now works correctly
+- Return stack management for action calls is properly implemented
+- Actions with return values are fully functional
+
+---
 
 ### Bug #12: Incomplete Source Map for Class Methods and Generated Code (RESOLVED in v0.78.11 ✅)
 

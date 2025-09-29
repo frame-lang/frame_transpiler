@@ -1,19 +1,76 @@
-{"event": "trace", "message": "dispatch_line: func=FrameEvent, python_line=314, first_line=314, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 394 -> Frame None"}
+{"event": "trace", "message": "get_frame_line: Python 394 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=FrameEvent, python_line=394, first_line=394, frame_line=None"}
 {"event": "trace", "message": "Skipping function definition line for FrameEvent"}
-{"event": "trace", "message": "dispatch_line: func=FrameEvent, python_line=315, first_line=314, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=FrameCompartment, python_line=319, first_line=319, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 395 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=FrameEvent, python_line=395, first_line=394, frame_line=None"}
+{"event": "trace", "message": "Tracking frame FrameEvent (id=4373855296) for step_over"}
+{"event": "trace", "message": "get_frame_line: Python 399 -> Frame None"}
+{"event": "trace", "message": "get_frame_line: Python 399 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=FrameCompartment, python_line=399, first_line=399, frame_line=None"}
 {"event": "trace", "message": "Skipping function definition line for FrameCompartment"}
-{"event": "trace", "message": "dispatch_line: func=FrameCompartment, python_line=320, first_line=319, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=349, first_line=349, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 400 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=FrameCompartment, python_line=400, first_line=399, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 430 -> Frame None"}
+{"event": "trace", "message": "get_frame_line: Python 430 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=430, first_line=430, frame_line=None"}
 {"event": "trace", "message": "Skipping function definition line for NoneChecker"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=351, first_line=349, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=366, first_line=349, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=372, first_line=349, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=380, first_line=349, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=388, first_line=349, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=397, first_line=349, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=406, first_line=349, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=432, first_line=349, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=437, first_line=349, frame_line=None"}
-{"event": "trace", "message": "dispatch_line: func=main, python_line=338, first_line=337, frame_line=39"}
-{"event": "breakpoint_hit", "reason": "step", "frame_line": 39, "python_line": 338, "code_name": "main", "call_stack": [{"function": "main", "frame_line": 0}], "local_vars": {}}
+{"event": "trace", "message": "get_frame_line: Python 432 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=432, first_line=430, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 447 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=447, first_line=430, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 453 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=453, first_line=430, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 461 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=461, first_line=430, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 469 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=469, first_line=430, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 478 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=478, first_line=430, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 487 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=487, first_line=430, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 513 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=513, first_line=430, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 518 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=NoneChecker, python_line=518, first_line=430, frame_line=None"}
+{"event": "trace", "message": "get_frame_line: Python 417 -> Frame None"}
+{"event": "trace", "message": "get_frame_line: Python 418 -> Frame 39"}
+{"event": "trace", "message": "dispatch_line: func=main, python_line=418, first_line=417, frame_line=39"}
+{"event": "trace", "message": "get_frame_line: Python 410 -> Frame None"}
+{"event": "trace", "message": "get_frame_line: Python 411 -> Frame 4"}
+{"event": "trace", "message": "dispatch_line: func=testNoneValue, python_line=411, first_line=410, frame_line=4"}
+{"event": "trace", "message": "get_frame_line: Python 412 -> Frame 5"}
+{"event": "trace", "message": "dispatch_line: func=testNoneValue, python_line=412, first_line=410, frame_line=5"}
+{"event": "trace", "message": "get_frame_line: Python 413 -> Frame 6"}
+{"event": "trace", "message": "dispatch_line: func=testNoneValue, python_line=413, first_line=410, frame_line=6"}
+{"event": "trace", "message": "get_frame_line: Python 414 -> Frame 7"}
+{"event": "trace", "message": "dispatch_line: func=testNoneValue, python_line=414, first_line=410, frame_line=7"}
+{"event": "trace", "message": "get_frame_line: Python 419 -> Frame 41"}
+{"event": "trace", "message": "dispatch_line: func=main, python_line=419, first_line=417, frame_line=41"}
+{"event": "trace", "message": "Stopping on first frame line 41 in main()"}
+{"event": "breakpoint_hit", "reason": "step", "frame_line": 41, "python_line": 419, "code_name": "main", "call_stack": [{"function": "main", "frame_line": 0}], "local_vars": {"result": "None"}}
+{"event": "trace", "message": "get_frame_line: Python 420 -> Frame 42"}
+{"event": "trace", "message": "dispatch_line: func=main, python_line=420, first_line=417, frame_line=42"}
+{"event": "trace", "message": "Tracking frame main (id=4373065776) for step_over"}
+{"event": "trace", "message": "Step-over stopping at frame_line 42 (same frame)"}
+{"event": "breakpoint_hit", "reason": "step", "frame_line": 42, "python_line": 420, "code_name": "main", "call_stack": [{"function": "main", "frame_line": 0}], "local_vars": {"result": "None"}}
+{"event": "trace", "message": "get_frame_line: Python 421 -> Frame 43"}
+{"event": "trace", "message": "dispatch_line: func=main, python_line=421, first_line=417, frame_line=43"}
+{"event": "trace", "message": "Tracking frame main (id=4373065776) for step_over"}
+{"event": "trace", "message": "Step-over stopping at frame_line 43 (same frame)"}
+{"event": "breakpoint_hit", "reason": "step", "frame_line": 43, "python_line": 421, "code_name": "main", "call_stack": [{"function": "main", "frame_line": 0}], "local_vars": {"result": "None"}}
+{"event": "trace", "message": "get_frame_line: Python 422 -> Frame 44"}
+{"event": "trace", "message": "dispatch_line: func=main, python_line=422, first_line=417, frame_line=44"}
+{"event": "trace", "message": "Tracking frame main (id=4373065776) for step_over"}
+{"event": "trace", "message": "Step-over stopping at frame_line 44 (same frame)"}
+{"event": "breakpoint_hit", "reason": "step", "frame_line": 44, "python_line": 422, "code_name": "main", "call_stack": [{"function": "main", "frame_line": 0}], "local_vars": {"result": "None"}}
+{"event": "trace", "message": "get_frame_line: Python 432 -> Frame None"}
+{"event": "trace", "message": "get_frame_line: Python 434 -> Frame None"}
+{"event": "trace", "message": "dispatch_line: func=__init__, python_line=434, first_line=432, frame_line=None"}
+{"event": "trace", "message": "Tracking frame __init__ (id=4372961920) for step_over"}
+{"event": "trace", "message": "get_frame_line: Python 400 -> Frame None"}
+{"event": "trace", "message": "Entering child __init__, skipping trace"}
+{"event": "trace", "message": "get_frame_line: Python 435 -> Frame 37"}
+{"event": "trace", "message": "dispatch_line: func=__init__, python_line=435, first_line=432, frame_line=37"}
+{"event": "trace", "message": "Step-over stopping at frame_line 37 (same frame)"}
+{"event": "breakpoint_hit", "reason": "step", "frame_line": 37, "python_line": 435, "code_name": "__init__", "call_stack": [{"function": "main", "frame_line": 0}, {"function": "__init__", "frame_line": 0}, {"function": "__init__", "frame_line": 0}], "local_vars": {"self": "<__main__.NoneChecker object at 0x104b3c1a0>"}}
