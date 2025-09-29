@@ -1374,30 +1374,30 @@ impl PythonVisitorV2 {
                 if let Some(dispatch) = &state.dispatch_opt {
                     // Initial state has a parent - create parent compartment first
                     let parent_state_name = self.format_state_name(&dispatch.target_state_ref.name);
-                    self.builder.writeln_mapped(&format!(
+                    self.builder.writeln(&format!(
                         "parent_compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
                         parent_state_name
-                    ), system_node.line);
-                    self.builder.writeln_mapped(&format!(
+                    ));
+                    self.builder.writeln(&format!(
                         "self.__compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {{}})",
                         state_name, state_vars_dict
-                    ), system_node.line);
+                    ));
                 } else {
                     // No parent - create compartment normally
-                    self.builder.writeln_mapped(&format!(
+                    self.builder.writeln(&format!(
                         "self.__compartment = FrameCompartment('{}', None, None, None, None, {}, {{}})",
                         state_name, state_vars_dict
-                    ), system_node.line);
+                    ));
                 }
             } else {
-                self.builder.writeln_mapped("self.__compartment = None", system_node.line);
+                self.builder.writeln("self.__compartment = None");
             }
         } else {
-            self.builder.writeln_mapped("self.__compartment = None", system_node.line);
+            self.builder.writeln("self.__compartment = None");
         }
         
-        self.builder.writeln_mapped("self.__next_compartment = None", system_node.line);
-        self.builder.writeln_mapped("self.return_stack = [None]", system_node.line);
+        self.builder.writeln("self.__next_compartment = None");
+        self.builder.writeln("self.return_stack = [None]");
         
         // Initialize domain variables
         if let Some(domain_block) = &system_node.domain_block_node_opt {
@@ -1436,11 +1436,11 @@ impl PythonVisitorV2 {
             let has_async = self.check_system_async(system_node);
             if has_async {
                 self.builder.write_comment("System has async runtime - start event must be sent asynchronously");
-                self.builder.writeln_mapped("self.__startup_event = FrameEvent(\"$>\", None)", system_node.line);
+                self.builder.writeln("self.__startup_event = FrameEvent(\"$>\", None)");
             } else {
                 self.builder.write_comment("Send system start event");
-                self.builder.writeln_mapped("frame_event = FrameEvent(\"$>\", None)", system_node.line);
-                self.builder.writeln_mapped("self.__kernel(frame_event)", system_node.line);
+                self.builder.writeln("frame_event = FrameEvent(\"$>\", None)");
+                self.builder.writeln("self.__kernel(frame_event)");
             }
         }
         
@@ -1476,12 +1476,12 @@ impl PythonVisitorV2 {
             method.line  // v0.77: use line from InterfaceMethodNode for source mapping
         );
         
-        // Map interface method internals to the method line
-        self.builder.writeln_mapped("self.return_stack.append(None)", method.line);
+        // Interface method body is generated boilerplate - don't map to source
+        self.builder.writeln("self.return_stack.append(None)");
         
         // Create event and send to kernel
         if params.is_empty() {
-            self.builder.writeln_mapped(&format!("__e = FrameEvent(\"{}\", None)", method.name), method.line);
+            self.builder.writeln(&format!("__e = FrameEvent(\"{}\", None)", method.name));
         } else {
             // Pack parameters into a dictionary
             let param_names: Vec<String> = if let Some(params) = &method.params {
@@ -1495,16 +1495,16 @@ impl PythonVisitorV2 {
                 .collect::<Vec<_>>()
                 .join(", ");
             
-            self.builder.writeln_mapped(&format!("__e = FrameEvent(\"{}\", {{{}}})", method.name, param_dict), method.line);
+            self.builder.writeln(&format!("__e = FrameEvent(\"{}\", {{{}}})", method.name, param_dict));
         }
         
         if needs_async {
-            self.builder.writeln_mapped("await self.__kernel(__e)", method.line);
+            self.builder.writeln("await self.__kernel(__e)");
         } else {
-            self.builder.writeln_mapped("self.__kernel(__e)", method.line);
+            self.builder.writeln("self.__kernel(__e)");
         }
         
-        self.builder.writeln_mapped("return self.return_stack.pop(-1)", method.line);
+        self.builder.writeln("return self.return_stack.pop(-1)");
         
         self.builder.dedent();
     }
@@ -1650,11 +1650,11 @@ impl PythonVisitorV2 {
         let params_extracted = if let Some(params) = &event_symbol.event_symbol_params_opt {
             if !params.is_empty() {
                 for param in params {
-                    // Map parameter extraction to the handler line
-                    self.builder.writeln_mapped(&format!(
+                    // Parameter extraction is generated boilerplate - don't map
+                    self.builder.writeln(&format!(
                         "{} = __e._parameters.get(\"{}\") if __e._parameters else None",
                         param.name, param.name
-                    ), evt_handler.line);
+                    ));
                 }
                 true
             } else {
@@ -1669,11 +1669,11 @@ impl PythonVisitorV2 {
             if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
                 if let Some(param_names) = self.interface_methods.get(&message_node.name) {
                     for param_name in param_names {
-                        // Map parameter extraction to the handler line
-                        self.builder.writeln_mapped(&format!(
+                        // Parameter extraction is generated boilerplate - don't map
+                        self.builder.writeln(&format!(
                             "{} = __e._parameters.get(\"{}\") if __e._parameters else None",
                             param_name, param_name
-                        ), evt_handler.line);
+                        ));
                     }
                 }
             }
@@ -1688,8 +1688,8 @@ impl PythonVisitorV2 {
         if let Some(terminator) = &evt_handler.terminator_node {
             self.visit_event_handler_terminator_node(&terminator);
         } else {
-            // Map implicit return to the handler line
-            self.builder.writeln_mapped("return", evt_handler.line);
+            // Implicit return is generated boilerplate - don't map
+            self.builder.writeln("return");
         }
         
         self.builder.dedent();

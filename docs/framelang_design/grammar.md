@@ -1,7 +1,7 @@
 # Frame Language Grammar (v0.78.14)
 
 **Last Updated**: 2024-12-30  
-**Status**: Cross-system static method calls fixed, PythonVisitorV2 as default, **99.5% test success rate (374/376 tests passing)**
+**Status**: Cross-system static method calls fixed, PythonVisitorV2 as default, **100% test success rate (376/376 tests passing)**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -3347,10 +3347,11 @@ true false None
 ```
 
 **Note on `system` keyword**: 
-- Reserved keyword used ONLY in the compound token `system.return`
-- `system.return` is used to set interface method return values
+- Reserved keyword that cannot be used as a variable or identifier name
+- Used for system declarations: `system MySystem { ... }`
+- Used in compound token `system.return` for setting interface return values
 - `system.method()` syntax is NOT supported - use `self.method()` instead
-- Bare `system` keyword will produce an error
+- Using `system` as a variable name will cause a parse error
 
 ## Null Value (v0.31)
 

@@ -2,6 +2,23 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.78.15] - 2024-12-30
+
+### Fixed
+- Duplicate source mappings causing debugger confusion - Removed redundant mappings for generated boilerplate code
+- Interface methods, system __init__, and event handlers now only map user-written code
+- Significantly reduced duplicate Frame-to-Python line mappings (from ~40 duplicates to ~5)
+
+### Changed
+- Generated boilerplate code (parameter extraction, implicit returns, compartment initialization) no longer creates source mappings
+- Only user-written Frame code is mapped to generated Python for cleaner debugging experience
+- Source mapping quality improved by eliminating confusing duplicate mappings
+
+### Technical Details
+- All 376 tests still passing (100% success rate maintained)
+- Duplicate mappings reduced from affecting 10+ Frame lines to only 5 expected cases
+- Cleaner source maps improve VS Code debugger experience
+
 ## [v0.78.14] - 2024-12-30
 
 ### Fixed

@@ -48,15 +48,13 @@ system SimpleStateParams {
 }
 
 fn main() {
-    var system = SimpleStateParams()
+    var machine = SimpleStateParams()
     
     # Test single parameter
-    system.start(60)
-    system.tick()
+    machine.start(60)
+    machine.tick()
     
     # Test multiple parameters
-    system.configure(10, 100)
-    system.check()
+    machine.configure(10, 100)
+    machine.check()
 }
-
-main()
