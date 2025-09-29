@@ -1,18 +1,18 @@
-# Bug Report: Domain Variable Duplicate Source Mappings
+# Bug #18: Domain Variable Duplicate Source Mappings
 
 **Bug ID:** #18  
-**Severity:** Low (improved from High)  
-**Status:** Partially Fixed (71% improvement achieved)  
-**Versions Tested:** v0.78.14 through v0.78.17  
-**Reporter:** VS Code Frame Extension Team  
-**Date:** 2024-12-30  
+**Date Reported:** 2024-12-29  
+**Last Updated:** 2024-12-30  
+**Severity:** Low (reduced from High)  
+**Status:** Partially Fixed - 71% improvement achieved  
+**Current Version:** v0.78.18  
 
 ## Summary
 Domain variable declarations in Frame systems generate duplicate source map entries, causing the VS Code debugger to incorrectly jump to domain variable lines when stepping through system initialization code.
 
-## Current Status (v0.78.17)
+## Current Status (v0.78.18)
 - **Original (v0.78.14):** 7 duplicate mappings for line 37
-- **Current (v0.78.15-17):** 2 duplicate mappings for line 37
+- **Current (v0.78.15-18):** 2 duplicate mappings for line 37
 - **Improvement:** 71% reduction in duplicates
 - **Remaining Issue:** Frame line 37 still maps to Python lines 40 and 42
 

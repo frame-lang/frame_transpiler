@@ -656,6 +656,7 @@ impl<'a> Parser<'a> {
         module_opt: Option<Module>,
         system_attributes_opt: Option<HashMap<String, AttributeNode>>,
         _functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
+        line: usize,  // Add line parameter to receive system declaration line
     ) -> Result<SystemNode, ParseError> {
         let interface_block_node_opt;
         let machine_block_node_opt;
@@ -707,8 +708,8 @@ impl<'a> Parser<'a> {
 
         }
 
-        let line = self.previous().line;
-
+        // Line number was already captured at the beginning when parsing system name
+        
         self.arcanum.exit_scope();
         
         // v0.63: Clear system context after parsing
@@ -1703,6 +1704,7 @@ impl<'a> Parser<'a> {
         }
 
         let system_name = self.previous().lexeme.clone();
+        let line = self.previous().line; // Capture line number of system name token
 
         // The 'is_system_scope' flag is used to determine parsing context
         let prev_is_system_scope = self.is_system_scope;
@@ -1747,8 +1749,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // Call the actual system parsing method
-        let ret = self.system(system_name.clone(), module_opt, system_attributes_opt, functions_opt);
+        // Call the actual system parsing method, passing the line number
+        let ret = self.system(system_name.clone(), module_opt, system_attributes_opt, functions_opt, line);
 
         if self.is_building_symbol_table {
             // Associate AST node with symbol if successful  

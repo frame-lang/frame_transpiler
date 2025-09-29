@@ -260,7 +260,10 @@ impl CodeBuilder {
     
     /// Write a Python function definition with proper mapping
     pub fn write_function(&mut self, name: &str, params: &str, is_async: bool, frame_line: usize) -> &mut Self {
-        self.map_next(frame_line);
+        // Only create mapping if frame_line is not 0 (0 indicates generated code)
+        if frame_line > 0 {
+            self.map_next(frame_line);
+        }
         
         if is_async {
             self.write(&format!("async def {}({}):", name, params));

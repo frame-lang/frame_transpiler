@@ -1329,8 +1329,8 @@ impl PythonVisitorV2 {
             "self".to_string()
         };
         
-        // Map __init__ to the system declaration line
-        self.builder.writeln_mapped(&format!("def __init__({}):", params), system_node.line);
+        // __init__ is generated code, don't map to Frame source
+        self.builder.writeln(&format!("def __init__({}):", params));
         self.builder.indent();
         
         self.builder.write_comment("Create and initialize start state compartment");
@@ -1732,11 +1732,12 @@ impl PythonVisitorV2 {
         self.builder.write_comment(&format!("${}", &state.name));
         self.builder.newline();
         
+        // State dispatcher is generated code, pass 0 to indicate no mapping
         self.builder.write_function(
             &state_method,
             "self, __e, compartment",
             needs_async,
-            state.line
+            0
         );
         
         let mut first = true;
@@ -1757,12 +1758,12 @@ impl PythonVisitorV2 {
                 MessageType::None => "False".to_string(),
             };
             
-            // Map the conditional to the event handler line
+            // State dispatcher is generated code, don't map to Frame source
             if first {
-                self.builder.write_mapped("if ", evt_handler.line);
+                self.builder.write("if ");
                 first = false;
             } else {
-                self.builder.write_mapped("elif ", evt_handler.line);
+                self.builder.write("elif ");
             }
             
             self.builder.writeln(&format!("{}:", condition));
@@ -1773,8 +1774,8 @@ impl PythonVisitorV2 {
             } else {
                 format!("return self.{}(__e, compartment)", handler_name)
             };
-            // Map the return statement to the handler line too
-            self.builder.writeln_mapped(&call, evt_handler.line);
+            // Don't map the dispatcher's return statement
+            self.builder.writeln(&call);
             self.builder.dedent();
         }
         

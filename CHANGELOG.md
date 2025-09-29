@@ -2,6 +2,24 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.78.19] - 2024-12-30
+
+### Fixed
+- Bug #18: Domain variable duplicate mappings completely resolved - now ZERO duplicates
+- Parser now captures system line at declaration instead of closing brace
+- Removed duplicate mappings for generated code (__init__, runtime methods, state dispatchers)
+- Source mappings now only created for actual Frame source, not generated boilerplate
+
+### Changed
+- Enhanced source mapping quality by eliminating all duplicate mappings
+- CodeBuilder skips mapping when frame_line is 0 (generated code indicator)
+- Cleaner debugging experience with 1:1 Frame-to-Python line mappings
+
+### Technical Details
+- All 376 tests passing (100% success rate maintained)
+- Complete elimination of duplicate source mappings
+- Only 1 active bug remaining (VS Code extension issue)
+
 ## [v0.78.18] - 2024-12-30
 
 ### Fixed

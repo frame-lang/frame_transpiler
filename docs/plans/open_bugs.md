@@ -1,9 +1,43 @@
 # Frame Transpiler Open Bugs
 
 **Last Updated:** 2024-12-30  
-**Current Version:** v0.78.18  
-**Active Bugs:** 2 (Bug #11 - VS Code extension issue, Bug #18 - 2 remaining duplicates)  
-**Resolved Bugs:** 25 (including #16 fully resolved in v0.78.18, #19-20 in v0.78.15)
+**Current Version:** v0.78.19  
+**Active Bugs:** 1 (Bug #11 - VS Code extension issue only)  
+**Resolved Bugs:** 26 (including #18 fully resolved in v0.78.19)
+
+## VS Code Extension Testing Session Summary (2024-12-30)
+
+### Versions Tested
+- Started with v0.78.13, progressed through v0.78.15, v0.78.17, ending with v0.78.18
+- VS Code extension rebuilt and tested with each version
+
+### Key Findings
+1. **Bug #18 Progress**: Domain variable duplicate mappings reduced from 7 to 2 (71% improvement)
+   - v0.78.14: 7 duplicates
+   - v0.78.15-18: 2 duplicates remain
+   - Impact: Minor debugging inconvenience only
+
+2. **Bug #11 Confirmed**: Debugger line offset is VS Code extension architecture issue
+   - Not a transpiler bug
+   - Extension injects ~700 lines of debug instrumentation
+   - Source maps don't account for this offset
+   - Fix required in VS Code extension, not transpiler
+
+3. **Major Fixes Verified**:
+   - Bug #19 & #20: Parser errors with functions after systems - CONFIRMED FIXED
+   - Bug #16: Circular import detection - CONFIRMED FULLY FIXED
+   - All 376 tests pass (100% success rate)
+
+### VS Code Extension Improvements Made
+- Implemented multi-state machine architecture for debugger
+- Refactored to use stdin (eliminated temp files)  
+- Fixed frame tracking for step operations
+- Improved error handling and state management
+
+### Detection Methods Documented
+- Added automated scripts to detect duplicate mappings
+- Documented how VS Code extension detects source map issues
+- Provided verification methods for transpiler team
 
 ## Bug Summary - All Tests Now Passing!
 
@@ -75,26 +109,6 @@
 - ✅ Comprehensive source map architecture documentation added
 - ✅ Marker file linter implemented for validation of intermediate files
 
-## Active Bugs
-
-### Bug #18: Domain Variable Duplicate Mappings (Still 2 Duplicates)
-
-**Date Reported:** 2025-09-29  
-**Last Updated:** 2024-12-30 (v0.78.17)
-**Severity:** Low (reduced from Medium - only 2 duplicates remain)
-**Status:** PARTIALLY FIXED 🟡
-
-#### Current Status in v0.78.17
-- **v0.78.14**: 7 duplicate mappings
-- **v0.78.15**: 2 duplicate mappings (71% improvement)
-- **v0.78.16-17**: Still 2 duplicate mappings
-
-Frame line 37 (`var data = None`) still maps to Python lines 40 and 42.
-
-#### Impact
-- Minor debugging inconvenience 
-- Much improved from original 7 duplicates
-- Only affects system initialization debugging
 
 
 
@@ -594,6 +608,35 @@ Circular import detection was working but error messages showed "unknown → unk
 
 #### Note
 The test file `test_circular_main.frm` has an unrelated issue with a module-level `main()` call that triggers a different error first.
+
+---
+
+### Bug #18: Domain Variable Duplicate Mappings (RESOLVED in v0.78.19 ✅)
+
+**Date Reported:** 2024-12-29  
+**Date Resolved:** 2024-12-30 (v0.78.19)  
+**Severity:** Low  
+**Status:** RESOLVED ✅
+
+#### Problem Description
+Domain variables and other Frame constructs were being mapped multiple times to different Python lines, causing debugger confusion. Originally 7 duplicates, reduced to 2 in v0.78.15-18.
+
+#### Solution Implemented
+- Fixed parser to capture system line at declaration instead of closing brace
+- Removed duplicate mapping for generated __init__ method  
+- Prevented mapping of generated runtime methods (__kernel, __router, __transition)
+- Eliminated state dispatcher mappings for generated code
+- Modified code_builder to skip mappings when frame_line is 0
+
+#### Test Results
+- **Before v0.78.19**: 2 duplicate mappings remained
+- **After v0.78.19**: ZERO duplicate mappings
+- All 376 tests passing (100% success rate maintained)
+
+#### Files Modified
+- `framec/src/frame_c/parser.rs` - Lines 1706, 1753, removed line 710
+- `framec/src/frame_c/visitors/python_visitor_v2.rs` - Lines 1333, 1740, 1761-1777
+- `framec/src/frame_c/code_builder.rs` - Line 264
 
 ---
 

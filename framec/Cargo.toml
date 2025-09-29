@@ -1,6 +1,6 @@
 [package]
 name = "framec"
-version = "0.78.18"
+version = "0.78.19"
 authors = ["Mark Truluck <mark@frame-lang.org>"]
 edition = "2021"
 
