@@ -2,6 +2,23 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.78.13] - 2024-12-29
+
+### Fixed
+- Bug #17: Module-level system instantiation not detected - Parser now validates and rejects module-level instantiations and function calls
+- Bug #14a/14b: Operation-to-operation calls within systems missing self prefix - Fixed call chain resolution for operations
+- Bug #16: Circular import error message - Negative test correctly produces error (though different message than originally expected)
+
+### Changed  
+- Parser adds validation loop after main parsing to detect module-level code violations
+- PythonVisitorV2 tracks operation names for proper self-prefixing in call chains
+- Extended UndeclaredCallT handling in visit_call_chain_expr_node_to_string
+
+### Technical Details
+- Test success rate improved from 97.6% (367/376) to 98.9% (372/376)
+- 5 additional tests now passing
+- 4 tests remaining to fix (2 transpilation, 2 runtime failures)
+
 ## [v0.78.11] - 2025-09-28
 
 ### Added

@@ -48,6 +48,7 @@ pub struct PythonVisitorV2 {
     current_state_params: HashSet<String>, // Track current state's parameter names
     domain_enums: HashSet<String>, // Track domain enum names (without prefix)
     action_names: HashSet<String>, // Track action names for proper call resolution
+    operation_names: HashSet<String>, // Track operation names for proper call resolution
     
     // Import tracking
     imports: Vec<String>,
@@ -89,6 +90,7 @@ impl PythonVisitorV2 {
             current_state_params: HashSet::new(),
             domain_enums: HashSet::new(),
             action_names: HashSet::new(),
+            operation_names: HashSet::new(),
             imports: Vec::new(),
             used_modules: HashSet::new(),
             global_vars: HashSet::new(),
@@ -542,11 +544,17 @@ impl PythonVisitorV2 {
             self.visit_interface_block_node(interface);
         }
         
-        // Collect action names BEFORE processing machine block (for proper call resolution)
+        // Collect action and operation names BEFORE processing machine block (for proper call resolution)
         if let Some(actions) = &system_node.actions_block_node_opt {
             for action_rcref in &actions.actions {
                 let action_node = action_rcref.borrow();
                 self.action_names.insert(action_node.name.clone());
+            }
+        }
+        if let Some(operations) = &system_node.operations_block_node_opt {
+            for operation_rcref in &operations.operations {
+                let operation_node = operation_rcref.borrow();
+                self.operation_names.insert(operation_node.name.clone());
             }
         }
         
@@ -696,6 +704,12 @@ impl PythonVisitorV2 {
     }
     
     fn visit_operations_block_node(&mut self, operations_block: &OperationsBlockNode) {
+        // Track operation names for call resolution
+        for operation_rcref in &operations_block.operations {
+            let operation_node = operation_rcref.borrow();
+            self.operation_names.insert(operation_node.name.clone());
+        }
+        
         // Generate each operation in the operations block
         for operation_rcref in &operations_block.operations {
             let operation_node = operation_rcref.borrow();
@@ -2502,6 +2516,7 @@ impl PythonVisitorV2 {
         
         // Check for resolved call type
         if let Some(resolved_type) = &node.resolved_type {
+            
             match resolved_type {
                 ResolvedCallType::Action(_) => {
                     output.push_str(&format!("self.__{}__{}", self.system_name, node.identifier.name.lexeme));
@@ -2553,11 +2568,15 @@ impl PythonVisitorV2 {
                 }
             }
         } else {
-            // Fallback: check if this is an action call
+            // Fallback: check if this is an action or operation call
             if self.action_names.contains(&node.identifier.name.lexeme) {
                 // Generate action call: self.__SystemName__actionName
                 output.push_str(&format!("self.__{}__{}",
                     self.system_name, node.identifier.name.lexeme));
+            } else if self.operation_names.contains(&node.identifier.name.lexeme) {
+                // Generate operation call: self.operationName
+                output.push_str("self.");
+                output.push_str(&node.identifier.name.lexeme);
             } else {
                 // Regular function name
                 output.push_str(&node.identifier.name.lexeme);
@@ -3603,11 +3622,15 @@ impl PythonVisitorV2 {
                         // like TestService.getDefaultConfig()
                         let func_name = &call_node.identifier.name.lexeme;
                         
-                        // Check if this is an action call
+                        // Check if this is an action or operation call
                         if self.action_names.contains(func_name) {
                             // Generate action call: self.__SystemName__actionName
                             output.push_str(&format!("self.__{}__{}",
                                 self.system_name, func_name));
+                        } else if self.operation_names.contains(func_name) {
+                            // Generate operation call: self.operationName
+                            output.push_str("self.");
+                            output.push_str(func_name);
                         } else {
                             output.push_str(func_name);
                         }
