@@ -1,9 +1,9 @@
 # Frame Transpiler Open Bugs
 
 **Last Updated:** 2024-12-30  
-**Current Version:** v0.78.19  
+**Current Version:** v0.78.20  
 **Active Bugs:** 1 (Bug #11 - VS Code extension issue only)  
-**Resolved Bugs:** 26 (including #18 fully resolved in v0.78.19)
+**Resolved Bugs:** 27 (including #23 resolved in v0.78.20)
 
 ## VS Code Extension Testing Session Summary (2024-12-30)
 
@@ -109,8 +109,7 @@
 - ✅ Comprehensive source map architecture documentation added
 - ✅ Marker file linter implemented for validation of intermediate files
 
-
-
+## Active Bugs
 
 ### Bug #11: Debugger highlights wrong line when stepping through code
 
@@ -637,6 +636,29 @@ Domain variables and other Frame constructs were being mapped multiple times to 
 - `framec/src/frame_c/parser.rs` - Lines 1706, 1753, removed line 710
 - `framec/src/frame_c/visitors/python_visitor_v2.rs` - Lines 1333, 1740, 1761-1777
 - `framec/src/frame_c/code_builder.rs` - Line 264
+
+---
+
+### Bug #23: Interface Method Implementations Incorrectly Mapped (RESOLVED in v0.78.20 ✅)
+
+**Date Reported:** 2024-12-30  
+**Date Resolved:** 2024-12-30 (v0.78.20)  
+**Severity:** High  
+**Status:** RESOLVED ✅
+
+#### Problem Description
+Generated interface method implementations were incorrectly mapped to Frame interface declaration lines, causing debugger to show wrong location when entering interface methods.
+
+#### Solution Implemented
+Changed `python_visitor_v2.rs` line 1477 to pass 0 instead of `method.line` to indicate generated code that should not have source mappings.
+
+#### Test Results
+- **Before v0.78.20**: Interface methods mapped to declaration lines
+- **After v0.78.20**: Interface methods have NO mappings (correct)
+- All 376 tests passing (100% success rate maintained)
+
+#### Files Modified
+- `framec/src/frame_c/visitors/python_visitor_v2.rs` - Line 1477
 
 ---
 

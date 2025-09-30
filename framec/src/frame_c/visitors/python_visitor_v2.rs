@@ -1469,11 +1469,12 @@ impl PythonVisitorV2 {
         let needs_async = method.is_async || self.system_has_async_runtime;
         
         self.builder.newline();
+        // Interface method implementations are generated boilerplate - don't map to declaration
         self.builder.write_function(
             &method.name,
             &full_params,
             needs_async,
-            method.line  // v0.77: use line from InterfaceMethodNode for source mapping
+            0  // Pass 0 to indicate generated code
         );
         
         // Interface method body is generated boilerplate - don't map to source

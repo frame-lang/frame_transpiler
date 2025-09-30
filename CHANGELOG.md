@@ -2,6 +2,21 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.78.20] - 2024-12-30
+
+### Fixed
+- Bug #23: Interface method implementations no longer incorrectly mapped to declaration lines
+- Generated interface methods now have no source mappings (they're boilerplate code)
+- Fixes debugger incorrectly showing execution at interface declaration when entering methods
+
+### Changed
+- Interface method implementations treated as generated code (line 0)
+- Cleaner debugging experience without misleading interface mappings
+
+### Technical Details
+- All 376 tests passing (100% success rate maintained)
+- Only 1 active bug remaining (VS Code extension issue)
+
 ## [v0.78.19] - 2024-12-30
 
 ### Fixed
