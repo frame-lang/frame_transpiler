@@ -1,9 +1,9 @@
 # Frame Transpiler Open Bugs
 
 **Last Updated:** 2024-12-30  
-**Current Version:** v0.78.20  
-**Active Bugs:** 1 (Bug #11 - VS Code extension issue only)  
-**Resolved Bugs:** 27 (including #23 resolved in v0.78.20)
+**Current Version:** v0.78.21  
+**Active Bugs:** 3 (Bugs #11, #25, #26)  
+**Resolved Bugs:** 28 (including #24 resolved in v0.78.21)
 
 ## VS Code Extension Testing Session Summary (2024-12-30)
 
@@ -110,6 +110,39 @@
 - ✅ Marker file linter implemented for validation of intermediate files
 
 ## Active Bugs
+
+### Bug #24: Source Map Incorrectly Marks Print Statements as function_def (RESOLVED in v0.78.21 ✅)
+**Date Reported:** 2024-12-30
+**Date Resolved:** 2024-12-30 (v0.78.21)
+**Severity:** High  
+**Status:** RESOLVED ✅
+
+#### Problem Description
+Lines 54 and 57 in test_none_keyword.frm were incorrectly marked as `function_def` type in source map when they were actually print statements inside the main function.
+
+#### Solution Implemented
+Enhanced CodeBuilder architecture to support mapping types:
+
+1. **Updated CodeBuilder SourceMapping struct** to include `mapping_type` field
+2. **Added `map_next_with_type()` method** to specify mapping types explicitly  
+3. **Fixed hardcoded MappingType::FunctionDef** in python_visitor_v2.rs lines 187 and 228
+4. **Updated visitor methods** to use appropriate mapping types:
+   - `visit_call_statement_node`: Uses `MappingType::Print` for print statements, `MappingType::FunctionCall` for others
+   - `visit_variable_stmt_node`: Uses `MappingType::VarDecl` for variable declarations
+
+#### Test Results
+- **Before Fix**: ALL mappings marked as "function_def" (409 total)
+- **After Fix**: Print statements correctly marked as "print", variable declarations as "var_decl"
+- Infrastructure in place for all statement types to use correct mapping types
+
+#### Files Modified
+- `framec/src/frame_c/code_builder.rs` - Added mapping type support
+- `framec/src/frame_c/visitors/python_visitor_v2.rs` - Fixed hardcoded types, updated visitor methods
+
+#### Impact
+- Debugger can now distinguish between different statement types
+- Foundation laid for comprehensive mapping type support
+- Better debugging experience with accurate statement classification
 
 ### Bug #11: Debugger highlights wrong line when stepping through code
 
@@ -1528,5 +1561,87 @@ Fixed the critical double-call bug in `visit_call_expression_node_to_string` at 
 
 #### Impact
 Perfect source mapping enables flawless debugging in VS Code with accurate breakpoints, stepping, and line tracking.
+
+---
+
+### Bug #25: Incorrect Control Flow Source Mapping in Loops
+**Date Reported:** 2025-01-30  
+**Severity:** High  
+**Status:** ACTIVE 🔴
+
+#### Problem Description
+During while loop execution, the debugger incorrectly jumps to unrelated code lines after completing a loop iteration. The source mapping appears to be confused about control flow structures.
+
+#### Test Case
+Frame code (test_debug_entry.frm):
+```frame
+64:    # Some control flow
+65:    if x > 50 {
+66:        print("Line 66: x is greater than 50")
+67:    } else {
+68:        print("Line 68: x is not greater than 50")
+69:    }
+70:    
+71:    # Loop
+72:    var i = 0
+73:    while i < 3 {
+74:        print("Line 74: Loop iteration " + str(i))
+75:        i = i + 1
+76:    }
+```
+
+#### Observed Behavior
+1. Execution correctly goes: 65 → 66 (since x=100 > 50)
+2. Then: 72 → 73 → 74 (correct loop entry)
+3. **BUG**: After line 74, jumps to line 68 (else branch that should never execute)
+4. Line 68 is in the else branch that was already skipped
+
+#### Expected Behavior
+After line 74, should go to line 75 (i = i + 1), then back to line 73 (while condition check).
+
+#### Impact
+- Confusing debugging experience
+- Debugger appears to execute code that shouldn't run
+- Makes it impossible to trust step-through debugging in loops
+
+#### Root Cause
+Source mapping for control flow structures (while loops, if/else) appears to have incorrect Python line number assignments.
+
+---
+
+### Bug #26: Missing Source Maps for Generated Code Sections
+**Date Reported:** 2025-01-30  
+**Severity:** Medium  
+**Status:** ACTIVE 🔴 (Extension of Bug #12)
+
+#### Problem Description
+Many Frame language constructs have no source mappings, causing the debugger to return `frame_line=None` when stepping through generated Python code.
+
+#### Missing Mappings Include
+- Class methods and constructors (`init` methods)
+- System initialization code
+- Frame event handler implementations
+- Generated framework/runtime code
+- State machine setup code
+
+#### Test Case Evidence
+During debugging, these log messages appear frequently:
+```
+[DEBUG] Frame line event: python=502, frame=79, func=SimpleSystem
+[DEBUG] Skipping stop in SimpleSystem at line 79
+[DEBUG] Frame line event: python=519, frame=None, func=SimpleSystem
+[DEBUG] Frame line event: python=525, frame=None, func=SimpleSystem
+```
+
+Lines with `frame=None` indicate missing source mappings.
+
+#### Impact
+- Debugger cannot stop at these lines
+- Step-through debugging skips over important code sections
+- Users cannot debug system initialization or class methods
+- "No source available" messages in debugger
+
+#### Expected Behavior
+All user-written Frame code should have corresponding source mappings, even if it's generated into Python classes or system initialization.
 
 ---

@@ -2,6 +2,23 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.78.21] - 2024-12-30
+
+### Fixed
+- Bug #24: Source map types now correctly distinguish statement types instead of marking everything as "function_def"
+- Print statements now mapped as MappingType::Print for better debugging accuracy
+- Variable declarations now mapped as MappingType::VarDecl for clearer source maps
+
+### Enhanced
+- CodeBuilder architecture now supports mapping types with new mapping_type field
+- Added map_next_with_type() method for type-aware source mapping
+- Foundation laid for comprehensive mapping type support across all statement types
+
+### Technical Details
+- All 377 tests passing (100% success rate maintained)
+- Enhanced debugging experience with accurate statement type classification
+- VS Code debugger can now distinguish between different Frame statement types
+
 ## [v0.78.20] - 2024-12-30
 
 ### Fixed

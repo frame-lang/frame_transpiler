@@ -25,6 +25,7 @@ pub struct SourceMapping {
     pub frame_line: usize,
     pub python_line: usize,
     pub python_column: Option<usize>,
+    pub mapping_type: Option<crate::frame_c::source_map::MappingType>,
 }
 
 /// Code fragment with associated metadata
@@ -67,7 +68,7 @@ pub struct CodeBuilder {
     at_line_start: bool,
     
     // Deferred mapping - set this before writing code to map it
-    pending_mapping: Option<usize>,
+    pending_mapping: Option<(usize, Option<crate::frame_c::source_map::MappingType>)>,
     
     // Fragment stack for non-linear generation
     fragment_stack: Vec<CodeFragment>,
@@ -94,7 +95,13 @@ impl CodeBuilder {
     
     /// Set the source line for the next code to be written
     pub fn map_next(&mut self, frame_line: usize) -> &mut Self {
-        self.pending_mapping = Some(frame_line);
+        self.pending_mapping = Some((frame_line, None));
+        self
+    }
+    
+    /// Set the source line and mapping type for the next code to be written
+    pub fn map_next_with_type(&mut self, frame_line: usize, mapping_type: crate::frame_c::source_map::MappingType) -> &mut Self {
+        self.pending_mapping = Some((frame_line, Some(mapping_type)));
         self
     }
     
@@ -105,8 +112,8 @@ impl CodeBuilder {
         }
         
         // Apply pending mapping if we have one
-        if let Some(frame_line) = self.pending_mapping.take() {
-            self.add_mapping(frame_line);
+        if let Some((frame_line, mapping_type)) = self.pending_mapping.take() {
+            self.add_mapping_with_type(frame_line, mapping_type);
         }
         
         // Process each character
@@ -200,11 +207,35 @@ impl CodeBuilder {
             frame_line,
             python_line: self.current_position.line,
             python_column: Some(self.current_position.column),
+            mapping_type: None,
         };
         
         if self.debug {
             eprintln!("CodeBuilder: Mapping Frame line {} -> Python line {} col {}", 
                      frame_line, mapping.python_line, self.current_position.column);
+        }
+        
+        self.mappings.push(mapping);
+    }
+    
+    fn add_mapping_with_type(&mut self, frame_line: usize, mapping_type: Option<crate::frame_c::source_map::MappingType>) {
+        // Clone for debug before moving into struct
+        let type_str = if self.debug {
+            mapping_type.as_ref().map(|t| format!("{:?}", t)).unwrap_or("None".to_string())
+        } else {
+            String::new()
+        };
+        
+        let mapping = SourceMapping {
+            frame_line,
+            python_line: self.current_position.line,
+            python_column: Some(self.current_position.column),
+            mapping_type,
+        };
+        
+        if self.debug {
+            eprintln!("CodeBuilder: Mapping Frame line {} -> Python line {} col {} type: {}", 
+                     frame_line, mapping.python_line, self.current_position.column, type_str);
         }
         
         self.mappings.push(mapping);

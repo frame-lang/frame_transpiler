@@ -184,7 +184,7 @@ impl PythonVisitorV2 {
                 external_builder.borrow_mut().set_python_line(mapping.python_line);
                 external_builder.borrow_mut().add_mapping(
                     mapping.frame_line,
-                    MappingType::FunctionDef,
+                    mapping.mapping_type.clone().unwrap_or(MappingType::FunctionDef),
                     None
                 );
             }
@@ -222,10 +222,10 @@ impl PythonVisitorV2 {
         for mapping in mappings {
             // Set the Python line from CodeBuilder (already 1-based)
             builder.set_python_line(mapping.python_line);
-            // Add the mapping
+            // Add the mapping with the correct type
             builder.add_mapping(
                 mapping.frame_line,
-                MappingType::FunctionDef,
+                mapping.mapping_type.clone().unwrap_or(MappingType::FunctionDef),
                 None
             );
         }
@@ -3095,8 +3095,17 @@ impl PythonVisitorV2 {
     
     // Call statement
     fn visit_call_statement_node(&mut self, node: &CallStmtNode) {
-        // Map the statement line before writing
-        self.builder.map_next(node.line);
+        // Map the statement line before writing with appropriate type
+        use crate::frame_c::source_map::MappingType;
+        let func_name = &node.call_expr_node.identifier.name.lexeme;
+        let mapping_type = if func_name == "print" {
+            MappingType::Print
+        } else {
+            // Could be method call or function call - use function call as default
+            MappingType::FunctionCall
+        };
+        self.builder.map_next_with_type(node.line, mapping_type);
+        
         let mut output = String::new();
         self.visit_call_expression_node_to_string(&node.call_expr_node, &mut output);
         self.builder.writeln(&output);
@@ -3114,7 +3123,8 @@ impl PythonVisitorV2 {
     // Variable statement
     fn visit_variable_stmt_node(&mut self, node: &VariableStmtNode) {
         // Map the statement line before writing
-        self.builder.map_next(node.var_node.line);
+        use crate::frame_c::source_map::MappingType;
+        self.builder.map_next_with_type(node.var_node.line, MappingType::VarDecl);
         let mut output = String::new();
         self.visit_variable_node_to_string(&node.var_node, &mut output);
         self.builder.writeln(&output);
