@@ -201,22 +201,6 @@ impl CodeBuilder {
         self.indent_str.repeat(self.indent_level)
     }
     
-    /// Add a source mapping for the current position
-    fn add_mapping(&mut self, frame_line: usize) {
-        let mapping = SourceMapping {
-            frame_line,
-            python_line: self.current_position.line,
-            python_column: Some(self.current_position.column),
-            mapping_type: None,
-        };
-        
-        if self.debug {
-            eprintln!("CodeBuilder: Mapping Frame line {} -> Python line {} col {}", 
-                     frame_line, mapping.python_line, self.current_position.column);
-        }
-        
-        self.mappings.push(mapping);
-    }
     
     fn add_mapping_with_type(&mut self, frame_line: usize, mapping_type: Option<crate::frame_c::source_map::MappingType>) {
         // Clone for debug before moving into struct

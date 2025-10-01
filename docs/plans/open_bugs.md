@@ -3,7 +3,7 @@
 **Last Updated:** 2024-12-30  
 **Current Version:** v0.78.21  
 **Active Bugs:** 3 (Bugs #11, #25, #26)  
-**Resolved Bugs:** 28 (including #24 resolved in v0.78.21)
+**Resolved Bugs:** 28 (including #24 resolved in v0.78.21, circular test expectations fixed)
 
 ## VS Code Extension Testing Session Summary (2024-12-30)
 
@@ -45,7 +45,13 @@
 - **Bug #19**: test_python_logical_operators.frm - **RESOLVED in v0.78.15**
 - **Bug #20**: test_state_parameters_simple.frm - **RESOLVED in v0.78.15**
 
-**Overall Test Status**: 100% pass rate (376/376 tests passing)
+**Overall Test Status**: 100% pass rate (378/378 tests passing)
+
+### Test Suite Fixes in v0.78.21
+- ✅ Fixed test_mapping_types_simple.frm syntax errors (missing state braces)
+- ✅ Corrected circular dependency test expectations to match actual error messages
+- ✅ All circular dependency tests now pass with proper "Circular dependency detected:" pattern
+- ✅ Removed illegal module-level function call from test_circular_main.frm
 
 ## Recent Improvements
 
