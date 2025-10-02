@@ -400,6 +400,9 @@ impl AstVisitor for PythonVisitorV2 {
     }
     
     fn visit_variable_decl_node(&mut self, var_decl: &VariableDeclNode) {
+        // Map variable declaration for debugging variable assignments
+        self.builder.map_next(var_decl.line);
+        
         // V1 uses get_initializer_value_rc() not value_rc - this is the key difference!
         let value_expr = var_decl.get_initializer_value_rc();
         
@@ -657,6 +660,9 @@ impl PythonVisitorV2 {
     }
     
     fn visit_state_node(&mut self, state_node: &StateNode) {
+        // Map state declaration for debugging state machine structure
+        self.builder.map_next(state_node.line);
+        
         self.current_state_name_opt = Some(state_node.name.clone());
         
         // Track parent state for => $^ dispatch in event handlers (HSM support)
@@ -911,6 +917,9 @@ impl PythonVisitorV2 {
     }
     
     fn visit_enum_decl_node(&mut self, enum_node: &EnumDeclNode) {
+        // Map enum declaration for debugging enum definitions
+        self.builder.map_next(enum_node.line);
+        
         // Module-level enums use their original name
         self.generate_enum_with_name(enum_node, &enum_node.name);
         
@@ -923,6 +932,9 @@ impl PythonVisitorV2 {
     }
     
     fn visit_method_node(&mut self, method: &MethodNode) {
+        // Map method declaration for debugging class methods
+        self.builder.map_next(method.line);
+        
         // For class methods, filter out 'cls' parameter if present (it's implicit in Python)
         let params = if let Some(params) = &method.params {
             let param_list: Vec<_> = if method.is_class && !params.is_empty() && params[0].param_name == "cls" {
@@ -2498,6 +2510,9 @@ impl PythonVisitorV2 {
     
     // Block statement visitor
     fn visit_block_stmt_node(&mut self, node: &BlockStmtNode) {
+        // Map block statement for debugging block-level constructs
+        self.builder.map_next(node.line);
+        
         if node.statements.is_empty() {
             self.builder.writeln("pass");
         } else {
@@ -3147,6 +3162,9 @@ impl PythonVisitorV2 {
     
     // List node visitor (for actual list rendering)
     fn visit_list_node(&mut self, node: &ListNode) {
+        // Map list literal for debugging collection constructs
+        self.builder.map_next(node.line);
+        
         self.builder.write("[");
         for (i, element) in node.exprs_t.iter().enumerate() {
             if i > 0 {
@@ -3159,6 +3177,9 @@ impl PythonVisitorV2 {
     
     // Dict literal node visitor
     fn visit_dict_literal_node(&mut self, node: &DictLiteralNode) {
+        // Map dict literal for debugging collection constructs
+        self.builder.map_next(node.line);
+        
         self.builder.write("{");
         for (i, (key, value)) in node.pairs.iter().enumerate() {
             if i > 0 {
@@ -3173,6 +3194,9 @@ impl PythonVisitorV2 {
     
     // Set literal node visitor
     fn visit_set_literal_node(&mut self, node: &SetLiteralNode) {
+        // Map set literal for debugging collection constructs
+        self.builder.map_next(node.line);
+        
         if node.elements.is_empty() {
             self.builder.write("set()");
         } else {
@@ -3189,6 +3213,9 @@ impl PythonVisitorV2 {
     
     // Tuple literal node visitor
     fn visit_tuple_literal_node(&mut self, node: &TupleLiteralNode) {
+        // Map tuple literal for debugging collection constructs
+        self.builder.map_next(node.line);
+        
         self.builder.write("(");
         for (i, element) in node.elements.iter().enumerate() {
             if i > 0 {
@@ -3204,6 +3231,9 @@ impl PythonVisitorV2 {
     
     // Unary expression node
     fn visit_unary_expr_node(&mut self, node: &UnaryExprNode) {
+        // Map unary expression for debugging operations
+        self.builder.map_next(node.line);
+        
         let mut output = String::new();
         self.visit_unary_expr_node_to_string(node, &mut output);
         self.builder.write(&output);
@@ -3211,6 +3241,9 @@ impl PythonVisitorV2 {
     
     // Binary expression node
     fn visit_binary_expr_node(&mut self, node: &BinaryExprNode) {
+        // Map binary expression for debugging operations
+        self.builder.map_next(node.line);
+        
         let mut output = String::new();
         self.visit_binary_expr_node_to_string(node, &mut output);
         self.builder.write(&output);
@@ -3218,6 +3251,9 @@ impl PythonVisitorV2 {
     
     // Literal expression node
     fn visit_literal_expr_node(&mut self, node: &LiteralExprNode) {
+        // Map literal expression for debugging constants and values
+        self.builder.map_next(node.line);
+        
         let mut output = String::new();
         self.visit_literal_expression_node_to_string(node, &mut output);
         self.builder.write(&output);
