@@ -1,5 +1,4 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
-from enum import Enum
 
 system EnumTest {
     interface:
