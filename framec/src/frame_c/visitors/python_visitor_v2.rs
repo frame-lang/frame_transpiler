@@ -662,6 +662,8 @@ impl PythonVisitorV2 {
     fn visit_state_node(&mut self, state_node: &StateNode) {
         // Map state declaration for debugging state machine structure
         self.builder.map_next(state_node.line);
+        // Write a comment to ensure the mapping is consumed
+        self.builder.writeln(&format!("# State: {}", state_node.name));
         
         self.current_state_name_opt = Some(state_node.name.clone());
         
@@ -676,6 +678,14 @@ impl PythonVisitorV2 {
         if let Some(params) = &state_node.params_opt {
             for param in params {
                 self.current_state_params.insert(param.param_name.clone());
+            }
+        }
+        
+        // Process state variables if present
+        if let Some(state_vars) = &state_node.vars_opt {
+            for var_rcref in state_vars {
+                let var_node = var_rcref.borrow();
+                self.visit_variable_decl_node(&*var_node);
             }
         }
         
@@ -701,6 +711,15 @@ impl PythonVisitorV2 {
     }
     
     fn visit_actions_block_node(&mut self, actions_block: &ActionsBlockNode) {
+        // Map the actions block header if we have actions
+        if !actions_block.actions.is_empty() {
+            let first_action = actions_block.actions[0].borrow();
+            // Estimate the actions: header line as one line before the first action
+            let actions_header_line = if first_action.line > 1 { first_action.line - 1 } else { first_action.line };
+            self.builder.map_next(actions_header_line);
+            self.builder.writeln("# Actions block");
+        }
+        
         // Action names already collected before machine block processing
         // Generate each action in the actions block
         for action_rcref in &actions_block.actions {
@@ -710,6 +729,15 @@ impl PythonVisitorV2 {
     }
     
     fn visit_operations_block_node(&mut self, operations_block: &OperationsBlockNode) {
+        // Map the operations block header if we have operations
+        if !operations_block.operations.is_empty() {
+            let first_operation = operations_block.operations[0].borrow();
+            // Estimate the operations: header line as one line before the first operation
+            let operations_header_line = if first_operation.line > 1 { first_operation.line - 1 } else { first_operation.line };
+            self.builder.map_next(operations_header_line);
+            self.builder.writeln("# Operations block");
+        }
+        
         // Track operation names for call resolution
         for operation_rcref in &operations_block.operations {
             let operation_node = operation_rcref.borrow();
@@ -3419,14 +3447,9 @@ impl PythonVisitorV2 {
         // Visit all states to generate event handler implementations
         for state_rcref in &machine.states {
             let state = state_rcref.borrow();
-            self.current_state_name_opt = Some(state.name.clone());
             
-            for evt_handler_rcref in &state.evt_handlers_rcref {
-                let evt_handler = evt_handler_rcref.borrow();
-                self.visit_event_handler_node(&*evt_handler);
-            }
-            
-            self.current_state_name_opt = None;
+            // Call the state visitor to ensure proper mapping
+            self.visit_state_node(&*state);
         }
     }
     
