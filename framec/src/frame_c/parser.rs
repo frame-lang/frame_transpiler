@@ -5465,14 +5465,32 @@ impl<'a> Parser<'a> {
                                 match stmt_t {
                                     StatementType::TransitionStmt { .. } => {
                                         statements.push(decl_or_statement);
-                                        // Check for optional return statement after transition (v0.20)
-                                        // Consume the return token if present but don't generate AST node
-                                        // since transitions already terminate execution
-                                        if self.check(TokenType::Return_) {
-                                            self.advance(); // consume 'return' token
-                                            // Don't add return statement to AST - transition already terminates
+                                        // Mark that we found a transition - any subsequent code is unreachable
+                                        let mut found_unreachable_code = false;
+                                        
+                                        // Continue parsing to detect any unreachable code after transition
+                                        while !self.check(TokenType::Eof) && !self.check(TokenType::CloseBrace) {
+                                            if self.check(TokenType::Var) || self.check(TokenType::Const) || 
+                                               self.check(TokenType::Return_) || self.check(TokenType::If) || 
+                                               self.check(TokenType::Identifier) || self.check(TokenType::LParen) {
+                                                let error_token = self.peek().clone();
+                                                self.error_at_current(&format!(
+                                                    "Unreachable code: '{}' statement after transition", 
+                                                    error_token.lexeme
+                                                ));
+                                                found_unreachable_code = true;
+                                                is_err = true;
+                                                // Skip the unreachable statement to continue error detection
+                                                match self.decl_or_stmt(identifier_decl_scope.clone()) {
+                                                    Ok(_) => {}, // Consume but don't add to statements
+                                                    Err(_) => break, // Stop on parse errors
+                                                }
+                                            } else {
+                                                break; // End of statements in this block
+                                            }
                                         }
-                                        // Transition (with optional return) must be last in event handler
+                                        
+                                        // Transition must be last meaningful statement in event handler
                                         return statements;
                                     }
                                     StatementType::ExpressionStmt { expr_stmt_t } => {

@@ -26,7 +26,6 @@ system Lamp {
 
             turnOn() {            
                 -> $On
-                return
             }              
         }
 
@@ -42,7 +41,6 @@ system Lamp {
             
             turnOff() {           
                 -> $Off
-                return
             }               
         }
 

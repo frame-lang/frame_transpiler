@@ -19,7 +19,6 @@ system BasicTransitionBehaviorDemo {
             next() {
                 print("transitioning to $End state")
                 -> $End
-                return
             }
         }
         

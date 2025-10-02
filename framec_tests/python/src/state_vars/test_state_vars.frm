@@ -13,7 +13,6 @@ system StateVars {
         $Init {
             $>() {
                 -> $A
-                return
             }
         }
 
@@ -25,11 +24,9 @@ system StateVars {
             }
             Y() {
                 -> $B
-                return
             }
             Z() {
                 -> $B
-                return
             }
         }
 
@@ -38,7 +35,6 @@ system StateVars {
             var z:int = 100
             X() {
                 -> $A
-                return
             }
             Y() {
                 y = y + 1

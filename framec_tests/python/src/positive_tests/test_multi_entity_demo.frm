@@ -92,7 +92,6 @@ system ToggleSystem {
                 log_event("ToggleSystem", "switch_to_on")
                 print("Toggle: OFF -> ON")
                 -> $On
-                return
             }
         }
         
@@ -101,7 +100,6 @@ system ToggleSystem {
                 log_event("ToggleSystem", "switch_to_off")
                 print("Toggle: ON -> OFF")
                 -> $Off
-                return
             }
         }
 }
@@ -119,13 +117,11 @@ system TrafficLight {
                 log_event("TrafficLight", "green_to_yellow")
                 print("Traffic Light: GREEN -> YELLOW")
                 -> $Yellow
-                return
             }
             
             emergency() {
                 print("EMERGENCY: Going to RED")
                 -> $Red
-                return
             }
             
             $>() {
@@ -139,13 +135,11 @@ system TrafficLight {
                 log_event("TrafficLight", "yellow_to_red")
                 print("Traffic Light: YELLOW -> RED")
                 -> $Red
-                return
             }
             
             emergency() {
                 print("EMERGENCY: Going to RED")
                 -> $Red
-                return
             }
             
             $>() {
@@ -159,7 +153,6 @@ system TrafficLight {
                 log_event("TrafficLight", "red_to_green")
                 print("Traffic Light: RED -> GREEN")
                 -> $Green
-                return
             }
             
             emergency() {

@@ -19,7 +19,6 @@ system History105 {
             gotoB() {
                 print("Transitioning to $B")
                 -> $B
-                return
             }
 
             gotoC() {
@@ -28,7 +27,6 @@ system History105 {
                 print("Incrementing a to " + str(a))
                 $$[+]
                 -> $C
-                return
             }
         }
 
@@ -46,7 +44,6 @@ system History105 {
                 print("Incrementing b to " + str(b))
                 $$[+]
                 -> $C
-                return
             }
         }
 

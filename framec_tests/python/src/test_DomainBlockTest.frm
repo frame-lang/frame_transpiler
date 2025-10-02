@@ -18,7 +18,6 @@ system HelloWorldWithDomainSystem {
             sayHello() {
                 actionWriteHello() # call action
                 -> $World
-                return
             }
         }
         
@@ -26,7 +25,6 @@ system HelloWorldWithDomainSystem {
             sayWorld() {
                 actionWriteWorld() # call action
                 -> $Done
-                return     
             }
         }
 

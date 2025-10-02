@@ -21,7 +21,6 @@ system History103 {
                 print("$A pushing to stack and going to $C")
                 $$[+]
                 -> "$$[+]" $C
-                return
             }
         }
 
@@ -35,7 +34,6 @@ system History103 {
                 print("$B pushing to stack and going to $C")
                 $$[+]
                 -> "$$[+]" $C
-                return
             }
         }
 
@@ -48,7 +46,6 @@ system History103 {
             ret() {
                 print("Popping from stack and returning")
                 -> "$$[-]" $$[-]
-                return
             }
         }
 }

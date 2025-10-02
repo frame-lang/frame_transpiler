@@ -5,7 +5,6 @@ system TestSystem {
             $>() {
                 print("Entering StateA")
                 -> $StateB
-                return
             }
         }
         

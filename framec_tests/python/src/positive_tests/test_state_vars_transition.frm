@@ -19,7 +19,6 @@ system TwoState {
             go() {
                 print("StateA: countA = " + str(countA))
                 -> $StateB
-                return
             }
         }
         
@@ -29,7 +28,6 @@ system TwoState {
             back() {
                 print("StateB: countB = " + str(countB)) 
                 -> $StateA
-                return
             }
         }
 }

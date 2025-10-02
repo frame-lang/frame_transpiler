@@ -11,25 +11,21 @@ system History101 {
         $A {
             gotoB() {
                 -> "B" $B
-                return
             }
             gotoC() {
                 -> "C" $C
-                return
             }
         }
 
         $B {
             gotoD() {
                 -> "D" $D
-                return
             }
         }
 
         $C {
             gotoD() {
                 -> "D" $D
-                return
             }
         }
 

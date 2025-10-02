@@ -15,7 +15,6 @@ system SimpleHSM {
         $Parent {
             trigger() {
                 -> $Child
-                return
             }
         }
         

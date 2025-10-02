@@ -32,15 +32,12 @@ system StateContextStack {
             }
             to_a() {
                 -> $A
-                return
             }
             to_b() {
                 -> $B
-                return
             }
             to_c() {
                 -> $C
-                return
             }
             push() {
                 $$[+]
@@ -71,15 +68,12 @@ system StateContextStack {
             }
             to_a() {
                 -> $A
-                return
             }
             to_b() {
                 -> $B
-                return
             }
             to_c() {
                 -> $C
-                return
             }
             push() {
                 $$[+]
@@ -110,15 +104,12 @@ system StateContextStack {
             }
             to_a() {
                 -> $A
-                return
             }
             to_b() {
                 -> $B
-                return
             }
             to_c() {
                 -> $C
-                return
             }
             push() {
                 $$[+]

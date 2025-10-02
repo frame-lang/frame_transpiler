@@ -26,7 +26,6 @@ system StateManager {
                 initCount = initCount + 1
                 print("Starting system (attempt #" + str(initCount) + ")")
                 -> $Working
-                return
             }
             
             reset() {
@@ -50,13 +49,11 @@ system StateManager {
             finish() {
                 print("Finishing work. Processed " + str(itemsProcessed) + " items in " + str(totalTime) + "s")
                 -> $Done
-                return
             }
             
             reset() {
                 print("Resetting from working state")
                 -> $Init
-                return
             }
         }
         
@@ -71,8 +68,7 @@ system StateManager {
             
             reset() {
                 print("Resetting from done state (completed at: " + completionTime + ")")
-                -> $Init  
-                return
+                -> $Init
             }
         }
 }

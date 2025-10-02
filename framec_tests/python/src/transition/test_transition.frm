@@ -15,7 +15,6 @@ system TransitionSm {
             }
             transit() {
                 -> $S1
-                return
             }
         }
 
@@ -26,7 +25,6 @@ system TransitionSm {
             }
             change() {
                 -> $S2
-                return
             }
         }
 
@@ -37,7 +35,6 @@ system TransitionSm {
             }
             transit() {
                 -> $S3
-                return
             }
         }
 
@@ -52,7 +49,6 @@ system TransitionSm {
             }
             transit() {
                 -> $S4
-                return
             }
         }
 
@@ -60,7 +56,6 @@ system TransitionSm {
             $>() {
                 enter("S4")
                 -> $S0
-                return
             }
         }
 

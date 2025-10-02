@@ -44,7 +44,6 @@ system TransitionDetectionTest {
             triggerParentTransition() {
                 print("Parent: Triggering transition to NewState")
                 -> $NewState
-                return
             }
             
             checkCurrentState() {

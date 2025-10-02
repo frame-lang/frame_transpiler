@@ -17,7 +17,6 @@ system SimpleHSM {
             trigger() {
                 print("Parent: handling trigger, transitioning to Child")
                 -> $Child
-                return
             }
         }
         
@@ -31,7 +30,6 @@ system SimpleHSM {
             trigger() {
                 print("Child: handling trigger, transitioning back to Parent")
                 -> $Parent
-                return
             }
         }
 }

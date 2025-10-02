@@ -16,7 +16,6 @@ system SimpleSystem {
             start() {
                 print("  System starting")
                 -> $Running
-                return
             }
             
             process(value) {

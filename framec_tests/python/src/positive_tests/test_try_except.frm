@@ -142,12 +142,10 @@ system TryExceptSystem {
                 except ZeroDivisionError {
                     print("  System: Operation failed")
                     -> $Error
-                    return
                 }
                 
                 print("  System: Transitioning to Success state")
                 -> $Success
-                return
             }
         }
         

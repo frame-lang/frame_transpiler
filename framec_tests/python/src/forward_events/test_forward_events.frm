@@ -22,13 +22,11 @@ system ForwardEvents {
             GotoS1() {
                 log("Recieved GotoS1")
                 -> $S1
-                return
             }
             GotoS2() {
                 log("Recieved GotoS2")
                 $$[+]
                 -> $S2
-                return
             }
             ReturnFromS1() {
                 log("ReturnFromS1 Forwarded")
@@ -51,7 +49,6 @@ system ForwardEvents {
             }
             ReturnFromS1() {
                 -> $S0
-                return
             }
         }
 

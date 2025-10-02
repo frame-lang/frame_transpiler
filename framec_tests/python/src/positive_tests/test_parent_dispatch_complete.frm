@@ -52,7 +52,6 @@ system ParentDispatchTest {
             test3() {
                 print("test3 parent triggers transition")
                 -> $Child2
-                return
             }
             
             test4() {
@@ -104,7 +103,6 @@ system ParentDispatchTest {
             
             next() {
                 -> $Child2
-                return
             }
         }
         
@@ -121,7 +119,6 @@ system ParentDispatchTest {
             
             next() {
                 -> $Child1
-                return
             }
         }
 }

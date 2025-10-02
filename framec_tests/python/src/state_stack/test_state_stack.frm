@@ -23,15 +23,12 @@ system StateStack {
             }
             to_a() {
                 -> $A
-                return
             }
             to_b() {
                 -> $B
-                return
             }
             to_c() {
                 -> $C
-                return
             }
             push() {
                 $$[+]
@@ -54,15 +51,12 @@ system StateStack {
             }
             to_a() {
                 -> $A
-                return
             }
             to_b() {
                 -> $B
-                return
             }
             to_c() {
                 -> $C
-                return
             }
             push() {
                 $$[+]
@@ -85,15 +79,12 @@ system StateStack {
             }
             to_a() {
                 -> $A
-                return
             }
             to_b() {
                 -> $B
-                return
             }
             to_c() {
                 -> $C
-                return
             }
             push() {
                 $$[+]

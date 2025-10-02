@@ -51,7 +51,6 @@ system AdvancedProcessor {
                 
                 # Transition to processing state with data
                 -> $Processing(input)
-                return
             }
             
             configure(mode: str) {
@@ -83,22 +82,18 @@ system AdvancedProcessor {
                 if result == "error" {
                     system.return = "processing failed"
                     -> $Idle
-                    return
                 } elif result == "warning" {
                     system.return = "processed with warnings"
-                    -> $Idle  
-                    return
+                    -> $Idle
                 } else {
                     system.return = "success: " + result
                     -> $Idle
-                    return
                 }
             }
             
             reset() {
                 print("Resetting from processing state")
                 -> $Idle
-                return
             }
         }
         
@@ -123,7 +118,6 @@ system AdvancedProcessor {
             reset() {
                 print("Exiting debug mode")
                 -> $Idle
-                return
             }
         }
         
@@ -131,12 +125,10 @@ system AdvancedProcessor {
             processData(input: str): str {
                 system.return = "fast: " + input
                 -> $Idle
-                return
             }
             
             reset() {
                 -> $Idle
-                return
             }
         }
         

@@ -12,7 +12,6 @@ system Hierarchical {
         $I {
             $>() {
                 -> $S
-                return
             }
         }
 
@@ -28,12 +27,10 @@ system Hierarchical {
             A() {
                 log("S.A")
                 -> $S0
-                return
             }
             B() {
                 log("S.B")
                 -> $S1
-                return
             }
         }
 
@@ -51,7 +48,6 @@ system Hierarchical {
             A() {   # override parent handler
                 log("S0.A")
                 -> $T
-                return
             }
             B() {   # do this, then parent handler
                 log("S0.B")
@@ -61,7 +57,6 @@ system Hierarchical {
             C() {   # extend parent handler
                 log("S0.C")
                 -> $S2
-                return
             }
         }
 
@@ -106,7 +101,6 @@ system Hierarchical {
             C() {
                 log("S2.C")
                 -> $T
-                return
             }
         }
 
@@ -125,7 +119,6 @@ system Hierarchical {
             B() {   # override and move to sibling
                 log("S3.B")
                 -> $S2
-                return
             }
         }
 
@@ -141,17 +134,14 @@ system Hierarchical {
             A() {
                 log("T.A")
                 -> $S
-                return
             }
             B() {
                 log("T.B")
                 -> $S2
-                return
             }
             C() {
                 log("T.C")
                 -> $S3
-                return
             }
         }
 

@@ -9,7 +9,6 @@ system BasicTransitionDemo {
         $Start {
             next() {
                 -> $End
-                return
             }
         }
 

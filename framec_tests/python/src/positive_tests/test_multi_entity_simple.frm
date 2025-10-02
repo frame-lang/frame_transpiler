@@ -48,7 +48,6 @@ system ToggleSwitch {
             flip() {
                 log_event("Switch: OFF -> ON")
                 -> $On
-                return
             }
             
             $>() {
@@ -61,7 +60,6 @@ system ToggleSwitch {
             flip() {
                 log_event("Switch: ON -> OFF")
                 -> $Off
-                return
             }
             
             $>() {
@@ -82,7 +80,6 @@ system SimpleStateMachine {
             advance() {
                 print("State A -> B")
                 -> $StateB
-                return
             }
             
             $>() {
@@ -95,7 +92,6 @@ system SimpleStateMachine {
             advance() {
                 print("State B -> C")
                 -> $StateC
-                return
             }
             
             $>() {
@@ -108,7 +104,6 @@ system SimpleStateMachine {
             advance() {
                 print("State C -> A (cycling back)")
                 -> $StateA
-                return
             }
             
             $>() {

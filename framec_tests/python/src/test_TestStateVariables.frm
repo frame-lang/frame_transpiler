@@ -24,14 +24,12 @@ system StateVariableDemo {
             }
             forgetMe() {
                 -> $ResetName
-                return
             }
         }
 
         $ResetName {
             $>() {
                 -> $JoeName
-                return
             }
         }
 

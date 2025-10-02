@@ -16,13 +16,10 @@ system TransitionTest {
                 
                 if condition == "error" {
                     -> $Error
-                    return
                 } elif condition == "success" {
                     -> $Success
-                    return
                 } else {
                     -> $Default
-                    return
                 }
             }
         }

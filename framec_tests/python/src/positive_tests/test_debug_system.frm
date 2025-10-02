@@ -77,7 +77,6 @@ system TrafficLight {
                 self.log_transition("Red", "Green")
                 self.wait()
                 -> $Green
-                return
             }
             
             get_status() {
@@ -102,7 +101,6 @@ system TrafficLight {
             emergency() {
                 self.stop_traffic()
                 -> $Offline
-                return
             }
             
             restart() {
@@ -126,14 +124,12 @@ system TrafficLight {
                 self.log_transition("Green", "Yellow")
                 self.wait()
                 -> $Yellow
-                return
             }
             
             # Can always go to emergency
             emergency() {
                 self.stop_traffic()
                 -> $Offline
-                return
             }
             
             get_status() {
@@ -176,14 +172,12 @@ system TrafficLight {
                 self.log_transition("Yellow", "Red")
                 self.wait()
                 -> $Red
-                return
             }
             
             # Can always go to emergency
             emergency() {
                 self.stop_traffic()
                 -> $Offline
-                return
             }
             
             get_status() {
@@ -227,7 +221,6 @@ system TrafficLight {
                 print("  [Offline.restart] Restarting traffic light system")
                 self.cycle_count = 0  # Reset cycle count on restart
                 -> $Red
-                return
             }
             
             # Status still works in offline

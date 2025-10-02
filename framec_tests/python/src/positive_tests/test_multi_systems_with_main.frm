@@ -20,7 +20,6 @@ system FirstSystem {
             start() {
                 print("FirstSystem starting")
                 -> $Running
-                return
             }
         }
         
@@ -41,7 +40,6 @@ system SecondSystem {
             activate() {
                 print("SecondSystem activating")
                 -> $Active
-                return
             }
         }
         

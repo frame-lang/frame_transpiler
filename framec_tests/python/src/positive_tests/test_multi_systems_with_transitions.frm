@@ -15,7 +15,6 @@ system SystemA {
             }
             start() {
                 -> $Running
-                return
             }
         }
         
@@ -37,7 +36,6 @@ system SystemB {
             }
             activate() {
                 -> $Active
-                return
             }
         }
         

@@ -22,7 +22,6 @@ system EnterExitMessagesDemo {
 
             next() {
                 -> $Working
-                return
             }
         }
 
@@ -38,7 +37,6 @@ system EnterExitMessagesDemo {
 
             next() {
                 -> $End
-                return
             }
         }
 

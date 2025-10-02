@@ -4,7 +4,6 @@ system T {
         $A {
             go() {
                 -> $B
-                return
             }
         }
         $B {}

@@ -14,7 +14,6 @@ system EnumTest {
             B() {
                 left("MONDAY", Days.MONDAY)
                 -> $MON
-                return
             }
         }
 
@@ -26,7 +25,6 @@ system EnumTest {
             B() {
                 left("TUESDAY", Days.TUESDAY)
                 -> $TUE
-                return
             }
         }
 
@@ -38,7 +36,6 @@ system EnumTest {
             B() {
                 left("WEDNESDAY", Days.WEDNESDAY)
                 -> $WED
-                return
             }
         }
 
@@ -50,7 +47,6 @@ system EnumTest {
             B() {
                 left("THURSDAY", Days.THURSDAY)
                 -> $THR
-                return
             }
         }
 
@@ -62,7 +58,6 @@ system EnumTest {
             B() {
                 left("FRIDAY", Days.FRIDAY)
                 -> $FRI
-                return
             }
         }
 
@@ -74,7 +69,6 @@ system EnumTest {
             B() {
                 left("SUNDAY", Days.SUNDAY)
                 -> $SUN
-                return
             }
         }
     

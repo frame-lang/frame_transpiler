@@ -14,12 +14,10 @@ system SimpleHandlerCalls {
         $Init {
             A() {
                 -> $A
-                return
             }
 
             B() {
                 -> $B
-                return
             }
 
             C() {
@@ -30,7 +28,6 @@ system SimpleHandlerCalls {
             D() {
                 B()
                 -> $A
-                return
             }
 
             E() {
