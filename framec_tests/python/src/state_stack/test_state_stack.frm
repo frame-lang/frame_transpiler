@@ -110,5 +110,5 @@ system StateStack {
         }
 
     domain:
-        var tape = `[]`
+        var tape = []
 }

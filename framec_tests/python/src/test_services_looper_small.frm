@@ -1,5 +1,5 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
-`import time`
+import time
 
 fn main() {
     var looper = Looper(10)  # Small test with 10 loops

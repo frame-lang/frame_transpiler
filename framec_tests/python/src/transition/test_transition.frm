@@ -71,6 +71,6 @@ system TransitionSm {
         }
 
     domain:
-        var enters = `[]`
-        var exits = `[]`
+        var enters = []
+        var exits = []
 }

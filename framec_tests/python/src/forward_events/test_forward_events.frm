@@ -75,5 +75,5 @@ system ForwardEvents {
         }
 
     domain:
-        var tape = `[]`
+        var tape = []
 }

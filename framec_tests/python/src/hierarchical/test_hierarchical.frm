@@ -164,7 +164,7 @@ system Hierarchical {
         }
 
     domain:
-        var enters = `[]`
-        var exits = `[]`
-        var tape = `[]`
+        var enters = []
+        var exits = []
+        var tape = []
 }

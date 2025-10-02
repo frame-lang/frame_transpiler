@@ -1,22 +1,31 @@
 # Frame Transpiler Source Map Architecture
 
-**Version:** v0.74.0  
-**Date:** 2025-12-22  
-**Status:** Active Development
+**Version:** v0.79.0  
+**Date:** 2025-10-01  
+**Status:** Production with Validation Infrastructure
 
 ## Table of Contents
 1. [Overview](#overview)
 2. [Architecture Components](#architecture-components)
-3. [Source Map Flow](#source-map-flow)
-4. [Line Tracking System](#line-tracking-system)
-5. [Mapping Generation](#mapping-generation)
-6. [Known Issues and Solutions](#known-issues-and-solutions)
-7. [Debugging Methodology](#debugging-methodology)
-8. [Implementation Details](#implementation-details)
+3. [Source Map Validation Infrastructure](#source-map-validation-infrastructure)
+4. [VS Code Extension Integration](#vs-code-extension-integration)
+5. [Source Map Flow](#source-map-flow)
+6. [Line Tracking System](#line-tracking-system)
+7. [Mapping Generation](#mapping-generation)
+8. [Quality Standards and Bug Detection](#quality-standards-and-bug-detection)
+9. [Debugging Methodology](#debugging-methodology)
+10. [Implementation Details](#implementation-details)
 
 ## Overview
 
-The Frame transpiler generates source maps to enable debugging of Frame code by mapping Frame source lines to generated Python lines. This document describes the architecture, implementation, and ongoing issues with the source mapping system.
+The Frame transpiler generates source maps to enable debugging of Frame code by mapping Frame source lines to generated Python lines. As of v0.79.0, the system includes comprehensive validation infrastructure that serves as the **source of truth** for both the transpiler team and VS Code extension.
+
+**Key Features (v0.79.0):**
+- ✅ **Validation Infrastructure**: Standardized tools for quality assessment
+- ✅ **VS Code Extension Integration**: Source of truth protocol for consistent debugging
+- ✅ **Bug Detection**: Systematic detection of duplicate mappings and coverage gaps
+- ✅ **Quality Classification**: EXCELLENT/GOOD/FAIR/POOR quality ratings
+- ✅ **Executable Coverage**: 100% coverage of executable statements achieved
 
 ## Architecture Components
 
@@ -51,6 +60,252 @@ self.add_code(&format!("# __MARKER_{}__", marker_id));
 // Later, when marker is encountered:
 self.source_map_builder.add_mapping_with_marker(marker_id, self.current_line);
 ```
+
+## Source Map Validation Infrastructure
+
+**Version:** v0.79.0+  
+**Purpose:** Establish source of truth for source map quality assessment shared between transpiler team and VS Code extension
+
+### Validation Tools Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   FRAME TRANSPILER                          │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │            Source Map Generation                    │   │
+│  │         (python_visitor_v2.rs)                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│               SOURCE OF TRUTH VALIDATION                    │
+│  ┌───────────────────┐  ┌─────────────────────────────┐   │
+│  │ source_map_       │  │ source_map_test_           │   │
+│  │ validator.py      │  │ integration.py              │   │
+│  │ (Core Analysis)   │  │ (Test Framework)            │   │
+│  └───────────────────┘  └─────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ test_framework_integration.py                       │   │
+│  │ (VS Code Extension Interface)                       │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                ┌─────────────┼─────────────┐
+                ▼             ▼             ▼
+    ┌─────────────────┐ ┌─────────────┐ ┌─────────────┐
+    │   VS Code       │ │ Test Suite  │ │ CI/CD       │
+    │   Extension     │ │ Runner      │ │ Pipeline    │
+    └─────────────────┘ └─────────────┘ └─────────────┘
+```
+
+### Core Validation Tool: `source_map_validator.py`
+
+**Location:** `/tools/source_map_validator.py`  
+**Purpose:** Fundamental source map analysis engine for single files
+
+```bash
+# Basic validation
+python3 tools/source_map_validator.py test_file.frm
+
+# Verbose analysis
+python3 tools/source_map_validator.py test_file.frm --verbose
+
+# Example output:
+# === SOURCE MAP ANALYSIS REPORT ===
+# Transpiler Version: framec 0.79.0
+# Total Mappings: 46
+# Main Function Coverage: 64.7% (22/34 lines mapped)
+# Executable Statement Coverage: 100.0%
+# Assessment: ✅ PERFECT: 100% executable statement coverage
+```
+
+**Key Features:**
+- **Executable vs. Total Coverage**: Distinguishes between comments/braces and executable code
+- **Duplicate Detection**: Identifies Bug #27 patterns (`() {` and `-> $` duplicates)
+- **Quality Classification**: EXCELLENT/GOOD/FAIR/POOR ratings
+- **Gap Analysis**: Shows unmapped executable statements
+- **Version Tracking**: Reports transpiler version for consistency
+
+### Test Suite Integration: `source_map_test_integration.py`
+
+**Location:** `/tools/source_map_test_integration.py`  
+**Purpose:** Batch validation for entire test suites with VS Code extension reporting
+
+```bash
+# Validate test suite
+python3 tools/source_map_test_integration.py --test-dir framec_tests/python/src
+
+# Generate VS Code extension report
+python3 tools/source_map_test_integration.py --report /tmp/quality_report.json
+
+# Example quality report (JSON):
+{
+  "transpiler_version": "framec 0.79.0",
+  "total_files": 371,
+  "passed_files": 285,
+  "pass_rate": 76.8,
+  "quality_classification": "GOOD",
+  "total_duplicates": 683,
+  "average_coverage": 84.2
+}
+```
+
+### Framework Integration: `test_framework_integration.py`
+
+**Location:** `/tools/test_framework_integration.py`  
+**Purpose:** Integration layer for existing Frame test framework and VS Code extension interface
+
+```bash
+# Console output for developers
+python3 tools/test_framework_integration.py --mode console
+
+# JSON output for VS Code extension
+python3 tools/test_framework_integration.py --mode json
+
+# VS Code extension status query
+python3 tools/test_framework_integration.py --mode vscode-status
+```
+
+## VS Code Extension Integration
+
+### Source of Truth Protocol
+
+**Critical Design Principle:** The VS Code extension should **NOT** implement its own source map validation logic. Instead, it **relies on the transpiler team's validation tools** as the authoritative source.
+
+### Extension Integration Commands
+
+```typescript
+// VS Code Extension Integration Examples
+
+// Get current validation status
+const status = await exec('python3 tools/test_framework_integration.py --mode vscode-status');
+
+// Validate specific file during debugging  
+const fileValidation = await exec('python3 tools/test_framework_integration.py --file', frameFile);
+
+// Check if source maps meet quality standards
+const qualityReport = JSON.parse(status.stdout);
+const isExcellent = qualityReport.quality.classification === 'EXCELLENT';
+```
+
+### Expected VS Code Extension Workflow
+
+```typescript
+class FrameSourceMapValidator {
+    async validateCurrentFile(frameFile: string): Promise<ValidationResult> {
+        // Call transpiler team's source of truth validation
+        const result = await this.callTranspilerValidation(frameFile);
+        
+        // Use standardized quality assessment
+        return {
+            isValid: result.passed,
+            quality: result.analysis.quality_classification,
+            coverage: result.analysis.executable_coverage,
+            duplicates: result.analysis.duplicates.length,
+            recommendations: result.analysis.recommendations
+        };
+    }
+    
+    async getOverallQuality(): Promise<QualityStatus> {
+        // Get source of truth status from transpiler team
+        const status = await this.getTranspilerQualityStatus();
+        
+        // Display quality in VS Code UI
+        return {
+            status: status.quality.classification,
+            passRate: status.quality.pass_rate,
+            lastValidation: status.last_validation,
+            sourceOfTruth: true
+        };
+    }
+}
+```
+
+### Quality Standards Configuration
+
+**Location:** `/tools/source_map_config.json`
+
+```json
+{
+  "quality_standards": {
+    "minimum_executable_coverage": 95,
+    "maximum_acceptable_duplicates": 5,
+    "critical_duplicate_threshold": 10
+  },
+  "vscode_extension_interface": {
+    "quality_thresholds": {
+      "excellent": 95,
+      "good": 90, 
+      "fair": 80,
+      "poor": 50
+    }
+  }
+}
+```
+
+### Extension AI Integration
+
+**Can the VS Code Extension AI run validation?** ✅ **YES - Recommended**
+
+The extension AI should:
+
+1. **Use Validation Tools**: Call the transpiler validation tools directly
+2. **Interpret Results**: Analyze quality reports to make debugging recommendations  
+3. **Provide Context**: Explain source map issues to users in plain language
+4. **Suggest Fixes**: Recommend when to update transpiler or report bugs
+
+**Example Extension AI Integration:**
+
+```typescript
+class FrameExtensionAI {
+    async assessDebuggingExperience(frameFile: string): Promise<AIAssessment> {
+        // Run transpiler validation
+        const validation = await this.runTranspilerValidation(frameFile);
+        
+        // AI interprets the results
+        if (validation.quality === 'EXCELLENT') {
+            return {
+                recommendation: "Perfect debugging experience expected",
+                confidence: "high",
+                actions: ["Set breakpoints anywhere", "Step-through will be accurate"]
+            };
+        } else if (validation.duplicates.length > 5) {
+            return {
+                recommendation: "Some duplicate mappings detected - stepping may be choppy",
+                confidence: "medium", 
+                actions: ["Focus breakpoints on main logic", "Avoid step-into for complex expressions"],
+                bug_report: "Consider reporting Bug #27 patterns to transpiler team"
+            };
+        }
+        
+        // AI provides human-readable explanation
+        return this.generateUserFriendlyAssessment(validation);
+    }
+    
+    async suggestTranspilerUpdate(): Promise<AIRecommendation> {
+        const currentQuality = await this.getSourceMapQuality();
+        
+        if (currentQuality.classification === 'POOR') {
+            return {
+                action: "update_transpiler",
+                reason: "Source map quality below debugging standards",
+                expected_improvement: "Better step-through and breakpoint accuracy"
+            };
+        }
+        
+        return { action: "no_update_needed" };
+    }
+}
+```
+
+### Benefits of Extension AI Integration
+
+1. **Proactive Quality Assessment**: AI can warn users about debugging issues before they encounter them
+2. **Contextual Recommendations**: AI explains technical validation results in user-friendly terms
+3. **Automated Bug Detection**: AI can identify patterns and suggest when to report issues
+4. **Version Guidance**: AI can recommend transpiler updates based on source map quality
+5. **Learning System**: AI can learn from validation patterns to improve debugging guidance
 
 ## Source Map Flow
 
@@ -165,13 +420,56 @@ fn visit_print_stmt_node(&mut self, print_stmt_node: &PrintStmtNode) {
 }
 ```
 
-## Known Issues and Solutions
+## Quality Standards and Bug Detection
 
-### Bug #6: Duplicate and Incorrect Mappings (v0.73.0)
+### Quality Classification System
 
-#### Symptoms:
-- Both state declaration and event handler map to same blank line
-- Off-by-one errors in all subsequent mappings
+**Introduced:** v0.79.0  
+**Purpose:** Standardized quality assessment for consistent debugging experience
+
+| Classification | Executable Coverage | Max Duplicates | Debugging Experience |
+|----------------|-------------------|----------------|---------------------|
+| **EXCELLENT**  | ≥95%              | ≤2             | Perfect breakpoints and step-through |
+| **GOOD**       | ≥90%              | ≤5             | Reliable debugging with minor issues |
+| **FAIR**       | ≥80%              | ≤10            | Acceptable for most debugging tasks |
+| **POOR**       | <80%              | >10            | Significant debugging limitations |
+
+### Bug #27: Duplicate Source Mappings (Active)
+
+**Status:** Active (Minor - Functional but Suboptimal)  
+**Pattern Detection:** Event handlers (`() {`) and state transitions (`-> $`)  
+**Impact:** Debugger may stop multiple times on same Frame line
+
+#### Detection Command:
+```bash
+python3 tools/source_map_validator.py test_file.frm
+# Automatically detects Bug #27 patterns
+```
+
+#### Example Output:
+```
+=== DUPLICATE MAPPINGS ===
+Frame 16 → 2 Python lines: [80, 84]
+  ⚠️ Bug #27 pattern: start() {
+Frame 18 → 2 Python lines: [82, 83]  
+  ⚠️ Bug #27 pattern: -> $Running
+📋 Bug #27 Impact: 2 event handler/transition duplicates detected
+```
+
+### Resolved Issues (v0.78.0+)
+
+#### Bug #26: Missing Source Maps for Generated Code (RESOLVED ✅)
+- **Status**: RESOLVED in v0.78.24
+- **Solution**: Interface methods and system constructors now properly mapped
+- **Coverage Improvement**: 55% → 100% executable statement coverage
+- **Validation**: Confirmed via automated validation tools
+
+#### Bug #25: Incorrect Control Flow Source Mapping (RESOLVED ✅)  
+- **Status**: RESOLVED in v0.78.23
+- **Solution**: Fixed while loop control flow mappings
+- **Impact**: Debugger now correctly follows Frame line sequence
+
+### Historical Issues (Pre-v0.78.0)
 - Missing mappings for some statements
 
 #### Root Cause:

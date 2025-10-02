@@ -136,5 +136,5 @@ system StateContextStack {
         }
 
     domain:
-        var tape = `[]`
+        var tape = []
 }

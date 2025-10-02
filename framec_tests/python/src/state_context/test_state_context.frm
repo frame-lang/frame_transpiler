@@ -116,5 +116,5 @@ system StateContextSm {
         }
 
     domain:
-        var tape = `[]`
+        var tape = []
 }

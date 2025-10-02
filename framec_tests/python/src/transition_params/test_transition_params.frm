@@ -55,5 +55,5 @@ system TransitParams {
         }
 
     domain:
-        var tape = `[]`
+        var tape = []
 }

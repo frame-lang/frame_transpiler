@@ -52,5 +52,5 @@ system StateParams {
         }
 
     domain:
-        var param_log = `[]`
+        var param_log = []
 }

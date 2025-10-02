@@ -203,6 +203,14 @@ impl CodeBuilder {
     
     
     fn add_mapping_with_type(&mut self, frame_line: usize, mapping_type: Option<crate::frame_c::source_map::MappingType>) {
+        // Check if this Frame line already has a mapping to prevent Bug #27 duplicates
+        if self.mappings.iter().any(|m| m.frame_line == frame_line) {
+            if self.debug {
+                eprintln!("CodeBuilder: SKIPPING duplicate mapping for Frame line {} (already mapped)", frame_line);
+            }
+            return;
+        }
+        
         // Clone for debug before moving into struct
         let type_str = if self.debug {
             mapping_type.as_ref().map(|t| format!("{:?}", t)).unwrap_or("None".to_string())

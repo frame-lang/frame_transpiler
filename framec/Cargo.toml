@@ -1,12 +1,16 @@
 [package]
 name = "framec"
-version = "0.78.21"
+version = "0.79.0"
 authors = ["Mark Truluck <mark@frame-lang.org>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "framec"
+path = "src/main.rs"
 
 [dependencies]
 chrono = "0.4"

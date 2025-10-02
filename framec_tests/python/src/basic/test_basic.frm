@@ -45,6 +45,6 @@ system Basic {
         }
 
     domain:
-        var entry_log = `[]`
-        var exit_log = `[]`
+        var entry_log = []
+        var exit_log = []
 }

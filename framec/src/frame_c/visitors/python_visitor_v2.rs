@@ -871,7 +871,8 @@ impl PythonVisitorV2 {
                 if let Some(ref return_expr) = func.terminator_expr.return_expr_t_opt {
                         let mut output = String::new();
                         self.visit_expr_node_to_string(return_expr, &mut output);
-                    self.builder.writeln(&format!("return {}", output));
+                    // Map the return statement to its Frame line
+                    self.builder.writeln_mapped(&format!("return {}", output), func.terminator_expr.line);
                 } else {
                     self.builder.writeln("pass");
                 }
@@ -1329,7 +1330,7 @@ impl PythonVisitorV2 {
             "self".to_string()
         };
         
-        // __init__ is generated code, don't map to Frame source
+        // System constructor is generated code - don't map to avoid duplicate with class mapping
         self.builder.writeln(&format!("def __init__({}):", params));
         self.builder.indent();
         
@@ -1469,12 +1470,12 @@ impl PythonVisitorV2 {
         let needs_async = method.is_async || self.system_has_async_runtime;
         
         self.builder.newline();
-        // Interface method implementations are generated boilerplate - don't map to declaration
+        // Map interface method implementation to its interface declaration
         self.builder.write_function(
             &method.name,
             &full_params,
             needs_async,
-            0  // Pass 0 to indicate generated code
+            method.line  // Map to interface method declaration line
         );
         
         // Interface method body is generated boilerplate - don't map to source

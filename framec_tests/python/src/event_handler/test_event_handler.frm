@@ -58,5 +58,5 @@ system EventHandler {
         }
 
     domain:
-        var tape = `[]`
+        var tape = []
 }

@@ -3870,14 +3870,16 @@ impl<'a> Parser<'a> {
         // Parse method body
         let mut statements = Vec::new();
         let mut explicit_return_expr_opt: Option<ExprType> = None;
+        let mut return_line = line;  // Default to method declaration line if no explicit return
         
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
             // Check for explicit return statement as terminator
             if self.check(TokenType::Return_) {
+                return_line = self.peek().line;  // Capture the actual return statement line
                 self.advance(); // consume 'return'
                 
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG: Found return in method_decl, is_class_method={}", self.is_class_method);
+                    eprintln!("DEBUG: Found return in method_decl, is_class_method={}, return_line={}", self.is_class_method, return_line);
                 }
                 
                 // Parse the return expression
@@ -3903,7 +3905,7 @@ impl<'a> Parser<'a> {
         let terminator_expr = TerminatorExpr::new(
             TerminatorType::Return,
             explicit_return_expr_opt,
-            line,
+            return_line,  // Use the actual return statement line, not the method declaration line
         );
         
         // Restore flags

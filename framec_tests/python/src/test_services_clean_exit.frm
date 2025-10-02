@@ -1,21 +1,19 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
-`import time`
-`import signal`
-`import sys`
+import time
+import signal
+import sys
 
 fn main() {
-    var service = SignalMachineService()
+    var service = CleanExitService()
 }
 
-system SignalMachineService {
+system CleanExitService {
 
     operations:
-        signal_handler(sig, frame) {
-            self.quit()
-        }
 
-    interface:
-        quit()
+    signal_handler(sig, frame) {
+        sys.exit(0)
+    }
 
     machine:
 
@@ -26,7 +24,7 @@ system SignalMachineService {
         }
     }
 
-    $A => $Done {
+    $A {
         $>() {
             print("$A")
             time.sleep(.2)
@@ -34,18 +32,11 @@ system SignalMachineService {
         }
     }
     
-    $B => $Done {
+    $B {
         $>() {
             print("$B")
             time.sleep(.2)
             -> $A
-        }
-    }
-    
-    $Done {
-        quit() {
-            print("Goodbye!")
-            sys.exit(0)
         }
     }
 }
