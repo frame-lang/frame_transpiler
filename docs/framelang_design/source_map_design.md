@@ -24,6 +24,24 @@
 6. **Import Statements** - visit_import_node (ensures imports are mappable)
 7. **Action Declarations** - visit_action_node (system action methods)
 8. **Operation Declarations** - visit_operation_node (system operations)
+9. **Expression Statements** - Complete ExprStmtType variant handling
+
+### 🔍 **Current Analysis - Remaining 18.9% Gap:**
+
+**High-Impact Patterns Identified:**
+1. **Block Headers** (5-10% impact): `actions:`, `domain:`, `operations:` structural lines lack AST line fields
+2. **Edge Case Expressions** (5-8% impact): await expressions, method call chains, multiline constructs  
+3. **Parser/AST Limitations** (3-5% impact): Lines not captured in AST structure
+
+**Files Close to 95% Threshold:**
+- 12 files with 90-94% coverage (need 1-2 small fixes each)
+- 8 files with 88-89% coverage (need 2-3 targeted fixes each)
+- Many showing consistent patterns: block headers, specific call types
+
+**Strategic Next Steps:**
+1. **Target High-Coverage Files**: Focus fixes on 90%+ files for maximum pass rate impact
+2. **Block Header Mapping**: Investigate AST structure for structural elements
+3. **Specialized Expression Types**: Handle remaining await, chain, and compound expressions
 
 ## Architecture Requirements
 
