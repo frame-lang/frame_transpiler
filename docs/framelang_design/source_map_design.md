@@ -29,14 +29,16 @@
 11. **State Variables** - State-scoped variable declarations within states
 12. **Enhanced Expression Visitor** - Await, call, and literal expression mapping
 13. **Call Chain Statement Analysis** - Verified visitor infrastructure works correctly; remaining gaps are edge cases
+14. **Return Statement Mapping** - Fixed double mapping issue for regular functions; state machine context pending
 
 ### 🔍 **Current Analysis - Remaining 10.1% Gap:**
 
 **Remaining Patterns Identified (44 failing files):**
-1. **Call Chain Expressions** (3-5% impact): Specific method calls like `config.read()`, `f.close()`
-2. **Complex Expression Statements** (2-3% impact): Multiline expressions, chained calls
-3. **Edge Case Constructs** (2-3% impact): Specialized language features, parser limitations
+1. **State Machine Return Statements** (2-3% impact): Return statements in event handlers after transitions
+2. **Complex Expression Context** (2-3% impact): Multiline expressions, specific parsing contexts
+3. **Edge Case Constructs** (2-3% impact): Specialized language features, parser limitations  
 4. **Comment Headers** (1-2% impact): Structural comment lines without executable content
+5. **Context-Specific Mappings** (2-3% impact): Statements requiring specialized visitor handling
 
 **Files Close to 95% Threshold:**
 - 12 files with 90-94% coverage (need 1-2 small fixes each)
