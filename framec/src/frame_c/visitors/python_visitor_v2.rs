@@ -2881,9 +2881,6 @@ impl PythonVisitorV2 {
     fn visit_transition_statement_node(&mut self, node: &TransitionStatementNode) {
         use crate::frame_c::ast::IdentifierDeclScope;
         
-        // Map the transition statement to the Frame source line
-        self.builder.map_next(node.line);
-        
         // Create compartment for target state
         let (target_state_name, target_state_ref, state_args_opt) = match &node.transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { state_context_node } => {
