@@ -513,6 +513,22 @@ impl PythonVisitorV2 {
         
         // Store domain variable names for later use
         if let Some(domain_block) = &system_node.domain_block_node_opt {
+            // Map the domain block header if we have variables or enums
+            if !domain_block.member_variables.is_empty() || !domain_block.enums.is_empty() {
+                let first_item_line = if !domain_block.member_variables.is_empty() {
+                    domain_block.member_variables[0].borrow().line
+                } else if !domain_block.enums.is_empty() {
+                    domain_block.enums[0].borrow().line
+                } else {
+                    0
+                };
+                if first_item_line > 1 {
+                    let domain_header_line = first_item_line - 1;
+                    self.builder.map_next(domain_header_line);
+                    self.builder.writeln("# Domain block");
+                }
+            }
+            
             for var_rcref in &domain_block.member_variables {
                 let var = var_rcref.borrow();
                 self.domain_variables.insert(var.name.clone());
@@ -701,6 +717,14 @@ impl PythonVisitorV2 {
     }
     
     fn visit_interface_block_node(&mut self, interface_block: &InterfaceBlockNode) {
+        // Map the interface block header if we have methods
+        if !interface_block.interface_methods.is_empty() {
+            let first_method = interface_block.interface_methods[0].borrow();
+            // Estimate the interface: header line as one line before the first method
+            let interface_header_line = if first_method.line > 1 { first_method.line - 1 } else { first_method.line };
+            self.builder.map_next(interface_header_line);
+        }
+        
         self.builder.newline();
         self.builder.write_comment("==================== Interface Block ==================");
         
@@ -3444,6 +3468,15 @@ impl PythonVisitorV2 {
     
     // Machine block node visitor
     fn visit_machine_block_node(&mut self, machine: &MachineBlockNode) {
+        // Map the machine block header if we have states
+        if !machine.states.is_empty() {
+            let first_state = machine.states[0].borrow();
+            // Estimate the machine: header line as one line before the first state
+            let machine_header_line = if first_state.line > 1 { first_state.line - 1 } else { first_state.line };
+            self.builder.map_next(machine_header_line);
+            self.builder.writeln("# Machine block");
+        }
+        
         // Visit all states to generate event handler implementations
         for state_rcref in &machine.states {
             let state = state_rcref.borrow();
