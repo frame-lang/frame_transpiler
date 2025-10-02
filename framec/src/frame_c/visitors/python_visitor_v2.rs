@@ -2177,9 +2177,23 @@ impl PythonVisitorV2 {
             ExprStmtType::BinaryStmtT { binary_stmt_node } => {
                 self.visit_binary_stmt_node(binary_stmt_node);
             }
-            // Return assign and parent dispatch are handled as StatementType variants, not ExprStmtType
-            _ => {
-                self.builder.writeln("# Unimplemented expression statement");
+            ExprStmtType::SystemInstanceStmtT { system_instance_stmt_node } => {
+                self.visit_system_instance_statement_node(system_instance_stmt_node);
+            }
+            ExprStmtType::SystemTypeStmtT { system_type_stmt_node } => {
+                self.visit_system_type_statement_node(system_type_stmt_node);
+            }
+            ExprStmtType::ActionCallStmtT { action_call_stmt_node } => {
+                self.visit_action_call_statement_node(action_call_stmt_node);
+            }
+            ExprStmtType::ListStmtT { list_stmt_node } => {
+                self.visit_list_stmt_node(list_stmt_node);
+            }
+            ExprStmtType::EnumeratorStmtT { enumerator_stmt_node } => {
+                self.visit_enumerator_statement_node(enumerator_stmt_node);
+            }
+            ExprStmtType::TransitionStmtT { transition_statement_node } => {
+                self.visit_transition_statement_node(transition_statement_node);
             }
         }
     }
