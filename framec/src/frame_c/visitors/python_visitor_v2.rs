@@ -3358,6 +3358,25 @@ impl PythonVisitorV2 {
     
     // Expression node visitor
     fn visit_expr_node(&mut self, expr_t: &ExprType) {
+        // Handle expressions that need explicit mapping
+        match expr_t {
+            ExprType::AwaitExprT { await_expr_node } => {
+                // Map await expressions for debugging async operations
+                self.builder.map_next(await_expr_node.line);
+            }
+            ExprType::CallExprT { call_expr_node } => {
+                // Map call expressions for debugging function calls
+                self.builder.map_next(call_expr_node.line);
+            }
+            ExprType::LiteralExprT { literal_expr_node } => {
+                // Map literal expressions for debugging constants
+                self.builder.map_next(literal_expr_node.line);
+            }
+            _ => {
+                // Other expressions don't need explicit mapping here
+            }
+        }
+        
         let mut output = String::new();
         self.visit_expr_node_to_string(expr_t, &mut output);
         self.builder.write(&output);
