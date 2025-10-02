@@ -10,9 +10,9 @@
 
 ## Current Status: SIGNIFICANT PROGRESS
 
-- **Validation Pass Rate**: 81.0% (350/432 test files) 
+- **Validation Pass Rate**: 81.1% (351/433 test files) 
 - **Quality Classification**: FAIR (target: EXCELLENT at 95%+)
-- **Recent Improvement**: +23 test files now pass validation
+- **Recent Improvement**: +24 test files now pass validation
 - **Major Fixes**: Core language constructs now properly mapped
 
 ### ✅ **Completed Source Mapping Fixes:**
@@ -21,6 +21,9 @@
 3. **Collection Literals** - list, dict, set, tuple expressions  
 4. **Core Expressions** - unary, binary, literal expressions
 5. **Block Constructs** - visit_block_stmt_node, visit_method_node
+6. **Import Statements** - visit_import_node (ensures imports are mappable)
+7. **Action Declarations** - visit_action_node (system action methods)
+8. **Operation Declarations** - visit_operation_node (system operations)
 
 ## Architecture Requirements
 
@@ -75,7 +78,7 @@ python3 tools/source_map_validator.py <test_file.frm>
 ```
 
 ### Success Criteria
-- **100% validation pass rate** (currently 80.1%)
+- **100% validation pass rate** (currently 81.1%)
 - **EXCELLENT quality classification** (currently FAIR)
 - **Zero unmapped executable statements**
 - **VS Code debugging works perfectly** for all Frame constructs
@@ -117,10 +120,10 @@ Current gaps in `/framec/src/frame_c/visitors/python_visitor_v2.rs`:
 - **≤2 duplicate mappings**
 - **Perfect debugging experience**
 
-### Current Status: UNACCEPTABLE
-- **80.1% pass rate** (needs to be 100%)
+### Current Status: IMPROVED BUT INSUFFICIENT
+- **81.1% pass rate** (needs to be 100%)
 - **FAIR classification** (needs to be EXCELLENT)
-- **29 visitor methods unmapped** (needs to be 0)
+- **Remaining gaps**: Edge cases and specialized constructs (needs to be 0)
 
 ## Implementation Timeline
 

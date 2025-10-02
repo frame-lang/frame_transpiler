@@ -1015,6 +1015,9 @@ impl PythonVisitorV2 {
     }
     
     fn visit_action_node(&mut self, action_node: &ActionNode) {
+        // Map action declaration for debugging
+        self.builder.map_next(action_node.line);
+        
         let params = if let Some(params) = &action_node.params {
             params.iter()
                 .map(|p| p.param_name.clone())
@@ -1057,6 +1060,9 @@ impl PythonVisitorV2 {
     }
     
     fn visit_operation_node(&mut self, operation_node: &OperationNode) {
+        // Map operation declaration for debugging
+        self.builder.map_next(operation_node.line);
+        
         let params = if let Some(params) = &operation_node.params {
             params.iter()
                 .map(|p| p.param_name.clone())
@@ -1105,6 +1111,9 @@ impl PythonVisitorV2 {
     }
     
     fn visit_import_node(&mut self, import_node: &ImportNode) {
+        // Map import statement for debugging
+        self.builder.map_next(import_node.line);
+        
         let import_stmt = match &import_node.import_type {
             ImportType::Simple { module } => {
                 format!("import {}", module)

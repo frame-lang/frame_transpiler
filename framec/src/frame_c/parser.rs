@@ -5658,7 +5658,8 @@ impl<'a> Parser<'a> {
         }
 
         if self.match_token(&[TokenType::Try]) {
-            return match self.try_statement() {
+            let try_line = self.previous().line;  // Capture the Try token line
+            return match self.try_statement_with_line(try_line) {
                 Ok(Some(try_stmt_t)) => Ok(Some(try_stmt_t)),
                 Ok(None) => Err(ParseError::new("Expected try statement")),
                 Err(parse_error) => Err(parse_error),
@@ -8428,7 +8429,7 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn try_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+    fn try_statement_with_line(&mut self, try_line: usize) -> Result<Option<StatementType>, ParseError> {
         // Parse the try block
         if !self.match_token(&[TokenType::OpenBrace]) {
             self.error_at_current("Expected '{' after 'try'.");
@@ -8580,7 +8581,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new("Try statement must have either 'except' clauses or 'finally' block."));
         }
 
-        let try_stmt_node = TryStmtNode::new(self.previous().line, 
+        let try_stmt_node = TryStmtNode::new(try_line,  // Use the captured Try token line
             try_block,
             except_clauses,
             else_block,
