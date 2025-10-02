@@ -10,7 +10,7 @@
 
 ## Current Status: MAJOR BREAKTHROUGH
 
-- **Validation Pass Rate**: 89.8% (389/433 test files) 
+- **Validation Pass Rate**: 89.9% (391/435 test files) 
 - **Quality Classification**: GOOD (target: EXCELLENT at 95%+)
 - **Recent Improvement**: +38 test files now pass validation  
 - **Major Achievements**: Block headers and core constructs now properly mapped
@@ -28,8 +28,9 @@
 10. **Block Headers** - Actions, Operations, Domain, Interface block headers (MAJOR BREAKTHROUGH)
 11. **State Variables** - State-scoped variable declarations within states
 12. **Enhanced Expression Visitor** - Await, call, and literal expression mapping
+13. **Call Chain Statement Analysis** - Verified visitor infrastructure works correctly; remaining gaps are edge cases
 
-### 🔍 **Current Analysis - Remaining 10.2% Gap:**
+### 🔍 **Current Analysis - Remaining 10.1% Gap:**
 
 **Remaining Patterns Identified (44 failing files):**
 1. **Call Chain Expressions** (3-5% impact): Specific method calls like `config.read()`, `f.close()`
