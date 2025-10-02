@@ -3075,9 +3075,6 @@ impl PythonVisitorV2 {
     
     // Return statement
     fn visit_return_stmt_node(&mut self, node: &ReturnStmtNode) {
-        // Map the statement line before writing
-        self.builder.map_next(node.line);
-        
         // Check if we're in a state handler (interface event handler)
         // If so, we need to set self.return_stack[-1] instead of returning directly
         let is_interface_handler = self.current_state_name_opt.is_some();
@@ -3089,7 +3086,7 @@ impl PythonVisitorV2 {
             if is_interface_handler {
                 // In interface handlers, set return_stack and then return
                 self.builder.writeln(&format!("self.return_stack[-1] = {}", output));
-                self.builder.writeln("return");
+                self.builder.writeln_mapped("return", node.line);
             } else {
                 // Regular function return
                 self.builder.writeln_mapped(&format!("return {}", output), node.line);
