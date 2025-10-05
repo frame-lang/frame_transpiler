@@ -2318,14 +2318,15 @@ impl PythonVisitorV2 {
                         }
                         CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                             // Check if this might be a state variable (fallback for scope resolution issues)
-                            // For now, we'll assume any undeclared identifier in an event handler is a state variable
-                            // This is a heuristic but should work for most cases
+                            // Only apply this heuristic if we're actually in a state context with state variables
                             state_var_name = id_node.name.lexeme.clone();
-                            // We'll make this a state variable assignment if we're in an event handler
-                            // and this identifier isn't a local/param/domain variable
+                            // We'll make this a state variable assignment if we're in a state context
+                            // and this identifier isn't a local/param/domain variable but IS a known state variable
                             if !self.current_handler_locals.contains(&state_var_name) &&
                                !self.current_handler_params.contains(&state_var_name) &&
-                               !self.domain_variables.contains(&state_var_name) {
+                               !self.domain_variables.contains(&state_var_name) &&
+                               self.current_state_vars.contains(&state_var_name) &&
+                               self.current_state_name_opt.is_some() {
                                 is_state_var_assignment = true;
                             }
                         }
