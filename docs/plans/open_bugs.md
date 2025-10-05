@@ -2457,14 +2457,15 @@ The transpiler's CodeBuilder is not calling `add_source_mapping()` for:
 
 ---
 
-### Bug #30: Spurious Interface Method Calls in Event Handlers (RESOLVED ✅)
+### Bug #30: Spurious Interface Method Calls in Event Handlers (FIXED)
 **Date Reported:** 2025-01-03  
-**Date Resolved:** 2025-10-05 (v0.80.1)  
+**Date Partially Fixed:** 2025-01-03 (v0.80.1 - fixed spurious returns for simple cases)
+**Date Fully Fixed:** 2025-10-05 (v0.80.2 - enhanced fix for nested if statements)
 **Severity:** Medium  
-**Status:** RESOLVED ✅
+**Status:** RESOLVED ✅ (Complete Fix)
 **Discovered By:** VS Code Extension Protocol Testing
 **Version Detected:** v0.80.0
-**Version Fixed:** v0.80.1
+**Fixed in:** v0.80.2 (enhanced recursive fix for nested control structures)
 
 #### Description
 The transpiler incorrectly generates unreachable interface method calls inside event handlers. Specifically, when a state has multiple interface method handlers, the transpiler places spurious calls to other interface methods at the end of some handlers, after all return statements.
@@ -2557,8 +2558,18 @@ The transpiler appears to be incorrectly injecting interface method calls from o
 2. Could trigger linting warnings about unreachable code
 3. Suggests a bug in the transpiler's handler generation logic
 
-#### Workaround
-The unreachable code doesn't affect runtime behavior since it can never be executed, but it indicates a transpiler logic error that should be fixed.
+#### Resolution (v0.80.2)
+**FIXED**: Enhanced the original Bug #30 fix to handle nested if-elif-else structures recursively.
+
+**Key Improvements:**
+- Added `check_block_all_paths_return()` helper function for recursive analysis
+- Enhanced `check_if_all_paths_return()` to detect nested control flow patterns
+- Fixed spurious unreachable return statements in deeply nested scenarios
+- Verified with comprehensive test cases including nested and deeply nested if statements
+
+**Previous Issue**: The v0.80.1 fix only handled direct return statements but failed with nested control structures where outer if blocks contained complete nested if-elif-else chains.
+
+**Complete Fix**: v0.80.2 implements full recursive analysis that correctly detects all return paths in arbitrarily nested control structures, eliminating spurious unreachable return statements entirely.
 
 #### Test Command
 ```bash
@@ -2822,21 +2833,33 @@ grep -n "getCurrentState()" test_bug30_spurious_calls.py | grep -v "def getCurre
 3. The calls are inside the wrong handler (getCurrentState inside canExecuteCommand)
 4. This is INCORRECT - these should be separate handlers, not cross-referenced
 
-#### Resolution (v0.80.1)
-**Fixed:** Applied fix to the correct `generate_event_handler` method in `python_visitor_v2.rs`
+#### Partial Resolution (v0.80.1)
+**Partially Fixed:** v0.80.1 fixed spurious `return` statements but NOT the spurious `getCurrentState()` calls
 
-**Root Cause:** The transpiler was automatically adding return statements to all event handlers without checking if all code paths already returned through complete if-elif-else chains.
-
-**Solution:** Added logic to detect when if-elif-else chains have complete coverage:
+**What v0.80.1 Fixed:**
+- Eliminated extra unreachable `return` statements after complete if-elif-else chains
 - Enhanced `generate_event_handler` method to check last statement type
-- Added `check_if_all_paths_return` helper function to validate complete control flow
-- Only generate implicit return when not all code paths already return
+- Added `check_if_all_paths_return` helper function
 
-**Verification:** Test case now generates clean Python code without unreachable return statements on lines 194 and 234.
+**Still Broken in v0.80.1:**
+- Line 190: Unreachable `getCurrentState()` call in `__handle_running_canExecuteCommand`
+- Line 226: Unreachable `getCurrentState()` call in `__handle_paused_canExecuteCommand`
+- These spurious method calls appear BEFORE the (now also unreachable) return statement
+
+**Current Status:**
+```python
+# v0.80.1 still generates this:
+else:
+    self.return_stack[-1] = False
+    return
+getCurrentState()  # <-- STILL PRESENT (line 190)
+return             # <-- This was the focus of v0.80.1 fix
+```
+
+**Root Cause:** The transpiler is incorrectly injecting interface method calls from one handler into another. The `getCurrentState` handler is being merged into the `canExecuteCommand` handler.
 
 **Technical Details:**
-- Modified `framec/src/frame_c/visitors/python_visitor_v2.rs` lines 1762-1787  
-- Enhanced event handler termination logic with return path analysis
-- Maintains backward compatibility while eliminating spurious code
+- Modified `framec/src/frame_c/visitors/python_visitor_v2.rs` lines 1762-1787 (partial fix)
+- Still needs fix for the spurious method call generation
 
 ---

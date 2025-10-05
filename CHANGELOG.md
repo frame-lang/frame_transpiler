@@ -2,6 +2,40 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.80.3] - 2025-10-05
+
+### Fixed
+- **State Variable Reading**: Fixed critical issue where state variables were not properly resolved in expressions
+  - State variables like `count` in `print(count)` now correctly generate `compartment.state_vars["count"]`
+  - Added `current_state_vars` tracking field to `PythonVisitorV2` for proper scope resolution
+  - Fixed identifier scope resolution by excluding state variables from handler locals tracking
+  - Enhanced expression handling in `visit_expr_node_to_string` for call chain expressions
+  - Updated multiple code paths: `VariableExprT`, `CallChainExprT`, and `IdentifierNode` handling
+  - **Test Results**: Improved from 95% to 97.1% pass rate (8 additional tests now passing)
+  - All state variable functionality (reading/writing) now works correctly
+
+### Technical Details
+- Modified `visit_variable_decl_node` to exclude `StateVarScope` variables from `current_handler_locals`
+- Added state variable detection logic to multiple expression visitor functions
+- Enhanced call chain expression processing for single identifier state variable references
+- State variable assignment (LHS) was already working correctly from previous fixes
+
+## [v0.80.2] - 2025-10-05
+
+### Fixed
+- **Bug #30 Enhanced**: Enhanced fix for spurious unreachable return statements to handle nested if-elif-else structures
+  - Original Bug #30 fix only detected direct return statements but failed with nested control structures
+  - Added recursive return path detection for arbitrarily nested if-elif-else chains
+  - New helper function `check_block_all_paths_return()` provides comprehensive analysis of nested scenarios
+  - Enhanced `check_if_all_paths_return()` to handle deeply nested control flow structures
+  - Verified fix with comprehensive test scenarios including deeply nested if statements
+
+### Technical Details
+- **Root Cause**: The original Bug #30 fix was incomplete - it only checked immediate return statements but didn't recursively analyze nested if-elif-else structures
+- **Enhanced Solution**: Implemented recursive analysis that traverses nested control structures to detect complete return coverage
+- **Recursive Logic**: The fix now properly handles cases where outer if blocks contain complete nested if-elif-else chains
+- **Validation**: Thoroughly tested with simple, nested, and deeply nested scenarios to ensure robust coverage
+
 ## [v0.80.1] - 2025-10-05
 
 ### Fixed

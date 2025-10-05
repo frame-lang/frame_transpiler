@@ -46,6 +46,7 @@ pub struct PythonVisitorV2 {
     current_handler_params: HashSet<String>, // Track current event handler parameter names
     current_handler_locals: HashSet<String>, // Track local variables in current handler
     current_state_params: HashSet<String>, // Track current state's parameter names
+    current_state_vars: HashSet<String>, // Track current state's variable names
     domain_enums: HashSet<String>, // Track domain enum names (without prefix)
     action_names: HashSet<String>, // Track action names for proper call resolution
     operation_names: HashSet<String>, // Track operation names for proper call resolution
@@ -88,6 +89,7 @@ impl PythonVisitorV2 {
             current_handler_params: HashSet::new(),
             current_handler_locals: HashSet::new(),
             current_state_params: HashSet::new(),
+            current_state_vars: HashSet::new(),
             domain_enums: HashSet::new(),
             action_names: HashSet::new(),
             operation_names: HashSet::new(),
@@ -428,16 +430,22 @@ impl AstVisitor for PythonVisitorV2 {
             }
             names.replace(",", ", ")
         } else {
-            // Only track as local if NOT module scope
+            // Only track as local if NOT module scope AND NOT state variable scope
             // Module variables are tracked in global_vars separately
-            if var_decl.identifier_decl_scope != IdentifierDeclScope::ModuleScope {
+            // State variables are tracked in current_state_vars separately
+            if var_decl.identifier_decl_scope != IdentifierDeclScope::ModuleScope &&
+               var_decl.identifier_decl_scope != IdentifierDeclScope::StateVarScope {
                 self.current_handler_locals.insert(var_decl.name.clone());
             }
             var_decl.name.clone()
         };
         
-        let assignment = format!("{} = {}", var_name, init_value);
-        self.builder.writeln_mapped(&assignment, var_decl.line);
+        // State variables should not be generated as class-level assignments
+        // They are handled via compartment.state_vars dictionary
+        if var_decl.identifier_decl_scope != IdentifierDeclScope::StateVarScope {
+            let assignment = format!("{} = {}", var_name, init_value);
+            self.builder.writeln_mapped(&assignment, var_decl.line);
+        }
     }
     
     fn visit_function_node(&mut self, function_node: &FunctionNode) {
@@ -694,6 +702,15 @@ impl PythonVisitorV2 {
         if let Some(params) = &state_node.params_opt {
             for param in params {
                 self.current_state_params.insert(param.param_name.clone());
+            }
+        }
+        
+        // Track state variables
+        self.current_state_vars.clear();
+        if let Some(state_vars) = &state_node.vars_opt {
+            for var_rcref in state_vars {
+                let var_node = var_rcref.borrow();
+                self.current_state_vars.insert(var_node.name.clone());
             }
         }
         
@@ -2280,18 +2297,57 @@ impl PythonVisitorV2 {
     
     // Assignment expression to string
     fn visit_assignment_expr_node_to_string(&mut self, node: &AssignmentExprNode, output: &mut String) {
-        // Generate LHS
-        // Special handling: Check if LHS is a simple identifier that's a domain variable
-        // If so, add self. prefix
-        let lhs_start = output.len();
-        self.visit_expr_node_to_string(&node.l_value_box, output);
+        use crate::frame_c::ast::{IdentifierDeclScope, CallChainNodeType, ExprType};
         
-        // Check if we just generated a simple identifier that's a domain variable
-        let generated_lhs = output[lhs_start..].to_string();
-        if self.domain_variables.contains(&generated_lhs) && !generated_lhs.starts_with("self.") {
-            // Replace with self.prefixed version
-            output.truncate(lhs_start);
-            output.push_str(&format!("self.{}", generated_lhs));
+        // Generate LHS with special handling for state variables
+        let lhs_start = output.len();
+        
+        // Check if LHS is a simple state variable identifier
+        let mut is_state_var_assignment = false;
+        let mut state_var_name = String::new();
+        
+        if let ExprType::CallChainExprT { call_chain_expr_node } = node.l_value_box.as_ref() {
+            if call_chain_expr_node.call_chain.len() == 1 {
+                if let Some(first) = call_chain_expr_node.call_chain.front() {
+                    match first {
+                        CallChainNodeType::VariableNodeT { var_node } => {
+                            if matches!(var_node.scope, IdentifierDeclScope::StateVarScope) {
+                                is_state_var_assignment = true;
+                                state_var_name = var_node.id_node.name.lexeme.clone();
+                            }
+                        }
+                        CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                            // Check if this might be a state variable (fallback for scope resolution issues)
+                            // For now, we'll assume any undeclared identifier in an event handler is a state variable
+                            // This is a heuristic but should work for most cases
+                            state_var_name = id_node.name.lexeme.clone();
+                            // We'll make this a state variable assignment if we're in an event handler
+                            // and this identifier isn't a local/param/domain variable
+                            if !self.current_handler_locals.contains(&state_var_name) &&
+                               !self.current_handler_params.contains(&state_var_name) &&
+                               !self.domain_variables.contains(&state_var_name) {
+                                is_state_var_assignment = true;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        
+        if is_state_var_assignment {
+            // For state variables, generate compartment.state_vars["name"]
+            output.push_str(&format!("compartment.state_vars[\"{}\"]", state_var_name));
+        } else {
+            self.visit_expr_node_to_string(&node.l_value_box, output);
+            
+            // Check if we just generated a simple identifier that's a domain variable
+            let generated_lhs = output[lhs_start..].to_string();
+            if self.domain_variables.contains(&generated_lhs) && !generated_lhs.starts_with("self.") {
+                // Replace with self.prefixed version
+                output.truncate(lhs_start);
+                output.push_str(&format!("self.{}", generated_lhs));
+            }
         }
         
         // Generate assignment operator
@@ -2318,12 +2374,28 @@ impl PythonVisitorV2 {
     
     // Expression node to string
     fn visit_expr_node_to_string(&mut self, expr_t: &ExprType, output: &mut String) {
-        // Debug output for module variable tracking
+        // Special handling for single identifier expressions that might be state variables
         if let ExprType::CallChainExprT { call_chain_expr_node } = expr_t {
             if call_chain_expr_node.call_chain.len() == 1 {
                 if let Some(first) = call_chain_expr_node.call_chain.front() {
-                    if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node } = first {
-                        if self.current_module_variables.contains(&id_node.name.lexeme) {
+                    // Try to extract identifier name from different node types
+                    let identifier_name_opt = match first {
+                        CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                            Some(id_node.name.lexeme.clone())
+                        }
+                        CallChainNodeType::VariableNodeT { var_node } => {
+                            Some(var_node.id_node.name.lexeme.clone())
+                        }
+                        _ => None
+                    };
+                    
+                    if let Some(identifier_name) = identifier_name_opt {
+                        // Check if this is a state variable
+                        if self.current_state_vars.contains(&identifier_name) &&
+                           !self.current_handler_locals.contains(&identifier_name) &&
+                           !self.current_handler_params.contains(&identifier_name) {
+                            output.push_str(&format!("compartment.state_vars[\"{}\"]", identifier_name));
+                            return;
                         }
                     }
                 }
@@ -2366,7 +2438,6 @@ impl PythonVisitorV2 {
                 output.push_str("self");
             }
             ExprType::CallChainExprT { call_chain_expr_node } => {
-                // eprintln!("DEBUG V2: CallChainExprT in visit_expr_node_to_string");
                 self.visit_call_chain_expr_node_to_string(call_chain_expr_node, output);
             }
             ExprType::AssignmentExprT { assignment_expr_node } => {
@@ -2557,8 +2628,13 @@ impl PythonVisitorV2 {
             }
         }
         
-        // IdentifierNode just has a name token, no scope field
-        output.push_str(&node.name.lexeme);
+        // Check if this is a state variable
+        if self.current_state_vars.contains(&node.name.lexeme) {
+            output.push_str(&format!("compartment.state_vars[\"{}\"]", node.name.lexeme));
+        } else {
+            // IdentifierNode just has a name token, no scope field
+            output.push_str(&node.name.lexeme);
+        }
     }
     
     // If statement
@@ -3177,6 +3253,9 @@ impl PythonVisitorV2 {
             // For now, just output the variable name without qualification
             // This will cause an error in the generated code
             output.push_str(&node.id_node.name.lexeme);
+        } else if self.current_state_vars.contains(&node.id_node.name.lexeme) {
+            // State variable - access via compartment.state_vars
+            output.push_str(&format!("compartment.state_vars[\"{}\"]", node.id_node.name.lexeme));
         } else {
             output.push_str(&node.id_node.name.lexeme);
         }
@@ -3759,6 +3838,9 @@ impl PythonVisitorV2 {
                             // Access state variables via compartment
                             output.push_str(&format!("compartment.state_vars[\"{}\"]", 
                                 var_node.id_node.name.lexeme));
+                        } else if !is_local_or_param && self.current_state_vars.contains(&var_node.id_node.name.lexeme) {
+                            // State variable - access via compartment.state_vars (heuristic fallback)
+                            output.push_str(&format!("compartment.state_vars[\"{}\"]", var_node.id_node.name.lexeme));
                         } else if !is_local_or_param && self.domain_variables.contains(&var_node.id_node.name.lexeme) &&
                                   !self.current_handler_params.contains(&var_node.id_node.name.lexeme) &&
                                   !in_self_context {
