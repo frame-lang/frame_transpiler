@@ -3398,39 +3398,47 @@ impl PythonVisitorV2 {
     // Event handler node visitor
     // Helper method to check if all paths in an if-statement lead to returns
     fn check_if_all_paths_return(&self, if_stmt: &IfStmtNode) -> bool {
-        // Check if condition statement block ends with return
-        let if_block_returns = if_stmt.if_block.statements.last().map_or(false, |stmt| {
-            matches!(stmt, DeclOrStmtType::StmtT { stmt_t } if matches!(stmt_t, StatementType::ReturnStmt { .. }))
-        });
+        // Check if the main if block has all paths returning
+        let if_block_returns = self.check_block_all_paths_return(&if_stmt.if_block.statements);
         
         if !if_block_returns {
             return false;
         }
         
         // Check all elif blocks
-        let mut all_elif_return = true;
         for elif_block in &if_stmt.elif_clauses {
-            let elif_returns = elif_block.block.statements.last().map_or(false, |stmt| {
-                matches!(stmt, DeclOrStmtType::StmtT { stmt_t } if matches!(stmt_t, StatementType::ReturnStmt { .. }))
-            });
+            let elif_returns = self.check_block_all_paths_return(&elif_block.block.statements);
             if !elif_returns {
-                all_elif_return = false;
-                break;
+                return false;
             }
-        }
-        
-        if !all_elif_return {
-            return false;
         }
         
         // Check else block (required for all paths to return)
         if let Some(else_block) = &if_stmt.else_block {
-            let else_returns = else_block.statements.last().map_or(false, |stmt| {
-                matches!(stmt, DeclOrStmtType::StmtT { stmt_t } if matches!(stmt_t, StatementType::ReturnStmt { .. }))
-            });
-            else_returns
+            self.check_block_all_paths_return(&else_block.statements)
         } else {
             // No else block means not all paths are covered
+            false
+        }
+    }
+    
+    // Helper function to check if a block of statements has all paths returning
+    fn check_block_all_paths_return(&self, statements: &[DeclOrStmtType]) -> bool {
+        if let Some(last_stmt) = statements.last() {
+            match last_stmt {
+                DeclOrStmtType::StmtT { stmt_t } => {
+                    match stmt_t {
+                        StatementType::ReturnStmt { .. } => true,
+                        StatementType::IfStmt { if_stmt_node } => {
+                            // Recursively check nested if statement
+                            self.check_if_all_paths_return(if_stmt_node)
+                        }
+                        _ => false
+                    }
+                }
+                _ => false
+            }
+        } else {
             false
         }
     }
