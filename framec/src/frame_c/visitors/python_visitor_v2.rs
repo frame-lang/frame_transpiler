@@ -1759,11 +1759,30 @@ impl PythonVisitorV2 {
             self.visit_decl_or_stmt(stmt);
         }
         
-        // Handle terminator
+        // Check if the last statement was a return or if all code paths lead to returns
+        let last_is_return = evt_handler.statements.last().map_or(false, |stmt| {
+            match stmt {
+                DeclOrStmtType::StmtT { stmt_t } => {
+                    match stmt_t {
+                        StatementType::ReturnStmt { .. } => true,
+                        StatementType::IfStmt { if_stmt_node } => {
+                            // Check if if-elif-else has all branches ending with returns
+                            self.check_if_all_paths_return(if_stmt_node)
+                        }
+                        _ => false
+                    }
+                }
+                _ => false
+            }
+        });
+        
+        // Handle terminator (only if last statement wasn't already a return)
         if let Some(terminator) = &evt_handler.terminator_node {
-            self.visit_event_handler_terminator_node(&terminator);
-        } else {
-            // Implicit return is generated boilerplate - don't map
+            if !last_is_return {
+                self.visit_event_handler_terminator_node(&terminator);
+            }
+        } else if !last_is_return {
+            // Add implicit return only if there wasn't already one
             self.builder.writeln("return");
         }
         
@@ -3377,6 +3396,45 @@ impl PythonVisitorV2 {
     }
     
     // Event handler node visitor
+    // Helper method to check if all paths in an if-statement lead to returns
+    fn check_if_all_paths_return(&self, if_stmt: &IfStmtNode) -> bool {
+        // Check if condition statement block ends with return
+        let if_block_returns = if_stmt.if_block.statements.last().map_or(false, |stmt| {
+            matches!(stmt, DeclOrStmtType::StmtT { stmt_t } if matches!(stmt_t, StatementType::ReturnStmt { .. }))
+        });
+        
+        if !if_block_returns {
+            return false;
+        }
+        
+        // Check all elif blocks
+        let mut all_elif_return = true;
+        for elif_block in &if_stmt.elif_clauses {
+            let elif_returns = elif_block.block.statements.last().map_or(false, |stmt| {
+                matches!(stmt, DeclOrStmtType::StmtT { stmt_t } if matches!(stmt_t, StatementType::ReturnStmt { .. }))
+            });
+            if !elif_returns {
+                all_elif_return = false;
+                break;
+            }
+        }
+        
+        if !all_elif_return {
+            return false;
+        }
+        
+        // Check else block (required for all paths to return)
+        if let Some(else_block) = &if_stmt.else_block {
+            let else_returns = else_block.statements.last().map_or(false, |stmt| {
+                matches!(stmt, DeclOrStmtType::StmtT { stmt_t } if matches!(stmt_t, StatementType::ReturnStmt { .. }))
+            });
+            else_returns
+        } else {
+            // No else block means not all paths are covered
+            false
+        }
+    }
+    
     fn visit_event_handler_node(&mut self, evt_handler: &EventHandlerNode) {
         // Get state name from current context
         let state_name = if let Some(state) = &self.current_state_name_opt {
@@ -3457,9 +3515,21 @@ impl PythonVisitorV2 {
             self.visit_decl_or_stmt(stmt);
         }
         
-        // Check if the last statement was a return to avoid duplicates
+        // Check if the last statement was a return or if all code paths lead to returns
         let last_is_return = evt_handler.statements.last().map_or(false, |stmt| {
-            matches!(stmt, DeclOrStmtType::StmtT { stmt_t } if matches!(stmt_t, StatementType::ReturnStmt { .. }))
+            match stmt {
+                DeclOrStmtType::StmtT { stmt_t } => {
+                    match stmt_t {
+                        StatementType::ReturnStmt { .. } => true,
+                        StatementType::IfStmt { if_stmt_node } => {
+                            // Check if if-elif-else has all branches ending with returns
+                            self.check_if_all_paths_return(if_stmt_node)
+                        }
+                        _ => false
+                    }
+                }
+                _ => false
+            }
         });
         
         // Handle terminator (only if last statement wasn't already a return)

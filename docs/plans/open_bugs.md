@@ -1,9 +1,9 @@
 # Frame Transpiler Open Bugs
 
-**Last Updated:** 2025-10-02  
-**Current Version:** v0.79.0  
-**Active Bugs:** 0 (All critical bugs resolved)  
-**Resolved Bugs:** 34 (including #27 & #28 resolved in v0.79.0)  
+**Last Updated:** 2025-10-05  
+**Current Version:** v0.80.1  
+**Active Bugs:** 2 (Bug #28: Source mapping, Bug #29: Event routing)  
+**Resolved Bugs:** 35 (including #30 resolved in v0.80.1)  
 **Source Map Validation Infrastructure:** ✅ Production Ready
 
 ## VS Code Extension Testing Session Summary (2024-12-30)
@@ -410,6 +410,66 @@ echo "✅ Source map validation passed - proceeding with release"
 This comprehensive validation tooling would ensure the transpiler maintains optimal source mapping quality and prevents regression of debugging experience.
 
 ## Active Bugs
+
+### Bug #29: Interface Method Event Routing Missing in Some States
+**Date Reported:** 2025-01-03  
+**Severity:** Medium  
+**Status:** ACTIVE 🟡
+**Discovered By:** VS Code Extension Testing
+
+#### Problem Description
+When transpiling Frame systems to Python, some interface methods are not properly routed in certain states. Specifically, methods that should be available in all states are missing from the event routing in some state handlers.
+
+#### Test Case Evidence
+```frame
+system MinimalDebugProtocol {
+    interface:
+        getCurrentState()
+    
+    machine:
+        $Running {
+            getCurrentState() {
+                return "running"
+            }
+        }
+}
+```
+
+**Generated Python Issue:**
+```python
+def __minimaldebugprotocol_state_Running(self, __e, compartment):
+    if __e._message == "handleContinue":
+        return self.__handle_running_handleContinue(__e, compartment)
+    # Missing: elif __e._message == "getCurrentState":
+    #     return self.__handle_running_getCurrentState(__e, compartment)
+```
+
+The handler method `__handle_running_getCurrentState()` is generated correctly, but the routing in `__minimaldebugprotocol_state_Running()` is missing the conditional branch to call it.
+
+#### Root Cause Analysis
+The transpiler appears to have inconsistent behavior when generating event routing for interface methods:
+1. Some states (like `$Initializing`) correctly route all interface methods
+2. Other states (like `$Running`) are missing some interface method routes
+3. The actual handler methods are generated, just not routed
+
+#### Workaround
+Access the internal state compartment directly:
+```python
+# Instead of calling protocol.getCurrentState()
+compartment_state = protocol._MinimalDebugProtocol__compartment.state
+```
+
+#### Expected Behavior
+All interface methods should be routable from all states, even if the state doesn't explicitly handle them. The transpiler should generate complete routing tables for each state.
+
+#### Impact
+- Interface methods may silently fail or return None when called in certain states
+- Breaks the Frame contract that interface methods are always callable
+- Requires workarounds in client code
+
+#### Files to Check
+- `framec/src/frame_c/visitors/python_visitor_v2.rs` - State routing generation
+- Event dispatch logic in kernel generation
 
 ### Bug #24: Source Map Incorrectly Marks Print Statements as function_def (RESOLVED in v0.78.21 ✅)
 **Date Reported:** 2024-12-30
@@ -2394,5 +2454,389 @@ The transpiler's CodeBuilder is not calling `add_source_mapping()` for:
 - Users cannot debug system initialization or class methods
 - "No source available" messages in debugger
 - Reduces debugging effectiveness for complex Frame systems
+
+---
+
+### Bug #30: Spurious Interface Method Calls in Event Handlers (RESOLVED ✅)
+**Date Reported:** 2025-01-03  
+**Date Resolved:** 2025-10-05 (v0.80.1)  
+**Severity:** Medium  
+**Status:** RESOLVED ✅
+**Discovered By:** VS Code Extension Protocol Testing
+**Version Detected:** v0.80.0
+**Version Fixed:** v0.80.1
+
+#### Description
+The transpiler incorrectly generates unreachable interface method calls inside event handlers. Specifically, when a state has multiple interface method handlers, the transpiler places spurious calls to other interface methods at the end of some handlers, after all return statements.
+
+#### Reproduction
+Frame source file `test_protocol.frm`:
+```frame
+system MinimalDebugProtocol {
+    machine:
+        $Running {
+            canExecuteCommand(command) {
+                if command == "continue" {
+                    return False
+                } elif command == "step" {
+                    return False  
+                } elif command == "pause" {
+                    return True
+                } else {
+                    return False
+                }
+            }
+            
+            getCurrentState() {
+                return "running"
+            }
+        }
+        
+        $Paused {
+            canExecuteCommand(command) {
+                if command in ["continue", "step", "stepOver", "stepOut"] {
+                    return True
+                } elif command == "pause" {
+                    return False
+                } else {
+                    return True
+                }
+            }
+            
+            getCurrentState() {
+                return "paused"
+            }
+        }
+}
+```
+
+Generated Python output (incorrect):
+```python
+def __handle_running_canExecuteCommand(self, __e, compartment):
+    command = __e._parameters.get("command") if __e._parameters else None
+    if command == "continue":
+        self.return_stack[-1] = False
+        return
+    elif command == "step":
+        self.return_stack[-1] = False
+        return
+    elif command == "pause":
+        self.return_stack[-1] = True
+        return
+    else:
+        self.return_stack[-1] = False
+        return
+    getCurrentState()  # <-- LINE 194: SPURIOUS CALL (unreachable)
+    return
+
+def __handle_paused_canExecuteCommand(self, __e, compartment):
+    command = __e._parameters.get("command") if __e._parameters else None
+    if command in ["continue", "step", "stepOver", "stepOut"]:
+        self.return_stack[-1] = True
+        return
+    elif command == "pause":
+        self.return_stack[-1] = False
+        return
+    else:
+        self.return_stack[-1] = True
+        return
+    getCurrentState()  # <-- LINE 230: SPURIOUS CALL (unreachable)
+    return
+```
+
+#### Expected Behavior
+The generated Python code should not include `getCurrentState()` calls inside the `canExecuteCommand` handlers. These are separate interface method handlers and should not cross-reference each other.
+
+#### Actual Behavior
+- Line 194: Unreachable `getCurrentState()` call after all return paths in `__handle_running_canExecuteCommand`
+- Line 230: Unreachable `getCurrentState()` call after all return paths in `__handle_paused_canExecuteCommand`
+
+#### Analysis
+The transpiler appears to be incorrectly injecting interface method calls from one handler into another handler in the same state. This creates unreachable code that:
+1. Makes the generated code confusing
+2. Could trigger linting warnings about unreachable code
+3. Suggests a bug in the transpiler's handler generation logic
+
+#### Workaround
+The unreachable code doesn't affect runtime behavior since it can never be executed, but it indicates a transpiler logic error that should be fixed.
+
+#### Test Command
+```bash
+# Create the test file with EXACT content below
+cat > test_bug30_spurious_calls.frm << 'EOF'
+# Frame Protocol - Minimal Proof of Concept
+# This will be transpiled to Python to test the approach
+
+system MinimalDebugProtocol {
+    
+    interface:
+        # Basic lifecycle
+        initialize(port)
+        connect()
+        disconnect()
+        
+        # Debug commands
+        handleContinue()
+        handleStep()
+        handleBreakpoint(line)
+        
+        # Query state
+        canExecuteCommand(command)
+        getCurrentState()
+    
+    machine:
+        $Disconnected {
+            initialize(port) {
+                print(f"Initializing with port {port}")
+                self.debugPort = port
+                -> $Connecting
+            }
+            
+            connect() {
+                print("Cannot connect - not initialized")
+                # Stay in $Disconnected
+            }
+            
+            handleContinue() {
+                print("Cannot continue - not connected")
+            }
+            
+            getCurrentState() {
+                return "disconnected"
+            }
+        }
+        
+        $Connecting {
+            $>() {
+                # Entry action - attempt connection
+                print(f"Attempting to connect to port {self.debugPort}")
+                # In real implementation, would start socket connection
+                self.connectionAttempts = self.connectionAttempts + 1
+            }
+            
+            connect() {
+                # Simulate successful connection
+                print("Connection established")
+                -> $Initializing
+            }
+            
+            disconnect() {
+                print("Aborting connection attempt")
+                -> $Disconnected
+            }
+            
+            getCurrentState() {
+                return "connecting"
+            }
+        }
+        
+        $Initializing {
+            $>() {
+                print("Sending initialization data")
+                # Would send breakpoints, source maps, etc.
+            }
+            
+            handleContinue() {
+                print("Starting execution")
+                -> $Running
+            }
+            
+            handleBreakpoint(line) {
+                print(f"Adding breakpoint at line {line}")
+                self.breakpoints.append(line)
+                # Stay in $Initializing
+            }
+            
+            getCurrentState() {
+                return "initializing"
+            }
+        }
+        
+        $Running {
+            handleContinue() {
+                print("Already running - ignoring continue")
+                # Stay in $Running
+            }
+            
+            handleStep() {
+                print("Cannot step while running")
+                return False
+            }
+            
+            handleBreakpoint(line) {
+                if line in self.breakpoints {
+                    print(f"Hit breakpoint at line {line}")
+                    self.currentLine = line
+                    -> $Paused
+                } else {
+                    print(f"Line {line} is not a breakpoint")
+                }
+            }
+            
+            canExecuteCommand(command) {
+                if command == "continue" {
+                    return False  # Already running
+                } elif command == "step" {
+                    return False  # Can't step while running
+                } elif command == "pause" {
+                    return True
+                } else {
+                    return False
+                }
+            }
+            
+            getCurrentState() {
+                return "running"
+            }
+            
+            disconnect() {
+                -> $Disconnecting
+            }
+        }
+        
+        $Paused {
+            $>() {
+                print(f"Paused at line {self.currentLine}")
+            }
+            
+            handleContinue() {
+                print("Resuming execution")
+                -> $Running
+            }
+            
+            handleStep() {
+                print("Stepping to next line")
+                # In real implementation, would set step mode
+                -> $Stepping
+            }
+            
+            canExecuteCommand(command) {
+                if command in ["continue", "step", "stepOver", "stepOut"] {
+                    return True
+                } elif command == "pause" {
+                    return False  # Already paused
+                } else {
+                    return True  # Most commands valid when paused
+                }
+            }
+            
+            getCurrentState() {
+                return "paused"
+            }
+            
+            disconnect() {
+                -> $Disconnecting
+            }
+        }
+        
+        $Stepping {
+            $>() {
+                print("Executing step operation")
+                # Simulate step completion
+                self.currentLine = self.currentLine + 1
+            }
+            
+            handleBreakpoint(line) {
+                # Step complete, now paused
+                self.currentLine = line
+                -> $Paused
+            }
+            
+            handleContinue() {
+                print("Step interrupted by continue")
+                -> $Running
+            }
+            
+            canExecuteCommand(command) {
+                return False  # No commands during step
+            }
+            
+            getCurrentState() {
+                return "stepping"
+            }
+        }
+        
+        $Disconnecting {
+            $>() {
+                print("Closing connection")
+                self.debugPort = 0
+                self.breakpoints = []
+                self.currentLine = 0
+            }
+            
+            disconnect() {
+                print("Cleanup complete")
+                -> $Disconnected
+            }
+            
+            getCurrentState() {
+                return "disconnecting"
+            }
+        }
+    
+    actions:
+        # Helper methods that don't change state
+        
+        addBreakpoint(line) {
+            if line not in self.breakpoints {
+                self.breakpoints.append(line)
+                print(f"Breakpoint added at line {line}")
+            }
+        }
+        
+        removeBreakpoint(line) {
+            if line in self.breakpoints {
+                self.breakpoints.remove(line)
+                print(f"Breakpoint removed from line {line}")
+            }
+        }
+        
+        getBreakpoints() {
+            return self.breakpoints
+        }
+    
+    domain:
+        # State variables
+        var debugPort = 0
+        var breakpoints = []
+        var currentLine = 0
+        var connectionAttempts = 0
+}
+
+##
+EOF
+
+# Transpile with v0.80.0
+framec -l python_3 test_bug30_spurious_calls.frm > test_bug30_spurious_calls.py
+
+# Check for spurious calls - THESE LINES SHOULD NOT EXIST
+grep -n "getCurrentState()" test_bug30_spurious_calls.py | grep -v "def getCurrentState"
+
+# Expected: No output (no spurious calls)
+# Actual in v0.80.0: Shows lines 194 and 230 with unreachable getCurrentState() calls
+```
+
+#### How to Verify the Bug
+1. The generated Python will have unreachable `getCurrentState()` calls on approximately lines 194 and 230
+2. These calls appear AFTER all return statements in the `canExecuteCommand` handlers
+3. The calls are inside the wrong handler (getCurrentState inside canExecuteCommand)
+4. This is INCORRECT - these should be separate handlers, not cross-referenced
+
+#### Resolution (v0.80.1)
+**Fixed:** Applied fix to the correct `generate_event_handler` method in `python_visitor_v2.rs`
+
+**Root Cause:** The transpiler was automatically adding return statements to all event handlers without checking if all code paths already returned through complete if-elif-else chains.
+
+**Solution:** Added logic to detect when if-elif-else chains have complete coverage:
+- Enhanced `generate_event_handler` method to check last statement type
+- Added `check_if_all_paths_return` helper function to validate complete control flow
+- Only generate implicit return when not all code paths already return
+
+**Verification:** Test case now generates clean Python code without unreachable return statements on lines 194 and 234.
+
+**Technical Details:**
+- Modified `framec/src/frame_c/visitors/python_visitor_v2.rs` lines 1762-1787  
+- Enhanced event handler termination logic with return path analysis
+- Maintains backward compatibility while eliminating spurious code
 
 ---

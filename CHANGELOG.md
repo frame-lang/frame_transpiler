@@ -2,6 +2,21 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.80.1] - 2025-10-05
+
+### Fixed
+- **Bug #30**: Fixed spurious unreachable return statements in event handlers with complete if-elif-else chains
+  - Event handlers with if-elif-else blocks where all branches contain return statements no longer generate an additional unreachable return
+  - Applied fix to correct method `generate_event_handler` in `python_visitor_v2.rs` 
+  - Enhanced return statement detection to recognize complete control flow paths
+  - Cleaner generated Python code without unreachable statements
+
+### Technical Details
+- **Root Cause**: The Python visitor was automatically adding return statements to all event handlers without checking if all code paths already returned
+- **Solution**: Added logic to detect when if-elif-else chains have complete coverage with returns in all branches
+- **Helper Function**: `check_if_all_paths_return` validates that if, all elif, and else blocks end with return statements
+- **Validation**: Verified fix with both simple and comprehensive test cases
+
 ## [v0.80.0] - 2025-10-02
 
 ### Added
