@@ -2,6 +2,46 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.81.0] - 2025-10-05
+
+### Added
+- **Comprehensive Syntax Validation System**: New validation engine to prevent syntax-related bugs
+  - Multi-level validation: Basic, Structural, Semantic, and Target Language
+  - Malformed handler detection to prevent Bugs #29/#31 style issues
+  - Interface completeness checking for missing method implementations
+  - State reachability analysis to identify unreachable states
+  - Unmatched braces detection for syntax integrity
+  - Event flow analysis for comprehensive state machine validation
+- **Validation CLI Integration**: Full command-line support for validation features
+  - `--validate-syntax`: Enable comprehensive syntax validation
+  - `--validation-level`: Set validation depth (basic, structural, semantic, target-language)
+  - `--validation-format`: Choose output format (human, json, junit)
+  - `--validation-only`: Run validation without transpilation
+- **Multiple Output Formats**: Professional validation reporting
+  - Human-readable reports with color-coded severity levels
+  - JSON format for programmatic integration
+  - JUnit XML for CI/CD pipeline integration
+- **Two-Pass Parser Integration**: Enhanced validation using actual Frame parser
+  - Symbol table construction in first pass
+  - Semantic analysis in second pass
+  - Real AST-based validation for accurate results
+
+### Enhanced
+- **Bug Prevention**: Validation system specifically targets syntax errors that caused Bugs #29/#31
+  - Missing closing braces detection
+  - Handler boundary validation
+  - Syntax integrity checks
+- **Error Reporting**: Detailed location information with line/column references
+  - Source location tracking for precise error reporting
+  - Helpful suggestions for common syntax issues
+  - Documentation links for validation rules
+
+### Validation
+- **Test Results**: Maintained 99.7% test pass rate (389/390 tests)
+- Only intentionally malformed test file fails validation (as expected)
+- Comprehensive validation testing against problematic files
+- Zero regression in existing functionality
+
 ## [v0.80.5] - 2025-10-05
 
 ### Fixed

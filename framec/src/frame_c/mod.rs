@@ -14,4 +14,5 @@ pub mod marker_linter; // Marker file linting for validation (v0.74)
 mod symbol_table;
 pub mod tools; // CLI tools and utilities
 pub mod utils;
+pub mod validation; // Comprehensive validation system (v0.80.5)
 mod visitors;

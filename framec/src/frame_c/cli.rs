@@ -28,6 +28,18 @@ pub struct Cli {
     /// Debug output mode - returns JSON with code and source map
     debug_output: bool,
     
+    /// Enable syntax validation
+    validate_syntax: bool,
+    
+    /// Validation level
+    validation_level: Option<String>,
+    
+    /// Validation output format
+    validation_format: Option<String>,
+    
+    /// Validation only mode (skip transpilation)
+    validation_only: bool,
+    
     /// Subcommand (build, init, etc.)
     command: Option<String>,
 }
@@ -92,6 +104,34 @@ impl Cli {
                     .help("Generate JSON output with transpiled code and source map for debugging")
                     .action(clap::ArgAction::SetTrue),
             )
+            .arg(
+                Arg::new("validate-syntax")
+                    .long("validate-syntax")
+                    .help("Enable comprehensive syntax and structural validation")
+                    .action(clap::ArgAction::SetTrue),
+            )
+            .arg(
+                Arg::new("validation-level")
+                    .long("validation-level")
+                    .help("Set validation level: basic, structural, semantic, target-language")
+                    .value_name("LEVEL")
+                    .num_args(1)
+                    .value_parser(["basic", "structural", "semantic", "target-language"]),
+            )
+            .arg(
+                Arg::new("validation-format")
+                    .long("validation-format")
+                    .help("Output format for validation results: human, json, junit")
+                    .value_name("FORMAT")
+                    .num_args(1)
+                    .value_parser(["human", "json", "junit"]),
+            )
+            .arg(
+                Arg::new("validation-only")
+                    .long("validation-only")
+                    .help("Run validation only, skip transpilation")
+                    .action(clap::ArgAction::SetTrue),
+            )
             .get_matches();
 
         // Check for subcommands first
@@ -121,6 +161,10 @@ impl Cli {
         let config_opt = config.map(|cfg| PathBuf::from(cfg.clone()));
         
         let debug_output = matches.get_flag("debug-output");
+        let validate_syntax = matches.get_flag("validate-syntax");
+        let validation_level = matches.get_one::<String>("validation-level").map(|s| s.clone());
+        let validation_format = matches.get_one::<String>("validation-format").map(|s| s.clone());
+        let validation_only = matches.get_flag("validation-only");
 
         Cli {
             stdin_flag: stdin,
@@ -130,6 +174,10 @@ impl Cli {
             output_dir: output_dir_opt,
             config: config_opt,
             debug_output,
+            validate_syntax,
+            validation_level,
+            validation_format,
+            validation_only,
             command,
         }
     }
@@ -169,8 +217,8 @@ pub fn run_with(args: Cli) {
     // Original transpiler behavior
     let exe = Exe::new();
 
-    let target_language = match args.language {
-        Some(lang_str) => match TargetLanguage::try_from(lang_str) {
+    let target_language = match &args.language {
+        Some(lang_str) => match TargetLanguage::try_from(lang_str.clone()) {
             Ok(lang) => Some(lang),
             Err(err) => {
                 eprintln!("{}", err);
@@ -179,6 +227,19 @@ pub fn run_with(args: Cli) {
         },
         None => None,
     };
+
+    // Handle validation if requested
+    if args.validate_syntax || args.validation_only {
+        let validation_result = handle_validation(&args, target_language);
+        
+        // If validation-only mode, exit after validation
+        if args.validation_only {
+            std::process::exit(if validation_result { 0 } else { 1 });
+        }
+        
+        // If validation failed and we're not in validation-only mode, 
+        // still continue with transpilation but show the validation results
+    }
 
     // run the compiler and print output to stdout
     if args.stdin_flag {
@@ -313,4 +374,174 @@ fn handle_build_command(config_path: Option<PathBuf>) {
             std::process::exit(err.code);
         }
     }
+}
+
+/// Handle validation logic
+fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> bool {
+    use crate::frame_c::validation::*;
+    use crate::frame_c::scanner::Scanner;
+    use crate::frame_c::parser::Parser;
+    use crate::frame_c::symbol_table::Arcanum;
+    use std::fs;
+    
+    // Ensure we have a file path for validation
+    let path = match &args.path {
+        Some(path) => path,
+        None => {
+            eprintln!("Error: File path required for validation");
+            return false;
+        }
+    };
+    
+    // Read the source file
+    let source_code = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(err) => {
+            eprintln!("Error reading file {}: {}", path.display(), err);
+            return false;
+        }
+    };
+    
+    // Parse validation level
+    let validation_level = match args.validation_level.as_deref() {
+        Some("basic") => ValidationLevel::Basic,
+        Some("structural") => ValidationLevel::Structural,
+        Some("semantic") => ValidationLevel::Semantic,
+        Some("target-language") => ValidationLevel::TargetLanguage,
+        None => ValidationLevel::Structural, // Default
+        Some(invalid) => {
+            eprintln!("Error: Invalid validation level '{}'. Use: basic, structural, semantic, target-language", invalid);
+            return false;
+        }
+    };
+    
+    // Parse output format
+    let output_format = match args.validation_format.as_deref() {
+        Some("human") => OutputFormat::Human,
+        Some("json") => OutputFormat::Json,
+        Some("junit") => OutputFormat::Junit,
+        None => OutputFormat::Human, // Default
+        Some(invalid) => {
+            eprintln!("Error: Invalid validation format '{}'. Use: human, json, junit", invalid);
+            return false;
+        }
+    };
+    
+    // Convert target language  
+    use crate::frame_c::visitors::TargetLanguage as VisitorTargetLanguage;
+    let target_lang = target_language.map(|tl| match tl {
+        VisitorTargetLanguage::Python3 => crate::frame_c::validation::TargetLanguage::Python,
+        VisitorTargetLanguage::Graphviz => crate::frame_c::validation::TargetLanguage::Python, // Default to Python for graphviz
+    });
+    
+    // Create validation configuration
+    let config = ValidationConfig {
+        level: validation_level,
+        target_language: target_lang,
+        output_format,
+        fail_on_warnings: false,
+        max_errors: Some(100),
+    };
+    
+    // Create validation engine with default rules and appropriate reporter
+    let mut engine = ValidationEngine::with_default_rules(config);
+    
+    // Add the appropriate reporter based on output format
+    match output_format {
+        OutputFormat::Json => {
+            engine = engine.add_reporter(crate::frame_c::validation::reporters::JsonReporter::new());
+        },
+        OutputFormat::Junit => {
+            engine = engine.add_reporter(crate::frame_c::validation::reporters::JunitReporter::new());
+        },
+        OutputFormat::Human => {
+            // Human reporter is already added by default
+        },
+        OutputFormat::Sarif => {
+            // SARIF reporter not implemented yet - fall back to JSON
+            engine = engine.add_reporter(crate::frame_c::validation::reporters::JsonReporter::new());
+        },
+    }
+    
+    // Parse the Frame file to get the actual AST using two-pass approach
+    let scanner = Scanner::new(source_code.clone());
+    let (has_errors, errors, tokens) = scanner.scan_tokens();
+    
+    if has_errors {
+        eprintln!("Scanning errors: {}", errors);
+        return false;
+    }
+    
+    // First pass: symbol table building
+    let mut arcanum = Arcanum::new();
+    let mut comments = Vec::new();
+    {
+        let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
+        match syntactic_parser.parse() {
+            Ok(_) => {
+                if syntactic_parser.had_error() {
+                    let mut errors = "First pass validation parsing errors:\n".to_string();
+                    errors.push_str(&syntactic_parser.get_errors());
+                    eprintln!("{}", errors);
+                    return false;
+                }
+                arcanum = syntactic_parser.get_arcanum();
+            }
+            Err(parse_error) => {
+                eprintln!("First pass validation parse error: {}", parse_error.error);
+                return false;
+            }
+        }
+    }
+    
+    // Second pass: semantic analysis  
+    let mut comments2 = comments.clone();
+    let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
+    
+    let ast = match semantic_parser.parse() {
+        Ok(frame_module) => frame_module,
+        Err(parse_error) => {
+            eprintln!("Parse error during validation: {}", parse_error.error);
+            return false;
+        }
+    };
+    
+    if semantic_parser.had_error() {
+        eprintln!("Parser errors during validation: {}", semantic_parser.get_errors());
+        return false;
+    }
+    
+    // Validate each system in the frame module
+    let mut overall_success = true;
+    
+    if ast.systems.is_empty() {
+        eprintln!("Warning: No systems found in Frame module");
+        return true; // No validation needed
+    }
+    
+    for system_node in &ast.systems {
+        // Create validation context with real AST
+        let context = ValidationContext {
+            ast: system_node,
+            source_code: &source_code,
+            file_path: path,
+            target_language: target_lang,
+            generated_code: None,
+            symbol_table: None,
+        };
+        
+        // Run validation
+        let (result, formatted_output) = engine.validate_and_format(context);
+        
+        // Print results
+        for output in formatted_output {
+            println!("{}", output);
+        }
+        
+        if !result.success {
+            overall_success = false;
+        }
+    }
+    
+    overall_success
 }
