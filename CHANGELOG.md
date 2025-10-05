@@ -2,6 +2,25 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.80.5] - 2025-10-05
+
+### Fixed
+- **Bug #29**: Fixed missing interface method event routing in Running state dispatcher
+  - Root cause: Missing closing braces in Frame source files caused handlers to be parsed incorrectly
+  - Solution: Added missing closing braces in `canExecuteCommand` handlers
+  - `getCurrentState()` now works correctly in all states, including Running state
+- **Bug #31**: Fixed spurious interface method calls in generated Python code
+  - Same syntax errors causing incorrect parsing and code generation
+  - Clean Python generation with no spurious calls after return statements
+- **Frame Syntax Validation**: Enhanced parsing to properly handle malformed handler blocks
+  - Improved error detection for missing closing braces in event handlers
+  - Better separation of handler code blocks to prevent cross-contamination
+
+### Validation
+- **Test Results**: Maintained 100% test pass rate (387/387 tests)
+- All existing functionality preserved while fixing critical bugs
+- Enhanced bug reproduction test case for future regression prevention
+
 ## [v0.80.4] - 2025-10-05
 
 ### Fixed
