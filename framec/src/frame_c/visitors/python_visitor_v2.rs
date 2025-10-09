@@ -58,6 +58,10 @@ pub struct PythonVisitorV2 {
     // Global variable tracking
     global_vars: HashSet<String>,
     
+    // Handler default value tracking
+    is_generating_interface_method_handler: bool,
+    current_event_handler_default_return_value: Option<String>,
+    
     // Comments (for future use)
     _comments: Vec<Token>,
 }
@@ -96,6 +100,8 @@ impl PythonVisitorV2 {
             imports: Vec::new(),
             used_modules: HashSet::new(),
             global_vars: HashSet::new(),
+            is_generating_interface_method_handler: false,
+            current_event_handler_default_return_value: None,
             _comments: comments,
         }
     }
@@ -1569,7 +1575,14 @@ impl PythonVisitorV2 {
         );
         
         // Interface method body is generated boilerplate - don't map to source
-        self.builder.writeln("self.return_stack.append(None)");
+        // Use interface method default value if available, otherwise None
+        if let Some(return_init_expr) = &method.return_init_expr_opt {
+            let mut default_value = String::new();
+            self.visit_expr_node_to_string(return_init_expr, &mut default_value);
+            self.builder.writeln(&format!("self.return_stack.append({})", default_value));
+        } else {
+            self.builder.writeln("self.return_stack.append(None)");
+        }
         
         // Create event and send to kernel
         if params.is_empty() {
@@ -1715,6 +1728,23 @@ impl PythonVisitorV2 {
         // eprintln!("DEBUG generate_event_handler: state={}", state_name);
         let handler_name = self.format_handler_name(state_name, &evt_handler.msg_t);
         
+        // Check if this is an interface method handler and set context
+        if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
+            if self.interface_methods.contains_key(&message_node.name) {
+                self.is_generating_interface_method_handler = true;
+            }
+        }
+        
+        // Set handler default value if available (for any event handler)
+        if let Some(return_init_expr) = &evt_handler.return_init_expr_opt {
+            let mut default_value = String::new();
+            self.visit_expr_node_to_string(return_init_expr, &mut default_value);
+            // Handler has default value for empty returns
+            self.current_event_handler_default_return_value = Some(default_value);
+        } else {
+            self.current_event_handler_default_return_value = None;
+        }
+        
         // Check if handler needs to be async
         let contains_async_ops = self.check_handler_has_async_operations(evt_handler);
         let is_async = evt_handler.is_async || self.system_has_async_runtime || contains_async_ops;
@@ -1800,10 +1830,18 @@ impl PythonVisitorV2 {
             }
         } else if !last_is_return {
             // Add implicit return only if there wasn't already one
+            // Check if there's a handler default value for implicit returns too
+            if let Some(handler_default) = &self.current_event_handler_default_return_value {
+                self.builder.writeln(&format!("self.return_stack[-1] = {}", handler_default));
+            }
             self.builder.writeln("return");
         }
         
         self.builder.dedent();
+        
+        // Reset interface method handler context
+        self.is_generating_interface_method_handler = false;
+        self.current_event_handler_default_return_value = None;
     }
     
     fn format_handler_name(&self, state_name: &str, msg_type: &MessageType) -> String {
@@ -2100,6 +2138,11 @@ impl PythonVisitorV2 {
                 // Only add return if there's no explicit return value
                 // (explicit returns are handled as statements)
                 if terminator.return_expr_t_opt.is_none() {
+                    // Check if there's a handler default value (for both interface method handlers and regular event handlers)
+                    if let Some(handler_default) = &self.current_event_handler_default_return_value {
+                        // Use handler default value
+                        self.builder.writeln_mapped(&format!("self.return_stack[-1] = {}", handler_default), terminator.line);
+                    }
                     // Map return to the terminator line
                     self.builder.writeln_mapped("return", terminator.line);
                 }
@@ -3185,6 +3228,13 @@ impl PythonVisitorV2 {
                 self.builder.writeln_mapped(&format!("return {}", output), node.line);
             }
         } else {
+            // Empty return statement - check if there's a handler default value
+            if is_interface_handler {
+                if let Some(handler_default) = &self.current_event_handler_default_return_value {
+                    // Set handler default value for empty return
+                    self.builder.writeln(&format!("self.return_stack[-1] = {}", handler_default));
+                }
+            }
             self.builder.writeln_mapped("return", node.line);
         }
     }

@@ -3,9 +3,52 @@
 **Last Updated:** 2025-10-05  
 **Current Version:** v0.80.5  
 **Test Status:** 🎉 **100% PASS RATE** (387/387 tests passing)  
-**Active Bugs:** 0 🎉 **ALL BUGS RESOLVED!**  
+**Active Bugs:** 1 (Bug #35 - Source mapping classification)  
 **Resolved Bugs:** 41 (including Bug #29, Bug #31, state variables, and JSON generation)  
 **Source Map Validation Infrastructure:** ✅ Production Ready
+
+## Open Bugs
+
+### Bug #35: Incorrect Source Mapping Classification for Executable Statements
+**Discovered**: 2025-10-05  
+**Severity**: Medium  
+**Component**: Transpiler (framec v0.80.5)  
+**Reporter**: VS Code Extension v0.9.7 Testing  
+
+**Description**:
+The transpiler incorrectly classifies executable statements as "function_def" type in source maps, causing debugger positioning issues.
+
+**Test Case**:
+```frame
+fn main() {
+    print("Starting main function")  
+}
+```
+
+**Expected Source Map**:
+- Frame line 2 → Python line 20 (type: "function_def")
+- Frame line 3 → Python line 21 (type: "executable_statement")
+
+**Actual Source Map**:
+```json
+"mappings": [
+  {"frameLine": 2, "pythonLine": 20, "type": "function_def"},
+  {"frameLine": 3, "pythonLine": 21, "type": "function_def"}  // WRONG: should be executable_statement
+]
+```
+
+**Impact**: 
+- VS Code debugger stops on wrong Frame line (line 2 instead of 3)
+- Breakpoints may not align correctly with source code
+- Debugging experience is confusing for users
+
+**Workaround Applied**: 
+VS Code extension detects Python line 21 specifically and overrides Frame line mapping to 3.
+
+**Fix Required**: 
+Transpiler should correctly classify executable statements vs function definitions in source map generation.
+
+---
 
 ## 🎉 MILESTONE ACHIEVEMENT - v0.80.5
 

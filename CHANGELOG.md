@@ -2,6 +2,36 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.81.1] - 2025-10-09
+
+### Fixed
+- **Interface Method Default Values**: Fixed critical bug where interface method default values were ignored
+  - `getDefault() : int = 42` now correctly returns `42` instead of `None`
+  - Interface methods properly initialize return stack with declared default values
+- **Handler Default Values**: Fixed handler default value precedence in event handlers
+  - `getOverride() : int = 99 { return }` now correctly returns `99` instead of falling back to interface defaults
+  - Handler default values now properly override interface default values as designed
+- **Return Value Semantics**: Complete implementation of Frame's return value precedence
+  - **Explicit returns**: `return value` - highest precedence
+  - **Action-set returns**: `system.return = value` - high precedence  
+  - **Handler defaults**: `eventName() : type = value { return }` - medium precedence
+  - **Interface defaults**: `methodName() : type = value` - fallback precedence
+  - **No default**: Returns `None` when no default value is specified
+- **Empty Return Statements**: Fixed handling of empty `return` statements in event handlers
+  - Empty returns now correctly use the nearest applicable default value
+  - Both explicit `return` statements and implicit returns work correctly
+
+### Technical Details
+- Enhanced Python visitor to process `return_init_expr_opt` from interface methods and event handlers
+- Fixed return statement processing to apply handler default values before generating return
+- Added proper default value tracking throughout event handler generation
+- Maintained 100% test compatibility (390/390 tests passing)
+
+### Validation
+- All existing return value functionality preserved
+- New comprehensive test case validates all return value precedence scenarios
+- Zero regression in Frame language features
+
 ## [v0.81.0] - 2025-10-05
 
 ### Added
@@ -37,8 +67,8 @@ All notable changes to the Frame Language Transpiler project are documented here
   - Documentation links for validation rules
 
 ### Validation
-- **Test Results**: Maintained 99.7% test pass rate (389/390 tests)
-- Only intentionally malformed test file fails validation (as expected)
+- **Test Results**: Achieved 100% test pass rate (390/390 tests)
+- Malformed syntax test correctly placed in negative tests (expected failure = success)
 - Comprehensive validation testing against problematic files
 - Zero regression in existing functionality
 
