@@ -50,6 +50,7 @@ system SystemReturnTest {
 
 fn main() {
     var tester = SystemReturnTest()
+    var failures = 0
     
     # Test 1: Interface default
     var result1 = tester.getDefault()
@@ -58,6 +59,7 @@ fn main() {
         print("  PASS: Got interface default 42")
     } else {
         print("  FAIL: Expected 42, got " + str(result1))
+        failures = failures + 1
     }
     
     # Test 2: Handler override
@@ -67,6 +69,7 @@ fn main() {
         print("  PASS: Got handler override 99")
     } else {
         print("  FAIL: Expected 99, got " + str(result2))
+        failures = failures + 1
     }
     
     # Test 3: Action sets return
@@ -76,6 +79,7 @@ fn main() {
         print("  PASS: Got action value 'from_action'")
     } else {
         print("  FAIL: Expected 'from_action', got " + str(result3))
+        failures = failures + 1
     }
     
     # Test 4: No default
@@ -85,8 +89,16 @@ fn main() {
         print("  PASS: Got null/None as expected")
     } else {
         print("  FAIL: Expected null/None, got " + str(result4))
+        failures = failures + 1
     }
     
     print("\n=== Test Summary ===")
-    print("All tests completed")
+    if failures == 0 {
+        print("All tests PASSED")
+    } else {
+        print("FAILED: " + str(failures) + " test(s) failed")
+        # Force test failure by raising an exception
+        var failed_tests = []
+        var index = failed_tests[999]  # This will cause an IndexError and fail the test
+    }
 }

@@ -180,5 +180,8 @@ fn main() {
         print("✅ ALL STRING TESTS PASSED!")
     } else {
         print("❌ Some tests failed")
+        # Force test failure by raising an exception
+        var failed_tests = []
+        var index = failed_tests[999]  # This will cause an IndexError and fail the test
     }
 }

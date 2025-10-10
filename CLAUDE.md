@@ -72,6 +72,20 @@ system SystemName {
 2. Check scanner/parser for actual syntax
 3. ASK: "Should I fix X in visitor or is this a test issue?"
 
+## Test Validation Pattern
+**For tests that print "FAIL" messages, always use proper failure handling:**
+```frame
+if test_passes {
+    print("SUCCESS: descriptive message")
+} else {
+    print("FAIL: descriptive message")
+    # Force test failure by raising an exception
+    var failed_tests = []
+    var index = failed_tests[999]  # This will cause an IndexError and fail the test
+}
+```
+This ensures tests exit with proper failure codes for automated testing systems.
+
 ## Architecture
 - Scanner → Parser (2-pass) → AST → Visitor → Target Code
 - Key files: `scanner.rs`, `parser.rs`, `ast.rs`, `python_visitor_v2.rs`

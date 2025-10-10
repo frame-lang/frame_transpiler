@@ -24,6 +24,9 @@ async fn test_real_async_with() {
                     print("SUCCESS: Got GitHub zen: " + text)
                 } else {
                     print("FAIL: Unexpected status: " + str(status))
+                    # Force test failure by raising an exception
+                    var failed_tests = []
+                    var index = failed_tests[999]  # This will cause an IndexError and fail the test
                 }
             }
         }
@@ -58,6 +61,9 @@ async fn test_custom_async_context() {
         print("SUCCESS: Async context simulation worked")
     } else {
         print("FAIL: Async context simulation failed")
+        # Force test failure by raising an exception
+        var failed_tests = []
+        var index = failed_tests[999]  # This will cause an IndexError and fail the test
     }
 }
 
@@ -78,6 +84,9 @@ async fn test_nested_async_with() {
         print("SUCCESS: Nested async simulation worked")
     } else {
         print("FAIL: Nested async simulation failed")
+        # Force test failure by raising an exception
+        var failed_tests = []
+        var index = failed_tests[999]  # This will cause an IndexError and fail the test
     }
 }
 
@@ -103,6 +112,9 @@ async fn test_async_with_exception() {
         print("SUCCESS: Exception handling worked")
     } else {
         print("FAIL: Exception not caught")
+        # Force test failure by raising an exception
+        var failed_tests = []
+        var index = failed_tests[999]  # This will cause an IndexError and fail the test
     }
 }
 
@@ -203,6 +215,9 @@ async fn run_all_tests() {
         print("SUCCESS: System async with works correctly (status: " + status + ")")
     } else {
         print("FAIL: System async with failed")
+        # Force test failure by raising an exception
+        var failed_tests = []
+        var index = failed_tests[999]  # This will cause an IndexError and fail the test
     }
     
     print("\n" + "=" * 70)

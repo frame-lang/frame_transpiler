@@ -24,5 +24,8 @@ fn main() {
         print("SUCCESS: system.return override works!")
     } else {
         print("FAIL: Expected 100, got " + str(result))
+        # Force test failure by raising an exception
+        var failed_tests = []
+        var index = failed_tests[999]  # This will cause an IndexError and fail the test
     }
 }
