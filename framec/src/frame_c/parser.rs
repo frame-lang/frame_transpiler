@@ -702,7 +702,7 @@ impl<'a> Parser<'a> {
                 let err_msg = &format!("Found {} token. Possible missing machine block.", self.peek().lexeme);
                 self.error_at_current(err_msg);
             } else {
-                let err_msg = &format!("Expected '}}' - found '{}'.", self.peek().lexeme);
+                let err_msg = &format!("Expected '}}' - found '{}'. Missing closing brace for previous block or handler.", self.peek().lexeme);
                 self.error_at_current(err_msg);
             }
 

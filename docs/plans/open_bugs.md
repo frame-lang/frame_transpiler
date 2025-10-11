@@ -1,8 +1,8 @@
 # Frame Transpiler Open Bugs
 
-**Last Updated:** 2025-10-10  
-**Current Version:** v0.81.1  
-**Test Status:** 🎉 **100% PASS RATE** (390/390 tests passing)  
+**Last Updated:** 2025-10-11  
+**Current Version:** v0.81.2  
+**Test Status:** 🎉 **100% PASS RATE** (391/391 tests passing)  
 **Active Bugs:** 1 (Bug #35 - Source mapping classification)  
 **Resolved Bugs:** 42 (including Bug #29, Bug #31, Bug #36, state variables, and JSON generation)  
 **Source Map Validation Infrastructure:** ✅ Production Ready

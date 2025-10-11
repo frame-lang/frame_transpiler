@@ -27,7 +27,7 @@ use std::convert::TryFrom;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "Emitted from framec_v0.81.1";
+static FRAMEC_VERSION: &str = "Emitted from framec_v0.81.2";
 
 /* --------------------------------------------------------------------- */
 
@@ -259,9 +259,17 @@ impl Exe {
                     }
                 }
                 Err(parse_error) => {
-                    let mut errors = "First pass parse error:\n".to_string();
-                    errors.push_str(&parse_error.error);
-                    errors.push_str("\n\nSymbol table construction failed. Please check your Frame syntax.");
+                    let mut errors = "First pass parsing errors:\n".to_string();
+                    
+                    // Check if parser has accumulated detailed errors (includes line numbers)
+                    if syntactic_parser.had_error() {
+                        errors.push_str(&syntactic_parser.get_errors());
+                    } else {
+                        // Fallback to ParseError if no accumulated errors
+                        errors.push_str(&parse_error.error);
+                    }
+                    
+                    errors.push_str("\n\nPlease check your Frame syntax for missing braces, semicolons, or malformed blocks.");
                     let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                     return Err(run_error);
                 }
@@ -535,9 +543,17 @@ impl Exe {
                     }
                 }
                 Err(parse_error) => {
-                    let mut errors = "First pass parse error:\n".to_string();
-                    errors.push_str(&parse_error.error);
-                    errors.push_str("\n\nSymbol table construction failed. Please check your Frame syntax.");
+                    let mut errors = "First pass parsing errors:\n".to_string();
+                    
+                    // Check if parser has accumulated detailed errors (includes line numbers)
+                    if syntactic_parser.had_error() {
+                        errors.push_str(&syntactic_parser.get_errors());
+                    } else {
+                        // Fallback to ParseError if no accumulated errors
+                        errors.push_str(&parse_error.error);
+                    }
+                    
+                    errors.push_str("\n\nPlease check your Frame syntax for missing braces, semicolons, or malformed blocks.");
                     let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                     return Err(run_error);
                 }
