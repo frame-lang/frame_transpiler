@@ -468,7 +468,7 @@ impl MultiFileCompiler {
                                     module: file_path.clone(),
                                     searched_paths: vec![path.clone()],
                                 },
-                                format!("Cannot find module file: {}", file_path),
+                                format!("Module file not found: {}", file_path),
                             ))?;
                         
                         // Validate the imported module/system/class exists
@@ -495,7 +495,7 @@ impl MultiFileCompiler {
                                     module: file_path.clone(),
                                     searched_paths: vec![path.clone()],
                                 },
-                                format!("Cannot find module file: {}", file_path),
+                                format!("Module file not found: {}", file_path),
                             ))?;
                         
                         // Validate the imported module/system/class exists

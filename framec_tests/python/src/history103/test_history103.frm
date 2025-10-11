@@ -11,7 +11,6 @@ system History103 {
             gotoC() {
                 $$[+]
                 -> "$$[+]" $C
-                return
             }
         }
 
@@ -19,14 +18,12 @@ system History103 {
             gotoC() {
                 $$[+]
                 -> "$$[+]" $C
-                return
             }
         }
 
         $C {
             ret() {
                 -> "$$[-]" $$[-]
-                return
             }
         }
 }

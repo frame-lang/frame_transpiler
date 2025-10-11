@@ -208,7 +208,7 @@ pub fn run_with(args: Cli) {
                 return;
             }
             _ => {
-                eprintln!("Unknown command: {}", command);
+                eprintln!("Unknown command '{}'. Use 'framec --help' for available commands.", command);
                 std::process::exit(exitcode::USAGE);
             }
         }
@@ -221,7 +221,7 @@ pub fn run_with(args: Cli) {
         Some(lang_str) => match TargetLanguage::try_from(lang_str.clone()) {
             Ok(lang) => Some(lang),
             Err(err) => {
-                eprintln!("{}", err);
+                eprintln!("Invalid target language: {}", err);
                 std::process::exit(exitcode::USAGE);
             }
         },
@@ -248,7 +248,7 @@ pub fn run_with(args: Cli) {
                 println!("{}", code);
             }
             Err(err) => {
-                eprintln!("Framec failed with an error:\n{}", err.error);
+                eprintln!("{}", err.error);
                 std::process::exit(err.code);
             }
         }
@@ -268,7 +268,7 @@ pub fn run_with(args: Cli) {
                 println!("{}", code);
             }
             Err(err) => {
-                eprintln!("Framec failed with an error:\n{}", err.error);
+                eprintln!("{}", err.error);
                 std::process::exit(err.code);
             }
         }
@@ -284,7 +284,7 @@ fn handle_init_command() {
     let config_path = current_dir.join("frame.toml");
     
     if config_path.exists() {
-        eprintln!("Error: frame.toml already exists in this directory");
+        eprintln!("frame.toml already exists in this directory");
         std::process::exit(exitcode::CANTCREAT);
     }
     

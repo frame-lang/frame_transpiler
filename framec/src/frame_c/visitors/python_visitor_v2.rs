@@ -420,7 +420,9 @@ impl AstVisitor for PythonVisitorV2 {
         
         // Don't default to None if we get TODO - that's a sign something is wrong
         if init_value.contains("TODO") {
-            eprintln!("WARNING: Got TODO for variable '{}' initialization", var_decl.name);
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("DEBUG: Got TODO for variable '{}' initialization", var_decl.name);
+            }
             init_value = "None".to_string();
         }
         
@@ -1451,7 +1453,9 @@ impl PythonVisitorV2 {
                         // TEMPORARY WORKAROUND: If initializer references the variable itself,
                         // it's likely a parser bug. Use a default value instead.
                         let initializer_value = if value_str.contains(var_name) {
-                            eprintln!("WARNING: State var '{}' initializer '{}' references itself - using 0", var_name, value_str);
+                            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                                eprintln!("DEBUG: State var '{}' initializer '{}' references itself - using 0", var_name, value_str);
+                            }
                             "0".to_string()  // Use 0 as default for numeric operations
                         } else {
                             value_str
@@ -2126,7 +2130,9 @@ impl PythonVisitorV2 {
                 self.visit_match_stmt_node(match_stmt_node);
             }
             _ => {
-                eprintln!("WARNING: Unimplemented statement type in python_visitor_v2");
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Unimplemented statement type in python_visitor_v2");
+                }
                 self.builder.writeln("# Unimplemented statement type");
             }
         }
@@ -2623,7 +2629,9 @@ impl PythonVisitorV2 {
             }
             _ => {
                 // Handle other expression types as needed
-                eprintln!("WARNING: Unhandled expression type in visit_expr_node_to_string: {:?}", std::mem::discriminant(expr_t));
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Unhandled expression type in visit_expr_node_to_string: {:?}", std::mem::discriminant(expr_t));
+                }
                 output.push_str("# TODO: expr type");
             }
         }

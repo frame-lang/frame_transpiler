@@ -12,25 +12,21 @@ system History102 {
         $A {
             gotoB() {
                 -> "B" $B
-                return
             }
             gotoC() {
                 -> "C" $C
-                return
             }
         }
 
         $B {
             gotoD() {
                 -> "D" $D("B")
-                return
             }
         }
 
         $C {
             gotoD() {
                 -> "D" $D("C")
-                return
             }
         }
 
@@ -38,12 +34,9 @@ system History102 {
             ret() {
                 if previous_state == "B" {
                     -> "ret" $B
-                    return
                 } elif previous_state == "C" {
                     -> "ret" $C
-                    return
                 }
-                return
             }
         }
 }

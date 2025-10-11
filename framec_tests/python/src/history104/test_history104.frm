@@ -17,7 +17,6 @@ system History104 {
             }
             gotoB() {
                 -> "B" $B
-                return
             }
         }
 
@@ -35,13 +34,11 @@ system History104 {
                 print("Going to $C.")
                 print("--------------")
                 -> "C" $C
-                return
             }
             gotoD() {
                 b = 1
                 print("Going to $D. b = " + str(b))
                 -> "D" $D
-                return
             }
         }
 
@@ -59,7 +56,6 @@ system History104 {
                 print("Going to $D. c = " + str(c))
                 $$[+]
                 -> "D" $D
-                return
             }
         }
 
@@ -71,12 +67,10 @@ system History104 {
             retToB() {
                 print("Returning to $B")
                 -> "retToB" $B
-                return
             }
             retToC() {
                 print("Returning to $C")
                 -> "retToC" $$[-]
-                return
             }
         }
 }

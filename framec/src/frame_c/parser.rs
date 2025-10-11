@@ -338,7 +338,7 @@ impl<'a> Parser<'a> {
                     continue;
                 } else if !temp_decorators.is_empty() {
                     // We parsed decorators but no class follows
-                    return Err(ParseError::new("Expected 'class' after decorators"));
+                    return Err(ParseError::new("Expected 'class' declaration after decorators"));
                 } else {
                     // No decorators parsed, backtrack completely
                     self.current = saved_pos;
@@ -397,7 +397,7 @@ impl<'a> Parser<'a> {
                     let function = self.function_scope_async(true)?;
                     functions.push(function);
                 } else {
-                    return Err(ParseError::new("Expected 'fn' after 'async' keyword"));
+                    return Err(ParseError::new("Expected function declaration after 'async' keyword"));
                 }
             } else if self.match_token(&[TokenType::Function]) {
                 // Functions shouldn't have system attributes, but warn if present
@@ -13386,7 +13386,7 @@ impl<'a> Parser<'a> {
                     let function = self.function_scope_async(true)?;
                     functions.push(function);
                 } else {
-                    return Err(ParseError::new("Expected 'fn' after 'async' keyword"));
+                    return Err(ParseError::new("Expected function declaration after 'async' keyword"));
                 }
             } else if self.match_token(&[TokenType::Function]) {
                 let function = self.function_scope_async(false)?;

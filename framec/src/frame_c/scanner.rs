@@ -191,9 +191,9 @@ impl Scanner {
                     // || is no longer supported - use 'or' keyword instead
                     // Check if it's part of old HSM syntax (||.) or (||[)
                     if self.peek() == '.' || self.peek() == '[' {
-                        self.error(self.line, "Hierarchical state machine syntax '||.' and '||[' have been removed.");
+                        self.error(self.line, "Hierarchical state machine syntax not supported. Use standard state transitions instead.");
                     } else {
-                        self.error(self.line, "Operator '||' has been removed. Use 'or' keyword instead.");
+                        self.error(self.line, "Use 'or' keyword instead of '||' operator");
                     }
                 } else if self.match_char('=') {
                     self.add_token(TokenType::PipeEqual);  // |= bitwise OR compound assignment
@@ -231,7 +231,7 @@ impl Scanner {
                     self.error(self.line, "Pattern matching syntax '!//' has been removed.");
                 } else {
                     // ! for negation is no longer supported - use 'not' keyword
-                    self.error(self.line, "Operator '!' has been removed. Use 'not' keyword instead.");
+                    self.error(self.line, "Use 'not' keyword instead of '!' operator");
                 }
             }
             '$' => {
@@ -314,7 +314,7 @@ impl Scanner {
             '&' => {
                 if self.match_char('&') {
                     // && is no longer supported - use 'and' keyword instead
-                    self.error(self.line, "Operator '&&' has been removed. Use 'and' keyword instead.");
+                    self.error(self.line, "Use 'and' keyword instead of '&&' operator");
                 } else if self.match_char('|') {
                     // &| operator has been removed - use '^' operator instead
                     self.error(self.line, "Operator '&|' has been removed. Use '^' operator for XOR instead.");
@@ -327,7 +327,7 @@ impl Scanner {
             '?' => {
                 // Question mark is no longer used for ternary operators
                 // Could potentially be used for optional types in the future
-                self.error(self.line, "Unexpected character '?'. Ternary operators have been removed. Use if/elif/else statements instead.");
+                self.error(self.line, "Ternary operator '?' not supported. Use if/else statements instead");
             }
             '~' => {
                 if self.match_char('/') {
@@ -456,7 +456,12 @@ impl Scanner {
                     } else if self.is_alpha(c) {
                         self.identifier();
                     } else {
-                        self.error(self.line, &format!("Found unexpected character '{}'.", c));
+                        // Provide helpful error messages for common Unicode quote characters
+                        match c {
+                            '\u{2018}' | '\u{2019}' => self.error(self.line, "Found Unicode smart quote. Use ASCII single quote (') instead."),
+                            '\u{201C}' | '\u{201D}' => self.error(self.line, "Found Unicode smart quote. Use ASCII double quote (\") instead."),
+                            _ => self.error(self.line, &format!("Found unexpected character '{}'.", c)),
+                        }
                     }
                 }
             }
@@ -606,7 +611,7 @@ impl Scanner {
                     self.add_token_literal(TokenType::Number, TokenLiteral::Integer(number));
                 }
                 Err(err) => {
-                    self.error(self.line, &format!("Malformed integer number {}", err));
+                    self.error(self.line, &format!("Invalid number format: {}", err));
                 }
             }
         } else {
@@ -620,7 +625,7 @@ impl Scanner {
                     self.add_token_literal(TokenType::Number, TokenLiteral::Float(number));
                 }
                 Err(err) => {
-                    self.error(self.line, &format!("Malformed float number: {}", err));
+                    self.error(self.line, &format!("Invalid decimal number: {}", err));
                 }
             }
         }
@@ -844,7 +849,7 @@ impl Scanner {
 
         // Unterminated string.
         if self.is_at_end() {
-            self.error(self.line, "Unterminated string.");
+            self.error(self.line, "Missing closing quote for string");
             return;
         }
 
@@ -907,7 +912,7 @@ impl Scanner {
         }
         
         // Unterminated triple-quoted string
-        self.error(self.line, "Unterminated triple-quoted string.");
+        self.error(self.line, "Missing closing triple quotes (\"\"\")");
     }
     
     fn scan_regular_string_content(&mut self, is_raw: bool) {
@@ -928,7 +933,7 @@ impl Scanner {
         
         // Unterminated string
         if self.is_at_end() {
-            self.error(self.line, "Unterminated string.");
+            self.error(self.line, "Missing closing quote for string");
             return;
         }
         

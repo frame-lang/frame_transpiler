@@ -56,7 +56,6 @@ system History105 {
             ret() {
                 print("Return to previous state")
                 -> $$[-]
-                return
             }
         }
 }

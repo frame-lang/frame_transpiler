@@ -69,7 +69,7 @@ impl Exe {
                 self.run(input_path.to_str(), content, target_language)
             }
             Err(err) => {
-                let error_msg = format!("Error reading input file: {}", err);
+                let error_msg = format!("Cannot read file: {}", err);
                 let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
                 Err(run_error)
             }
@@ -94,7 +94,7 @@ impl Exe {
                 self.run_debug(input_path, content, target_language)
             }
             Err(err) => {
-                let error_msg = format!("Error reading input file: {}", err);
+                let error_msg = format!("Cannot read file: {}", err);
                 let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
                 Err(run_error)
             }
@@ -119,7 +119,7 @@ impl Exe {
         // For now, only support Python target for multi-file
         let lang = target_language.unwrap_or(TargetLanguage::Python3);
         if !matches!(lang, TargetLanguage::Python3) {
-            let error_msg = "Multi-file compilation currently only supports Python target";
+            let error_msg = "Multi-file compilation is only supported for Python target language";
             return Err(RunError::new(exitcode::USAGE, error_msg));
         }
         
@@ -128,7 +128,7 @@ impl Exe {
         
         // Create and run multi-file compiler
         let mut compiler = MultiFileCompiler::new_for_entry(config, entry_path).map_err(|e| {
-            RunError::new(frame_exitcode::PARSE_ERR, &format!("Failed to create multi-file compiler: {}", e))
+            RunError::new(frame_exitcode::PARSE_ERR, &format!("Cannot initialize multi-file compiler: {}", e))
         })?;
         
         // If output_dir is specified, use separate files strategy
@@ -157,7 +157,7 @@ impl Exe {
                 self.run(None, buffer, target_language)
             }
             Err(err) => {
-                let error_msg = format!("Error reading input file: {}", err);
+                let error_msg = format!("Cannot read file: {}", err);
                 let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
                 Err(run_error)
             }
@@ -241,7 +241,7 @@ impl Exe {
                     }
                     // Check for errors after parsing but before consuming the parser
                     if syntactic_parser.had_error() {
-                        let mut errors = "First pass parsing errors:\n".to_string();
+                        let mut errors = String::new();
                         errors.push_str(&syntactic_parser.get_errors());
                         let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                         return Err(run_error);
@@ -259,7 +259,7 @@ impl Exe {
                     }
                 }
                 Err(parse_error) => {
-                    let mut errors = "First pass parsing errors:\n".to_string();
+                    let mut errors = String::new();
                     
                     // Check if parser has accumulated detailed errors (includes line numbers)
                     if syntactic_parser.had_error() {
@@ -525,7 +525,7 @@ impl Exe {
                     }
                     // Check for errors after parsing but before consuming the parser
                     if syntactic_parser.had_error() {
-                        let mut errors = "First pass parsing errors:\n".to_string();
+                        let mut errors = String::new();
                         errors.push_str(&syntactic_parser.get_errors());
                         let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                         return Err(run_error);
@@ -543,7 +543,7 @@ impl Exe {
                     }
                 }
                 Err(parse_error) => {
-                    let mut errors = "First pass parsing errors:\n".to_string();
+                    let mut errors = String::new();
                     
                     // Check if parser has accumulated detailed errors (includes line numbers)
                     if syntactic_parser.had_error() {
@@ -688,7 +688,7 @@ impl Exe {
         
         // For now, only support Python for source maps
         if !matches!(target_language, Some(TargetLanguage::Python3) | None) {
-            let error_msg = "Source map generation currently only supports Python target";
+            let error_msg = "Source map generation is only supported for Python target language";
             return Err(RunError::new(exitcode::USAGE, error_msg));
         }
         
@@ -721,7 +721,7 @@ impl Exe {
         match serde_json::to_string_pretty(&debug_output) {
             Ok(json) => Ok(json),
             Err(e) => {
-                let error_msg = format!("Failed to serialize debug output: {}", e);
+                let error_msg = format!("Cannot generate debug output: {}", e);
                 Err(RunError::new(exitcode::SOFTWARE, &error_msg))
             }
         }

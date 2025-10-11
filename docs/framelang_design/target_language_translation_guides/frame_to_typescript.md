@@ -4,6 +4,24 @@
 
 This guide helps LLMs and developers translate Frame specifications to TypeScript implementations. The Python output from the Frame transpiler serves as the canonical reference for Frame semantics.
 
+## **CRITICAL REQUIREMENT: Deterministic Translation**
+
+**Frame specifications MUST generate working Python code that translates deterministically to TypeScript.** 
+
+- **No suggestive comments** - Frame must contain actual working implementations
+- **No mock functions** - All functions must have real, executable logic  
+- **Async-first design** - Use `asyncio` in Python that maps cleanly to TypeScript Promises
+- **Identical semantics** - Same concurrency model, error handling, and control flow in both languages
+- **Working code only** - Frame generates production-ready Python that TypeScript mirrors exactly
+
+### **Async/Concurrency Requirements**
+
+All socket operations, I/O, and concurrent operations MUST use:
+- **Python**: `asyncio` with `async`/`await`
+- **TypeScript**: Promises with `async`/`await`
+
+This ensures clean, deterministic mapping between languages with identical execution semantics.
+
 ## Core Concepts and Mappings
 
 | Frame Concept | Python Implementation | TypeScript Translation |
@@ -16,6 +34,12 @@ This guide helps LLMs and developers translate Frame specifications to TypeScrip
 | Transition | Sets `__next_compartment` | Sets nextCompartment |
 | Actions | Direct method calls | Method calls |
 | Interface | Public methods creating events | Public methods with event dispatch |
+| **Async Function** | `async def func()` | `async func(): Promise<T>` |
+| **Async Call** | `await func()` | `await func()` |
+| **Socket Connection** | `asyncio.open_connection()` | `net.createConnection()` + Promise |
+| **Socket Read** | `await reader.readexactly()` | `socket.on('data')` + Promise |
+| **Socket Write** | `writer.write(); await writer.drain()` | `socket.write()` + Promise |
+| **Background Task** | `asyncio.create_task()` | `Promise.resolve().then()` |
 
 ## Frame Runtime Kernel Features
 
@@ -46,6 +70,128 @@ def __kernel(self, __e):
             self.__router(FrameEvent("$>", self.__compartment.enter_args))
         else:
             # handle forwarded event...
+```
+
+## **Async Socket Translation Patterns**
+
+### **Connection Establishment**
+
+**Frame Python (asyncio):**
+```python
+async def connectSocket(self, host, port):
+    try:
+        self.reader, self.writer = await asyncio.open_connection(host, port)
+        asyncio.create_task(self.processMessages())
+        event = FrameEvent("onConnected", None)
+        self.__kernel(event)
+    except Exception as e:
+        event = FrameEvent("onConnectionError", {"error": str(e)})
+        self.__kernel(event)
+```
+
+**TypeScript Translation:**
+```typescript
+async connectSocket(host: string, port: number): Promise<void> {
+    try {
+        this.socket = await this.createConnection(host, port);
+        this.startMessageProcessing();
+        const event = new FrameEvent("onConnected", null);
+        this.__kernel(event);
+    } catch (error) {
+        const event = new FrameEvent("onConnectionError", { error: error.message });
+        this.__kernel(event);
+    }
+}
+
+private createConnection(host: string, port: number): Promise<net.Socket> {
+    return new Promise((resolve, reject) => {
+        const socket = net.createConnection(port, host);
+        socket.on('connect', () => resolve(socket));
+        socket.on('error', reject);
+    });
+}
+```
+
+### **Message Processing**
+
+**Frame Python (asyncio):**
+```python
+async def processMessages(self):
+    while not self.terminated:
+        try:
+            message = await self.receiveMessage()
+            if message:
+                self.handleMessage(message)
+        except Exception as e:
+            print(f"Message processing error: {e}")
+            break
+
+async def receiveMessage(self):
+    length_bytes = await self.reader.readexactly(4)
+    length = int.from_bytes(length_bytes, 'little')
+    data = await self.reader.readexactly(length)
+    return json.loads(data.decode('utf-8'))
+```
+
+**TypeScript Translation:**
+```typescript
+private startMessageProcessing(): void {
+    this.socket.on('data', (data: Buffer) => {
+        try {
+            this.processIncomingData(data);
+        } catch (error) {
+            console.error('Message processing error:', error);
+        }
+    });
+}
+
+private processIncomingData(data: Buffer): void {
+    // Handle length-prefixed message protocol
+    if (data.length >= 4) {
+        const length = data.readUInt32LE(0);
+        const messageData = data.slice(4, 4 + length);
+        const message = JSON.parse(messageData.toString('utf-8'));
+        this.handleMessage(message);
+    }
+}
+```
+
+### **Data Transmission**
+
+**Frame Python (asyncio):**
+```python
+async def sendSocketData(self, data):
+    if self.writer:
+        self.writer.write(data)
+        await self.writer.drain()
+
+def encodeMessage(self, message):
+    data = json.dumps(message).encode('utf-8')
+    length = len(data).to_bytes(4, 'little')
+    return length + data
+```
+
+**TypeScript Translation:**
+```typescript
+private sendSocketData(data: Buffer): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (this.socket) {
+            this.socket.write(data, (error) => {
+                if (error) reject(error);
+                else resolve();
+            });
+        } else {
+            reject(new Error('No socket connection'));
+        }
+    });
+}
+
+private encodeMessage(message: any): Buffer {
+    const data = Buffer.from(JSON.stringify(message), 'utf-8');
+    const length = Buffer.allocUnsafe(4);
+    length.writeUInt32LE(data.length, 0);
+    return Buffer.concat([length, data]);
+}
 ```
 
 **TypeScript Implementation:**
