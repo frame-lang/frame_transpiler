@@ -1,13 +1,41 @@
 # Frame Transpiler Open Bugs
 
 **Last Updated:** 2025-10-11  
-**Current Version:** v0.81.2  
-**Test Status:** 🎉 **100% PASS RATE** (391/391 tests passing)  
-**Active Bugs:** 1 (Bug #35 - Source mapping classification)  
-**Resolved Bugs:** 42 (including Bug #29, Bug #31, Bug #36, state variables, and JSON generation)  
+**Current Version:** v0.81.3  
+**Test Status:** 🎉 **100% PASS RATE** (397/397 tests passing)  
+**Active Bugs:** 2 (Bug #35 - Source mapping classification, Bug #37 - Missing state diagram transitions)  
+**Resolved Bugs:** 43 (including Bug #29, Bug #31, Bug #36, Bug #38, state variables, and JSON generation)  
 **Source Map Validation Infrastructure:** ✅ Production Ready
 
 ## Open Bugs
+
+
+### Bug #37: State Diagram Generation Missing Conditional Transitions
+**Discovered**: 2025-10-11  
+**Severity**: Low  
+**Component**: State Diagram Generator (framec v0.81.3)  
+**Reporter**: VS Code Extension v0.11.4 Frame Debug Adapter Testing  
+
+**Description**:
+The state diagram generation is missing conditional transition arrows from states with `if/else` branching logic. Specifically, in the Frame Debug Adapter state machine, the transition from `$Configuring` to `$WaitingForEntry` (when `stopOnEntry` is true) is not shown in the generated state diagram.
+
+**Frame Code**:
+```frame
+$Configuring {
+    onRuntimeReady() {
+        if self.stopOnEntry {
+            -> $WaitingForEntry    // This transition is missing from diagram
+        } else {
+            -> $Running
+        }
+    }
+}
+```
+
+**Expected**: State diagram should show conditional transition arrow from `Configuring` to `WaitingForEntry`  
+**Actual**: `WaitingForEntry` state appears unreachable in the diagram
+
+**Impact**: Makes state machines harder to understand and debug, as valid state transitions appear missing
 
 ### Bug #35: Incorrect Source Mapping Classification for Executable Statements
 **Discovered**: 2025-10-05  
@@ -1149,6 +1177,51 @@ This systematic approach ensures source map issues are properly identified, docu
 ---
 
 ## Resolved Bugs
+
+### Bug #38: String Concatenation with Escape Sequences Generates Invalid Python (RESOLVED in v0.81.2 ✅)
+**Discovered**: 2025-10-11  
+**Severity**: High  
+**Status:** RESOLVED ✅ (Fixed by v0.81.2 transpiler improvements)
+**Component**: Python Code Generator (framec v0.81.2)  
+**Reporter**: VS Code Extension v0.11.4 Frame Debug State Machine Testing  
+**Resolution Date**: 2025-10-11
+
+**Description**:
+~~The Frame transpiler generates invalid Python code when string concatenation involves escape sequences like `"\n"`. The generated Python code breaks string literals across lines, causing `SyntaxError: unterminated string literal`.~~ **RESOLVED**
+
+**Frame Code**:
+```frame
+sendDebugConsole(message) {
+    self.sendMessage({
+        "type": "event",
+        "event": "output", 
+        "data": {"output": message + "\n", "category": "stdout"}
+    })
+}
+```
+
+**Generated Python** (Now Valid ✅):
+```python
+self.__DebugSystem__sendMessage({"type": "event", "event": "output", "data": {"output": message + "\n", "category": "stdout"}})
+```
+
+**Resolution Verification**:
+- ✅ Created comprehensive test case `/tmp/test_bug38_complex.frm` reproducing the exact scenario
+- ✅ Transpilation successful: Generated valid Python code with proper string concatenation  
+- ✅ Runtime execution successful: `python3 test_bug38_complex.py` produces expected output
+- ✅ String concatenation with escape sequences `message + "\n"` generates correct Python syntax
+- ✅ No more "unterminated string literal" syntax errors
+
+**Test Evidence**:
+```bash
+$ ./target/release/framec -l python_3 /tmp/test_bug38_complex.frm
+# Generated valid Python code
+
+$ python3 /tmp/test_bug38_complex.py  
+Sending message: {'type': 'event', 'event': 'output', 'data': {'output': 'Test message\n', 'category': 'stdout'}}
+```
+
+**Root Cause**: The bug appears to have been resolved as a side effect of transpiler improvements in v0.81.2. The current transpiler correctly handles string concatenation with escape sequences without breaking across lines.
 
 ### Bug #20: Parser Error with Functions After Systems (RESOLVED in v0.78.15 ✅)
 

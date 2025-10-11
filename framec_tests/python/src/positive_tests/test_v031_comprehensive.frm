@@ -28,8 +28,8 @@ system TestSystem {
                 # Test self.domainVar access
                 print("Counter: " + str(self.counter))
                 
-                # Test interface method calls (with self. prefix)
-                var msg = self.get_value()
+                # Test interface method calls (with system. prefix)
+                var msg = system.get_value()
                 print("Got: " + msg)
                 
                 return

@@ -81,7 +81,7 @@ system TestSystem {
                 print(handler_var)
                 
                 # Test event handler parameters and local scoping
-                self.process("test_data")
+                system.process("test_data")
             }
             
             process(data:string) {

@@ -7,7 +7,7 @@ system TestService {
 
     operations:
         signal_handler(sig, frame) {
-            self.quit()
+            system.quit()
         }
 
     interface:

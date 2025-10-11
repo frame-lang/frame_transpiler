@@ -170,6 +170,13 @@ impl CodeBuilder {
         self
     }
     
+    /// Write a line with source mapping and specific type
+    pub fn writeln_mapped_with_type(&mut self, s: &str, frame_line: usize, mapping_type: crate::frame_c::source_map::MappingType) -> &mut Self {
+        self.map_next_with_type(frame_line, mapping_type);
+        self.writeln(s);
+        self
+    }
+    
     /// Add just a newline
     pub fn newline(&mut self) -> &mut Self {
         self.write("\n");

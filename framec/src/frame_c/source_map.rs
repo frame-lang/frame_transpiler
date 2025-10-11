@@ -51,6 +51,7 @@ pub enum MappingType {
     Loop,
     SystemDef,
     InterfaceMethod,
+    Statement,  // Generic statement type for miscellaneous statements
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

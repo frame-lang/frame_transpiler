@@ -7884,26 +7884,60 @@ impl<'a> Parser<'a> {
     // Helper: Validate that self.interfaceMethod should be system.interfaceMethod instead
     fn validate_self_interface_method_usage(&mut self, method_name: &str, _line_number: usize) -> Result<(), String> {
         // Check if we're in a system context
-        if let Some(system_name) = &self.current_system_name {
+        if let Some(_system_name) = &self.current_system_name {
             // Get the current system symbol from arcanum
             if let Some(system_symbol) = self.arcanum.get_current_system_symbol() {
                 let system = system_symbol.borrow();
-                if let Some(interface_block_symbol) = &system.interface_block_symbol_opt {
+                
+                // Check for actions first
+                let has_action = if let Some(actions_block_symbol) = &system.actions_block_symbol_opt {
+                    let actions_block = actions_block_symbol.borrow();
+                    let actions_symtab = actions_block.symtab_rcref.borrow();
+                    actions_symtab.symbols.contains_key(method_name)
+                } else {
+                    false
+                };
+                
+                // Check for operations
+                let has_operation = if let Some(operations_block_symbol) = &system.operations_block_symbol_opt {
+                    let operations_block = operations_block_symbol.borrow();
+                    let operations_symtab = operations_block.symtab_rcref.borrow();
+                    operations_symtab.symbols.contains_key(method_name)
+                } else {
+                    false
+                };
+                
+                // Check for interface method
+                let has_interface_method = if let Some(interface_block_symbol) = &system.interface_block_symbol_opt {
                     let interface_block = interface_block_symbol.borrow();
                     let interface_symtab = interface_block.symtab_rcref.borrow();
-                    
-                    // Check if the method exists in the interface symbol table
-                    if interface_symtab.symbols.contains_key(method_name) {
-                        // This is an interface method - suggest using system.method instead
-                        return Err(format!(
-                            "Interface method '{}' should be called using 'system.{}' instead of 'self.{}'. Use 'system.{}' for interface method calls within the system.",
-                            method_name, method_name, method_name, method_name
-                        ));
-                    }
+                    interface_symtab.symbols.contains_key(method_name)
+                } else {
+                    false
+                };
+                
+                // Apply method resolution policy
+                if has_action && has_operation {
+                    // Conflict between action and operation with same name
+                    return Err(format!(
+                        "Method name conflict: '{}' exists as both an action and operation. Use different names to avoid ambiguity.",
+                        method_name
+                    ));
+                } else if has_action || has_operation {
+                    // Valid self.method() call to action or operation - allow it
+                    return Ok(());
+                } else if has_interface_method {
+                    // Only interface method exists - must use system.method()
+                    return Err(format!(
+                        "Interface method '{}' should be called using 'system.{}' instead of 'self.{}'. Use 'system.{}' for interface method calls within the system.",
+                        method_name, method_name, method_name, method_name
+                    ));
                 }
+                
+                // Method doesn't exist in any block - this will be caught by other validation
             }
         }
-        // If not an interface method or not in system context, allow it
+        // If not in system context, allow it
         Ok(())
     }
 

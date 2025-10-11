@@ -7,7 +7,7 @@ use crate::frame_c::ast::*;
 use crate::frame_c::code_builder::CodeBuilder;
 use crate::frame_c::config::FrameConfig;
 use crate::frame_c::scanner::{Token, TokenType};
-use crate::frame_c::source_map::SourceMapBuilder;
+use crate::frame_c::source_map::{SourceMapBuilder, MappingType};
 use crate::frame_c::symbol_table::{SymbolConfig, Arcanum, SymbolType, SymbolTable};
 use crate::frame_c::visitors::AstVisitor;
 
@@ -192,7 +192,7 @@ impl PythonVisitorV2 {
                 external_builder.borrow_mut().set_python_line(mapping.python_line);
                 external_builder.borrow_mut().add_mapping(
                     mapping.frame_line,
-                    mapping.mapping_type.clone().unwrap_or(MappingType::FunctionDef),
+                    mapping.mapping_type.clone().unwrap_or(MappingType::Statement),
                     None
                 );
             }
@@ -233,7 +233,7 @@ impl PythonVisitorV2 {
             // Add the mapping with the correct type
             builder.add_mapping(
                 mapping.frame_line,
-                mapping.mapping_type.clone().unwrap_or(MappingType::FunctionDef),
+                mapping.mapping_type.clone().unwrap_or(MappingType::Statement),
                 None
             );
         }
@@ -409,7 +409,7 @@ impl AstVisitor for PythonVisitorV2 {
     
     fn visit_variable_decl_node(&mut self, var_decl: &VariableDeclNode) {
         // Map variable declaration for debugging variable assignments
-        self.builder.map_next(var_decl.line);
+        self.builder.map_next_with_type(var_decl.line, MappingType::VarDecl);
         
         // V1 uses get_initializer_value_rc() not value_rc - this is the key difference!
         let value_expr = var_decl.get_initializer_value_rc();
@@ -469,7 +469,7 @@ impl AstVisitor for PythonVisitorV2 {
         self.builder.newline();
         
         // Map the function definition to its Frame source line
-        self.builder.map_next(function_node.line);
+        self.builder.map_next_with_type(function_node.line, MappingType::FunctionDef);
         self.builder.write_function(
             &function_node.name,
             &params,
@@ -1010,7 +1010,7 @@ impl PythonVisitorV2 {
     
     fn visit_method_node(&mut self, method: &MethodNode) {
         // Map method declaration for debugging class methods
-        self.builder.map_next(method.line);
+        self.builder.map_next_with_type(method.line, MappingType::InterfaceMethod);
         
         // For class methods, filter out 'cls' parameter if present (it's implicit in Python)
         let params = if let Some(params) = &method.params {
@@ -1093,7 +1093,7 @@ impl PythonVisitorV2 {
     
     fn visit_action_node(&mut self, action_node: &ActionNode) {
         // Map action declaration for debugging
-        self.builder.map_next(action_node.line);
+        self.builder.map_next_with_type(action_node.line, MappingType::FunctionDef);
         
         let params = if let Some(params) = &action_node.params {
             params.iter()
@@ -2092,11 +2092,11 @@ impl PythonVisitorV2 {
                 self.visit_loop_stmt_node(loop_stmt_node);
             }
             StatementType::ContinueStmt { continue_stmt_node } => {
-                self.builder.map_next(continue_stmt_node.line);
+                self.builder.map_next_with_type(continue_stmt_node.line, MappingType::Statement);
                 self.builder.writeln("continue");
             }
             StatementType::BreakStmt { break_stmt_node } => {
-                self.builder.map_next(break_stmt_node.line);
+                self.builder.map_next_with_type(break_stmt_node.line, MappingType::Statement);
                 self.builder.writeln("break");
             }
             StatementType::BlockStmt { block_stmt_node } => {
@@ -2338,7 +2338,7 @@ impl PythonVisitorV2 {
     // Assignment statement
     fn visit_assignment_statement_node(&mut self, node: &AssignmentStmtNode) {
         // Map the statement line before writing
-        self.builder.map_next(node.line);
+        self.builder.map_next_with_type(node.line, MappingType::Assignment);
         let mut output = String::new();
         self.visit_assignment_expr_node_to_string(&node.assignment_expr_node, &mut output);
         self.builder.writeln(&output);
@@ -2692,7 +2692,7 @@ impl PythonVisitorV2 {
     // If statement
     fn visit_if_stmt_node(&mut self, node: &IfStmtNode) {
         // Map the if statement line
-        self.builder.map_next(node.line);
+        self.builder.map_next_with_type(node.line, MappingType::If);
         // If condition
         let mut cond_str = String::new();
         self.visit_expr_node_to_string(&node.condition, &mut cond_str);
@@ -3234,10 +3234,10 @@ impl PythonVisitorV2 {
             if is_interface_handler {
                 // In interface handlers, set return_stack and then return
                 self.builder.writeln(&format!("self.return_stack[-1] = {}", output));
-                self.builder.writeln_mapped("return", node.line);
+                self.builder.writeln_mapped_with_type("return", node.line, MappingType::Return);
             } else {
                 // Regular function return
-                self.builder.writeln_mapped(&format!("return {}", output), node.line);
+                self.builder.writeln_mapped_with_type(&format!("return {}", output), node.line, MappingType::Return);
             }
         } else {
             // Empty return statement - check if there's a handler default value
@@ -3247,7 +3247,7 @@ impl PythonVisitorV2 {
                     self.builder.writeln(&format!("self.return_stack[-1] = {}", handler_default));
                 }
             }
-            self.builder.writeln_mapped("return", node.line);
+            self.builder.writeln_mapped_with_type("return", node.line, MappingType::Return);
         }
     }
     
@@ -4207,7 +4207,7 @@ impl PythonVisitorV2 {
 
     fn visit_loop_for_stmt_node(&mut self, node: &LoopForStmtNode) {
         // Map the loop statement line
-        self.builder.map_next(node.line);
+        self.builder.map_next_with_type(node.line, MappingType::Loop);
         
         // Handle initialization
         if let Some(init_expr) = &node.loop_init_expr_rcref_opt {
@@ -4284,7 +4284,7 @@ impl PythonVisitorV2 {
 
     fn visit_loop_in_stmt_node(&mut self, node: &LoopInStmtNode) {
         // Map the loop statement line
-        self.builder.map_next(node.line);
+        self.builder.map_next_with_type(node.line, MappingType::Loop);
         
         let var_name = match &node.loop_first_stmt {
             LoopFirstStmt::VarAssign { assign_expr_node } => {
@@ -4341,7 +4341,7 @@ impl PythonVisitorV2 {
 
     fn visit_loop_infinite_stmt_node(&mut self, node: &LoopInfiniteStmtNode) {
         // Map the loop statement line
-        self.builder.map_next(node.line);
+        self.builder.map_next_with_type(node.line, MappingType::Loop);
         
         self.builder.writeln("while True:");
         self.builder.indent();

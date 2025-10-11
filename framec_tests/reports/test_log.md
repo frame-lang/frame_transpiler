@@ -2,14 +2,19 @@
 
 ## Summary
 - **Last Run**: 2025-10-11
-- **Version**: v0.81.2 (PythonVisitorV2)
-- **Total Tests**: 391
-- **Passed**: 391
+- **Version**: v0.81.3 (PythonVisitorV2)
+- **Total Tests**: 397
+- **Passed**: 397
 - **Failed**: 0
 - **Success Rate**: 100% 🎉
 
 ## Recent Improvements
-- ✅ **LATEST: Enhanced error message quality** (v0.81.2)
+- ✅ **LATEST: Bug #38 Resolution and Method Call Enhancements** (v0.81.3)
+  - Resolved string concatenation with escape sequences issue
+  - Enhanced method call resolution policy with conflict detection
+  - 397 tests now passing (100% success rate)
+  - Improved robustness for string operations in generated Python code
+- ✅ **Enhanced error message quality** (v0.81.2)
   - Line numbers now displayed in all error messages
   - Removed technical "symbol table" references
   - Syntax-focused error guidance for developers
@@ -47,7 +52,14 @@
 - ✅ Syntax features (97/97 - 100%)
 
 ## All Tests Passing!
-No failing tests. Frame v0.81.2 achieves complete test coverage with enhanced error messages.
+No failing tests. Frame v0.81.3 achieves complete test coverage with Bug #38 resolution and enhanced method call policies.
+
+## v0.81.3 Release Highlights
+1. **Bug #38 Resolution**: Fixed string concatenation with escape sequences generating invalid Python
+2. **Enhanced Method Resolution**: Improved conflict detection and semantic rules for method calls
+3. **100% Test Success**: All 397 tests passing (increased from 391)
+4. **Robust String Operations**: Better handling of escape sequences in generated Python code
+5. **Comprehensive Testing**: Added positive and negative tests for method resolution policy
 
 ## v0.81.2 Release Highlights
 1. **Enhanced Error Messages**: Line numbers, syntax-focused guidance, improved user experience

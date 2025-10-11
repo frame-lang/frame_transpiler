@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.81.2)
+# Frame Language Grammar (v0.81.3)
 
-**Last Updated**: 2025-01-11  
-**Status**: System interface method calls implemented (`system.interfaceMethod()`), PythonVisitorV2 as default, **98.7% test success rate (389/394 tests passing)**
+**Last Updated**: 2025-10-11  
+**Status**: Bug #38 resolved, enhanced method call resolution policy, **100% test success rate (397/397 tests passing)**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -3976,6 +3976,95 @@ pub enum ResolvedCallType {
         function: String,
     },
     External(String),        // External function/builtin
+}
+```
+
+## Method Call Resolution Policy (v0.81.3)
+
+Frame v0.81.3 implements a comprehensive method call resolution policy that eliminates ambiguity and provides clear semantic distinctions between different method types.
+
+### Resolution Rules
+
+**Method calls are resolved using explicit prefix syntax:**
+
+1. **`system.interfaceMethod()`** → Interface method calls
+2. **`SystemName.staticOperation()`** → Static operation calls  
+3. **`self.methodName()`** → Action or instance operation calls
+
+### Conflict Detection and Validation
+
+**For `self.methodName()` calls, the transpiler checks in this order:**
+
+1. **Action/Operation Conflict**: If both an action and operation exist with the same name → **Compile Error**
+2. **Valid Resolution**: If only an action OR only an operation exists → **Allow**
+3. **Interface Only**: If only an interface method exists → **Error** (suggest `system.methodName()`)
+4. **Not Found**: If method doesn't exist in any block → **Error** (undefined method)
+
+### Policy Benefits
+
+- **No Ambiguity**: Each prefix has a distinct, unambiguous meaning
+- **Clear Intent**: Code explicitly shows what type of method is being called
+- **Conflict Prevention**: Naming conflicts between actions and operations are caught at compile time
+- **Type Safety**: Interface methods cannot be accidentally called with wrong syntax
+
+### Examples
+
+```frame
+system Calculator {
+    interface:
+        compute()      // Interface method
+        
+    actions:
+        doCalc() {     // Action method
+            // Valid: calling action
+            self.helper()      // ✅ Calls action 'helper' 
+            
+            // Valid: calling interface method
+            system.compute()   // ✅ Calls interface 'compute'
+            
+            // Invalid: interface method with wrong syntax
+            self.compute()     // ❌ Error: Use 'system.compute()' instead
+        }
+        
+        helper() {     // Another action
+            print("Helper action")
+        }
+        
+    operations:
+        multiply(a, b) {       // Operation method
+            // Valid: calling action
+            self.doCalc()      // ✅ Calls action 'doCalc'
+            
+            // Valid: calling interface method  
+            system.compute()   // ✅ Calls interface 'compute'
+            
+            return a * b
+        }
+        
+        @staticmethod
+        add(a, b) {           // Static operation
+            return a + b
+        }
+        
+    machine:
+        $Start {
+            compute() {
+                // Valid calls from event handler
+                self.doCalc()           // ✅ Calls action
+                self.multiply(2, 3)     // ✅ Calls operation
+                system.compute()        // ✅ Calls interface (recursive)
+                Calculator.add(1, 2)    // ✅ Calls static operation
+            }
+        }
+}
+
+// Conflict detection example
+system ConflictExample {
+    actions:
+        process() { }     // Action named 'process'
+        
+    operations: 
+        process() { }     // ❌ ERROR: Conflict with action 'process'
 }
 ```
 

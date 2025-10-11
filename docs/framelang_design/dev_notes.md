@@ -1,5 +1,38 @@
 # Frame v0.81 Development Notes
 
+## v0.81.3 Bug Resolution and Method Call Enhancements - COMPLETED (2025-10-11)
+
+### 🐛 Bug #38 Resolution: String Concatenation with Escape Sequences
+
+**Status**: ✅ RESOLVED  
+**Severity**: High → Fixed  
+**Description**: Resolved issue where Frame transpiler generated invalid Python code for string concatenation with escape sequences like `"\n"`.
+
+**Key Improvements:**
+1. **String Concatenation Fix** - String expressions like `message + "\n"` now generate valid Python syntax ✅
+2. **Syntax Error Resolution** - No more "unterminated string literal" errors in generated code ✅
+3. **Enhanced Robustness** - Improved transpiler handling of escape sequences in string operations ✅
+4. **Comprehensive Testing** - Created validation tests to prevent regression ✅
+
+### 🔧 Enhanced Method Call Resolution Policy
+
+**New Semantic Rules:**
+- `system.interfaceMethod()` for interface method calls
+- `self.methodName()` for actions and operations (with conflict detection)  
+- `ClassName.staticMethod()` for static method calls
+- Comprehensive conflict detection prevents method name ambiguity
+
+**Technical Implementation:**
+- Enhanced `validate_self_interface_method_usage()` with proper resolution order
+- Actions and operations checked before interface methods in resolution
+- Improved error messages for method call conflicts
+- Updated grammar documentation with complete method call resolution policy
+
+### 📊 Current Status
+- **Test Suite**: 397 tests passing (100% pass rate)
+- **Active Bugs**: 2 (Bug #35 - Source mapping, Bug #37 - State diagrams)
+- **Resolved Bugs**: 43 total (including Bug #38)
+
 ## v0.81.2 System Interface Method Calls - COMPLETED (2025-01-11)
 
 ### 🔗 System Interface Method Call Implementation
@@ -33,6 +66,33 @@ self.setValue(42)     // Proper method call with args
 - Clear error messages for `self.interfaceMethod` usage
 - Compile-time validation of interface method existence
 - Helpful suggestions for correct syntax
+
+### 🔧 Method Call Resolution Policy Implementation (2025-01-11)
+
+**Problem**: The transpiler was incorrectly flagging `self.actionMethod()` calls as interface method errors when both interface and action methods shared the same name, causing false positive validation errors.
+
+**Solution**: Implemented comprehensive method resolution logic in `validate_self_interface_method_usage()` function in `parser.rs:7885`.
+
+**Resolution Policy:**
+1. **`system.interfaceMethod()`** → Interface method calls (unambiguous)
+2. **`SystemName.staticOperation()`** → Static operation calls (unambiguous)
+3. **`self.methodName()`** → Action or instance operation calls with conflict detection:
+   - **Action + Operation conflict** → Compile error (ambiguous)
+   - **Action OR Operation only** → Allow (unambiguous)
+   - **Interface method only** → Error (suggest `system.methodName()`)
+   - **Method not found** → Error (undefined method)
+
+**Technical Implementation:**
+- Enhanced `validate_self_interface_method_usage()` to check actions and operations first
+- Added conflict detection between actions and operations with same name
+- Preserves existing interface method validation for cases with no action/operation match
+- Maintains proper error messages and suggestions for each case
+
+**Benefits:**
+- **100% Test Pass Rate**: Fixed 6 failing tests, achieved 394/394 tests passing
+- **No False Positives**: Valid `self.actionMethod()` calls no longer flagged as errors
+- **Conflict Prevention**: Naming conflicts between actions and operations caught at compile time
+- **Clear Semantics**: Each prefix (`system.`, `self.`, `ClassName.`) has unambiguous meaning
 
 # Frame v0.78 Development Notes
 

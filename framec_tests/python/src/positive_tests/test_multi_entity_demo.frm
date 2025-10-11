@@ -131,6 +131,10 @@ system TrafficLight {
         }
         
         $Yellow {
+            $>() {
+                print("Light is now YELLOW")
+            }
+
             next() {
                 log_event("TrafficLight", "yellow_to_red")
                 print("Traffic Light: YELLOW -> RED")
@@ -141,11 +145,7 @@ system TrafficLight {
                 print("EMERGENCY: Going to RED")
                 -> $Red
             }
-            
-            $>() {
-                print("Light is now YELLOW")
-                return
-            }
+
         }
         
         $Red {

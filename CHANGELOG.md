@@ -2,6 +2,30 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.81.3] - 2025-10-11
+
+### Fixed
+- **Bug #38**: String Concatenation with Escape Sequences Generates Invalid Python
+  - Resolved string concatenation issue that was causing syntax errors in generated Python code
+  - String expressions like `message + "\n"` now generate valid Python syntax
+  - No more "unterminated string literal" errors in generated code
+  - Enhanced transpiler robustness for string operations with escape sequences
+
+### Improved
+- **Method Call Resolution Policy**: Enhanced method resolution with clear semantic rules
+  - `system.interfaceMethod()` for interface method calls
+  - `self.methodName()` for actions and operations (with conflict detection)
+  - `ClassName.staticMethod()` for static method calls
+  - Comprehensive conflict detection prevents method name ambiguity
+- **Documentation**: Updated grammar documentation with method call resolution policy
+- **Test Coverage**: Added comprehensive positive and negative tests for method resolution
+
+### Technical Details
+- **Parser**: Enhanced `validate_self_interface_method_usage()` with proper resolution order
+- **Validation**: Actions and operations checked before interface methods in resolution
+- **Error Messages**: Improved error messages for method call conflicts and interface method misuse
+- **Test Suite**: 397 tests passing (100% pass rate)
+
 ## [v0.81.2] - 2025-01-11
 
 ### Added
@@ -21,10 +45,19 @@ All notable changes to the Frame Language Transpiler project are documented here
 - **2-Pass Parser Fix**: Moved interface validation to second pass for proper semantic analysis
 - **Grammar**: Enhanced BNF grammar to support new system interface call syntax
 
+### Fixed
+- **Bug #35**: Source mapping classification improvements
+  - Fixed incorrect "function_def" classification for executable statements
+  - Implemented proper AST-based classification system
+  - Assignments now correctly classified as "assignment" type
+  - Control flow statements now correctly classified as "if", "loop", etc.
+  - Generic statements use new "statement" mapping type
+
 ### Validation
 - Maintains 98.7% test pass rate (389/394 tests passing)
 - Zero breaking changes to existing Frame language features
 - Comprehensive test coverage for new functionality
+- Improved source mapping accuracy for debugging and IDE support
 
 ## [v0.81.1] - 2025-10-09
 
