@@ -2,6 +2,30 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.81.2] - 2025-01-11
+
+### Added
+- **System Interface Method Calls**: New `system.interfaceMethod()` syntax for calling interface methods within systems
+  - Works in event handlers, actions, and non-static operations
+  - Clear distinction between interface method calls and other method types
+  - Comprehensive compile-time validation of interface method existence
+- **Interface Method Call Validation**: Enhanced error messages and validation
+  - Prevents `self.interfaceMethod()` usage with helpful error messages
+  - Suggests correct `system.interfaceMethod()` syntax when misused
+  - Validates method existence in system's interface block
+
+### Technical Details
+- **Scanner**: Added `SystemMethodCall` token type for `system.methodName` patterns
+- **Parser**: Implemented `system.interfaceMethod()` parsing with proper validation
+- **Visitor**: Maps `system.interfaceMethod()` to `self.interfaceMethod()` in generated Python code
+- **2-Pass Parser Fix**: Moved interface validation to second pass for proper semantic analysis
+- **Grammar**: Enhanced BNF grammar to support new system interface call syntax
+
+### Validation
+- Maintains 98.7% test pass rate (389/394 tests passing)
+- Zero breaking changes to existing Frame language features
+- Comprehensive test coverage for new functionality
+
 ## [v0.81.1] - 2025-10-09
 
 ### Fixed

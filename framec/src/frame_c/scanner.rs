@@ -652,24 +652,30 @@ impl Scanner {
 
         // Special handling for "system" keyword
         if text == "system" {
-            // Check if this is "system.return"
+            // Check if this is "system.something"
             let saved_current = self.current;
             if self.peek() == '.' {
                 self.advance(); // consume '.'
-                // Check if next word is "return"
-                if self.peek() == 'r' {
-                    let start_of_return = self.current;
+                // Check if next word is an identifier
+                if self.is_alpha(self.peek()) {
+                    let start_of_identifier = self.current;
                     while self.is_alpha_numeric(self.peek()) {
                         self.advance();
                     }
-                    let next_word: String = self.chars[start_of_return..self.current].iter().collect();
-                    if next_word == "return" {
-                        // This is "system.return" - make it a single token
+                    let identifier: String = self.chars[start_of_identifier..self.current].iter().collect();
+                    
+                    if identifier == "return" {
+                        // This is "system.return" - special case
                         self.add_token(TokenType::SystemReturn);
+                        return;
+                    } else {
+                        // This is "system.identifier" - create a SystemMethodCall token
+                        // Store the method name in the token's lexeme for later parsing
+                        self.add_token_literal(TokenType::SystemMethodCall, TokenLiteral::None);
                         return;
                     }
                 }
-                // Not "system.return", restore position
+                // Not "system.identifier", restore position
                 self.current = saved_current;
             }
             // Just "system" by itself
@@ -974,6 +980,7 @@ pub enum TokenType {
     LogicalAnd,                   // &&
     System,                       // 'system' keyword for modern syntax (reserved)
     SystemReturn,                 // 'system.return' for setting interface return value
+    SystemMethodCall,             // 'system.methodName' for calling interface methods
     Self_,                        // self
     Return_,                      // return
     EnterStateMsg,                   // $>

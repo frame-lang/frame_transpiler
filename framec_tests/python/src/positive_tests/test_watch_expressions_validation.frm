@@ -53,7 +53,7 @@ system WatchTestSystem {
                     -> $Running
                 }
             }
-            
+
             decrement() {
                 print("Decrementing counter from " + str(self.counter))
                 if self.counter > 0 {

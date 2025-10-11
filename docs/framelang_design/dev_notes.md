@@ -1,3 +1,39 @@
+# Frame v0.81 Development Notes
+
+## v0.81.2 System Interface Method Calls - COMPLETED (2025-01-11)
+
+### 🔗 System Interface Method Call Implementation
+
+Frame v0.81.2 introduces the ability to call interface methods from within systems using the `system.interfaceMethod()` syntax. This provides a clear distinction between interface method calls and other method types.
+
+**New Features Implemented:**
+1. **`system.interfaceMethod()` Syntax** - Call interface methods with clear, explicit syntax ✅
+2. **Comprehensive Validation** - Prevents `self.interfaceMethod` with helpful error messages ✅
+3. **2-Pass Parser Fix** - Interface validation properly deferred to second pass ✅
+4. **Multi-Context Support** - Works in event handlers, actions, and operations ✅
+
+**Technical Implementation:**
+- **Scanner**: Added `SystemMethodCall` token type to recognize `system.methodName` patterns
+- **Parser**: Implemented validation and parsing logic for both calls and references
+- **Visitor**: Maps `system.interfaceMethod()` to `self.interfaceMethod()` in Python
+- **Validation**: Moved interface validation to second pass to respect 2-pass parser architecture
+
+**Code Generation:**
+```frame
+// Frame code
+system.getValue()     // Interface method call
+system.setValue(42)   // Interface method call with args
+
+// Generated Python
+self.getValue()       // Proper method call
+self.setValue(42)     // Proper method call with args
+```
+
+**Error Handling:**
+- Clear error messages for `self.interfaceMethod` usage
+- Compile-time validation of interface method existence
+- Helpful suggestions for correct syntax
+
 # Frame v0.78 Development Notes
 
 ## v0.78.11 Source Mapping Completion - COMPLETED (2025-09-28)

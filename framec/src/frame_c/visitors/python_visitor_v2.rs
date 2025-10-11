@@ -2808,8 +2808,12 @@ impl PythonVisitorV2 {
                 }
             }
         } else {
+            // Check if this is a system.methodName call
+            if func_name.starts_with("system.") {
+                let method_name = &func_name[7..]; // Remove "system." prefix
+                output.push_str(&format!("self.{}", method_name));
             // Fallback: check if this is an action or operation call
-            if self.action_names.contains(&node.identifier.name.lexeme) {
+            } else if self.action_names.contains(&node.identifier.name.lexeme) {
                 // Generate action call: self.__SystemName__actionName
                 output.push_str(&format!("self.__{}__{}",
                     self.system_name, node.identifier.name.lexeme));
@@ -3280,6 +3284,10 @@ impl PythonVisitorV2 {
         // Handle system.return special case
         if node.id_node.name.lexeme == "system.return" {
             output.push_str("self.return_stack[-1]");
+        } else if node.id_node.name.lexeme.starts_with("system.") {
+            // Handle system.methodName references for interface method calls
+            let method_name = &node.id_node.name.lexeme[7..]; // Remove "system." prefix
+            output.push_str(&format!("self.{}", method_name));
         } else if matches!(node.scope, IdentifierDeclScope::StateParamScope) {
             // State parameters are accessed from compartment.state_args
             output.push_str(&format!("compartment.state_args[\"{}\"]", node.id_node.name.lexeme));

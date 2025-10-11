@@ -7691,6 +7691,9 @@ impl<'a> Parser<'a> {
         } else if self.match_token(&[TokenType::SystemReturn]) {
             // Frame v0.31: Handle system.return special variable
             return Ok(Some(self.create_system_return_variable()));
+        } else if self.match_token(&[TokenType::SystemMethodCall]) {
+            // Handle system.methodName as a special identifier or call
+            return Ok(Some(self.create_system_method_reference_or_call()));
         } else if self.match_token(&[TokenType::System]) {
             // Bare 'system' keyword is not allowed - reserved for future use
             let err_msg = "The 'system' keyword is reserved. Only 'system.return' is currently supported for setting interface return values.";
@@ -7735,6 +7738,173 @@ impl<'a> Parser<'a> {
         ExprType::VariableExprT { 
             var_node: system_return_node 
         }
+    }
+
+    // Helper: Create system.methodName reference or call
+    fn create_system_method_reference_or_call(&mut self) -> ExprType {
+        let system_method_token = self.previous().clone();
+        let line_number = system_method_token.line;
+        
+        // Extract the method name from the lexeme (format is "system.methodName")
+        let method_name = if let Some(dot_index) = system_method_token.lexeme.find('.') {
+            system_method_token.lexeme[(dot_index + 1)..].to_string()
+        } else {
+            // Fallback - shouldn't happen but handle gracefully
+            system_method_token.lexeme.clone()
+        };
+        
+        // Validate that this method exists in the current system's interface (only in second pass)
+        if !self.is_building_symbol_table {
+            if let Err(validation_error) = self.validate_system_interface_method(&method_name, line_number) {
+                self.error_at_current(&validation_error);
+                // Return a placeholder expression to continue parsing
+                return self.create_system_return_variable(); // Fallback
+            }
+        }
+        
+        // Check if this is followed by a '(' to determine if it's a call or reference
+        if self.match_token(&[TokenType::LParen]) {
+            // This is a call: system.methodName()
+            // The '(' token has been consumed by match_token
+            
+            // Parse the call arguments using the same pattern as finish_call
+            let call_expr_list_node = match self.expr_list() {
+                Ok(Some(ExprListT { expr_list_node })) => Some(expr_list_node),
+                Ok(None) => None,
+                Ok(_) => {
+                    self.error_at_current("Expected expression list for system method call arguments");
+                    None
+                }
+                Err(parse_error) => {
+                    self.error_at_current(&format!("Error parsing arguments: {}", parse_error.error));
+                    None
+                }
+            };
+            
+            // expr_list() should have consumed the ')' token
+            
+            // Create a CallExprNode for system.methodName()
+            let call_expr_list = match call_expr_list_node {
+                Some(expr_list) => CallExprListNode::new(expr_list.exprs_t),
+                None => CallExprListNode::new(Vec::new()),
+            };
+            
+            let call_expr_node = CallExprNode::new(
+                line_number,
+                IdentifierNode::new(
+                    Token {
+                        token_type: system_method_token.token_type,
+                        lexeme: format!("system.{}", method_name),
+                        literal: system_method_token.literal,
+                        line: line_number,
+                        start: system_method_token.start,
+                        length: system_method_token.length,
+                    },
+                    None,
+                    IdentifierDeclScope::UnknownScope,
+                    false,
+                    line_number,
+                ),
+                call_expr_list,
+                None, // No call chain for system methods
+            );
+            
+            ExprType::CallExprT {
+                call_expr_node
+            }
+        } else {
+            // This is a reference: system.methodName
+            let system_method_node = VariableNode::new(
+                line_number,
+                IdentifierNode::new(
+                    Token {
+                        token_type: system_method_token.token_type,
+                        lexeme: format!("system.{}", method_name),
+                        literal: system_method_token.literal,
+                        line: line_number,
+                        start: system_method_token.start,
+                        length: system_method_token.length,
+                    },
+                    None,
+                    IdentifierDeclScope::UnknownScope,
+                    false,
+                    line_number,
+                ),
+                IdentifierDeclScope::UnknownScope,
+                None,
+            );
+            
+            ExprType::VariableExprT { 
+                var_node: system_method_node 
+            }
+        }
+    }
+
+    // Helper: Validate that a method exists in the current system's interface
+    fn validate_system_interface_method(&mut self, method_name: &str, _line_number: usize) -> Result<(), String> {
+        // Check if we're in a system context
+        if let Some(system_name) = &self.current_system_name {
+            // Get the current system symbol from arcanum
+            if let Some(system_symbol) = self.arcanum.get_current_system_symbol() {
+                let system = system_symbol.borrow();
+                if let Some(interface_block_symbol) = &system.interface_block_symbol_opt {
+                    let interface_block = interface_block_symbol.borrow();
+                    let interface_symtab = interface_block.symtab_rcref.borrow();
+                    
+                    // Check if the method exists in the interface symbol table
+                    if interface_symtab.symbols.contains_key(method_name) {
+                        return Ok(());
+                    } else {
+                        // Method not found in interface
+                        return Err(format!(
+                            "Method '{}' not found in interface of system '{}'",
+                            method_name, system_name
+                        ));
+                    }
+                } else {
+                    return Err(format!(
+                        "System '{}' has no interface block - cannot use system.{}", 
+                        system_name, method_name
+                    ));
+                }
+            } else {
+                return Err(format!(
+                    "Unable to access system symbol table for '{}'", 
+                    system_name
+                ));
+            }
+        } else {
+            return Err(format!(
+                "system.{} can only be used within a system context", 
+                method_name
+            ));
+        }
+    }
+
+    // Helper: Validate that self.interfaceMethod should be system.interfaceMethod instead
+    fn validate_self_interface_method_usage(&mut self, method_name: &str, _line_number: usize) -> Result<(), String> {
+        // Check if we're in a system context
+        if let Some(system_name) = &self.current_system_name {
+            // Get the current system symbol from arcanum
+            if let Some(system_symbol) = self.arcanum.get_current_system_symbol() {
+                let system = system_symbol.borrow();
+                if let Some(interface_block_symbol) = &system.interface_block_symbol_opt {
+                    let interface_block = interface_block_symbol.borrow();
+                    let interface_symtab = interface_block.symtab_rcref.borrow();
+                    
+                    // Check if the method exists in the interface symbol table
+                    if interface_symtab.symbols.contains_key(method_name) {
+                        // This is an interface method - suggest using system.method instead
+                        return Err(format!(
+                            "Interface method '{}' should be called using 'system.{}' instead of 'self.{}'. Use 'system.{}' for interface method calls within the system.",
+                            method_name, method_name, method_name, method_name
+                        ));
+                    }
+                }
+            }
+        }
+        // If not an interface method or not in system context, allow it
+        Ok(())
     }
 
     // Helper: Parse state context ($[param] or $.var)
@@ -13242,6 +13412,16 @@ impl<'a> Parser<'a> {
         }
         
         let identifier_token = self.previous().clone();
+        let method_name = &identifier_token.lexeme;
+        
+        // Validate that interface methods should use system.method, not self.method (only in second pass)
+        if !self.is_building_symbol_table {
+            if let Err(validation_error) = self.validate_self_interface_method_usage(method_name, identifier_token.line) {
+                self.error_at_previous(&validation_error);
+                return Err(ParseError::new(&validation_error));
+            }
+        }
+        
         let id_node = IdentifierNode::new(
             identifier_token.clone(),
             None,

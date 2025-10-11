@@ -115,6 +115,11 @@ system TrafficLight {
     
     machine:
         $Green {
+            $>() {
+                print("Light is now GREE
+                return
+            }
+
             next() {
                 log_event("TrafficLight", "green_to_yellow")
                 print("Traffic Light: GREEN -> YELLOW")
@@ -128,13 +133,15 @@ system TrafficLight {
                 return
             }
             
-            $>() {
-                print("Light is now GREEN")
-                return
-            }
+
         }
         
         $Yellow {
+            $>() {
+                print("Light is now YELLOW")
+                return
+            }
+
             next() {
                 log_event("TrafficLight", "yellow_to_red")
                 print("Traffic Light: YELLOW -> RED")
@@ -147,14 +154,14 @@ system TrafficLight {
                 -> $Red
                 return
             }
-            
-            $>() {
-                print("Light is now YELLOW")
-                return
-            }
+
         }
         
         $Red {
+            $>() {
+                print("Light is now RED")
+                return
+            }
             next() {
                 log_event("TrafficLight", "red_to_green")
                 print("Traffic Light: RED -> GREEN")
@@ -167,10 +174,7 @@ system TrafficLight {
                 return
             }
             
-            $>() {
-                print("Light is now RED")
-                return
-            }
+
         }
 }
 

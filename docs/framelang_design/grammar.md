@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.78.14)
+# Frame Language Grammar (v0.81.2)
 
-**Last Updated**: 2024-12-30  
-**Status**: Cross-system static method calls fixed, PythonVisitorV2 as default, **100% test success rate (376/376 tests passing)**
+**Last Updated**: 2025-01-11  
+**Status**: System interface method calls implemented (`system.interfaceMethod()`), PythonVisitorV2 as default, **98.7% test success rate (389/394 tests passing)**
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
@@ -2743,7 +2743,11 @@ closeModal() {
 
 Frame v0.31 introduces the `system.return` special variable for setting interface return values anywhere within event handlers or action methods.
 
-**IMPORTANT**: `system.return` is the ONLY valid use of the `system` keyword. The syntax `system.method()` is NOT supported - use `self.method()` for calling interface methods from within the system.
+**IMPORTANT**: Frame supports two special uses of the `system` keyword:
+1. **`system.return`**: For setting interface return values within event handlers and actions
+2. **`system.interfaceMethod()`**: For calling interface methods within the system (v0.81.2+)
+
+The general `system.method()` syntax is only supported for interface methods. For other method types, use `self.method()`.
 
 ```frame
 // Setting interface return values with system.return
@@ -2791,6 +2795,114 @@ actions:
         system.return = "success"      // Set interface return value
         return input            // Return value to caller (action method)
     }
+```
+
+### System Interface Method Calls (v0.81.2)
+
+Frame v0.81.2 introduces the ability to call interface methods from within the system using the `system.interfaceMethod()` syntax. This provides a clear distinction between interface method calls and other method types.
+
+**Syntax**: `system.methodName()` or `system.methodName(arguments)`
+
+**Valid Contexts**:
+- Event handlers (within machine states)
+- Action methods
+- Non-static operations (when operations block appears after interface block)
+
+**Grammar**:
+```bnf
+system_interface_call: 'system' '.' IDENTIFIER '(' expression_list? ')'
+system_interface_ref: 'system' '.' IDENTIFIER  // Method reference without call
+```
+
+**Examples**:
+
+```frame
+system Calculator {
+    interface:
+        add(a: int, b: int): int
+        getValue(): int
+        reset()
+        
+    machine:
+        $Ready {
+            // Event handlers can call interface methods
+            calculateSum() {
+                var result = system.add(5, 3)      // Call with arguments
+                var current = system.getValue()    // Call without arguments
+                system.reset()                     // Void call
+                system.return = result + current
+            }
+            
+            add(a: int, b: int): int {
+                var sum = a + b
+                system.return = sum
+            }
+            
+            getValue(): int {
+                system.return = self.stored_value
+            }
+            
+            reset() {
+                self.stored_value = 0
+            }
+        }
+    
+    actions:
+        // Actions can call interface methods
+        logCurrentValue() {
+            var current = system.getValue()  // Read current value
+            print("Current value: " + str(current))
+        }
+        
+        processData(input: int) {
+            var doubled = system.add(input, input)  // Use interface method
+            print("Doubled: " + str(doubled))
+        }
+    
+    operations:
+        // Non-static operations can call interface methods
+        formatValue(): str {
+            var val = system.getValue()
+            return "Value: " + str(val)
+        }
+    
+    domain:
+        var stored_value = 0
+}
+```
+
+**Important Notes**:
+
+1. **Interface Method Validation**: The transpiler validates that the called method exists in the system's interface block. Using `system.nonExistentMethod()` will produce a compile-time error.
+
+2. **Alternative to `self.interfaceMethod`**: Using `self.interfaceMethod()` for interface methods is invalid and produces a helpful error message suggesting the use of `system.interfaceMethod()` instead.
+
+3. **Block Ordering**: Due to parser implementation, operations blocks that use `system.interfaceMethod()` should appear after the interface block in the system definition for proper validation.
+
+4. **Generated Code**: `system.interfaceMethod()` calls are transpiled to `self.interfaceMethod()` in the generated Python code, maintaining the proper object-oriented semantics.
+
+5. **Return Values**: Interface method calls can be used in expressions, assignments, and as standalone statements, just like regular method calls.
+
+**Error Examples**:
+
+```frame
+system BadExample {
+    interface:
+        getValue(): int
+        
+    machine:
+        $Start {
+            test() {
+                // ❌ This will produce an error
+                var val = self.getValue()
+                // Error: Interface method 'getValue' should be called using 
+                // 'system.getValue' instead of 'self.getValue'
+                
+                // ✅ Correct usage
+                var val = system.getValue()
+            }
+        }
+}
 ```
 
 ## Expressions
@@ -3350,7 +3462,8 @@ true false None
 - Reserved keyword that cannot be used as a variable or identifier name
 - Used for system declarations: `system MySystem { ... }`
 - Used in compound token `system.return` for setting interface return values
-- `system.method()` syntax is NOT supported - use `self.method()` instead
+- Used for interface method calls: `system.interfaceMethod()` (v0.81.2+)
+- For non-interface methods, use `self.method()` instead
 - Using `system` as a variable name will cause a parse error
 
 ## Null Value (v0.31)
