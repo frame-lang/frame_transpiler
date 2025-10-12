@@ -2644,9 +2644,9 @@ impl PythonVisitorV2 {
                 output.push_str(&node.value.to_string());
             }
             TokenType::String => {
-                // Add quotes around string literals
+                // Add quotes around string literals and ensure Python syntax safety
                 output.push('"');
-                output.push_str(&node.value.to_string());
+                self.safe_string_for_python(&node.value.to_string(), output);
                 output.push('"');
             }
             TokenType::FString | TokenType::RawString | TokenType::ByteString => {
@@ -2665,6 +2665,50 @@ impl PythonVisitorV2 {
             _ => {
                 output.push_str(&node.value.to_string());
             }
+        }
+    }
+    
+    // Helper method to ensure string safety for Python output
+    // Only escapes characters that would break Python string syntax
+    fn safe_string_for_python(&self, input: &str, output: &mut String) {
+        let chars: Vec<char> = input.chars().collect();
+        let mut i = 0;
+        
+        while i < chars.len() {
+            let ch = chars[i];
+            match ch {
+                // Only escape literal control characters that would break Python syntax
+                '\n' => output.push_str("\\n"),  // Literal newlines break string literals
+                '\r' => output.push_str("\\r"),  // Literal carriage returns break string literals
+                '"' => output.push_str("\\\""),  // Unescaped quotes break string literals
+                '\\' => {
+                    // Check if this is already a valid escape sequence
+                    if i + 1 < chars.len() {
+                        let next_ch = chars[i + 1];
+                        match next_ch {
+                            'n' | 'r' | 't' | '"' | '\'' | '\\' | '0' | 'a' | 'b' | 'v' | 'f' => {
+                                // This is already a valid escape sequence, preserve it
+                                output.push('\\');
+                                output.push(next_ch);
+                                i += 1; // Skip the next character since we processed it
+                            }
+                            'x' | 'u' | 'U' => {
+                                // These might be hex/unicode escapes, preserve them
+                                output.push('\\');
+                            }
+                            _ => {
+                                // Standalone backslash needs escaping
+                                output.push_str("\\\\");
+                            }
+                        }
+                    } else {
+                        // Backslash at end of string needs escaping
+                        output.push_str("\\\\");
+                    }
+                }
+                c => output.push(c),  // All other characters are safe
+            }
+            i += 1;
         }
     }
     

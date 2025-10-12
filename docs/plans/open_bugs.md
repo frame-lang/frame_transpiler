@@ -1,7 +1,7 @@
 # Frame Transpiler Open Bugs
 
-**Last Updated:** 2025-10-11  
-**Current Version:** v0.81.3  
+**Last Updated:** 2025-10-12  
+**Current Version:** v0.81.4  
 **Test Status:** 🎉 **100% PASS RATE** (397/397 tests passing)  
 **Active Bugs:** 2 (Bug #35 - Source mapping classification, Bug #37 - Missing state diagram transitions)  
 **Resolved Bugs:** 43 (including Bug #29, Bug #31, Bug #36, Bug #38, state variables, and JSON generation)  
@@ -13,7 +13,7 @@
 ### Bug #37: State Diagram Generation Missing Conditional Transitions
 **Discovered**: 2025-10-11  
 **Severity**: Low  
-**Component**: State Diagram Generator (framec v0.81.3)  
+**Component**: State Diagram Generator (framec v0.81.4)  
 **Reporter**: VS Code Extension v0.11.4 Frame Debug Adapter Testing  
 
 **Description**:
@@ -1178,16 +1178,17 @@ This systematic approach ensures source map issues are properly identified, docu
 
 ## Resolved Bugs
 
-### Bug #38: String Concatenation with Escape Sequences Generates Invalid Python (RESOLVED in v0.81.2 ✅)
+### Bug #38: String Concatenation with Escape Sequences Generates Invalid Python (RESOLVED in v0.81.4 ✅)
 **Discovered**: 2025-10-11  
-**Severity**: High  
-**Status:** RESOLVED ✅ (Fixed by v0.81.2 transpiler improvements)
-**Component**: Python Code Generator (framec v0.81.2)  
-**Reporter**: VS Code Extension v0.11.4 Frame Debug State Machine Testing  
-**Resolution Date**: 2025-10-11
+**Reopened**: 2025-10-11  
+**Resolved**: 2025-10-11  
+**Severity**: High → FIXED  
+**Component**: Python Code Generator (framec v0.81.4)  
+**Reporter**: VS Code Extension v0.11.5 Frame Debug State Machine Testing  
+**Status**: ✅ **RESOLVED** - Fixed in framec v0.81.4 with enhanced string safety
 
-**Description**:
-~~The Frame transpiler generates invalid Python code when string concatenation involves escape sequences like `"\n"`. The generated Python code breaks string literals across lines, causing `SyntaxError: unterminated string literal`.~~ **RESOLVED**
+**Issue Description**:
+~~Frame transpiler generates invalid Python code when string concatenation involves escape sequences like `"\n"`. The generated Python code breaks string literals across lines, causing `SyntaxError: unterminated string literal`.~~ **FIXED**
 
 **Frame Code**:
 ```frame
@@ -1202,26 +1203,23 @@ sendDebugConsole(message) {
 
 **Generated Python** (Now Valid ✅):
 ```python
-self.__DebugSystem__sendMessage({"type": "event", "event": "output", "data": {"output": message + "\n", "category": "stdout"}})
+self.__PythonDebugRuntime__sendMessage({"type": "event", "event": "output", "data": {"output": message + "\n", "category": "stdout"}})
 ```
 
-**Resolution Verification**:
-- ✅ Created comprehensive test case `/tmp/test_bug38_complex.frm` reproducing the exact scenario
-- ✅ Transpilation successful: Generated valid Python code with proper string concatenation  
-- ✅ Runtime execution successful: `python3 test_bug38_complex.py` produces expected output
-- ✅ String concatenation with escape sequences `message + "\n"` generates correct Python syntax
-- ✅ No more "unterminated string literal" syntax errors
+**Resolution Details**:
+- **Root Cause**: `visit_literal_expression_node_to_string` method was not properly handling string literals that could contain characters breaking Python syntax
+- **Fix Implemented**: Added smart `safe_string_for_python` method that:
+  - Preserves valid escape sequences (`\n`, `\t`, `\"`, `\\`)
+  - Escapes only literal control characters that break Python syntax
+  - Prevents double-escaping of already valid sequences
+- **File Modified**: `framec/src/frame_c/visitors/python_visitor_v2.rs` (lines 2646-2650, 2671-2713)
 
-**Test Evidence**:
-```bash
-$ ./target/release/framec -l python_3 /tmp/test_bug38_complex.frm
-# Generated valid Python code
-
-$ python3 /tmp/test_bug38_complex.py  
-Sending message: {'type': 'event', 'event': 'output', 'data': {'output': 'Test message\n', 'category': 'stdout'}}
-```
-
-**Root Cause**: The bug appears to have been resolved as a side effect of transpiler improvements in v0.81.2. The current transpiler correctly handles string concatenation with escape sequences without breaking across lines.
+**Validation Results**:
+- ✅ All 397 tests passing (100% pass rate maintained)
+- ✅ String safety validated with comprehensive test cases  
+- ✅ Bug #38 scenario generates valid Python syntax
+- ✅ Escape sequences work correctly in all contexts
+- ✅ No regression in existing functionality
 
 ### Bug #20: Parser Error with Functions After Systems (RESOLVED in v0.78.15 ✅)
 

@@ -57,7 +57,7 @@ system SystemName {
 - Always check actual test files in `framec_tests/python/src/` for examples
 
 ## Current State
-- **Version**: v0.78.0, Branch: v0.30, **100% tests passing** (367/367)
+- **Version**: v0.81.4, Branch: v0.30, **100% tests passing** (397/397)
 - **PythonVisitorV2**: Default with CodeBuilder architecture
 - **Recent Achievements**: FSL removed, native Python operations, critical bug fixes
 
