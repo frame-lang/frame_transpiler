@@ -1,14 +1,89 @@
 # Frame Transpiler Open Bugs
 
 **Last Updated:** 2025-10-12  
-**Current Version:** v0.81.4  
+**Current Version:** v0.81.5  
 **Test Status:** 🎉 **100% PASS RATE** (397/397 tests passing)  
-**Active Bugs:** 2 (Bug #35 - Source mapping classification, Bug #37 - Missing state diagram transitions)  
-**Resolved Bugs:** 43 (including Bug #29, Bug #31, Bug #36, Bug #38, state variables, and JSON generation)  
+**Active Bugs:** 2 (Bug #37 - Missing state diagram transitions, Bug #39 - Missing Frame semantic metadata)  
+**Resolved Bugs:** 45 (including Bug #29, Bug #31, Bug #35, Bug #36, Bug #38, Bug #40, state variables, and JSON generation)  
 **Source Map Validation Infrastructure:** ✅ Production Ready
 
 ## Open Bugs
 
+
+### Bug #39: Missing Frame Semantic Metadata for Debugger Integration
+**Discovered**: 2025-10-12  
+**Severity**: Medium  
+**Component**: Debug Output Generator (framec v0.81.4)  
+**Reporter**: VS Code Extension v0.11.9 Frame Debug Adapter Testing  
+
+**Description**:
+The Frame transpiler's `--debug-output` JSON format lacks semantic metadata about Frame language constructs, forcing debuggers to parse generated Python code to infer Frame structure. This creates fragile, implementation-dependent debugging that breaks when Python generation changes.
+
+**Current Debug Output**:
+```json
+{
+  "python": "# Generated Python code...",
+  "sourceMap": { "mappings": [...] },
+  "metadata": {
+    "frameVersion": "0.81.4",
+    "generatedAt": "2025-10-12T00:38:02.354033+00:00",
+    "checksum": "sha256:..."
+  }
+}
+```
+
+**Needed Frame Semantic Metadata**:
+```json
+{
+  "metadata": {
+    "frameVersion": "0.81.4",
+    "systems": [
+      {
+        "name": "HelloWorld",
+        "states": [
+          {"name": "$Start", "pythonHandler": "__helloworld_state_Start"},
+          {"name": "$End", "pythonHandler": "__helloworld_state_End"}
+        ],
+        "interfaceMethods": [
+          {
+            "name": "print_it", 
+            "pythonMethod": "print_it",
+            "implementations": [
+              {"state": "$Start", "pythonHandler": "__handle_start_print_it", "frameLine": 10}
+            ]
+          }
+        ],
+        "enterHandlers": [
+          {"state": "$Start", "pythonHandler": "__handle_start_enter", "frameLine": 7}
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Impact**: 
+- **Call Stack Display**: Debugger shows `HelloWorld.Start.print_it` instead of `HelloWorld.$Start.print_it`
+- **Step Into Failures**: Cannot step into interface method implementations correctly
+- **Frame Semantic Loss**: Debugger cannot provide authentic Frame debugging experience
+- **Maintenance Burden**: Debugging breaks when Python generation patterns change
+
+**Expected Behavior**: 
+Frame debugger should use semantic metadata to display proper Frame constructs without parsing generated code.
+
+**Test Case**:
+```frame
+system HelloWorld {
+    interface: print_it()
+    machine:
+        $Start {
+            print_it() { print("Hello") -> $End }
+        }
+        $End {}
+}
+```
+
+Current debugger shows parsed Python internals instead of Frame semantics.
 
 ### Bug #37: State Diagram Generation Missing Conditional Transitions
 **Discovered**: 2025-10-11  
@@ -37,14 +112,6 @@ $Configuring {
 
 **Impact**: Makes state machines harder to understand and debug, as valid state transitions appear missing
 
-### Bug #35: Incorrect Source Mapping Classification for Executable Statements
-**Discovered**: 2025-10-05  
-**Severity**: Medium  
-**Component**: Transpiler (framec v0.80.5)  
-**Reporter**: VS Code Extension v0.9.7 Testing  
-
-**Description**:
-The transpiler incorrectly classifies executable statements as "function_def" type in source maps, causing debugger positioning issues.
 
 ### Bug #36: Missing Interface Method Source Mappings for Debug Stepping - RESOLVED ✅
 **Discovered**: 2025-10-09  
@@ -1177,6 +1244,38 @@ This systematic approach ensures source map issues are properly identified, docu
 ---
 
 ## Resolved Bugs
+
+### Bug #40: Interface Method Source Mapping Points to Function Definition Instead of Executable Code (RESOLVED in v0.81.5 ✅)
+**Discovered**: 2025-10-12  
+**Resolved**: 2025-10-12  
+**Severity**: Medium → FIXED  
+**Component**: Source Map Generator (framec v0.81.5)  
+**Reporter**: VS Code Extension v0.11.9 Frame Debug Adapter Testing  
+**Status**: ✅ **RESOLVED** - Fixed in framec v0.81.5 with proper interface method mapping
+
+**Issue Description**:
+~~Interface method source mappings incorrectly pointed to the Python function definition line (`def`) instead of the first executable statement, causing step-into debugging to skip interface methods entirely.~~ **FIXED**
+
+**Fix**: Modified `generate_interface_method` to map interface method declarations to the first executable statement (`self.return_stack.append(None)`) instead of the function definition line.
+
+**Before Fix**: Frame line 3 → Python line 39 (`def print_it(self,):`) - non-executable  
+**After Fix**: Frame line 3 → Python line 40 (`self.return_stack.append(None)`) - executable ✅
+
+### Bug #35: Incorrect Source Mapping Classification for Executable Statements (RESOLVED in v0.81.5 ✅)
+**Discovered**: 2025-10-05  
+**Resolved**: 2025-10-12  
+**Severity**: Medium → FIXED  
+**Component**: Source Map Generator (framec v0.81.5)  
+**Reporter**: VS Code Extension v0.9.7 Testing  
+**Status**: ✅ **RESOLVED** - Fixed in framec v0.81.5 with proper statement type classification
+
+**Issue Description**:
+~~The transpiler incorrectly classified executable statements as "function_def" type in source maps, causing debugger positioning issues.~~ **FIXED**
+
+**Fix**: Enhanced `visit_call_chain_statement_node` to detect statement types and apply appropriate MappingType values:
+- Print statements now map as `"type": "print"` instead of `"type": "statement"`
+- Assignment statements map as `"type": "assignment"`
+- Function calls map as `"type": "function_call"`
 
 ### Bug #38: String Concatenation with Escape Sequences Generates Invalid Python (RESOLVED in v0.81.4 ✅)
 **Discovered**: 2025-10-11  

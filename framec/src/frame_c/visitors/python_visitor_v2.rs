@@ -1570,22 +1570,23 @@ impl PythonVisitorV2 {
         let needs_async = method.is_async || self.system_has_async_runtime;
         
         self.builder.newline();
-        // Map interface method implementation to its interface declaration
+        // Don't map the function definition - map to first executable statement instead
         self.builder.write_function(
             &method.name,
             &full_params,
             needs_async,
-            method.line  // Map to interface method declaration line
+            0  // Don't map function definition line
         );
         
-        // Interface method body is generated boilerplate - don't map to source
+        // Map interface method declaration to first executable statement (not the def line)
+        
         // Use interface method default value if available, otherwise None
         if let Some(return_init_expr) = &method.return_init_expr_opt {
             let mut default_value = String::new();
             self.visit_expr_node_to_string(return_init_expr, &mut default_value);
-            self.builder.writeln(&format!("self.return_stack.append({})", default_value));
+            self.builder.writeln_mapped(&format!("self.return_stack.append({})", default_value), method.line);
         } else {
-            self.builder.writeln("self.return_stack.append(None)");
+            self.builder.writeln_mapped("self.return_stack.append(None)", method.line);
         }
         
         // Create event and send to kernel
@@ -2295,6 +2296,7 @@ impl PythonVisitorV2 {
     
     // Expression statement visitor
     fn visit_expression_stmt(&mut self, expr_stmt: &ExprStmtType) {
+        
         match expr_stmt {
             ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
                 self.visit_call_chain_statement_node(&call_chain_literal_stmt_node);
@@ -3374,8 +3376,45 @@ impl PythonVisitorV2 {
     
     // Call chain statement
     fn visit_call_chain_statement_node(&mut self, node: &CallChainStmtNode) {
-        // Map the statement line before writing
-        self.builder.map_next(node.line);
+        // Map the statement line before writing with appropriate type
+        use crate::frame_c::source_map::MappingType;
+        
+        // Determine the mapping type based on the call chain
+        let mapping_type = if let Some(first_node) = node.call_chain_literal_expr_node.call_chain.front() {
+            match first_node {
+                crate::frame_c::ast::CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                    if id_node.name.lexeme == "print" {
+                        MappingType::Print
+                    } else {
+                        MappingType::FunctionCall
+                    }
+                }
+                crate::frame_c::ast::CallChainNodeType::VariableNodeT { var_node } => {
+                    if var_node.id_node.name.lexeme == "print" {
+                        MappingType::Print  
+                    } else {
+                        MappingType::FunctionCall
+                    }
+                }
+                crate::frame_c::ast::CallChainNodeType::UndeclaredCallT { call_node } => {
+                    if call_node.identifier.name.lexeme == "print" {
+                        MappingType::Print
+                    } else {
+                        MappingType::FunctionCall
+                    }
+                }
+                crate::frame_c::ast::CallChainNodeType::InterfaceMethodCallT { .. } => MappingType::MethodCall,
+                crate::frame_c::ast::CallChainNodeType::OperationCallT { .. } => MappingType::MethodCall,
+                crate::frame_c::ast::CallChainNodeType::ActionCallT { .. } => MappingType::MethodCall,
+                crate::frame_c::ast::CallChainNodeType::CallChainLiteralExprT { .. } => MappingType::FunctionCall,
+                _ => MappingType::Statement,
+            }
+        } else {
+            MappingType::Statement
+        };
+        
+        
+        self.builder.map_next_with_type(node.line, mapping_type);
         let mut output = String::new();
         self.visit_call_chain_node_to_string(&node.call_chain_literal_expr_node, &mut output);
         self.builder.writeln(&output);
@@ -3398,6 +3437,8 @@ impl PythonVisitorV2 {
             // Could be method call or function call - use function call as default
             MappingType::FunctionCall
         };
+        
+        
         self.builder.map_next_with_type(node.line, mapping_type);
         
         let mut output = String::new();
@@ -3408,7 +3449,8 @@ impl PythonVisitorV2 {
     // Binary statement
     fn visit_binary_stmt_node(&mut self, node: &BinaryStmtNode) {
         // Map the statement line before writing
-        self.builder.map_next(node.line);
+        use crate::frame_c::source_map::MappingType;
+        self.builder.map_next_with_type(node.line, MappingType::Statement);
         let mut output = String::new();
         self.visit_binary_expr_node_to_string(&node.binary_expr_node, &mut output);
         self.builder.writeln(&output);
@@ -3427,7 +3469,8 @@ impl PythonVisitorV2 {
     // Expression list statement
     fn visit_expr_list_stmt_node(&mut self, node: &ExprListStmtNode) {
         // Map the statement line before writing
-        self.builder.map_next(node.line);
+        use crate::frame_c::source_map::MappingType;
+        self.builder.map_next_with_type(node.line, MappingType::Statement);
         let mut output = String::new();
         for (i, expr) in node.expr_list_node.exprs_t.iter().enumerate() {
             if i > 0 {

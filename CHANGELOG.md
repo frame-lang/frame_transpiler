@@ -2,6 +2,32 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.81.5] - 2025-10-12
+
+### Fixed
+- **Bug #40**: Interface Method Source Mapping Points to Function Definition Instead of Executable Code
+  - Fixed interface method source mappings to point to first executable statement instead of function definition
+  - Step-into debugging now works correctly for interface methods in VS Code
+  - Changed mapping from `def print_it(self,):` (non-executable) to `self.return_stack.append(None)` (executable)
+  
+- **Bug #35**: Incorrect Source Mapping Classification for Executable Statements  
+  - Enhanced source mapping classification for executable statements
+  - Print statements now correctly map as `"type": "print"` instead of generic `"type": "statement"`
+  - Assignment statements map as `"type": "assignment"`
+  - Function calls map as `"type": "function_call"`
+  - Improved VS Code debugger experience with accurate statement type classification
+
+### Technical Details
+- **Source Map Generator**: Enhanced `generate_interface_method` to map to executable statements
+- **Python Visitor**: Improved `visit_call_chain_statement_node` with proper MappingType detection
+- **VS Code Integration**: Fixed debugger positioning issues for interface methods and executable statements
+- **Test Suite**: 397 tests passing (100% pass rate maintained)
+
+## [v0.81.4] - 2025-10-11
+
+### Fixed
+- **Bug #38**: String Concatenation with Escape Sequences Generates Invalid Python (continued from v0.81.3)
+
 ## [v0.81.3] - 2025-10-11
 
 ### Fixed
