@@ -629,7 +629,7 @@ impl PythonVisitorV2 {
             self.builder.write_comment("Send startup event for async systems");
             self.builder.writeln("if hasattr(self, '__startup_event'):");
             self.builder.indent();
-            self.builder.writeln("await self.__kernel(self.__startup_event)");
+            self.builder.writeln("await self._frame_kernel(self.__startup_event)");
             self.builder.writeln("del self.__startup_event");
             self.builder.dedent();
             self.builder.dedent();
@@ -675,11 +675,11 @@ impl PythonVisitorV2 {
         self.builder.writeln(&format!("_{}_instance = {}()", system_name.to_lowercase(), system_name));
         self.builder.dedent();
         
-        // Call the action on the singleton (method already has system prefix in its definition)
+        // Call the action on the singleton using the simple prefix
         let action_call = if params.is_empty() {
-            format!("_{}_instance._{}__{}__{}()", system_name.to_lowercase(), system_name, system_name, action.name)
+            format!("_{}_instance._action_{}()", system_name.to_lowercase(), action.name)
         } else {
-            format!("_{}_instance._{}__{}__{}({})", system_name.to_lowercase(), system_name, system_name, action.name, params)
+            format!("_{}_instance._action_{}({})", system_name.to_lowercase(), action.name, params)
         };
         
         if action.is_async {
@@ -1112,7 +1112,7 @@ impl PythonVisitorV2 {
         
         self.builder.newline();
         self.builder.write_function(
-            &format!("__{}__{}", self.system_name, action_node.name),
+            &format!("_action_{}", action_node.name),
             &full_params,
             action_node.is_async,
             action_node.line  // v0.78.7: now has line field for source mapping
@@ -1541,7 +1541,7 @@ impl PythonVisitorV2 {
             } else {
                 self.builder.write_comment("Send system start event");
                 self.builder.writeln("frame_event = FrameEvent(\"$>\", None)");
-                self.builder.writeln("self.__kernel(frame_event)");
+                self.builder.writeln("self._frame_kernel(frame_event)");
             }
         }
         
@@ -1609,9 +1609,9 @@ impl PythonVisitorV2 {
         }
         
         if needs_async {
-            self.builder.writeln("await self.__kernel(__e)");
+            self.builder.writeln("await self._frame_kernel(__e)");
         } else {
-            self.builder.writeln("self.__kernel(__e)");
+            self.builder.writeln("self._frame_kernel(__e)");
         }
         
         self.builder.writeln("return self.return_stack.pop(-1)");
@@ -1857,11 +1857,11 @@ impl PythonVisitorV2 {
         };
         // Handle special enter/exit messages
         if msg_part == "$>" {
-            format!("__handle_{}_enter", state_part)
+            format!("_handle_{}_enter", state_part)
         } else if msg_part == "<$" {
-            format!("__handle_{}_exit", state_part)
+            format!("_handle_{}_exit", state_part)
         } else {
-            format!("__handle_{}_{}", state_part, msg_part)
+            format!("_handle_{}_{}", state_part, msg_part)
         }
     }
     
@@ -1951,12 +1951,12 @@ impl PythonVisitorV2 {
         // Generate __kernel
         let is_async = self.system_has_async_runtime;
         
-        self.builder.write_function("__kernel", "self, __e", is_async, 0);
+        self.builder.write_function("_frame_kernel", "self, __e", is_async, 0);
         self.builder.write_comment("send event to current state");
         if is_async {
-            self.builder.writeln("await self.__router(__e)");
+            self.builder.writeln("await self._frame_router(__e)");
         } else {
-            self.builder.writeln("self.__router(__e)");
+            self.builder.writeln("self._frame_router(__e)");
         }
         
         self.builder.newline();
@@ -1970,9 +1970,9 @@ impl PythonVisitorV2 {
         
         self.builder.write_comment("exit current state");
         if is_async {
-            self.builder.writeln("await self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))");
+            self.builder.writeln("await self._frame_router(FrameEvent(\"<$\", self.__compartment.exit_args))");
         } else {
-            self.builder.writeln("self.__router(FrameEvent(\"<$\", self.__compartment.exit_args))");
+            self.builder.writeln("self._frame_router(FrameEvent(\"<$\", self.__compartment.exit_args))");
         }
         self.builder.write_comment("change state");
         self.builder.writeln("self.__compartment = next_compartment");
@@ -1982,9 +1982,9 @@ impl PythonVisitorV2 {
         self.builder.indent();
         self.builder.write_comment("send normal enter event");
         if is_async {
-            self.builder.writeln("await self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+            self.builder.writeln("await self._frame_router(FrameEvent(\"$>\", self.__compartment.enter_args))");
         } else {
-            self.builder.writeln("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+            self.builder.writeln("self._frame_router(FrameEvent(\"$>\", self.__compartment.enter_args))");
         }
         self.builder.dedent();
         
@@ -1994,19 +1994,19 @@ impl PythonVisitorV2 {
         self.builder.writeln("if next_compartment.forward_event._message == \"$>\":");
         self.builder.indent();
         if is_async {
-            self.builder.writeln("await self.__router(next_compartment.forward_event)");
+            self.builder.writeln("await self._frame_router(next_compartment.forward_event)");
         } else {
-            self.builder.writeln("self.__router(next_compartment.forward_event)");
+            self.builder.writeln("self._frame_router(next_compartment.forward_event)");
         }
         self.builder.dedent();
         self.builder.writeln("else:");
         self.builder.indent();
         if is_async {
-            self.builder.writeln("await self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
-            self.builder.writeln("await self.__router(next_compartment.forward_event)");
+            self.builder.writeln("await self._frame_router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+            self.builder.writeln("await self._frame_router(next_compartment.forward_event)");
         } else {
-            self.builder.writeln("self.__router(FrameEvent(\"$>\", self.__compartment.enter_args))");
-            self.builder.writeln("self.__router(next_compartment.forward_event)");
+            self.builder.writeln("self._frame_router(FrameEvent(\"$>\", self.__compartment.enter_args))");
+            self.builder.writeln("self._frame_router(next_compartment.forward_event)");
         }
         self.builder.dedent();
         self.builder.writeln("next_compartment.forward_event = None");
@@ -2017,7 +2017,7 @@ impl PythonVisitorV2 {
         
         // Generate __router
         self.builder.newline();
-        self.builder.write_function("__router", "self, __e, compartment=None", is_async, 0);
+        self.builder.write_function("_frame_router", "self, __e, compartment=None", is_async, 0);
         
         self.builder.writeln("target_compartment = compartment or self.__compartment");
         
@@ -2052,7 +2052,7 @@ impl PythonVisitorV2 {
         
         // Generate __transition
         self.builder.newline();
-        self.builder.write_function("__transition", "self, next_compartment", false, 0);
+        self.builder.write_function("_frame_transition", "self, next_compartment", false, 0);
         self.builder.writeln("self.__next_compartment = next_compartment");
         self.builder.dedent();
     }
@@ -2805,7 +2805,7 @@ impl PythonVisitorV2 {
             
             match resolved_type {
                 ResolvedCallType::Action(_) => {
-                    output.push_str(&format!("self.__{}__{}", self.system_name, node.identifier.name.lexeme));
+                    output.push_str(&format!("self._action_{}", node.identifier.name.lexeme));
                 }
                 ResolvedCallType::Operation(_) => {
                     output.push_str("self.");
@@ -2860,9 +2860,8 @@ impl PythonVisitorV2 {
                 output.push_str(&format!("self.{}", method_name));
             // Fallback: check if this is an action or operation call
             } else if self.action_names.contains(&node.identifier.name.lexeme) {
-                // Generate action call: self.__SystemName__actionName
-                output.push_str(&format!("self.__{}__{}",
-                    self.system_name, node.identifier.name.lexeme));
+                // Generate action call: self._action_actionName
+                output.push_str(&format!("self._action_{}", node.identifier.name.lexeme));
             } else if self.operation_names.contains(&node.identifier.name.lexeme) {
                 // Generate operation call: self.operationName
                 output.push_str("self.");
@@ -3264,7 +3263,7 @@ impl PythonVisitorV2 {
                 target_state_name, state_vars_dict, state_args_dict
             ), node.line);
         }
-        self.builder.writeln_mapped("self.__transition(next_compartment)", node.line);
+        self.builder.writeln_mapped("self._frame_transition(next_compartment)", node.line);
     }
     
     // Return statement
@@ -3312,7 +3311,7 @@ impl PythonVisitorV2 {
         // Dispatch to parent state
         if let Some(_parent_state) = &self.current_state_parent_opt {
             self.builder.writeln_mapped(
-                "self.__router(__e, compartment.parent_compartment)",
+                "self._frame_router(__e, compartment.parent_compartment)",
                 node.line
             );
         } else {
@@ -4040,8 +4039,8 @@ impl PythonVisitorV2 {
                     output.push(')');
                 }
                 CallChainNodeType::ActionCallT { action_call_expr_node } => {
-                    // Actions use name mangling: __SystemName__action_name
-                    output.push_str(&format!("__{}__{}", self.system_name, action_call_expr_node.identifier.name.lexeme));
+                    // Actions use simple prefix: _action_name
+                    output.push_str(&format!("_action_{}", action_call_expr_node.identifier.name.lexeme));
                     output.push('(');
                     let mut first_arg = true;
                     for arg in &action_call_expr_node.call_expr_list.exprs_t {
@@ -4083,9 +4082,8 @@ impl PythonVisitorV2 {
                         if first {
                             // Check if this is an action or operation call
                             if self.action_names.contains(func_name) {
-                                // Generate action call: self.__SystemName__actionName
-                                output.push_str(&format!("self.__{}__{}",
-                                    self.system_name, func_name));
+                                // Generate action call: self._action_actionName
+                                output.push_str(&format!("self._action_{}", func_name));
                             } else if self.operation_names.contains(func_name) {
                                 // Generate operation call: self.operationName
                                 output.push_str("self.");
@@ -4925,7 +4923,7 @@ impl PythonVisitorV2 {
                 self.builder.writeln("if hasattr(self, '__state_stack') and self.__state_stack:");
                 self.builder.indent();
                 self.builder.writeln("target_compartment = self.__state_stack.pop()");
-                self.builder.writeln("self.__transition(target_compartment)");
+                self.builder.writeln("self._frame_transition(target_compartment)");
                 self.builder.dedent();
                 self.builder.writeln("else:");
                 self.builder.indent();

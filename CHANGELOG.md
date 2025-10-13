@@ -2,6 +2,23 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.81.6] - 2025-10-13
+
+### Fixed
+- **Bug #47**: Incorrect Method Name Mangling in Cross-References
+  - Fixed Python's automatic name mangling causing triple-mangled method names
+  - Changed from double-underscore prefix pattern (`__SystemName__methodName`) to simple prefixes
+  - Actions now use `_action_methodName` pattern
+  - Handlers use `_handle_state_event` pattern  
+  - Runtime methods use `_frame_kernel`, `_frame_router`, `_frame_transition`
+  - Resolves `AttributeError` exceptions in generated Python code
+  - All method resolution now works correctly
+
+### Technical Details
+- **Python Visitor V2**: Replaced double-underscore prefixes to avoid Python's automatic name mangling
+- **Code Generation**: Cleaner, more readable generated Python code
+- **Test Suite**: All 397 tests passing (100% pass rate maintained)
+
 ## [v0.81.5] - 2025-10-12
 
 ### Fixed

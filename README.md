@@ -2,17 +2,31 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
 
-**Current Version**: v0.81.3  
+**Current Version**: v0.81.6  
 **Test Success Rate**: 100% (397/397 tests passing)  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-10-11
+**Last Updated**: 2025-10-13
 
-## Current Features (v0.81.3) ✅ COMPLETE
+## Current Features (v0.81.6) ✅ COMPLETE
 
-### Bug Resolution and Method Call Enhancements (NEW in v0.81.3)
+### Python Name Mangling Fix (NEW in v0.81.6)
+- **Bug #47 Fixed**: Resolved triple-mangling issue in generated Python code
+- **Simplified Naming Convention**: Changed from double-underscore to simple prefix patterns
+- **Clean Internal Methods**: Actions use `_action_`, handlers use `_handle_`, runtime uses `_frame_`
+- **100% Test Pass Rate**: All 397 tests passing with improved code generation
+
+## Previous Features (v0.81.5) ✅ COMPLETE
+
+### Source Mapping Improvements (v0.81.5)
+- **Bug #40 Fixed**: Interface method source mappings now point to executable statements
+- **Bug #35 Fixed**: Enhanced source mapping classification for statement types
+- **Debugger Integration**: Improved VS Code debugging experience
+
+## Previous Features (v0.81.3-4) ✅ COMPLETE
+
+### Bug Resolution and Method Call Enhancements (v0.81.3)
 - **Bug #38 Fixed**: Resolved string concatenation with escape sequences issue
 - **Enhanced Method Resolution**: Improved conflict detection for method name ambiguity
-- **100% Test Pass Rate**: All 397 tests now passing
 - **Robust String Operations**: Better handling of escape sequences in generated Python code
 
 ## Previous Features (v0.81.2) ✅ COMPLETE
