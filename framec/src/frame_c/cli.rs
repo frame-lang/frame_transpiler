@@ -431,6 +431,7 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
     use crate::frame_c::visitors::TargetLanguage as VisitorTargetLanguage;
     let target_lang = target_language.map(|tl| match tl {
         VisitorTargetLanguage::Python3 => crate::frame_c::validation::TargetLanguage::Python,
+        VisitorTargetLanguage::TypeScript => crate::frame_c::validation::TargetLanguage::Python, // TODO: Add TypeScript validation
         VisitorTargetLanguage::Graphviz => crate::frame_c::validation::TargetLanguage::Python, // Default to Python for graphviz
     });
     

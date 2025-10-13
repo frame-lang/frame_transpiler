@@ -1,15 +1,23 @@
 # Frame Language Transpiler
 
-This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python (with more languages to come) as well as UML Statechart diagrams.
+This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.81.6  
+**Current Version**: v0.82.0  
 **Test Success Rate**: 100% (397/397 tests passing)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-13
 
-## Current Features (v0.81.6) ✅ COMPLETE
+## Current Features (v0.82.0) ✅ NEW
 
-### Python Name Mangling Fix (NEW in v0.81.6)
+### TypeScript Code Generation (NEW in v0.82.0)
+- **New Target Language**: Full TypeScript support for Frame state machines
+- **Complete Runtime**: Event-driven state machine with FrameEvent and FrameCompartment classes
+- **Type-Safe Code**: Generated TypeScript compiles with strict type checking
+- **All Core Features**: States, transitions, events, actions, domain variables, and expressions
+
+## Previous Features (v0.81.6) ✅ COMPLETE
+
+### Python Name Mangling Fix (v0.81.6)
 - **Bug #47 Fixed**: Resolved triple-mangling issue in generated Python code
 - **Simplified Naming Convention**: Changed from double-underscore to simple prefix patterns
 - **Clean Internal Methods**: Actions use `_action_`, handlers use `_handle_`, runtime uses `_frame_`

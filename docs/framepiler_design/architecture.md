@@ -2,9 +2,9 @@
 
 ## Overview
 
-The Frame transpiler (v0.31) converts Frame language source files (.frm) to target languages (Python, C#, JavaScript, etc.).
+The Frame transpiler (v0.82) converts Frame language source files (.frm) to target languages (Python, TypeScript, GraphViz, etc.).
 
-**Current Status**: 100% test success rate (158/158 tests passing)
+**Current Status**: 100% test success rate (397/397 tests passing)
 
 ## Compilation Pipeline
 
@@ -19,7 +19,7 @@ AST (FrameModule) → framec/src/frame_c/ast.rs
     ↓
 Visitors (Code Generation) → framec/src/frame_c/visitors/
     ↓
-Target Code (Python, C#, etc.)
+Target Code (Python, TypeScript, GraphViz, etc.)
 ```
 
 ## v0.31 Modular AST Structure
@@ -84,6 +84,7 @@ FrameModule (Top-Level)
 - **v0.31**: Operations only static when @staticmethod attributed
 - **v0.31**: System.return generates as return_stack mechanism
 - **v0.31**: Event handler default values override interface defaults
+- **v0.82**: TypeScript visitor added with full state machine support
 
 ## v0.31 Language Features
 

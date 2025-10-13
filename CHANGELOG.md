@@ -2,6 +2,48 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.82.0] - 2025-10-13
+
+### Added
+- **TypeScript Code Generation**: Initial support for transpiling Frame to TypeScript
+  - Complete state machine implementation with runtime support
+  - FrameEvent and FrameCompartment classes for state management
+  - State dispatchers with event routing
+  - Interface method generation with return value handling
+  - Event handler generation for all states
+  - Actions transpiled as private class methods
+  - Domain variables as TypeScript class properties
+
+### Features
+- **TypeScript State Machines**: Full state machine semantics in TypeScript
+  - State transitions with `_frame_transition()` method
+  - Enter/exit handlers with `$>` and `$<` events
+  - Event routing through dispatcher pattern
+  - Hierarchical state machine support foundation
+
+- **TypeScript Expression Support**: Comprehensive expression generation
+  - Binary operators with proper TypeScript semantics (===, !==)
+  - Unary operators (!, -)
+  - Literals (strings, numbers, booleans)
+  - Variable references with 'this.' prefixing
+  - Call chains for method invocations
+  - Template literals for multi-line strings
+
+- **TypeScript Statement Support**: Complete statement generation
+  - If/else if/else conditionals
+  - Infinite loops (while(true))
+  - Return statements with stack management
+  - Assignment statements
+  - Action calls
+  - Continue and break statements
+
+### Technical Details
+- **New TypeScript Visitor**: `typescript_visitor.rs` implementing full AST traversal
+- **CodeBuilder Integration**: Consistent code generation with proper indentation
+- **Runtime Architecture**: Event-driven state machine with compartment-based state storage
+- **Test Framework**: Added TypeScript test configuration and sample tests
+- **Compiler Integration**: TypeScript added as new target language option
+
 ## [v0.81.6] - 2025-10-13
 
 ### Fixed

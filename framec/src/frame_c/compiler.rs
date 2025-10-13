@@ -3,7 +3,7 @@ use crate::frame_c::parser::*;
 use crate::frame_c::scanner::*;
 use crate::frame_c::source_map::SourceMapBuilder;
 use crate::frame_c::symbol_table::*;
-use crate::frame_c::utils::{frame_exitcode, RunError};
+use crate::frame_c::utils::{frame_exitcode, RunError, SystemHierarchy};
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
 use crate::frame_c::modules::MultiFileCompiler;
@@ -27,7 +27,7 @@ use std::convert::TryFrom;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "Emitted from framec_v0.81.6";
+static FRAMEC_VERSION: &str = "Emitted from framec_v0.82.0";
 
 /* --------------------------------------------------------------------- */
 
@@ -432,6 +432,12 @@ impl Exe {
                         );
                     }
                 }
+                TargetLanguage::TypeScript => {
+                    use crate::frame_c::visitors::typescript_visitor::TypeScriptVisitor;
+                    
+                    let visitor = TypeScriptVisitor::new();
+                    output = visitor.run(&frame_module);
+                }
                 TargetLanguage::Python3 => {
                     // V2 is now the default, use USE_PYTHON_V1 to fallback to old visitor
                     if std::env::var("USE_PYTHON_V1").is_ok() {
@@ -632,6 +638,12 @@ impl Exe {
                 return Err(run_error);
             }
             Some(lang) => match lang {
+                TargetLanguage::TypeScript => {
+                    use crate::frame_c::visitors::typescript_visitor::TypeScriptVisitor;
+                    
+                    let visitor = TypeScriptVisitor::new();
+                    output = visitor.run(&frame_module);
+                }
                 TargetLanguage::Python3 => {
                     // V2 is now the default with proper CodeBuilder source mapping
                     if std::env::var("USE_PYTHON_V1").is_ok() {

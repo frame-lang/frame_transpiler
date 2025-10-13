@@ -1,0 +1,26 @@
+{
+    "name": "TypeScript Tests",
+    "description": "Test suite for TypeScript code generation",
+    "tests": [
+        {
+            "name": "Basic Transitions",
+            "frame_file": "typescript/src/positive_tests/test_basic_transition.frm",
+            "target_language": "typescript",
+            "expected_to_pass": true,
+            "description": "Test basic state machine transitions"
+        },
+        {
+            "name": "Counter with Variables",
+            "frame_file": "typescript/src/positive_tests/test_counter.frm",
+            "target_language": "typescript", 
+            "expected_to_pass": true,
+            "description": "Test counter with domain variables and conditionals"
+        }
+    ],
+    "settings": {
+        "target_language": "typescript",
+        "output_dir": "typescript/generated",
+        "compile_only": true,
+        "timeout": 10
+    }
+}

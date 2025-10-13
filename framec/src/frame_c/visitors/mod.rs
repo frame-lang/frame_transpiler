@@ -6,6 +6,7 @@ use std::convert::TryFrom;
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum TargetLanguage {
     Python3,
+    TypeScript,
     Graphviz,
 }
 
@@ -13,6 +14,7 @@ impl TargetLanguage {
     pub fn file_extension(&self) -> &'static str {
         match self {
             TargetLanguage::Python3 => "py",
+            TargetLanguage::TypeScript => "ts",
             TargetLanguage::Graphviz => "graphviz",
         }
     }
@@ -23,10 +25,12 @@ impl TryFrom<&str> for TargetLanguage {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         if value == "python_3" {
             Ok(TargetLanguage::Python3)
+        } else if value == "typescript" {
+            Ok(TargetLanguage::TypeScript)
         } else if value == "graphviz" {
             Ok(TargetLanguage::Graphviz)
         } else {
-            Err(format!("Unrecognized target language: {}. Supported languages are: python_3, graphviz", value))
+            Err(format!("Unrecognized target language: {}. Supported languages are: python_3, typescript, graphviz", value))
         }
     }
 }
@@ -41,6 +45,7 @@ impl TryFrom<String> for TargetLanguage {
 pub mod graphviz_visitor;
 pub mod python_visitor;
 pub mod python_visitor_v2;  // v0.75: Complete implementation using CodeBuilder
+pub mod typescript_visitor;  // v0.82: TypeScript support
 
 use super::ast::*;
 
