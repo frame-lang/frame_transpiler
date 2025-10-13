@@ -2,12 +2,19 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.82.0  
+**Current Version**: v0.82.1  
 **Test Success Rate**: 100% (397/397 tests passing)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-13
 
-## Current Features (v0.82.0) ✅ NEW
+## Current Features (v0.82.1) ✅ LATEST
+
+### CLI Improvements (NEW in v0.82.1)
+- **Enhanced Help Output**: Target languages clearly listed in CLI help
+- **Language Options**: Shows `python_3`, `typescript`, `graphviz` with descriptions
+- **Better UX**: Improved documentation directly in command-line interface
+
+## Previous Features (v0.82.0) ✅ NEW
 
 ### TypeScript Code Generation (NEW in v0.82.0)
 - **New Target Language**: Full TypeScript support for Frame state machines

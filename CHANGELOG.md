@@ -2,6 +2,14 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.82.1] - 2025-10-13
+
+### Improved
+- **CLI Help Enhancement**: Command-line help now clearly shows available target languages
+  - Help text displays: `python_3`, `typescript`, `graphviz` as options
+  - Added detailed descriptions for each language in long help
+  - Better user experience with informative CLI documentation
+
 ## [v0.82.0] - 2025-10-13
 
 ### Added
