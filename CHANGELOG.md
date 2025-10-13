@@ -2,6 +2,28 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.82.2] - 2025-10-13
+
+### Fixed
+- **Bug #48: TypeScript Generation - Complex Expression Support**
+  - F-strings now properly convert to TypeScript template literals (`` `text ${var}` ``)
+  - Domain variables initialize with actual values instead of "TODO: Initialize"
+  - Local variables in event handlers properly initialize with expressions
+  - Enter/exit handlers ($>, $<) generate with correct names and dispatch properly
+  - Interface methods now accept and pass parameters correctly
+  - Actions generate complete implementations with proper parameter handling
+  - Action return types correctly map (bool → boolean, int/float → number)
+  - Self references in f-strings convert to 'this' appropriately
+  - Binary and unary expressions generate complete TypeScript code
+  - Call chain expressions no longer show "TODO: call chain node"
+
+### Improved
+- **TypeScript AST Visitor**: Major enhancements to expression handling
+  - Added comprehensive f-string to template literal conversion
+  - Fixed AST field access patterns for latest AST structure
+  - Improved variable initialization throughout code generation
+  - Better handling of FrameEventPart, SystemInstance, and Enumerator nodes
+
 ## [v0.82.1] - 2025-10-13
 
 ### Improved

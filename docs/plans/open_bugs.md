@@ -1,12 +1,12 @@
 # Frame Transpiler Open Bugs
 
-<!-- NEXT BUG NUMBER: #48 -->
+<!-- NEXT BUG NUMBER: #49 -->
 
 **Last Updated:** 2025-10-13  
-**Current Version:** v0.81.5  
+**Current Version:** v0.82.2  
 **Test Status:** 🎉 **100% PASS RATE** (397/397 tests passing)  
 **Active Bugs:** 2  
-**Resolved Bugs:** 47 (See closed_bugs.md for full history)  
+**Resolved Bugs:** 48 (See closed_bugs.md for full history)  
 
 ## Active Bugs
 
@@ -122,9 +122,10 @@ The GraphViz visitor may not be traversing into if/else statement blocks to find
 ## Recently Resolved
 
 See `closed_bugs.md` for complete history of resolved bugs including:
+- Bug #48: TypeScript generation complex expression support (v0.82.2)
 - Bug #46: Python import support (Won't Fix - feature already exists)
 - Bug #40: Interface method source mapping
 - Bug #38: String concatenation with escape sequences
 - Bug #36: Interface method source mappings
 - Bug #35: Source mapping classification
-- And 41 more resolved issues...
+- And 42 more resolved issues...

@@ -4,9 +4,9 @@
 
 use super::*;
 use crate::frame_c::ast::*;
+use crate::frame_c::ast::FrameEventPart;
 use crate::frame_c::code_builder::CodeBuilder;
 use crate::frame_c::scanner::{TokenType};
-use std::collections::VecDeque;
 
 pub struct TypeScriptVisitor {
     pub builder: CodeBuilder,
@@ -133,7 +133,12 @@ impl AstVisitor for TypeScriptVisitor {
                 let var = var_decl.borrow();
                 // Check if variable has an initializer
                 if !matches!(*var.value_rc, ExprType::NilExprT) {
-                    self.builder.writeln(&format!("this.{} = null; // TODO: Initialize", var.name));
+                    let mut init_str = String::new();
+                    self.visit_expr_node_to_string(&var.value_rc, &mut init_str);
+                    self.builder.writeln(&format!("this.{} = {};", var.name, init_str));
+                } else {
+                    // No initializer, set to null
+                    self.builder.writeln(&format!("this.{} = null;", var.name));
                 }
             }
         }
@@ -184,14 +189,22 @@ impl AstVisitor for TypeScriptVisitor {
                     
                     for handler_rcref in &state_node.evt_handlers_rcref {
                         let handler = handler_rcref.borrow();
-                        let message = match &handler.msg_t {
-                            MessageType::CustomMessage { message_node } => message_node.name.clone(),
-                            _ => "unknown".to_string(),
+                        let (message, handler_suffix) = match &handler.msg_t {
+                            MessageType::CustomMessage { message_node } => {
+                                if message_node.name == "$>" {
+                                    ("$>".to_string(), "enter".to_string())
+                                } else if message_node.name == "$<" {
+                                    ("$<".to_string(), "exit".to_string())
+                                } else {
+                                    (message_node.name.clone(), message_node.name.to_lowercase())
+                                }
+                            }
+                            _ => ("unknown".to_string(), "unknown".to_string()),
                         };
                         
                         let handler_name = format!("_handle_{}_{}",
                             state_node.name.trim_start_matches('$').to_lowercase(),
-                            message.to_lowercase());
+                            handler_suffix);
                         
                         self.builder.writeln(&format!("case \"{}\":", message));
                         self.builder.indent();
@@ -290,10 +303,32 @@ impl AstVisitor for TypeScriptVisitor {
     fn visit_interface_method_node(&mut self, method: &InterfaceMethodNode) {
         let method_name = &method.name;
         
-        self.builder.writeln(&format!("public {}(): any {{", method_name));
+        // Build parameter list
+        let mut params = Vec::new();
+        let mut param_names = Vec::new();
+        if let Some(param_nodes) = &method.params {
+            for param in param_nodes {
+                params.push(format!("{}: any", param.param_name));
+                param_names.push(param.param_name.clone());
+            }
+        }
+        let params_str = params.join(", ");
+        
+        // Build parameter object for event
+        let param_obj = if !param_names.is_empty() {
+            format!("{{ {} }}", 
+                param_names.iter()
+                    .map(|name| format!("{}: {}", name, name))
+                    .collect::<Vec<_>>()
+                    .join(", "))
+        } else {
+            "null".to_string()
+        };
+        
+        self.builder.writeln(&format!("public {}({}): any {{", method_name, params_str));
         self.builder.indent();
         self.builder.writeln("this.returnStack.push(null);");
-        self.builder.writeln(&format!("const __e = new FrameEvent(\"{}\", null);", method_name));
+        self.builder.writeln(&format!("const __e = new FrameEvent(\"{}\", {});", method_name, param_obj));
         self.builder.writeln("this._frame_kernel(__e);");
         self.builder.writeln("return this.returnStack.pop();");
         self.builder.dedent();
@@ -333,7 +368,14 @@ impl AstVisitor for TypeScriptVisitor {
                     // Handle variable declaration
                     let var_decl = var_decl_t_rcref.borrow();
                     let var_name = &var_decl.name;
-                    self.builder.writeln(&format!("let {}: any; // TODO: Initialize", var_name));
+                    
+                    if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                        let mut init_str = String::new();
+                        self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                        self.builder.writeln(&format!("let {} = {};", var_name, init_str));
+                    } else {
+                        self.builder.writeln(&format!("let {}: any = null;", var_name));
+                    }
                 }
             }
         }
@@ -356,9 +398,69 @@ impl AstVisitor for TypeScriptVisitor {
     fn visit_action_node(&mut self, action: &ActionNode) {
         let action_name = format!("_action_{}", action.name);
         
-        self.builder.writeln(&format!("private {}(): void {{", action_name));
+        // Build parameter list
+        let mut params = Vec::new();
+        if let Some(param_nodes) = &action.params {
+            for param in param_nodes {
+                params.push(format!("{}: any", param.param_name));
+            }
+        }
+        let params_str = params.join(", ");
+        
+        // Determine return type
+        let return_type = if let Some(type_node) = &action.type_opt {
+            match type_node.type_str.as_str() {
+                "bool" => "boolean",
+                "int" | "float" => "number",
+                "string" => "string",
+                _ => "any",
+            }
+        } else {
+            "void"
+        };
+        
+        self.builder.writeln(&format!("private {}({}): {} {{", action_name, params_str, return_type));
         self.builder.indent();
-        self.builder.writeln("// TODO: Implement action");
+        
+        // Generate action body
+        for stmt_or_decl in &action.statements {
+            match stmt_or_decl {
+                DeclOrStmtType::StmtT { stmt_t } => {
+                    self.visit_stmt_node(stmt_t);
+                }
+                DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                    let var_decl = var_decl_t_rcref.borrow();
+                    if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                        let mut init_str = String::new();
+                        self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                        self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                    } else {
+                        self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                    }
+                }
+            }
+        }
+        
+        // Handle terminator (return statement for actions)
+        match action.terminator_expr.terminator_type {
+            TerminatorType::Return => {
+                if let Some(expr) = &action.terminator_expr.return_expr_t_opt {
+                    let mut expr_str = String::new();
+                    self.visit_expr_node_to_string(expr, &mut expr_str);
+                    self.builder.writeln(&format!("return {};", expr_str));
+                } else if return_type != "void" {
+                    // Need to return something for non-void functions
+                    self.builder.writeln("return null;");
+                }
+            }
+            _ => {
+                if return_type != "void" {
+                    // Need to return something for non-void functions
+                    self.builder.writeln("return null;");
+                }
+            }
+        }
+        
         self.builder.dedent();
         self.builder.writeln("}");
         self.builder.newline();
@@ -429,7 +531,13 @@ impl TypeScriptVisitor {
                                 }
                                 DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                                     let var_decl = var_decl_t_rcref.borrow();
-                                    self.builder.writeln(&format!("let {}: any; // TODO: Initialize", var_decl.name));
+                                    if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                                        let mut init_str = String::new();
+                                        self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                                        self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                    } else {
+                                        self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                                    }
                                 }
                             }
                         }
@@ -513,8 +621,30 @@ impl TypeScriptVisitor {
                             output.push('"');
                         }
                     }
+                    TokenType::FString => {
+                        // Convert Python f-string to TypeScript template literal
+                        // f"Hello {name}" -> `Hello ${name}`
+                        let value = &literal_expr_node.value;
+                        let converted = self.convert_fstring_to_template_literal(value);
+                        output.push_str(&converted);
+                    }
+                    TokenType::RawString => {
+                        // Raw strings are just regular strings in TypeScript
+                        let value = &literal_expr_node.value;
+                        output.push('"');
+                        output.push_str(value);
+                        output.push('"');
+                    }
+                    TokenType::ByteString => {
+                        // Byte strings can be represented as regular strings in TypeScript
+                        let value = &literal_expr_node.value;
+                        output.push('"');
+                        output.push_str(value);
+                        output.push('"');
+                    }
                     TokenType::True => output.push_str("true"),
                     TokenType::False => output.push_str("false"),
+                    TokenType::None_ => output.push_str("null"),
                     _ => output.push_str("/* TODO: literal */"),
                 }
             }
@@ -533,6 +663,58 @@ impl TypeScriptVisitor {
             }
             ExprType::CallChainExprT { call_chain_expr_node } => {
                 self.visit_call_chain_expr_node_to_string(call_chain_expr_node, output);
+            }
+            ExprType::SelfExprT { .. } => {
+                output.push_str("this");
+            }
+            ExprType::NilExprT => {
+                output.push_str("null");
+            }
+            ExprType::ActionCallExprT { action_call_expr_node } => {
+                output.push_str(&format!("this._action_{}(", action_call_expr_node.identifier.name.lexeme));
+                if action_call_expr_node.call_expr_list.exprs_t.len() > 0 {
+                    let mut args_str = String::new();
+                    self.visit_expr_list_node_to_string(&action_call_expr_node.call_expr_list.exprs_t, &mut args_str);
+                    output.push_str(&args_str);
+                }
+                output.push(')');
+            }
+            ExprType::FrameEventExprT { frame_event_part } => {
+                // Frame events in expressions (e.g., ^(event))
+                // For now, just output a basic event
+                match frame_event_part {
+                    FrameEventPart::Event { .. } => {
+                        output.push_str("__e"); // Reference to current event
+                    }
+                    FrameEventPart::Message { .. } => {
+                        output.push_str("__e._message");
+                    }
+                    FrameEventPart::Param { param_symbol_rcref, .. } => {
+                        let param = param_symbol_rcref.borrow();
+                        output.push_str(&format!("__e._parameters.{}", param.name));
+                    }
+                    _ => {
+                        output.push_str("/* TODO: frame event part */");
+                    }
+                }
+            }
+            ExprType::SystemInstanceExprT { system_instance_expr_node } => {
+                output.push_str(&format!("new {}(", system_instance_expr_node.identifier.name.lexeme));
+                // Handle domain args if present
+                if let Some(args) = &system_instance_expr_node.domain_args_opt {
+                    let mut args_str = String::new();
+                    self.visit_expr_list_node_to_string(&args.exprs_t, &mut args_str);
+                    output.push_str(&args_str);
+                }
+                output.push(')');
+            }
+            ExprType::SystemTypeExprT { system_type_expr_node } => {
+                // Reference to a system type (class in TypeScript)
+                output.push_str(&system_type_expr_node.identifier.name.lexeme);
+            }
+            ExprType::EnumeratorExprT { enum_expr_node } => {
+                // Enum values - output as enum_type.enumerator
+                output.push_str(&format!("{}.{}", enum_expr_node.enum_type, enum_expr_node.enumerator));
             }
             _ => {
                 // For now, assume all other unhandled expression types are identifiers that need this.
@@ -617,7 +799,13 @@ impl TypeScriptVisitor {
                 }
                 DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                     let var_decl = var_decl_t_rcref.borrow();
-                    self.builder.writeln(&format!("let {}: any; // TODO: Initialize", var_decl.name));
+                    if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                        let mut init_str = String::new();
+                        self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                        self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                    } else {
+                        self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                    }
                 }
             }
         }
@@ -699,6 +887,9 @@ impl TypeScriptVisitor {
                 CallChainNodeType::UndeclaredCallT { call_node } => {
                     if !is_first {
                         output.push('.');
+                    } else if call_node.identifier.name.lexeme != "print" {
+                        // For first call in chain that's not print, check if it needs 'this.'
+                        // This handles method calls on self
                     }
                     self.visit_call_expr_node_to_string(call_node, output);
                 }
@@ -733,10 +924,42 @@ impl TypeScriptVisitor {
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     // Undeclared identifiers might be variables too - prefix with 'this.' if first
                     if is_first {
-                        output.push_str(&format!("this.{}", id_node.name.lexeme));
+                        // Check if it's 'self' - convert to 'this'
+                        if id_node.name.lexeme == "self" {
+                            output.push_str("this");
+                        } else {
+                            output.push_str(&format!("this.{}", id_node.name.lexeme));
+                        }
                     } else {
                         output.push('.');
                         output.push_str(&id_node.name.lexeme);
+                    }
+                }
+                CallChainNodeType::SelfT { .. } => {
+                    if is_first {
+                        output.push_str("this");
+                    } else {
+                        output.push_str(".this"); // This shouldn't normally happen
+                    }
+                }
+                CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
+                    // Handle literal in call chain (like for f-strings)
+                    match &call_chain_literal_expr_node.token_t {
+                        TokenType::String => {
+                            output.push('"');
+                            output.push_str(&call_chain_literal_expr_node.value);
+                            output.push('"');
+                        }
+                        TokenType::FString => {
+                            let converted = self.convert_fstring_to_template_literal(&call_chain_literal_expr_node.value);
+                            output.push_str(&converted);
+                        }
+                        TokenType::Number => {
+                            output.push_str(&call_chain_literal_expr_node.value);
+                        }
+                        _ => {
+                            output.push_str(&call_chain_literal_expr_node.value);
+                        }
                     }
                 }
                 _ => {
@@ -746,5 +969,80 @@ impl TypeScriptVisitor {
             }
             is_first = false;
         }
+    }
+    
+    // Helper method to convert Python f-strings to TypeScript template literals
+    fn convert_fstring_to_template_literal(&self, fstring: &str) -> String {
+        // f"Hello {name}" -> `Hello ${name}`
+        // The f-string value comes with f"..." format, we need to convert it
+        
+        // Check if it starts with f" or f'
+        let content = if fstring.starts_with("f\"") && fstring.ends_with("\"") {
+            &fstring[2..fstring.len()-1]
+        } else if fstring.starts_with("f'") && fstring.ends_with("'") {
+            &fstring[2..fstring.len()-1]
+        } else {
+            fstring
+        };
+        
+        // Replace {var} with ${var} for TypeScript template literals
+        let mut result = String::from("`");
+        let mut chars = content.chars().peekable();
+        
+        while let Some(ch) = chars.next() {
+            if ch == '{' {
+                // Check if it's an escape ({{)
+                if chars.peek() == Some(&'{') {
+                    chars.next();
+                    result.push('{');
+                } else {
+                    // It's a variable interpolation
+                    result.push_str("${");
+                    // Collect everything until the closing }
+                    while let Some(inner) = chars.next() {
+                        if inner == '}' {
+                            result.push('}');
+                            break;
+                        } else {
+                            // Handle self references in f-strings
+                            if inner == 's' {
+                                // Peek at next characters to check for "elf."
+                                let next_chars: String = chars.clone().take(4).collect();
+                                if next_chars.starts_with("elf.") {
+                                    result.push_str("this");
+                                    // Skip "elf"
+                                    chars.next();
+                                    chars.next();
+                                    chars.next();
+                                } else if next_chars.starts_with("elf") {
+                                    result.push_str("this");
+                                    // Skip "elf"
+                                    chars.next();
+                                    chars.next();
+                                    chars.next();
+                                } else {
+                                    result.push(inner);
+                                }
+                            } else {
+                                result.push(inner);
+                            }
+                        }
+                    }
+                }
+            } else if ch == '}' {
+                // Check if it's an escape (}})
+                if chars.peek() == Some(&'}') {
+                    chars.next();
+                    result.push('}');
+                } else {
+                    result.push(ch);
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+        
+        result.push('`');
+        result
     }
 }
