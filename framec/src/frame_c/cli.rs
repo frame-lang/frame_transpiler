@@ -72,7 +72,11 @@ impl Cli {
                     .value_name("LANG")
                     .long("language")
                     .short('l')
-                    .help("Target language")
+                    .help("Target language (python_3, typescript, graphviz)")
+                    .long_help("Target language for code generation:\n  \
+                               - python_3:   Python 3 with Frame runtime\n  \
+                               - typescript: TypeScript with state machine classes\n  \
+                               - graphviz:   DOT format for state diagrams")
                     .num_args(1),
             )
             .arg(
