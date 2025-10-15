@@ -2,12 +2,28 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.82.1  
-**Test Success Rate**: 100% (397/397 tests passing)  
+**Current Version**: v0.82.5  
+**Test Framework**: Unified multi-language testing (446 total tests)  
+**Python Tests**: 96.4% passing (430/446)  
+**TypeScript Tests**: 80.6% passing (350/432 common tests)  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-10-13
+**Last Updated**: 2025-10-15
 
-## Current Features (v0.82.1) ✅ LATEST
+## Current Features (v0.82.5) ✅ LATEST
+
+### Transition Enter Arguments Fix (NEW in v0.82.5)
+- **Critical Bug Fix**: Resolved transition enter arguments being completely ignored by Python visitor
+- **Restored Parameter Passing**: Frame syntax `-> (42) $State` now correctly passes arguments to target state enter handlers
+- **Services Looper Fixed**: Previously failing regression tests now pass with proper transition parameter passing
+- **Frame Semantics**: Correctly implements transition enter arguments as enter event parameters
+
+### Previous Fix (v0.82.4)
+- **State Variable Literal Fix**: Resolved semantic analysis bug where literal initializers were replaced by parameter names
+- **Improved Test Success**: Python tests improved from 90% to 96.4% (430/446 passing)
+- **Preserved Literal Values**: Fixed `var name = "Joe"` being incorrectly resolved to parameter names
+- **Semantic Scope Fix**: Proper handling of interface parameter vs. state variable literal conflicts
+
+## Previous Features (v0.82.1) ✅
 
 ### CLI Improvements (NEW in v0.82.1)
 - **Enhanced Help Output**: Target languages clearly listed in CLI help
@@ -280,6 +296,35 @@ You can also learn more about programming with automata at Reddit ![re](https://
 ## Frame Community
 
 Connect with me and other Frame enthusists on the Frame **Discord channel** -  [The Art of the State](https://discord.com/invite/CfbU4QCbSD). You can also connect with me directly on [LinkedIn](https://www.linkedin.com/in/marktruluck/).
+
+## Testing
+
+Frame uses a unified testing framework that validates transpilation across all target languages.
+
+### Quick Test
+```bash
+./run_tests.sh --quick  # Run core tests quickly
+```
+
+### Full Test Suite
+```bash
+./run_tests.sh  # Run all tests for Python and TypeScript
+```
+
+### Language-Specific
+```bash
+./run_tests.sh --python      # Python tests only
+./run_tests.sh --typescript  # TypeScript tests only
+```
+
+### Test Categories
+- **Core**: State machines, events, transitions (31 tests)
+- **Control Flow**: Conditionals, loops (48 tests)
+- **Data Types**: Collections, literals (66 tests)
+- **Systems**: System definitions (197 tests)
+- **Total**: 461 tests (432 common, 29 language-specific)
+
+See [framec_tests/README.md](framec_tests/README.md) for detailed testing documentation.
 
 ## Quick Start - Multi-File Module Example
 

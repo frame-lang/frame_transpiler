@@ -240,8 +240,27 @@ impl SymbolType {
             } => {
                 let variable_symbol = state_variable_symbol_rcref.borrow_mut();
                 let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
-                var_decl_node.value_rc = r_value;
-                Ok(())
+                
+                // CRITICAL FIX v0.82: Do not allow assignment to overwrite literal initializers
+                // State variable declarations with literal values should not be semantically resolved
+                // Only allow assignment if the original initializer was NOT a literal
+                match var_decl_node.initializer_value_rc.as_ref() {
+                    ExprType::LiteralExprT { .. } => {
+                        // This is a state variable with a literal initializer (e.g., var name = "Joe")
+                        // Do NOT overwrite it with semantic resolution
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: Preventing assignment to state variable '{}' with literal initializer", 
+                                    variable_symbol.name);
+                        }
+                        Ok(())
+                    },
+                    _ => {
+                        // This is a state variable with a non-literal initializer
+                        // Allow normal assignment/semantic resolution
+                        var_decl_node.value_rc = r_value;
+                        Ok(())
+                    }
+                }
             }
             SymbolType::LoopVar {
                 loop_variable_symbol_rcref,

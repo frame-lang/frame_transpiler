@@ -396,13 +396,39 @@ impl AstVisitor for PythonVisitorV2 {
         }*/
         
         // Add main block if present - check for main function
-        let has_main = frame_module.functions.iter()
-            .any(|f| f.borrow().name == "main");
-        if has_main {
+        if let Some(main_func) = frame_module.functions.iter()
+            .find(|f| f.borrow().name == "main") {
             self.builder.newline();
             self.builder.writeln("if __name__ == '__main__':");
             self.builder.indent();
-            self.builder.writeln("main()");
+            
+            // Check if main function has parameters
+            let main_func_ref = main_func.borrow();
+            if let Some(params) = &main_func_ref.params {
+                if !params.is_empty() {
+                    // Main function has parameters - provide defaults or sys.argv
+                    self.builder.writeln("import sys");
+                    let param_count = params.len();
+                    let args = if param_count == 1 {
+                        "sys.argv[1] if len(sys.argv) > 1 else ''".to_string()
+                    } else if param_count == 2 {
+                        "sys.argv[1] if len(sys.argv) > 1 else '', sys.argv[2] if len(sys.argv) > 2 else ''".to_string()
+                    } else {
+                        // For more parameters, use a general approach
+                        let mut arg_list = Vec::new();
+                        for i in 0..param_count {
+                            arg_list.push(format!("sys.argv[{}] if len(sys.argv) > {} else ''", i + 1, i + 1));
+                        }
+                        arg_list.join(", ")
+                    };
+                    self.builder.writeln(&format!("main({})", args));
+                } else {
+                    self.builder.writeln("main()");
+                }
+            } else {
+                self.builder.writeln("main()");
+            }
+            
             self.builder.dedent();
         }
     }
@@ -1205,20 +1231,40 @@ impl PythonVisitorV2 {
             ImportType::FromImportAll { module } => {
                 format!("from {} import *", module)
             }
-            ImportType::FrameModule { module_name, .. } => {
-                // Frame module imports - just import as Python module
-                format!("import {}", module_name)
+            ImportType::FrameModule { module_name, file_path } => {
+                // Frame module imports - convert to "from module import class" format
+                let py_module = Self::frame_path_to_python_module(file_path);
+                format!("from {} import {}", py_module, module_name)
             }
-            ImportType::FrameModuleAliased { module_name, alias, .. } => {
-                format!("import {} as {}", module_name, alias)
+            ImportType::FrameModuleAliased { module_name, file_path, alias } => {
+                let py_module = Self::frame_path_to_python_module(file_path);
+                format!("from {} import {} as {}", py_module, module_name, alias)
             }
-            ImportType::FrameSelective { .. } => {
-                // For now, ignore Frame selective imports
-                return;
+            ImportType::FrameSelective { items, file_path } => {
+                // Frame selective imports - convert to "from module import item1, item2" format
+                let py_module = Self::frame_path_to_python_module(file_path);
+                let items_str = items.join(", ");
+                format!("from {} import {}", py_module, items_str)
             }
         };
         
         self.imports.push(import_stmt);
+    }
+
+    /// Convert Frame file path to Python module name
+    /// e.g., "./test_multifile_math.frm" -> "test_multifile_math"
+    fn frame_path_to_python_module(file_path: &str) -> String {
+        use std::path::Path;
+        
+        // Remove leading "./" if present
+        let cleaned_path = file_path.trim_start_matches("./");
+        
+        // Extract file stem (filename without extension)
+        Path::new(cleaned_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("module")
+            .to_string()
     }
 }
 
@@ -1414,18 +1460,28 @@ impl PythonVisitorV2 {
     }
     
     fn generate_system_init(&mut self, system_node: &SystemNode) {
-        // Generate __init__ with system parameters
-        let params = if let Some(domain_params) = &system_node.domain_params_opt {
-            let param_names: Vec<String> = domain_params.iter()
-                .map(|p| p.param_name.clone())
-                .collect();
-            if param_names.is_empty() {
-                "self".to_string()
-            } else {
-                format!("self, {}", param_names.join(", "))
-            }
-        } else {
+        // Generate __init__ with system parameters and start state parameters
+        let mut param_names = Vec::new();
+        
+        // Add domain parameters
+        if let Some(domain_params) = &system_node.domain_params_opt {
+            param_names.extend(domain_params.iter().map(|p| p.param_name.clone()));
+        }
+        
+        // Add start state enter parameters (system-level $>(param) syntax)
+        if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+            param_names.extend(enter_params.iter().map(|p| p.param_name.clone()));
+        }
+        
+        // Add start state parameters (system-level $[param] syntax)
+        if let Some(start_params) = &system_node.start_state_state_params_opt {
+            param_names.extend(start_params.iter().map(|p| p.param_name.clone()));
+        }
+        
+        let params = if param_names.is_empty() {
             "self".to_string()
+        } else {
+            format!("self, {}", param_names.join(", "))
         };
         
         // System constructor is generated code - don't map to avoid duplicate with class mapping
@@ -1442,33 +1498,72 @@ impl PythonVisitorV2 {
                 // Build state_vars dictionary for the initial state
                 let mut state_vars_entries = Vec::new();
                 if let Some(vars) = &state.vars_opt {
+                    // Clear any existing context that might interfere with state variable initialization
+                    let saved_locals = self.current_handler_locals.clone();
+                    let saved_params = self.current_handler_params.clone();
+                    self.current_handler_locals.clear();
+                    self.current_handler_params.clear();
+                    
                     for var_rcref in vars {
                         let var = var_rcref.borrow();
                         let var_name = &var.name;
                         
-                        // Get the initializer value
+                        // Get the initializer value in clean context
                         let mut value_str = String::new();
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: Processing state var '{}' initializer", var_name);
+                            eprintln!("DEBUG: Current handler locals: {:?}", self.current_handler_locals);
+                            eprintln!("DEBUG: Current handler params: {:?}", self.current_handler_params);
+                            let type_name = match var.value_rc.as_ref() {
+                                ExprType::LiteralExprT { .. } => "LiteralExprT",
+                                ExprType::VariableExprT { .. } => "VariableExprT", 
+                                ExprType::CallExprT { .. } => "CallExprT",
+                                ExprType::AssignmentExprT { .. } => "AssignmentExprT",
+                                ExprType::CallChainExprT { .. } => "CallChainExprT",
+                                _ => "OtherExprT"
+                            };
+                            eprintln!("DEBUG: AST var.value_rc type: {}", type_name);
+                        }
                         self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: Generated value_str: '{}'", value_str);
+                        }
                         
-                        // TEMPORARY WORKAROUND: If initializer references the variable itself,
-                        // it's likely a parser bug. Use a default value instead.
-                        let initializer_value = if value_str.contains(var_name) {
-                            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                                eprintln!("DEBUG: State var '{}' initializer '{}' references itself - using 0", var_name, value_str);
-                            }
-                            "0".to_string()  // Use 0 as default for numeric operations
-                        } else {
-                            value_str
-                        };
-                        
-                        state_vars_entries.push(format!("'{}': {}", var_name, initializer_value));
+                        state_vars_entries.push(format!("'{}': {}", var_name, value_str));
                     }
+                    
+                    // Restore context
+                    self.current_handler_locals = saved_locals;
+                    self.current_handler_params = saved_params;
                 }
                 
                 let state_vars_dict = if state_vars_entries.is_empty() {
                     "{}".to_string()
                 } else {
                     format!("{{{}}}", state_vars_entries.join(", "))
+                };
+                
+                // Build state_args dictionary for start state parameters
+                let mut state_args_entries = Vec::new();
+                
+                // Add enter parameters (system-level $>(param) syntax)
+                if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+                    for param in enter_params {
+                        state_args_entries.push(format!("'{}': {}", param.param_name, param.param_name));
+                    }
+                }
+                
+                // Add start state parameters (system-level $[param] syntax)  
+                if let Some(start_params) = &system_node.start_state_state_params_opt {
+                    for param in start_params {
+                        state_args_entries.push(format!("'{}': {}", param.param_name, param.param_name));
+                    }
+                }
+                
+                let state_args_dict = if state_args_entries.is_empty() {
+                    "{}".to_string()
+                } else {
+                    format!("{{{}}}", state_args_entries.join(", "))
                 };
                 
                 // Check if initial state has a parent (for HSM support)
@@ -1480,14 +1575,14 @@ impl PythonVisitorV2 {
                         parent_state_name
                     ));
                     self.builder.writeln(&format!(
-                        "self.__compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {{}})",
-                        state_name, state_vars_dict
+                        "self.__compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {})",
+                        state_name, state_vars_dict, state_args_dict
                     ));
                 } else {
                     // No parent - create compartment normally
                     self.builder.writeln(&format!(
-                        "self.__compartment = FrameCompartment('{}', None, None, None, None, {}, {{}})",
-                        state_name, state_vars_dict
+                        "self.__compartment = FrameCompartment('{}', None, None, None, None, {}, {})",
+                        state_name, state_vars_dict, state_args_dict
                     ));
                 }
             } else {
@@ -1540,7 +1635,30 @@ impl PythonVisitorV2 {
                 self.builder.writeln("self.__startup_event = FrameEvent(\"$>\", None)");
             } else {
                 self.builder.write_comment("Send system start event");
-                self.builder.writeln("frame_event = FrameEvent(\"$>\", None)");
+                
+                // Check if system has start state enter parameters
+                let mut start_param_names = Vec::new();
+                
+                // Add enter parameters (system-level $>(param) syntax)
+                if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+                    start_param_names.extend(enter_params.iter().map(|p| p.param_name.clone()));
+                }
+                
+                // Add start state parameters (system-level $[param] syntax)  
+                if let Some(start_params) = &system_node.start_state_state_params_opt {
+                    start_param_names.extend(start_params.iter().map(|p| p.param_name.clone()));
+                }
+                
+                let start_params = if start_param_names.is_empty() {
+                    "None".to_string()
+                } else {
+                    format!("{{{}}}", start_param_names.iter()
+                        .map(|name| format!("\"{}\": {}", name, name))
+                        .collect::<Vec<_>>()
+                        .join(", "))
+                };
+                
+                self.builder.writeln(&format!("frame_event = FrameEvent(\"$>\", {})", start_params));
                 self.builder.writeln("self._frame_kernel(frame_event)");
             }
         }
@@ -2426,6 +2544,17 @@ impl PythonVisitorV2 {
     
     // Expression node to string
     fn visit_expr_node_to_string(&mut self, expr_t: &ExprType, output: &mut String) {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            let type_name = match expr_t {
+                ExprType::LiteralExprT { .. } => "LiteralExprT",
+                ExprType::VariableExprT { .. } => "VariableExprT", 
+                ExprType::CallExprT { .. } => "CallExprT",
+                ExprType::AssignmentExprT { .. } => "AssignmentExprT",
+                ExprType::CallChainExprT { .. } => "CallChainExprT",
+                _ => "OtherExprT"
+            };
+            eprintln!("DEBUG: visit_expr_node_to_string called with type: {} ({:?})", type_name, std::mem::discriminant(expr_t));
+        }
         // Special handling for single identifier expressions that might be state variables
         if let ExprType::CallChainExprT { call_chain_expr_node } = expr_t {
             if call_chain_expr_node.call_chain.len() == 1 {
@@ -3078,15 +3207,16 @@ impl PythonVisitorV2 {
         use crate::frame_c::ast::IdentifierDeclScope;
         
         // Create compartment for target state
-        let (target_state_name, target_state_ref, state_args_opt) = match &node.transition_expr_node.target_state_context_t {
+        let (target_state_name, target_state_ref, state_args_opt, enter_args_opt) = match &node.transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { state_context_node } => {
                 (self.format_state_name(&state_context_node.state_ref_node.name),
                  Some(&state_context_node.state_ref_node.name),
-                 state_context_node.state_ref_args_opt.as_ref())
+                 state_context_node.state_ref_args_opt.as_ref(),
+                 state_context_node.enter_args_opt.as_ref())
             }
             TargetStateContextType::StateStackPop {} => {
                 // Handle state stack pop
-                ("StateStackPop".to_string(), None, None)
+                ("StateStackPop".to_string(), None, None, None)
             }
         };
         
@@ -3110,6 +3240,12 @@ impl PythonVisitorV2 {
                 }
                 
                 if let Some(vars) = &state_node.vars_opt {
+                    // Clear any existing context that might interfere with state variable initialization
+                    let saved_locals = self.current_handler_locals.clone();
+                    let saved_params = self.current_handler_params.clone();
+                    self.current_handler_locals.clear();
+                    self.current_handler_params.clear();
+                    
                     for var_rcref in vars {
                         let var = var_rcref.borrow();
                         let var_name = &var.name;
@@ -3131,7 +3267,15 @@ impl PythonVisitorV2 {
                                 } else {
                                     // Not a state parameter, generate normally
                                     let mut value_str = String::new();
+                                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                                        eprintln!("DEBUG: Transition state var '{}' - not state param", var_name);
+                                        eprintln!("DEBUG: Current handler locals: {:?}", self.current_handler_locals);
+                                        eprintln!("DEBUG: Current handler params: {:?}", self.current_handler_params);
+                                    }
                                     self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                                        eprintln!("DEBUG: Generated transition value_str: '{}'", value_str);
+                                    }
                                     value_str
                                 }
                             }
@@ -3171,20 +3315,16 @@ impl PythonVisitorV2 {
                                 // Complex expression - generate normally
                                 let mut value_str = String::new();
                                 self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
-                                
-                                // TEMPORARY WORKAROUND: If initializer references the variable itself,
-                                // it's likely a parser bug. Use a default value instead.
-                                if value_str.contains(var_name) {
-                                    eprintln!("WARNING: State var '{}' initializer '{}' references itself - using 0", var_name, value_str);
-                                    "0".to_string()  // Use 0 as default for numeric operations
-                                } else {
-                                    value_str
-                                }
+                                value_str
                             }
                         };
                         
                         state_vars_entries.push(format!("'{}': {}", var_name, initializer_value));
                     }
+                    
+                    // Restore context
+                    self.current_handler_locals = saved_locals;
+                    self.current_handler_params = saved_params;
                 }
                 
                 if state_vars_entries.is_empty() {
@@ -3199,25 +3339,74 @@ impl PythonVisitorV2 {
             "{}".to_string()
         };
         
-        // Build state_args dictionary from transition parameters
-        let state_args_dict = if let (Some(state_args), Some(state_name)) = (state_args_opt, target_state_ref) {
-            // Find the state node to get parameter names
-            if let Some(state_node_rcref) = self.get_state_node(state_name) {
-                let state_node = state_node_rcref.borrow();
-                if let Some(params) = &state_node.params_opt {
-                    let mut args_entries = Vec::new();
-                    for (i, expr) in state_args.exprs_t.iter().enumerate() {
-                        if let Some(param) = params.get(i) {
-                            let mut value_str = String::new();
-                            self.visit_expr_node_to_string(expr, &mut value_str);
-                            args_entries.push(format!("'{}': {}", param.param_name, value_str));
+        // Build state_args dictionary (for state reference arguments)
+        let state_args_dict = if let Some(state_args) = state_args_opt {
+            if !state_args.exprs_t.is_empty() {
+                let mut state_args_entries = Vec::new();
+                
+                // Build parameter map from state reference arguments
+                for (i, arg_expr) in state_args.exprs_t.iter().enumerate() {
+                    let mut arg_value = String::new();
+                    self.visit_expr_node_to_string(arg_expr, &mut arg_value);
+                    state_args_entries.push(format!("'arg_{}': {}", i, arg_value));
+                }
+                
+                if !state_args_entries.is_empty() {
+                    format!("{{{}}}", state_args_entries.join(", "))
+                } else {
+                    "{}".to_string()
+                }
+            } else {
+                "{}".to_string()
+            }
+        } else {
+            "{}".to_string()
+        };
+        
+        // Build enter_args dictionary from transition enter arguments
+        let enter_args_dict = if let Some(enter_args) = enter_args_opt {
+            if !enter_args.exprs_t.is_empty() {
+                // Get enter handler parameter names from target state
+                let mut enter_param_names: Vec<String> = Vec::new();
+                if let Some(target_state_name_str) = target_state_ref {
+                    if let Some(target_state_node_rcref) = self.get_state_node(target_state_name_str) {
+                        let target_state_node = target_state_node_rcref.borrow();
+                        
+                        // Look for the enter handler ($>) and get its parameter names
+                        for handler_rcref in &target_state_node.evt_handlers_rcref {
+                            let handler = handler_rcref.borrow();
+                            if let MessageType::CustomMessage { message_node } = &handler.msg_t {
+                                if message_node.name == "$>" {
+                                    // Found the enter handler, get its parameter names
+                                    let event_symbol = handler.event_symbol_rcref.borrow();
+                                    if let Some(params) = &event_symbol.event_symbol_params_opt {
+                                        for param in params {
+                                            enter_param_names.push(param.name.clone());
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
                         }
                     }
-                    if args_entries.is_empty() {
-                        "{}".to_string()
+                }
+                
+                // Build parameter map from enter args to enter handler parameters
+                let mut enter_args_entries = Vec::new();
+                for (i, arg_expr) in enter_args.exprs_t.iter().enumerate() {
+                    let param_name = if i < enter_param_names.len() {
+                        enter_param_names[i].clone()
                     } else {
-                        format!("{{{}}}", args_entries.join(", "))
-                    }
+                        format!("arg_{}", i) // fallback name if not enough parameters
+                    };
+                    
+                    let mut arg_value = String::new();
+                    self.visit_expr_node_to_string(arg_expr, &mut arg_value);
+                    enter_args_entries.push(format!("'{}': {}", param_name, arg_value));
+                }
+                
+                if !enter_args_entries.is_empty() {
+                    format!("{{{}}}", enter_args_entries.join(", "))
                 } else {
                     "{}".to_string()
                 }
@@ -3253,14 +3442,14 @@ impl PythonVisitorV2 {
                 parent_state_name
             ));
             self.builder.writeln_mapped(&format!(
-                "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {})",
-                target_state_name, state_vars_dict, state_args_dict
+                "next_compartment = FrameCompartment('{}', None, None, {}, parent_compartment, {}, {})",
+                target_state_name, enter_args_dict, state_vars_dict, state_args_dict
             ), node.line);
         } else {
             // No parent - create compartment normally
             self.builder.writeln_mapped(&format!(
-                "next_compartment = FrameCompartment('{}', None, None, None, None, {}, {})",
-                target_state_name, state_vars_dict, state_args_dict
+                "next_compartment = FrameCompartment('{}', None, None, {}, None, {}, {})",
+                target_state_name, enter_args_dict, state_vars_dict, state_args_dict
             ), node.line);
         }
         self.builder.writeln_mapped("self._frame_transition(next_compartment)", node.line);

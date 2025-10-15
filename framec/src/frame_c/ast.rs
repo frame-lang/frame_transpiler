@@ -1067,7 +1067,7 @@ pub struct VariableDeclNode {
     pub name: String,
     pub type_opt: Option<TypeNode>,
     pub is_constant: bool,
-    initializer_value_rc: Rc<ExprType>,
+    pub initializer_value_rc: Rc<ExprType>,
     pub value_rc: Rc<ExprType>,
     pub identifier_decl_scope: IdentifierDeclScope,
 }
