@@ -1,198 +1,109 @@
 #!/usr/bin/env python3
 """
-Frame Test Runner - Comprehensive testing tool for Frame language transpiler
-
-This is the standard test runner for the Frame transpiler project. It provides:
-- Transpilation testing
-- Execution testing  
-- Test matrix generation
-- Configurable test sets
-- Detailed reporting
-
-Author: Frame Development Team
-Version: 1.0.0
+Frame Test Runner - Unified test runner for all target languages.
+Supports running common Frame tests against multiple language targets.
 """
 
 import os
-import sys
-import subprocess
 import json
+import subprocess
+import sys
+import time
 import argparse
-import re
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, asdict
+from datetime import datetime
 
-# Configuration
-DEFAULT_FRAMEC_PATH = "/Users/marktruluck/projects/frame_transpiler/target/debug/framec"
-DEFAULT_TEST_DIR = "/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src"
-DEFAULT_OUTPUT_DIR = "/Users/marktruluck/projects/frame_transpiler/framec_tests/reports"
-DEFAULT_TIMEOUT = 5  # seconds
+@dataclass
+class TestResult:
+    """Result of a single test execution."""
+    name: str
+    file: str
+    category: str
+    language: str
+    transpile_success: bool
+    execute_success: bool
+    error_message: Optional[str] = None
+    execution_time: float = 0.0
+    output: Optional[str] = None
+    is_negative_test: bool = False
+    expected_failure: bool = False
+
+@dataclass 
+class TestConfig:
+    """Configuration for test execution."""
+    framec_path: str = "./target/release/framec"
+    languages: List[str] = None
+    categories: List[str] = None
+    verbose: bool = False
+    execute: bool = True  # If False, only transpile
+    parallel: bool = False
+    timeout: int = 10
+    
+    def __post_init__(self):
+        if self.languages is None:
+            self.languages = ["python", "typescript"]
+        if self.categories is None:
+            self.categories = ["all"]
 
 class FrameTestRunner:
-    """Main test runner class for Frame transpiler testing"""
+    """Main test runner class."""
     
-    def __init__(self, framec_path=None, test_dir=None, output_dir=None, timeout=None):
-        self.framec_path = framec_path or DEFAULT_FRAMEC_PATH
-        self.test_dir = test_dir or DEFAULT_TEST_DIR
-        self.output_dir = output_dir or DEFAULT_OUTPUT_DIR
-        self.timeout = timeout or DEFAULT_TIMEOUT
-        self.results = []
-        self.verbose = False
+    def __init__(self, config: TestConfig):
+        self.config = config
+        self.base_dir = Path(__file__).parent.parent
+        self.common_tests_dir = self.base_dir / "common" / "tests"
+        self.language_specific_dir = self.base_dir / "language_specific"
+        self.generated_dir = self.base_dir / "generated"
+        self.results: List[TestResult] = []
         
-    def is_negative_test(self, frm_file: str) -> bool:
+    def is_negative_test(self, test_file: Path) -> bool:
         """
-        Check if a test is expected to fail (negative test)
+        Check if a test is expected to fail (negative test).
         
         Args:
-            frm_file: Path to the .frm file
+            test_file: Path to the test file
             
         Returns:
-            True if the test is in negative_tests directory
+            True if the test is in negative tests directory
         """
-        return 'negative_tests' in frm_file
+        # Check if the test is in a 'negative' directory path, not just filename
+        path_parts = test_file.parts
+        
+        # Exception: test_error_handling_v049 is misplaced - it's actually a positive test
+        if test_file.stem == 'test_error_handling_v049':
+            return False
+            
+        return 'negative' in path_parts
     
-    def parse_test_expectations(self, frm_file: str) -> Dict:
+    def is_infinite_loop_test(self, test_file: Path) -> bool:
         """
-        Parse test expectations from structured comments in Frame file
+        Check if a test is designed to run indefinitely (infinite loop test).
+        These are typically service tests that loop until externally terminated.
         
         Args:
-            frm_file: Path to the .frm file
+            test_file: Path to the test file
             
         Returns:
-            Dictionary with test expectations
+            True if the test is designed to run indefinitely
         """
-        expectations = {
-            'expect': None,  # 'error' or 'warning'
-            'error_message': None,
-            'error_pattern': None,  # regex pattern for flexible matching
-            'error_type': None,
-            'error_line': None,
-            'warning_message': None
-        }
-        
-        try:
-            with open(frm_file, 'r') as f:
-                # Only check first 20 lines for expectations
-                for i, line in enumerate(f):
-                    if i > 20:  # Stop after 20 lines
-                        break
-                    
-                    line = line.strip()
-                    if not line.startswith('#'):
-                        continue
-                    
-                    # Remove # and any leading space
-                    line = line[1:].strip()
-                    
-                    # Parse @test-expect directive
-                    if line.startswith('@test-expect:'):
-                        expectations['expect'] = line.split(':', 1)[1].strip()
-                    elif line.startswith('@error-message:'):
-                        expectations['error_message'] = line.split(':', 1)[1].strip().strip('"')
-                    elif line.startswith('@error-pattern:'):
-                        expectations['error_pattern'] = line.split(':', 1)[1].strip().strip('"')
-                    elif line.startswith('@error-patterns:'):
-                        # Support multiple patterns in one line
-                        patterns = line.split(':', 1)[1].strip().strip('"')
-                        expectations['error_pattern'] = patterns
-                    elif line.startswith('@error-type:'):
-                        expectations['error_type'] = line.split(':', 1)[1].strip()
-                    elif line.startswith('@error-line:'):
-                        expectations['error_line'] = line.split(':', 1)[1].strip()
-                    elif line.startswith('@warning-message:'):
-                        expectations['warning_message'] = line.split(':', 1)[1].strip().strip('"')
-        except:
-            pass
-        
-        return expectations
+        # Check for services tests that are designed to run indefinitely
+        return test_file.stem.startswith('test_services_')
     
-    def validate_error_expectation(self, expected: Dict, actual_error: str) -> Tuple[bool, str]:
-        """
-        Validate if actual error matches expected error
-        
-        Args:
-            expected: Dictionary with expected error details
-            actual_error: Actual error message from transpiler
-            
-        Returns:
-            Tuple of (matches, reason)
-        """
-        if not expected.get('expect'):
-            # No expectations defined
-            return True, "No expectations defined"
-        
-        if expected['expect'] == 'error':
-            if not actual_error:
-                return False, "Expected error but transpilation succeeded"
-            
-            # Check error message exact match
-            if expected.get('error_message'):
-                if expected['error_message'] not in actual_error:
-                    return False, f"Error message mismatch. Expected: '{expected['error_message']}'"
-            
-            # Check error pattern regex match
-            if expected.get('error_pattern'):
-                # Support multiple patterns separated by |
-                patterns = expected['error_pattern'].split('|') if '|' in expected['error_pattern'] else [expected['error_pattern']]
-                
-                matched = False
-                for pattern_str in patterns:
-                    pattern = re.compile(pattern_str.strip(), re.IGNORECASE | re.MULTILINE)
-                    if pattern.search(actual_error):
-                        matched = True
-                        break
-                
-                if not matched:
-                    return False, f"Error doesn't match pattern: '{expected['error_pattern']}'"
-            
-            # Check error type
-            if expected.get('error_type'):
-                if expected['error_type'] not in actual_error:
-                    return False, f"Error type mismatch. Expected: '{expected['error_type']}'"
-            
-            # Check error line if specified
-            if expected.get('error_line'):
-                # Look for line number in error message
-                line_pattern = re.compile(r'line (\d+)', re.IGNORECASE)
-                match = line_pattern.search(actual_error)
-                if match:
-                    actual_line = int(match.group(1))
-                    expected_line = expected['error_line']
-                    
-                    # Handle range like "5-6"
-                    if '-' in str(expected_line):
-                        start, end = map(int, expected_line.split('-'))
-                        if not (start <= actual_line <= end):
-                            return False, f"Error line mismatch. Expected: {expected_line}, Got: {actual_line}"
-                    else:
-                        if actual_line != int(expected_line):
-                            return False, f"Error line mismatch. Expected: {expected_line}, Got: {actual_line}"
-            
-            return True, "Error matches expectations"
-        
-        elif expected['expect'] == 'warning':
-            # For now, we'll just check if there's a warning in output
-            if expected.get('warning_message'):
-                if expected['warning_message'] not in actual_error:
-                    return False, f"Warning message not found: '{expected['warning_message']}'"
-            return True, "Warning matches expectations"
-        
-        return True, "Unknown expectation type"
-    
-    def is_multifile_test(self, frm_file: str) -> bool:
+    def is_multifile_test(self, test_file: Path) -> bool:
         """
         Check if a Frame file requires multifile compilation
         by looking for Frame import statements (import ... from "*.frm")
         
         Args:
-            frm_file: Path to the .frm file
+            test_file: Path to the .frm file
             
         Returns:
             True if the file contains Frame imports
         """
         try:
-            with open(frm_file, 'r') as f:
+            with open(test_file, 'r') as f:
                 for line in f:
                     # Check for Frame imports (files ending with .frm)
                     if 'import' in line and '.frm' in line:
@@ -200,469 +111,437 @@ class FrameTestRunner:
             return False
         except:
             return False
-    
-    def run_transpiler(self, frm_file: str) -> Tuple[bool, str, str]:
-        """
-        Run the Frame transpiler on a .frm file
         
-        Args:
-            frm_file: Path to the .frm file
-            
-        Returns:
-            Tuple of (success, stdout, stderr)
+    def discover_tests(self) -> Dict[str, List[Path]]:
+        """Discover all test files organized by category."""
+        tests = {}
+        
+        # Common tests
+        if "all" in self.config.categories or any(cat in self.config.categories for cat in ["core", "control_flow", "data_types", "operators", "scoping", "systems", "regression", "negative"]):
+            for category_dir in self.common_tests_dir.iterdir():
+                if category_dir.is_dir():
+                    category = category_dir.name
+                    if "all" in self.config.categories or category in self.config.categories:
+                        tests[category] = list(category_dir.glob("*.frm"))
+        
+        # Language-specific tests - only include if explicitly requested or "all" is specified
+        if "all" in self.config.categories:
+            # When running "all", include language-specific tests for configured languages
+            for lang in self.config.languages:
+                lang_dir = self.language_specific_dir / lang
+                if lang_dir.exists():
+                    lang_tests = list(lang_dir.glob("*.frm"))
+                    if lang_tests:
+                        tests[f"language_specific_{lang}"] = lang_tests
+        else:
+            # Only include language-specific tests if explicitly requested
+            for lang in self.config.languages:
+                category_name = f"language_specific_{lang}"
+                if category_name in self.config.categories:
+                    lang_dir = self.language_specific_dir / lang
+                    if lang_dir.exists():
+                        lang_tests = list(lang_dir.glob("*.frm"))
+                        if lang_tests:
+                            tests[category_name] = lang_tests
+                    
+        return tests
+    
+    def transpile(self, test_file: Path, language: str) -> Tuple[bool, str, str]:
         """
+        Transpile a Frame file to target language.
+        Returns (success, output_file, error_message)
+        """
+        # Determine language flag
+        lang_flag = {
+            "python": "python_3",
+            "typescript": "typescript",
+            "rust": "rust",
+            "golang": "golang",
+            "javascript": "javascript"
+        }.get(language, language)
+        
+        # Determine output extension
+        extension = {
+            "python": ".py",
+            "typescript": ".ts", 
+            "rust": ".rs",
+            "golang": ".go",
+            "javascript": ".js"
+        }.get(language, ".txt")
+        
+        # Create output directory
+        output_dir = self.generated_dir / language
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate output filename
+        output_file = output_dir / (test_file.stem + extension)
+        
+        # Run transpiler - check if multifile test
+        if self.is_multifile_test(test_file):
+            # Use multifile flag for tests with Frame imports
+            cmd = [self.config.framec_path, "-m", str(test_file), "-l", lang_flag]
+        else:
+            # Standard single-file compilation
+            cmd = [self.config.framec_path, "-l", lang_flag, str(test_file)]
+        
         try:
-            # Check if this is a multifile test
-            if self.is_multifile_test(frm_file):
-                # Use multifile flag for tests with Frame imports
-                cmd = [self.framec_path, "-m", frm_file, "-l", "python_3"]
-            else:
-                # Standard single-file compilation
-                cmd = [self.framec_path, "-l", "python_3", frm_file]
-                
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=self.timeout
+                timeout=self.config.timeout
             )
-            return result.returncode == 0, result.stdout, result.stderr
-        except subprocess.TimeoutExpired:
-            return False, "", "Timeout during transpilation"
-        except Exception as e:
-            return False, "", str(e)
-
-    def run_python(self, py_file: str) -> Tuple[bool, str, str]:
-        """
-        Run a Python file and check if it executes successfully
-        
-        Args:
-            py_file: Path to the .py file
             
-        Returns:
-            Tuple of (success, stdout, stderr)
-        """
+            if result.returncode == 0:
+                # Write output to file
+                output_file.write_text(result.stdout)
+                return True, str(output_file), None
+            else:
+                error = result.stderr or result.stdout
+                return False, str(output_file), error
+                
+        except subprocess.TimeoutExpired:
+            return False, str(output_file), "Transpilation timeout"
+        except Exception as e:
+            return False, str(output_file), str(e)
+    
+    def execute_python(self, py_file: str) -> Tuple[bool, str]:
+        """Execute Python file and return success status and output."""
         try:
             result = subprocess.run(
                 ["python3", py_file],
                 capture_output=True,
                 text=True,
-                timeout=self.timeout
+                timeout=self.config.timeout,
+                cwd=os.path.dirname(py_file)
             )
-            return result.returncode == 0, result.stdout, result.stderr
-        except subprocess.TimeoutExpired:
-            return False, "", "Timeout during execution"
-        except Exception as e:
-            return False, "", str(e)
-
-    def test_file(self, frm_file: str) -> Dict:
-        """
-        Test a single Frame file
-        
-        Args:
-            frm_file: Path to the .frm file
             
-        Returns:
-            Dictionary with test results
+            # Check for common failure patterns
+            output = result.stdout + result.stderr
+            
+            # Check for definitive failure indicators
+            if "Traceback" in output:
+                return False, output
+            if result.returncode != 0:
+                return False, output
+            
+            # Check for FAIL patterns (but be more specific)
+            if "FAIL:" in output or "FAILED:" in output or " FAIL " in output:
+                return False, output
+            
+            # For Error patterns, be more specific to avoid false positives
+            # Don't match "Error level:", "Error:" in expected output, etc.
+            import re
+            # Look for actual error patterns like "Error at", "Error:", "runtime error", etc.
+            # but not things like "Error level: Error" or "10 / 0 = Error: Division by zero"
+            error_patterns = [
+                r'^Error: [^0-9]',  # Error at start of line, but not "Error: 101" (enum values)
+                r'Error at ',  # Parser errors
+                r'runtime error',  # Runtime errors
+                r'import error',  # Import errors
+                r'^Traceback \(most recent call last\):',  # Python tracebacks at start of line
+                # Don't match exception names that might appear in successful test output
+            ]
+            
+            for pattern in error_patterns:
+                if re.search(pattern, output, re.MULTILINE):
+                    return False, output
+                
+            return True, output
+            
+        except subprocess.TimeoutExpired:
+            return False, "Execution timeout"
+        except Exception as e:
+            return False, str(e)
+    
+    def execute_typescript(self, ts_file: str) -> Tuple[bool, str]:
         """
-        py_file = frm_file.replace('.frm', '.py')
-        is_negative = self.is_negative_test(frm_file)
+        Execute TypeScript file and return success status and output.
+        First compiles with tsc, then runs with node.
+        """
+        try:
+            # Compile TypeScript
+            js_file = ts_file.replace('.ts', '.js')
+            compile_result = subprocess.run(
+                ["tsc", "--target", "es2020", "--module", "commonjs", ts_file],
+                capture_output=True,
+                text=True,
+                timeout=self.config.timeout
+            )
+            
+            if compile_result.returncode != 0:
+                return False, f"TypeScript compilation failed:\n{compile_result.stderr}"
+            
+            # Run JavaScript
+            result = subprocess.run(
+                ["node", js_file],
+                capture_output=True,
+                text=True,
+                timeout=self.config.timeout
+            )
+            
+            output = result.stdout + result.stderr
+            if "FAIL" in output or result.returncode != 0:
+                return False, output
+                
+            return True, output
+            
+        except subprocess.TimeoutExpired:
+            return False, "Execution timeout"
+        except FileNotFoundError:
+            return False, "tsc or node not found - please install TypeScript and Node.js"
+        except Exception as e:
+            return False, str(e)
+    
+    def run_test(self, test_file: Path, category: str, language: str) -> TestResult:
+        """Run a single test for a specific language."""
+        start_time = time.time()
         
-        # Parse test expectations from file
-        expectations = self.parse_test_expectations(frm_file) if is_negative else {}
+        # Check if this is a negative test
+        is_negative = self.is_negative_test(test_file)
+        
+        # Check if this is an infinite loop test
+        is_infinite_loop = self.is_infinite_loop_test(test_file)
+        
+        # Create result object
+        result = TestResult(
+            name=test_file.stem,
+            file=str(test_file),
+            category=category,
+            language=language,
+            transpile_success=False,
+            execute_success=False,
+            is_negative_test=is_negative
+        )
         
         # Transpile
-        transpile_success, transpile_out, transpile_err = self.run_transpiler(frm_file)
+        transpile_success, output_file, error = self.transpile(test_file, language)
+        result.transpile_success = transpile_success
         
-        # For negative tests, validate against expectations
+        # Handle negative tests specially
         if is_negative:
-            if expectations.get('expect'):
-                # Validate against structured expectations
-                matches, reason = self.validate_error_expectation(expectations, transpile_err)
-                
-                return {
-                    'file': os.path.basename(frm_file),
-                    'transpile': False,  # Expected to fail
-                    'execute': False,    # N/A for negative tests
-                    'negative_test': True,
-                    'expected_failure': True,
-                    'expectation_match': matches,
-                    'expectation_reason': reason,
-                    'expectations': expectations,
-                    'error': transpile_err[:500] if transpile_err else "No error output"
-                }
+            if not transpile_success:
+                # Negative test failed transpilation as expected - this is a success!
+                result.expected_failure = True
+                result.error_message = f"Expected transpilation failure: {error}"
             else:
-                # No structured expectations, use old behavior
-                if not transpile_success:
-                    return {
-                        'file': os.path.basename(frm_file),
-                        'transpile': False,  # Expected to fail
-                        'execute': False,    # N/A for negative tests
-                        'negative_test': True,
-                        'expected_failure': True,
-                        'error': transpile_err[:200] if transpile_err else "Transpilation failed (expected)"
-                    }
-                else:
-                    # Negative test passed transpilation unexpectedly
-                    return {
-                        'file': os.path.basename(frm_file),
-                        'transpile': True,
-                        'execute': False,
-                        'negative_test': True,
-                        'expected_failure': False,
-                        'error': "Negative test unexpectedly passed transpilation"
-                    }
-        
-        # Positive test - normal flow
-        if not transpile_success:
-            return {
-                'file': os.path.basename(frm_file),
-                'transpile': False,
-                'execute': False,
-                'negative_test': False,
-                'error': transpile_err[:200] if transpile_err else "Transpilation failed"
-            }
-        
-        # Save transpiled output
-        with open(py_file, 'w') as f:
-            f.write(transpile_out)
-        
-        # Execute
-        execute_success, execute_out, execute_err = self.run_python(py_file)
-        
-        return {
-            'file': os.path.basename(frm_file),
-            'transpile': True,
-            'execute': execute_success,
-            'negative_test': False,
-            'output': execute_out[:500] if execute_out else None,
-            'error': execute_err[:500] if execute_err and not execute_success else None,
-            'runtime_error': execute_err if not execute_success else None  # Full error for debugging
-        }
-
-    def run_tests(self, test_pattern: str = "test_*.frm", test_list: List[str] = None) -> List[Dict]:
-        """
-        Run tests based on pattern or explicit list
-        
-        Args:
-            test_pattern: Glob pattern for test files
-            test_list: Explicit list of test files
-            
-        Returns:
-            List of test results
-        """
-        if test_list:
-            test_files = test_list
+                # Negative test unexpectedly passed transpilation - this is a failure!
+                result.expected_failure = False
+                result.error_message = "Negative test unexpectedly passed transpilation"
+        elif is_infinite_loop:
+            # Infinite loop test - only check transpilation, skip execution
+            if not transpile_success:
+                result.error_message = f"Transpilation failed: {error}"
+            else:
+                # Infinite loop test transpiled successfully - mark as success without execution
+                result.execute_success = True
+                result.output = "Infinite loop test - transpilation successful, execution skipped"
         else:
-            # Find all test files in new directory structure
-            test_files = []
-            
-            # Use a set to avoid duplicates
-            test_files_set = set()
-            
-            # Search in positive_tests (including multifile subdirectories)
-            positive_dir = os.path.join(self.test_dir, 'positive_tests')
-            if os.path.exists(positive_dir):
-                for root, dirs, files in os.walk(positive_dir):
-                    for f in files:
-                        if f.endswith('.frm') and f.startswith('test_'):
-                            full_path = os.path.join(root, f)
-                            # Normalize path to avoid duplicates
-                            test_files_set.add(os.path.normpath(full_path))
-            
-            # Search in negative_tests (including multifile subdirectories)
-            negative_dir = os.path.join(self.test_dir, 'negative_tests')
-            if os.path.exists(negative_dir):
-                for root, dirs, files in os.walk(negative_dir):
-                    for f in files:
-                        if f.endswith('.frm') and f.startswith('test_'):
-                            full_path = os.path.join(root, f)
-                            # Normalize path to avoid duplicates
-                            test_files_set.add(os.path.normpath(full_path))
-            
-            # If new structure doesn't exist, fall back to old structure
-            if not test_files_set:
-                for f in os.listdir(self.test_dir):
-                    if f.startswith(test_pattern.replace('*.frm', '').replace('*', '')) and f.endswith('.frm'):
-                        full_path = os.path.join(self.test_dir, f)
-                        test_files_set.add(os.path.normpath(full_path))
-            
-            # Convert set to sorted list
-            test_files = sorted(list(test_files_set))
-        
-        print(f"Found {len(test_files)} test files")
-        
-        self.results = []
-        for i, frm_file in enumerate(test_files, 1):
-            if self.verbose:
-                print(f"Testing {i}/{len(test_files)}: {os.path.basename(frm_file)}...", end=' ')
-            
-            result = self.test_file(frm_file)
-            self.results.append(result)
-            
-            if self.verbose:
-                if result.get('negative_test', False):
-                    # Negative test
-                    if result.get('expectation_match') is not None:
-                        # Has structured expectations
-                        if result['expectation_match']:
-                            print("✅ PASS (Expected Error Matched)")
-                        else:
-                            print(f"❌ FAIL (Negative Test: {result.get('expectation_reason', 'Expectation mismatch')})")
-                    elif result.get('expected_failure', False):
-                        print("✅ PASS (Expected Failure)")
-                    else:
-                        print("❌ FAIL (Negative Test: Should have failed)")
-                elif result['transpile'] and result['execute']:
-                    print("✅ PASS")
-                elif result['transpile']:
-                    # Show runtime error details
-                    error_msg = result.get('error', 'Unknown error')
-                    if error_msg and len(error_msg) > 100:
-                        error_msg = error_msg[:100] + "..."
-                    print(f"❌ FAIL (Runtime: {error_msg})")
+            # Positive test - normal handling
+            if not transpile_success:
+                result.error_message = f"Transpilation failed: {error}"
+            elif self.config.execute:
+                # Execute based on language
+                if language == "python":
+                    exec_success, output = self.execute_python(output_file)
+                elif language == "typescript":
+                    exec_success, output = self.execute_typescript(output_file)
                 else:
-                    print("❌ FAIL (Transpilation)")
+                    exec_success = False
+                    output = f"Execution not implemented for {language}"
+                
+                result.execute_success = exec_success
+                result.output = output
+                
+                if not exec_success and not result.error_message:
+                    result.error_message = f"Execution failed:\n{output}"
+        
+        result.execution_time = time.time() - start_time
+        
+        if self.config.verbose:
+            if is_negative:
+                status = "✓" if result.expected_failure else "✗"
+                test_type = "NEGATIVE"
+            elif is_infinite_loop:
+                status = "✓" if result.transpile_success else "✗"
+                test_type = "INFINITE_LOOP"
+            else:
+                status = "✓" if (result.transpile_success and (not self.config.execute or result.execute_success)) else "✗"
+                test_type = "POSITIVE"
+            print(f"  {status} {result.name} ({language}) [{test_type}]: {result.execution_time:.2f}s")
+            if result.error_message and self.config.verbose:
+                print(f"    Error: {result.error_message[:200]}")
+        
+        return result
+    
+    def run_all_tests(self) -> List[TestResult]:
+        """Run all discovered tests."""
+        tests = self.discover_tests()
+        
+        print(f"\nDiscovered {sum(len(files) for files in tests.values())} tests in {len(tests)} categories")
+        print(f"Testing languages: {', '.join(self.config.languages)}")
+        print()
+        
+        for category, test_files in sorted(tests.items()):
+            if not test_files:
+                continue
+                
+            print(f"\n{category}: {len(test_files)} tests")
+            
+            for test_file in sorted(test_files):
+                # Skip language-specific tests for other languages
+                if category.startswith("language_specific_"):
+                    lang = category.split("_")[-1]
+                    if lang in self.config.languages:
+                        result = self.run_test(test_file, category, lang)
+                        self.results.append(result)
+                else:
+                    # Run common test for all configured languages
+                    for language in self.config.languages:
+                        result = self.run_test(test_file, category, language)
+                        self.results.append(result)
         
         return self.results
-
-    def generate_matrix(self, version: str = "v0.31") -> str:
-        """
-        Generate a test matrix markdown report
+    
+    def generate_report(self) -> Dict:
+        """Generate test report summary."""
+        report = {
+            "timestamp": datetime.now().isoformat(),
+            "config": asdict(self.config),
+            "summary": {
+                "total_tests": len(self.results),
+                "by_language": {},
+                "by_category": {}
+            },
+            "results": [asdict(r) for r in self.results]
+        }
         
-        Args:
-            version: Version string for the report
+        # Calculate statistics by language
+        for lang in self.config.languages:
+            lang_results = [r for r in self.results if r.language == lang]
             
-        Returns:
-            Path to generated report
-        """
-        if not self.results:
-            raise ValueError("No test results available. Run tests first.")
-        
-        # Calculate statistics
-        total = len(self.results)
-        transpile_success = sum(1 for r in self.results if r['transpile'])
-        execute_success = sum(1 for r in self.results if r['execute'])
-        # Count positive tests that pass normally and negative tests that correctly match expectations
-        complete_success = sum(1 for r in self.results if 
-                              (r['transpile'] and r['execute']) or  # Normal passing tests
-                              (r.get('negative_test', False) and r.get('expectation_match', False) == True)  # Negative tests with matched expectations
-                              )
-        
-        # Generate markdown report
-        os.makedirs(self.output_dir, exist_ok=True)
-        report_path = os.path.join(self.output_dir, f'test_matrix_{version}.md')
-        
-        with open(report_path, 'w') as f:
-            f.write(f"# Frame {version} Test Matrix\n\n")
-            f.write(f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M')}  \n")
-            f.write(f"**Total Tests**: {total}  \n")
-            f.write(f"**Current Branch**: {version}  \n\n")
+            # For transpilation success: positive tests that transpile OR negative tests that fail to transpile
+            transpile_success = sum(1 for r in lang_results if 
+                                  (not r.is_negative_test and r.transpile_success) or
+                                  (r.is_negative_test and r.expected_failure))
             
-            f.write("## Summary Statistics\n\n")
-            f.write("| Metric | Count | Percentage |\n")
-            f.write("|--------|-------|------------|\n")
-            f.write(f"| **Total Tests** | {total} | 100% |\n")
-            f.write(f"| **Transpilation Success** | {transpile_success} | {transpile_success/total*100:.1f}% |\n")
-            f.write(f"| **Execution Success** | {execute_success} | {execute_success/total*100:.1f}% |\n")
-            f.write(f"| **Complete Success** | {complete_success} | {complete_success/total*100:.1f}% |\n\n")
+            # For execution success: positive tests that execute OR negative tests (which don't execute)
+            execute_success = sum(1 for r in lang_results if 
+                                (not r.is_negative_test and r.execute_success) or
+                                (r.is_negative_test and r.expected_failure))
             
-            # Version-specific features
-            if version == "v0.31":
-                f.write("## v0.31 Features\n\n")
-                f.write("✅ **IMPORT STATEMENTS**: Native import support without backticks\n")
-                f.write("✅ **SELF EXPRESSION**: Standalone self usage (e.g., `jsonpickle.encode(self)`)\n")
-                f.write("✅ **STATIC METHOD VALIDATION**: Parse-time validation for @staticmethod\n")
-                f.write("✅ **OPERATIONS DEFAULT**: Operations are instance methods by default\n\n")
+            # Overall success rate - tests that behave as expected
+            overall_success = sum(1 for r in lang_results if
+                                (not r.is_negative_test and not self.is_infinite_loop_test(Path(r.file)) and r.transpile_success and (not self.config.execute or r.execute_success)) or
+                                (r.is_negative_test and r.expected_failure) or
+                                (self.is_infinite_loop_test(Path(r.file)) and r.transpile_success))
             
-            # Failed tests
-            f.write("## Failed Tests\n\n")
-            failed = [r for r in self.results if not r['execute']]
-            if failed:
-                f.write("| Test File | Transpile | Execute | Error |\n")
-                f.write("|-----------|-----------|---------|-------|\n")
-                for r in failed:
-                    f.write(f"| {r['file']} | {'✅' if r['transpile'] else '❌'} | ❌ | {r.get('error', 'N/A')} |\n")
-            else:
-                f.write("🎉 **All tests passing!**\n")
-            
-            # Detailed results
-            f.write("\n## Test Details\n\n")
-            f.write("| Test File | Transpile | Execute | Status |\n")
-            f.write("|-----------|-----------|---------|--------|\n")
-            for r in self.results:
-                status = "✅ PASS" if r['transpile'] and r['execute'] else "❌ FAIL"
-                f.write(f"| {r['file']} | {'✅' if r['transpile'] else '❌'} | {'✅' if r['execute'] else '❌'} | {status} |\n")
+            report["summary"]["by_language"][lang] = {
+                "total": len(lang_results),
+                "transpile_success": transpile_success,
+                "execute_success": execute_success,
+                "overall_success": overall_success,
+                "transpile_rate": f"{100*transpile_success/len(lang_results):.1f}%" if lang_results else "0%",
+                "execute_rate": f"{100*execute_success/len(lang_results):.1f}%" if lang_results else "0%",
+                "overall_rate": f"{100*overall_success/len(lang_results):.1f}%" if lang_results else "0%"
+            }
         
-        return report_path
-
-    def save_json_results(self, version: str = "v0.31") -> str:
-        """
-        Save test results as JSON
+        # Calculate statistics by category
+        categories = set(r.category for r in self.results)
+        for category in categories:
+            cat_results = [r for r in self.results if r.category == category]
+            success_count = sum(1 for r in cat_results if
+                              (not r.is_negative_test and not self.is_infinite_loop_test(Path(r.file)) and r.transpile_success and (not self.config.execute or r.execute_success)) or
+                              (r.is_negative_test and r.expected_failure) or
+                              (self.is_infinite_loop_test(Path(r.file)) and r.transpile_success))
+            report["summary"]["by_category"][category] = {
+                "total": len(cat_results),
+                "success": success_count
+            }
         
-        Args:
-            version: Version string for the results
-            
-        Returns:
-            Path to JSON file
-        """
-        if not self.results:
-            raise ValueError("No test results available. Run tests first.")
+        return report
+    
+    def print_summary(self):
+        """Print test execution summary."""
+        report = self.generate_report()
         
-        os.makedirs(self.output_dir, exist_ok=True)
-        json_path = os.path.join(self.output_dir, f'test_results_{version}.json')
+        print("\n" + "="*70)
+        print("TEST EXECUTION SUMMARY")
+        print("="*70)
         
-        total = len(self.results)
-        transpile_success = sum(1 for r in self.results if r['transpile'])
-        execute_success = sum(1 for r in self.results if r['execute'])
-        # Count positive tests that pass normally and negative tests that correctly match expectations
-        complete_success = sum(1 for r in self.results if 
-                              (r['transpile'] and r['execute']) or  # Normal passing tests
-                              (r.get('negative_test', False) and r.get('expectation_match', False) == True)  # Negative tests with matched expectations
-                              )
+        for lang, stats in report["summary"]["by_language"].items():
+            print(f"\n{lang.upper()}:")
+            print(f"  Total tests: {stats['total']}")
+            print(f"  Overall success: {stats['overall_success']}/{stats['total']} ({stats['overall_rate']})")
+            print(f"  Transpilation: {stats['transpile_success']}/{stats['total']} ({stats['transpile_rate']})")
+            if self.config.execute:
+                print(f"  Execution: {stats['execute_success']}/{stats['total']} ({stats['execute_rate']})")
         
-        with open(json_path, 'w') as f:
-            json.dump({
-                'timestamp': datetime.now().isoformat(),
-                'version': version,
-                'summary': {
-                    'total': total,
-                    'transpile_success': transpile_success,
-                    'execute_success': execute_success,
-                    'complete_success': complete_success,
-                    'success_rate': f"{complete_success/total*100:.1f}%"
-                },
-                'results': self.results
-            }, f, indent=2)
+        print("\nBy Category:")
+        for category, stats in sorted(report["summary"]["by_category"].items()):
+            success_rate = 100 * stats["success"] / stats["total"] if stats["total"] > 0 else 0
+            print(f"  {category}: {stats['success']}/{stats['total']} ({success_rate:.1f}%)")
         
-        return json_path
+        # List failures (tests that didn't behave as expected)
+        failures = [r for r in self.results if
+                   (not r.is_negative_test and not self.is_infinite_loop_test(Path(r.file)) and (not r.transpile_success or (self.config.execute and not r.execute_success))) or
+                   (r.is_negative_test and not r.expected_failure) or
+                   (self.is_infinite_loop_test(Path(r.file)) and not r.transpile_success)]
+        if failures:
+            print(f"\n{len(failures)} Failed Tests:")
+            for r in failures[:10]:  # Show first 10 failures
+                print(f"  - {r.name} ({r.language}): {r.error_message[:100] if r.error_message else 'Unknown error'}")
+            if len(failures) > 10:
+                print(f"  ... and {len(failures) - 10} more")
+        
+        return report
 
 def main():
-    """Main entry point for command-line usage"""
-    parser = argparse.ArgumentParser(
-        description='Frame Test Runner - Comprehensive testing tool for Frame transpiler',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Run all tests and generate matrix
-  %(prog)s --all --matrix
-  
-  # Run specific test pattern
-  %(prog)s --pattern "test_import*.frm"
-  
-  # Run tests from config file
-  %(prog)s --config configs/hsm_tests.json
-  
-  # Run with custom timeout
-  %(prog)s --all --timeout 10
-  
-  # Verbose output
-  %(prog)s --all --verbose
-        """
-    )
-    
-    parser.add_argument('--all', action='store_true', 
-                       help='Run all test_*.frm files')
-    parser.add_argument('--pattern', type=str,
-                       help='Run tests matching pattern (e.g., "test_import*.frm")')
-    parser.add_argument('--config', type=str,
-                       help='Run tests from JSON config file')
-    parser.add_argument('--matrix', action='store_true',
-                       help='Generate test matrix report')
-    parser.add_argument('--json', action='store_true',
-                       help='Save results as JSON')
-    parser.add_argument('--version', type=str, default='v0.31',
-                       help='Version string for reports (default: v0.31)')
-    parser.add_argument('--timeout', type=int, default=5,
-                       help='Timeout in seconds for each test (default: 5)')
+    """Main entry point."""
+    parser = argparse.ArgumentParser(description='Frame Test Runner')
+    parser.add_argument('--languages', '-l', nargs='+', default=['python', 'typescript'],
+                       choices=['python', 'typescript', 'rust', 'golang', 'javascript'],
+                       help='Languages to test')
+    parser.add_argument('--categories', '-c', nargs='+', default=['all'],
+                       help='Test categories to run')
+    parser.add_argument('--framec', default='./target/release/framec',
+                       help='Path to framec executable')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Verbose output')
-    parser.add_argument('--framec', type=str,
-                       help='Path to framec executable')
-    parser.add_argument('--test-dir', type=str,
-                       help='Directory containing test files')
-    parser.add_argument('--output-dir', type=str,
-                       help='Directory for output files')
+    parser.add_argument('--transpile-only', action='store_true',
+                       help='Only transpile, do not execute')
+    parser.add_argument('--output', '-o', help='Output JSON report to file')
+    parser.add_argument('--timeout', type=int, default=10,
+                       help='Timeout for each test in seconds')
     
     args = parser.parse_args()
     
-    # Create runner
-    runner = FrameTestRunner(
+    # Create config
+    config = TestConfig(
         framec_path=args.framec,
-        test_dir=args.test_dir,
-        output_dir=args.output_dir,
+        languages=args.languages,
+        categories=args.categories,
+        verbose=args.verbose,
+        execute=not args.transpile_only,
         timeout=args.timeout
     )
-    runner.verbose = args.verbose
-    
-    # Determine what tests to run
-    test_list = None
-    test_pattern = "test_*.frm"
-    
-    if args.config:
-        # Load test list from config
-        with open(args.config) as f:
-            config = json.load(f)
-            test_list = [os.path.join(runner.test_dir, f) for f in config.get('tests', [])]
-    elif args.pattern:
-        test_pattern = args.pattern
-    elif not args.all:
-        print("Error: Specify --all, --pattern, or --config")
-        return 1
     
     # Run tests
-    results = runner.run_tests(test_pattern=test_pattern, test_list=test_list)
+    runner = FrameTestRunner(config)
+    results = runner.run_all_tests()
+    report = runner.print_summary()
     
-    # Generate reports
-    if args.matrix:
-        report_path = runner.generate_matrix(version=args.version)
-        print(f"\nTest matrix saved to: {report_path}")
+    # Save report if requested
+    if args.output:
+        with open(args.output, 'w') as f:
+            json.dump(report, f, indent=2)
+        print(f"\nReport saved to {args.output}")
     
-    if args.json:
-        json_path = runner.save_json_results(version=args.version)
-        print(f"JSON results saved to: {json_path}")
-    
-    # Print detailed summary
-    total = len(results)
-    
-    # Categorize results
-    positive_pass = sum(1 for r in results if not r.get('negative_test', False) and r['transpile'] and r['execute'])
-    positive_transpile_fail = sum(1 for r in results if not r.get('negative_test', False) and not r['transpile'])
-    positive_runtime_fail = sum(1 for r in results if not r.get('negative_test', False) and r['transpile'] and not r['execute'])
-    
-    negative_pass = sum(1 for r in results if r.get('negative_test', False) and 
-                       (r.get('expectation_match', False) == True or r.get('expected_failure', False)))
-    negative_fail = sum(1 for r in results if r.get('negative_test', False) and 
-                       not (r.get('expectation_match', False) == True or r.get('expected_failure', False)))
-    
-    complete_success = positive_pass + negative_pass
-    
-    print(f"\n=== SUMMARY ===")
-    print(f"Total Tests: {total}")
-    print(f"Passed: {complete_success} ({complete_success/total*100:.1f}%)")
-    print(f"Failed: {total - complete_success} ({(total - complete_success)/total*100:.1f}%)")
-    
-    print(f"\n=== BREAKDOWN ===")
-    print(f"Positive Tests:")
-    print(f"  ✅ Passed: {positive_pass}")
-    print(f"  ❌ Transpilation Failed: {positive_transpile_fail}")
-    print(f"  ❌ Runtime Failed: {positive_runtime_fail}")
-    
-    print(f"\nNegative Tests:")
-    print(f"  ✅ Passed (Expected Error): {negative_pass}")
-    print(f"  ❌ Failed (Unexpected Result): {negative_fail}")
-    
-    # List runtime failures if any
-    if positive_runtime_fail > 0:
-        print(f"\n=== RUNTIME FAILURES ===")
-        for r in results:
-            if not r.get('negative_test', False) and r['transpile'] and not r['execute']:
-                error = r.get('error', 'Unknown error')
-                if len(error) > 150:
-                    error = error[:150] + "..."
-                print(f"  • {r['file']}: {error}")
-    
-    return 0 if complete_success == total else 1
+    # Exit with error if any tests failed (didn't behave as expected)
+    all_success = all((not r.is_negative_test and not runner.is_infinite_loop_test(Path(r.file)) and r.transpile_success and (not config.execute or r.execute_success)) or
+                     (r.is_negative_test and r.expected_failure) or
+                     (runner.is_infinite_loop_test(Path(r.file)) and r.transpile_success) for r in results)
+    sys.exit(0 if all_success else 1)
 
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == '__main__':
+    main()

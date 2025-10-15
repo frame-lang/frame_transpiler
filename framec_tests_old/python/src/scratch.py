@@ -1,0 +1,98 @@
+# Emitted from framec_v0.78.22
+
+
+class FrameEvent:
+    def __init__(self, message, parameters):
+        self._message = message
+        self._parameters = parameters
+
+class FrameCompartment:
+    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):
+        self.state = state
+        self.forward_event = forward_event
+        self.exit_args = exit_args
+        self.enter_args = enter_args
+        self.parent_compartment = parent_compartment
+        self.state_vars = state_vars or {}
+        self.state_args = state_args or {}
+
+class A:
+
+    def __init__(self):
+        # Create and initialize start state compartment
+        self.__compartment = None
+        self.__next_compartment = None
+        self.return_stack = [None]
+
+    # ===================== Actions Block ===================
+
+    def __A__a(self):
+        x = 0
+        a = 0
+        if x:
+            y()
+        elif a:
+            b()
+        else:
+            c()
+        if x:
+            y()
+        elif a:
+            b()
+        else:
+            c()
+        if x:
+            y()
+            y()
+        elif a:
+            b()
+            b()
+        else:
+            c()
+            c()
+
+
+    # ==================== System Runtime ===================
+
+    def __kernel(self, __e):
+        # send event to current state
+        self.__router(__e)
+
+        # loop until no transitions occur
+        while self.__next_compartment != None:
+            next_compartment = self.__next_compartment
+            self.__next_compartment = None
+
+            # exit current state
+            self.__router(FrameEvent("<$", self.__compartment.exit_args))
+            # change state
+            self.__compartment = next_compartment
+
+            if next_compartment.forward_event is None:
+                # send normal enter event
+                self.__router(FrameEvent("$>", self.__compartment.enter_args))
+            else:
+                # forwarded event
+                if next_compartment.forward_event._message == "$>":
+                    self.__router(next_compartment.forward_event)
+                else:
+                    self.__router(FrameEvent("$>", self.__compartment.enter_args))
+                    self.__router(next_compartment.forward_event)
+                next_compartment.forward_event = None
+
+    def __router(self, __e, compartment=None):
+        target_compartment = compartment or self.__compartment
+
+    def __transition(self, next_compartment):
+        self.__next_compartment = next_compartment
+
+
+# Module-level singleton instance for A
+_a_instance = None
+
+
+def a():
+    global _a_instance
+    if _a_instance is None:
+        _a_instance = A()
+    return _a_instance._A__A__a()

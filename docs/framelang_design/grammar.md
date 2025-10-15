@@ -1,7 +1,7 @@
-# Frame Language Grammar (v0.81.3)
+# Frame Language Grammar (v0.83.0)
 
-**Last Updated**: 2025-10-11  
-**Status**: Bug #38 resolved, enhanced method call resolution policy, **100% test success rate (397/397 tests passing)**
+**Last Updated**: 2025-01-15  
+**Status**: **100% Python test success rate (451/451 tests passing)**, TypeScript 98.8% transpilation success
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 

@@ -1,0 +1,47 @@
+# Generated test files
+generated/
+*.pyc
+__pycache__/
+.pytest_cache/
+
+# Test outputs
+*.log
+test_output.txt
+test_output.log
+
+# Reports (keep reports directory but ignore contents)
+reports/*.json
+reports/*.md
+reports/*.html
+comparison_report.json
+
+# IDE files
+.vscode/
+.idea/
+
+# Python virtual environment
+venv/
+.venv/
+
+# Node modules (for TypeScript tests)
+node_modules/
+package-lock.json
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+
+# Backup files
+*.backup
+*_old/
+
+# Test execution artifacts
+*.js  # Generated from TypeScript
+*.js.map
+*.d.ts
+
+# Keep these
+!runner/
+!common/
+!language_specific/

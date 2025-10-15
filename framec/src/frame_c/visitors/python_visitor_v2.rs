@@ -1990,6 +1990,14 @@ impl PythonVisitorV2 {
             let state = state_rcref.borrow();
             self.generate_state_dispatcher(&state);
         }
+        
+        // Generate public state wrapper methods (for backward compatibility)
+        self.builder.newline();
+        self.builder.write_comment("===================== Public State Methods ===================");
+        for state_rcref in &machine.states {
+            let state = state_rcref.borrow();
+            self.generate_public_state_method(&state);
+        }
     }
     
     fn generate_state_dispatcher(&mut self, state: &StateNode) {
@@ -2058,6 +2066,26 @@ impl PythonVisitorV2 {
             self.builder.newline();
         }
         
+        self.builder.dedent();
+    }
+    
+    fn generate_public_state_method(&mut self, state: &StateNode) {
+        let state_method = self.format_state_name(&state.name);
+        let public_method_name = format!("_s{}", &state.name);
+        
+        self.builder.newline();
+        self.builder.write_comment(&format!("Public method for ${} state", &state.name));
+        
+        // Public state method wrapper - generated code, pass 0 to indicate no mapping
+        self.builder.write_function(
+            &public_method_name,
+            "self, event",
+            false, // not async
+            0
+        );
+        
+        // Call the internal state dispatcher
+        self.builder.writeln(&format!("return self.{}(event, self.__compartment)", state_method));
         self.builder.dedent();
     }
     
@@ -3195,8 +3223,8 @@ impl PythonVisitorV2 {
     
     // Helper to determine if expression needs parentheses
     fn needs_parentheses(&self, expr: &ExprType) -> bool {
+        // Add parentheses when necessary for precedence and syntax correctness
         matches!(expr, 
-            ExprType::BinaryExprT { .. } | 
             ExprType::UnaryExprT { .. } |
             ExprType::AssignmentExprT { .. }
         )
@@ -3342,13 +3370,33 @@ impl PythonVisitorV2 {
         // Build state_args dictionary (for state reference arguments)
         let state_args_dict = if let Some(state_args) = state_args_opt {
             if !state_args.exprs_t.is_empty() {
-                let mut state_args_entries = Vec::new();
+                // Get state parameter names from target state definition
+                let mut state_param_names: Vec<String> = Vec::new();
+                if let Some(target_state_name_str) = target_state_ref {
+                    if let Some(target_state_node_rcref) = self.get_state_node(target_state_name_str) {
+                        let target_state_node = target_state_node_rcref.borrow();
+                        
+                        // Get state parameter names from the state definition
+                        if let Some(params) = &target_state_node.params_opt {
+                            for param in params {
+                                state_param_names.push(param.param_name.clone());
+                            }
+                        }
+                    }
+                }
                 
-                // Build parameter map from state reference arguments
+                // Build parameter map from state reference arguments to state parameter names
+                let mut state_args_entries = Vec::new();
                 for (i, arg_expr) in state_args.exprs_t.iter().enumerate() {
+                    let param_name = if i < state_param_names.len() {
+                        state_param_names[i].clone()
+                    } else {
+                        format!("arg_{}", i) // fallback name if not enough parameters
+                    };
+                    
                     let mut arg_value = String::new();
                     self.visit_expr_node_to_string(arg_expr, &mut arg_value);
-                    state_args_entries.push(format!("'arg_{}': {}", i, arg_value));
+                    state_args_entries.push(format!("'{}': {}", param_name, arg_value));
                 }
                 
                 if !state_args_entries.is_empty() {

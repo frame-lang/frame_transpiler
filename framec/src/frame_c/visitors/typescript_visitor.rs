@@ -7,13 +7,25 @@ use crate::frame_c::ast::*;
 use crate::frame_c::ast::FrameEventPart;
 use crate::frame_c::code_builder::CodeBuilder;
 use crate::frame_c::scanner::{TokenType};
+use crate::frame_c::symbol_table::SymbolType;
+use std::collections::HashSet;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct TypeScriptVisitor {
     pub builder: CodeBuilder,
     system_name: String,
     
-    // State tracking
+    // Context tracking (similar to Python visitor)
     current_state_name: Option<String>,
+    domain_variables: HashSet<String>, // Track domain variable names
+    current_handler_params: HashSet<String>, // Track current event handler parameter names
+    current_state_params: HashSet<String>, // Track current state's parameter names
+    current_state_vars: HashSet<String>, // Track current state's variable names
+    current_local_vars: HashSet<String>, // Track local variables in current handler
+    action_names: HashSet<String>, // Track action names for proper call resolution
+    operation_names: HashSet<String>, // Track operation names for proper call resolution
+    is_in_action: bool, // Track if we're currently processing an action (vs event handler)
 }
 
 impl TypeScriptVisitor {
@@ -22,6 +34,14 @@ impl TypeScriptVisitor {
             builder: CodeBuilder::new("    "), // 4 spaces for TypeScript indentation
             system_name: String::new(),
             current_state_name: None,
+            domain_variables: HashSet::new(),
+            current_handler_params: HashSet::new(),
+            current_state_params: HashSet::new(),
+            current_state_vars: HashSet::new(),
+            current_local_vars: HashSet::new(),
+            action_names: HashSet::new(),
+            operation_names: HashSet::new(),
+            is_in_action: false,
         }
     }
     
@@ -131,6 +151,9 @@ impl AstVisitor for TypeScriptVisitor {
         if let Some(domain) = &system_node.domain_block_node_opt {
             for var_decl in &domain.member_variables {
                 let var = var_decl.borrow();
+                // Track domain variable name
+                self.domain_variables.insert(var.name.clone());
+                
                 // Check if variable has an initializer
                 if !matches!(*var.value_rc, ExprType::NilExprT) {
                     let mut init_str = String::new();
@@ -165,6 +188,31 @@ impl AstVisitor for TypeScriptVisitor {
             for state_rcref in &machine.states {
                 let state_node = state_rcref.borrow();
                 self.current_state_name = Some(state_node.name.clone());
+                
+                // Track state parameters and variables
+                self.current_state_params.clear();
+                self.current_state_vars.clear();
+                
+                // Add state parameters if they exist
+                if let Some(ref params) = state_node.params_opt {
+                    for param in params {
+                        if std::env::var("DEBUG_TS_VARS").is_ok() {
+                            eprintln!("DEBUG: Adding state param: {}", param.param_name);
+                        }
+                        self.current_state_params.insert(param.param_name.clone());
+                    }
+                }
+                
+                // Add state variables if they exist
+                if let Some(ref state_vars) = state_node.vars_opt {
+                    for var_rcref in state_vars {
+                        let var = var_rcref.borrow();
+                        if std::env::var("DEBUG_TS_VARS").is_ok() {
+                            eprintln!("DEBUG: Adding state var: {}", var.name);
+                        }
+                        self.current_state_vars.insert(var.name.clone());
+                    }
+                }
                 
                 for handler_rcref in &state_node.evt_handlers_rcref {
                     let handler = handler_rcref.borrow();
@@ -351,6 +399,16 @@ impl AstVisitor for TypeScriptVisitor {
             MessageType::None => "none".to_string(),
         };
         
+        // Track event handler parameters and clear local variables
+        self.current_handler_params.clear();
+        self.current_local_vars.clear();  // Clear local variables for handler scope
+        let event_symbol = handler.event_symbol_rcref.borrow();
+        if let Some(params) = &event_symbol.event_symbol_params_opt {
+            for param in params {
+                self.current_handler_params.insert(param.name.clone());
+            }
+        }
+        
         let handler_name = format!("_handle_{}_{}",
             state_name.trim_start_matches('$').to_lowercase(),
             message.to_lowercase());
@@ -368,6 +426,9 @@ impl AstVisitor for TypeScriptVisitor {
                     // Handle variable declaration
                     let var_decl = var_decl_t_rcref.borrow();
                     let var_name = &var_decl.name;
+                    
+                    // Track local variable
+                    self.current_local_vars.insert(var_name.clone());
                     
                     if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
                         let mut init_str = String::new();
@@ -398,11 +459,20 @@ impl AstVisitor for TypeScriptVisitor {
     fn visit_action_node(&mut self, action: &ActionNode) {
         let action_name = format!("_action_{}", action.name);
         
-        // Build parameter list
+        // Set action context
+        self.is_in_action = true;
+        
+        // Clear context for action scope
+        self.current_local_vars.clear();
+        self.current_handler_params.clear();
+        
+        // Build parameter list and track parameters
         let mut params = Vec::new();
         if let Some(param_nodes) = &action.params {
             for param in param_nodes {
                 params.push(format!("{}: any", param.param_name));
+                // Track action parameters as local variables
+                self.current_local_vars.insert(param.param_name.clone());
             }
         }
         let params_str = params.join(", ");
@@ -430,6 +500,9 @@ impl AstVisitor for TypeScriptVisitor {
                 }
                 DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                     let var_decl = var_decl_t_rcref.borrow();
+                    // Track local variable
+                    self.current_local_vars.insert(var_decl.name.clone());
+                    
                     if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
                         let mut init_str = String::new();
                         self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
@@ -442,16 +515,12 @@ impl AstVisitor for TypeScriptVisitor {
         }
         
         // Handle terminator (return statement for actions)
+        // Note: return statements in action bodies are handled by visit_return_stmt_node
+        // Only add default return if needed for non-void functions without explicit returns
         match action.terminator_expr.terminator_type {
             TerminatorType::Return => {
-                if let Some(expr) = &action.terminator_expr.return_expr_t_opt {
-                    let mut expr_str = String::new();
-                    self.visit_expr_node_to_string(expr, &mut expr_str);
-                    self.builder.writeln(&format!("return {};", expr_str));
-                } else if return_type != "void" {
-                    // Need to return something for non-void functions
-                    self.builder.writeln("return null;");
-                }
+                // Return statements in action bodies are already handled by visit_return_stmt_node
+                // Don't duplicate the return processing here
             }
             _ => {
                 if return_type != "void" {
@@ -460,6 +529,9 @@ impl AstVisitor for TypeScriptVisitor {
                 }
             }
         }
+        
+        // Reset action context
+        self.is_in_action = false;
         
         self.builder.dedent();
         self.builder.writeln("}");
@@ -649,8 +721,34 @@ impl TypeScriptVisitor {
                 }
             }
             ExprType::VariableExprT { var_node } => {
-                // Handle variable references - prefix with 'this.' for domain variables
-                output.push_str(&format!("this.{}", var_node.id_node.name.lexeme));
+                // Handle variable references with proper context awareness
+                let var_name = &var_node.id_node.name.lexeme;
+                
+                // Debug output to understand context
+                if std::env::var("DEBUG_TS_VARS").is_ok() {
+                    eprintln!("DEBUG: Variable '{}' - State params: {:?}, State vars: {:?}, Domain vars: {:?}, Handler params: {:?}", 
+                        var_name, self.current_state_params, self.current_state_vars, self.domain_variables, self.current_handler_params);
+                }
+                
+                if self.current_local_vars.contains(var_name) {
+                    // Local variable - use bare name
+                    output.push_str(var_name);
+                } else if self.current_state_params.contains(var_name) {
+                    // State parameter - access from compartment
+                    output.push_str(&format!("compartment.stateArgs['{}']", var_name));
+                } else if self.current_state_vars.contains(var_name) {
+                    // State variable - access from compartment
+                    output.push_str(&format!("compartment.stateVars['{}']", var_name));
+                } else if self.domain_variables.contains(var_name) {
+                    // Domain variable - access from this
+                    output.push_str(&format!("this.{}", var_name));
+                } else if self.current_handler_params.contains(var_name) {
+                    // Event handler parameter - access from event parameters
+                    output.push_str(&format!("__e.parameters.{}", var_name));
+                } else {
+                    // Unknown variable - fallback to this
+                    output.push_str(&format!("this.{}", var_name));
+                }
             }
             ExprType::BinaryExprT { binary_expr_node } => {
                 self.visit_binary_expr_node_to_string(binary_expr_node, output);
@@ -777,8 +875,15 @@ impl TypeScriptVisitor {
         if let Some(expr) = &node.expr_t_opt {
             let mut expr_str = String::new();
             self.visit_expr_node_to_string(expr, &mut expr_str);
-            self.builder.writeln(&format!("this.returnStack[this.returnStack.length - 1] = {};", expr_str));
-            self.builder.writeln("return;");
+            
+            if self.is_in_action {
+                // Actions use direct returns
+                self.builder.writeln(&format!("return {};", expr_str));
+            } else {
+                // Event handlers use return stack
+                self.builder.writeln(&format!("this.returnStack[this.returnStack.length - 1] = {};", expr_str));
+                self.builder.writeln("return;");
+            }
         } else {
             self.builder.writeln("return;");
         }
@@ -799,6 +904,9 @@ impl TypeScriptVisitor {
                 }
                 DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                     let var_decl = var_decl_t_rcref.borrow();
+                    // Track local variable
+                    self.current_local_vars.insert(var_decl.name.clone());
+                    
                     if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
                         let mut init_str = String::new();
                         self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
@@ -863,24 +971,70 @@ impl TypeScriptVisitor {
         false  // For now, return false
     }
     
+    // TODO: Add full state node lookup when arcanum is available
+    // For now, use a simplified approach
+    
+
     fn visit_transition_statement_node(&mut self, transition_node: &TransitionStatementNode) {
-        match &transition_node.transition_expr_node.target_state_context_t {
+        let debug_enabled = std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1";
+        
+        // Create compartment for target state
+        let (target_state_name, state_args_opt) = match &transition_node.transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { state_context_node } => {
-                // Generate transition to a state
-                let target_state = &state_context_node.state_ref_node.name;
-                let formatted_state = self.format_state_name(target_state);
-                self.builder.writeln(&format!("this._frame_transition(new FrameCompartment('{}'));", formatted_state));
+                (self.format_state_name(&state_context_node.state_ref_node.name),
+                 state_context_node.state_ref_args_opt.as_ref())
             }
             TargetStateContextType::StateStackPop {} => {
-                // TODO: Handle state stack pop
                 self.builder.writeln("// TODO: Handle state stack pop");
+                return;
             }
+        };
+        
+        if debug_enabled {
+            eprintln!("DEBUG TS: Processing transition to state '{}' with {} args", 
+                     target_state_name, 
+                     state_args_opt.map(|args| args.exprs_t.len()).unwrap_or(0));
         }
+        
+        // For now, create a basic compartment with empty state vars
+        // TODO: Implement full state variable and parameter resolution when arcanum is available
+        let state_vars_dict = "{}";
+        
+        // Build state_args dictionary from transition parameters if they exist
+        let state_args_dict = if let Some(state_args) = state_args_opt {
+            if state_args.exprs_t.is_empty() {
+                "{}".to_string()
+            } else {
+                // For now, create a simple mapping with generic parameter names
+                let mut args_entries = Vec::new();
+                for (i, expr) in state_args.exprs_t.iter().enumerate() {
+                    let mut value_str = String::new();
+                    self.visit_expr_node_to_string(expr, &mut value_str);
+                    // Use generic parameter names for now: param0, param1, etc.
+                    args_entries.push(format!("'param{}': {}", i, value_str));
+                }
+                format!("{{{}}}", args_entries.join(", "))
+            }
+        } else {
+            "{}".to_string()
+        };
+        
+        if debug_enabled {
+            eprintln!("DEBUG TS: State vars dict: {}", state_vars_dict);
+            eprintln!("DEBUG TS: State args dict: {}", state_args_dict);
+        }
+        
+        // Create the compartment with state variables and state arguments
+        self.builder.writeln(&format!(
+            "this._frame_transition(new FrameCompartment('{}', null, null, null, null, {}, {}));",
+            target_state_name, state_vars_dict, state_args_dict
+        ));
     }
     
     fn visit_call_chain_expr_node_to_string(&mut self, node: &CallChainExprNode, output: &mut String) {
         // Handle call chains like obj.method1().method2()
         // Special case: if first element is a variable, prefix with 'this.'
+        let debug_enabled = std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1";
         let mut is_first = true;
         for call_chain_node in &node.call_chain {
             match call_chain_node {
@@ -913,22 +1067,70 @@ impl TypeScriptVisitor {
                     output.push_str(&format!("this._action_{}()", action_call_expr_node.identifier.name.lexeme));
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
-                    // Variables should be prefixed with 'this.' when they're first in the chain
+                    // Variables should use context-aware resolution when they're first in the chain
                     if is_first {
-                        output.push_str(&format!("this.{}", var_node.id_node.name.lexeme));
+                        let var_name = &var_node.id_node.name.lexeme;
+                        
+                        if debug_enabled {
+                            eprintln!("DEBUG TS: Processing CallChainNodeType::VariableNodeT variable: {}", var_name);
+                        }
+                        
+                        if self.current_local_vars.contains(var_name) {
+                            // Local variable - use bare name
+                            output.push_str(var_name);
+                        } else if self.current_state_params.contains(var_name) {
+                            // State parameter - access from compartment
+                            output.push_str(&format!("compartment.stateArgs['{}']", var_name));
+                        } else if self.current_state_vars.contains(var_name) {
+                            // State variable - access from compartment
+                            output.push_str(&format!("compartment.stateVars['{}']", var_name));
+                        } else if self.domain_variables.contains(var_name) {
+                            // Domain variable - access from this
+                            output.push_str(&format!("this.{}", var_name));
+                        } else if self.current_handler_params.contains(var_name) {
+                            // Event handler parameter - access from event parameters
+                            output.push_str(&format!("__e.parameters.{}", var_name));
+                        } else {
+                            // Unknown variable - fallback to this
+                            output.push_str(&format!("this.{}", var_name));
+                        }
                     } else {
                         output.push('.');
                         output.push_str(&var_node.id_node.name.lexeme);
                     }
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                    // Undeclared identifiers might be variables too - prefix with 'this.' if first
+                    // Undeclared identifiers might be variables too - use context-aware resolution if first
                     if is_first {
                         // Check if it's 'self' - convert to 'this'
                         if id_node.name.lexeme == "self" {
                             output.push_str("this");
                         } else {
-                            output.push_str(&format!("this.{}", id_node.name.lexeme));
+                            let var_name = &id_node.name.lexeme;
+                            
+                            if debug_enabled {
+                                eprintln!("DEBUG TS: Processing CallChainNodeType::UndeclaredIdentifierNodeT variable: {}", var_name);
+                            }
+                            
+                            if self.current_local_vars.contains(var_name) {
+                                // Local variable - use bare name
+                                output.push_str(var_name);
+                            } else if self.current_state_params.contains(var_name) {
+                                // State parameter - access from compartment
+                                output.push_str(&format!("compartment.stateArgs['{}']", var_name));
+                            } else if self.current_state_vars.contains(var_name) {
+                                // State variable - access from compartment
+                                output.push_str(&format!("compartment.stateVars['{}']", var_name));
+                            } else if self.domain_variables.contains(var_name) {
+                                // Domain variable - access from this
+                                output.push_str(&format!("this.{}", var_name));
+                            } else if self.current_handler_params.contains(var_name) {
+                                // Event handler parameter - access from event parameters
+                                output.push_str(&format!("__e.parameters.{}", var_name));
+                            } else {
+                                // Unknown variable - fallback to this
+                                output.push_str(&format!("this.{}", var_name));
+                            }
                         }
                     } else {
                         output.push('.');
@@ -973,8 +1175,9 @@ impl TypeScriptVisitor {
     
     // Helper method to convert Python f-strings to TypeScript template literals
     fn convert_fstring_to_template_literal(&self, fstring: &str) -> String {
-        // f"Hello {name}" -> `Hello ${name}`
-        // The f-string value comes with f"..." format, we need to convert it
+        // f"Hello {name}" -> `Hello ${name}` with context-aware variable resolution
+        
+        let debug_enabled = std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1";
         
         // Check if it starts with f" or f'
         let content = if fstring.starts_with("f\"") && fstring.ends_with("\"") {
@@ -985,7 +1188,11 @@ impl TypeScriptVisitor {
             fstring
         };
         
-        // Replace {var} with ${var} for TypeScript template literals
+        if debug_enabled {
+            eprintln!("DEBUG TS: Converting f-string content: '{}'", content);
+        }
+        
+        // Replace {var} with ${context-aware-var} for TypeScript template literals
         let mut result = String::from("`");
         let mut chars = content.chars().peekable();
         
@@ -996,38 +1203,53 @@ impl TypeScriptVisitor {
                     chars.next();
                     result.push('{');
                 } else {
-                    // It's a variable interpolation
-                    result.push_str("${");
-                    // Collect everything until the closing }
+                    // It's a variable interpolation - collect the variable name
+                    let mut var_name = String::new();
                     while let Some(inner) = chars.next() {
                         if inner == '}' {
-                            result.push('}');
                             break;
                         } else {
-                            // Handle self references in f-strings
-                            if inner == 's' {
-                                // Peek at next characters to check for "elf."
-                                let next_chars: String = chars.clone().take(4).collect();
-                                if next_chars.starts_with("elf.") {
-                                    result.push_str("this");
-                                    // Skip "elf"
-                                    chars.next();
-                                    chars.next();
-                                    chars.next();
-                                } else if next_chars.starts_with("elf") {
-                                    result.push_str("this");
-                                    // Skip "elf"
-                                    chars.next();
-                                    chars.next();
-                                    chars.next();
-                                } else {
-                                    result.push(inner);
-                                }
-                            } else {
-                                result.push(inner);
-                            }
+                            var_name.push(inner);
                         }
                     }
+                    
+                    if debug_enabled {
+                        eprintln!("DEBUG TS: F-string variable found: '{}'", var_name);
+                    }
+                    
+                    // Apply context-aware variable resolution
+                    result.push_str("${");
+                    
+                    // Handle special cases first
+                    if var_name == "self" {
+                        result.push_str("this");
+                    } else if var_name.starts_with("self.") {
+                        // Convert self.property to this.property
+                        result.push_str(&format!("this.{}", &var_name[5..]));
+                    } else {
+                        // Apply the same context-aware resolution as other variables
+                        if self.current_local_vars.contains(&var_name) {
+                            // Local variable - use bare name
+                            result.push_str(&var_name);
+                        } else if self.current_state_params.contains(&var_name) {
+                            // State parameter - access from compartment
+                            result.push_str(&format!("compartment.stateArgs['{}']", var_name));
+                        } else if self.current_state_vars.contains(&var_name) {
+                            // State variable - access from compartment
+                            result.push_str(&format!("compartment.stateVars['{}']", var_name));
+                        } else if self.domain_variables.contains(&var_name) {
+                            // Domain variable - access from this
+                            result.push_str(&format!("this.{}", var_name));
+                        } else if self.current_handler_params.contains(&var_name) {
+                            // Event handler parameter - access from event parameters
+                            result.push_str(&format!("__e.parameters.{}", var_name));
+                        } else {
+                            // Unknown variable - fallback to this
+                            result.push_str(&format!("this.{}", var_name));
+                        }
+                    }
+                    
+                    result.push('}');
                 }
             } else if ch == '}' {
                 // Check if it's an escape (}})

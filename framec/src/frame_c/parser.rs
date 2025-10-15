@@ -4002,7 +4002,6 @@ impl<'a> Parser<'a> {
         let mut value = Rc::new(ExprType::DefaultLiteralValueForTypeExprT);
 
         if self.match_token(&[TokenType::Equals]) {
-            // eprintln!("DEBUG: Parsing initializer for variable '{}'", name);
             value = self.parse_variable_initializer(&name)?;
         } else if matches!(self.peek().token_type, TokenType::In) {
             // TODO!! - develop for-in statement
@@ -5490,7 +5489,7 @@ impl<'a> Parser<'a> {
                                             }
                                         }
                                         
-                                        // Transition must be last meaningful statement in event handler
+                                        // Transition ends the event handler - no more statements allowed
                                         return statements;
                                     }
                                     StatementType::ExpressionStmt { expr_stmt_t } => {
@@ -5844,9 +5843,24 @@ impl<'a> Parser<'a> {
                 self.error_at_previous("Set literal expressions not allowed as statements.");
                 Err(ParseError::new("Set literal must be part of an assignment or expression"))
             }
-            TupleLiteralT { .. } => {
-                self.error_at_previous("Tuple literal expressions not allowed as statements.");
-                Err(ParseError::new("Tuple literal must be part of an assignment or expression"))
+            TupleLiteralT { tuple_literal_node } => {
+                // Check if this is part of a transition (exit args)
+                if self.match_token(&[TokenType::Transition]) {
+                    // Convert tuple literal to expr list for transition processing
+                    let expr_list_node = ExprListNode::new(tuple_literal_node.elements);
+                    match self.transition(Some(expr_list_node)) {
+                        Ok(transition_statement_node) => {
+                            let statement_type = StatementType::TransitionStmt {
+                                transition_statement_node,
+                            };
+                            Ok(Some(statement_type))
+                        }
+                        Err(parse_err) => Err(parse_err),
+                    }
+                } else {
+                    self.error_at_previous("Tuple literal expressions not allowed as statements.");
+                    Err(ParseError::new("Tuple literal must be part of an assignment or expression"))
+                }
             }
             ExprListT { expr_list_node } => {
                 // path for transitions **with** an exit params group
@@ -5878,10 +5892,26 @@ impl<'a> Parser<'a> {
                 Err(ParseError::new("TODO"))
             }
             VariableExprT { var_node } => {
-                let line = var_node.line;
-                let variable_stmt_node = VariableStmtNode::new(line, var_node);
-                let expr_stmt_t = VariableStmtT { variable_stmt_node };
-                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+                // Check if this is part of a transition (exit args)
+                if self.match_token(&[TokenType::Transition]) {
+                    // Convert single variable to expr list for transition processing
+                    let single_expr = VariableExprT { var_node };
+                    let expr_list_node = ExprListNode::new(vec![single_expr]);
+                    match self.transition(Some(expr_list_node)) {
+                        Ok(transition_statement_node) => {
+                            let statement_type = StatementType::TransitionStmt {
+                                transition_statement_node,
+                            };
+                            Ok(Some(statement_type))
+                        }
+                        Err(parse_err) => Err(parse_err),
+                    }
+                } else {
+                    let line = var_node.line;
+                    let variable_stmt_node = VariableStmtNode::new(line, var_node);
+                    let expr_stmt_t = VariableStmtT { variable_stmt_node };
+                    Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+                }
             }
             ActionCallExprT { action_call_expr_node } => {
                 let action_call_stmt_node = ActionCallStmtNode::new(self.previous().line, action_call_expr_node);
@@ -5911,13 +5941,45 @@ impl<'a> Parser<'a> {
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             BinaryExprT { binary_expr_node } => {
-                let binary_stmt_node = BinaryStmtNode::new(binary_expr_node.line, binary_expr_node);
-                let expr_stmt_t = BinaryStmtT { binary_stmt_node };
-                Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+                // Check if this is part of a transition (exit args)
+                if self.match_token(&[TokenType::Transition]) {
+                    // Convert single binary expression to expr list for transition processing
+                    let single_expr = BinaryExprT { binary_expr_node };
+                    let expr_list_node = ExprListNode::new(vec![single_expr]);
+                    match self.transition(Some(expr_list_node)) {
+                        Ok(transition_statement_node) => {
+                            let statement_type = StatementType::TransitionStmt {
+                                transition_statement_node,
+                            };
+                            Ok(Some(statement_type))
+                        }
+                        Err(parse_err) => Err(parse_err),
+                    }
+                } else {
+                    let binary_stmt_node = BinaryStmtNode::new(binary_expr_node.line, binary_expr_node);
+                    let expr_stmt_t = BinaryStmtT { binary_stmt_node };
+                    Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
+                }
             }
-            LiteralExprT { .. } => {
-                self.error_at_previous("Literal statements not allowed.");
-                Err(ParseError::new("TODO"))
+            LiteralExprT { literal_expr_node } => {
+                // Check if this is part of a transition (exit args)
+                if self.match_token(&[TokenType::Transition]) {
+                    // Convert single literal to expr list for transition processing
+                    let single_expr = LiteralExprT { literal_expr_node };
+                    let expr_list_node = ExprListNode::new(vec![single_expr]);
+                    match self.transition(Some(expr_list_node)) {
+                        Ok(transition_statement_node) => {
+                            let statement_type = StatementType::TransitionStmt {
+                                transition_statement_node,
+                            };
+                            Ok(Some(statement_type))
+                        }
+                        Err(parse_err) => Err(parse_err),
+                    }
+                } else {
+                    self.error_at_previous("Literal statements not allowed.");
+                    Err(ParseError::new("TODO"))
+                }
             }
             TransitionExprT { transition_expr_node } => {
                 let transition_statement_node =
@@ -12265,6 +12327,9 @@ impl<'a> Parser<'a> {
     // literal_expression -> '(' expression* ')'
 
     fn literal_expr(&mut self) -> Result<Option<LiteralExprNode>, ParseError> {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: literal_expr() called, current token: {:?}", self.peek());
+        }
         // TODO: move this vec to the scanner
         let literal_tokens = vec![
             // SuperString removed,
@@ -12282,6 +12347,9 @@ impl<'a> Parser<'a> {
 
         for literal_tok in literal_tokens {
             if self.match_token(&[literal_tok]) {
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: literal_expr() matched token: {:?} with lexeme: '{}'", literal_tok, self.previous().lexeme);
+                }
                 return Ok(Some(LiteralExprNode::new(self.previous().line, 
                     literal_tok,
                     self.previous().lexeme.clone(),
