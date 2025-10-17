@@ -6,22 +6,15 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FrameCompartment = exports.FrameEvent = void 0;
-var FrameEvent = /** @class */ (function () {
-    function FrameEvent(message, parameters) {
+class FrameEvent {
+    constructor(message, parameters) {
         this.message = message;
         this.parameters = parameters;
     }
-    return FrameEvent;
-}());
+}
 exports.FrameEvent = FrameEvent;
-var FrameCompartment = /** @class */ (function () {
-    function FrameCompartment(state, forwardEvent, exitArgs, enterArgs, parent, stateVars, stateArgs) {
-        if (forwardEvent === void 0) { forwardEvent = null; }
-        if (exitArgs === void 0) { exitArgs = null; }
-        if (enterArgs === void 0) { enterArgs = null; }
-        if (parent === void 0) { parent = null; }
-        if (stateVars === void 0) { stateVars = {}; }
-        if (stateArgs === void 0) { stateArgs = {}; }
+class FrameCompartment {
+    constructor(state, forwardEvent = null, exitArgs = null, enterArgs = null, parent = null, stateVars = {}, stateArgs = {}) {
         this.state = state;
         this.forwardEvent = forwardEvent;
         this.exitArgs = exitArgs;
@@ -30,6 +23,5 @@ var FrameCompartment = /** @class */ (function () {
         this.stateVars = stateVars;
         this.stateArgs = stateArgs;
     }
-    return FrameCompartment;
-}());
+}
 exports.FrameCompartment = FrameCompartment;

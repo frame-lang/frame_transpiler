@@ -1106,10 +1106,18 @@ impl TypeScriptVisitor {
             ExprType::ListT { list_node } => {
                 self.visit_list_node_to_string(list_node, output);
             }
+            ExprType::AwaitExprT { await_expr_node } => {
+                // Convert Frame await expressions to TypeScript await
+                output.push_str("await ");
+                self.visit_expr_node_to_string(&await_expr_node.expr, output);
+            }
             _ => {
-                // For now, assume all other unhandled expression types are identifiers that need this.
-                // This is a temporary workaround - we should handle all expression types properly
-                output.push_str("/* TODO: expression */");
+                // Debug output to see what expression types are missing
+                let expr_type_name = expr.expr_type_name();
+                if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                    eprintln!("DEBUG TS: Unhandled expression type: {}", expr_type_name);
+                }
+                output.push_str(&format!("/* TODO: {} */", expr_type_name));
             }
         }
     }
