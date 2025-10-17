@@ -9,6 +9,7 @@ use crate::frame_c::code_builder::CodeBuilder;
 use crate::frame_c::scanner::{TokenType};
 use crate::frame_c::symbol_table::{SymbolConfig, Arcanum};
 use std::collections::HashSet;
+use regex;
 
 pub struct TypeScriptVisitor {
     pub builder: CodeBuilder,
@@ -76,8 +77,39 @@ impl TypeScriptVisitor {
         // Visit the module
         self.visit_frame_module(frame_module);
         
-        let (code, _mappings) = self.builder.build();
+        let (mut code, _mappings) = self.builder.build();
+        
+        // Post-process to fix patterns that weren't caught by AST visitors
+        code = Self::post_process_typescript_output(code);
+        
         code
+    }
+    
+    fn post_process_typescript_output(code: String) -> String {
+        // Fix Python function patterns that weren't caught by AST visitors
+        let mut result = code;
+        
+        // Fix random.randint(a, b) -> Math.floor(Math.random() * (b - a + 1)) + a
+        // Use regex to handle various spacing and argument patterns
+        if result.contains("random.randint(") {
+            // Simple regex to match random.randint(n1, n2) pattern
+            let re = regex::Regex::new(r"random\.randint\((\d+),\s*(\d+)\)").unwrap();
+            result = re.replace_all(&result, |caps: &regex::Captures| {
+                let min = &caps[1];
+                let max = &caps[2];
+                format!("Math.floor(Math.random() * ({} - {} + 1)) + {}", max, min, min)
+            }).to_string();
+        }
+        
+        // Fix remaining Python boolean literals that might have been missed
+        result = result.replace(" True", " true");
+        result = result.replace("(True)", "(true)");
+        result = result.replace(" False", " false");
+        result = result.replace("(False)", "(false)");
+        result = result.replace("\nTrue", "\ntrue");
+        result = result.replace("\nFalse", "\nfalse");
+        
+        result
     }
     
     fn generate_runtime_support(&mut self) {
@@ -841,6 +873,44 @@ impl TypeScriptVisitor {
                     if self.action_names.contains(func_name) {
                         // It's a defined action - prefix with this._action_
                         output.push_str(&format!("this._action_{}(", func_name));
+                    } else if func_name == "range" {
+                        // Python range() function - implement with Array.from()
+                        output.push_str("Array.from({length: ");
+                        // Note: we'll handle the arguments in visit_call_expr_node_to_string
+                    } else if func_name == "len" {
+                        // Python len() function - use .length property
+                        output.push_str("(");
+                        // Note: we'll handle converting to .length in argument processing
+                    } else if func_name == "str" {
+                        // Python str() function - use String()
+                        output.push_str("String(");
+                    } else if func_name == "int" {
+                        // Python int() function - use parseInt()
+                        output.push_str("parseInt(");
+                    } else if func_name == "float" {
+                        // Python float() function - use parseFloat()
+                        output.push_str("parseFloat(");
+                    } else if func_name == "range" {
+                        // Python range() function - implement with Array.from()
+                        output.push_str("Array.from({length: ");
+                    } else if func_name == "len" {
+                        // Python len() function - use .length property
+                        output.push_str("(");
+                    } else if func_name == "bool" {
+                        // Python bool() function - use Boolean()
+                        output.push_str("Boolean(");
+                    } else if func_name == "list" {
+                        // Python list() function - use Array.from() or []
+                        output.push_str("Array.from(");
+                    } else if func_name == "dict" {
+                        // Python dict() function - use Object.fromEntries() or {}
+                        output.push_str("Object.fromEntries(");
+                    } else if func_name == "set" {
+                        // Python set() function - use new Set()
+                        output.push_str("new Set(");
+                    } else if func_name == "tuple" {
+                        // Python tuple() function - use array in TypeScript
+                        output.push_str("Array.from(");
                     } else if is_first_in_chain {
                         // Unknown function at start of chain - output naturally like Python visitor
                         output.push_str(&format!("{}(", func_name));
@@ -929,6 +999,15 @@ impl TypeScriptVisitor {
                 if std::env::var("DEBUG_TS_VARS").is_ok() {
                     eprintln!("DEBUG: Variable '{}' - State params: {:?}, State vars: {:?}, Domain vars: {:?}, Handler params: {:?}", 
                         var_name, self.current_state_params, self.current_state_vars, self.domain_variables, self.current_handler_params);
+                }
+                
+                // Handle Python-style boolean literals as variables
+                if var_name == "True" {
+                    output.push_str("true");
+                    return;
+                } else if var_name == "False" {
+                    output.push_str("false");
+                    return;
                 }
                 
                 if self.current_local_vars.contains(var_name) {
@@ -1422,8 +1501,9 @@ impl TypeScriptVisitor {
         // Handle call chains like obj.method1().method2()
         // Special case: system.return should become this.returnStack[this.returnStack.length - 1]
         
-        // Check for system.return pattern
+        // Check for special patterns
         if node.call_chain.len() == 2 {
+            // Check for system.return pattern
             if let (CallChainNodeType::VariableNodeT { var_node: first_var }, 
                     CallChainNodeType::VariableNodeT { var_node: second_var }) = 
                     (&node.call_chain[0], &node.call_chain[1]) {
@@ -1436,10 +1516,63 @@ impl TypeScriptVisitor {
                     return;
                 }
             }
+            
+            // Check for random.randint pattern
+            if let (CallChainNodeType::VariableNodeT { var_node: first_var }, 
+                    CallChainNodeType::UndeclaredCallT { call_node }) = 
+                    (&node.call_chain[0], &node.call_chain[1]) {
+                if first_var.id_node.name.lexeme == "random" && call_node.identifier.name.lexeme == "randint" {
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                        eprintln!("DEBUG: Detected random.randint pattern, converting to Math.random equivalent");
+                    }
+                    
+                    // Convert random.randint(a, b) to Math.floor(Math.random() * (b - a + 1)) + a
+                    let args = &call_node.call_expr_list.exprs_t;
+                    if args.len() == 2 {
+                        let mut min_str = String::new();
+                        let mut max_str = String::new();
+                        self.visit_expr_node_to_string(&args[0], &mut min_str);
+                        self.visit_expr_node_to_string(&args[1], &mut max_str);
+                        
+                        output.push_str(&format!(
+                            "Math.floor(Math.random() * ({} - {} + 1)) + {}",
+                            max_str, min_str, min_str
+                        ));
+                    } else {
+                        // Fallback if wrong number of arguments
+                        output.push_str("Math.floor(Math.random() * 10) + 1");
+                    }
+                    return;
+                }
+            }
         }
         
         // Handle regular call chains
         let debug_enabled = std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1";
+        
+        if debug_enabled {
+            eprintln!("DEBUG TS: Processing call chain with {} nodes", node.call_chain.len());
+            for (i, call_chain_node) in node.call_chain.iter().enumerate() {
+                match call_chain_node {
+                    CallChainNodeType::VariableNodeT { var_node } => {
+                        eprintln!("DEBUG TS:   [{}] VariableNodeT: {}", i, var_node.id_node.name.lexeme);
+                    }
+                    CallChainNodeType::UndeclaredCallT { call_node } => {
+                        eprintln!("DEBUG TS:   [{}] UndeclaredCallT: {}", i, call_node.identifier.name.lexeme);
+                    }
+                    CallChainNodeType::ActionCallT { action_call_expr_node } => {
+                        eprintln!("DEBUG TS:   [{}] ActionCallT: {}", i, action_call_expr_node.identifier.name.lexeme);
+                    }
+                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                        eprintln!("DEBUG TS:   [{}] UndeclaredIdentifierNodeT: {}", i, id_node.name.lexeme);
+                    }
+                    _ => {
+                        eprintln!("DEBUG TS:   [{}] Other call chain node type", i);
+                    }
+                }
+            }
+        }
+        
         let mut is_first = true;
         for call_chain_node in &node.call_chain {
             match call_chain_node {
@@ -1565,6 +1698,15 @@ impl TypeScriptVisitor {
                             
                             if debug_enabled {
                                 eprintln!("DEBUG TS: Processing CallChainNodeType::UndeclaredIdentifierNodeT variable: {}", var_name);
+                            }
+                            
+                            // Handle Python-style boolean literals as undeclared identifiers
+                            if var_name == "True" {
+                                output.push_str("true");
+                                return;
+                            } else if var_name == "False" {
+                                output.push_str("false");
+                                return;
                             }
                             
                             if self.current_local_vars.contains(var_name) {

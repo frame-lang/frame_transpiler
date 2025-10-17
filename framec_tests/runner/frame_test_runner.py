@@ -302,10 +302,10 @@ class FrameTestRunner:
                 
             print(f"Batch compiling {len(ts_files)} TypeScript files with shared runtime...")
             
-            # Batch compile all TypeScript files
+            # Batch compile all TypeScript files with resilient error handling
             start_time = time.time()
             compile_result = subprocess.run(
-                [tsc_cmd, "--target", "es2020", "--module", "commonjs"] + ts_files,
+                [tsc_cmd, "--target", "es2020", "--module", "commonjs", "--noEmitOnError", "false"] + ts_files,
                 capture_output=True,
                 text=True,
                 timeout=self.config.timeout * 10  # Longer timeout for batch compilation
@@ -313,18 +313,45 @@ class FrameTestRunner:
             
             compile_time = time.time() - start_time
             
-            if compile_result.returncode == 0:
+            # Parse which files had errors vs which succeeded
+            error_output = (compile_result.stdout + compile_result.stderr).strip()
+            failed_files = set()
+            
+            if error_output:
+                # Extract file paths from TypeScript error messages
+                import re
+                # Pattern matches: "path/to/file.ts(line,col): error ..."
+                error_pattern = r'([^:\(\)]+\.ts)\(\d+,\d+\): error'
+                matches = re.findall(error_pattern, error_output)
+                failed_files = set(matches)
+            
+            successful_files = [f for f in ts_files if f not in failed_files]
+            
+            if successful_files:
                 print(f"Batch compilation completed in {compile_time:.2f}s")
-                # Mark files as already compiled
-                for ts_file in ts_files:
+                print(f"  ✅ {len(successful_files)} files compiled successfully")
+                # Mark successful files as already compiled
+                for ts_file in successful_files:
                     setattr(self, f'_compiled_{ts_file}', True)
-            else:
-                print(f"Batch compilation failed, will compile individually. Error: {compile_result.stderr[:200]}")
+            
+            if failed_files:
+                print(f"  ⚠️  {len(failed_files)} files had compilation errors (will compile individually)")
                 if self.config.verbose:
-                    print(f"Command was: {tsc_cmd} --target es2020 --module commonjs {' '.join(ts_files[:3])}...")  # Show first few files
+                    print(f"Failed files: {list(failed_files)[:5]}...")  # Show first 5 failed files
+                    print(f"Error details:\n{error_output[:1000]}")  # Show more error details in verbose mode
+                
+            if not successful_files and not failed_files:
+                # No clear parse - fall back to old behavior
+                print(f"Batch compilation unclear, will compile all files individually.")
+                if self.config.verbose:
+                    print(f"Full error output:\n{error_output}")
                 
         except Exception as e:
-            print(f"Batch compilation failed, will compile individually: {str(e)[:200]}")
+            print(f"Batch compilation failed due to exception, will compile individually.")
+            print(f"Exception details: {str(e)}")
+            if self.config.verbose:
+                import traceback
+                print(f"Full traceback:\n{traceback.format_exc()}")
     
     def _get_typescript_output_path(self, test_file: str) -> Optional[str]:
         """Get the expected TypeScript output path for a Frame test file."""
