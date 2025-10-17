@@ -254,23 +254,110 @@ class FrameTestRunner:
         except Exception as e:
             return False, str(e)
     
+    def _batch_compile_typescript(self, tests: Dict[str, List[str]]) -> None:
+        """
+        Batch compile all TypeScript files at once for better performance.
+        This reduces TypeScript compiler startup overhead from ~0.9s per file to ~1s total.
+        Now uses shared runtime module to avoid duplicate identifier issues.
+        """
+        try:
+            # Find TypeScript compiler
+            tsc_cmd = self._find_typescript_compiler()
+            if not tsc_cmd:
+                print("Warning: tsc not found - TypeScript tests will compile individually")
+                return
+            
+            # First, compile the shared runtime module
+            runtime_path = self.base_dir / "typescript" / "runtime" / "frame_runtime.ts"
+            if runtime_path.exists():
+                print("Compiling shared runtime module...")
+                runtime_result = subprocess.run(
+                    [tsc_cmd, "--target", "es2020", "--module", "commonjs", str(runtime_path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=self.config.timeout
+                )
+                if runtime_result.returncode != 0:
+                    print(f"Runtime compilation failed: {runtime_result.stderr[:200]}")
+                    return
+            
+            # Collect all test files that will generate TypeScript
+            ts_files = []
+            
+            for category, test_files in tests.items():
+                for test_file in test_files:
+                    # Skip language-specific tests for other languages
+                    if category.startswith("language_specific_"):
+                        lang = category.split("_")[-1]
+                        if lang != 'typescript':
+                            continue
+                    
+                    # Generate the expected TypeScript file path
+                    ts_file = self._get_typescript_output_path(test_file)
+                    if ts_file and os.path.exists(ts_file):
+                        ts_files.append(ts_file)
+            
+            if not ts_files:
+                return
+                
+            print(f"Batch compiling {len(ts_files)} TypeScript files with shared runtime...")
+            
+            # Batch compile all TypeScript files
+            start_time = time.time()
+            compile_result = subprocess.run(
+                [tsc_cmd, "--target", "es2020", "--module", "commonjs"] + ts_files,
+                capture_output=True,
+                text=True,
+                timeout=self.config.timeout * 10  # Longer timeout for batch compilation
+            )
+            
+            compile_time = time.time() - start_time
+            
+            if compile_result.returncode == 0:
+                print(f"Batch compilation completed in {compile_time:.2f}s")
+                # Mark files as already compiled
+                for ts_file in ts_files:
+                    setattr(self, f'_compiled_{ts_file}', True)
+            else:
+                print(f"Batch compilation failed, will compile individually. Error: {compile_result.stderr[:200]}")
+                if self.config.verbose:
+                    print(f"Command was: {tsc_cmd} --target es2020 --module commonjs {' '.join(ts_files[:3])}...")  # Show first few files
+                
+        except Exception as e:
+            print(f"Batch compilation failed, will compile individually: {str(e)[:200]}")
+    
+    def _get_typescript_output_path(self, test_file: str) -> Optional[str]:
+        """Get the expected TypeScript output path for a Frame test file."""
+        test_name = Path(test_file).stem
+        ts_file = self.generated_dir / "typescript" / f"{test_name}.ts"
+        return str(ts_file) if ts_file.exists() else None
+        
     def execute_typescript(self, ts_file: str) -> Tuple[bool, str]:
         """
         Execute TypeScript file and return success status and output.
         First compiles with tsc, then runs with node.
+        Tries local ./node_modules/.bin/tsc first, then global tsc.
         """
         try:
-            # Compile TypeScript
             js_file = ts_file.replace('.ts', '.js')
-            compile_result = subprocess.run(
-                ["tsc", "--target", "es2020", "--module", "commonjs", ts_file],
-                capture_output=True,
-                text=True,
-                timeout=self.config.timeout
-            )
             
-            if compile_result.returncode != 0:
-                return False, f"TypeScript compilation failed:\n{compile_result.stderr}"
+            # Check if this file was already batch compiled
+            if not hasattr(self, f'_compiled_{ts_file}'):
+                # Find TypeScript compiler - try local first, then global
+                tsc_cmd = self._find_typescript_compiler()
+                if not tsc_cmd:
+                    return False, "tsc not found - please install TypeScript (npm install)"
+                
+                # Compile TypeScript individually with optimized flags
+                compile_result = subprocess.run(
+                    [tsc_cmd, "--target", "es5", "--module", "commonjs", "--skipLibCheck", ts_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=self.config.timeout
+                )
+                
+                if compile_result.returncode != 0:
+                    return False, f"TypeScript compilation failed:\n{compile_result.stderr}"
             
             # Run JavaScript
             result = subprocess.run(
@@ -289,9 +376,37 @@ class FrameTestRunner:
         except subprocess.TimeoutExpired:
             return False, "Execution timeout"
         except FileNotFoundError:
-            return False, "tsc or node not found - please install TypeScript and Node.js"
+            return False, "node not found - please install Node.js"
         except Exception as e:
             return False, str(e)
+    
+    def _find_typescript_compiler(self) -> Optional[str]:
+        """
+        Find TypeScript compiler, preferring local installation.
+        
+        Returns:
+            Path to tsc executable, or None if not found
+        """
+        import shutil
+        
+        # Try local node_modules first (project root)
+        project_root = self.base_dir.parent  # Go up from framec_tests to project root
+        
+        # Check both possible locations for local TypeScript
+        local_tsc_bin = project_root / "node_modules" / ".bin" / "tsc"
+        local_tsc_direct = project_root / "node_modules" / "typescript" / "bin" / "tsc"
+        
+        if local_tsc_bin.exists():
+            return str(local_tsc_bin)
+        elif local_tsc_direct.exists():
+            return str(local_tsc_direct)
+        
+        # Try global tsc
+        global_tsc = shutil.which("tsc")
+        if global_tsc:
+            return global_tsc
+            
+        return None
     
     def run_test(self, test_file: Path, category: str, language: str) -> TestResult:
         """Run a single test for a specific language."""
@@ -381,6 +496,10 @@ class FrameTestRunner:
         print(f"\nDiscovered {sum(len(files) for files in tests.values())} tests in {len(tests)} categories")
         print(f"Testing languages: {', '.join(self.config.languages)}")
         print()
+        
+        # Batch compilation now enabled with shared runtime module
+        if 'typescript' in self.config.languages and self.config.execute:
+            self._batch_compile_typescript(tests)
         
         for category, test_files in sorted(tests.items()):
             if not test_files:

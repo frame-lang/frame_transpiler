@@ -3,7 +3,7 @@ use crate::frame_c::parser::*;
 use crate::frame_c::scanner::*;
 use crate::frame_c::source_map::SourceMapBuilder;
 use crate::frame_c::symbol_table::*;
-use crate::frame_c::utils::{frame_exitcode, RunError, SystemHierarchy};
+use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
 use crate::frame_c::modules::MultiFileCompiler;
@@ -27,7 +27,7 @@ use std::convert::TryFrom;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "Emitted from framec_v0.83.0";
+static FRAMEC_VERSION: &str = "Emitted from framec_v0.83.1";
 
 /* --------------------------------------------------------------------- */
 
@@ -116,10 +116,10 @@ impl Exe {
         target_language: Option<TargetLanguage>,
         output_dir: Option<PathBuf>,
     ) -> Result<String, RunError> {
-        // For now, only support Python target for multi-file
+        // Support Python and TypeScript targets for multi-file
         let lang = target_language.unwrap_or(TargetLanguage::Python3);
-        if !matches!(lang, TargetLanguage::Python3) {
-            let error_msg = "Multi-file compilation is only supported for Python target language";
+        if !matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript) {
+            let error_msg = "Multi-file compilation is only supported for Python and TypeScript target languages";
             return Err(RunError::new(exitcode::USAGE, error_msg));
         }
         
@@ -127,7 +127,7 @@ impl Exe {
         let config = FrameConfig::default();
         
         // Create and run multi-file compiler
-        let mut compiler = MultiFileCompiler::new_for_entry(config, entry_path).map_err(|e| {
+        let mut compiler = MultiFileCompiler::new_for_entry(config, entry_path, lang).map_err(|e| {
             RunError::new(frame_exitcode::PARSE_ERR, &format!("Cannot initialize multi-file compiler: {}", e))
         })?;
         
@@ -434,8 +434,14 @@ impl Exe {
                 }
                 TargetLanguage::TypeScript => {
                     use crate::frame_c::visitors::typescript_visitor::TypeScriptVisitor;
+                    use crate::frame_c::symbol_table::SymbolConfig;
                     
-                    let visitor = TypeScriptVisitor::new();
+                    let arcanum = semantic_parser.get_arcanum();
+                    let arcanum_vec = vec![arcanum];
+                    let visitor = TypeScriptVisitor::new(
+                        arcanum_vec,
+                        SymbolConfig::new(),
+                    );
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::Python3 => {
@@ -640,8 +646,14 @@ impl Exe {
             Some(lang) => match lang {
                 TargetLanguage::TypeScript => {
                     use crate::frame_c::visitors::typescript_visitor::TypeScriptVisitor;
+                    use crate::frame_c::symbol_table::SymbolConfig;
                     
-                    let visitor = TypeScriptVisitor::new();
+                    let arcanum = semantic_parser.get_arcanum();
+                    let arcanum_vec = vec![arcanum];
+                    let visitor = TypeScriptVisitor::new(
+                        arcanum_vec,
+                        SymbolConfig::new(),
+                    );
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::Python3 => {

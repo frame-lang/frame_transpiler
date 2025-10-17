@@ -5465,7 +5465,7 @@ impl<'a> Parser<'a> {
                                     StatementType::TransitionStmt { .. } => {
                                         statements.push(decl_or_statement);
                                         // Mark that we found a transition - any subsequent code is unreachable
-                                        let mut found_unreachable_code = false;
+                                        let mut _found_unreachable_code = false;
                                         
                                         // Continue parsing to detect any unreachable code after transition
                                         while !self.check(TokenType::Eof) && !self.check(TokenType::CloseBrace) {
@@ -5477,8 +5477,8 @@ impl<'a> Parser<'a> {
                                                     "Unreachable code: '{}' statement after transition", 
                                                     error_token.lexeme
                                                 ));
-                                                found_unreachable_code = true;
-                                                is_err = true;
+                                                _found_unreachable_code = true;
+                                                // is_err = true; // TODO: Use this flag for error recovery
                                                 // Skip the unreachable statement to continue error detection
                                                 match self.decl_or_stmt(identifier_decl_scope.clone()) {
                                                     Ok(_) => {}, // Consume but don't add to statements

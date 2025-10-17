@@ -8,6 +8,8 @@
 ./config.yaml
 target
 
+# Node.js dependencies
+node_modules/
 framec_tests/javascript/node_modules
 
 # Planning docs (internal use only)

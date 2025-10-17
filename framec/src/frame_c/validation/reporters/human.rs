@@ -82,7 +82,7 @@ impl ValidationReporter for HumanReporter {
             writeln!(output).unwrap();
 
             for (i, issue) in result.issues.iter().enumerate() {
-                let (icon, severity_name) = self.format_severity(issue.severity);
+                let (icon, _severity_name) = self.format_severity(issue.severity);
                 let category_name = self.format_category(issue.category);
                 
                 writeln!(output, "{} Issue #{}: {} [{}]", icon, i + 1, issue.message, category_name).unwrap();

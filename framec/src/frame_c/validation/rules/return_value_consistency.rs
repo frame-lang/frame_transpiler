@@ -24,7 +24,7 @@ impl ValidationRule for ReturnValueConsistencyRule {
         ValidationLevel::Semantic
     }
 
-    fn validate(&self, context: &ValidationContext) -> Vec<ValidationIssue> {
+    fn validate(&self, _context: &ValidationContext) -> Vec<ValidationIssue> {
         // TODO: Implement return value consistency checking
         // This will be expanded in Phase 3
         Vec::new()

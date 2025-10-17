@@ -9,6 +9,7 @@ use crate::frame_c::parser::Parser;
 use crate::frame_c::scanner::Scanner;
 use crate::frame_c::symbol_table::Arcanum;
 use crate::frame_c::config::FrameConfig;
+use crate::frame_c::visitors::TargetLanguage;
 use super::resolver::ModuleResolver;
 use super::graph::DependencyGraph;
 use super::cache::ModuleCache;
@@ -29,6 +30,9 @@ pub struct MultiFileCompiler {
     
     /// Module linker for final assembly
     linker: ModuleLinker,
+    
+    /// Target language for code generation
+    target_language: TargetLanguage,
     
     /// Configuration
     _config: FrameConfig,
@@ -179,36 +183,38 @@ impl ModuleExports {
 
 impl MultiFileCompiler {
     /// Create a new multi-file compiler
-    pub fn new(config: FrameConfig) -> ModuleResult<Self> {
+    pub fn new(config: FrameConfig, target_language: TargetLanguage) -> ModuleResult<Self> {
         let resolver = ModuleResolver::new(&config)?;
         let dependency_graph = DependencyGraph::new();
         let cache_dir = config.build.output_dir.join(".cache");
         let module_cache = ModuleCache::new(cache_dir);
-        let linker = ModuleLinker::new(LinkingStrategy::Concatenation);
+        let linker = ModuleLinker::new(LinkingStrategy::Concatenation, target_language);
         
         Ok(Self {
             resolver,
             dependency_graph,
             module_cache,
             linker,
+            target_language,
             _config: config,
             parsed_modules: HashMap::new(),
         })
     }
     
     /// Create a multi-file compiler for a specific entry file
-    pub fn new_for_entry(config: FrameConfig, entry_file: &Path) -> ModuleResult<Self> {
+    pub fn new_for_entry(config: FrameConfig, entry_file: &Path, target_language: TargetLanguage) -> ModuleResult<Self> {
         let resolver = ModuleResolver::new_for_entry(&config, entry_file)?;
         let dependency_graph = DependencyGraph::new();
         let cache_dir = config.build.output_dir.join(".cache");
         let module_cache = ModuleCache::new(cache_dir);
-        let linker = ModuleLinker::new(LinkingStrategy::Concatenation);
+        let linker = ModuleLinker::new(LinkingStrategy::Concatenation, target_language);
         
         Ok(Self {
             resolver,
             dependency_graph,
             module_cache,
             linker,
+            target_language,
             _config: config,
             parsed_modules: HashMap::new(),
         })
@@ -219,7 +225,7 @@ impl MultiFileCompiler {
         self.linker = ModuleLinker::new(LinkingStrategy::SeparateFiles {
             output_dir,
             create_package: true,
-        });
+        }, self.target_language);
     }
     
     /// Compile a Frame project starting from an entry point

@@ -24,7 +24,7 @@ impl ValidationRule for InterfaceCompletenessRule {
         ValidationLevel::Structural
     }
 
-    fn validate(&self, context: &ValidationContext) -> Vec<ValidationIssue> {
+    fn validate(&self, _context: &ValidationContext) -> Vec<ValidationIssue> {
         // TODO: Implement interface completeness validation
         // This will be expanded in Phase 1B
         Vec::new()

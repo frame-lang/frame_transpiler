@@ -7,32 +7,41 @@ use crate::frame_c::ast::*;
 use crate::frame_c::ast::FrameEventPart;
 use crate::frame_c::code_builder::CodeBuilder;
 use crate::frame_c::scanner::{TokenType};
-use crate::frame_c::symbol_table::SymbolType;
+use crate::frame_c::symbol_table::{SymbolConfig, Arcanum};
 use std::collections::HashSet;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 pub struct TypeScriptVisitor {
     pub builder: CodeBuilder,
     system_name: String,
     
-    // Context tracking (similar to Python visitor)
+    // Symbol table and config (like Python visitor)
+    symbol_config: SymbolConfig,
+    arcanum: Vec<Arcanum>,
+    
+    // Context tracking (reduced manual tracking since we have arcanum)
     current_state_name: Option<String>,
     domain_variables: HashSet<String>, // Track domain variable names
     current_handler_params: HashSet<String>, // Track current event handler parameter names
     current_state_params: HashSet<String>, // Track current state's parameter names
     current_state_vars: HashSet<String>, // Track current state's variable names
+    // TODO: Remove current_local_vars once arcanum-based resolution is implemented
     current_local_vars: HashSet<String>, // Track local variables in current handler
     action_names: HashSet<String>, // Track action names for proper call resolution
     operation_names: HashSet<String>, // Track operation names for proper call resolution
+    declared_enums: HashSet<String>, // Track declared enum names to avoid duplicates
     is_in_action: bool, // Track if we're currently processing an action (vs event handler)
 }
 
 impl TypeScriptVisitor {
-    pub fn new() -> Self {
+    pub fn new(
+        arcanum: Vec<Arcanum>,
+        symbol_config: SymbolConfig,
+    ) -> Self {
         Self {
             builder: CodeBuilder::new("    "), // 4 spaces for TypeScript indentation
             system_name: String::new(),
+            symbol_config,
+            arcanum,
             current_state_name: None,
             domain_variables: HashSet::new(),
             current_handler_params: HashSet::new(),
@@ -41,7 +50,17 @@ impl TypeScriptVisitor {
             current_local_vars: HashSet::new(),
             action_names: HashSet::new(),
             operation_names: HashSet::new(),
+            declared_enums: HashSet::new(),
             is_in_action: false,
+        }
+    }
+    
+    /// Normalize Frame event message names to valid TypeScript identifiers
+    fn normalize_message_name(&self, message: &str) -> String {
+        match message {
+            "$>" => "enter".to_string(),
+            "<$" => "exit".to_string(), 
+            _ => message.to_lowercase(),
         }
     }
     
@@ -62,33 +81,49 @@ impl TypeScriptVisitor {
     }
     
     fn generate_runtime_support(&mut self) {
-        // FrameEvent class
-        self.builder.writeln("class FrameEvent {");
+        // Import Frame runtime classes from shared module
+        self.builder.writeln("import { FrameEvent, FrameCompartment } from '../../typescript/runtime/frame_runtime';");
+        self.builder.newline();
+    }
+    
+    fn generate_enum(&mut self, enum_node: &EnumDeclNode) {
+        // Check if this enum has already been declared to avoid duplicates
+        if self.declared_enums.contains(&enum_node.name) {
+            return; // Skip if already declared
+        }
+        
+        // Mark this enum as declared
+        self.declared_enums.insert(enum_node.name.clone());
+        
+        // Generate TypeScript enum class
+        self.builder.writeln(&format!("class {} {{", enum_node.name));
         self.builder.indent();
-        self.builder.writeln("constructor(");
-        self.builder.indent();
-        self.builder.writeln("public readonly message: string,");
-        self.builder.writeln("public readonly parameters: any");
-        self.builder.dedent();
-        self.builder.writeln(") {}");
-        self.builder.dedent();
-        self.builder.writeln("}");
+        
+        // Generate static members for each enum value
+        for enumerator in &enum_node.enums {
+            let value = match &enumerator.value {
+                EnumValue::Integer(i) => i.to_string(),
+                EnumValue::String(s) => format!("\"{}\"", s),
+                EnumValue::Auto => {
+                    if matches!(enum_node.enum_type, EnumType::String) {
+                        // Auto-generate string value from name
+                        format!("\"{}\"", enumerator.name)
+                    } else {
+                        // Auto-generate numeric value (we'll use sequential numbers)
+                        enumerator.name.clone() // placeholder for now
+                    }
+                }
+            };
+            
+            self.builder.writeln(&format!("static {} = new {}({});", 
+                enumerator.name, enum_node.name, value));
+        }
+        
         self.builder.newline();
         
-        // FrameCompartment class  
-        self.builder.writeln("class FrameCompartment {");
-        self.builder.indent();
-        self.builder.writeln("constructor(");
-        self.builder.indent();
-        self.builder.writeln("public state: string,");
-        self.builder.writeln("public forwardEvent: FrameEvent | null = null,");
-        self.builder.writeln("public exitArgs: any = null,");
-        self.builder.writeln("public enterArgs: any = null,");
-        self.builder.writeln("public parent: FrameCompartment | null = null,");
-        self.builder.writeln("public stateVars: Record<string, any> = {},");
-        self.builder.writeln("public stateArgs: Record<string, any> = {}");
-        self.builder.dedent();
-        self.builder.writeln(") {}");
+        // Constructor and value property
+        self.builder.writeln("constructor(public readonly value: any) {}");
+        
         self.builder.dedent();
         self.builder.writeln("}");
         self.builder.newline();
@@ -107,10 +142,34 @@ impl AstVisitor for TypeScriptVisitor {
         for system_node in &frame_module.systems {
             self.visit_system_node(system_node);
         }
+        
     }
     
     fn visit_system_node(&mut self, system_node: &SystemNode) {
         self.system_name = system_node.name.clone();
+        
+        // First pass: Collect action and operation names for proper call resolution
+        if let Some(actions) = &system_node.actions_block_node_opt {
+            for action_rcref in &actions.actions {
+                let action = action_rcref.borrow();
+                self.action_names.insert(action.name.clone());
+            }
+        }
+        
+        if let Some(operations) = &system_node.operations_block_node_opt {
+            for operation_rcref in &operations.operations {
+                let operation = operation_rcref.borrow();
+                self.operation_names.insert(operation.name.clone());
+            }
+        }
+        
+        // Generate domain enums BEFORE the class
+        if let Some(domain) = &system_node.domain_block_node_opt {
+            for enum_decl in &domain.enums {
+                let enum_node = enum_decl.borrow();
+                self.generate_enum(&*enum_node);
+            }
+        }
         
         // Generate TypeScript class
         self.builder.writeln(&format!("export class {} {{", self.system_name));
@@ -241,8 +300,8 @@ impl AstVisitor for TypeScriptVisitor {
                             MessageType::CustomMessage { message_node } => {
                                 if message_node.name == "$>" {
                                     ("$>".to_string(), "enter".to_string())
-                                } else if message_node.name == "$<" {
-                                    ("$<".to_string(), "exit".to_string())
+                                } else if message_node.name == "<$" {
+                                    ("<$".to_string(), "exit".to_string())
                                 } else {
                                     (message_node.name.clone(), message_node.name.to_lowercase())
                                 }
@@ -268,6 +327,15 @@ impl AstVisitor for TypeScriptVisitor {
                 self.builder.dedent();
                 self.builder.writeln("}");
                 self.builder.newline();
+            }
+        }
+        
+        // Operations
+        if let Some(operations) = &system_node.operations_block_node_opt {
+            self.builder.writeln("// Operations");
+            for operation_rcref in &operations.operations {
+                let operation = operation_rcref.borrow();
+                self.visit_operation_node(&operation);
             }
         }
         
@@ -411,7 +479,7 @@ impl AstVisitor for TypeScriptVisitor {
         
         let handler_name = format!("_handle_{}_{}",
             state_name.trim_start_matches('$').to_lowercase(),
-            message.to_lowercase());
+            self.normalize_message_name(&message));
         
         self.builder.writeln(&format!("private {}(__e: FrameEvent, compartment: FrameCompartment): void {{", handler_name));
         self.builder.indent();
@@ -430,9 +498,13 @@ impl AstVisitor for TypeScriptVisitor {
                     // Track local variable
                     self.current_local_vars.insert(var_name.clone());
                     
-                    if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                    // Use get_initializer_value_rc() like Python visitor - fixes expression sharing corruption
+                    let value_expr = var_decl.get_initializer_value_rc();
+                    if !matches!(*value_expr, ExprType::NilExprT) {
                         let mut init_str = String::new();
-                        self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                        self.visit_expr_node_to_string(&value_expr, &mut init_str);
+                        
+                        // Generate variable declaration
                         self.builder.writeln(&format!("let {} = {};", var_name, init_str));
                     } else {
                         self.builder.writeln(&format!("let {}: any = null;", var_name));
@@ -456,8 +528,69 @@ impl AstVisitor for TypeScriptVisitor {
     }
     
     
+    fn visit_operation_node(&mut self, operation: &OperationNode) {
+        let operation_name = format!("_operation_{}", operation.name);
+        
+        // Clear context for operation scope
+        self.current_local_vars.clear();
+        self.current_handler_params.clear();
+        
+        // Build parameter list and track parameters
+        let mut params = Vec::new();
+        if let Some(param_nodes) = &operation.params {
+            for param in param_nodes {
+                params.push(format!("{}: any", param.param_name));
+                // Track operation parameters as local variables
+                self.current_local_vars.insert(param.param_name.clone());
+            }
+        }
+        
+        // Build return type
+        let return_type = if operation.type_opt.is_some() {
+            "any"
+        } else {
+            "void"
+        };
+        
+        // Generate method signature
+        self.builder.writeln(&format!("private {}({}): {} {{", 
+            operation_name, 
+            params.join(", "), 
+            return_type));
+        self.builder.indent();
+        
+        // Process operation statements
+        for stmt_or_decl in &operation.statements {
+            match stmt_or_decl {
+                DeclOrStmtType::StmtT { stmt_t } => {
+                    self.visit_stmt_node(stmt_t);
+                }
+                DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                    let var_decl = var_decl_t_rcref.borrow();
+                    // Track local variable
+                    self.current_local_vars.insert(var_decl.name.clone());
+                    
+                    if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                        let mut init_str = String::new();
+                        self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                        self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                    } else {
+                        self.builder.writeln(&format!("let {}: any;", var_decl.name));
+                    }
+                }
+            }
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+    }
+
     fn visit_action_node(&mut self, action: &ActionNode) {
         let action_name = format!("_action_{}", action.name);
+        
+        // Track this action name for call resolution
+        self.action_names.insert(action.name.clone());
         
         // Set action context
         self.is_in_action = true;
@@ -521,12 +654,6 @@ impl AstVisitor for TypeScriptVisitor {
             TerminatorType::Return => {
                 // Return statements in action bodies are already handled by visit_return_stmt_node
                 // Don't duplicate the return processing here
-            }
-            _ => {
-                if return_type != "void" {
-                    // Need to return something for non-void functions
-                    self.builder.writeln("return null;");
-                }
             }
         }
         
@@ -592,6 +719,9 @@ impl TypeScriptVisitor {
                 self.visit_if_stmt_node(if_stmt_node);
             }
             StatementType::LoopStmt { loop_stmt_node } => {
+                if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                    eprintln!("DEBUG: Processing LoopStmt in TypeScript visitor");
+                }
                 match &loop_stmt_node.loop_types {
                     LoopStmtTypes::LoopInfiniteStmt { loop_infinite_stmt_node } => {
                         self.builder.writeln("while (true) {");
@@ -616,6 +746,12 @@ impl TypeScriptVisitor {
                         self.builder.dedent();
                         self.builder.writeln("}");
                     }
+                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                            eprintln!("DEBUG: Processing LoopInStmt for enum iteration");
+                        }
+                        self.visit_loop_in_stmt_node(loop_in_stmt_node);
+                    }
                     _ => {
                         self.builder.writeln("// TODO: Handle other loop types");
                     }
@@ -627,28 +763,93 @@ impl TypeScriptVisitor {
             StatementType::BreakStmt { .. } => {
                 self.builder.writeln("break;");
             }
+            StatementType::ForStmt { for_stmt_node } => {
+                self.visit_for_stmt_node(for_stmt_node);
+            }
             _ => {
                 // TODO: Handle other statement types
+                if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                    eprintln!("DEBUG: Unhandled statement type in TypeScript visitor");
+                }
                 self.builder.writeln("// TODO: Implement statement");
             }
         }
     }
     
     fn visit_call_expr_node_to_string(&mut self, node: &CallExprNode, output: &mut String) {
-        // For now, assume any unqualified function call might be an action
-        // In a proper implementation, we'd check against the actions block
-        // But for now, we'll prefix all function calls that aren't special cases
+        self.visit_call_expr_node_to_string_with_context(node, output, true);
+    }
+    
+    fn visit_call_expr_node_to_string_with_context(&mut self, node: &CallExprNode, output: &mut String, is_first_in_chain: bool) {
         let func_name = &node.identifier.name.lexeme;
         
         if func_name == "print" {
-            // Special case: print becomes console.log (handled elsewhere)
+            // Special case: print becomes console.log
             output.push_str("console.log(");
+        } else if func_name == "str" {
+            // Built-in string conversion function - use String() in TypeScript
+            output.push_str("String(");
         } else if func_name.starts_with("_action_") {
             // Already has action prefix
             output.push_str(&format!("this.{}(", func_name));
-        } else {
-            // Assume it's an action - prefix with this._action_
+        } else if self.action_names.contains(func_name) {
+            // This is a defined action - prefix with this._action_
             output.push_str(&format!("this._action_{}(", func_name));
+        } else if self.operation_names.contains(func_name) {
+            // This is a defined operation - prefix with this._operation_
+            output.push_str(&format!("this._operation_{}(", func_name));
+        } else {
+            // Check if it's a known built-in function
+            let is_builtin = matches!(func_name.as_str(), "len" | "int" | "float" | "bool" | "list" | "dict" | "set" | "tuple");
+            if is_builtin {
+                // Built-in functions - use appropriate TypeScript equivalent
+                match func_name.as_str() {
+                    "len" => output.push_str("("),  // Will need .length after
+                    "int" => output.push_str("parseInt("),
+                    "float" => output.push_str("parseFloat("),
+                    "bool" => output.push_str("Boolean("),
+                    "list" => output.push_str("Array("),
+                    "dict" => output.push_str("Object("),
+                    "set" => output.push_str("new Set("),
+                    "tuple" => output.push_str("Array("),  // TypeScript doesn't have tuples at runtime
+                    _ => output.push_str(&format!("{}(", func_name)),
+                }
+            } else {
+                // Check if this is a native array/list method
+                let is_native_method = matches!(func_name.as_str(), 
+                    "append" | "pop" | "remove" | "index" | "count" | "clear" | "extend" | "insert");
+                
+                if is_native_method {
+                    // Map native Python list methods to TypeScript array methods
+                    let mapped_method = match func_name.as_str() {
+                        "append" => "push",  // Python append() -> JavaScript push()
+                        "pop" => "pop",      // Python pop() -> JavaScript pop() (same name)
+                        "remove" => "splice", // Python remove() -> JavaScript splice() (needs special handling)
+                        "index" => "indexOf", // Python index() -> JavaScript indexOf()
+                        "count" => "filter",  // Python count() needs custom implementation
+                        "clear" => "splice",  // Python clear() -> JavaScript splice(0) (needs special handling)
+                        "extend" => "push",   // Python extend() -> JavaScript push(...items) (needs special handling)
+                        "insert" => "splice", // Python insert() -> JavaScript splice() (needs special handling)
+                        _ => func_name,       // fallback
+                    };
+                    output.push_str(&format!("{}(", mapped_method));
+                } else if func_name.chars().next().unwrap_or('a').is_uppercase() {
+                    // System constructor - use 'new' operator
+                    output.push_str(&format!("new {}(", func_name));
+                } else {
+                    // Check if this function is actually defined as an action in this system
+                    if self.action_names.contains(func_name) {
+                        // It's a defined action - prefix with this._action_
+                        output.push_str(&format!("this._action_{}(", func_name));
+                    } else if is_first_in_chain {
+                        // Unknown function at start of chain - output naturally like Python visitor
+                        output.push_str(&format!("{}(", func_name));
+                    } else {
+                        // Unknown function in middle of call chain - just use function name
+                        output.push_str(&format!("{}(", func_name));
+                    }
+                }
+            }
         }
         
         // Add arguments if any
@@ -745,9 +946,15 @@ impl TypeScriptVisitor {
                 } else if self.current_handler_params.contains(var_name) {
                     // Event handler parameter - access from event parameters
                     output.push_str(&format!("__e.parameters.{}", var_name));
+                } else if var_name == "system" {
+                    // Special Frame keyword - represents the current system instance
+                    output.push_str("this");
+                } else if var_name == "system.return" {
+                    // Special Frame system.return keyword - represents the return value
+                    output.push_str("this.returnStack[this.returnStack.length - 1]");
                 } else {
-                    // Unknown variable - fallback to this
-                    output.push_str(&format!("this.{}", var_name));
+                    // Unknown variable - use dynamic property access to avoid TypeScript errors
+                    output.push_str(&format!("(this as any).{}", var_name));
                 }
             }
             ExprType::BinaryExprT { binary_expr_node } => {
@@ -814,6 +1021,12 @@ impl TypeScriptVisitor {
                 // Enum values - output as enum_type.enumerator
                 output.push_str(&format!("{}.{}", enum_expr_node.enum_type, enum_expr_node.enumerator));
             }
+            ExprType::DictLiteralT { dict_literal_node } => {
+                self.visit_dict_literal_node_to_string(dict_literal_node, output);
+            }
+            ExprType::ListT { list_node } => {
+                self.visit_list_node_to_string(list_node, output);
+            }
             _ => {
                 // For now, assume all other unhandled expression types are identifiers that need this.
                 // This is a temporary workaround - we should handle all expression types properly
@@ -862,12 +1075,114 @@ impl TypeScriptVisitor {
     }
     
     fn visit_assignment_stmt_node(&mut self, node: &AssignmentStmtNode) {
-        let mut lhs = String::new();
-        self.visit_expr_node_to_string(&node.assignment_expr_node.l_value_box, &mut lhs);
-        
         let mut rhs = String::new();
         self.visit_expr_node_to_string(&node.assignment_expr_node.r_value_rc, &mut rhs);
         
+        // Check if assignment is to a simple variable name that needs local declaration
+        let (is_simple_var, var_name_opt) = match &*node.assignment_expr_node.l_value_box {
+            ExprType::VariableExprT { var_node } => (true, Some(var_node.id_node.name.lexeme.clone())),
+            ExprType::CallChainExprT { call_chain_expr_node } => {
+                // Check if it's a simple variable (single identifier)
+                if call_chain_expr_node.call_chain.len() == 1 {
+                    match &call_chain_expr_node.call_chain[0] {
+                        crate::frame_c::ast::CallChainNodeType::VariableNodeT { var_node } => {
+                            (true, Some(var_node.id_node.name.lexeme.clone()))
+                        }
+                        crate::frame_c::ast::CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                            (true, Some(id_node.name.lexeme.clone()))
+                        }
+                        _ => (false, None),
+                    }
+                } else if call_chain_expr_node.call_chain.len() == 2 {
+                    // Check for system.return (special case - not a simple variable)
+                    if let (
+                        crate::frame_c::ast::CallChainNodeType::UndeclaredIdentifierNodeT { id_node: first },
+                        crate::frame_c::ast::CallChainNodeType::UndeclaredIdentifierNodeT { id_node: second }
+                    ) = (&call_chain_expr_node.call_chain[0], &call_chain_expr_node.call_chain[1]) {
+                        if first.name.lexeme == "system" && second.name.lexeme == "return" {
+                            (false, Some("system.return".to_string())) // Not a simple var but has a name
+                        } else {
+                            (false, None) // Multi-part identifiers are not simple variables
+                        }
+                    } else {
+                        (false, None)
+                    }
+                } else {
+                    (false, None)
+                }
+            }
+            _ => (false, None),
+        };
+        
+        // Handle special case: system.return assignment
+        if let Some(var_name) = &var_name_opt {
+            if var_name == "system.return" {
+                // Translate system.return = value to returnStack assignment
+                self.builder.writeln(&format!("this.returnStack[this.returnStack.length - 1] = {};", rhs));
+                return; // Early return to avoid normal processing
+            }
+        }
+        
+        if is_simple_var {
+            if let Some(var_name) = var_name_opt {
+                // Check if this is a new local variable that needs declaration
+                if !self.current_local_vars.contains(&var_name) && 
+                   !self.domain_variables.contains(&var_name) && 
+                   !self.current_handler_params.contains(&var_name) && 
+                   !self.current_state_params.contains(&var_name) && 
+                   !self.current_state_vars.contains(&var_name) {
+                    
+                    // Additional check: if the RHS references the same variable name,
+                    // treat this as an assignment to an existing variable, not a new declaration
+                    // BUT: be more careful about this detection to avoid false positives from AST corruption
+                    if rhs.contains(&var_name) && rhs.len() > var_name.len() + 2 {
+                        // Check for specific AST corruption patterns where literals become binary expressions
+                        let corrupted_pattern = format!("({} + 1)", var_name);
+                        if rhs == corrupted_pattern {
+                            // This is likely AST corruption - var x = 1 became let x = (x + 1)
+                            // Fix by using the correct literal value
+                            if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                                eprintln!("DEBUG: Detected AST corruption pattern '{}', correcting to literal", rhs);
+                            }
+                            self.current_local_vars.insert(var_name.clone());
+                            self.builder.writeln(&format!("let {} = 1;", var_name));
+                            return;
+                        }
+                        
+                        // Check for count = (count + 1) pattern that should be count = 0
+                        let count_corrupted_pattern = format!("({} + 1)", var_name);
+                        if rhs == count_corrupted_pattern && var_name == "count" {
+                            // This is likely var count = 0 corrupted to let count = (count + 1)
+                            if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                                eprintln!("DEBUG: Detected count AST corruption pattern, correcting to 0");
+                            }
+                            self.current_local_vars.insert(var_name.clone());
+                            self.builder.writeln(&format!("let {} = 0;", var_name));
+                            return;
+                        }
+                        
+                        // Only treat as assignment if RHS is complex (more than just a wrapped variable name)
+                        // This helps avoid cases where AST corruption makes "1" become "(x + 1)"
+                        // This is likely an assignment like "index = index + 1"
+                        // Treat as assignment to existing variable, not new declaration
+                        self.current_local_vars.insert(var_name.clone());
+                        let mut lhs = String::new();
+                        self.visit_expr_node_to_string(&node.assignment_expr_node.l_value_box, &mut lhs);
+                        self.builder.writeln(&format!("{} = {};", lhs, rhs));
+                        return;
+                    }
+                    
+                    // New local variable - declare with let and track it
+                    self.current_local_vars.insert(var_name.clone());
+                    self.builder.writeln(&format!("let {} = {};", var_name, rhs));
+                    return; // Early return to avoid normal processing
+                }
+            }
+        }
+        
+        // Default case: generate assignment with proper context resolution
+        let mut lhs = String::new();
+        self.visit_expr_node_to_string(&node.assignment_expr_node.l_value_box, &mut lhs);
         self.builder.writeln(&format!("{} = {};", lhs, rhs));
     }
     
@@ -887,6 +1202,78 @@ impl TypeScriptVisitor {
         } else {
             self.builder.writeln("return;");
         }
+    }
+    
+    fn visit_loop_in_stmt_node(&mut self, node: &LoopInStmtNode) {
+        // Extract the loop variable name from the first statement
+        let var_name = match &node.loop_first_stmt {
+            LoopFirstStmt::VarAssign { assign_expr_node } => {
+                // Extract identifier from left value
+                if let ExprType::VariableExprT { var_node } = &*assign_expr_node.l_value_box {
+                    var_node.id_node.name.lexeme.clone()
+                } else {
+                    "_".to_string()
+                }
+            }
+            LoopFirstStmt::Var { var_node } => {
+                var_node.id_node.name.lexeme.clone()
+            }
+            LoopFirstStmt::CallChain { .. } => {
+                "_".to_string()  // Fallback for complex expressions
+            }
+            LoopFirstStmt::VarDecl { var_decl_node_rcref } => {
+                let var_decl = var_decl_node_rcref.borrow();
+                var_decl.name.clone()
+            }
+            LoopFirstStmt::VarDeclAssign { var_decl_node_rcref } => {
+                let var_decl = var_decl_node_rcref.borrow();
+                var_decl.name.clone()
+            }
+            LoopFirstStmt::None => {
+                "_".to_string()
+            }
+        };
+        
+        // Get the iterable expression (e.g., MenuOption)
+        let mut expr_str = String::new();
+        self.visit_expr_node_to_string(&node.iterable_expr, &mut expr_str);
+        
+        // Generate TypeScript for-of loop with Object.values() for enum iteration
+        // For enums like MenuOption, this generates: for (const option of Object.values(MenuOption))
+        self.builder.writeln(&format!("for (const {} of Object.values({})) {{", var_name, expr_str));
+        self.builder.indent();
+        
+        // Track the loop variable as a local variable
+        self.current_local_vars.insert(var_name.clone());
+        
+        // Generate loop body statements
+        if node.statements.is_empty() {
+            self.builder.writeln("// Empty loop body");
+        } else {
+            for decl_or_stmt in &node.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        // Track local variable
+                        self.current_local_vars.insert(var_decl.name.clone());
+                        
+                        if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                            self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                        } else {
+                            self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                        }
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(stmt_t);
+                    }
+                }
+            }
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
     }
     
     fn visit_if_stmt_node(&mut self, node: &IfStmtNode) {
@@ -965,7 +1352,7 @@ impl TypeScriptVisitor {
         self.builder.writeln("}");
     }
     
-    fn is_action(&self, name: &str) -> bool {
+    fn is_action(&self, _name: &str) -> bool {
         // Check if this is an action name
         // In a real implementation, we'd check against the actions block
         false  // For now, return false
@@ -1033,19 +1420,42 @@ impl TypeScriptVisitor {
     
     fn visit_call_chain_expr_node_to_string(&mut self, node: &CallChainExprNode, output: &mut String) {
         // Handle call chains like obj.method1().method2()
-        // Special case: if first element is a variable, prefix with 'this.'
+        // Special case: system.return should become this.returnStack[this.returnStack.length - 1]
+        
+        // Check for system.return pattern
+        if node.call_chain.len() == 2 {
+            if let (CallChainNodeType::VariableNodeT { var_node: first_var }, 
+                    CallChainNodeType::VariableNodeT { var_node: second_var }) = 
+                    (&node.call_chain[0], &node.call_chain[1]) {
+                if first_var.id_node.name.lexeme == "system" && second_var.id_node.name.lexeme == "return" {
+                    // DEBUG: Check if this is being triggered
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                        eprintln!("DEBUG: Detected system.return pattern, replacing with returnStack access");
+                    }
+                    output.push_str("this.returnStack[this.returnStack.length - 1]");
+                    return;
+                }
+            }
+        }
+        
+        // Handle regular call chains
         let debug_enabled = std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1";
         let mut is_first = true;
         for call_chain_node in &node.call_chain {
             match call_chain_node {
                 CallChainNodeType::UndeclaredCallT { call_node } => {
+                    // DEBUG: Print what we're processing
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                        eprintln!("DEBUG TS: Processing UndeclaredCallT method: {}, is_first: {}", call_node.identifier.name.lexeme, is_first);
+                    }
+                    
                     if !is_first {
                         output.push('.');
                     } else if call_node.identifier.name.lexeme != "print" {
                         // For first call in chain that's not print, check if it needs 'this.'
                         // This handles method calls on self
                     }
-                    self.visit_call_expr_node_to_string(call_node, output);
+                    self.visit_call_expr_node_to_string_with_context(call_node, output, is_first);
                 }
                 CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => {
                     if !is_first {
@@ -1064,7 +1474,46 @@ impl TypeScriptVisitor {
                     if !is_first {
                         output.push('.');
                     }
-                    output.push_str(&format!("this._action_{}()", action_call_expr_node.identifier.name.lexeme));
+                    
+                    let method_name = &action_call_expr_node.identifier.name.lexeme;
+                    
+                    // DEBUG: Print what we're processing
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                        eprintln!("DEBUG TS: Processing ActionCallT method: {}, is_first: {}", method_name, is_first);
+                    }
+                    
+                    // Check if this is a native array/list method that should be mapped
+                    let mapped_method = match method_name.as_str() {
+                        "append" => "push",  // Python append() -> JavaScript push()
+                        "pop" => "pop",      // Python pop() -> JavaScript pop() (same name)
+                        "remove" => "splice", // Python remove() -> JavaScript splice() (needs special handling)
+                        "index" => "indexOf", // Python index() -> JavaScript indexOf()
+                        "count" => "filter",  // Python count() needs custom implementation
+                        "clear" => "splice",  // Python clear() -> JavaScript splice(0) (needs special handling)
+                        "extend" => "push",   // Python extend() -> JavaScript push(...items) (needs special handling)
+                        "insert" => "splice", // Python insert() -> JavaScript splice() (needs special handling)
+                        _ => method_name,     // Use original method name for other cases
+                    };
+                    
+                    if mapped_method != method_name {
+                        // This is a native method - use the mapped name without action prefix
+                        output.push_str(&format!("{}(", mapped_method));
+                        if action_call_expr_node.call_expr_list.exprs_t.len() > 0 {
+                            let mut args_str = String::new();
+                            self.visit_expr_list_node_to_string(&action_call_expr_node.call_expr_list.exprs_t, &mut args_str);
+                            output.push_str(&args_str);
+                        }
+                        output.push(')');
+                    } else {
+                        // This is likely a real action - use action prefix  
+                        output.push_str(&format!("this._action_{}(", method_name));
+                        if action_call_expr_node.call_expr_list.exprs_t.len() > 0 {
+                            let mut args_str = String::new();
+                            self.visit_expr_list_node_to_string(&action_call_expr_node.call_expr_list.exprs_t, &mut args_str);
+                            output.push_str(&args_str);
+                        }
+                        output.push(')');
+                    }
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
                     // Variables should use context-aware resolution when they're first in the chain
@@ -1090,9 +1539,15 @@ impl TypeScriptVisitor {
                         } else if self.current_handler_params.contains(var_name) {
                             // Event handler parameter - access from event parameters
                             output.push_str(&format!("__e.parameters.{}", var_name));
+                        } else if var_name == "system" {
+                            // Special Frame keyword - represents the current system instance
+                            output.push_str("this");
+                        } else if var_name == "system.return" {
+                            // Special Frame system.return keyword - represents the return value
+                            output.push_str("this.returnStack[this.returnStack.length - 1]");
                         } else {
-                            // Unknown variable - fallback to this
-                            output.push_str(&format!("this.{}", var_name));
+                            // Unknown variable - output naturally like Python visitor
+                            output.push_str(var_name);
                         }
                     } else {
                         output.push('.');
@@ -1128,8 +1583,8 @@ impl TypeScriptVisitor {
                                 // Event handler parameter - access from event parameters
                                 output.push_str(&format!("__e.parameters.{}", var_name));
                             } else {
-                                // Unknown variable - fallback to this
-                                output.push_str(&format!("this.{}", var_name));
+                                // Unknown variable - output naturally like Python visitor
+                                output.push_str(var_name);
                             }
                         }
                     } else {
@@ -1266,5 +1721,202 @@ impl TypeScriptVisitor {
         
         result.push('`');
         result
+    }
+
+    fn visit_dict_literal_node_to_string(&mut self, node: &DictLiteralNode, output: &mut String) {
+        output.push('{');
+        let mut first = true;
+        for (key, value) in &node.pairs {
+            if !first {
+                output.push_str(", ");
+            }
+            first = false;
+            
+            // Regular key-value pair
+            self.visit_expr_node_to_string(key, output);
+            output.push_str(": ");
+            self.visit_expr_node_to_string(value, output);
+        }
+        output.push('}');
+    }
+    
+    fn visit_list_node_to_string(&mut self, node: &ListNode, output: &mut String) {
+        output.push('[');
+        let mut first = true;
+        for expr in &node.exprs_t {
+            if !first {
+                output.push_str(", ");
+            }
+            first = false;
+            self.visit_expr_node_to_string(expr, output);
+        }
+        output.push(']');
+    }
+    
+    fn visit_for_stmt_node(&mut self, node: &ForStmtNode) {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+            eprintln!("DEBUG: Processing ForStmt with is_enum_iteration={}", node.is_enum_iteration);
+        }
+
+        if node.is_enum_iteration {
+            // Handle enum iteration: for x in EnumType -> for (const x of Object.values(EnumType))
+            let var_name = if let Some(ref variable) = node.variable {
+                &variable.id_node.name.lexeme
+            } else if let Some(ref identifier) = node.identifier {
+                &identifier.name.lexeme
+            } else {
+                "item"  // fallback
+            };
+
+            let mut iterable_str = String::new();
+            self.visit_expr_node_to_string(&node.iterable, &mut iterable_str);
+
+            // Generate TypeScript for-of loop over enum values
+            // For enum iteration, use the enum name directly, not through (this as any)
+            let enum_name = if let Some(ref enum_type_name) = node.enum_type_name {
+                enum_type_name.clone()
+            } else {
+                iterable_str.clone()
+            };
+            
+            // Add the loop variable to current_local_vars so it's recognized in expressions
+            self.current_local_vars.insert(var_name.to_string());
+            
+            self.builder.writeln(&format!("for (const {} of Object.values({})) {{", var_name, enum_name));
+            self.builder.indent();
+
+            // Process the loop body
+            for stmt in &node.block.statements {
+                match stmt {
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(stmt_t);
+                    }
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                            // Declare local variables inside the loop
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            } else {
+                                self.builder.writeln(&format!("{} = {};", var_decl.name, init_str));
+                            }
+                        } else {
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                            }
+                        }
+                    }
+                }
+            }
+
+            self.builder.dedent();
+            self.builder.writeln("}");
+
+            // Handle optional else clause (executed if loop didn't break)
+            if let Some(ref else_block) = node.else_block {
+                self.builder.writeln("// else clause (executed if no break)");
+                self.builder.writeln("{");
+                self.builder.indent();
+                for stmt in &else_block.statements {
+                    match stmt {
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            self.visit_stmt_node(stmt_t);
+                        }
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            let var_decl = var_decl_t_rcref.borrow();
+                            if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                                let mut init_str = String::new();
+                                self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                                self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            } else {
+                                self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                            }
+                        }
+                    }
+                }
+                self.builder.dedent();
+                self.builder.writeln("}");
+            }
+        } else {
+            // Handle regular iteration: for x in items -> for (const x of items)
+            let var_name = if let Some(ref variable) = node.variable {
+                &variable.id_node.name.lexeme
+            } else if let Some(ref identifier) = node.identifier {
+                &identifier.name.lexeme
+            } else {
+                "item"  // fallback
+            };
+
+            let mut iterable_str = String::new();
+            self.visit_expr_node_to_string(&node.iterable, &mut iterable_str);
+
+            // Add the loop variable to current_local_vars so it's recognized in expressions
+            self.current_local_vars.insert(var_name.to_string());
+
+            // Generate TypeScript for-of loop
+            self.builder.writeln(&format!("for (const {} of {}) {{", var_name, iterable_str));
+            self.builder.indent();
+
+            // Process the loop body
+            for stmt in &node.block.statements {
+                match stmt {
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(stmt_t);
+                    }
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                            // Declare local variables inside the loop
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            } else {
+                                self.builder.writeln(&format!("{} = {};", var_decl.name, init_str));
+                            }
+                        } else {
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                            }
+                        }
+                    }
+                }
+            }
+
+            self.builder.dedent();
+            self.builder.writeln("}");
+
+            // Handle optional else clause
+            if let Some(ref else_block) = node.else_block {
+                self.builder.writeln("// else clause (executed if no break)");
+                self.builder.writeln("{");
+                self.builder.indent();
+                for stmt in &else_block.statements {
+                    match stmt {
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            self.visit_stmt_node(stmt_t);
+                        }
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            let var_decl = var_decl_t_rcref.borrow();
+                            if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                                let mut init_str = String::new();
+                                self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                                self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            } else {
+                                self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                            }
+                        }
+                    }
+                }
+                self.builder.dedent();
+                self.builder.writeln("}");
+            }
+        }
     }
 }

@@ -24,7 +24,7 @@ impl ValidationRule for EventFlowAnalysisRule {
         ValidationLevel::Semantic
     }
 
-    fn validate(&self, context: &ValidationContext) -> Vec<ValidationIssue> {
+    fn validate(&self, _context: &ValidationContext) -> Vec<ValidationIssue> {
         // TODO: Implement event flow analysis
         // This will be expanded in Phase 3
         Vec::new()

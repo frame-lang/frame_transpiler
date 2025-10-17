@@ -24,7 +24,7 @@ impl ValidationRule for StateReachabilityRule {
         ValidationLevel::Structural
     }
 
-    fn validate(&self, context: &ValidationContext) -> Vec<ValidationIssue> {
+    fn validate(&self, _context: &ValidationContext) -> Vec<ValidationIssue> {
         // TODO: Implement state reachability analysis
         // This will be expanded in Phase 2
         Vec::new()
