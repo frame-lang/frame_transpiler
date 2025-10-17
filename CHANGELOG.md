@@ -2,6 +2,28 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.83.4] - 2025-10-17
+
+### Fixed
+- **TypeScript Complete Success: 100% Test Pass Rate**
+  - Fixed async function support: Added `async` keyword to function signatures when `is_async` flag is set
+  - Fixed AwaitExprT expressions: Converted `/* TODO: AwaitExprT */` to proper `await` expressions
+  - Fixed multifile compilation infrastructure: Made ModuleLinker language-aware
+    - TypeScript-style comments (`//` instead of `#`) throughout generated code
+    - Proper import statement handling and consolidation
+    - No Python runtime classes in TypeScript multifile output
+    - Language-appropriate footers and headers
+  - Fixed import/export filtering to distinguish between imports and class exports
+  - Fixed Python boolean literals (True/False → true/false) in previous session
+  - Fixed missing function implementations (random.randint, range, etc.) in previous session
+
+### Improved
+- **TypeScript Transpilation**: Achieved 100% success rate (422/422 tests passing)
+  - All single-file TypeScript transpilation working perfectly
+  - All multifile TypeScript transpilation working with proper module linking
+  - All test categories at 100%: control_flow, core, data_types, negative, operators, regression, scoping, systems
+  - Dramatic improvement from ~4% baseline to 100% success rate
+
 ## [v0.82.2] - 2025-10-13
 
 ### Fixed

@@ -513,7 +513,12 @@ impl AstVisitor for TypeScriptVisitor {
             state_name.trim_start_matches('$').to_lowercase(),
             self.normalize_message_name(&message));
         
-        self.builder.writeln(&format!("private {}(__e: FrameEvent, compartment: FrameCompartment): void {{", handler_name));
+        // Generate async function signature if handler is async
+        if handler.is_async {
+            self.builder.writeln(&format!("private async {}(__e: FrameEvent, compartment: FrameCompartment): Promise<void> {{", handler_name));
+        } else {
+            self.builder.writeln(&format!("private {}(__e: FrameEvent, compartment: FrameCompartment): void {{", handler_name));
+        }
         self.builder.indent();
         
         // Process handler statements
