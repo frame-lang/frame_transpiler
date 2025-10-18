@@ -1,6 +1,6 @@
 [package]
 name = "frame_build"
-version = "0.85.2"
+version = "0.85.4"
 authors = ["Mark Truluck <mark@frame-lang.org>"]
 edition = "2018"
 

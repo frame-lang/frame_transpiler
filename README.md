@@ -2,21 +2,25 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.85.2  
+**Current Version**: v0.85.4  
 **Test Framework**: Unified multi-language testing (883 total tests)  
 **Python Tests**: 100% passing (456/456)  
 **TypeScript Tests**: 100% passing (427/427) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-18
 
-## Current Features (v0.85.2) 🎉 BUG #50 PARSER FIX!
+## Current Features (v0.85.4) 🎉 BUG #50 PARSER ERROR HANDLING COMPLETE!
 
-### Critical Parser Bug Fix (NEW in v0.85.2)
-- **Bug #50 Resolution**: Fixed parser token synchronization issue for large Frame files (900+ lines)
-- **Parser Stability**: Large Frame specifications now parse correctly without "Module-level function calls" errors
-- **Cross-Language Fix**: Bug fix works across all target languages (Python, TypeScript, GraphViz)
-- **Regression Prevention**: Added comprehensive regression test to prevent future occurrences
-- **Production Ready**: 100% test success rate maintained (883 total tests)
+### Critical Parser Error Handling Fix (NEW in v0.85.4)
+- **Bug #50 Resolution**: Fixed misleading error messages that masked real parsing problems
+- **Root Cause**: Module-level parsing generated generic "Module-level function calls" errors hiding specific syntax issues
+- **Improved Error Reporting**: Parser now shows specific errors with line numbers instead of catch-all messages
+- **Developer Experience**: Error messages provide actionable guidance (e.g., "use system.method() instead of self.method()")
+- **Error Recovery**: Enhanced Frame-specific synchronization and proper error boundaries
+- **Complex File Support**: Large Frame specifications (900+ lines) now show precise syntax errors
+- **Cross-Language Fix**: Improved error handling works across all target languages (Python, TypeScript, GraphViz)
+- **Validation**: Maintained 100% test success rate (456/456 tests) ensuring zero regressions
+- **Production Ready**: Parser error handling now provides clear, helpful feedback for Frame developers
 
 ### Perfect TypeScript Code Generation (v0.85.0)
 - **TypeScript Actions**: Generate complete implementations instead of TODO placeholders

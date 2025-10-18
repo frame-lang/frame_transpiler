@@ -262,7 +262,9 @@ impl<'a> Parser<'a> {
     
     fn parse_module_content(&mut self) -> Result<FrameModule, ParseError> {
         if self.match_token(&[TokenType::Eof]) {
-            return Err(ParseError::new("Empty module - Frame files must contain at least one function or system."));
+            let err_msg = "Empty module - Frame files must contain at least one function or system.";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
         }
 
         let mut module_elements_opt = self.header()?;
@@ -338,7 +340,9 @@ impl<'a> Parser<'a> {
                     continue;
                 } else if !temp_decorators.is_empty() {
                     // We parsed decorators but no class follows
-                    return Err(ParseError::new("Expected 'class' declaration after decorators"));
+                    let err_msg = "Expected 'class' declaration after decorators";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg));
                 } else {
                     // No decorators parsed, backtrack completely
                     self.current = saved_pos;
@@ -386,52 +390,116 @@ impl<'a> Parser<'a> {
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     eprintln!("DEBUG: Parsing system at token index {}", self.current);
                 }
-                let system = self.system_scope(Some(module_for_system), entity_attributes_opt, None)?;
-                systems.push(system);
+                
+                // PHASE 2 FIX: Add error boundary for system parsing to prevent early returns to module context
+                match self.system_scope(Some(module_for_system), entity_attributes_opt, None) {
+                    Ok(system) => {
+                        systems.push(system);
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: Successfully parsed system");
+                        }
+                    }
+                    Err(system_error) => {
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: System parsing failed: {}", system_error);
+                        }
+                        
+                        // Instead of immediately returning the error (which causes context loss),
+                        // try to recover by skipping to the next system/function boundary
+                        self.recover_from_system_error(&system_error)?;
+                        
+                        // Continue parsing instead of aborting the entire module
+                        continue;
+                    }
+                }
             } else if self.match_token(&[TokenType::Async]) {
                 // Check if next token is 'fn' for async function
                 if self.match_token(&[TokenType::Function]) {
                     if entity_attributes_opt.is_some() {
                         return Err(ParseError::new("Functions do not support attributes. Remove attributes or change to system."));
                     }
-                    let function = self.function_scope_async(true)?;
-                    functions.push(function);
+                    // Add error boundary for async function parsing
+                    match self.function_scope_async(true) {
+                        Ok(function) => functions.push(function),
+                        Err(func_error) => {
+                            eprintln!("Warning: Async function parsing failed: {}", func_error);
+                            self.recover_from_system_error(&func_error)?;
+                            continue;
+                        }
+                    }
                 } else {
-                    return Err(ParseError::new("Expected function declaration after 'async' keyword"));
+                    let err_msg = "Expected function declaration after 'async' keyword";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg));
                 }
             } else if self.match_token(&[TokenType::Function]) {
                 // Functions shouldn't have system attributes, but warn if present
                 if entity_attributes_opt.is_some() {
-                    return Err(ParseError::new("Functions do not support attributes. Remove attributes or change to system."));
+                    let err_msg = "Functions do not support attributes. Remove attributes or change to system.";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg));
                 }
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     eprintln!("DEBUG: Parsing function at token index {}", self.current);
                 }
-                let function = self.function_scope_async(false)?;
-                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG: Successfully parsed function");
-                }
-                functions.push(function);
-                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG: After parsing function, next token: {:?}", self.peek());
+                
+                // Add error boundary for function parsing
+                match self.function_scope_async(false) {
+                    Ok(function) => {
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: Successfully parsed function");
+                        }
+                        functions.push(function);
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: After parsing function, next token: {:?}", self.peek());
+                        }
+                    }
+                    Err(func_error) => {
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: Function parsing failed: {}", func_error);
+                        }
+                        eprintln!("Warning: Function parsing failed: {}", func_error);
+                        self.recover_from_system_error(&func_error)?;
+                        continue;
+                    }
                 }
             } else if self.match_token(&[TokenType::Module]) {
                 // v0.34: Parse nested module declaration
                 if entity_attributes_opt.is_some() {
-                    return Err(ParseError::new("Modules do not support attributes."));
+                    let err_msg = "Modules do not support attributes.";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg));
                 }
-                let module = self.module_declaration()?;
-                modules.push(module);
+                // Add error boundary for module parsing
+                match self.module_declaration() {
+                    Ok(module) => modules.push(module),
+                    Err(module_error) => {
+                        eprintln!("Warning: Module parsing failed: {}", module_error);
+                        self.recover_from_system_error(&module_error)?;
+                        continue;
+                    }
+                }
             } else if self.match_token(&[TokenType::Class]) {
                 // v0.45: Parse class declaration
                 if entity_attributes_opt.is_some() {
-                    return Err(ParseError::new("Classes do not support attributes in the current implementation."));
+                    let err_msg = "Classes do not support attributes in the current implementation.";
+                    self.error_at_current(err_msg);
+                    return Err(ParseError::new(err_msg));
                 }
-                let class = self.class_decl()?;
-                classes.push(class);
+                // Add error boundary for class parsing
+                match self.class_decl() {
+                    Ok(class) => classes.push(class),
+                    Err(class_error) => {
+                        eprintln!("Warning: Class parsing failed: {}", class_error);
+                        self.recover_from_system_error(&class_error)?;
+                        continue;
+                    }
+                }
             } else if entity_attributes_opt.is_some() {
                 // We parsed attributes but found no system or function - this is an error
-                return Err(ParseError::new("Expected 'system' after attributes. Functions do not support attributes."));
+                let err_msg = "Expected 'system' after attributes. Functions do not support attributes.";
+                self.error_at_current(err_msg);
+                return Err(ParseError::new(err_msg));
             } else if self.check(TokenType::Identifier) {
                 // Frame does not allow module-level statements (like C)
                 // Check if this looks like a function call or system instantiation
@@ -452,17 +520,21 @@ impl<'a> Parser<'a> {
                         .map_or(false, |c| c.is_uppercase());
                     
                     if is_system || is_class || starts_with_uppercase {
-                        return Err(ParseError::new(&format!(
+                        let err_msg = &format!(
                             "Module-level instantiation is not allowed. '{}' cannot be instantiated at module scope. \
                             Classes and systems must be instantiated inside functions.",
                             identifier_name
-                        )));
+                        );
+                        self.error_at_current(err_msg);
+                        return Err(ParseError::new(err_msg));
                     } else {
-                        return Err(ParseError::new(&format!(
+                        let err_msg = &format!(
                             "Module-level function calls are not allowed. Function '{}' cannot be called at module scope. \
                             Frame automatically calls main() if it exists.",
                             identifier_name
-                        )));
+                        );
+                        self.error_at_current(err_msg);
+                        return Err(ParseError::new(err_msg));
                     }
                 } else {
                     // Reset and try to parse as something else
@@ -522,17 +594,21 @@ impl<'a> Parser<'a> {
                         .map_or(false, |c| c.is_uppercase());
                     
                     if is_system || is_class || starts_with_uppercase {
-                        return Err(ParseError::new(&format!(
+                        let err_msg = &format!(
                             "Module-level instantiation is not allowed. '{}' cannot be instantiated at module scope. \
                             Classes and systems must be instantiated inside functions.",
                             identifier_name
-                        )));
+                        );
+                        self.error_at_current(err_msg);
+                        return Err(ParseError::new(err_msg));
                     } else {
-                        return Err(ParseError::new(&format!(
+                        let err_msg = &format!(
                             "Module-level function calls are not allowed. Function '{}' cannot be called at module scope. \
                             Frame automatically calls main() if it exists.",
                             identifier_name
-                        )));
+                        );
+                        self.error_at_current(err_msg);
+                        return Err(ParseError::new(err_msg));
                     }
                 }
                 
@@ -2037,7 +2113,7 @@ impl<'a> Parser<'a> {
                     Ok(interface_method_node) => {
                         interface_methods.push(interface_method_node);
                     }
-                        Err(_parse_error) => {
+                    Err(_parse_error) => {
                         let sync_tokens = vec![
                             TokenType::Identifier,
                             TokenType::MachineBlock,
@@ -4801,94 +4877,162 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn event_handlers(&mut self,state_name:&String, mut is_async: bool) -> Result<StateEventHandlers, ParseError> {
+    fn event_handlers(&mut self,state_name:&String, is_async: bool) -> Result<StateEventHandlers, ParseError> {
 
         let mut evt_handlers: Vec<Rc<RefCell<EventHandlerNode>>> = Vec::new();
         let mut enter_event_handler = Option::None;
         let mut exit_event_handler = Option::None;
-
         let mut event_names = HashMap::new();
 
-        loop {
-            match self.event_handler(is_async) {
-                Ok(eh_opt) => {
-                    if let Some(eh) = eh_opt {
-                        let eh_rcref = Rc::new(RefCell::new(eh));
-
-                        // find enter/exit event handlers
-                        {
-                            // new scope to make BC happy
-                            let eh_ref = eh_rcref.as_ref().borrow();
-                            let evt = eh_ref.event_symbol_rcref.as_ref().borrow();
-
-                            if evt.is_enter_msg {
-                                if enter_event_handler.is_some() {
-                                    self.error_at_current(&format!(
-                                        "State ${} has more than one enter event handler.",
-                                        &state_name
-                                    ));
-                                } else {
-                                    enter_event_handler = Some(eh_rcref.clone());
-                                }
-                            } else if evt.is_exit_msg {
-                                if exit_event_handler.is_some() {
-                                    self.error_at_current(&format!(
-                                        "State ${} has more than one exit event handler.",
-                                        &state_name
-                                    ));
-                                } else {
-                                    exit_event_handler = Some(eh_rcref.clone());
-                                }
-                            } else {
-                                if event_names.contains_key(&evt.msg) {
-                                    let err_msg = &format!(
-                                        "Event handler {} already exists.",
-                                        evt.msg
-                                    );
-                                    self.error_at_previous(&err_msg);
-                                    //                                            return Err(ParseError::new(err_msg));
-                                } else {
-                                    event_names.insert(evt.msg.clone(), evt.msg.clone());
-                                }
-                            }
-                        }
-
-                        self.current_event_symbol_opt = None;
-                        evt_handlers.push(eh_rcref);
-                    }
-                }
-                Err(_) => {
-                    let sync_tokens = vec![
-                        TokenType::Pipe,
-                        TokenType::State,
-                        TokenType::ActionsBlock,
-                        TokenType::DomainBlock,
-                        TokenType::CloseBrace,
-                    ];
-                    self.synchronize(&sync_tokens);
+        // PHASE 4 FIX: Hybrid approach - keep original logic but add better error recovery
+        // Parse the first event handler (token already consumed by caller)
+        match self.event_handler(is_async) {
+            Ok(eh_opt) => {
+                if let Some(eh) = eh_opt {
+                    self.process_event_handler(eh, &mut evt_handlers, &mut enter_event_handler, &mut exit_event_handler, &mut event_names, state_name)?;
                 }
             }
-            // Check for async keyword before next event handler
-            let next_is_async = self.match_token(&[TokenType::Async]);
-            
-            if !self.match_token(&[TokenType::Identifier,TokenType::EnterStateMsg,TokenType::ExitStateMsg]) {
-                // If we consumed async but no event handler follows, that's an error
-                if next_is_async {
-                    self.error_at_current("Expected event handler after 'async' keyword");
-                    return Err(ParseError::new("Expected event handler after 'async' keyword"));
-                }
-                break;
+            Err(eh_error) => {
+                eprintln!("Warning: First event handler parsing failed: {}", eh_error);
+                // Use improved error recovery but don't abort
             }
-            
-            // Update is_async for the next iteration
-            is_async = next_is_async;
         }
+
+        // Continue with remaining event handlers using improved loop with better error recovery
+        self.parse_remaining_event_handlers_with_recovery(
+            state_name, 
+            &mut evt_handlers, 
+            &mut enter_event_handler, 
+            &mut exit_event_handler, 
+            &mut event_names
+        )?;
 
         let state_event_handlers = StateEventHandlers::new(
             enter_event_handler,
             exit_event_handler,
             evt_handlers);
         Ok(state_event_handlers)
+    }
+
+    // PHASE 3 FIX: Helper to process successfully parsed event handler
+    fn process_event_handler(
+        &mut self,
+        eh: EventHandlerNode,
+        evt_handlers: &mut Vec<Rc<RefCell<EventHandlerNode>>>,
+        enter_event_handler: &mut Option<Rc<RefCell<EventHandlerNode>>>,
+        exit_event_handler: &mut Option<Rc<RefCell<EventHandlerNode>>>,
+        event_names: &mut HashMap<String, String>,
+        state_name: &String
+    ) -> Result<(), ParseError> {
+        let eh_rcref = Rc::new(RefCell::new(eh));
+
+        // find enter/exit event handlers
+        {
+            // new scope to make BC happy
+            let eh_ref = eh_rcref.as_ref().borrow();
+            let evt = eh_ref.event_symbol_rcref.as_ref().borrow();
+
+            if evt.is_enter_msg {
+                if enter_event_handler.is_some() {
+                    self.error_at_current(&format!(
+                        "State ${} has more than one enter event handler.",
+                        &state_name
+                    ));
+                } else {
+                    *enter_event_handler = Some(eh_rcref.clone());
+                }
+            } else if evt.is_exit_msg {
+                if exit_event_handler.is_some() {
+                    self.error_at_current(&format!(
+                        "State ${} has more than one exit event handler.",
+                        &state_name
+                    ));
+                } else {
+                    *exit_event_handler = Some(eh_rcref.clone());
+                }
+            } else {
+                if event_names.contains_key(&evt.msg) {
+                    let err_msg = &format!(
+                        "Event handler {} already exists.",
+                        evt.msg
+                    );
+                    self.error_at_previous(&err_msg);
+                    //                                            return Err(ParseError::new(err_msg));
+                } else {
+                    event_names.insert(evt.msg.clone(), evt.msg.clone());
+                }
+            }
+        }
+
+        self.current_event_symbol_opt = None;
+        evt_handlers.push(eh_rcref);
+        Ok(())
+    }
+
+    // PHASE 4 FIX: Improved loop with better error recovery (hybrid approach)
+    fn parse_remaining_event_handlers_with_recovery(
+        &mut self,
+        state_name: &String,
+        evt_handlers: &mut Vec<Rc<RefCell<EventHandlerNode>>>,
+        enter_event_handler: &mut Option<Rc<RefCell<EventHandlerNode>>>,
+        exit_event_handler: &mut Option<Rc<RefCell<EventHandlerNode>>>,
+        event_names: &mut HashMap<String, String>
+    ) -> Result<(), ParseError> {
+
+        // Use loop with improved error recovery instead of pure recursion to avoid stack issues
+        let mut error_count = 0;
+        const MAX_ERRORS: usize = 10; // Prevent infinite error loops
+        
+        loop {
+            // Check for async keyword before event handler
+            let next_is_async = self.match_token(&[TokenType::Async]);
+            
+            // PARSER FIX: Use check() to avoid consuming tokens during loop continuation check
+            // Then explicitly consume the token for the next event_handler() call
+            if !self.check(TokenType::Identifier) && 
+               !self.check(TokenType::EnterStateMsg) && 
+               !self.check(TokenType::ExitStateMsg) {
+                // If we consumed async but no event handler follows, that's an error
+                if next_is_async {
+                    self.error_at_current("Expected event handler after 'async' keyword");
+                    return Err(ParseError::new("Expected event handler after 'async' keyword"));
+                }
+                break; // Successful termination
+            }
+            
+            // Explicitly consume the event identifier token for the next event_handler() call
+            self.advance();
+            
+            // Parse current event handler
+            match self.event_handler(next_is_async) {
+                Ok(eh_opt) => {
+                    if let Some(eh) = eh_opt {
+                        self.process_event_handler(eh, evt_handlers, enter_event_handler, exit_event_handler, event_names, state_name)?;
+                    }
+                    // Reset error count on successful parse
+                    error_count = 0;
+                }
+                Err(eh_error) => {
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: Event handler parsing failed: {}", eh_error);
+                    }
+                    
+                    eprintln!("Warning: Event handler parsing failed: {}", eh_error);
+                    error_count += 1;
+                    
+                    // PHASE 4 FIX: Improved error recovery with counter to prevent infinite loops
+                    if error_count >= MAX_ERRORS {
+                        eprintln!("Warning: Too many event handler errors, stopping parse");
+                        break;
+                    }
+                    
+                    // Try to recover by finding next event handler boundary
+                    self.recover_from_event_handler_error(&eh_error)?;
+                }
+            }
+        }
+        
+        Ok(())
     }
 
     /* --------------------------------------------------------------------- */
@@ -5443,7 +5587,6 @@ impl<'a> Parser<'a> {
     #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
     fn statements(&mut self, identifier_decl_scope: IdentifierDeclScope) -> Vec<DeclOrStmtType> {
         let mut statements = Vec::new();
-        let mut is_err = false;
 
         // self.stmt_idx = 0;
 
@@ -5543,14 +5686,16 @@ impl<'a> Parser<'a> {
                                             let err_msg =
                                                 "'continue' statement is only allowed inside a loop.";
                                             self.error_at_current(err_msg);
-                                            is_err = true;
+                                            // Continue parsing - error reported but don't break out of statements
                                         }
                                     }
                                     StatementType::BreakStmt { .. } => {
                                         if self.is_loop_scope {
                                             statements.push(decl_or_statement);
                                         } else {
-                                            is_err = true;
+                                            let err_msg = "'break' statement is only allowed inside a loop.";
+                                            self.error_at_current(err_msg);
+                                            // Continue parsing - error reported but don't break out of statements
                                         }
                                     }
                                     _ => {
@@ -5571,32 +5716,56 @@ impl<'a> Parser<'a> {
                     }
                 },
                 Err(_err) => {
-                    is_err = true;
+                    // ERROR ALREADY REPORTED by the lower-level parsing function that detected it
+                    // Just synchronize and continue parsing
+                    
+                    // FRAME-SPECIFIC SYNCHRONIZATION: Use Frame's grammar structure for recovery
+                    // Based on Frame language hierarchy: Module > System > State > EventHandler > Statements
+                    let sync_tokens = vec![
+                        // Next statement in current event handler
+                        TokenType::Identifier,          // next statement/method call  
+                        TokenType::If,                  // control structures
+                        TokenType::Return_,             // return statements
+                        TokenType::Var,                 // variable declarations
+                        TokenType::Const,               // const declarations
+                        TokenType::Self_,               // self.method calls
+                        TokenType::System,              // system method calls
+                        TokenType::Async,               // async keyword for async handlers
+                        
+                        // Event handler boundaries (within same state)
+                        TokenType::EnterStateMsg,       // $>() next enter handler
+                        TokenType::ExitStateMsg,        // <$() next exit handler
+                        // Note: Next eventName() is TokenType::Identifier + LParen pattern
+                        
+                        // State boundaries (within same system)  
+                        TokenType::State,               // $NextState
+                        
+                        // System block boundaries
+                        TokenType::ActionsBlock,        // actions:
+                        TokenType::DomainBlock,         // domain:
+                        TokenType::InterfaceBlock,      // interface: (shouldn't reach here but safety)
+                        TokenType::MachineBlock,        // machine: (shouldn't reach here but safety)
+                        TokenType::OperationsBlock,     // operations: (v0.20 addition)
+                        
+                        // Block/scope boundaries
+                        TokenType::CloseBrace,          // } end of current block
+                        
+                        // Module boundaries (fallback)
+                        TokenType::Function,            // fn next function
+                        // TokenType::System already included above
+                        TokenType::Eof,                 // end of file
+                    ];
+                    
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: statements() synchronizing with Frame-specific tokens after error");
+                    }
+                    
+                    // Use Frame's standard synchronization mechanism
+                    self.synchronize(&sync_tokens);
+                    
+                    // Continue parsing after synchronization
+                    // This allows the loop to continue and parse the next statement/handler/state
                 }
-            }
-
-            if is_err {
-                is_err = false;
-                let sync_tokens = vec![
-                    TokenType::Identifier,
-                    TokenType::LParen,
-                    // TokenType::Caret, // Removed - old return syntax
-                    TokenType::GT,
-                    TokenType::State,
-                    TokenType::PipePipe,
-                    TokenType::Dot,
-                    TokenType::Colon,
-                    TokenType::Pipe,
-                    TokenType::ActionsBlock,
-                    TokenType::DomainBlock,
-                    TokenType::CloseBrace,
-                ];
-                // Concat contextual sync tokens.
-                // TODO - removing this until I can confirm this isn't screwing up
-                // scope management.
-                //  sync_tokens.append(self.sync_tokens_from_error_context.as_mut());
-                self.sync_tokens_from_error_context = Vec::new();
-                self.synchronize(&sync_tokens);
             }
         }
     }
@@ -13215,6 +13384,126 @@ impl<'a> Parser<'a> {
         }
 
         false
+    }
+
+    /* --------------------------------------------------------------------- */
+    
+    // PHASE 3 FIX: Event handler-level error recovery for recursive descent parsing
+    fn recover_from_event_handler_error(&mut self, error: &ParseError) -> Result<(), ParseError> {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Recovering from event handler parsing error: {}", error);
+        }
+        
+        // Report the original error but continue parsing
+        eprintln!("Warning: Event handler parsing failed: {}", error);
+        
+        // Look for the next event handler or state boundary
+        // We want to find: next event handler, state end, actions/domain blocks, or system end
+        let sync_tokens = [
+            TokenType::Identifier,      // Next event handler
+            TokenType::EnterStateMsg,   // $>() enter event  
+            TokenType::ExitStateMsg,    // <$() exit event
+            TokenType::State,           // Next state
+            TokenType::ActionsBlock,    // actions: block
+            TokenType::DomainBlock,     // domain: block  
+            TokenType::CloseBrace,      // End of current scope
+            TokenType::Eof
+        ];
+        
+        // Skip tokens until we find an event handler or structural boundary
+        let mut recovery_attempts = 0;
+        const MAX_RECOVERY_ATTEMPTS: usize = 50; // Smaller limit for event handler scope
+        
+        while !self.is_at_end() && recovery_attempts < MAX_RECOVERY_ATTEMPTS {
+            let current_token = self.peek().token_type;
+            
+            // Check if we found a valid recovery point
+            for sync_token in &sync_tokens {
+                if current_token == *sync_token {
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: Event handler error recovery found boundary at: {:?}", current_token);
+                    }
+                    return Ok(()); // Successfully recovered
+                }
+            }
+            
+            // Skip structural tokens that might be left from failed event handler parsing
+            if current_token == TokenType::OpenBrace || current_token == TokenType::CloseBrace {
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Skipping brace during event handler recovery: {:?}", current_token);
+                }
+            }
+            
+            self.advance();
+            recovery_attempts += 1;
+        }
+        
+        if recovery_attempts >= MAX_RECOVERY_ATTEMPTS {
+            return Err(ParseError::new("Unable to recover from event handler parsing error - too many tokens skipped"));
+        }
+        
+        // If we reached EOF, that's also a valid recovery point
+        Ok(())
+    }
+    
+    /* --------------------------------------------------------------------- */
+    
+    // PHASE 2 FIX: System-level error recovery to prevent context loss
+    fn recover_from_system_error(&mut self, error: &ParseError) -> Result<(), ParseError> {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("DEBUG: Recovering from system parsing error: {}", error);
+        }
+        
+        // Report the original error but continue parsing
+        eprintln!("Warning: System parsing failed: {}", error);
+        
+        // Look for the next module-level entity boundary
+        // We want to find: 'system', 'function', 'async', 'class', 'enum', 'var', 'const', or EOF
+        let sync_tokens = [
+            TokenType::System,
+            TokenType::Function, 
+            TokenType::Async,
+            TokenType::Class,
+            TokenType::Enum,
+            TokenType::Var,
+            TokenType::Const,
+            TokenType::Eof
+        ];
+        
+        // Skip tokens until we find a module-level boundary
+        let mut recovery_attempts = 0;
+        const MAX_RECOVERY_ATTEMPTS: usize = 100; // Prevent infinite loops
+        
+        while !self.is_at_end() && recovery_attempts < MAX_RECOVERY_ATTEMPTS {
+            let current_token = self.peek().token_type;
+            
+            // Check if we found a valid module-level start token
+            for sync_token in &sync_tokens {
+                if current_token == *sync_token {
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("DEBUG: System error recovery found boundary at: {:?}", current_token);
+                    }
+                    return Ok(()); // Successfully recovered
+                }
+            }
+            
+            // Skip braces and other structural tokens that might be left from failed system parsing
+            if current_token == TokenType::CloseBrace {
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Skipping orphaned close brace during system recovery");
+                }
+            }
+            
+            self.advance();
+            recovery_attempts += 1;
+        }
+        
+        if recovery_attempts >= MAX_RECOVERY_ATTEMPTS {
+            return Err(ParseError::new("Unable to recover from system parsing error - too many tokens skipped"));
+        }
+        
+        // If we reached EOF, that's also a valid recovery point
+        Ok(())
     }
 
     /* --------------------------------------------------------------------- */

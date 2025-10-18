@@ -27,7 +27,7 @@ use std::convert::TryFrom;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "Emitted from framec_v0.85.2";
+static FRAMEC_VERSION: &str = "Emitted from framec_v0.85.4";
 
 /* --------------------------------------------------------------------- */
 
@@ -298,11 +298,20 @@ impl Exe {
         let frame_module = match semantic_parser.parse() {
             Ok(module) => module,
             Err(parse_error) => {
-                let mut errors = "Parse error:\n".to_string();
-                errors.push_str(&parse_error.error);
-                errors.push_str("\n\nParsing failed. Please check your Frame syntax and try again.");
-                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
-                return Err(run_error);
+                // Check if we have accumulated errors with line numbers first
+                if semantic_parser.had_error() {
+                    let mut errors = "Terminating with errors.\n".to_string();
+                    errors.push_str(&semantic_parser.get_errors());
+                    let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                    return Err(run_error);
+                } else {
+                    // Fall back to ParseError message if no accumulated errors
+                    let mut errors = "Parse error:\n".to_string();
+                    errors.push_str(&parse_error.error);
+                    errors.push_str("\n\nParsing failed. Please check your Frame syntax and try again.");
+                    let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                    return Err(run_error);
+                }
             }
         };
         
@@ -594,11 +603,20 @@ impl Exe {
         let frame_module = match semantic_parser.parse() {
             Ok(module) => module,
             Err(parse_error) => {
-                let mut errors = "Parse error:\n".to_string();
-                errors.push_str(&parse_error.error);
-                errors.push_str("\n\nParsing failed. Please check your Frame syntax and try again.");
-                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
-                return Err(run_error);
+                // Check if we have accumulated errors with line numbers first
+                if semantic_parser.had_error() {
+                    let mut errors = "Terminating with errors.\n".to_string();
+                    errors.push_str(&semantic_parser.get_errors());
+                    let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                    return Err(run_error);
+                } else {
+                    // Fall back to ParseError message if no accumulated errors
+                    let mut errors = "Parse error:\n".to_string();
+                    errors.push_str(&parse_error.error);
+                    errors.push_str("\n\nParsing failed. Please check your Frame syntax and try again.");
+                    let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
+                    return Err(run_error);
+                }
             }
         };
         

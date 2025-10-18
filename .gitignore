@@ -27,3 +27,6 @@ framec_tests/**/*.py
 
 # Private scripts and utilities (not for version control)
 .private/
+
+# Miscellaneous test files and debugging artifacts
+.misc/

@@ -2,6 +2,23 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.85.4] - 2025-10-18
+
+### Fixed
+- **Bug #50: Parser Error Handling - Misleading Error Messages**
+  - Fixed module-level parsing loop that generated misleading "Module-level function calls are not allowed" errors
+  - Parser now correctly reports specific errors with accurate line numbers instead of generic catch-all messages
+  - Compiler error display logic now prioritizes accumulated parser errors over ParseError messages
+  - Error recovery synchronization improved with Frame-specific tokens and proper error boundaries
+  - Complex Frame files (900+ lines) now show precise syntax errors instead of masking them
+
+### Improved
+- **Error Reporting**: Dramatically improved developer experience with specific, actionable error messages
+  - Before: "Module-level function calls are not allowed. Function 'terminate' cannot be called at module scope."
+  - After: "[line 130] Error at 'onRuntimeConnected' : Interface method 'onRuntimeConnected' should be called using 'system.onRuntimeConnected' instead of 'self.onRuntimeConnected'."
+- **Parser Architecture**: Enhanced error handling patterns throughout parser.rs following Frame-specific grammar structure
+- **Test Validation**: Maintained 100% test success rate (456/456 tests) ensuring zero regressions
+
 ## [v0.83.4] - 2025-10-17
 
 ### Fixed

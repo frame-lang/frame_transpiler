@@ -60,13 +60,13 @@ system SystemName {
 - Always check actual test files in `framec_tests/python/src/` for examples
 
 ## Current State
-- **Version**: v0.81.4, Branch: v0.30, **100% tests passing** (397/397)
-- **PythonVisitorV2**: Default with CodeBuilder architecture
-- **Recent Achievements**: FSL removed, native Python operations, critical bug fixes
+- **Version**: v0.85.3, Branch: dev, **100% tests passing** (883/883)
+- **Bug #50**: ✅ RESOLVED - Parser token synchronization for large files (900+ lines)
+- **Recent Achievements**: Critical parser fix, TypeScript 100% success, production-ready transpiler
 
 ## Quick References
 - **Test files**: `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`  
-- **Test runner**: `python3 framec_tests/runner/frame_test_runner.py --all --framec ./target/release/framec`
+- **Test runner**: `python3 runner/frame_test_runner.py --framec ../target/release/framec --languages python typescript`
 - **Module separator**: `::` (NOT `.` - dot is for member access)
 - **Check before starting**: Read `docs/framelang_design/dev_notes.md` and `framec_tests/reports/test_log.md`
 
