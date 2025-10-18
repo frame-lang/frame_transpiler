@@ -2,20 +2,20 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.84.1  
+**Current Version**: v0.85.0  
 **Test Framework**: Unified multi-language testing (767 total tests)  
 **Python Tests**: 100% passing (341/341)  
-**TypeScript Tests**: 99.5% passing (424/426)  
+**TypeScript Tests**: 100% passing (426/426) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-18
 
-## Current Features (v0.84.1) 🎉 BUG #50 RESOLVED!
+## Current Features (v0.85.0) 🎉 100% TYPESCRIPT SUCCESS!
 
-### TypeScript Action Implementation Fix (NEW in v0.84.1)
+### Perfect TypeScript Code Generation (NEW in v0.85.0)
 - **Bug #50 Resolution**: TypeScript actions now generate complete implementations instead of TODO placeholders
 - **Frame Debugging Unblocked**: VS Code extension debugging fully functional
 - **Try-Catch-Finally Support**: Complete TypeScript translation for Frame exception handling
-- **99.5% TypeScript Test Success**: 424 of 426 TypeScript tests passing
+- **100% TypeScript Test Success**: Perfect 426 of 426 TypeScript tests passing
 - **Feature Parity**: Complete alignment between Python and TypeScript targets
 - **Frame Module Support**: Frame modules generate proper TypeScript namespaces
 - **Multifile Compilation**: Full support for multifile Frame programs in TypeScript

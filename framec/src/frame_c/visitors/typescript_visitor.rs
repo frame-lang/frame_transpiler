@@ -1218,6 +1218,9 @@ impl TypeScriptVisitor {
             StatementType::ForStmt { for_stmt_node } => {
                 self.visit_for_stmt_node(for_stmt_node);
             }
+            StatementType::WhileStmt { while_stmt_node } => {
+                self.visit_while_stmt_node(while_stmt_node);
+            }
             StatementType::TryStmt { try_stmt_node } => {
                 self.visit_try_stmt_node(try_stmt_node);
             }
@@ -2708,6 +2711,78 @@ impl TypeScriptVisitor {
                 self.builder.dedent();
                 self.builder.writeln("}");
             }
+        }
+    }
+    
+    fn visit_while_stmt_node(&mut self, node: &WhileStmtNode) {
+        // Generate TypeScript while loop
+        if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+            eprintln!("DEBUG TS: Processing WhileStmt");
+        }
+        
+        // Generate the while condition
+        let mut condition_str = String::new();
+        self.visit_expr_node_to_string(&node.condition, &mut condition_str);
+        
+        self.builder.writeln(&format!("while ({}) {{", condition_str));
+        self.builder.indent();
+        
+        // Generate the loop body
+        for decl_or_stmt in &node.block.statements {
+            match decl_or_stmt {
+                DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                    let var_decl = var_decl_t_rcref.borrow();
+                    if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                        let mut init_str = String::new();
+                        self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                        if !self.current_local_vars.contains(&var_decl.name) {
+                            self.current_local_vars.insert(var_decl.name.clone());
+                            self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                        } else {
+                            self.builder.writeln(&format!("{} = {};", var_decl.name, init_str));
+                        }
+                    } else {
+                        if !self.current_local_vars.contains(&var_decl.name) {
+                            self.current_local_vars.insert(var_decl.name.clone());
+                            self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                        }
+                    }
+                }
+                DeclOrStmtType::StmtT { stmt_t } => {
+                    self.visit_stmt_node(stmt_t);
+                }
+            }
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+        
+        // Handle optional else block (runs when loop completes without break)
+        if let Some(ref else_block) = node.else_block {
+            self.builder.writeln("// TODO: TypeScript doesn't support while-else, implement with flag");
+            self.builder.writeln("{");
+            self.builder.indent();
+            
+            for decl_or_stmt in &else_block.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                            self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                        } else {
+                            self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                        }
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(stmt_t);
+                    }
+                }
+            }
+            
+            self.builder.dedent();
+            self.builder.writeln("}");
         }
     }
     

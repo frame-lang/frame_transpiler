@@ -3,8 +3,8 @@
 <!-- NEXT BUG NUMBER: #51 -->
 
 **Last Updated:** 2025-10-18  
-**Current Version:** v0.84.1  
-**Test Status:** 🎉 **99.5% PASS RATE** (424/426 TypeScript tests passing)  
+**Current Version:** v0.85.0  
+**Test Status:** 🎉 **100% PERFECT SUCCESS** (426/426 TypeScript tests passing)  
 **Active Bugs:** 0  
 **Resolved Bugs:** 51 (See closed_bugs.md for full history)  
 
