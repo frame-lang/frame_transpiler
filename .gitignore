@@ -24,3 +24,6 @@ CLAUDE.local.md
 
 # Generated test files
 framec_tests/**/*.py
+
+# Private scripts and utilities (not for version control)
+.private/

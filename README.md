@@ -2,17 +2,24 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.85.0  
-**Test Framework**: Unified multi-language testing (767 total tests)  
-**Python Tests**: 100% passing (341/341)  
-**TypeScript Tests**: 100% passing (426/426) 🎉  
+**Current Version**: v0.85.2  
+**Test Framework**: Unified multi-language testing (883 total tests)  
+**Python Tests**: 100% passing (456/456)  
+**TypeScript Tests**: 100% passing (427/427) 🎉  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-18
 
-## Current Features (v0.85.0) 🎉 100% TYPESCRIPT SUCCESS!
+## Current Features (v0.85.2) 🎉 BUG #50 PARSER FIX!
 
-### Perfect TypeScript Code Generation (NEW in v0.85.0)
-- **Bug #50 Resolution**: TypeScript actions now generate complete implementations instead of TODO placeholders
+### Critical Parser Bug Fix (NEW in v0.85.2)
+- **Bug #50 Resolution**: Fixed parser token synchronization issue for large Frame files (900+ lines)
+- **Parser Stability**: Large Frame specifications now parse correctly without "Module-level function calls" errors
+- **Cross-Language Fix**: Bug fix works across all target languages (Python, TypeScript, GraphViz)
+- **Regression Prevention**: Added comprehensive regression test to prevent future occurrences
+- **Production Ready**: 100% test success rate maintained (883 total tests)
+
+### Perfect TypeScript Code Generation (v0.85.0)
+- **TypeScript Actions**: Generate complete implementations instead of TODO placeholders
 - **Frame Debugging Unblocked**: VS Code extension debugging fully functional
 - **Try-Catch-Finally Support**: Complete TypeScript translation for Frame exception handling
 - **100% TypeScript Test Success**: Perfect 426 of 426 TypeScript tests passing
