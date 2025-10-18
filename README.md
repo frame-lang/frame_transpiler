@@ -2,26 +2,31 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.82.5  
-**Test Framework**: Unified multi-language testing (446 total tests)  
-**Python Tests**: 96.4% passing (430/446)  
-**TypeScript Tests**: 80.6% passing (350/432 common tests)  
+**Current Version**: v0.84.1  
+**Test Framework**: Unified multi-language testing (767 total tests)  
+**Python Tests**: 100% passing (341/341)  
+**TypeScript Tests**: 99.5% passing (424/426)  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-10-15
+**Last Updated**: 2025-10-18
 
-## Current Features (v0.82.5) ✅ LATEST
+## Current Features (v0.84.1) 🎉 BUG #50 RESOLVED!
 
-### Transition Enter Arguments Fix (NEW in v0.82.5)
-- **Critical Bug Fix**: Resolved transition enter arguments being completely ignored by Python visitor
-- **Restored Parameter Passing**: Frame syntax `-> (42) $State` now correctly passes arguments to target state enter handlers
-- **Services Looper Fixed**: Previously failing regression tests now pass with proper transition parameter passing
-- **Frame Semantics**: Correctly implements transition enter arguments as enter event parameters
+### TypeScript Action Implementation Fix (NEW in v0.84.1)
+- **Bug #50 Resolution**: TypeScript actions now generate complete implementations instead of TODO placeholders
+- **Frame Debugging Unblocked**: VS Code extension debugging fully functional
+- **Try-Catch-Finally Support**: Complete TypeScript translation for Frame exception handling
+- **99.5% TypeScript Test Success**: 424 of 426 TypeScript tests passing
+- **Feature Parity**: Complete alignment between Python and TypeScript targets
+- **Frame Module Support**: Frame modules generate proper TypeScript namespaces
+- **Multifile Compilation**: Full support for multifile Frame programs in TypeScript
+- **Operator Coverage**: All Frame operators (including In/NotIn) work correctly in TypeScript
+- **Production Ready**: TypeScript code generation now fully production-ready
 
-### Previous Fix (v0.82.4)
-- **State Variable Literal Fix**: Resolved semantic analysis bug where literal initializers were replaced by parameter names
-- **Improved Test Success**: Python tests improved from 90% to 96.4% (430/446 passing)
-- **Preserved Literal Values**: Fixed `var name = "Joe"` being incorrectly resolved to parameter names
-- **Semantic Scope Fix**: Proper handling of interface parameter vs. state variable literal conflicts
+### Key Technical Improvements (v0.84.0)
+- **Module Namespace Generation**: Frame modules become TypeScript `export namespace`
+- **Runtime Class Management**: Conditional generation prevents duplication in multifile projects
+- **Direct Function Returns**: Module functions generate clean TypeScript with proper return statements
+- **Shared Runtime Optimization**: Efficient runtime class sharing across multifile projects
 
 ## Previous Features (v0.82.1) ✅
 

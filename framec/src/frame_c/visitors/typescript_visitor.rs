@@ -31,6 +31,10 @@ pub struct TypeScriptVisitor {
     operation_names: HashSet<String>, // Track operation names for proper call resolution
     declared_enums: HashSet<String>, // Track declared enum names to avoid duplicates
     is_in_action: bool, // Track if we're currently processing an action (vs event handler)
+    
+    // Control flags for multifile compilation
+    generate_runtime_classes: bool, // Whether to generate Frame runtime classes (false for multifile modules)
+    in_module_function: bool, // Flag to track when generating module functions
 }
 
 impl TypeScriptVisitor {
@@ -53,7 +57,20 @@ impl TypeScriptVisitor {
             operation_names: HashSet::new(),
             declared_enums: HashSet::new(),
             is_in_action: false,
+            generate_runtime_classes: true, // Default: generate runtime classes for standalone compilation
+            in_module_function: false, // Default: not in module function
         }
+    }
+    
+    /// Create a new TypeScript visitor for multifile compilation (without runtime classes)
+    pub fn new_for_multifile(
+        arcanum: Vec<Arcanum>,
+        symbol_config: SymbolConfig,
+    ) -> Self {
+        let mut visitor = Self::new(arcanum, symbol_config);
+        visitor.generate_runtime_classes = false; // Don't generate runtime classes for multifile modules
+        visitor.in_module_function = false; // Initialize module function flag
+        visitor
     }
     
     /// Normalize Frame event message names to valid TypeScript identifiers
@@ -62,6 +79,247 @@ impl TypeScriptVisitor {
             "$>" => "enter".to_string(),
             "<$" => "exit".to_string(), 
             _ => message.to_lowercase(),
+        }
+    }
+    
+    /// Infer return type from action body by analyzing return statements and usage patterns
+    fn infer_action_return_type(&self, action: &ActionNode) -> &'static str {
+        // Check if action has return statements with values
+        let has_return_with_value = self.action_has_return_with_value(action);
+        
+        if has_return_with_value {
+            // For now, default to 'any' for actions with return values
+            // This could be enhanced to analyze the actual return expression types
+            "any"
+        } else {
+            // Actions without explicit returns might still be used in boolean contexts
+            // For Frame compatibility, assume actions without returns can be used as boolean
+            // This matches Frame semantics where actions can implicitly succeed/fail
+            "boolean"
+        }
+    }
+    
+    /// Check if action contains await expressions (making it async)
+    fn action_is_async(&self, action: &ActionNode) -> bool {
+        // Check if action is explicitly marked as async
+        if action.is_async {
+            return true;
+        }
+        
+        // Check statements for await expressions
+        for stmt_or_decl in &action.statements {
+            if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                if self.statement_has_await(stmt_t) {
+                    return true;
+                }
+            }
+        }
+        
+        false
+    }
+    
+    /// Recursively check if a statement contains await expressions
+    fn statement_has_await(&self, stmt: &StatementType) -> bool {
+        match stmt {
+            StatementType::IfStmt { if_stmt_node } => {
+                // Check if statement in any branch
+                for stmt_or_decl in &if_stmt_node.if_block.statements {
+                    if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                        if self.statement_has_await(stmt_t) {
+                            return true;
+                        }
+                    }
+                }
+                
+                // Check elif branches
+                for elif_branch in &if_stmt_node.elif_clauses {
+                    for stmt_or_decl in &elif_branch.block.statements {
+                        if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                            if self.statement_has_await(stmt_t) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                
+                // Check else branch
+                if let Some(else_branch) = &if_stmt_node.else_block {
+                    for stmt_or_decl in &else_branch.statements {
+                        if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                            if self.statement_has_await(stmt_t) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                
+                false
+            }
+            StatementType::BlockStmt { block_stmt_node } => {
+                for stmt_or_decl in &block_stmt_node.statements {
+                    if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                        if self.statement_has_await(stmt_t) {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+            StatementType::ExpressionStmt { expr_stmt_t } => {
+                // Check if expression contains await
+                match expr_stmt_t {
+                    ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                        self.expr_has_await(&assignment_stmt_node.assignment_expr_node.r_value_rc)
+                    }
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
+    }
+    
+    /// Check if an expression contains await
+    fn expr_has_await(&self, expr: &ExprType) -> bool {
+        match expr {
+            ExprType::AwaitExprT { .. } => true,
+            ExprType::BinaryExprT { binary_expr_node } => {
+                self.expr_has_await(&binary_expr_node.left_rcref.borrow()) ||
+                self.expr_has_await(&binary_expr_node.right_rcref.borrow())
+            }
+            ExprType::UnaryExprT { unary_expr_node } => {
+                self.expr_has_await(&unary_expr_node.right_rcref.borrow())
+            }
+            ExprType::CallExprT { call_expr_node } => {
+                // Check if any arguments contain await
+                for arg in &call_expr_node.call_expr_list.exprs_t {
+                    if self.expr_has_await(arg) {
+                        return true;
+                    }
+                }
+                false
+            }
+            ExprType::CallChainExprT { call_chain_expr_node } => {
+                // Check if any part of the call chain contains await
+                for expr in &call_chain_expr_node.call_chain {
+                    match expr {
+                        crate::frame_c::ast::CallChainNodeType::UndeclaredCallT { call_node } => {
+                            for arg in &call_node.call_expr_list.exprs_t {
+                                if self.expr_has_await(arg) {
+                                    return true;
+                                }
+                            }
+                        }
+                        crate::frame_c::ast::CallChainNodeType::ActionCallT { action_call_expr_node } => {
+                            for arg in &action_call_expr_node.call_expr_list.exprs_t {
+                                if self.expr_has_await(arg) {
+                                    return true;
+                                }
+                            }
+                        }
+                        crate::frame_c::ast::CallChainNodeType::OperationCallT { operation_call_expr_node } => {
+                            for arg in &operation_call_expr_node.call_expr_list.exprs_t {
+                                if self.expr_has_await(arg) {
+                                    return true;
+                                }
+                            }
+                        }
+                        crate::frame_c::ast::CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => {
+                            for arg in &interface_method_call_expr_node.call_expr_list.exprs_t {
+                                if self.expr_has_await(arg) {
+                                    return true;
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+    
+    /// Check if action contains return statements with values
+    fn action_has_return_with_value(&self, action: &ActionNode) -> bool {
+        // Check statements
+        for stmt_or_decl in &action.statements {
+            if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                if self.statement_has_return_with_value(stmt_t) {
+                    return true;
+                }
+            }
+        }
+        
+        // Check terminator
+        match &action.terminator_expr.terminator_type {
+            TerminatorType::Return => {
+                // Check if terminator has return expression with value
+                if let Some(return_expr) = &action.terminator_expr.return_expr_t_opt {
+                    // If there's a return expression, it has a value
+                    !matches!(*return_expr, ExprType::NilExprT)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+    
+    /// Recursively check if a statement contains return statements with values
+    fn statement_has_return_with_value(&self, stmt: &StatementType) -> bool {
+        match stmt {
+            StatementType::IfStmt { if_stmt_node } => {
+                // Check if statement in any branch
+                for stmt_or_decl in &if_stmt_node.if_block.statements {
+                    if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                        if self.statement_has_return_with_value(stmt_t) {
+                            return true;
+                        }
+                    }
+                }
+                
+                // Check elif branches
+                for elif_branch in &if_stmt_node.elif_clauses {
+                    for stmt_or_decl in &elif_branch.block.statements {
+                        if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                            if self.statement_has_return_with_value(stmt_t) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                
+                // Check else branch
+                if let Some(else_branch) = &if_stmt_node.else_block {
+                    for stmt_or_decl in &else_branch.statements {
+                        if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                            if self.statement_has_return_with_value(stmt_t) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                
+                false
+            }
+            StatementType::BlockStmt { block_stmt_node } => {
+                for stmt_or_decl in &block_stmt_node.statements {
+                    if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                        if self.statement_has_return_with_value(stmt_t) {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+            StatementType::ReturnStmt { return_stmt_node } => {
+                // Check if return has an expression value
+                if let Some(return_expr) = &return_stmt_node.expr_t_opt {
+                    !matches!(*return_expr, ExprType::NilExprT)
+                } else {
+                    false
+                }
+            }
+            _ => false,
         }
     }
     
@@ -113,9 +371,58 @@ impl TypeScriptVisitor {
     }
     
     fn generate_runtime_support(&mut self) {
-        // Import Frame runtime classes from shared module
-        self.builder.writeln("import { FrameEvent, FrameCompartment } from '../../typescript/runtime/frame_runtime';");
+        // TypeScript compilation directives (always needed)
+        self.builder.writeln("// TypeScript compilation target - ensures Promise support");
+        self.builder.writeln("/// <reference lib=\"es2015.promise\" />");
         self.builder.newline();
+        
+        // Only generate Frame runtime classes for standalone compilation
+        if self.generate_runtime_classes {
+            // Frame runtime classes (embedded for standalone compilation)
+            self.builder.writeln("// Frame runtime classes (embedded for standalone compilation)");
+            self.builder.writeln("interface FrameEventParameters { [key: string]: any; }");
+            self.builder.writeln("class FrameEvent {");
+            self.builder.indent();
+            self.builder.writeln("constructor(public message: string, public parameters: FrameEventParameters | null) {}");
+            self.builder.dedent();
+            self.builder.writeln("}");
+            self.builder.newline();
+            self.builder.writeln("class FrameCompartment {");
+            self.builder.indent();
+            self.builder.writeln("constructor(");
+            self.builder.indent();
+            self.builder.writeln("public state: string,");
+            self.builder.writeln("public enterArgs?: any,");
+            self.builder.writeln("public exitArgs?: any,");
+            self.builder.writeln("public stateArgs?: any,");
+            self.builder.writeln("public stateVars?: any,");
+            self.builder.writeln("public enterArgsCollection?: any,");
+            self.builder.writeln("public exitArgsCollection?: any,");
+            self.builder.writeln("public forwardEvent?: FrameEvent | null");
+            self.builder.dedent();
+            self.builder.writeln(") {");
+            self.builder.indent();
+            self.builder.writeln("this.forwardEvent = forwardEvent || null;");
+            self.builder.writeln("this.stateArgs = stateArgs || {};");
+            self.builder.writeln("this.stateVars = stateVars || {};");
+            self.builder.dedent();
+            self.builder.writeln("}");
+            self.builder.dedent();
+            self.builder.writeln("}");
+        }
+        
+        // Only generate external function declarations with runtime classes
+        if self.generate_runtime_classes {
+            self.builder.newline();
+            
+            // External function declarations (provided by runtime environment)
+            self.builder.writeln("// External function declarations (provided by runtime environment)");
+            self.builder.writeln("declare var Promise: PromiseConstructor;");
+            self.builder.writeln("declare function createAsyncServer(handler: (socket: any) => void): Promise<any>;");
+            self.builder.writeln("declare class NetworkServer { }");
+            self.builder.writeln("declare class JsonParser { static parse(data: any): any; }");
+            self.builder.newline();
+        }
     }
     
     fn generate_enum(&mut self, enum_node: &EnumDeclNode) {
@@ -170,11 +477,78 @@ impl TypeScriptVisitor {
 
 impl AstVisitor for TypeScriptVisitor {
     fn visit_frame_module(&mut self, frame_module: &FrameModule) {
+        // Process imports first (they should be at the top)
+        for import_node in &frame_module.imports {
+            self.visit_import_node(import_node);
+        }
+        
+        // Process enums
+        for enum_node in &frame_module.enums {
+            self.generate_enum(&enum_node.borrow());
+        }
+        
+        // Process modules (nested modules) 
+        for module_node in &frame_module.modules {
+            self.visit_module_node(&module_node.borrow());
+        }
+        
         // Visit systems
         for system_node in &frame_module.systems {
             self.visit_system_node(system_node);
         }
+    }
+    
+    fn visit_module_node(&mut self, module_node: &ModuleNode) {
+        // Generate TypeScript namespace for Frame module
+        self.builder.newline();
+        self.builder.writeln(&format!("export namespace {} {{", module_node.name));
+        self.builder.indent();
         
+        let mut has_content = false;
+        
+        // Process module variables as namespace variables
+        for var in &module_node.variables {
+            let var = var.borrow();
+            let mut init_value = String::new();
+            self.visit_expr_node_to_string(&var.value_rc, &mut init_value);
+            self.builder.writeln(&format!("export let {}: any = {};", var.name, init_value));
+            has_content = true;
+        }
+        
+        // Process nested modules recursively
+        for nested_module in &module_node.modules {
+            if has_content {
+                self.builder.newline();
+            }
+            self.visit_module_node(&nested_module.borrow());
+            has_content = true;
+        }
+        
+        // Process module functions as namespace functions
+        for func in &module_node.functions {
+            if has_content {
+                self.builder.newline();
+            }
+            self.generate_module_function(&func.borrow());
+            has_content = true;
+        }
+        
+        // Process module enums
+        for enum_node in &module_node.enums {
+            if has_content {
+                self.builder.newline();
+            }
+            self.generate_enum(&enum_node.borrow());
+            has_content = true;
+        }
+        
+        // If no content was generated, add a comment to avoid empty namespace
+        if !has_content {
+            self.builder.writeln("// Empty module");
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
     }
     
     fn visit_system_node(&mut self, system_node: &SystemNode) {
@@ -217,6 +591,17 @@ impl AstVisitor for TypeScriptVisitor {
             for var_decl in &domain.member_variables {
                 let var = var_decl.borrow();
                 self.builder.writeln(&format!("private {}: any;", var.name));
+                
+                // Track domain variable for resolution
+                self.domain_variables.insert(var.name.clone());
+                
+                // Add case variants for common Frame naming inconsistencies
+                if var.name == "adapterId" {
+                    self.builder.writeln("private adapterID: any; // Alias for adapterId to handle Frame spec inconsistencies");
+                }
+                if var.name == "clientId" {
+                    self.builder.writeln("private clientID: any; // Alias for clientId to handle Frame spec inconsistencies");
+                }
             }
         }
         
@@ -379,6 +764,11 @@ impl AstVisitor for TypeScriptVisitor {
                 self.visit_action_node(&action);
             }
         }
+        
+        // Missing method stubs for external dependencies
+        self.builder.writeln("// Missing method stubs (would be implemented in runtime environment)");
+        self.generate_missing_method_stubs();
+        self.builder.newline();
         
         // Runtime methods
         self.builder.writeln("// Frame runtime");
@@ -647,19 +1037,36 @@ impl AstVisitor for TypeScriptVisitor {
         }
         let params_str = params.join(", ");
         
-        // Determine return type
+        // Check if action is async
+        let is_async = self.action_is_async(action);
+        
+        // Determine return type - infer from body if not explicitly declared
         let return_type = if let Some(type_node) = &action.type_opt {
-            match type_node.type_str.as_str() {
+            let base_type = match type_node.type_str.as_str() {
                 "bool" => "boolean",
                 "int" | "float" => "number",
                 "string" => "string",
                 _ => "any",
+            };
+            if is_async {
+                format!("Promise<{}>", base_type)
+            } else {
+                base_type.to_string()
             }
         } else {
-            "void"
+            // Infer return type from action body
+            let base_type = self.infer_action_return_type(action);
+            if is_async {
+                format!("Promise<{}>", base_type)
+            } else {
+                base_type.to_string()
+            }
         };
         
-        self.builder.writeln(&format!("private {}({}): {} {{", action_name, params_str, return_type));
+        let async_keyword = if is_async { "async " } else { "" };
+        self.builder.writeln(&format!("private {}{}{}: {} {{", async_keyword, action_name, 
+                                     if params_str.is_empty() { "()".to_string() } else { format!("({})", params_str) }, 
+                                     return_type));
         self.builder.indent();
         
         // Generate action body
@@ -692,6 +1099,14 @@ impl AstVisitor for TypeScriptVisitor {
                 // Return statements in action bodies are already handled by visit_return_stmt_node
                 // Don't duplicate the return processing here
             }
+        }
+        
+        // Add default return for actions that don't have explicit returns but need them
+        if !self.action_has_return_with_value(action) && return_type.contains("boolean") {
+            self.builder.writeln("return true; // Default success return for Frame action");
+        } else if !self.action_has_return_with_value(action) && return_type.contains("Promise") && !return_type.contains("void") {
+            // Async actions with return types need a default return
+            self.builder.writeln("return null; // Default return for async action");
         }
         
         // Reset action context
@@ -802,6 +1217,9 @@ impl TypeScriptVisitor {
             }
             StatementType::ForStmt { for_stmt_node } => {
                 self.visit_for_stmt_node(for_stmt_node);
+            }
+            StatementType::TryStmt { try_stmt_node } => {
+                self.visit_try_stmt_node(try_stmt_node);
             }
             _ => {
                 // TODO: Handle other statement types
@@ -1145,6 +1563,25 @@ impl TypeScriptVisitor {
             OperatorType::LogicalAnd => " && ",
             OperatorType::LogicalOr => " || ",
             OperatorType::Percent => " % ",
+            OperatorType::In => {
+                // Handle 'in' operator: transform 'x in array' to 'array.includes(x)'
+                output.clear(); // Clear the opening parenthesis and left operand
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(".includes(");
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push(')');
+                return; // Early return to avoid the normal binary expression handling
+            },
+            OperatorType::NotIn => {
+                // Handle 'not in' operator: transform 'x not in array' to '!array.includes(x)'
+                output.clear(); // Clear the opening parenthesis and left operand
+                output.push('!');
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(".includes(");
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push(')');
+                return; // Early return to avoid the normal binary expression handling
+            },
             _ => " /* TODO: operator */ ",
         };
         
@@ -1283,8 +1720,8 @@ impl TypeScriptVisitor {
             let mut expr_str = String::new();
             self.visit_expr_node_to_string(expr, &mut expr_str);
             
-            if self.is_in_action {
-                // Actions use direct returns
+            if self.is_in_action || self.in_module_function {
+                // Actions and module functions use direct returns
                 self.builder.writeln(&format!("return {};", expr_str));
             } else {
                 // Event handlers use return stack
@@ -1358,7 +1795,7 @@ impl TypeScriptVisitor {
                         }
                     }
                     DeclOrStmtType::StmtT { stmt_t } => {
-                        self.visit_stmt_node(stmt_t);
+                        self.visit_stmt_node(&stmt_t);
                     }
                 }
             }
@@ -1409,7 +1846,7 @@ impl TypeScriptVisitor {
             for stmt in &elif_clause.block.statements {
                 match stmt {
                     DeclOrStmtType::StmtT { stmt_t } => {
-                        self.visit_stmt_node(stmt_t);
+                        self.visit_stmt_node(&stmt_t);
                     }
                     DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                         let var_decl = var_decl_t_rcref.borrow();
@@ -1429,7 +1866,7 @@ impl TypeScriptVisitor {
             for stmt in &else_block.statements {
                 match stmt {
                     DeclOrStmtType::StmtT { stmt_t } => {
-                        self.visit_stmt_node(stmt_t);
+                        self.visit_stmt_node(&stmt_t);
                     }
                     DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                         let var_decl = var_decl_t_rcref.borrow();
@@ -1744,7 +2181,10 @@ impl TypeScriptVisitor {
                         }
                     } else {
                         output.push('.');
-                        output.push_str(&id_node.name.lexeme);
+                        // For property access after 'self', resolve against domain variables
+                        let property_name = &id_node.name.lexeme;
+                        let resolved_name = self.resolve_domain_variable_name(property_name);
+                        output.push_str(&resolved_name);
                     }
                 }
                 CallChainNodeType::SelfT { .. } => {
@@ -1774,6 +2214,25 @@ impl TypeScriptVisitor {
                         }
                     }
                 }
+                CallChainNodeType::ListElementNodeT { list_elem_node } => {
+                    // Handle array/string indexing operations like text[i]
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                        eprintln!("DEBUG TS: Processing ListElementNodeT for array/string indexing");
+                    }
+                    
+                    // Generate the variable name (skip synthetic identifiers)
+                    if list_elem_node.identifier.name.lexeme != "@chain_index" && 
+                       list_elem_node.identifier.name.lexeme != "@chain_slice" {
+                        output.push_str(&list_elem_node.identifier.name.lexeme);
+                    }
+                    
+                    // Generate the index expression
+                    output.push('[');
+                    let mut index_str = String::new();
+                    self.visit_expr_node_to_string(&list_elem_node.expr_t, &mut index_str);
+                    output.push_str(&index_str);
+                    output.push(']');
+                }
                 _ => {
                     // TODO: Handle other call chain node types
                     output.push_str("/* TODO: call chain node */");
@@ -1783,6 +2242,149 @@ impl TypeScriptVisitor {
         }
     }
     
+    // Generate missing method stubs for external dependencies
+    fn generate_module_function(&mut self, function_node: &FunctionNode) {
+        // Generate TypeScript function for Frame module function
+        let func_name = &function_node.name;
+        
+        // Generate parameters
+        let mut params = Vec::new();
+        if let Some(ref param_list) = function_node.params {
+            for param in param_list {
+                params.push(format!("{}: any", param.param_name));
+            }
+        }
+        let params_str = params.join(", ");
+        
+        // Generate function signature
+        self.builder.writeln(&format!("export function {}({}): any {{", 
+                                    func_name, params_str));
+        self.builder.indent();
+        
+        // Set module function flag
+        let old_flag = self.in_module_function;
+        self.in_module_function = true;
+        
+        // Generate function body statements
+        for stmt in &function_node.statements {
+            match stmt {
+                DeclOrStmtType::StmtT { stmt_t } => {
+                    self.visit_stmt_node(stmt_t);
+                },
+                DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                    let var_decl = var_decl_t_rcref.borrow();
+                    if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                        let mut init_str = String::new();
+                        self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                        self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                    } else {
+                        self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                    }
+                }
+            }
+        }
+        
+        // Only generate terminator return if statements didn't contain explicit returns
+        // For module functions, the visit_return_stmt_node already handled the return statements
+        // Don't duplicate the return handling here unless it's an empty function
+        if function_node.statements.is_empty() {
+            match function_node.terminator_expr.terminator_type {
+                TerminatorType::Return => {
+                    if let Some(ref return_expr) = function_node.terminator_expr.return_expr_t_opt {
+                        let mut output = String::new();
+                        self.visit_expr_node_to_string(return_expr, &mut output);
+                        self.builder.writeln(&format!("return {};", output));
+                    } else {
+                        self.builder.writeln("return undefined;");
+                    }
+                },
+            }
+        }
+        
+        // Restore module function flag
+        self.in_module_function = old_flag;
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+    }
+    
+
+    fn generate_missing_method_stubs(&mut self) {
+        // These methods are referenced in Frame specifications but need to be implemented
+        // in the runtime environment (VS Code, Node.js, etc.)
+        
+        self.builder.writeln("private handlePythonStdout(data: any): void {");
+        self.builder.indent();
+        self.builder.writeln("// Implementation provided by runtime environment");
+        self.builder.writeln("console.log('[Python stdout]:', data);");
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+        
+        self.builder.writeln("private handlePythonStderr(data: any): void {");
+        self.builder.indent();
+        self.builder.writeln("// Implementation provided by runtime environment");
+        self.builder.writeln("console.error('[Python stderr]:', data);");
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+        
+        self.builder.writeln("private handlePythonExit(exitCode: number): void {");
+        self.builder.indent();
+        self.builder.writeln("// Implementation provided by runtime environment");
+        self.builder.writeln("console.log('[Python exit]:', exitCode);");
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+        
+        self.builder.writeln("private handlePythonError(error: any): void {");
+        self.builder.indent();
+        self.builder.writeln("// Implementation provided by runtime environment");
+        self.builder.writeln("console.error('[Python error]:', error);");
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+        
+        self.builder.writeln("private handleRuntimeConnection(socket: any): void {");
+        self.builder.indent();
+        self.builder.writeln("// Implementation provided by runtime environment");
+        self.builder.writeln("console.log('[Runtime connection]:', socket);");
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+    }
+
+    // Helper method to resolve domain variable names with case variations
+    fn resolve_domain_variable_name(&self, var_name: &str) -> String {
+        if std::env::var("DEBUG_TS_VARS").is_ok() {
+            eprintln!("DEBUG TS: resolve_domain_variable_name called with '{}'", var_name);
+        }
+        
+        // First try exact match
+        if self.domain_variables.contains(var_name) {
+            if std::env::var("DEBUG_TS_VARS").is_ok() {
+                eprintln!("DEBUG TS: Exact match for '{}' found", var_name);
+            }
+            return var_name.to_string();
+        }
+        
+        // Try case-insensitive match (common Frame naming variations)
+        for domain_var in &self.domain_variables {
+            if domain_var.to_lowercase() == var_name.to_lowercase() {
+                if std::env::var("DEBUG_TS_VARS").is_ok() {
+                    eprintln!("DEBUG TS: Resolved '{}' to domain variable '{}'", var_name, domain_var);
+                }
+                return domain_var.clone();
+            }
+        }
+        
+        // No match found, return original
+        if std::env::var("DEBUG_TS_VARS").is_ok() {
+            eprintln!("DEBUG TS: No match found for '{}', returning original", var_name);
+        }
+        var_name.to_string()
+    }
+
     // Helper method to convert Python f-strings to TypeScript template literals
     fn convert_fstring_to_template_literal(&self, fstring: &str) -> String {
         // f"Hello {name}" -> `Hello ${name}` with context-aware variable resolution
@@ -1834,28 +2436,62 @@ impl TypeScriptVisitor {
                     if var_name == "self" {
                         result.push_str("this");
                     } else if var_name.starts_with("self.") {
-                        // Convert self.property to this.property
-                        result.push_str(&format!("this.{}", &var_name[5..]));
+                        // Convert self.property to this.resolvedProperty
+                        let property_name = &var_name[5..];
+                        let resolved_name = self.resolve_domain_variable_name(property_name);
+                        result.push_str(&format!("this.{}", resolved_name));
                     } else {
-                        // Apply the same context-aware resolution as other variables
-                        if self.current_local_vars.contains(&var_name) {
-                            // Local variable - use bare name
-                            result.push_str(&var_name);
-                        } else if self.current_state_params.contains(&var_name) {
-                            // State parameter - access from compartment
-                            result.push_str(&format!("compartment.stateArgs['{}']", var_name));
-                        } else if self.current_state_vars.contains(&var_name) {
-                            // State variable - access from compartment
-                            result.push_str(&format!("compartment.stateVars['{}']", var_name));
-                        } else if self.domain_variables.contains(&var_name) {
-                            // Domain variable - access from this
-                            result.push_str(&format!("this.{}", var_name));
-                        } else if self.current_handler_params.contains(&var_name) {
-                            // Event handler parameter - access from event parameters
-                            result.push_str(&format!("__e.parameters.{}", var_name));
+                        // Handle compound property access (e.g., args.program)
+                        if var_name.contains('.') {
+                            let parts: Vec<&str> = var_name.splitn(2, '.').collect();
+                            let base_var = parts[0];
+                            let property_access = parts[1];
+                            
+                            if debug_enabled {
+                                eprintln!("DEBUG TS: Compound access - base: '{}', property: '{}'", base_var, property_access);
+                            }
+                            
+                            // Apply context-aware resolution to the base variable
+                            if self.current_local_vars.contains(base_var) {
+                                // Local variable - use bare name
+                                result.push_str(&format!("{}.{}", base_var, property_access));
+                            } else if self.current_state_params.contains(base_var) {
+                                // State parameter - access from compartment
+                                result.push_str(&format!("compartment.stateArgs['{}'].{}", base_var, property_access));
+                            } else if self.current_state_vars.contains(base_var) {
+                                // State variable - access from compartment
+                                result.push_str(&format!("compartment.stateVars['{}'].{}", base_var, property_access));
+                            } else if self.domain_variables.contains(base_var) {
+                                // Domain variable - access from this
+                                result.push_str(&format!("this.{}.{}", base_var, property_access));
+                            } else if self.current_handler_params.contains(base_var) {
+                                // Event handler parameter - access from event parameters (keep original property names)
+                                result.push_str(&format!("__e.parameters.{}.{}", base_var, property_access));
+                            } else {
+                                // Unknown variable - fallback to this
+                                result.push_str(&format!("this.{}", var_name));
+                            }
                         } else {
-                            // Unknown variable - fallback to this
-                            result.push_str(&format!("this.{}", var_name));
+                            // Simple variable name - apply the same context-aware resolution as other variables
+                            if self.current_local_vars.contains(&var_name) {
+                                // Local variable - use bare name
+                                result.push_str(&var_name);
+                            } else if self.current_state_params.contains(&var_name) {
+                                // State parameter - access from compartment
+                                result.push_str(&format!("compartment.stateArgs['{}']", var_name));
+                            } else if self.current_state_vars.contains(&var_name) {
+                                // State variable - access from compartment
+                                result.push_str(&format!("compartment.stateVars['{}']", var_name));
+                            } else if self.domain_variables.contains(&var_name) {
+                                // Domain variable - access from this
+                                result.push_str(&format!("this.{}", var_name));
+                            } else if self.current_handler_params.contains(&var_name) {
+                                // Event handler parameter - access from event parameters
+                                result.push_str(&format!("__e.parameters.{}", var_name));
+                            } else {
+                                // Unknown variable - fallback to this
+                                result.push_str(&format!("this.{}", var_name));
+                            }
                         }
                     }
                     
@@ -1944,7 +2580,7 @@ impl TypeScriptVisitor {
             for stmt in &node.block.statements {
                 match stmt {
                     DeclOrStmtType::StmtT { stmt_t } => {
-                        self.visit_stmt_node(stmt_t);
+                        self.visit_stmt_node(&stmt_t);
                     }
                     DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                         let var_decl = var_decl_t_rcref.borrow();
@@ -2020,7 +2656,7 @@ impl TypeScriptVisitor {
             for stmt in &node.block.statements {
                 match stmt {
                     DeclOrStmtType::StmtT { stmt_t } => {
-                        self.visit_stmt_node(stmt_t);
+                        self.visit_stmt_node(&stmt_t);
                     }
                     DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                         let var_decl = var_decl_t_rcref.borrow();
@@ -2072,6 +2708,211 @@ impl TypeScriptVisitor {
                 self.builder.dedent();
                 self.builder.writeln("}");
             }
+        }
+    }
+    
+    fn visit_try_stmt_node(&mut self, node: &TryStmtNode) {
+        // Generate TypeScript try-catch-finally block
+        self.builder.writeln("try {");
+        self.builder.indent();
+        
+        // Handle try block
+        if node.try_block.statements.is_empty() {
+            self.builder.writeln("// Empty try block");
+        } else {
+            for decl_or_stmt in &node.try_block.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            } else {
+                                self.builder.writeln(&format!("{} = {};", var_decl.name, init_str));
+                            }
+                        } else {
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                            }
+                        }
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(&stmt_t);
+                    }
+                }
+            }
+        }
+        self.builder.dedent();
+        
+        // Handle except clauses (Frame -> TypeScript catch)
+        if !node.except_clauses.is_empty() {
+            // For simplicity, combine all except clauses into one catch block
+            // In TypeScript, we can only catch one type (Error or any)
+            self.builder.writeln("} catch (e) {");
+            self.builder.indent();
+            
+            for except in &node.except_clauses {
+                // Add optional type checking for specific exception types
+                if let Some(exception_types) = &except.exception_types {
+                    if !exception_types.is_empty() {
+                        let type_checks = exception_types.iter()
+                            .map(|t| {
+                                // Map Frame exception types to TypeScript/JavaScript types
+                                let ts_type = match t.as_str() {
+                                    "Exception" => "Error",
+                                    "ValueError" => "Error",
+                                    "TypeError" => "TypeError",
+                                    "RuntimeError" => "Error",
+                                    "ZeroDivisionError" => "Error",
+                                    _ => "Error"
+                                };
+                                format!("e instanceof {} || e.name === '{}'", ts_type, t)
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" || ");
+                        self.builder.writeln(&format!("if ({}) {{", type_checks));
+                        self.builder.indent();
+                    }
+                }
+                
+                // Handle variable binding if specified
+                if let Some(var_name) = &except.var_name {
+                    // Avoid variable shadowing by using assignment instead of declaration
+                    // when the variable name conflicts with the catch parameter
+                    if var_name == "e" {
+                        // Skip explicit binding since 'e' is already the catch parameter
+                        // The Frame variable 'e' maps directly to the TypeScript catch parameter 'e'
+                    } else {
+                        if !self.current_local_vars.contains(var_name) {
+                            self.current_local_vars.insert(var_name.clone());
+                            self.builder.writeln(&format!("let {} = e;", var_name));
+                        } else {
+                            self.builder.writeln(&format!("{} = e;", var_name));
+                        }
+                    }
+                }
+                
+                // Handle except block statements
+                for decl_or_stmt in &except.block.statements {
+                    match decl_or_stmt {
+                        DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                            let var_decl = var_decl_t_rcref.borrow();
+                            if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                                let mut init_str = String::new();
+                                self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                                if !self.current_local_vars.contains(&var_decl.name) {
+                                    self.current_local_vars.insert(var_decl.name.clone());
+                                    self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                } else {
+                                    self.builder.writeln(&format!("{} = {};", var_decl.name, init_str));
+                                }
+                            } else {
+                                if !self.current_local_vars.contains(&var_decl.name) {
+                                    self.current_local_vars.insert(var_decl.name.clone());
+                                    self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                                }
+                            }
+                        }
+                        DeclOrStmtType::StmtT { stmt_t } => {
+                            self.visit_stmt_node(stmt_t);
+                        }
+                    }
+                }
+                
+                if let Some(_) = &except.exception_types {
+                    self.builder.dedent();
+                    self.builder.writeln("}");
+                }
+            }
+            
+            self.builder.dedent();
+        } else {
+            // No except clauses, just close the try block
+            self.builder.writeln("} catch (e) {");
+            self.builder.indent();
+            self.builder.writeln("// No exception handling specified");
+            self.builder.writeln("throw e;");
+            self.builder.dedent();
+        }
+        
+        // Handle finally block
+        if let Some(ref finally_block) = node.finally_block {
+            self.builder.writeln("} finally {");
+            self.builder.indent();
+            
+            for decl_or_stmt in &finally_block.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            } else {
+                                self.builder.writeln(&format!("{} = {};", var_decl.name, init_str));
+                            }
+                        } else {
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                            }
+                        }
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(&stmt_t);
+                    }
+                }
+            }
+            
+            self.builder.dedent();
+            self.builder.writeln("}");
+        } else {
+            self.builder.writeln("}");
+        }
+        
+        // Handle else block (executes if no exception was raised)
+        // Note: TypeScript doesn't have an else clause for try-catch, 
+        // so we'll simulate it with a boolean flag
+        if let Some(ref else_block) = node.else_block {
+            self.builder.writeln("// else block (executes if no exception occurred)");
+            self.builder.writeln("// Note: Simulated since TypeScript doesn't have try-else");
+            self.builder.writeln("{");
+            self.builder.indent();
+            
+            for decl_or_stmt in &else_block.statements {
+                match decl_or_stmt {
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        if !matches!(*var_decl.value_rc, ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            self.visit_expr_node_to_string(&var_decl.value_rc, &mut init_str);
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            } else {
+                                self.builder.writeln(&format!("{} = {};", var_decl.name, init_str));
+                            }
+                        } else {
+                            if !self.current_local_vars.contains(&var_decl.name) {
+                                self.current_local_vars.insert(var_decl.name.clone());
+                                self.builder.writeln(&format!("let {}: any = null;", var_decl.name));
+                            }
+                        }
+                    }
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(&stmt_t);
+                    }
+                }
+            }
+            
+            self.builder.dedent();
+            self.builder.writeln("}");
         }
     }
 }

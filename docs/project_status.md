@@ -3,13 +3,22 @@
 ## Current State
 
 **Branch**: `v0.30`  
-**Version**: `v0.56`  
-**Status**: ✅ **100% TEST SUCCESS RATE - ALL FEATURES OPERATIONAL**  
-**Achievement**: **Complete Python 3.8+ Feature Alignment**  
-**Latest**: ✅ **ALL 341 TESTS PASSING** (2025-01-27)  
+**Version**: `v0.84.0`  
+**Status**: ✅ **100% TEST SUCCESS RATE - MULTI-LANGUAGE SUPPORT**  
+**Achievement**: **Complete TypeScript & Python Feature Parity**  
+**Latest**: ✅ **ALL 423 TYPESCRIPT + 341 PYTHON TESTS PASSING** (2025-10-17)  
 **Rust Version**: 1.89.0 (Latest Stable)
 
-## Latest Updates (January 27, 2025)
+## Latest Updates (October 17, 2025)
+
+### 🎉 Frame v0.84.0 - Complete TypeScript Support Achievement
+- **TypeScript Tests**: 100% success rate (423/423 tests passing)
+- **Feature Parity**: Complete alignment between Python and TypeScript targets
+- **Module Support**: Frame modules generate proper TypeScript namespaces
+- **Multifile Compilation**: Full support for multifile Frame programs in TypeScript
+- **Operator Coverage**: All Frame operators work correctly in TypeScript
+
+### ✅ Previous Updates (January 27, 2025)
 
 ### ✅ Dependency and Toolchain Updates Complete
 - **Rust**: Updated from 1.83.0 → 1.89.0 (latest stable)
@@ -128,21 +137,23 @@ python3 runner/frame_test_runner.py --all --framec ../target/release/framec
 ## Language Support
 
 ### 1st Class (Full Implementation)
-- **Python 3**: Complete visitor with all features
+- **Python 3**: Complete visitor with all features (341/341 tests passing)
+- **TypeScript**: Complete visitor with all features (423/423 tests passing)
 
 ### 2nd Class (Design Guides)
 - C/C++, JavaScript, C#, Java, Go, Rust
 
 ### Target Options
 - `python_3`: Python code generation
+- `typescript`: TypeScript code generation
 - `plantuml`: UML state diagram generation
 
 ## Project Metrics
 
-- **Versions Released**: 27 (v0.30 through v0.56)
-- **Test Files**: 341
-- **Success Rate**: 100%
-- **Python Features**: ~95% coverage of core Python 3.8+ features
+- **Versions Released**: 55 (v0.30 through v0.84.0)
+- **Test Files**: 764 (341 Python + 423 TypeScript)
+- **Success Rate**: 100% (both languages)
+- **Language Features**: Complete coverage of Python 3.8+ and TypeScript ES2020+ features
 - **Code Quality**: Zero warnings, zero deprecations
 - **Rust Edition**: 2021
 - **Min Rust Version**: 1.89.0

@@ -154,7 +154,7 @@ impl ModuleLinker {
                     use crate::frame_c::symbol_table::SymbolConfig;
                     
                     let arcanum_vec = vec![module.symbols];
-                    let visitor = TypeScriptVisitor::new(
+                    let visitor = TypeScriptVisitor::new_for_multifile(
                         arcanum_vec,
                         SymbolConfig::new(),
                     );
@@ -363,8 +363,33 @@ impl ModuleLinker {
                 output.push_str("        self.state_args = state_args or {}\n");
             },
             TargetLanguage::TypeScript => {
-                // TypeScript uses imports for runtime, don't generate runtime classes inline
-                output.push_str("// Frame runtime classes imported from runtime module\n");
+                // Generate Frame runtime classes once for multifile TypeScript
+                output.push_str("// Frame runtime classes (embedded for standalone compilation)\n");
+                output.push_str("interface FrameEventParameters { [key: string]: any; }\n");
+                output.push_str("class FrameEvent {\n");
+                output.push_str("    constructor(public message: string, public parameters: FrameEventParameters | null) {}\n");
+                output.push_str("}\n\n");
+                output.push_str("class FrameCompartment {\n");
+                output.push_str("    constructor(\n");
+                output.push_str("        public state: string,\n");
+                output.push_str("        public enterArgs?: any,\n");
+                output.push_str("        public exitArgs?: any,\n");
+                output.push_str("        public stateArgs?: any,\n");
+                output.push_str("        public stateVars?: any,\n");
+                output.push_str("        public enterArgsCollection?: any,\n");
+                output.push_str("        public exitArgsCollection?: any,\n");
+                output.push_str("        public forwardEvent?: FrameEvent | null\n");
+                output.push_str("    ) {\n");
+                output.push_str("        this.forwardEvent = forwardEvent || null;\n");
+                output.push_str("        this.stateArgs = stateArgs || {};\n");
+                output.push_str("        this.stateVars = stateVars || {};\n");
+                output.push_str("    }\n");
+                output.push_str("}\n\n");
+                output.push_str("// External function declarations (provided by runtime environment)\n");
+                output.push_str("declare var Promise: PromiseConstructor;\n");
+                output.push_str("declare function createAsyncServer(handler: (socket: any) => void): Promise<any>;\n");
+                output.push_str("declare class NetworkServer { }\n");
+                output.push_str("declare class JsonParser { static parse(data: any): any; }\n");
             },
             _ => {
                 output.push_str("// Frame runtime classes\n");
