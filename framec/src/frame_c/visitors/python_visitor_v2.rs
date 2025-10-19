@@ -4956,6 +4956,153 @@ impl PythonVisitorV2 {
         }
     }
 
+    // ===================== Phase 1: Essential debugging expressions =====================
+    
+    /// SystemInstanceExprT - Debug: "var sys = MySystem()"  
+    fn visit_system_instance_expr_node_to_string(&mut self, node: &SystemInstanceExprNode, output: &mut String) {
+        output.push_str(&node.identifier.name.lexeme);
+        output.push('(');
+        // Add state args, enter args, or domain args if present
+        let mut has_args = false;
+        if let Some(ref args) = node.start_state_state_args_opt {
+            self.visit_expr_list_node_to_string(&args.exprs_t, output);
+            has_args = true;
+        }
+        if let Some(ref args) = node.start_state_enter_args_opt {
+            if has_args { output.push_str(", "); }
+            self.visit_expr_list_node_to_string(&args.exprs_t, output);
+            has_args = true;
+        }
+        if let Some(ref args) = node.domain_args_opt {
+            if has_args { output.push_str(", "); }
+            self.visit_expr_list_node_to_string(&args.exprs_t, output);
+        }
+        output.push(')');
+    }
+    
+    /// ActionCallExprT - Debug: "self.action_name(params)"
+    fn visit_action_call_expression_node_to_string(&mut self, node: &ActionCallExprNode, output: &mut String) {
+        output.push_str(&node.identifier.name.lexeme);
+        output.push('(');
+        self.visit_expr_list_node_to_string(&node.call_expr_list.exprs_t, output);
+        output.push(')');
+    }
+    
+    /// ListComprehensionExprT - Debug: "[x for x in items]"
+    fn visit_list_comprehension_node_to_string(&mut self, node: &ListComprehensionNode, output: &mut String) {
+        output.push('[');
+        self.visit_expr_node_to_string(&node.expr, output);
+        output.push_str(" for ");
+        output.push_str(&node.target);
+        output.push_str(" in ");
+        self.visit_expr_node_to_string(&node.iter, output);
+        if let Some(ref condition) = node.condition {
+            output.push_str(" if ");
+            self.visit_expr_node_to_string(condition, output);
+        }
+        output.push(']');
+    }
+    
+    /// DictComprehensionExprT - Debug: "{k: v for k, v in items}"
+    fn visit_dict_comprehension_node_to_string(&mut self, node: &DictComprehensionNode, output: &mut String) {
+        output.push('{');
+        self.visit_expr_node_to_string(&node.key_expr, output);
+        output.push_str(": ");
+        self.visit_expr_node_to_string(&node.value_expr, output);
+        output.push_str(" for ");
+        output.push_str(&node.target);
+        output.push_str(" in ");
+        self.visit_expr_node_to_string(&node.iter, output);
+        if let Some(ref condition) = node.condition {
+            output.push_str(" if ");
+            self.visit_expr_node_to_string(condition, output);
+        }
+        output.push('}');
+    }
+
+    // ===================== Phase 2: Modern features =====================
+    
+    /// WalrusExprT - Debug: "if (x := func()) > 0"
+    fn visit_walrus_expr_node_to_string(&mut self, node: &AssignmentExprNode, output: &mut String) {
+        output.push('(');
+        self.visit_expr_node_to_string(&node.l_value_box, output);
+        output.push_str(" := ");
+        self.visit_expr_node_to_string(&node.r_value_rc, output);
+        output.push(')');
+    }
+    
+    /// AwaitExprT - Debug: "await async_call()"  
+    fn visit_await_expr_node_to_string(&mut self, node: &AwaitExprNode, output: &mut String) {
+        output.push_str("await ");
+        self.visit_expr_node_to_string(&node.expr, output);
+    }
+
+    // ===================== Phase 3: Frame-specific features =====================
+    
+    /// EnumeratorExprT - Debug: "MyEnum.VALUE"
+    fn visit_enumerator_expr_node_to_string(&mut self, node: &EnumeratorExprNode, output: &mut String) {
+        output.push_str(&node.enum_type);
+        output.push('.');
+        output.push_str(&node.enumerator);
+    }
+    
+    /// TransitionExprT - Debug: "-> $NewState"
+    fn visit_transition_expr_node_to_string(&mut self, node: &TransitionExprNode, output: &mut String) {
+        output.push_str("-> ");
+        match &node.target_state_context_t {
+            TargetStateContextType::StateRef { state_context_node } => {
+                output.push_str(&state_context_node.state_ref_node.name);
+            },
+            _ => {
+                output.push_str("<unknown>");
+            }
+        }
+        if node.forward_event {
+            output.push('(');
+            // Simplified: would need to handle event args properly
+            output.push_str("...");
+            output.push(')');
+        }
+    }
+    
+    /// SelfExprT - Debug: "self.variable"
+    fn visit_self_expr_node_to_string(&mut self, _node: &SelfExprNode, output: &mut String) {
+        output.push_str("self");
+    }
+    
+    /// UnpackExprT - Debug: "*args"
+    fn visit_unpack_expr_node_to_string(&mut self, node: &UnpackExprNode, output: &mut String) {
+        output.push('*');
+        self.visit_expr_node_to_string(&node.expr, output);
+    }
+    
+    /// DictUnpackExprT - Debug: "**kwargs"  
+    fn visit_dict_unpack_expr_node_to_string(&mut self, node: &DictUnpackExprNode, output: &mut String) {
+        output.push_str("**");
+        self.visit_expr_node_to_string(&node.expr, output);
+    }
+    
+    /// StarExprT - Debug: "*expression"
+    fn visit_star_expr_node_to_string(&mut self, node: &StarExprNode, output: &mut String) {
+        output.push('*');
+        output.push_str(&node.identifier);
+    }
+    
+    /// SetComprehensionExprT - Debug: "{x for x in items}"
+    fn visit_set_comprehension_node_to_string(&mut self, node: &SetComprehensionNode, output: &mut String) {
+        output.push('{');
+        self.visit_expr_node_to_string(&node.expr, output);
+        output.push_str(" for ");
+        output.push_str(&node.target);
+        output.push_str(" in ");
+        self.visit_expr_node_to_string(&node.iter, output);
+        if let Some(ref condition) = node.condition {
+            output.push_str(" if ");
+            self.visit_expr_node_to_string(condition, output);
+        }
+        output.push('}');
+    }
+
     fn visit_try_stmt_node(&mut self, node: &TryStmtNode) {
         // Map the try statement line
         self.builder.map_next(node.line);

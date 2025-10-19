@@ -1,16 +1,378 @@
 # Frame Transpiler Open Bugs
 
-<!-- NEXT BUG NUMBER: #54 -->
+<!-- NEXT BUG NUMBER: #57 -->
 
 **Last Updated:** 2025-10-19  
-**Current Version:** v0.85.6  
-**Test Status:** ✅ **ALL CLEAR** - 100% TypeScript success rate  
-**Active Bugs:** 0  
+**Current Version:** v0.86.0  
+**Test Status:** ✅ **IMPROVED** - TypeScript operator/method support enhanced, 69.7% success rate  
+**Active Bugs:** 3  
 **Resolved Bugs:** 53 (See closed_bugs.md for full history)  
 
 ## Active Bugs
 
-*No active bugs - all known issues resolved*
+### Bug #54: TypeScript Action Implementation Missing - Process Spawning Generates Stubs (v0.85.6)
+
+**Reporter**: Claude Code (Frame VS Code Extension)  
+**Date**: 2025-10-19  
+**Severity**: HIGH (Blocks functional TypeScript debugging)  
+**Transpiler Version**: v0.85.6
+
+#### Problem Description
+
+The Frame-to-TypeScript transpiler generates stub implementations for process spawning actions instead of actual `child_process.spawn()` calls. This breaks debugging functionality where Python processes must be launched.
+
+#### Expected Behavior
+
+Frame actions calling external processes should generate equivalent TypeScript:
+- Frame syntax: `self.spawn("python3", ["-"], options)`
+- Python translation: `subprocess.Popen("python3", ["-"], **options)` ✅ WORKS
+- TypeScript translation: `child_process.spawn("python3", ["-"], options)` ❌ BROKEN - generates stub
+
+#### Actual Behavior
+
+Frame-to-TypeScript transpiler generates:
+```typescript
+// INCORRECT - generates non-functional stub
+private _action_spawn(command: any, args: any, options: any): any {
+    console.log(`[FrameDebugAdapter] spawn: ${command} ${args} ${options}`);
+    return null;  // ❌ Should call child_process.spawn()
+}
+```
+
+Should generate:
+```typescript
+// CORRECT TypeScript implementation
+private _action_spawn(command: any, args: any, options: any): any {
+    console.log(`[FrameDebugAdapter] spawn: ${command} ${args} ${options}`);
+    return child_process.spawn(command, args, options);
+}
+```
+
+#### Test Case for Permanent Test Suite
+
+Please add this test case to the permanent TypeScript test suite:
+
+**File: `framec_tests/typescript/src/positive_tests/test_process_spawning.frm`**
+```frame
+system ProcessSpawner {
+    interface:
+        launchPython(scriptPath)
+        
+    machine:
+        $Ready {
+            launchPython(scriptPath) {
+                var process = self.spawnProcess("python3", [scriptPath], {
+                    "stdio": ["pipe", "pipe", "pipe"]
+                })
+                if process {
+                    self.pythonProcess = process
+                    system.return = True
+                } else {
+                    system.return = False
+                }
+            }
+        }
+    
+    actions:
+        spawnProcess(command, args, options) {
+            return self.spawn(command, args, options)
+        }
+        
+        spawn(command, args, options) {
+            # This should generate child_process.spawn() in TypeScript
+            # NOT a stub that returns null
+            print(f"Spawning: {command} with args {args}")
+            # Platform-specific implementation should be handled by transpiler
+        }
+    
+    domain:
+        var pythonProcess = None
+}
+```
+
+**Expected TypeScript Output:**
+```typescript
+private _action_spawn(command: any, args: any, options: any): any {
+    console.log(`Spawning: ${command} with args ${args}`);
+    return child_process.spawn(command, args, options);
+}
+```
+
+#### Impact
+
+- **Blocks Python Process Launching**: Debug adapter cannot spawn Python runtime
+- **Breaks Cross-Platform Functionality**: Process spawning is fundamental for debugging
+- **Inconsistent Language Translation**: Python works, TypeScript fails for same Frame specification
+
+#### Root Cause Analysis
+
+The TypeScript visitor appears to generate action method signatures but lacks implementation mapping for:
+- Process spawning (`spawn`, `exec` operations)
+- External command execution
+- Platform-specific API calls
+
+#### Files to Investigate
+
+- `framec/src/frame_c/visitors/typescript_visitor.rs` - Action implementation generation
+- Action statement translation for external API calls
+- Cross-platform process spawning mappings
+
+#### Priority
+
+HIGH - This bug blocks functional debugging in Frame VS Code Extension and affects core Frame debugging capabilities.
+
+---
+
+### Bug #55: TypeScript Action Implementation Missing - TCP Server Creation Generates Stubs (v0.85.6)
+
+**Reporter**: Claude Code (Frame VS Code Extension)  
+**Date**: 2025-10-19  
+**Severity**: HIGH (Blocks network communication)  
+**Transpiler Version**: v0.85.6
+
+#### Problem Description
+
+The Frame-to-TypeScript transpiler generates stub implementations for TCP server creation instead of actual Node.js `net.createServer()` calls. This breaks network communication needed for debugging protocols.
+
+#### Expected Behavior
+
+Frame actions creating network servers should generate equivalent TypeScript:
+- Frame syntax: `self.server = self.createTcpServer(handler)`
+- Python translation: `self.server = socket.socket()` ✅ WORKS
+- TypeScript translation: `net.createServer()` ❌ BROKEN - generates placeholder
+
+#### Actual Behavior
+
+Frame-to-TypeScript transpiler generates:
+```typescript
+// INCORRECT - generates placeholder function call
+private async _action_createTcpServer(): Promise<any> {
+    this.server = await createAsyncServer(this.handleRuntimeConnection);
+    let port = await this.server.listen(0, "127.0.0.1");
+    console.log(`[FrameDebugAdapter] Created TCP server on port ${port}`);
+    return port;
+}
+```
+
+Should generate:
+```typescript
+// CORRECT TypeScript implementation  
+private async _action_createTcpServer(): Promise<any> {
+    return new Promise((resolve, reject) => {
+        this.server = net.createServer((socket) => {
+            this._action_handleRuntimeConnection(socket);
+        });
+        this.server.listen(0, '127.0.0.1', () => {
+            const address = this.server.address();
+            const port = typeof address === 'string' ? parseInt(address) : address?.port || 0;
+            console.log(`[FrameDebugAdapter] Created TCP server on port ${port}`);
+            resolve(port);
+        });
+        this.server.on('error', reject);
+    });
+}
+```
+
+#### Test Case for Permanent Test Suite
+
+Please add this test case to the permanent TypeScript test suite:
+
+**File: `framec_tests/typescript/src/positive_tests/test_tcp_server.frm`**
+```frame
+system TcpServer {
+    interface:
+        startServer(port)
+        stopServer()
+        
+    machine:
+        $Stopped {
+            startServer(port) {
+                var serverPort = self.createTcpServer(port)
+                if serverPort > 0 {
+                    self.port = serverPort
+                    system.return = serverPort
+                    -> $Running
+                } else {
+                    system.return = -1
+                }
+            }
+        }
+        
+        $Running {
+            stopServer() {
+                self.closeTcpServer()
+                -> $Stopped
+            }
+        }
+    
+    actions:
+        createTcpServer(port) {
+            # This should generate net.createServer() in TypeScript
+            # NOT a placeholder function call
+            print(f"Creating TCP server on port {port}")
+            var server = self.createNetworkServer()
+            server.listen(port, "127.0.0.1")
+            return port
+        }
+        
+        createNetworkServer() {
+            # Platform-specific server creation
+            # TypeScript: net.createServer()
+            # Python: socket.socket()
+            return None  # Placeholder - should be implemented by transpiler
+        }
+        
+        closeTcpServer() {
+            if self.server {
+                self.server.close()
+            }
+        }
+    
+    domain:
+        var server = None
+        var port = 0
+}
+```
+
+#### Impact
+
+- **Blocks Network Communication**: Debug adapter cannot create TCP servers
+- **Breaks Debugging Protocol**: DAP requires socket communication
+- **Missing API Mappings**: No translation for core networking APIs
+
+#### Priority
+
+HIGH - Network communication is fundamental for debugging protocols and IDE integration.
+
+---
+
+### Bug #56: TypeScript Action Implementation Missing - JSON Parsing and External APIs Generate Undefined Calls (v0.85.6)
+
+**Reporter**: Claude Code (Frame VS Code Extension)  
+**Date**: 2025-10-19  
+**Severity**: MEDIUM (Blocks data processing)  
+**Transpiler Version**: v0.85.6
+
+#### Problem Description
+
+The Frame-to-TypeScript transpiler generates calls to undefined external functions like `JsonParser.parse()` and `createAsyncServer()` instead of mapping them to standard TypeScript/Node.js APIs.
+
+#### Expected Behavior
+
+Frame actions using standard APIs should map to built-in TypeScript equivalents:
+- Frame syntax: `self.parseJson(data)`
+- Python translation: `json.loads(data)` ✅ WORKS  
+- TypeScript translation: `JSON.parse(data)` ❌ BROKEN - generates `JsonParser.parse()`
+
+#### Actual Behavior
+
+Frame-to-TypeScript transpiler generates:
+```typescript
+// INCORRECT - calls undefined external functions
+private _action_parseJson(data: any): any {
+    return JsonParser.parse(data);  // ❌ JsonParser is undefined
+}
+
+// External function declarations that don't exist
+declare class JsonParser { static parse(data: any): any; }
+declare function createAsyncServer(handler: any): Promise<any>;
+declare class NetworkServer { }
+```
+
+Should generate:
+```typescript
+// CORRECT TypeScript using standard APIs
+private _action_parseJson(data: any): any {
+    return JSON.parse(data.toString());
+}
+```
+
+#### Test Case for Permanent Test Suite
+
+Please add this test case to the permanent TypeScript test suite:
+
+**File: `framec_tests/typescript/src/positive_tests/test_standard_apis.frm`**
+```frame
+system ApiMapper {
+    interface:
+        processData(jsonString)
+        
+    machine:
+        $Ready {
+            processData(jsonString) {
+                try {
+                    var data = self.parseJsonData(jsonString)
+                    var result = self.processObject(data)
+                    system.return = result
+                } except Exception as e {
+                    print(f"Failed to process data: {e}")
+                    system.return = None
+                }
+            }
+        }
+    
+    actions:
+        parseJsonData(jsonString) {
+            # Should map to JSON.parse() in TypeScript
+            # Should map to json.loads() in Python
+            return self.parseJson(jsonString)
+        }
+        
+        parseJson(data) {
+            # Standard JSON parsing - should use built-in APIs
+            # TypeScript: JSON.parse()
+            # Python: json.loads()
+            print(f"Parsing JSON: {data}")
+        }
+        
+        processObject(obj) {
+            # Standard object manipulation
+            if obj and "key" in obj {
+                return obj["key"]
+            }
+            return None
+        }
+        
+        stringifyJson(obj) {
+            # Should map to JSON.stringify() in TypeScript
+            # Should map to json.dumps() in Python
+            print(f"Stringifying: {obj}")
+        }
+    
+    domain:
+        var lastData = None
+}
+```
+
+**Expected TypeScript API Mappings:**
+```typescript
+// Standard API mappings the transpiler should generate
+private _action_parseJson(data: any): any {
+    console.log(`Parsing JSON: ${data}`);
+    return JSON.parse(data.toString());
+}
+
+private _action_stringifyJson(obj: any): any {
+    console.log(`Stringifying: ${obj}`);
+    return JSON.stringify(obj);
+}
+```
+
+#### Impact
+
+- **Breaks Data Processing**: Cannot parse JSON messages from debugging protocol
+- **Missing Standard API Mappings**: Common operations require external undefined functions
+- **Compilation Failures**: Generated TypeScript references non-existent APIs
+
+#### Files to Investigate
+
+- Standard library API mappings in TypeScript visitor
+- Built-in function translation patterns
+- Cross-language API equivalence tables
+
+#### Priority
+
+MEDIUM - Affects data processing capabilities but has workarounds through manual implementation.
 
 ## Recently Resolved
 
