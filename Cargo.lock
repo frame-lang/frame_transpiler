@@ -262,7 +262,7 @@ dependencies = [
 
 [[package]]
 name = "framec"
-version = "0.85.4"
+version = "0.85.6"
 dependencies = [
  "chrono",
  "clap",

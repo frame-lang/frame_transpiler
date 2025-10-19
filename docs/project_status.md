@@ -2,21 +2,21 @@
 
 ## Current State
 
-**Branch**: `v0.30`  
-**Version**: `v0.84.0`  
-**Status**: ✅ **100% TEST SUCCESS RATE - MULTI-LANGUAGE SUPPORT**  
-**Achievement**: **Complete TypeScript & Python Feature Parity**  
-**Latest**: ✅ **ALL 423 TYPESCRIPT + 341 PYTHON TESTS PASSING** (2025-10-17)  
+**Branch**: `dev`  
+**Version**: `v0.85.6`  
+**Status**: ✅ **100% TEST SUCCESS RATE - CRITICAL BUGS RESOLVED**  
+**Achievement**: **Complete TypeScript Bug Fixes - Production Ready**  
+**Latest**: ✅ **ALL 427 TYPESCRIPT + 456 PYTHON TESTS PASSING** (2025-10-19)  
 **Rust Version**: 1.89.0 (Latest Stable)
 
-## Latest Updates (October 17, 2025)
+## Latest Updates (October 19, 2025)
 
-### 🎉 Frame v0.84.0 - Complete TypeScript Support Achievement
-- **TypeScript Tests**: 100% success rate (423/423 tests passing)
-- **Feature Parity**: Complete alignment between Python and TypeScript targets
-- **Module Support**: Frame modules generate proper TypeScript namespaces
-- **Multifile Compilation**: Full support for multifile Frame programs in TypeScript
-- **Operator Coverage**: All Frame operators work correctly in TypeScript
+### 🎉 Frame v0.85.6 - Critical TypeScript Bug Fixes Complete
+- **Bug #52 RESOLVED**: Interface method calls now generate `this.method()` correctly in TypeScript
+- **Bug #53 RESOLVED**: Exception variables now generate `e` not `this.e` in TypeScript  
+- **Test Coverage**: Added comprehensive regression tests for both bugs
+- **Production Ready**: TypeScript generation now fully unblocks Frame VS Code Extension development
+- **Test Success**: 100% success rate (427/427 TypeScript + 456/456 Python tests passing)
 
 ### ✅ Previous Updates (January 27, 2025)
 

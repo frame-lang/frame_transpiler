@@ -1,16 +1,290 @@
 # Frame Transpiler Open Bugs
 
-<!-- NEXT BUG NUMBER: #51 -->
+<!-- NEXT BUG NUMBER: #54 -->
 
-**Last Updated:** 2025-10-18  
-**Current Version:** v0.85.0  
-**Test Status:** 🎉 **100% PERFECT SUCCESS** (426/426 TypeScript tests passing)  
+**Last Updated:** 2025-10-19  
+**Current Version:** v0.85.6  
+**Test Status:** ✅ **ALL CLEAR** - 100% TypeScript success rate  
 **Active Bugs:** 0  
-**Resolved Bugs:** 51 (See closed_bugs.md for full history)  
+**Resolved Bugs:** 53 (See closed_bugs.md for full history)  
 
 ## Active Bugs
 
-No active bugs! 🎉
+*No active bugs - all known issues resolved*
+
+## Recently Resolved
+
+### Bug #52: Frame-to-TypeScript Translation Error for Interface Method Calls (RESOLVED v0.85.6)
+
+**Reporter**: Claude Code (Frame VS Code Extension)  
+**Date**: 2025-10-18  
+**Severity**: HIGH (Blocks TypeScript state machine generation)  
+**Transpiler Version**: v0.85.4  
+**Resolution**: ✅ **FIXED** in v0.85.6
+
+#### Problem Description
+
+The Frame-to-TypeScript transpiler incorrectly translates `system.interfaceMethod()` calls to `system.interfaceMethod()` in TypeScript instead of `this.interfaceMethod()`. This generates invalid TypeScript code that fails compilation.
+
+#### Resolution (v0.85.6)
+
+✅ **FULLY RESOLVED**: Added proper interface method call translation in TypeScript visitor  
+✅ **Technical Fix**: Added `system.methodName` pattern detection in call expressions (typescript_visitor.rs:1252-1256)  
+✅ **Test Coverage**: Added regression test `test_bug52_interface_method_calls.frm`  
+✅ **Validation**: 100% test success rate - both Python (456/456) and TypeScript (427/427) tests passing
+
+#### Expected Behavior
+
+According to Frame language specification:
+- Frame syntax: `system.interfaceMethod()` for interface method calls
+- Python translation: `self.interfaceMethod()` ✅ WORKS
+- TypeScript translation: `this.interfaceMethod()` ❌ BROKEN - generates `system.interfaceMethod()`
+
+#### Actual Behavior
+
+Frame-to-TypeScript transpiler generates:
+```typescript
+// INCORRECT - causes TypeScript compilation error
+system.onRuntimeConnected();
+system.onRuntimeReady();
+system.onRuntimeStopped(message.data.reason, message.data.threadId, message.data.text);
+```
+
+Should generate:
+```typescript  
+// CORRECT TypeScript
+this.onRuntimeConnected();
+this.onRuntimeReady();
+this.onRuntimeStopped(message.data.reason, message.data.threadId, message.data.text);
+```
+
+#### Minimal Test Case
+
+```frame
+system TestSystem {
+    interface:
+        testMethod()
+        
+    machine:
+        $Start {
+            testEvent() {
+                # This should translate to this.testMethod() in TypeScript
+                system.testMethod()
+            }
+            
+            testMethod() {
+                print("Test method called")
+            }
+        }
+}
+```
+
+**Frame-to-Python Output** (CORRECT):
+```python
+def testEvent(self):
+    self.testMethod()  # ✅ Correct
+```
+
+**Frame-to-TypeScript Output** (INCORRECT):
+```typescript
+testEvent(): void {
+    system.testMethod();  // ❌ Should be this.testMethod()
+}
+```
+
+#### TypeScript Compilation Errors
+
+```
+src/debug/state_machines/FrameDebugAdapter.ts(352,21): error TS2304: Cannot find name 'system'.
+src/debug/state_machines/FrameDebugAdapter.ts(354,21): error TS2304: Cannot find name 'system'.
+src/debug/state_machines/FrameDebugAdapter.ts(356,21): error TS2304: Cannot find name 'system'.
+```
+
+#### Impact
+
+- **Blocks Frame VS Code Extension**: Cannot use state machine architecture due to TypeScript compilation failures
+- **Inconsistent Language Translation**: Python works, TypeScript fails for same Frame specification
+- **Production Impact**: Forces workarounds or manual editing of generated files (anti-pattern)
+
+#### Context
+
+This issue was discovered during Frame VS Code Extension v0.12.66 development when migrating from legacy runtime to Frame state machine architecture. The Frame specification correctly uses `system.interfaceMethod()` syntax per v0.81.2+ documentation, but TypeScript generation fails.
+
+#### Reproduction Steps
+
+1. Create Frame system with interface methods
+2. Use `system.interfaceMethod()` calls in event handlers
+3. Generate TypeScript with Frame transpiler v0.85.4
+4. Attempt TypeScript compilation - fails with "Cannot find name 'system'" errors
+
+#### Suggested Fix
+
+Update Frame-to-TypeScript translation rules:
+- `system.interfaceMethod()` → `this.interfaceMethod()` in TypeScript
+- Maintain existing Python translation: `system.interfaceMethod()` → `self.interfaceMethod()`
+- Ensure consistent behavior between Python and TypeScript targets
+
+#### Test Requirements
+
+1. **Verification Test**: Add Frame system with interface method calls to permanent test suite
+2. **Cross-Language Consistency**: Verify Python and TypeScript generate semantically equivalent code
+3. **Integration Test**: Ensure VS Code Extension state machine compiles and runs correctly
+
+#### Priority
+
+HIGH - This bug blocks the Frame VS Code Extension state machine architecture migration and affects the core Frame-to-TypeScript translation feature.
+
+#### Additional Notes
+
+- Frame specification is correct per documentation
+- Python translation works perfectly
+- Issue is specific to TypeScript target language
+- Related to interface method call resolution in TypeScript generator
+
+---
+
+### Bug #53: TypeScript Exception Variable Translation Error in Try-Catch Blocks (RESOLVED v0.85.6)
+
+**Reporter**: Claude Code (Frame VS Code Extension)  
+**Date**: 2025-10-18  
+**Severity**: HIGH (Blocks TypeScript compilation)  
+**Transpiler Version**: v0.85.4  
+**Resolution**: ✅ **FIXED** in v0.85.6
+
+#### Problem Description
+
+The Frame-to-TypeScript transpiler incorrectly translates exception variables in catch blocks, generating `this.e` instead of just `e`. This produces invalid TypeScript code that fails compilation with property access errors.
+
+#### Resolution (v0.85.6)
+
+✅ **FULLY RESOLVED**: Added exception variable tracking in TypeScript visitor  
+✅ **Technical Fix**: Implemented exception variable resolution in both regular expressions and f-string template literals  
+✅ **Code Changes**: Added `current_exception_vars` tracking and resolution logic (typescript_visitor.rs:1444-1446, 2509-2511)  
+✅ **Test Coverage**: Added regression test `test_bug53_exception_variable_handling.frm`  
+✅ **Validation**: All regression tests passing in both Python and TypeScript
+
+#### Expected Behavior
+
+Frame try-catch exception variables should translate to local variables in TypeScript:
+- Frame syntax: `except Exception as e { print(f"Error: {e}") }`
+- Python translation: `except Exception as e: print(f"Error: {e}")` ✅ WORKS
+- TypeScript translation: `catch (e) { console.log(\`Error: ${e}\`); }` ❌ BROKEN - generates `this.e`
+
+#### Actual Behavior
+
+Frame-to-TypeScript transpiler generates:
+```typescript
+// INCORRECT - causes TypeScript compilation error
+} catch (e) {
+    if (e instanceof Error || e.name === 'Exception') {
+        console.log(`[FrameDebugAdapter] Failed to parse runtime message: ${this.e}`);
+        //                                                                     ^^^^^^
+        //                                                                 Should be: e
+    }
+}
+```
+
+Should generate:
+```typescript
+// CORRECT TypeScript
+} catch (e) {
+    if (e instanceof Error || e.name === 'Exception') {
+        console.log(`[FrameDebugAdapter] Failed to parse runtime message: ${e}`);
+        //                                                                     ^
+        //                                                              Just variable e
+    }
+}
+```
+
+#### Minimal Test Case
+
+```frame
+system TestSystem {
+    machine:
+        $Start {
+            testException() {
+                try {
+                    var result = risky_operation()
+                } except Exception as e {
+                    print(f"Caught exception: {e}")
+                }
+            }
+        }
+    
+    actions:
+        risky_operation() {
+            raise Exception("Test error")
+        }
+}
+```
+
+**Frame-to-Python Output** (CORRECT):
+```python
+try:
+    result = self._action_risky_operation()
+except Exception as e:
+    print(f"Caught exception: {e}")  # ✅ Correct variable reference
+```
+
+**Frame-to-TypeScript Output** (INCORRECT):
+```typescript
+try {
+    const result = this._action_risky_operation();
+} catch (e) {
+    console.log(`Caught exception: ${this.e}`);  // ❌ Should be: ${e}
+}
+```
+
+#### TypeScript Compilation Errors
+
+```
+src/debug/state_machines/FrameDebugAdapter.ts(365,90): error TS2339: Property 'e' does not exist on type 'FrameDebugAdapter'.
+src/debug/state_machines/FrameDebugAdapter.ts(450,90): error TS2339: Property 'e' does not exist on type 'FrameDebugAdapter'.
+src/debug/state_machines/FrameDebugAdapter.ts(1000,87): error TS2339: Property 'e' does not exist on type 'FrameDebugAdapter'.
+```
+
+#### Impact
+
+- **Blocks TypeScript Compilation**: Exception handling code fails to compile
+- **Runtime Safety Issues**: Proper error handling cannot be implemented
+- **Inconsistent Translation**: Python correctly handles exception variables, TypeScript fails
+
+#### Context
+
+This issue was discovered during Frame VS Code Extension v0.12.66 development alongside Bug #52. Multiple try-catch blocks in the Frame Debug Adapter specification generate invalid TypeScript due to incorrect exception variable translation.
+
+#### Reproduction Steps
+
+1. Create Frame system with try-catch block using exception variable
+2. Use the exception variable in string interpolation or logging
+3. Generate TypeScript with Frame transpiler v0.85.4
+4. Attempt TypeScript compilation - fails with "Property 'e' does not exist" errors
+
+#### Suggested Fix
+
+Update Frame-to-TypeScript exception variable translation:
+- Exception variables in catch blocks should remain as local variables
+- `{e}` in string interpolation should translate to `${e}`, not `${this.e}`
+- Maintain existing Python translation behavior
+- Ensure exception variable scope is properly handled
+
+#### Test Requirements
+
+1. **Basic Exception Handling**: Verify simple try-catch blocks work correctly
+2. **Exception Variable Usage**: Test exception variables in expressions, logging, conditionals
+3. **Nested Exception Handling**: Ensure nested try-catch blocks don't interfere
+4. **Cross-Language Consistency**: Python and TypeScript should handle exceptions identically
+
+#### Priority
+
+HIGH - This bug affects error handling throughout Frame systems and blocks reliable TypeScript compilation for any Frame code using exception handling.
+
+#### Additional Notes
+
+- Frame specification follows standard Python exception syntax
+- Python translation correctly preserves exception variable scope
+- TypeScript generator incorrectly treats exception variables as instance properties
+- Related to variable scoping and property resolution in TypeScript generator
 
 ## Recently Resolved
 

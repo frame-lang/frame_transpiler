@@ -27,6 +27,7 @@ pub struct TypeScriptVisitor {
     current_state_vars: HashSet<String>, // Track current state's variable names
     // TODO: Remove current_local_vars once arcanum-based resolution is implemented
     current_local_vars: HashSet<String>, // Track local variables in current handler
+    current_exception_vars: HashSet<String>, // Track exception variables in current try-catch block
     action_names: HashSet<String>, // Track action names for proper call resolution
     operation_names: HashSet<String>, // Track operation names for proper call resolution
     declared_enums: HashSet<String>, // Track declared enum names to avoid duplicates
@@ -53,6 +54,7 @@ impl TypeScriptVisitor {
             current_state_params: HashSet::new(),
             current_state_vars: HashSet::new(),
             current_local_vars: HashSet::new(),
+            current_exception_vars: HashSet::new(),
             action_names: HashSet::new(),
             operation_names: HashSet::new(),
             declared_enums: HashSet::new(),
@@ -1247,6 +1249,11 @@ impl TypeScriptVisitor {
         } else if func_name == "str" {
             // Built-in string conversion function - use String() in TypeScript
             output.push_str("String(");
+        } else if func_name.starts_with("system.") {
+            // Bug #52 Fix: Handle system.methodName calls for interface method calls
+            // Frame: system.getValue() -> TypeScript: this.getValue()
+            let method_name = &func_name[7..]; // Remove "system." prefix
+            output.push_str(&format!("this.{}(", method_name));
         } else if func_name.starts_with("_action_") {
             // Already has action prefix
             output.push_str(&format!("this.{}(", func_name));
@@ -1439,6 +1446,9 @@ impl TypeScriptVisitor {
                 if self.current_local_vars.contains(var_name) {
                     // Local variable - use bare name
                     output.push_str(var_name);
+                } else if self.current_exception_vars.contains(var_name) {
+                    // Bug #53 Fix: Exception variables are local, not instance properties
+                    output.push_str(var_name);
                 } else if self.current_state_params.contains(var_name) {
                     // State parameter - access from compartment
                     output.push_str(&format!("compartment.stateArgs['{}']", var_name));
@@ -1457,6 +1467,11 @@ impl TypeScriptVisitor {
                 } else if var_name == "system.return" {
                     // Special Frame system.return keyword - represents the return value
                     output.push_str("this.returnStack[this.returnStack.length - 1]");
+                } else if var_name.starts_with("system.") {
+                    // Bug #52 Fix: Handle system.methodName references for interface method calls
+                    // Frame: system.getValue → TypeScript: this.getValue
+                    let method_name = &var_name[7..]; // Remove "system." prefix
+                    output.push_str(&format!("this.{}", method_name));
                 } else {
                     // Unknown variable - use dynamic property access to avoid TypeScript errors
                     output.push_str(&format!("(this as any).{}", var_name));
@@ -2046,8 +2061,12 @@ impl TypeScriptVisitor {
                 CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => {
                     if !is_first {
                         output.push('.');
+                    } else {
+                        // Bug #52 Fix: Interface method calls need 'this.' prefix in TypeScript
+                        // Frame: system.interfaceMethod() -> TypeScript: this.interfaceMethod()
+                        output.push_str("this.");
                     }
-                    // Interface methods are just method calls on the class
+                    // Interface methods are method calls on the class instance
                     output.push_str(&format!("{}(", interface_method_call_expr_node.identifier.name.lexeme));
                     if interface_method_call_expr_node.call_expr_list.exprs_t.len() > 0 {
                         let mut args_str = String::new();
@@ -2113,6 +2132,9 @@ impl TypeScriptVisitor {
                         if self.current_local_vars.contains(var_name) {
                             // Local variable - use bare name
                             output.push_str(var_name);
+                        } else if self.current_exception_vars.contains(var_name) {
+                            // Bug #53 Fix: Exception variables are local, not instance properties  
+                            output.push_str(var_name);
                         } else if self.current_state_params.contains(var_name) {
                             // State parameter - access from compartment
                             output.push_str(&format!("compartment.stateArgs['{}']", var_name));
@@ -2131,6 +2153,11 @@ impl TypeScriptVisitor {
                         } else if var_name == "system.return" {
                             // Special Frame system.return keyword - represents the return value
                             output.push_str("this.returnStack[this.returnStack.length - 1]");
+                        } else if var_name.starts_with("system.") {
+                            // Bug #52 Fix: Handle system.methodName references for interface method calls
+                            // Frame: system.getValue → TypeScript: this.getValue
+                            let method_name = &var_name[7..]; // Remove "system." prefix
+                            output.push_str(&format!("this.{}", method_name));
                         } else {
                             // Unknown variable - output naturally like Python visitor
                             output.push_str(var_name);
@@ -2478,6 +2505,9 @@ impl TypeScriptVisitor {
                             // Simple variable name - apply the same context-aware resolution as other variables
                             if self.current_local_vars.contains(&var_name) {
                                 // Local variable - use bare name
+                                result.push_str(&var_name);
+                            } else if self.current_exception_vars.contains(&var_name) {
+                                // Bug #53 Fix: Exception variables are local, not instance properties
                                 result.push_str(&var_name);
                             } else if self.current_state_params.contains(&var_name) {
                                 // State parameter - access from compartment
@@ -2830,6 +2860,9 @@ impl TypeScriptVisitor {
             self.builder.writeln("} catch (e) {");
             self.builder.indent();
             
+            // Bug #53 Fix: Track 'e' as an exception variable so it's not treated as instance property
+            self.current_exception_vars.insert("e".to_string());
+            
             for except in &node.except_clauses {
                 // Add optional type checking for specific exception types
                 if let Some(exception_types) = &except.exception_types {
@@ -2856,6 +2889,9 @@ impl TypeScriptVisitor {
                 
                 // Handle variable binding if specified
                 if let Some(var_name) = &except.var_name {
+                    // Bug #53 Fix: Track exception variable names so they're not treated as instance properties
+                    self.current_exception_vars.insert(var_name.clone());
+                    
                     // Avoid variable shadowing by using assignment instead of declaration
                     // when the variable name conflicts with the catch parameter
                     if var_name == "e" {
@@ -2989,5 +3025,8 @@ impl TypeScriptVisitor {
             self.builder.dedent();
             self.builder.writeln("}");
         }
+        
+        // Bug #53 Fix: Clear exception variables after try-catch block ends
+        self.current_exception_vars.clear();
     }
 }

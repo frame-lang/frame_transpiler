@@ -34,12 +34,60 @@ This ensures clean, deterministic mapping between languages with identical execu
 | Transition | Sets `__next_compartment` | Sets nextCompartment |
 | Actions | Direct method calls | Method calls |
 | Interface | Public methods creating events | Public methods with event dispatch |
+| **Interface Method Call** | `system.method()` → `self.method()` | `system.method()` → `this.method()` |
+| **Exception Variables** | `except Exception as e: print(e)` | `catch (e) { console.log(e); }` |
 | **Async Function** | `async def func()` | `async func(): Promise<T>` |
 | **Async Call** | `await func()` | `await func()` |
 | **Socket Connection** | `asyncio.open_connection()` | `net.createConnection()` + Promise |
 | **Socket Read** | `await reader.readexactly()` | `socket.on('data')` + Promise |
 | **Socket Write** | `writer.write(); await writer.drain()` | `socket.write()` + Promise |
 | **Background Task** | `asyncio.create_task()` | `Promise.resolve().then()` |
+
+## Critical Translation Patterns
+
+**🎉 Update v0.85.6**: Both interface method calls and exception variable handling are now **FULLY RESOLVED** in the Frame transpiler. The translations below are now automatically generated correctly.
+
+### Interface Method Calls (✅ FIXED v0.85.6)
+
+**Frame Syntax**: `system.interfaceMethod()`  
+**CRITICAL**: This must be translated differently for each target language:
+
+**Python Translation (CORRECT)**:
+```python
+# Frame: system.getValue()
+# Python: self.getValue()
+system.getValue()  # → self.getValue()
+```
+
+**TypeScript Translation (MUST MATCH)**:
+```typescript
+// Frame: system.getValue()  
+// TypeScript: this.getValue()
+system.getValue();  // → this.getValue();
+```
+
+### Exception Variable Handling (✅ FIXED v0.85.6)
+
+**Frame Syntax**: `except Exception as e { print(f"Error: {e}") }`
+
+**Python Translation (CORRECT)**:
+```python
+try:
+    risky_operation()
+except Exception as e:
+    print(f"Error: {e}")  # Local variable 'e'
+```
+
+**TypeScript Translation (MUST MATCH)**:
+```typescript
+try {
+    risky_operation();
+} catch (e) {
+    console.log(`Error: ${e}`);  // Local variable 'e' - NOT this.e
+}
+```
+
+**CRITICAL ERROR**: Exception variables must remain as local variables, not be treated as instance properties (`this.e`).
 
 ## Frame Runtime Kernel Features
 
