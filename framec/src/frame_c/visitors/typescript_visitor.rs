@@ -1696,7 +1696,8 @@ impl TypeScriptVisitor {
                 self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
                 
                 // If right side looks like an array variable, add .length
-                if right_str.starts_with('[') || right_str.trim().chars().all(|c| c.is_alphanumeric() || c == '_') {
+                let clean_str = right_str.trim().trim_start_matches('(').trim_end_matches(')');
+                if right_str.starts_with('[') || clean_str.chars().all(|c| c.is_alphanumeric() || c == '_') {
                     // For array literals or simple variables that might be arrays, add .length check
                     output.push_str(" < ");
                     if right_str.starts_with('[') {
@@ -2491,8 +2492,30 @@ impl TypeScriptVisitor {
                     }
                     output.push(')');
                 }
+                CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
+                    // Handle undeclared list element access (chained indexing)
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                        eprintln!("DEBUG TS: Processing UndeclaredListElementT for chained indexing");
+                    }
+                    
+                    // Generate the variable name (skip synthetic identifiers)
+                    if list_elem_node.identifier.name.lexeme != "@chain_index" && 
+                       list_elem_node.identifier.name.lexeme != "@chain_slice" {
+                        output.push_str(&list_elem_node.identifier.name.lexeme);
+                    }
+                    
+                    // Generate the index expression
+                    output.push('[');
+                    let mut index_str = String::new();
+                    self.visit_expr_node_to_string(&list_elem_node.expr_t, &mut index_str);
+                    output.push_str(&index_str);
+                    output.push(']');
+                }
                 _ => {
                     // TODO: Handle other call chain node types
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                        eprintln!("DEBUG TS: Unhandled call chain node type - adding TODO comment");
+                    }
                     output.push_str("/* TODO: call chain node */");
                 }
             }
