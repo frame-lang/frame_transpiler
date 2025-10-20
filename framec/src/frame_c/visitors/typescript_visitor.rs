@@ -2399,6 +2399,42 @@ impl TypeScriptVisitor {
                     output.push_str(&index_str);
                     output.push(']');
                 }
+                CallChainNodeType::SliceNodeT { slice_node } => {
+                    // Handle array/string slicing like arr[start:end]
+                    output.push_str(".slice(");
+                    if let Some(ref start_expr) = slice_node.start_expr {
+                        let mut start_str = String::new();
+                        self.visit_expr_node_to_string(start_expr, &mut start_str);
+                        output.push_str(&start_str);
+                    } else {
+                        output.push('0'); // default start
+                    }
+                    if let Some(ref end_expr) = slice_node.end_expr {
+                        output.push_str(", ");
+                        let mut end_str = String::new();
+                        self.visit_expr_node_to_string(end_expr, &mut end_str);
+                        output.push_str(&end_str);
+                    }
+                    output.push(')');
+                }
+                CallChainNodeType::UndeclaredSliceT { slice_node } => {
+                    // Handle undeclared slicing operations
+                    output.push_str(".slice(");
+                    if let Some(ref start_expr) = slice_node.start_expr {
+                        let mut start_str = String::new();
+                        self.visit_expr_node_to_string(start_expr, &mut start_str);
+                        output.push_str(&start_str);
+                    } else {
+                        output.push('0'); // default start
+                    }
+                    if let Some(ref end_expr) = slice_node.end_expr {
+                        output.push_str(", ");
+                        let mut end_str = String::new();
+                        self.visit_expr_node_to_string(end_expr, &mut end_str);
+                        output.push_str(&end_str);
+                    }
+                    output.push(')');
+                }
                 _ => {
                     // TODO: Handle other call chain node types
                     output.push_str("/* TODO: call chain node */");
