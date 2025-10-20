@@ -451,6 +451,58 @@ impl RustVisitor {
         }
     }
     
+    fn collect_interface_methods(&mut self, interface_block: &InterfaceBlockNode) {
+        for method_rcref in &interface_block.interface_methods {
+            let method_node = method_rcref.borrow();
+            
+            let mut parameters = Vec::new();
+            if let Some(param_nodes) = &method_node.params {
+                for param in param_nodes {
+                    let param_type = if let Some(type_node) = &param.param_type_opt {
+                        type_node.get_type_str()
+                    } else {
+                        "()".to_string()
+                    };
+                    parameters.push((param.param_name.clone(), param_type));
+                }
+            }
+            
+            let return_type = if let Some(return_type_node) = &method_node.return_type_opt {
+                Some(return_type_node.get_type_str())
+            } else {
+                None
+            };
+            
+            let signature = InterfaceMethodSignature {
+                name: method_node.name.clone(),
+                parameters,
+                return_type,
+            };
+            
+            self.interface_methods.insert(method_node.name.clone(), signature);
+        }
+    }
+    
+    fn generate_main_function(&mut self) {
+        self.builder.writeln("");
+        self.builder.writeln("fn main() {");
+        self.builder.indent();
+        
+        // Create an instance of the system
+        self.builder.writeln(&format!("let mut system = {}::new();", self.system_name));
+        
+        // Look for a 'test' interface method and call it if it exists
+        if self.interface_methods.contains_key("test") {
+            self.builder.writeln("system.test();");
+        } else {
+            // If no test method, just print that the system was created
+            self.builder.writeln(&format!("println!(\"System {} created and initialized.\");", self.system_name));
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+    }
+    
     // Generated method implementations (extracted patterns)
     fn generate_interface_method_impl(&mut self, method: &InterfaceMethodNode) {
         let method_name = &method.name;
@@ -521,6 +573,11 @@ impl AstVisitor for RustVisitor {
             }
         }
         
+        // Collect interface methods for main function generation
+        if let Some(interface) = &node.interface_block_node_opt {
+            self.collect_interface_methods(interface);
+        }
+        
         // Generate type definitions
         self.generate_frame_event_enum();
         self.generate_state_enum();
@@ -556,6 +613,9 @@ impl AstVisitor for RustVisitor {
         
         self.builder.dedent();
         self.builder.writeln("}");
+        
+        // Generate main function for executable programs
+        self.generate_main_function();
     }
     
     fn visit_interface_block_node(&mut self, interface_block: &InterfaceBlockNode) {

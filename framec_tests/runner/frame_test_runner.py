@@ -435,6 +435,59 @@ class FrameTestRunner:
             
         return None
     
+    def execute_rust(self, rs_file: str) -> Tuple[bool, str]:
+        """Execute Rust file and return success status and output."""
+        try:
+            # Get the base name without extension for the executable
+            base_name = os.path.splitext(rs_file)[0]
+            executable = base_name
+            
+            # Compile with rustc
+            compile_result = subprocess.run(
+                ["rustc", rs_file, "-o", executable],
+                capture_output=True,
+                text=True,
+                timeout=self.config.timeout
+            )
+            
+            if compile_result.returncode != 0:
+                error_output = compile_result.stderr + compile_result.stdout
+                return False, f"Rust compilation failed:\n{error_output}"
+            
+            # Run the executable
+            result = subprocess.run(
+                [executable],
+                capture_output=True,
+                text=True,
+                timeout=self.config.timeout,
+                cwd=os.path.dirname(rs_file)
+            )
+            
+            # Clean up executable
+            try:
+                os.remove(executable)
+            except:
+                pass  # Don't fail if cleanup fails
+            
+            output = result.stdout + result.stderr
+            
+            # Check for failure patterns similar to Python execution
+            if "panic" in output.lower():
+                return False, output
+            if result.returncode != 0:
+                return False, output
+            if "FAIL:" in output or "FAILED:" in output:
+                return False, output
+                
+            return True, output
+            
+        except subprocess.TimeoutExpired:
+            return False, "Rust execution timeout"
+        except FileNotFoundError:
+            return False, "rustc not found - please install Rust (https://rustup.rs/)"
+        except Exception as e:
+            return False, str(e)
+    
     def run_test(self, test_file: Path, category: str, language: str) -> TestResult:
         """Run a single test for a specific language."""
         start_time = time.time()
@@ -488,6 +541,8 @@ class FrameTestRunner:
                     exec_success, output = self.execute_python(output_file)
                 elif language == "typescript":
                     exec_success, output = self.execute_typescript(output_file)
+                elif language == "rust":
+                    exec_success, output = self.execute_rust(output_file)
                 else:
                     exec_success = False
                     output = f"Execution not implemented for {language}"
