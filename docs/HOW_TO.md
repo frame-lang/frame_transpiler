@@ -24,7 +24,7 @@ Frame is a state machine language that transpiles to multiple target languages (
 ### Current Status
 - **Version**: v0.86.0
 - **Branch**: `dev`
-- **Test Success Rate**: 100% (887 total tests: 458 Python + 429 TypeScript)
+- **Test Success Rate**: 86% (887 total tests: 458 Python 100% + 429 TypeScript 72%)
 - **Supported Targets**: Python 3, TypeScript, GraphViz
 
 ## Architecture
@@ -315,6 +315,23 @@ time ./target/release/framec -l python_3 large_file.frm
 python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./target/release/framec --verbose
 ```
 
+### TypeScript-Specific Debugging
+```bash
+# Debug TypeScript visitor issues
+FRAME_TRANSPILER_DEBUG=1 ./target/release/framec -l typescript test.frm
+
+# Test TypeScript compilation without execution
+python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec --transpile-only
+
+# Debug call chain processing
+FRAME_TRANSPILER_DEBUG=1 ./target/release/framec -l typescript dict_test.frm | grep "call chain"
+
+# Compile and run TypeScript manually
+./target/release/framec -l typescript test.frm > test.ts
+npx tsc --target es2020 --module commonjs test.ts
+node test.js
+```
+
 ## AST Debugging and Printing
 
 ### AST Serialization
@@ -469,6 +486,11 @@ system FileIOTest {
   - Local vs global TypeScript compiler detection
   - Intelligent compilation caching and error recovery
 - **Dependencies**: Requires Node.js and TypeScript (`npm install typescript @types/node`)
+- **Recent Improvements (v0.86.0)**:
+  - Fixed critical call chain handling for nested dictionary access
+  - Resolved array length comparisons with parentheses support
+  - Added UndeclaredListElementT handler for chained indexing
+  - Improved TypeScript success rate from 34.8% to 72.0% (309/429 tests)
 
 ### GraphViz (Visualization)
 - Generates DOT format for state diagrams
@@ -509,8 +531,8 @@ system FileIOTest {
 
 ---
 
-**Last Updated**: 2025-10-19  
+**Last Updated**: 2025-10-20  
 **Version**: v0.86.0  
-**Status**: Production Ready - 100% Test Success Rate (887 tests) + Enhanced AST Debugging
+**Status**: Production Ready - 86% Test Success Rate (887 tests: Python 100%, TypeScript 72%) + Critical TypeScript Improvements
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.
