@@ -3,8 +3,8 @@
 <!-- NEXT BUG NUMBER: #57 -->
 
 **Last Updated:** 2025-10-20  
-**Current Version:** v0.86.0  
-**Test Status:** ✅ **MAJOR IMPROVEMENT** - TypeScript success rate: 72.0% (309/429 tests), critical fixes deployed  
+**Current Version:** v0.86.1  
+**Test Status:** ✅ **CRITICAL IMPROVEMENT** - TypeScript success rate: 72.5% (311/429 tests), interface return values fixed  
 **Active Bugs:** 3  
 **Resolved Bugs:** 53 (See closed_bugs.md for full history)  
 
@@ -1279,9 +1279,24 @@ The GraphViz visitor may not be traversing into if/else statement blocks to find
 
 ---
 
-## Recent TypeScript Improvements (v0.86.0)
+## Recent TypeScript Improvements (v0.86.1)
 
-### Major Fixes Deployed - October 20, 2025
+### Critical Interface Return Value Fixes - October 20, 2025
+
+**Success Rate Improvement**: 72.0% → 72.5% (+0.5 percentage points, +2 additional passing tests)
+
+#### Latest Critical Fixes (v0.86.1)
+1. **Interface Method Default Values**: Fixed `getDefault() : int = 42` semantics
+   - **Before**: Interface methods always pushed `null` to return stack
+   - **After**: Methods correctly push default value (`42`) to return stack
+   - **Impact**: `test_system_return_comprehensive` now passes
+
+2. **Event Handler Return Overrides**: Fixed `getOverride() : int = 99` semantics  
+   - **Before**: Handler overrides ignored, returned interface default
+   - **After**: Handlers correctly override with `99` when no explicit return
+   - **Technical**: Added `current_event_handler_default_return_value` field
+
+#### Infrastructure Improvements (v0.86.0)
 
 **Success Rate Improvement**: 34.8% → 72.0% (+37.2 percentage points, +160 passing tests)
 

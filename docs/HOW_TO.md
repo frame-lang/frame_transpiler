@@ -486,11 +486,12 @@ system FileIOTest {
   - Local vs global TypeScript compiler detection
   - Intelligent compilation caching and error recovery
 - **Dependencies**: Requires Node.js and TypeScript (`npm install typescript @types/node`)
-- **Recent Improvements (v0.86.0)**:
-  - Fixed critical call chain handling for nested dictionary access
-  - Resolved array length comparisons with parentheses support
-  - Added UndeclaredListElementT handler for chained indexing
-  - Improved TypeScript success rate from 34.8% to 72.0% (309/429 tests)
+- **Recent Improvements (v0.86.1)**:
+  - **FIXED**: Interface method default return values (e.g., `getDefault() : int = 42`)
+  - **FIXED**: Event handler return value overrides (e.g., `getOverride() : int = 99`)
+  - **FIXED**: Call chain handling for nested dictionary access
+  - **FIXED**: Array length comparisons with comprehensive parentheses support
+  - **RESULT**: Improved TypeScript success rate from 34.8% to 72.5% (311/429 tests)
 
 ### GraphViz (Visualization)
 - Generates DOT format for state diagrams

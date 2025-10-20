@@ -28,7 +28,7 @@ use std::convert::TryFrom;
 /* --------------------------------------------------------------------- */
 
 static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "Emitted from framec_v0.86.0";
+static FRAMEC_VERSION: &str = "Emitted from framec_v0.86.1";
 
 /* --------------------------------------------------------------------- */
 
@@ -488,13 +488,13 @@ impl Exe {
                     }
                 }
                 TargetLanguage::Rust => {
-                    // Use V2 visitor for working Frame semantics
-                    use crate::frame_c::visitors::rust_visitor_handcrafted_v2::RustVisitorHandcraftedV2;
+                    // Use standard Rust visitor with working Frame semantics
+                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
                     use crate::frame_c::symbol_table::SymbolConfig;
                     
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let visitor = RustVisitorHandcraftedV2::new(
+                    let visitor = RustVisitor::new(
                         arcanum_vec,
                         SymbolConfig::new(),
                         config.clone(),
@@ -742,19 +742,19 @@ impl Exe {
                     }
                 }
                 TargetLanguage::Rust => {
-                    // Use V2 visitor for working Frame semantics
-                    use crate::frame_c::visitors::rust_visitor_handcrafted_v2::RustVisitorHandcraftedV2;
+                    // Use standard Rust visitor with working Frame semantics
+                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
                     use crate::frame_c::symbol_table::SymbolConfig;
                     
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let visitor = RustVisitorHandcraftedV2::new(
+                    let visitor = RustVisitor::new(
                         arcanum_vec,
                         SymbolConfig::new(),
                         config.clone(),
                         comments,
                     );
-                    // Note: Hand-crafted Rust visitor doesn't use external source maps yet
+                    // Note: Standard Rust visitor doesn't use external source maps yet
                     
                     output = visitor.run(&frame_module);
                 }

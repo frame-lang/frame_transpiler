@@ -33,6 +33,7 @@ pub struct TypeScriptVisitor {
     operation_names: HashSet<String>, // Track operation names for proper call resolution
     declared_enums: HashSet<String>, // Track declared enum names to avoid duplicates
     is_in_action: bool, // Track if we're currently processing an action (vs event handler)
+    current_event_handler_default_return_value: Option<String>, // Track event handler default return value
     
     // Control flags for multifile compilation
     generate_runtime_classes: bool, // Whether to generate Frame runtime classes (false for multifile modules)
@@ -61,6 +62,7 @@ impl TypeScriptVisitor {
             operation_names: HashSet::new(),
             declared_enums: HashSet::new(),
             is_in_action: false,
+            current_event_handler_default_return_value: None,
             generate_runtime_classes: true, // Default: generate runtime classes for standalone compilation
             in_module_function: false, // Default: not in module function
         }
@@ -940,7 +942,16 @@ impl AstVisitor for TypeScriptVisitor {
         
         self.builder.writeln(&format!("public {}({}): any {{", method_name, params_str));
         self.builder.indent();
-        self.builder.writeln("this.returnStack.push(null);");
+        
+        // Use interface method default value if available, otherwise null
+        if let Some(return_init_expr) = &method.return_init_expr_opt {
+            let mut default_value = String::new();
+            self.visit_expr_node_to_string(return_init_expr, &mut default_value);
+            self.builder.writeln(&format!("this.returnStack.push({});", default_value));
+        } else {
+            self.builder.writeln("this.returnStack.push(null);");
+        }
+        
         self.builder.writeln(&format!("const __e = new FrameEvent(\"{}\", {});", method_name, param_obj));
         self.builder.writeln("this._frame_kernel(__e);");
         self.builder.writeln("return this.returnStack.pop();");
@@ -950,7 +961,7 @@ impl AstVisitor for TypeScriptVisitor {
     }
     
     fn visit_event_handler_node(&mut self, handler: &EventHandlerNode) {
-        let state_name = self.current_state_name.as_ref().unwrap();
+        let state_name = self.current_state_name.as_ref().unwrap().clone();
         let message = match &handler.msg_t {
             MessageType::CustomMessage { message_node } => {
                 if message_node.name == "$>" {
@@ -972,6 +983,17 @@ impl AstVisitor for TypeScriptVisitor {
             for param in params {
                 self.current_handler_params.insert(param.name.clone());
             }
+        }
+        drop(event_symbol); // Explicitly drop borrow
+        
+        // Set handler default value if available (for any event handler)
+        if let Some(return_init_expr) = &handler.return_init_expr_opt {
+            let mut default_value = String::new();
+            self.visit_expr_node_to_string(return_init_expr, &mut default_value);
+            // Handler has default value for empty returns
+            self.current_event_handler_default_return_value = Some(default_value);
+        } else {
+            self.current_event_handler_default_return_value = None;
         }
         
         let handler_name = format!("_handle_{}_{}",
@@ -1019,10 +1041,17 @@ impl AstVisitor for TypeScriptVisitor {
         if let Some(terminator) = &handler.terminator_node {
             match &terminator.terminator_type {
                 TerminatorType::Return => {
+                    // Use handler default value if available
+                    if let Some(handler_default) = &self.current_event_handler_default_return_value {
+                        self.builder.writeln(&format!("this.returnStack[this.returnStack.length - 1] = {};", handler_default));
+                    }
                     self.builder.writeln("return;");
                 }
             }
         }
+        
+        // Clear handler default return value
+        self.current_event_handler_default_return_value = None;
         
         self.builder.dedent();
         self.builder.writeln("}");
@@ -1862,6 +1891,13 @@ impl TypeScriptVisitor {
                 self.builder.writeln("return;");
             }
         } else {
+            // Return with no expression - use handler default value if available
+            if !self.is_in_action && !self.in_module_function && self.current_class_name_opt.is_none() {
+                // Event handlers - check for default return value
+                if let Some(handler_default) = &self.current_event_handler_default_return_value {
+                    self.builder.writeln(&format!("this.returnStack[this.returnStack.length - 1] = {};", handler_default));
+                }
+            }
             self.builder.writeln("return;");
         }
     }

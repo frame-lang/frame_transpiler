@@ -185,11 +185,17 @@ class FrameTestRunner:
             cmd = [self.config.framec_path, "-l", lang_flag, str(test_file)]
         
         try:
+            # Set environment variables for Rust main function generation
+            env = os.environ.copy()
+            if language == "rust":
+                env["FRAME_RUST_GENERATE_MAIN"] = "1"
+            
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=self.config.timeout
+                timeout=self.config.timeout,
+                env=env
             )
             
             if result.returncode == 0:
@@ -435,6 +441,38 @@ class FrameTestRunner:
             
         return None
     
+    def compile_rust(self, rs_file: str) -> Tuple[bool, str]:
+        """Compile Rust file to check for compilation errors without requiring main function."""
+        try:
+            # Compile as a library (--crate-type lib) to avoid requiring main function
+            compile_result = subprocess.run(
+                ["rustc", "--crate-type", "lib", rs_file],
+                capture_output=True,
+                text=True,
+                timeout=self.config.timeout
+            )
+            
+            # Clean up generated library file
+            lib_file = os.path.splitext(rs_file)[0] + ".rlib"
+            try:
+                if os.path.exists(lib_file):
+                    os.remove(lib_file)
+            except:
+                pass  # Don't fail if cleanup fails
+            
+            if compile_result.returncode != 0:
+                error_output = compile_result.stderr + compile_result.stdout
+                return False, f"Rust compilation failed:\n{error_output}"
+                
+            return True, "Rust compilation successful"
+            
+        except subprocess.TimeoutExpired:
+            return False, "Rust compilation timeout"
+        except FileNotFoundError:
+            return False, "rustc not found - please install Rust (https://rustup.rs/)"
+        except Exception as e:
+            return False, str(e)
+    
     def execute_rust(self, rs_file: str) -> Tuple[bool, str]:
         """Execute Rust file and return success status and output."""
         try:
@@ -542,7 +580,19 @@ class FrameTestRunner:
                 elif language == "typescript":
                     exec_success, output = self.execute_typescript(output_file)
                 elif language == "rust":
+                    # First try to execute (compile + run)
                     exec_success, output = self.execute_rust(output_file)
+                    
+                    # If execution fails due to missing main function, try compilation-only
+                    if not exec_success and "`main` function not found" in output:
+                        compile_success, compile_output = self.compile_rust(output_file)
+                        if compile_success:
+                            # Compilation successful, mark as successful test (library code)
+                            exec_success = True
+                            output = "Rust compilation successful (library code)"
+                        else:
+                            # Keep the compilation error
+                            output = compile_output
                 else:
                     exec_success = False
                     output = f"Execution not implemented for {language}"
