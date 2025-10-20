@@ -8,6 +8,7 @@ use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
 use crate::frame_c::modules::MultiFileCompiler;
 use crate::frame_c::ast_serialize::{serialize_ast_to_json, save_ast_to_file, ast_summary, generate_line_map};
+use crate::frame_c::ast::NodeElement;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -486,6 +487,36 @@ impl Exe {
                         output = visitor.run(&frame_module);
                     }
                 }
+                TargetLanguage::Rust => {
+                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
+                    use crate::frame_c::symbol_table::SymbolConfig;
+                    
+                    let arcanum = semantic_parser.get_arcanum();
+                    let arcanum_vec = vec![arcanum];
+                    let visitor = RustVisitor::new(
+                        arcanum_vec,
+                        SymbolConfig::new(),
+                        config.clone(),
+                        comments,
+                    );
+                    
+                    output = visitor.run(&frame_module);
+                }
+                TargetLanguage::C => {
+                    use crate::frame_c::visitors::c_visitor::CVisitor;
+                    use crate::frame_c::symbol_table::SymbolConfig;
+                    
+                    let arcanum = semantic_parser.get_arcanum();
+                    let arcanum_vec = vec![arcanum];
+                    let visitor = CVisitor::new(
+                        arcanum_vec,
+                        SymbolConfig::new(),
+                        config.clone(),
+                        comments,
+                    );
+                    
+                    output = visitor.run(&frame_module);
+                }
             },
         }
 
@@ -709,8 +740,40 @@ impl Exe {
                         // V2 has integrated source mapping via CodeBuilder
                     }
                 }
+                TargetLanguage::Rust => {
+                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
+                    use crate::frame_c::symbol_table::SymbolConfig;
+                    
+                    let arcanum = semantic_parser.get_arcanum();
+                    let arcanum_vec = vec![arcanum];
+                    let visitor = RustVisitor::new(
+                        arcanum_vec,
+                        SymbolConfig::new(),
+                        config.clone(),
+                        comments,
+                    );
+                    // Note: Generated Rust visitor doesn't use external source maps yet
+                    
+                    output = visitor.run(&frame_module);
+                }
+                TargetLanguage::C => {
+                    use crate::frame_c::visitors::c_visitor::CVisitor;
+                    use crate::frame_c::symbol_table::SymbolConfig;
+                    
+                    let arcanum = semantic_parser.get_arcanum();
+                    let arcanum_vec = vec![arcanum];
+                    let visitor = CVisitor::new(
+                        arcanum_vec,
+                        SymbolConfig::new(),
+                        config.clone(),
+                        comments,
+                    );
+                    // Note: C visitor doesn't use external source maps yet, but may in future
+                    
+                    output = visitor.run(&frame_module);
+                }
                 _ => {
-                    let run_error = RunError::new(USAGE, "Source maps only supported for Python target.");
+                    let run_error = RunError::new(USAGE, "Source maps only supported for Python, Rust, and C targets.");
                     return Err(run_error);
                 }
             },
@@ -728,9 +791,9 @@ impl Exe {
     ) -> Result<String, RunError> {
         use crate::frame_c::source_map::DebugOutput;
         
-        // For now, only support Python for source maps
-        if !matches!(target_language, Some(TargetLanguage::Python3) | None) {
-            let error_msg = "Source map generation is only supported for Python target language";
+        // For now, only support Python and Rust for source maps
+        if !matches!(target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::Rust) | None) {
+            let error_msg = "Source map generation is only supported for Python and Rust target languages";
             return Err(RunError::new(exitcode::USAGE, error_msg));
         }
         
@@ -742,11 +805,14 @@ impl Exe {
             .and_then(|n| n.to_str())
             .unwrap_or("unknown.frm")
             .to_string();
-        let target_file = source_file.replace(".frm", ".py");
+        let target_file = match target_language {
+            Some(TargetLanguage::Rust) => source_file.replace(".frm", ".rs"),
+            _ => source_file.replace(".frm", ".py"), // Default to Python
+        };
         let source_map_builder = Rc::new(RefCell::new(SourceMapBuilder::new(source_file, target_file)));
         
         // Run compilation with source map tracking
-        let python_code = self.run_with_source_map(
+        let generated_code = self.run_with_source_map(
             input_path.to_str(),
             content.clone(),
             target_language,
@@ -757,7 +823,7 @@ impl Exe {
         let source_map = source_map_builder.borrow().build();
         
         // Create debug output
-        let debug_output = DebugOutput::new(python_code, source_map, &content);
+        let debug_output = DebugOutput::new(generated_code, source_map, &content);
         
         // Serialize to JSON
         match serde_json::to_string_pretty(&debug_output) {

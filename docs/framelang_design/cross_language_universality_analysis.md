@@ -135,7 +135,7 @@ var file = Memory.withResource(FileSystem.open("data.txt"), (f) => {
 - **C++**: RAII and smart pointers
 - **Go**: `defer` statements
 - **Rust**: Ownership and Drop trait
-- **C**: Explicit cleanup with error handling
+- **C**: Explicit cleanup  with error handling
 
 ### 3. frame/collections - Collection Operations
 

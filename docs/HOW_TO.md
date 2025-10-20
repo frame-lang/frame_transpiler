@@ -19,12 +19,12 @@ This document captures every process, tool, and workflow used in the Frame Trans
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.85.2 and migrating from v0.11 to v0.20 syntax.
+Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.0 and migrating from v0.11 to v0.20 syntax.
 
 ### Current Status
-- **Version**: v0.85.2
-- **Branch**: `main`
-- **Test Success Rate**: 100% (883 total tests: 456 Python + 427 TypeScript)
+- **Version**: v0.86.0
+- **Branch**: `dev`
+- **Test Success Rate**: 100% (887 total tests: 458 Python + 429 TypeScript)
 - **Supported Targets**: Python 3, TypeScript, GraphViz
 
 ## Architecture
@@ -81,9 +81,14 @@ cargo update
 ```
 framec_tests/
 ├── common/tests/           # Cross-language test specifications (.frm files)
+├── language_specific/      # Language-specific tests and external API tests
+│   ├── python/            # Python-specific Frame tests
+│   │   └── external_apis/ # Python external API integration tests
+│   └── typescript/        # TypeScript-specific Frame tests
+│       └── external_apis/ # TypeScript external API integration tests
 ├── generated/python/       # Generated Python code
 ├── generated/typescript/   # Generated TypeScript code
-├── runner/                 # Test runner framework
+├── runner/                 # Test runner framework (frame_test_runner.py)
 └── configs/               # Test configuration files
 ```
 
@@ -91,17 +96,26 @@ framec_tests/
 
 **Comprehensive Test Suite:**
 ```bash
-# All Python tests
+# All tests (both languages, all categories including language-specific)
+python3 framec_tests/runner/frame_test_runner.py --languages python typescript --framec ./target/release/framec
+
+# All Python tests (including Python-specific external API tests)
 python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./target/release/framec
 
-# All TypeScript tests  
+# All TypeScript tests (including TypeScript-specific external API tests)
 python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec
 
-# Specific categories
+# Specific categories (common tests only)
 python3 framec_tests/runner/frame_test_runner.py --languages python --categories regression --framec ./target/release/framec
 
-# Verbose output
-python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./target/release/framec --verbose
+# Language-specific tests only
+python3 framec_tests/runner/frame_test_runner.py --languages python --categories language_specific_python --framec ./target/release/framec
+
+# Verbose output with batch TypeScript compilation
+python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec --verbose
+
+# Transpile-only mode (no execution)
+python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec --transpile-only
 ```
 
 **Single File Testing:**
@@ -117,15 +131,27 @@ python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./t
 ```
 
 ### Test Categories
-- **systems**: Core state machine functionality (200 tests)
-- **data_types**: Collections, dictionaries, lists (66 tests)
-- **control_flow**: Conditionals, loops, multifile (49 tests)
-- **scoping**: Variable scoping and resolution (45 tests)
-- **core**: State management and transitions (31 tests)
-- **language_specific_python**: Python-specific features (29 tests)
-- **operators**: Python operators and expressions (16 tests)
-- **negative**: Error handling and validation (13 tests)
-- **regression**: Bug prevention tests (7 tests)
+
+**Common Tests (Cross-Language):**
+- **systems**: Core state machine functionality (200+ tests)
+- **data_types**: Collections, dictionaries, lists (66+ tests)
+- **control_flow**: Conditionals, loops, multifile (49+ tests)
+- **scoping**: Variable scoping and resolution (45+ tests)
+- **core**: State management and transitions (31+ tests)
+- **operators**: Language operators and expressions (16+ tests)
+- **negative**: Error handling and validation (13+ tests)
+- **regression**: Bug prevention tests (7+ tests)
+
+**Language-Specific Tests:**
+- **language_specific_python**: Python-specific features and external APIs
+- **language_specific_typescript**: TypeScript-specific features and external APIs
+
+**External API Test Structure:**
+- Language-specific external API tests demonstrate proper Frame integration with:
+  - File I/O operations (Python: `os.path`, `open()`; TypeScript: `fs` module)
+  - Process control (Python: `subprocess`; TypeScript: `child_process`)
+  - Network operations (Python: `socket`; TypeScript: `net`)
+  - Platform-specific libraries and frameworks
 
 ## Version Management
 
@@ -289,6 +315,56 @@ time ./target/release/framec -l python_3 large_file.frm
 python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./target/release/framec --verbose
 ```
 
+## AST Debugging and Printing
+
+### AST Serialization
+Frame provides comprehensive AST debugging through JSON serialization:
+
+```bash
+# Generate AST JSON output
+FRAME_AST_OUTPUT=/tmp/ast.json ./target/release/framec -l python_3 your_file.frm
+
+# Enable verbose AST debugging  
+FRAME_TRANSPILER_DEBUG=1 FRAME_AST_OUTPUT=/tmp/ast.json ./target/release/framec -l python_3 your_file.frm
+```
+
+### AST Printing Coverage (v0.86.0+)
+Enhanced AST-to-string printing for debugging expression types:
+
+#### **Supported Expression Types** ✅
+- **Core expressions**: Variables, literals, binary/unary operations, calls
+- **Collections**: Lists, dicts, sets, tuples
+- **System constructs**: System instantiation (`MySystem()`), action calls (`actionName()`)  
+- **Modern Python**: List/dict/set comprehensions, walrus operator (`:=`), await expressions
+- **Frame-specific**: Enum access (`MyEnum.VALUE`), state transitions (`-> $State`), self references
+- **Advanced features**: Unpacking (`*args`, `**kwargs`), star expressions
+
+#### **Usage in Development**
+```rust
+// Debugging expressions in visitor code
+let mut debug_output = String::new();
+expr.accept_to_string(visitor, &mut debug_output);
+eprintln!("DEBUG: Expression = {}", debug_output);
+```
+
+#### **Coverage Statistics**
+- **Total expression types**: ~30
+- **Implemented printing**: ~70% (improved from 40%)
+- **Critical debugging constructs**: 100% coverage
+
+### AST Structure Analysis
+Use the generated JSON for:
+- **System structure**: Interface methods, states, actions
+- **Expression analysis**: Call chains, assignments, literals
+- **Line mapping**: Source-to-generated code correlation
+- **Symbol resolution**: Variable and method references
+
+### Debugging Workflow
+1. **Enable AST output**: Set `FRAME_AST_OUTPUT` environment variable
+2. **Compile with debug**: Use `FRAME_TRANSPILER_DEBUG=1` for verbose output
+3. **Analyze structure**: Inspect generated JSON for AST node relationships
+4. **Trace expressions**: Use printing methods for detailed expression debugging
+
 ## Critical Rules
 
 ### 🚨 NEVER DO
@@ -316,6 +392,64 @@ python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./t
 4. **Version updates**: Must update ALL version files together
 5. **Test validation**: Must achieve 100% success rate before release
 
+## External API Testing Strategy
+
+### Language-Specific Approach
+Frame supports importing and using external libraries/modules generically, with each visitor generating target-appropriate code from the AST. This means:
+
+1. **No Cross-Language API Mapping**: Frame doesn't map `subprocess.spawn()` to `child_process.spawn()` - instead, Frame code should use target-appropriate APIs
+2. **Import Support**: Frame syntax supports importing modules/libraries generically: `import fs`, `import os.path`
+3. **Generic Method Calls**: Frame supports calling methods generically: `module.method(params)`
+4. **Visitor Responsibility**: Each visitor generates correct target code from the generic AST representation
+
+### External API Test Structure
+```
+framec_tests/language_specific/
+├── python/external_apis/
+│   ├── test_file_io.frm        # Python: os.path, open(), f.read()
+│   ├── test_process.frm        # Python: subprocess.run()
+│   └── test_network.frm        # Python: socket module
+└── typescript/external_apis/
+    ├── test_file_io.frm        # TypeScript: fs.existsSync(), fs.readFileSync()
+    ├── test_process.frm        # TypeScript: child_process.spawn()
+    └── test_network.frm        # TypeScript: net.createServer()
+```
+
+### Creating External API Tests
+1. **Target-Specific APIs**: Write Frame code using the appropriate APIs for each target language
+2. **Semantic Equivalence**: Tests should have identical functionality but use language-appropriate syntax
+3. **Import Handling**: Use Frame's generic import syntax: `import module_name`
+4. **Validation**: Both tests should produce identical output demonstrating equivalent functionality
+
+### Example: File I/O
+**Python Version** (`test_file_io.frm`):
+```frame
+import os.path
+
+system FileIOTest {
+    actions:
+        testFileOperations() {
+            var exists = os.path.exists("test.txt")
+            var f = open("test.txt", "r")
+            var content = f.read()
+            f.close()
+        }
+}
+```
+
+**TypeScript Version** (`test_file_io.frm`):
+```frame
+import fs
+
+system FileIOTest {
+    actions:
+        testFileOperations() {
+            var exists = fs.existsSync("test.txt")
+            var content = fs.readFileSync("test.txt", "utf8")
+        }
+}
+```
+
 ## Target Language Specifics
 
 ### Python (Primary Target)
@@ -328,7 +462,13 @@ python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./t
 - Full type annotations and interfaces
 - Supports async/await, generics, decorators
 - Generates ES2020+ compatible code
-- Integration with Node.js runtime
+- Integration with Node.js runtime and `@types/node`
+- **Performance Features:**
+  - Batch compilation for improved speed (reduces 0.9s per file to ~1s total)
+  - Shared runtime module to avoid duplicate identifier issues
+  - Local vs global TypeScript compiler detection
+  - Intelligent compilation caching and error recovery
+- **Dependencies**: Requires Node.js and TypeScript (`npm install typescript @types/node`)
 
 ### GraphViz (Visualization)
 - Generates DOT format for state diagrams
@@ -369,8 +509,8 @@ python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./t
 
 ---
 
-**Last Updated**: 2025-10-18  
-**Version**: v0.85.2  
-**Status**: Production Ready - 100% Test Success Rate
+**Last Updated**: 2025-10-19  
+**Version**: v0.86.0  
+**Status**: Production Ready - 100% Test Success Rate (887 tests) + Enhanced AST Debugging
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.

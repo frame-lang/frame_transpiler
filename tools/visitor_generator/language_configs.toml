@@ -1,0 +1,205 @@
+# Language-Specific Configuration for Visitor Generator
+
+[languages.rust]
+name = "Rust"
+visitor_name = "RustVisitor"
+file_extension = "rs"
+indent = "    "  # 4 spaces
+
+[languages.rust.imports]
+base = [
+    "use std::collections::HashMap;",
+    "use std::rc::Rc;",
+    "use std::cell::RefCell;"
+]
+thread_safe = [
+    "use std::sync::{Arc, Mutex};"
+]
+async_runtime = [
+    "use std::future::Future;",
+    "use std::pin::Pin;"
+]
+
+[languages.rust.types]
+int = "i32"
+float = "f64" 
+string = "String"
+bool = "bool"
+void = "()"
+list = "Vec<{inner}>"
+dict = "HashMap<{key}, {value}>"
+
+[languages.rust.memory]
+container_type = "Rc<RefCell<{type}>>"
+thread_safe_container = "Arc<Mutex<{type}>>"
+new_container = "Rc::new(RefCell::new({value}))"
+thread_safe_new = "Arc::new(Mutex::new({value}))"
+
+[languages.rust.methods]
+public_prefix = "pub fn"
+private_prefix = "fn"
+self_param = "&mut self"
+readonly_self = "&self"
+return_arrow = " -> "
+
+[languages.c]
+name = "C"
+visitor_name = "CVisitor"
+file_extension = "c"
+indent = "    "
+
+[languages.c.includes]
+base = [
+    "#include <stdio.h>",
+    "#include <stdlib.h>",
+    "#include <string.h>"
+]
+thread_safe = [
+    "#include <pthread.h>"
+]
+
+[languages.c.types]
+int = "int"
+float = "double"
+string = "char*"
+bool = "int"  # C doesn't have bool
+void = "void"
+list = "{type}*"  # Arrays in C
+dict = "struct hash_table*"  # Custom hash table
+
+[languages.c.memory]
+container_type = "struct {type}_container*"
+new_container = "create_{type}_container({value})"
+malloc_pattern = "({type}*)malloc(sizeof({type}))"
+
+[languages.c.methods]
+public_prefix = ""
+private_prefix = "static"
+self_param = "struct {system_name}* self"
+return_arrow = " "
+
+[languages.cpp]
+name = "C++"
+visitor_name = "CppVisitor"
+file_extension = "cpp"
+indent = "    "
+
+[languages.cpp.includes]
+base = [
+    "#include <iostream>",
+    "#include <memory>",
+    "#include <unordered_map>",
+    "#include <vector>",
+    "#include <string>"
+]
+thread_safe = [
+    "#include <mutex>",
+    "#include <thread>"
+]
+
+[languages.cpp.types]
+int = "int"
+float = "double"
+string = "std::string"
+bool = "bool"
+void = "void"
+list = "std::vector<{inner}>"
+dict = "std::unordered_map<{key}, {value}>"
+
+[languages.cpp.memory]
+container_type = "std::shared_ptr<{type}>"
+new_container = "std::make_shared<{type}>({value})"
+unique_ptr = "std::unique_ptr<{type}>"
+
+[languages.cpp.methods]
+public_prefix = "public:"
+private_prefix = "private:"
+self_param = ""  # C++ uses 'this' implicitly
+return_arrow = " "
+
+[languages.csharp]
+name = "C#"
+visitor_name = "CSharpVisitor"
+file_extension = "cs"
+indent = "    "
+
+[languages.csharp.usings]
+base = [
+    "using System;",
+    "using System.Collections.Generic;",
+    "using System.Threading.Tasks;"
+]
+
+[languages.csharp.types]
+int = "int"
+float = "double"
+string = "string"
+bool = "bool"
+void = "void"
+list = "List<{inner}>"
+dict = "Dictionary<{key}, {value}>"
+
+[languages.csharp.methods]
+public_prefix = "public"
+private_prefix = "private"
+self_param = ""  # C# uses 'this' implicitly
+return_arrow = " "
+
+[languages.java]
+name = "Java"
+visitor_name = "JavaVisitor"
+file_extension = "java"
+indent = "    "
+
+[languages.java.imports]
+base = [
+    "import java.util.*;",
+    "import java.util.concurrent.*;"
+]
+
+[languages.java.types]
+int = "int"
+float = "double"
+string = "String"
+bool = "boolean"
+void = "void"
+list = "List<{inner}>"
+dict = "Map<{key}, {value}>"
+
+[languages.java.methods]
+public_prefix = "public"
+private_prefix = "private"
+self_param = ""  # Java uses 'this' implicitly
+return_arrow = " "
+
+[languages.go]
+name = "Go"
+visitor_name = "GoVisitor"
+file_extension = "go"
+indent = "\t"  # Go uses tabs
+
+[languages.go.imports]
+base = [
+    "fmt",
+    "sync"
+]
+
+[languages.go.types]
+int = "int"
+float = "float64"
+string = "string"
+bool = "bool"
+void = ""  # Go functions with no return
+list = "[]{inner}"
+dict = "map[{key}]{value}"
+
+[languages.go.memory]
+container_type = "*{type}"
+new_container = "&{type}{{value}}"
+interface_type = "interface{}"
+
+[languages.go.methods]
+public_prefix = ""  # Go uses capital letters for public
+private_prefix = ""  # lowercase for private
+self_param = "{receiver} *{system_name}"
+return_arrow = " "

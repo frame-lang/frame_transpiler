@@ -1690,7 +1690,30 @@ impl TypeScriptVisitor {
             OperatorType::Divide => " / ",
             OperatorType::Greater => " > ",
             OperatorType::GreaterEqual => " >= ",
-            OperatorType::Less => " < ",
+            OperatorType::Less => {
+                // Smart handling for array length comparisons
+                let mut right_str = String::new();
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
+                
+                // If right side looks like an array variable, add .length
+                if right_str.starts_with('[') || right_str.trim().chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    // For array literals or simple variables that might be arrays, add .length check
+                    output.push_str(" < ");
+                    if right_str.starts_with('[') {
+                        // Array literal - use .length
+                        output.push_str(&right_str);
+                        output.push_str(".length");
+                    } else {
+                        // Variable - add .length (will be safe due to TypeScript's any type)
+                        output.push_str(&right_str);
+                        output.push_str(".length");
+                    }
+                    output.push(')');
+                    return;
+                } else {
+                    " < "
+                }
+            },
             OperatorType::LessEqual => " <= ",
             OperatorType::EqualEqual => " === ",  // Use strict equality in TypeScript
             OperatorType::NotEqual => " !== ",    // Use strict inequality in TypeScript
@@ -2147,6 +2170,39 @@ impl TypeScriptVisitor {
                     }
                     output.push(')');
                     return;
+                }
+            }
+            
+            // Dictionary .get() method fix: Convert obj.get(key, default) to (obj[key] || default)
+            if let (CallChainNodeType::VariableNodeT { var_node }, 
+                    CallChainNodeType::UndeclaredCallT { call_node }) = 
+                    (&node.call_chain[0], &node.call_chain[1]) {
+                if call_node.identifier.name.lexeme == "get" {
+                    let var_name = &var_node.id_node.name.lexeme;
+                    let args = &call_node.call_expr_list.exprs_t;
+                    
+                    if args.len() >= 1 {
+                        // Generate (obj[key] || default) pattern
+                        output.push('(');
+                        output.push_str(var_name);
+                        output.push('[');
+                        let mut key_str = String::new();
+                        self.visit_expr_node_to_string(&args[0], &mut key_str);
+                        output.push_str(&key_str);
+                        output.push_str("] || ");
+                        
+                        if args.len() >= 2 {
+                            // Use provided default
+                            let mut default_str = String::new();
+                            self.visit_expr_node_to_string(&args[1], &mut default_str);
+                            output.push_str(&default_str);
+                        } else {
+                            // Use undefined as default
+                            output.push_str("undefined");
+                        }
+                        output.push(')');
+                        return;
+                    }
                 }
             }
         }

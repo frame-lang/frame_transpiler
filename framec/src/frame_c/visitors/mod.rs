@@ -8,6 +8,8 @@ pub enum TargetLanguage {
     Python3,
     TypeScript,
     Graphviz,
+    Rust,
+    C,
 }
 
 impl TargetLanguage {
@@ -16,6 +18,8 @@ impl TargetLanguage {
             TargetLanguage::Python3 => "py",
             TargetLanguage::TypeScript => "ts",
             TargetLanguage::Graphviz => "graphviz",
+            TargetLanguage::Rust => "rs",
+            TargetLanguage::C => "c",
         }
     }
 }
@@ -29,8 +33,12 @@ impl TryFrom<&str> for TargetLanguage {
             Ok(TargetLanguage::TypeScript)
         } else if value == "graphviz" {
             Ok(TargetLanguage::Graphviz)
+        } else if value == "rust" {
+            Ok(TargetLanguage::Rust)
+        } else if value == "c" {
+            Ok(TargetLanguage::C)
         } else {
-            Err(format!("Unrecognized target language: {}. Supported languages are: python_3, typescript, graphviz", value))
+            Err(format!("Unrecognized target language: {}. Supported languages are: python_3, typescript, graphviz, rust, c", value))
         }
     }
 }
@@ -46,6 +54,8 @@ pub mod graphviz_visitor;
 pub mod python_visitor;
 pub mod python_visitor_v2;  // v0.75: Complete implementation using CodeBuilder
 pub mod typescript_visitor;  // v0.82: TypeScript support
+pub mod rust_visitor;  // v0.87: Generated Rust implementation using visitor generator
+pub mod c_visitor;     // v0.87: C99 implementation with module scope support
 
 use super::ast::*;
 
@@ -268,3 +278,4 @@ pub trait AstVisitor {
     fn visit_self_expr_node_to_string(&mut self, _self_expr_node: &SelfExprNode, _output: &mut String) {}
 
 }
+

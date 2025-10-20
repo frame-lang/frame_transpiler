@@ -18,8 +18,8 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.19.22",
+    "typescript": "^5.0.0"
   },
   "scripts": {
     "test:typescript": "python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec",
