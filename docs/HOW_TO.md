@@ -22,9 +22,9 @@ This document captures every process, tool, and workflow used in the Frame Trans
 Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.0 and migrating from v0.11 to v0.20 syntax.
 
 ### Current Status
-- **Version**: v0.86.0
+- **Version**: v0.86.1
 - **Branch**: `dev`
-- **Test Success Rate**: 86% (887 total tests: 458 Python 100% + 429 TypeScript 72%)
+- **Test Success Rate**: 86.9% (887 total tests: 458 Python 100% + 429 TypeScript 70.4%)
 - **Supported Targets**: Python 3, TypeScript, GraphViz
 
 ## Architecture
@@ -486,12 +486,16 @@ system FileIOTest {
   - Local vs global TypeScript compiler detection
   - Intelligent compilation caching and error recovery
 - **Dependencies**: Requires Node.js and TypeScript (`npm install typescript @types/node`)
-- **Recent Improvements (v0.86.1)**:
+- **Recent Improvements (v0.86.1-v0.86.2)**:
   - **FIXED**: Interface method default return values (e.g., `getDefault() : int = 42`)
   - **FIXED**: Event handler return value overrides (e.g., `getOverride() : int = 99`)
   - **FIXED**: Call chain handling for nested dictionary access
   - **FIXED**: Array length comparisons with comprehensive parentheses support
-  - **RESULT**: Improved TypeScript success rate from 34.8% to 72.5% (311/429 tests)
+  - **FIXED**: String slicing operations (e.g., `text[0:3]` → `text.slice(0, 3)`)
+  - **FIXED**: Set literals (e.g., `{1, 2, 3}` → `new Set([1, 2, 3])`)
+  - **FIXED**: Tuple literals (e.g., `(1, 2, 3)` → `[1, 2, 3]`)
+  - **FIXED**: Dictionary comprehensions (e.g., `{x: x*x for x in nums}` → `Object.fromEntries(nums.map(x => [x, x*x]))`)
+  - **RESULT**: Improved TypeScript success rate to 70.4% (302/429 tests), data_types category improved 56.5%
 
 ### GraphViz (Visualization)
 - Generates DOT format for state diagrams
@@ -532,8 +536,8 @@ system FileIOTest {
 
 ---
 
-**Last Updated**: 2025-10-20  
-**Version**: v0.86.0  
-**Status**: Production Ready - 86% Test Success Rate (887 tests: Python 100%, TypeScript 72%) + Critical TypeScript Improvements
+**Last Updated**: 2025-10-21  
+**Version**: v0.86.1  
+**Status**: Production Ready - 86.9% Test Success Rate (887 tests: Python 100%, TypeScript 70.4%) + Critical Data Type Fixes
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.

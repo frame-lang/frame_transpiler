@@ -1697,6 +1697,64 @@ impl TypeScriptVisitor {
                 output.push_str("await ");
                 self.visit_expr_node_to_string(&await_expr_node.expr, output);
             }
+            ExprType::SetLiteralT { set_literal_node } => {
+                // Convert Frame set literals to TypeScript Set
+                output.push_str("new Set([");
+                let mut first = true;
+                for expr in &set_literal_node.elements {
+                    if !first {
+                        output.push_str(", ");
+                    }
+                    first = false;
+                    self.visit_expr_node_to_string(expr, output);
+                }
+                output.push_str("])");
+            }
+            ExprType::TupleLiteralT { tuple_literal_node } => {
+                // Convert Frame tuple literals to TypeScript arrays
+                output.push('[');
+                let mut first = true;
+                for expr in &tuple_literal_node.elements {
+                    if !first {
+                        output.push_str(", ");
+                    }
+                    first = false;
+                    self.visit_expr_node_to_string(expr, output);
+                }
+                output.push(']');
+            }
+            ExprType::DictComprehensionExprT { dict_comprehension_node } => {
+                // Convert Frame dict comprehensions to TypeScript object comprehensions
+                // {key_expr: value_expr for var in iterable if condition_opt}
+                // becomes: Object.fromEntries(iterable.filter(var => condition).map(var => [key_expr, value_expr]))
+                
+                let var_name = &dict_comprehension_node.target;
+                
+                // Add the loop variable to current_local_vars temporarily
+                self.current_local_vars.insert(var_name.to_string());
+                
+                output.push_str("Object.fromEntries(");
+                
+                // Generate the iterable expression
+                self.visit_expr_node_to_string(&dict_comprehension_node.iter, output);
+                
+                // Add filter if condition exists
+                if let Some(ref condition) = dict_comprehension_node.condition {
+                    output.push_str(&format!(".filter({} => ", var_name));
+                    self.visit_expr_node_to_string(condition, output);
+                    output.push(')');
+                }
+                
+                // Add map to create key-value pairs
+                output.push_str(&format!(".map({} => [", var_name));
+                self.visit_expr_node_to_string(&dict_comprehension_node.key_expr, output);
+                output.push_str(", ");
+                self.visit_expr_node_to_string(&dict_comprehension_node.value_expr, output);
+                output.push_str("]))");
+                
+                // Remove the loop variable from current_local_vars
+                self.current_local_vars.remove(var_name);
+            }
             _ => {
                 // Debug output to see what expression types are missing
                 let expr_type_name = expr.expr_type_name();
@@ -2263,6 +2321,16 @@ impl TypeScriptVisitor {
                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                         eprintln!("DEBUG TS:   [{}] UndeclaredIdentifierNodeT: {}", i, id_node.name.lexeme);
                     }
+                    CallChainNodeType::SliceNodeT { slice_node } => {
+                        eprintln!("DEBUG TS:   [{}] SliceNodeT: {} [{}:{}]", i, slice_node.identifier.name.lexeme,
+                            slice_node.start_expr.as_ref().map(|_| "start").unwrap_or(""),
+                            slice_node.end_expr.as_ref().map(|_| "end").unwrap_or(""));
+                    }
+                    CallChainNodeType::UndeclaredSliceT { slice_node } => {
+                        eprintln!("DEBUG TS:   [{}] UndeclaredSliceT: {} [{}:{}]", i, slice_node.identifier.name.lexeme,
+                            slice_node.start_expr.as_ref().map(|_| "start").unwrap_or(""),
+                            slice_node.end_expr.as_ref().map(|_| "end").unwrap_or(""));
+                    }
                     _ => {
                         eprintln!("DEBUG TS:   [{}] Other call chain node type", i);
                     }
@@ -2494,6 +2562,32 @@ impl TypeScriptVisitor {
                 }
                 CallChainNodeType::SliceNodeT { slice_node } => {
                     // Handle array/string slicing like arr[start:end]
+                    // Generate the variable name if this is the first node in chain
+                    if is_first {
+                        let var_name = &slice_node.identifier.name.lexeme;
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                            eprintln!("DEBUG TS: SliceNodeT is first - generating variable '{}' before .slice()", var_name);
+                        }
+                        
+                        // Use context-aware variable resolution
+                        if self.current_local_vars.contains(var_name) {
+                            output.push_str(var_name);
+                        } else if self.current_exception_vars.contains(var_name) {
+                            output.push_str(var_name);
+                        } else if self.current_state_params.contains(var_name) {
+                            output.push_str(&format!("compartment.stateArgs['{}']", var_name));
+                        } else if self.current_state_vars.contains(var_name) {
+                            output.push_str(&format!("compartment.stateVars['{}']", var_name));
+                        } else if self.domain_variables.contains(var_name) {
+                            output.push_str(&format!("this.{}", var_name));
+                        } else if self.current_handler_params.contains(var_name) {
+                            output.push_str(&format!("__e.parameters.{}", var_name));
+                        } else {
+                            // Unknown variable - output naturally
+                            output.push_str(var_name);
+                        }
+                    }
+                    
                     output.push_str(".slice(");
                     if let Some(ref start_expr) = slice_node.start_expr {
                         let mut start_str = String::new();
@@ -2512,6 +2606,32 @@ impl TypeScriptVisitor {
                 }
                 CallChainNodeType::UndeclaredSliceT { slice_node } => {
                     // Handle undeclared slicing operations
+                    // Generate the variable name if this is the first node in chain
+                    if is_first {
+                        let var_name = &slice_node.identifier.name.lexeme;
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                            eprintln!("DEBUG TS: UndeclaredSliceT is first - generating variable '{}' before .slice()", var_name);
+                        }
+                        
+                        // Use context-aware variable resolution
+                        if self.current_local_vars.contains(var_name) {
+                            output.push_str(var_name);
+                        } else if self.current_exception_vars.contains(var_name) {
+                            output.push_str(var_name);
+                        } else if self.current_state_params.contains(var_name) {
+                            output.push_str(&format!("compartment.stateArgs['{}']", var_name));
+                        } else if self.current_state_vars.contains(var_name) {
+                            output.push_str(&format!("compartment.stateVars['{}']", var_name));
+                        } else if self.domain_variables.contains(var_name) {
+                            output.push_str(&format!("this.{}", var_name));
+                        } else if self.current_handler_params.contains(var_name) {
+                            output.push_str(&format!("__e.parameters.{}", var_name));
+                        } else {
+                            // Unknown variable - output naturally
+                            output.push_str(var_name);
+                        }
+                    }
+                    
                     output.push_str(".slice(");
                     if let Some(ref start_expr) = slice_node.start_expr {
                         let mut start_str = String::new();
@@ -2551,6 +2671,7 @@ impl TypeScriptVisitor {
                     // TODO: Handle other call chain node types
                     if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
                         eprintln!("DEBUG TS: Unhandled call chain node type - adding TODO comment");
+                        eprintln!("DEBUG TS: Unknown node type: {:?}", std::mem::discriminant(call_chain_node));
                     }
                     output.push_str("/* TODO: call chain node */");
                 }
