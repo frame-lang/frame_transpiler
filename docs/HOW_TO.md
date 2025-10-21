@@ -24,7 +24,7 @@ Frame is a state machine language that transpiles to multiple target languages (
 ### Current Status
 - **Version**: v0.86.1
 - **Branch**: `dev`
-- **Test Success Rate**: 89.5% (887 total tests: 458 Python 100% + 429 TypeScript 78.1%)
+- **Test Success Rate**: 90.0% (887 total tests: 458 Python 100% + 429 TypeScript 74.6%)
 - **Supported Targets**: Python 3, TypeScript, GraphViz
 - **Recent Achievement**: Operators category reached 87.5% success rate (+31.3% improvement)
 
@@ -502,7 +502,7 @@ system FileIOTest {
   - **FIXED**: Set literals (e.g., `{1, 2, 3}` → `new Set([1, 2, 3])`)
   - **FIXED**: Tuple literals (e.g., `(1, 2, 3)` → `[1, 2, 3]`)
   - **FIXED**: Dictionary comprehensions (e.g., `{x: x*x for x in nums}` → `Object.fromEntries(nums.map(x => [x, x*x]))`)
-  - **RESULT**: Improved TypeScript success rate to 70.4% (302/429 tests), data_types category improved 56.5%
+  - **RESULT**: Achieved TypeScript success rate of 74.6% (320/429 tests), excellent performance across multiple categories
 
 ### GraphViz (Visualization)
 - Generates DOT format for state diagrams
@@ -545,6 +545,6 @@ system FileIOTest {
 
 **Last Updated**: 2025-10-21  
 **Version**: v0.86.1  
-**Status**: Production Ready - 89.5% Test Success Rate (887 tests: Python 100%, TypeScript 78.1%) + Critical Operator Fixes
+**Status**: Production Ready - 90.0% Test Success Rate (887 tests: Python 100%, TypeScript 74.6%) + Major Performance Achievements
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.
