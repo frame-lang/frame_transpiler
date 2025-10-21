@@ -3,6 +3,8 @@
 🚨 **MANDATORY FIRST STEP: READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) 🚨
 **This comprehensive guide contains ALL processes, tools, and workflows for this project.**
 
+📖 **ALWAYS CHECK CLI HELP**: Run `./target/release/framec --help` to see all available command-line options and parameters.
+
 ⚠️ **CRITICAL RULES**
 1. **NEVER create workarounds** - Fix the actual problem in the codebase
 2. **NEVER modify test files marked "DO NOT MODIFY"** without explicit permission

@@ -28,5 +28,8 @@ framec_tests/**/*.py
 # Private scripts and utilities (not for version control)
 .private/
 
+# Rust build artifacts
+*.rlib
+
 # Miscellaneous test files and debugging artifacts
 .misc/

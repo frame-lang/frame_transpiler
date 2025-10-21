@@ -54,9 +54,7 @@ pub mod graphviz_visitor;
 pub mod python_visitor;
 pub mod python_visitor_v2;  // v0.75: Complete implementation using CodeBuilder
 pub mod typescript_visitor;  // v0.82: TypeScript support
-pub mod rust_visitor;  // v0.87: Generated Rust implementation using visitor generator
-pub mod rust_visitor_handcrafted;  // v0.87: Hand-crafted Rust implementation with actual Frame semantics
-pub mod rust_visitor_handcrafted_v2;  // v0.87: Hand-crafted Rust V2 with working Frame runtime semantics
+pub mod rust_visitor;  // v0.87: Rust implementation with working Frame semantics
 pub mod c_visitor;     // v0.87: C99 implementation with module scope support
 
 use super::ast::*;

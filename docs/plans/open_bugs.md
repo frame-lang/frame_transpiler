@@ -3,14 +3,22 @@
 <!-- NEXT BUG NUMBER: #57 -->
 
 **Last Updated:** 2025-10-21  
-**Current Version:** v0.86.5  
-**Test Status:** 🎉 **MAJOR TYPESCRIPT RUNTIME FIX** - Fixed critical .get() method chaining issue affecting 75%+ execution success rate  
-**Active Bugs:** 3  
-**Resolved Bugs:** 57 (See closed_bugs.md for full history)  
+**Current Version:** v0.86.6  
+**Test Status:** 🎉 **TYPESCRIPT EXTERNAL API FIX** - Fixed external API method calls (child_process, net, fs) being incorrectly prefixed  
+**Active Bugs:** 0  
+**Resolved Bugs:** 60 (See closed_bugs.md for full history)  
 
 ## Active Bugs
 
-### Bug #54: TypeScript Action Implementation Missing - Process Spawning Generates Stubs (v0.85.6)
+*No active bugs at this time.*
+
+## Recently Resolved Bugs (v0.86.6)
+
+### Bug #54: ✅ RESOLVED - TypeScript External API Method Calls Incorrectly Prefixed (v0.85.6)
+
+**Resolution Date**: 2025-10-21  
+**Resolution Version**: v0.86.6  
+**Resolution**: Fixed TypeScript visitor to check call chain context before adding `_action_` prefix
 
 **Reporter**: Claude Code (Frame VS Code Extension)  
 **Date**: 2025-10-19  
@@ -123,7 +131,11 @@ HIGH - This bug blocks functional debugging in Frame VS Code Extension and affec
 
 ---
 
-### Bug #55: TypeScript Action Implementation Missing - TCP Server Creation Generates Stubs (v0.85.6)
+### Bug #55: ✅ RESOLVED - TypeScript External API Method Calls Incorrectly Prefixed (v0.85.6)
+
+**Resolution Date**: 2025-10-21  
+**Resolution Version**: v0.86.6  
+**Resolution**: Fixed TypeScript visitor to check call chain context before adding `_action_` prefix
 
 **Reporter**: Claude Code (Frame VS Code Extension)  
 **Date**: 2025-10-19  
@@ -246,7 +258,11 @@ HIGH - Network communication is fundamental for debugging protocols and IDE inte
 
 ---
 
-### Bug #56: TypeScript Action Implementation Missing - JSON Parsing and External APIs Generate Undefined Calls (v0.85.6)
+### Bug #56: ✅ RESOLVED - TypeScript External API Method Calls Incorrectly Prefixed (v0.85.6)
+
+**Resolution Date**: 2025-10-21  
+**Resolution Version**: v0.86.6  
+**Resolution**: Fixed TypeScript visitor to check call chain context before adding `_action_` prefix
 
 **Reporter**: Claude Code (Frame VS Code Extension)  
 **Date**: 2025-10-19  

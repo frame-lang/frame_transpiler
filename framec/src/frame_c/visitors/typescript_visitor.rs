@@ -1366,11 +1366,20 @@ impl TypeScriptVisitor {
             // Already has action prefix
             output.push_str(&format!("this.{}(", func_name));
         } else if self.action_names.contains(func_name) {
-            // This is a defined action - prefix with this._action_
-            output.push_str(&format!("this._action_{}(", func_name));
+            // Bug #54-56 Fix: Only add action prefix if this is the first in the chain
+            // If not first, it's likely an external API method (e.g., child_process.spawn)
+            if is_first_in_chain {
+                output.push_str(&format!("this._action_{}(", func_name));
+            } else {
+                output.push_str(&format!("{}(", func_name));
+            }
         } else if self.operation_names.contains(func_name) {
-            // This is a defined operation - prefix with this._operation_
-            output.push_str(&format!("this._operation_{}(", func_name));
+            // Bug #54-56 Fix: Only add operation prefix if this is the first in the chain
+            if is_first_in_chain {
+                output.push_str(&format!("this._operation_{}(", func_name));
+            } else {
+                output.push_str(&format!("{}(", func_name));
+            }
         } else {
             // Check if it's a known built-in function
             let is_builtin = matches!(func_name.as_str(), "len" | "int" | "float" | "bool" | "list" | "dict" | "set" | "tuple");
@@ -2711,8 +2720,16 @@ impl TypeScriptVisitor {
                         }
                         output.push(')');
                     } else {
-                        // This is likely a real action - use action prefix  
-                        output.push_str(&format!("this._action_{}(", method_name));
+                        // Check if this is a real action call or an external API call
+                        // If it's not the first in the chain, it's likely an external API method
+                        if is_first {
+                            // This is a real action - use action prefix  
+                            output.push_str(&format!("this._action_{}(", method_name));
+                        } else {
+                            // This is an external API method call (e.g., child_process.spawn)
+                            // Don't add the action prefix
+                            output.push_str(&format!("{}(", method_name));
+                        }
                         if action_call_expr_node.call_expr_list.exprs_t.len() > 0 {
                             let mut args_str = String::new();
                             self.visit_expr_list_node_to_string(&action_call_expr_node.call_expr_list.exprs_t, &mut args_str);

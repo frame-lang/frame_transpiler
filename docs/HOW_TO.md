@@ -267,6 +267,23 @@ framec/src/frame_c/
 
 ## Common Commands
 
+### Command Line Help
+```bash
+# View all available command line options and parameters
+./target/release/framec --help
+
+# Get help for specific subcommands
+./target/release/framec build --help
+./target/release/framec init --help
+```
+
+**Important CLI Options:**
+- `-l, --language <LANG>`: Specify target language (python_3, typescript, graphviz, rust, c)
+- `-m, --multifile`: Enable multi-file project compilation
+- `--debug-output`: Generate JSON with transpiled code and source map
+- `--validate-syntax`: Enable comprehensive syntax validation
+- `-V, --version`: Print version information
+
 ### Development Workflow
 ```bash
 # Start development session
@@ -339,11 +356,11 @@ node test.js
 Frame provides comprehensive AST debugging through JSON serialization:
 
 ```bash
-# Generate AST JSON output
-FRAME_AST_OUTPUT=/tmp/ast.json ./target/release/framec -l python_3 your_file.frm
-
-# Enable verbose AST debugging  
+# Generate AST JSON output (requires debug mode)
 FRAME_TRANSPILER_DEBUG=1 FRAME_AST_OUTPUT=/tmp/ast.json ./target/release/framec -l python_3 your_file.frm
+
+# Note: FRAME_TRANSPILER_DEBUG=1 is REQUIRED for AST output to be generated
+# The language parameter (-l) can be any valid target, as AST generation happens before visitor stage
 ```
 
 ### AST Printing Coverage (v0.86.0+)

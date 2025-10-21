@@ -483,6 +483,60 @@ impl RustVisitor {
         }
     }
     
+    fn generate_event_dispatch_method(&mut self) {
+        let event_type = &self.rust_config.code.frame_event_type_name.clone();
+        
+        self.builder.writeln(&format!("pub fn dispatch_event(&mut self, event: {}) {{", event_type));
+        self.builder.indent();
+        
+        // Get current state and dispatch to appropriate handler
+        if self.rust_config.features.thread_safe {
+            self.builder.writeln("let current_state = self.current_state.lock().unwrap().clone();");
+        } else {
+            self.builder.writeln("let current_state = self.current_state.borrow().clone();");
+        }
+        
+        self.builder.writeln("match current_state {");
+        self.builder.indent();
+        
+        for state_name in &self.states {
+            let pascal_state = self.to_pascal_case(state_name);
+            self.builder.writeln(&format!("State::{} => self.dispatch_event_to_{}(event),", pascal_state, state_name.to_lowercase()));
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.writeln("");
+    }
+    
+    fn generate_state_dispatch_method(&mut self, state_name: &str) {
+        let event_type = &self.rust_config.code.frame_event_type_name.clone();
+        
+        self.builder.writeln(&format!("fn dispatch_event_to_{}(&mut self, event: {}) {{", state_name.to_lowercase(), event_type));
+        self.builder.indent();
+        
+        self.builder.writeln("match event {");
+        self.builder.indent();
+        
+        // Generate handlers for each interface method
+        for (method_name, _signature) in &self.interface_methods.clone() {
+            let pascal_method = self.to_pascal_case(method_name);
+            let handler_name = format!("handle_{}_{}", state_name.to_lowercase(), method_name.to_lowercase());
+            
+            self.builder.writeln(&format!("{}::{} {{ .. }} => self.{}(),", event_type, pascal_method, handler_name));
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.writeln("");
+    }
+    
     fn generate_main_function(&mut self) {
         self.builder.writeln("");
         self.builder.writeln("fn main() {");
@@ -536,10 +590,30 @@ impl RustVisitor {
         ));
         self.builder.indent();
         
-        // Basic implementation - create event and send to state machine
-        self.builder.writeln("// TODO: Implement proper event creation and state machine dispatch");
+        // Create event and dispatch to state machine
+        let event_type = &self.rust_config.code.frame_event_type_name.clone();
+        let pascal_method = self.to_pascal_case(method_name);
         
-        // For now, provide a basic default return
+        if params.is_empty() {
+            self.builder.writeln(&format!("let event = {}::{};", event_type, pascal_method));
+        } else {
+            self.builder.writeln(&format!("let event = {}::{} {{", event_type, pascal_method));
+            self.builder.indent();
+            
+            // Add parameters to event
+            if let Some(param_nodes) = &method.params {
+                for param in param_nodes {
+                    self.builder.writeln(&format!("{},", param.param_name));
+                }
+            }
+            
+            self.builder.dedent();
+            self.builder.writeln("};");
+        }
+        
+        self.builder.writeln("self.dispatch_event(event);");
+        
+        // For now, provide a basic default return for non-void methods
         if return_type != "()" {
             let default_value = self.get_default_value_for_type(&return_type);
             self.builder.writeln(&format!("{}", default_value));
@@ -571,6 +645,14 @@ impl AstVisitor for RustVisitor {
                 let state_node = state_rcref.borrow();
                 self.states.push(state_node.name.clone());
             }
+        }
+        
+        // Collect operations and actions signatures for call resolution
+        if let Some(operations) = &node.operations_block_node_opt {
+            self.collect_operation_signatures(operations);
+        }
+        if let Some(actions) = &node.actions_block_node_opt {
+            self.collect_action_signatures(actions);
         }
         
         // Collect interface methods for main function generation
@@ -650,16 +732,25 @@ impl AstVisitor for RustVisitor {
         
         self.builder.writeln("// ==================== State Machine Logic ==================== //");
         self.builder.writeln("");
-        self.builder.writeln("// TODO: Implement state machine dispatch logic");
-        self.builder.writeln("");
+        
+        // Generate event dispatch method
+        self.generate_event_dispatch_method();
+        
+        // Generate state-specific dispatch methods
+        for state_name in &self.states.clone() {
+            self.generate_state_dispatch_method(state_name);
+        }
     }
     
-    fn visit_actions_block_node(&mut self, _actions_block: &ActionsBlockNode) {
+    fn visit_actions_block_node(&mut self, actions_block: &ActionsBlockNode) {
         self.builder.writeln("");
         self.builder.writeln("// ==================== Actions ==================== //");
         self.builder.writeln("");
-        self.builder.writeln("// TODO: Generate action methods");
-        self.builder.writeln("");
+        
+        for action_rcref in &actions_block.actions {
+            let action_node = action_rcref.borrow();
+            self.visit_action_node(&action_node);
+        }
     }
     
     fn visit_operations_block_node(&mut self, operations_block: &OperationsBlockNode) {
@@ -678,8 +769,39 @@ impl AstVisitor for RustVisitor {
         // Implementation handled in visit_interface_block_node
     }
     
-    fn visit_action_node(&mut self, _action: &ActionNode) {
-        // Implementation handled in visit_actions_block_node
+    fn visit_action_node(&mut self, action: &ActionNode) {
+        // Build parameter list
+        let mut params = Vec::new();
+        if let Some(param_nodes) = &action.params {
+            for param in param_nodes {
+                let param_type = if let Some(type_node) = &param.param_type_opt {
+                    self.frame_type_to_rust(&type_node.get_type_str())
+                } else {
+                    "()".to_string()
+                };
+                params.push(format!("{}: {}", param.param_name, param_type));
+            }
+        }
+        let params_str = params.join(", ");
+        
+        // Generate action method
+        self.builder.writeln(&format!("fn {}(&mut self{}) {{", 
+            action.name,
+            if params_str.is_empty() { "".to_string() } else { format!(", {}", params_str) }
+        ));
+        self.builder.indent();
+        
+        // Process statements in the action
+        if !action.statements.is_empty() {
+            let statements_code = self.process_statements(&action.statements);
+            self.builder.write(&statements_code);
+        } else {
+            self.builder.writeln(&format!("// Empty action {}", action.name));
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.writeln("");
     }
     
     fn visit_operation_node(&mut self, operation: &OperationNode) {
@@ -744,21 +866,192 @@ impl RustVisitor {
                                         code.push_str(&format!("        {};\n", call_code));
                                     }
                                 }
+                                ExprStmtType::ActionCallStmtT { action_call_stmt_node } => {
+                                    // Handle action calls - treat like function calls
+                                    let action_name = &action_call_stmt_node.action_call_expr_node.identifier.name.lexeme;
+                                    code.push_str(&format!("        self.{}();\n", action_name));
+                                }
+                                ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+                                    // Handle call chains - often print statements
+                                    let call_code = self.process_call_chain_statement(call_chain_literal_stmt_node);
+                                    if !call_code.is_empty() {
+                                        code.push_str(&format!("        {};\n", call_code));
+                                    }
+                                }
+                                ExprStmtType::SystemInstanceStmtT { .. } => {
+                                    code.push_str("        // System instance statement\n");
+                                }
+                                ExprStmtType::SystemTypeStmtT { .. } => {
+                                    code.push_str("        // System type statement\n");
+                                }
+                                ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                                    // Handle assignment statements
+                                    let target = self.process_expression(&assignment_stmt_node.assignment_expr_node.l_value_box);
+                                    let value = self.process_expression(&assignment_stmt_node.assignment_expr_node.r_value_rc);
+                                    code.push_str(&format!("        {} = {};\n", target, value));
+                                }
                                 _ => {
                                     code.push_str("        // TODO: Implement expression statement type\n");
                                 }
                             }
                         }
-                        StatementType::ReturnStmt { .. } => {
-                            code.push_str("        return;\n");
+                        StatementType::ReturnStmt { return_stmt_node } => {
+                            // Handle return statements with optional value
+                            if let Some(return_expr) = &return_stmt_node.expr_t_opt {
+                                let return_value = self.process_expression(return_expr);
+                                code.push_str(&format!("        return {};\n", return_value));
+                            } else {
+                                code.push_str("        return;\n");
+                            }
+                        }
+                        StatementType::TransitionStmt { transition_statement_node: _ } => {
+                            // Handle state transitions - simplified for now
+                            code.push_str("        // State transition - TODO: implement target state extraction\n");
+                            code.push_str("        // *self.current_state.borrow_mut() = State::TargetState;\n");
+                        }
+                        StatementType::IfStmt { if_stmt_node } => {
+                            // Handle conditional statements (if/else)
+                            let condition = self.process_expression(&if_stmt_node.condition);
+                            code.push_str(&format!("        if {} {{\n", condition));
+                            
+                            // Process if block
+                            let if_code = self.process_statements(&if_stmt_node.if_block.statements);
+                            code.push_str(&if_code);
+                            
+                            // Process elif clauses
+                            for elif_clause in &if_stmt_node.elif_clauses {
+                                let elif_condition = self.process_expression(&elif_clause.condition);
+                                code.push_str(&format!("        }} else if {} {{\n", elif_condition));
+                                let elif_code = self.process_statements(&elif_clause.block.statements);
+                                code.push_str(&elif_code);
+                            }
+                            
+                            // Process else block if it exists
+                            if let Some(else_block) = &if_stmt_node.else_block {
+                                code.push_str("        } else {\n");
+                                let else_code = self.process_statements(&else_block.statements);
+                                code.push_str(&else_code);
+                            }
+                            
+                            code.push_str("        }\n");
+                        }
+                        StatementType::ForStmt { for_stmt_node } => {
+                            // Handle for loops
+                            let iterator = if let Some(var_node) = &for_stmt_node.variable {
+                                &var_node.id_node.name.lexeme
+                            } else if let Some(id_node) = &for_stmt_node.identifier {
+                                &id_node.name.lexeme
+                            } else {
+                                "item"
+                            };
+                            let iterable = self.process_expression(&for_stmt_node.iterable);
+                            code.push_str(&format!("        for {} in {} {{\n", iterator, iterable));
+                            
+                            // Process loop body
+                            let loop_code = self.process_statements(&for_stmt_node.block.statements);
+                            code.push_str(&loop_code);
+                            
+                            // Process else block if it exists
+                            if let Some(else_block) = &for_stmt_node.else_block {
+                                code.push_str("        } else {\n");
+                                let else_code = self.process_statements(&else_block.statements);
+                                code.push_str(&else_code);
+                            }
+                            
+                            code.push_str("        }\n");
+                        }
+                        StatementType::WhileStmt { while_stmt_node } => {
+                            // Handle while loops
+                            let condition = self.process_expression(&while_stmt_node.condition);
+                            code.push_str(&format!("        while {} {{\n", condition));
+                            
+                            // Process loop body
+                            let loop_code = self.process_statements(&while_stmt_node.block.statements);
+                            code.push_str(&loop_code);
+                            
+                            // Process else block if it exists
+                            if let Some(else_block) = &while_stmt_node.else_block {
+                                code.push_str("        } else {\n");
+                                let else_code = self.process_statements(&else_block.statements);
+                                code.push_str(&else_code);
+                            }
+                            
+                            code.push_str("        }\n");
+                        }
+                        StatementType::LoopStmt { loop_stmt_node } => {
+                            // Handle different types of loops
+                            match &loop_stmt_node.loop_types {
+                                LoopStmtTypes::LoopInfiniteStmt { loop_infinite_stmt_node } => {
+                                    code.push_str("        loop {\n");
+                                    if !loop_infinite_stmt_node.statements.is_empty() {
+                                        let loop_code = self.process_statements(&loop_infinite_stmt_node.statements);
+                                        code.push_str(&loop_code);
+                                    }
+                                    code.push_str("        }\n");
+                                }
+                                LoopStmtTypes::LoopForStmt { loop_for_stmt_node } => {
+                                    // C-style for loop: for (init; test; post)
+                                    code.push_str("        // C-style for loop converted to while loop\n");
+                                    
+                                    // Initialize variables if present
+                                    if let Some(init_expr) = &loop_for_stmt_node.loop_init_expr_rcref_opt {
+                                        // TODO: Process initialization expression
+                                        code.push_str("        // TODO: Process init expression\n");
+                                    }
+                                    
+                                    // Create while loop with test condition
+                                    if let Some(test_expr) = &loop_for_stmt_node.test_expr_rcref_opt {
+                                        let condition = self.process_expression(&*test_expr.borrow());
+                                        code.push_str(&format!("        while {} {{\n", condition));
+                                    } else {
+                                        code.push_str("        loop {\n");
+                                    }
+                                    
+                                    // Process loop body
+                                    let loop_code = self.process_statements(&loop_for_stmt_node.statements);
+                                    code.push_str(&loop_code);
+                                    
+                                    // Add post expression if present
+                                    if let Some(post_expr) = &loop_for_stmt_node.post_expr_rcref_opt {
+                                        let post_code = self.process_expression(&*post_expr.borrow());
+                                        code.push_str(&format!("            {};\n", post_code));
+                                    }
+                                    
+                                    code.push_str("        }\n");
+                                }
+                                _ => {
+                                    code.push_str("        // TODO: Implement other loop types\n");
+                                }
+                            }
+                        }
+                        StatementType::ContinueStmt { .. } => {
+                            code.push_str("        continue;\n");
+                        }
+                        StatementType::BreakStmt { .. } => {
+                            code.push_str("        break;\n");
                         }
                         _ => {
                             code.push_str("        // TODO: Implement statement type\n");
                         }
                     }
                 }
-                DeclOrStmtType::VarDeclT { .. } => {
-                    code.push_str("        // TODO: Implement variable declaration\n");
+                DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                    // Handle variable declarations
+                    let var_decl = var_decl_t_rcref.borrow();
+                    // For now, treat all variable declarations as local variables
+                    {
+                        let var_name = &var_decl.name;
+                        // Use the initializer_value_rc for the variable initialization
+                        let init_value = self.process_expression(&var_decl.initializer_value_rc);
+                        
+                        if let Some(type_node) = &var_decl.type_opt {
+                            let var_type = self.frame_type_to_rust(&type_node.get_type_str());
+                            code.push_str(&format!("        let mut {}: {} = {};\n", var_name, var_type, init_value));
+                        } else {
+                            // No type specified - infer from the initializer
+                            code.push_str(&format!("        let mut {} = {};\n", var_name, init_value));
+                        }
+                    }
                 }
             }
         }
@@ -768,15 +1061,264 @@ impl RustVisitor {
     
     // Process a call statement (function call, operation call, etc.)
     fn process_call_statement(&self, call_stmt: &CallStmtNode) -> String {
-        // For now, simplified handling - just look at the function name
         let func_name = &call_stmt.call_expr_node.identifier.name.lexeme;
         
         if func_name == "print" {
-            // Handle print statements - for now just print a simple message
-            "println!(\"test output\")".to_string()
+            // Process print arguments
+            let args = self.process_call_arguments(&call_stmt.call_expr_node.call_expr_list);
+            if args.is_empty() {
+                "println!()".to_string()
+            } else {
+                format!("println!(\"{{}}\", {})", args)
+            }
         } else {
-            // Assume it's an operation call
-            format!("self.{}()", func_name)
+            // Handle operation calls with arguments
+            let args = self.process_call_arguments(&call_stmt.call_expr_node.call_expr_list);
+            if args.is_empty() {
+                format!("self.{}()", func_name)
+            } else {
+                format!("self.{}({})", func_name, args)
+            }
+        }
+    }
+    
+    // Process a call chain statement (like print calls)
+    fn process_call_chain_statement(&self, call_chain_stmt: &CallChainStmtNode) -> String {
+        // Get the first call in the chain (usually the function name)
+        if let Some(first_call) = call_chain_stmt.call_chain_literal_expr_node.call_chain.front() {
+            match first_call {
+                CallChainNodeType::UndeclaredCallT { call_node } => {
+                    let func_name = &call_node.identifier.name.lexeme;
+                    if func_name == "print" {
+                        // Process print arguments from the call
+                        let args = self.process_call_arguments(&call_node.call_expr_list);
+                        if args.is_empty() {
+                            "println!()".to_string()
+                        } else {
+                            format!("println!(\"{{}}\", {})", args)
+                        }
+                    } else {
+                        format!("self.{}()", func_name)
+                    }
+                }
+                CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => {
+                    let method_name = &interface_method_call_expr_node.identifier.name.lexeme;
+                    let args = self.process_call_arguments(&interface_method_call_expr_node.call_expr_list);
+                    if args.is_empty() {
+                        format!("self.{}()", method_name)
+                    } else {
+                        format!("self.{}({})", method_name, args)
+                    }
+                }
+                CallChainNodeType::OperationCallT { operation_call_expr_node } => {
+                    let operation_name = &operation_call_expr_node.identifier.name.lexeme;
+                    let args = self.process_call_arguments(&operation_call_expr_node.call_expr_list);
+                    if args.is_empty() {
+                        format!("self.{}()", operation_name)
+                    } else {
+                        format!("self.{}({})", operation_name, args)
+                    }
+                }
+                CallChainNodeType::ActionCallT { action_call_expr_node } => {
+                    let action_name = &action_call_expr_node.identifier.name.lexeme;
+                    let args = self.process_call_arguments(&action_call_expr_node.call_expr_list);
+                    if args.is_empty() {
+                        format!("self.{}()", action_name)
+                    } else {
+                        format!("self.{}({})", action_name, args)
+                    }
+                }
+                _ => {
+                    "// TODO: Handle other call chain types".to_string()
+                }
+            }
+        } else {
+            "// Empty call chain".to_string()
+        }
+    }
+    
+    // Process call arguments for function calls
+    fn process_call_arguments(&self, call_expr_list: &CallExprListNode) -> String {
+        if !call_expr_list.exprs_t.is_empty() {
+            let mut args = Vec::new();
+            for expr in &call_expr_list.exprs_t {
+                let arg = self.process_expression(expr);
+                args.push(arg);
+            }
+            args.join(", ")  // Join with commas for function arguments
+        } else {
+            String::new()
+        }
+    }
+    
+    // Process an expression to generate Rust code
+    fn process_expression(&self, expr: &ExprType) -> String {
+        match expr {
+            ExprType::LiteralExprT { literal_expr_node } => {
+                // Handle literal values - use token type to determine formatting
+                let value = &literal_expr_node.value;
+                match literal_expr_node.token_t {
+                    crate::frame_c::scanner::TokenType::String => {
+                        // String literal - add quotes if not present
+                        if value.starts_with('"') && value.ends_with('"') {
+                            value.clone()
+                        } else {
+                            format!("\"{}\"", value)
+                        }
+                    }
+                    _ => {
+                        // Other literals (numbers, booleans, etc.)
+                        value.clone()
+                    }
+                }
+            }
+            ExprType::BinaryExprT { binary_expr_node } => {
+                let left = self.process_expression(&binary_expr_node.left_rcref.borrow());
+                let right = self.process_expression(&binary_expr_node.right_rcref.borrow());
+                let operator = match &binary_expr_node.operator {
+                    OperatorType::Plus => "+",
+                    OperatorType::Minus => "-",
+                    OperatorType::Multiply => "*",
+                    OperatorType::Divide => "/",
+                    OperatorType::EqualEqual => "==",
+                    OperatorType::NotEqual => "!=",
+                    OperatorType::Less => "<",
+                    OperatorType::LessEqual => "<=",
+                    OperatorType::Greater => ">",
+                    OperatorType::GreaterEqual => ">=",
+                    OperatorType::LogicalAnd => "&&",
+                    OperatorType::LogicalOr => "||",
+                    OperatorType::BitwiseAnd => "&",
+                    OperatorType::BitwiseOr => "|",
+                    OperatorType::BitwiseXor => "^",
+                    OperatorType::LeftShift => "<<",
+                    OperatorType::RightShift => ">>",
+                    OperatorType::Percent => "%",
+                    _ => "/* unknown_op */", // Unknown operator
+                };
+                
+                // For simple operations like addition chains, we don't need excessive parentheses
+                // Rust handles operator precedence correctly
+                match &binary_expr_node.operator {
+                    OperatorType::Plus | OperatorType::Minus => {
+                        // For addition/subtraction chains, only add parentheses if needed for precedence
+                        format!("{} {} {}", left, operator, right)
+                    }
+                    OperatorType::Multiply | OperatorType::Divide | OperatorType::Percent => {
+                        // For multiplication/division, only add parentheses if needed
+                        format!("{} {} {}", left, operator, right)
+                    }
+                    _ => {
+                        // For comparison and logical operators, use parentheses for clarity
+                        format!("({} {} {})", left, operator, right)
+                    }
+                }
+            }
+            ExprType::VariableExprT { var_node } => {
+                // Variable reference - access through context if it's a domain variable
+                let var_name = &var_node.id_node.name.lexeme;
+                if self.domain_variables.contains_key(var_name) {
+                    // Domain variable - access through context
+                    if self.rust_config.features.thread_safe {
+                        format!("self.context.lock().unwrap().{}", var_name)
+                    } else {
+                        format!("self.context.borrow().{}", var_name)
+                    }
+                } else {
+                    // Local variable or parameter - use directly
+                    var_name.clone()
+                }
+            }
+            ExprType::CallExprT { call_expr_node } => {
+                // Function call expression
+                let func_name = &call_expr_node.identifier.name.lexeme;
+                let args = self.process_call_arguments(&call_expr_node.call_expr_list);
+                
+                // Check if this is a call to an operation or action within the same system
+                let is_operation = self.operation_signatures.contains_key(func_name);
+                let is_action = self.action_signatures.contains_key(func_name);
+                
+                let call_target = if is_operation || is_action {
+                    format!("self.{}", func_name)
+                } else {
+                    func_name.to_string()
+                };
+                
+                if args.is_empty() {
+                    format!("{}()", call_target)
+                } else {
+                    format!("{}({})", call_target, args)
+                }
+            }
+            ExprType::UnaryExprT { unary_expr_node } => {
+                let operand = self.process_expression(&unary_expr_node.right_rcref.borrow());
+                match &unary_expr_node.operator {
+                    OperatorType::Not => format!("!({})", operand),
+                    OperatorType::Minus => format!("-({})", operand),
+                    OperatorType::Plus => format!("+({})", operand),
+                    OperatorType::Negated => format!("!({})", operand),
+                    _ => format!("/* unary_unknown */ {}", operand),
+                }
+            }
+            ExprType::CallChainExprT { call_chain_expr_node } => {
+                // Handle call chain expressions - often variable references
+                if let Some(first_node) = call_chain_expr_node.call_chain.front() {
+                    match first_node {
+                        CallChainNodeType::VariableNodeT { var_node } => {
+                            // Variable node reference - access through context
+                            let var_name = &var_node.id_node.name.lexeme;
+                            if self.domain_variables.contains_key(var_name) {
+                                // Domain variable - access through context
+                                if self.rust_config.features.thread_safe {
+                                    format!("self.context.lock().unwrap().{}", var_name)
+                                } else {
+                                    format!("self.context.borrow().{}", var_name)
+                                }
+                            } else {
+                                // Local variable or parameter - use directly
+                                var_name.clone()
+                            }
+                        }
+                        CallChainNodeType::UndeclaredCallT { call_node } => {
+                            // Function call within expression
+                            let func_name = &call_node.identifier.name.lexeme;
+                            let args = self.process_call_arguments(&call_node.call_expr_list);
+                            if args.is_empty() {
+                                format!("{}()", func_name)
+                            } else {
+                                format!("{}({})", func_name, args)
+                            }
+                        }
+                        CallChainNodeType::SelfT { self_expr_node: _ } => {
+                            // Self reference
+                            "self".to_string()
+                        }
+                        CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                            // Simple identifier (variable, parameter, etc.)
+                            let var_name = &id_node.name.lexeme;
+                            if self.domain_variables.contains_key(var_name) {
+                                // Domain variable - access through context
+                                if self.rust_config.features.thread_safe {
+                                    format!("self.context.lock().unwrap().{}", var_name)
+                                } else {
+                                    format!("self.context.borrow().{}", var_name)
+                                }
+                            } else {
+                                // Local variable or parameter - use directly
+                                var_name.clone()
+                            }
+                        }
+                        _ => {
+                            "/* TODO: other call chain node type */".to_string()
+                        }
+                    }
+                } else {
+                    "/* empty call chain */".to_string()
+                }
+            }
+            _ => {
+                "/* TODO: unhandled expression type */".to_string()
+            }
         }
     }
     
@@ -817,5 +1359,54 @@ impl RustVisitor {
         self.builder.dedent();
         self.builder.writeln("}");
         self.builder.writeln("");
+    }
+    
+    fn collect_operation_signatures(&mut self, operations_block: &OperationsBlockNode) {
+        for operation_rcref in &operations_block.operations {
+            let operation = operation_rcref.borrow();
+            let operation_sig = OperationSignature {
+                name: operation.name.clone(),
+                parameters: if let Some(param_nodes) = &operation.params {
+                    param_nodes.iter().map(|p| {
+                        let param_type = if let Some(type_node) = &p.param_type_opt {
+                            type_node.get_type_str()
+                        } else {
+                            "()".to_string()
+                        };
+                        (p.param_name.clone(), param_type)
+                    }).collect()
+                } else {
+                    Vec::new()
+                },
+                return_type: if let Some(return_type_node) = &operation.type_opt {
+                    Some(return_type_node.get_type_str())
+                } else {
+                    Some("()".to_string())
+                },
+            };
+            self.operation_signatures.insert(operation.name.clone(), operation_sig);
+        }
+    }
+    
+    fn collect_action_signatures(&mut self, actions_block: &ActionsBlockNode) {
+        for action_rcref in &actions_block.actions {
+            let action = action_rcref.borrow();
+            let action_sig = ActionSignature {
+                name: action.name.clone(),
+                parameters: if let Some(param_nodes) = &action.params {
+                    param_nodes.iter().map(|p| {
+                        let param_type = if let Some(type_node) = &p.param_type_opt {
+                            type_node.get_type_str()
+                        } else {
+                            "()".to_string()
+                        };
+                        (p.param_name.clone(), param_type)
+                    }).collect()
+                } else {
+                    Vec::new()
+                },
+            };
+            self.action_signatures.insert(action.name.clone(), action_sig);
+        }
     }
 }
