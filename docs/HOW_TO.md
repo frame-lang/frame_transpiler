@@ -24,8 +24,9 @@ Frame is a state machine language that transpiles to multiple target languages (
 ### Current Status
 - **Version**: v0.86.1
 - **Branch**: `dev`
-- **Test Success Rate**: 86.9% (887 total tests: 458 Python 100% + 429 TypeScript 70.4%)
+- **Test Success Rate**: 89.5% (887 total tests: 458 Python 100% + 429 TypeScript 78.1%)
 - **Supported Targets**: Python 3, TypeScript, GraphViz
+- **Recent Achievement**: Operators category reached 87.5% success rate (+31.3% improvement)
 
 ## Architecture
 
@@ -486,10 +487,16 @@ system FileIOTest {
   - Local vs global TypeScript compiler detection
   - Intelligent compilation caching and error recovery
 - **Dependencies**: Requires Node.js and TypeScript (`npm install typescript @types/node`)
-- **Recent Improvements (v0.86.1-v0.86.2)**:
+- **Recent Improvements (v0.86.1-v0.86.3)**:
   - **FIXED**: Interface method default return values (e.g., `getDefault() : int = 42`)
   - **FIXED**: Event handler return value overrides (e.g., `getOverride() : int = 99`)
   - **FIXED**: Call chain handling for nested dictionary access
+  - **BREAKTHROUGH v0.86.3**: Operators category 87.5% success (+31.3% improvement)
+  - **FIXED**: Unary minus operator (`-`) now generates `-` instead of `!`
+  - **FIXED**: Matrix multiplication (@) operator now generates `.matmul()` calls
+  - **FIXED**: `len()` function now properly generates `x.length` instead of `(x)`
+  - **FIXED**: Property access bug - no more `.length` added to numeric literals
+  - **ENHANCED**: 'in'/'not in' operators with comprehensive type checking
   - **FIXED**: Array length comparisons with comprehensive parentheses support
   - **FIXED**: String slicing operations (e.g., `text[0:3]` → `text.slice(0, 3)`)
   - **FIXED**: Set literals (e.g., `{1, 2, 3}` → `new Set([1, 2, 3])`)
@@ -538,6 +545,6 @@ system FileIOTest {
 
 **Last Updated**: 2025-10-21  
 **Version**: v0.86.1  
-**Status**: Production Ready - 86.9% Test Success Rate (887 tests: Python 100%, TypeScript 70.4%) + Critical Data Type Fixes
+**Status**: Production Ready - 89.5% Test Success Rate (887 tests: Python 100%, TypeScript 78.1%) + Critical Operator Fixes
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.

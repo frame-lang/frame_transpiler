@@ -1377,7 +1377,7 @@ impl TypeScriptVisitor {
             if is_builtin {
                 // Built-in functions - use appropriate TypeScript equivalent
                 match func_name.as_str() {
-                    "len" => output.push_str("("),  // Will need .length after
+                    "len" => output.push_str("("),  // Will be converted to x.length at the end
                     "int" => output.push_str("parseInt("),
                     "float" => output.push_str("parseFloat("),
                     "bool" => output.push_str("Boolean("),
@@ -1504,6 +1504,20 @@ impl TypeScriptVisitor {
         // Special handling for range() to add index generator
         if func_name == "range" {
             output.push_str("}, (_, idx) => idx)");
+        } else if func_name == "len" {
+            // Convert len(x) to x.length by rewriting the entire output
+            // Find the position where "(" was added for len
+            let start_pos = output.rfind('(').unwrap_or(output.len());
+            
+            // Extract the arguments (everything after the opening parenthesis)
+            let args_part = output[start_pos + 1..].to_string();
+            
+            // Remove everything from the opening parenthesis onwards
+            output.truncate(start_pos);
+            
+            // Add argument + .length
+            output.push_str(&args_part);
+            output.push_str(".length");
         } else {
             output.push(')');
         }
@@ -1768,7 +1782,18 @@ impl TypeScriptVisitor {
     
     fn visit_binary_expr_node_to_string(&mut self, node: &BinaryExprNode, output: &mut String) {
         output.push('(');
-        self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+        
+        // Special handling for unary expressions as left operand of exponentiation
+        let is_power_op = matches!(&node.operator, OperatorType::Power);
+        let left_is_unary = matches!(&*node.left_rcref.borrow(), ExprType::UnaryExprT { .. });
+        
+        if is_power_op && left_is_unary {
+            output.push('(');
+            self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+            output.push(')');
+        } else {
+            self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+        }
         
         let op_str = match &node.operator {
             OperatorType::Plus => " + ",
@@ -1782,10 +1807,14 @@ impl TypeScriptVisitor {
                 let mut right_str = String::new();
                 self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
                 
-                // If right side looks like an array variable, add .length
+                // If right side looks like an array variable (not a number), add .length
                 let clean_str = right_str.trim().trim_start_matches('(').trim_end_matches(')');
-                if right_str.starts_with('[') || clean_str.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                    // For array literals or simple variables that might be arrays, add .length check
+                let is_variable_name = clean_str.chars().all(|c| c.is_alphanumeric() || c == '_') && 
+                                      !clean_str.chars().all(|c| c.is_ascii_digit()) && // Not a pure number
+                                      !clean_str.chars().all(|c| c.is_ascii_digit() || c == '.'); // Not a decimal number
+                                      
+                if right_str.starts_with('[') || is_variable_name {
+                    // For array literals or variable names that might be arrays, add .length check
                     output.push_str(" < ");
                     if right_str.starts_with('[') {
                         // Array literal - use .length
@@ -1825,21 +1854,64 @@ impl TypeScriptVisitor {
             OperatorType::LeftShift => " << ",
             OperatorType::RightShift => " >> ",
             OperatorType::In => {
-                // Handle 'in' operator: transform 'x in array' to 'array.includes(x)'
+                // Handle 'in' operator with context-aware method selection
+                // For objects/dicts: x in obj -> obj.hasOwnProperty(x) or (x in obj)
+                // For arrays/strings: x in arr -> arr.includes(x)  
+                // For sets: x in set -> set.has(x)
+                // General fallback: use 'in' operator or includes method
                 output.clear(); // Clear the opening parenthesis and left operand
+                
+                // For now, use a generic approach that works for most cases
+                // TODO: Could be enhanced with type analysis for better method selection
+                output.push('(');
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(" in ");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(" || (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(".includes && ");
                 self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
                 output.push_str(".includes(");
                 self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
-                output.push(')');
+                output.push_str(")) || (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(".has && ");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(".has(");
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(")))");
                 return; // Early return to avoid the normal binary expression handling
             },
             OperatorType::NotIn => {
-                // Handle 'not in' operator: transform 'x not in array' to '!array.includes(x)'
+                // Handle 'not in' operator: negate the comprehensive 'in' check
                 output.clear(); // Clear the opening parenthesis and left operand
-                output.push('!');
+                output.push_str("!((");
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(" in ");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(") || (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(".includes && ");
                 self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
                 output.push_str(".includes(");
                 self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(")) || (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(".has && ");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(".has(");
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(")))");
+                return; // Early return to avoid the normal binary expression handling
+            },
+            OperatorType::MatMul => {
+                // Handle matrix multiplication: a @ b -> a.matmul(b) 
+                // Note: TypeScript/JavaScript doesn't have built-in matrix multiplication
+                // This generates a method call that would need to be provided by a math library
+                output.clear(); // Clear the opening parenthesis and left operand
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(".matmul(");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
                 output.push(')');
                 return; // Early return to avoid the normal binary expression handling
             },
@@ -1853,18 +1925,30 @@ impl TypeScriptVisitor {
     
     fn visit_unary_expr_node_to_string(&mut self, node: &UnaryExprNode, output: &mut String) {
         let op_str = match &node.operator {
-            OperatorType::Not => "!",
-            OperatorType::Minus => "-",
-            OperatorType::Plus => "+",  // Unary plus
-            OperatorType::BitwiseNot => "~",  // Bitwise NOT ~
-            OperatorType::Negated => "!",  // Logical negation
+            OperatorType::Not => "!",                          // Logical NOT: !true
+            OperatorType::Minus | OperatorType::Negated => "-", // Arithmetic negation: -2, (-2)
+            OperatorType::Plus => "+",                          // Unary plus: +2
+            OperatorType::BitwiseNot => "~",                    // Bitwise NOT: ~5
             _ => "/* TODO: unary op */",
         };
         
+        
         output.push_str(op_str);
-        output.push('(');
-        self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-        output.push(')');
+        
+        // Add parentheses around operand only when needed (like Python visitor)
+        let right_expr = node.right_rcref.borrow();
+        let needs_parens = matches!(&*right_expr, 
+            ExprType::BinaryExprT { .. } | 
+            ExprType::UnaryExprT { .. }
+        );
+        
+        if needs_parens {
+            output.push('(');
+        }
+        self.visit_expr_node_to_string(&*right_expr, output);
+        if needs_parens {
+            output.push(')');
+        }
     }
     
     fn visit_assignment_stmt_node(&mut self, node: &AssignmentStmtNode) {
