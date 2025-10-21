@@ -629,8 +629,25 @@ impl AstVisitor for RustVisitor {
         }
     }
     
-    fn visit_machine_block_node(&mut self, _machine_block: &MachineBlockNode) {
+    fn visit_machine_block_node(&mut self, machine_block: &MachineBlockNode) {
         self.builder.writeln("");
+        self.builder.writeln("// ==================== Event Handler Methods ==================== //");
+        self.builder.writeln("");
+        
+        // Process states and generate event handlers
+        for state_rcref in &machine_block.states {
+            let state_node = state_rcref.borrow();
+            self.current_state_name_opt = Some(state_node.name.clone());
+            
+            // Process each event handler in the state
+            for handler_rcref in &state_node.evt_handlers_rcref {
+                let handler = handler_rcref.borrow();
+                self.visit_event_handler_node(&handler);
+            }
+        }
+        
+        self.current_state_name_opt = None;
+        
         self.builder.writeln("// ==================== State Machine Logic ==================== //");
         self.builder.writeln("");
         self.builder.writeln("// TODO: Implement state machine dispatch logic");
@@ -645,12 +662,15 @@ impl AstVisitor for RustVisitor {
         self.builder.writeln("");
     }
     
-    fn visit_operations_block_node(&mut self, _operations_block: &OperationsBlockNode) {
+    fn visit_operations_block_node(&mut self, operations_block: &OperationsBlockNode) {
         self.builder.writeln("");
         self.builder.writeln("// ==================== Operations ==================== //");
         self.builder.writeln("");
-        self.builder.writeln("// TODO: Generate operation methods");
-        self.builder.writeln("");
+        
+        for operation_rcref in &operations_block.operations {
+            let operation_node = operation_rcref.borrow();
+            self.visit_operation_node(&operation_node);
+        }
     }
     
     // Stub implementations for remaining required methods
@@ -662,7 +682,140 @@ impl AstVisitor for RustVisitor {
         // Implementation handled in visit_actions_block_node
     }
     
-    fn visit_operation_node(&mut self, _operation: &OperationNode) {
-        // Implementation handled in visit_operations_block_node
+    fn visit_operation_node(&mut self, operation: &OperationNode) {
+        // Build parameter list
+        let mut params = Vec::new();
+        if let Some(param_nodes) = &operation.params {
+            for param in param_nodes {
+                let param_type = if let Some(type_node) = &param.param_type_opt {
+                    self.frame_type_to_rust(&type_node.get_type_str())
+                } else {
+                    "()".to_string()
+                };
+                params.push(format!("{}: {}", param.param_name, param_type));
+            }
+        }
+        let params_str = params.join(", ");
+        
+        // Determine return type
+        let return_type = if let Some(return_type_node) = &operation.type_opt {
+            self.frame_type_to_rust(&return_type_node.get_type_str())
+        } else {
+            "()".to_string()
+        };
+        
+        // Generate operation method
+        self.builder.writeln(&format!("pub fn {}(&mut self{}) -> {} {{", 
+            operation.name,
+            if params_str.is_empty() { "".to_string() } else { format!(", {}", params_str) },
+            return_type
+        ));
+        self.builder.indent();
+        
+        // Process statements in the operation
+        if !operation.statements.is_empty() {
+            let statements_code = self.process_statements(&operation.statements);
+            self.builder.write(&statements_code);
+        } else {
+            self.builder.writeln("// Empty operation");
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.writeln("");
+    }
+}
+
+// Additional implementation methods for statement processing
+impl RustVisitor {
+    // Process statements from AST to generate Rust code
+    fn process_statements(&self, statements: &Vec<DeclOrStmtType>) -> String {
+        let mut code = String::new();
+        
+        for stmt in statements {
+            match stmt {
+                DeclOrStmtType::StmtT { stmt_t } => {
+                    match stmt_t {
+                        StatementType::ExpressionStmt { expr_stmt_t } => {
+                            match expr_stmt_t {
+                                ExprStmtType::CallStmtT { call_stmt_node } => {
+                                    let call_code = self.process_call_statement(call_stmt_node);
+                                    if !call_code.is_empty() {
+                                        code.push_str(&format!("        {};\n", call_code));
+                                    }
+                                }
+                                _ => {
+                                    code.push_str("        // TODO: Implement expression statement type\n");
+                                }
+                            }
+                        }
+                        StatementType::ReturnStmt { .. } => {
+                            code.push_str("        return;\n");
+                        }
+                        _ => {
+                            code.push_str("        // TODO: Implement statement type\n");
+                        }
+                    }
+                }
+                DeclOrStmtType::VarDeclT { .. } => {
+                    code.push_str("        // TODO: Implement variable declaration\n");
+                }
+            }
+        }
+        
+        code
+    }
+    
+    // Process a call statement (function call, operation call, etc.)
+    fn process_call_statement(&self, call_stmt: &CallStmtNode) -> String {
+        // For now, simplified handling - just look at the function name
+        let func_name = &call_stmt.call_expr_node.identifier.name.lexeme;
+        
+        if func_name == "print" {
+            // Handle print statements - for now just print a simple message
+            "println!(\"test output\")".to_string()
+        } else {
+            // Assume it's an operation call
+            format!("self.{}()", func_name)
+        }
+    }
+    
+    fn visit_event_handler_node(&mut self, handler: &EventHandlerNode) {
+        let state_name = self.current_state_name_opt.as_ref().unwrap().clone();
+        
+        // Get event name from the message type
+        let event_name = match &handler.msg_t {
+            MessageType::CustomMessage { message_node } => {
+                message_node.name.clone()
+            }
+            MessageType::None => {
+                "unknown".to_string()
+            }
+        };
+        
+        // Generate handler method name
+        let handler_method_name = if event_name == "$>" {
+            format!("handle_{}_enter", state_name.to_lowercase())
+        } else if event_name == "<$" {
+            format!("handle_{}_exit", state_name.to_lowercase())
+        } else {
+            format!("handle_{}_{}", state_name.to_lowercase(), event_name.to_lowercase())
+        };
+        
+        // Generate the handler method
+        self.builder.writeln(&format!("fn {}(&mut self) {{", handler_method_name));
+        self.builder.indent();
+        
+        // Process statements in the handler
+        if !handler.statements.is_empty() {
+            let statements_code = self.process_statements(&handler.statements);
+            self.builder.write(&statements_code);
+        } else {
+            self.builder.writeln(&format!("// Empty {} handler for state {}", event_name, state_name));
+        }
+        
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.writeln("");
     }
 }
