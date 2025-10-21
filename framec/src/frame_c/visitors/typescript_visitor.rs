@@ -1343,7 +1343,13 @@ impl TypeScriptVisitor {
                     }
                     ExprStmtType::VariableStmtT { variable_stmt_node } => {
                         let var_name = &variable_stmt_node.var_node.id_node.name.lexeme;
-                        self.builder.writeln(&format!("this.{};", var_name));
+                        // Handle special case of Python's pass statement
+                        if var_name == "pass" {
+                            // In TypeScript, we can use an empty statement or comment
+                            self.builder.writeln("// pass");
+                        } else {
+                            self.builder.writeln(&format!("this.{};", var_name));
+                        }
                     }
                     _ => {
                         self.builder.writeln("// TODO: Handle expression statement");
@@ -1412,8 +1418,40 @@ impl TypeScriptVisitor {
             StatementType::TryStmt { try_stmt_node } => {
                 self.visit_try_stmt_node(try_stmt_node);
             }
+            StatementType::RaiseStmt { raise_stmt_node } => {
+                // Handle throw/raise statements
+                if let Some(ref expr) = &raise_stmt_node.exception_expr {
+                    let mut expr_str = String::new();
+                    self.visit_expr_node_to_string(expr, &mut expr_str);
+                    // If the expression is already an Error object or string literal, use it directly
+                    // Otherwise wrap it in new Error()
+                    if expr_str.starts_with("new Error") || expr_str.starts_with("Error") {
+                        self.builder.writeln(&format!("throw {};", expr_str));
+                    } else {
+                        self.builder.writeln(&format!("throw new Error({});", expr_str));
+                    }
+                } else {
+                    // Re-throw current exception
+                    self.builder.writeln("throw;");
+                }
+            }
+            StatementType::DelStmt { .. } => {
+                // JavaScript doesn't have a direct equivalent to Python's del
+                // Could use delete for object properties, but for now just comment
+                self.builder.writeln("// TODO: del statement not directly supported in JavaScript");
+            }
+            StatementType::AssertStmt { assert_stmt_node } => {
+                // Convert assert to a runtime check
+                let mut condition = String::new();
+                self.visit_expr_node_to_string(&assert_stmt_node.expr, &mut condition);
+                
+                // Assert statements in Frame don't have a message field, just an expression
+                self.builder.writeln(&format!(
+                    "if (!({condition})) {{ throw new Error('Assertion failed') }}"
+                ));
+            }
             _ => {
-                // TODO: Handle other statement types
+                // TODO: Handle other statement types (ParentDispatchStmt, StateStackStmt, etc.)
                 if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
                     eprintln!("DEBUG: Unhandled statement type in TypeScript visitor");
                 }
@@ -1835,12 +1873,16 @@ impl TypeScriptVisitor {
                         var_name, self.current_state_params, self.current_state_vars, self.domain_variables, self.current_handler_params);
                 }
                 
-                // Handle Python-style boolean literals as variables
+                // Handle Python-style keywords as variables
                 if var_name == "True" {
                     output.push_str("true");
                     return;
                 } else if var_name == "False" {
                     output.push_str("false");
+                    return;
+                } else if var_name == "pass" {
+                    // Python pass statement - in TypeScript we use an empty comment
+                    output.push_str("// pass");
                     return;
                 }
                 
@@ -2042,37 +2084,39 @@ impl TypeScriptVisitor {
             OperatorType::Minus => " - ",
             OperatorType::Multiply => {
                 // Special handling for string multiplication: "text" * n -> "text".repeat(n)
+                // Also handle variables that might be strings: str_var * n -> str_var.repeat(n)
                 let mut left_str = String::new();
                 let mut right_str = String::new();
                 self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
                 self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
                 
-                // Check if left is a string literal and right is a number
-                let left_is_string = left_str.starts_with('"') && left_str.ends_with('"');
-                let right_is_number = right_str.chars().all(|c| c.is_ascii_digit());
+                // Check if left is a string literal 
+                let left_is_string_literal = left_str.starts_with('"') && left_str.ends_with('"');
+                // Check if right is a string literal
+                let right_is_string_literal = right_str.starts_with('"') && right_str.ends_with('"');
                 
-                // Check if right is a string literal and left is a number (reverse order)
-                let right_is_string = right_str.starts_with('"') && right_str.ends_with('"');
+                // Check if operands are numeric literals
+                let right_is_number = right_str.chars().all(|c| c.is_ascii_digit());
                 let left_is_number = left_str.chars().all(|c| c.is_ascii_digit());
                 
-                if left_is_string && right_is_number {
-                    // String * Number -> String.repeat(Number)
+                // Check if operands could be string variables (identifiers that aren't pure numbers)
+                let left_could_be_string = !left_is_number && !left_is_string_literal && 
+                    left_str.chars().any(|c| c.is_alphabetic() || c == '_');
+                let right_could_be_string = !right_is_number && !right_is_string_literal &&
+                    right_str.chars().any(|c| c.is_alphabetic() || c == '_');
+                
+                if (left_is_string_literal || left_could_be_string) && !right_could_be_string {
+                    // String/StringVar * Number/NumVar -> String.repeat(Number)
                     output.clear(); // Clear the opening parenthesis
-                    output.push_str(&left_str);
-                    output.push_str(".repeat(");
-                    output.push_str(&right_str);
-                    output.push(')');
+                    output.push_str(&format!("({}).repeat({})", left_str, right_str));
                     return; // Early return to avoid normal binary expression handling
-                } else if right_is_string && left_is_number {
-                    // Number * String -> String.repeat(Number)
+                } else if (right_is_string_literal || right_could_be_string) && !left_could_be_string {
+                    // Number/NumVar * String/StringVar -> String.repeat(Number)
                     output.clear(); // Clear the opening parenthesis
-                    output.push_str(&right_str);
-                    output.push_str(".repeat(");
-                    output.push_str(&left_str);
-                    output.push(')');
+                    output.push_str(&format!("({}).repeat({})", right_str, left_str));
                     return; // Early return to avoid normal binary expression handling
                 } else {
-                    " * " // Default multiplication
+                    " * " // Default multiplication for numeric operations
                 }
             },
             OperatorType::Divide => " / ",
@@ -3958,10 +4002,26 @@ impl TypeScriptVisitor {
             eprintln!("DEBUG: Variable {} has expression: '{}'", var_decl.name, init_str);
         }
         
-        // Track this as a local variable for proper scope resolution
-        self.current_local_vars.insert(var_decl.name.clone());
-        
-        self.builder.writeln(&format!("let {}: any = {};", var_decl.name, init_str));
+        // Handle multiple variable declarations (tuple unpacking)
+        if var_decl.name.starts_with("__multi_var__:") {
+            // Extract variable names from the __multi_var__:a,b,c format
+            let names = var_decl.name.strip_prefix("__multi_var__:").unwrap_or(&var_decl.name);
+            let var_names: Vec<&str> = names.split(',').collect();
+            
+            // Track all variables as local
+            for name in &var_names {
+                self.current_local_vars.insert(name.to_string());
+            }
+            
+            // Generate destructuring assignment for TypeScript
+            // [a, b, c] = function_that_returns_array()
+            self.builder.writeln(&format!("let [{}: any]: any[] = {};", 
+                var_names.join(", "), init_str));
+        } else {
+            // Single variable declaration
+            self.current_local_vars.insert(var_decl.name.clone());
+            self.builder.writeln(&format!("let {}: any = {};", var_decl.name, init_str));
+        }
     }
     
     fn visit_class_node(&mut self, class_node: &ClassNode) {
