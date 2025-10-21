@@ -2112,6 +2112,59 @@ impl TypeScriptVisitor {
                 // Remove the loop variable from current_local_vars
                 self.current_local_vars.remove(var_name);
             }
+            ExprType::DictUnpackExprT { dict_unpack_expr_node } => {
+                // Convert Frame dict unpacking (**dict) to TypeScript spread operator (...dict)
+                output.push_str("...");
+                self.visit_expr_node_to_string(&dict_unpack_expr_node.expr, output);
+            }
+            ExprType::LambdaExprT { lambda_expr_node } => {
+                // Convert Frame lambda expressions to TypeScript arrow functions
+                // lambda x, y: x + y -> (x, y) => x + y
+                if lambda_expr_node.params.len() == 1 {
+                    // Single parameter doesn't need parentheses
+                    output.push_str(&lambda_expr_node.params[0]);
+                } else {
+                    // Multiple parameters need parentheses
+                    output.push('(');
+                    for (i, param) in lambda_expr_node.params.iter().enumerate() {
+                        if i > 0 {
+                            output.push_str(", ");
+                        }
+                        output.push_str(param);
+                    }
+                    output.push(')');
+                }
+                output.push_str(" => ");
+                self.visit_expr_node_to_string(&lambda_expr_node.body, output);
+            }
+            ExprType::SetComprehensionExprT { set_comprehension_node } => {
+                // Convert Frame set comprehensions to TypeScript
+                // {expr for var in iterable if condition} -> new Set(iterable.filter(var => condition).map(var => expr))
+                let var_name = &set_comprehension_node.target;
+                
+                // Add the loop variable to current_local_vars temporarily
+                self.current_local_vars.insert(var_name.to_string());
+                
+                output.push_str("new Set(");
+                
+                // Generate the iterable expression
+                self.visit_expr_node_to_string(&set_comprehension_node.iter, output);
+                
+                // Add filter if condition exists
+                if let Some(ref condition) = set_comprehension_node.condition {
+                    output.push_str(&format!(".filter({} => ", var_name));
+                    self.visit_expr_node_to_string(condition, output);
+                    output.push(')');
+                }
+                
+                // Add map to transform elements
+                output.push_str(&format!(".map({} => ", var_name));
+                self.visit_expr_node_to_string(&set_comprehension_node.expr, output);
+                output.push_str("))");
+                
+                // Remove the loop variable from current_local_vars
+                self.current_local_vars.remove(var_name);
+            }
             _ => {
                 // Debug output to see what expression types are missing
                 let expr_type_name = expr.expr_type_name();
@@ -2141,21 +2194,20 @@ impl TypeScriptVisitor {
             let right_is_number = right_str.chars().all(|c| c.is_ascii_digit());
             let left_is_number = left_str.chars().all(|c| c.is_ascii_digit());
             
-            // Check if operands could be string variables (identifiers that aren't pure numbers)
-            let left_could_be_string = !left_is_number && !left_is_string_literal && 
-                left_str.chars().any(|c| c.is_alphabetic() || c == '_');
-            let right_could_be_string = !right_is_number && !right_is_string_literal &&
-                right_str.chars().any(|c| c.is_alphabetic() || c == '_');
-            
-            if (left_is_string_literal || left_could_be_string) && !right_could_be_string {
-                // String/StringVar * Number/NumVar -> String.repeat(Number)
+            // Only apply string repeat when we're CERTAIN it's a string (literal or known string var)
+            // Be conservative - only when one operand is definitely a string literal
+            if left_is_string_literal && right_is_number {
+                // "string" * number -> "string".repeat(number)
                 output.push_str(&format!("({}).repeat({})", left_str, right_str));
                 return; // Early return - don't add parentheses or closing
-            } else if (right_is_string_literal || right_could_be_string) && !left_could_be_string {
-                // Number/NumVar * String/StringVar -> String.repeat(Number)
+            } else if right_is_string_literal && left_is_number {
+                // number * "string" -> "string".repeat(number)
                 output.push_str(&format!("({}).repeat({})", right_str, left_str));
                 return; // Early return - don't add parentheses or closing
             }
+            
+            // Check for known string variables (like from string operations)
+            // For now, we'll be conservative and not guess variable types
             // If not string multiplication, fall through to normal handling
         }
         
@@ -3521,10 +3573,16 @@ impl TypeScriptVisitor {
             }
             first = false;
             
-            // Regular key-value pair
-            self.visit_expr_node_to_string(key, output);
-            output.push_str(": ");
-            self.visit_expr_node_to_string(value, output);
+            // Check if this is a dict unpacking (key is DictUnpackExprT, value is NilExprT)
+            if matches!(*key, ExprType::DictUnpackExprT { .. }) {
+                // This is a dict unpacking, just output the spread key (not value)
+                self.visit_expr_node_to_string(key, output);
+            } else {
+                // Regular key-value pair
+                self.visit_expr_node_to_string(key, output);
+                output.push_str(": ");
+                self.visit_expr_node_to_string(value, output);
+            }
         }
         output.push('}');
     }
