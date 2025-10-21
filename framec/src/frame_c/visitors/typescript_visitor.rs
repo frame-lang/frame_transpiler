@@ -2137,6 +2137,32 @@ impl TypeScriptVisitor {
                 output.push_str(" => ");
                 self.visit_expr_node_to_string(&lambda_expr_node.body, output);
             }
+            ExprType::ListComprehensionExprT { list_comprehension_node } => {
+                // Convert Frame list comprehensions to TypeScript
+                // [expr for var in iterable if condition] -> iterable.filter(var => condition).map(var => expr)
+                let var_name = &list_comprehension_node.target;
+                
+                // Add the loop variable to current_local_vars temporarily
+                self.current_local_vars.insert(var_name.to_string());
+                
+                // Generate the iterable expression
+                self.visit_expr_node_to_string(&list_comprehension_node.iter, output);
+                
+                // Add filter if condition exists
+                if let Some(ref condition) = list_comprehension_node.condition {
+                    output.push_str(&format!(".filter({} => ", var_name));
+                    self.visit_expr_node_to_string(condition, output);
+                    output.push(')');
+                }
+                
+                // Add map to transform elements
+                output.push_str(&format!(".map({} => ", var_name));
+                self.visit_expr_node_to_string(&list_comprehension_node.expr, output);
+                output.push(')');
+                
+                // Remove the loop variable from current_local_vars
+                self.current_local_vars.remove(var_name);
+            }
             ExprType::SetComprehensionExprT { set_comprehension_node } => {
                 // Convert Frame set comprehensions to TypeScript
                 // {expr for var in iterable if condition} -> new Set(iterable.filter(var => condition).map(var => expr))
@@ -2863,8 +2889,10 @@ impl TypeScriptVisitor {
                         eprintln!("DEBUG TS: Processing UndeclaredCallT method: {}, is_first: {}", call_node.identifier.name.lexeme, is_first);
                     }
                     
-                    // Special handling for .get() method - convert to bracket notation
-                    if call_node.identifier.name.lexeme == "get" {
+                    // Special handling for dictionary methods
+                    let method_name = &call_node.identifier.name.lexeme;
+                    
+                    if method_name == "get" {
                         // Convert .get(key, default) to [key] || default
                         if !is_first {
                             // No dot needed for bracket notation
@@ -2888,6 +2916,48 @@ impl TypeScriptVisitor {
                         output.push_str(&key_str);
                         output.push_str("] || ");
                         output.push_str(&default_str);
+                    } else if method_name == "update" && !is_first {
+                        // Convert dict.update(other) to Object.assign(dict, other)
+                        // We need to wrap the entire expression
+                        let dict_str = output.clone();
+                        output.clear();
+                        output.push_str("Object.assign(");
+                        output.push_str(&dict_str);
+                        output.push_str(", ");
+                        
+                        // Add the argument
+                        if call_node.call_expr_list.exprs_t.len() >= 1 {
+                            self.visit_expr_node_to_string(&call_node.call_expr_list.exprs_t[0], output);
+                        }
+                        output.push(')');
+                    } else if method_name == "setdefault" && !is_first {
+                        // Convert dict.setdefault(key, default) to (dict[key] ?? (dict[key] = default))
+                        // This returns existing value or sets and returns the default
+                        let mut key_str = String::new();
+                        let mut default_str = String::new();
+                        
+                        if call_node.call_expr_list.exprs_t.len() >= 1 {
+                            self.visit_expr_node_to_string(&call_node.call_expr_list.exprs_t[0], &mut key_str);
+                        }
+                        if call_node.call_expr_list.exprs_t.len() >= 2 {
+                            self.visit_expr_node_to_string(&call_node.call_expr_list.exprs_t[1], &mut default_str);
+                        } else {
+                            default_str = "undefined".to_string();
+                        }
+                        
+                        // Save the dict part (everything before .setdefault)
+                        let dict_str = output.clone();
+                        
+                        // Add the setdefault logic: dict[key] ?? (dict[key] = default)
+                        output.push('[');
+                        output.push_str(&key_str);
+                        output.push_str("] ?? (");
+                        output.push_str(&dict_str);
+                        output.push('[');
+                        output.push_str(&key_str);
+                        output.push_str("] = ");
+                        output.push_str(&default_str);
+                        output.push(')');
                     } else {
                         // Regular method call handling
                         if !is_first {
@@ -3588,6 +3658,17 @@ impl TypeScriptVisitor {
     }
     
     fn visit_list_node_to_string(&mut self, node: &ListNode, output: &mut String) {
+        // Special case: if the list contains a single list comprehension,
+        // don't wrap it in brackets as the comprehension already produces an array
+        if node.exprs_t.len() == 1 {
+            if let ExprType::ListComprehensionExprT { .. } = &node.exprs_t[0] {
+                // Just output the comprehension without wrapping brackets
+                self.visit_expr_node_to_string(&node.exprs_t[0], output);
+                return;
+            }
+        }
+        
+        // Normal list literal
         output.push('[');
         let mut first = true;
         for expr in &node.exprs_t {
