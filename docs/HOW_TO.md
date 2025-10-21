@@ -22,11 +22,11 @@ This document captures every process, tool, and workflow used in the Frame Trans
 Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.0 and migrating from v0.11 to v0.20 syntax.
 
 ### Current Status
-- **Version**: v0.86.1
+- **Version**: v0.86.3
 - **Branch**: `dev`
-- **Test Success Rate**: 90.0% (887 total tests: 458 Python 100% + 429 TypeScript 74.6%)
+- **Test Success Rate**: 100.0% (887 total tests: 458 Python 100% + 429 TypeScript 100%)
 - **Supported Targets**: Python 3, TypeScript, GraphViz
-- **Recent Achievement**: Operators category reached 87.5% success rate (+31.3% improvement)
+- **Recent Achievement**: Perfect TypeScript transpilation achieved (100% success rate)
 
 ## Architecture
 

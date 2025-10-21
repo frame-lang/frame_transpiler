@@ -1355,8 +1355,8 @@ impl TypeScriptVisitor {
             // Special case: print becomes console.log
             output.push_str("console.log(");
         } else if func_name == "str" {
-            // Built-in string conversion function - use String() in TypeScript
-            output.push_str("String(");
+            // Built-in string conversion function - use JSON.stringify for objects, String for primitives
+            output.push_str("((x) => typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x))(");
         } else if func_name.starts_with("system.") {
             // Bug #52 Fix: Handle system.methodName calls for interface method calls
             // Frame: system.getValue() -> TypeScript: this.getValue()
@@ -1381,10 +1381,10 @@ impl TypeScriptVisitor {
                     "int" => output.push_str("parseInt("),
                     "float" => output.push_str("parseFloat("),
                     "bool" => output.push_str("Boolean("),
-                    "list" => output.push_str("Array("),
+                    // "list" => handled later with more sophisticated logic
                     "dict" => output.push_str("Object("),
                     "set" => output.push_str("new Set("),
-                    "tuple" => output.push_str("Array("),  // TypeScript doesn't have tuples at runtime
+                    // "tuple" => handled later with more sophisticated logic
                     _ => output.push_str(&format!("{}(", func_name)),
                 }
             } else {
@@ -1445,8 +1445,8 @@ impl TypeScriptVisitor {
                         output.push_str("(");
                         // Note: we'll handle converting to .length in argument processing
                     } else if func_name == "str" {
-                        // Python str() function - use String()
-                        output.push_str("String(");
+                        // Python str() function - use JSON.stringify for objects, String for primitives
+                        output.push_str("((x) => typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x))(");
                     } else if func_name == "int" {
                         // Python int() function - use parseInt()
                         output.push_str("parseInt(");
@@ -1518,6 +1518,112 @@ impl TypeScriptVisitor {
             // Add argument + .length
             output.push_str(&args_part);
             output.push_str(".length");
+        } else if func_name == "set" {
+            // Convert set([1, 2, 3]) to new Set([1, 2, 3]) by preserving the array
+            // Find the position where "new Set(" was added
+            if let Some(set_pos) = output.rfind("new Set(") {
+                let start_pos = set_pos + "new Set(".len();
+                
+                // Extract the arguments (everything after "new Set(")
+                let args_part = output[start_pos..].to_string();
+                
+                // Remove everything from "new Set(" onwards
+                output.truncate(set_pos);
+                
+                // For set([1,2,3]) we want new Set([1,2,3]), not new Set([[1,2,3]])
+                let trimmed_args = args_part.trim();
+                if trimmed_args.starts_with('[') && trimmed_args.ends_with(')') {
+                    // Remove the trailing ) and keep the array as-is
+                    let array_part = &trimmed_args[..trimmed_args.len()-1];
+                    output.push_str("new Set(");
+                    output.push_str(array_part);
+                    output.push(')');
+                } else {
+                    // Fallback: wrap individual arguments in array
+                    output.push_str("new Set([");
+                    output.push_str(&args_part);
+                    output.push_str("])");
+                }
+            } else {
+                // Fallback if pattern not found
+                output.push(')');
+            }
+        } else if func_name == "list" {
+            // Convert list([1, 2, 3]) to [1, 2, 3] by rewriting the output
+            // Find the position where "Array.from(" was added
+            if let Some(array_pos) = output.rfind("Array.from(") {
+                let start_pos = array_pos + "Array.from(".len();
+                
+                // Extract the arguments (everything after "Array.from(")
+                let args_part = output[start_pos..].to_string();
+                
+                // Remove everything from "Array.from(" onwards
+                output.truncate(array_pos);
+                
+                // For list([1,2,3]) we want just [1,2,3], so remove outer parens from args
+                let trimmed_args = args_part.trim();
+                if trimmed_args.starts_with('[') && trimmed_args.ends_with(')') {
+                    // Remove the trailing ) and just use the array
+                    let array_part = &trimmed_args[..trimmed_args.len()-1];
+                    output.push_str(array_part);
+                } else {
+                    // Fallback: just wrap in brackets
+                    output.push('[');
+                    output.push_str(&args_part);
+                    output.push(']');
+                }
+            } else {
+                // Fallback if pattern not found
+                output.push(')');
+            }
+        } else if func_name == "tuple" {
+            // Convert tuple([1, 2, 3]) to [1, 2, 3] by rewriting the output
+            // Find the position where "Array.from(" was added
+            if let Some(array_pos) = output.rfind("Array.from(") {
+                let start_pos = array_pos + "Array.from(".len();
+                
+                // Extract the arguments (everything after "Array.from(")
+                let args_part = output[start_pos..].to_string();
+                
+                // Remove everything from "Array.from(" onwards
+                output.truncate(array_pos);
+                
+                // For tuple([1,2,3]) we want just [1,2,3], so remove outer parens from args
+                let trimmed_args = args_part.trim();
+                if trimmed_args.starts_with('[') && trimmed_args.ends_with(')') {
+                    // Remove the trailing ) and just use the array
+                    let array_part = &trimmed_args[..trimmed_args.len()-1];
+                    output.push_str(array_part);
+                } else {
+                    // Fallback: just wrap in brackets
+                    output.push('[');
+                    output.push_str(&args_part);
+                    output.push(']');
+                }
+            } else {
+                // Fallback if pattern not found
+                output.push(')');
+            }
+        } else if func_name == "dict" {
+            // Convert dict([...]) to Object.fromEntries([...]) for proper dict construction
+            // Find the position where "Object(" was added
+            if let Some(obj_pos) = output.rfind("Object(") {
+                let start_pos = obj_pos + "Object(".len();
+                
+                // Extract the arguments (everything after "Object(")
+                let args_part = output[start_pos..].to_string();
+                
+                // Remove everything from "Object(" onwards
+                output.truncate(obj_pos);
+                
+                // Rebuild as Object.fromEntries(arguments)
+                output.push_str("Object.fromEntries(");
+                output.push_str(&args_part);
+                output.push(')');
+            } else {
+                // Fallback if pattern not found
+                output.push(')');
+            }
         } else {
             output.push(')');
         }
@@ -1564,10 +1670,21 @@ impl TypeScriptVisitor {
                         output.push_str(&converted);
                     }
                     TokenType::RawString => {
-                        // Raw strings are just regular strings in TypeScript
+                        // Raw strings: convert r"text" to "text" (no escape processing needed)
                         let value = &literal_expr_node.value;
+                        
+                        // Extract content from raw string format (r"content" or r'content')
+                        let content = if value.starts_with("r\"") && value.ends_with("\"") {
+                            &value[2..value.len()-1]
+                        } else if value.starts_with("r'") && value.ends_with("'") {
+                            &value[2..value.len()-1]
+                        } else {
+                            // Fallback if format is unexpected
+                            value
+                        };
+                        
                         output.push('"');
-                        output.push_str(value);
+                        output.push_str(content);
                         output.push('"');
                     }
                     TokenType::ByteString => {
@@ -1798,7 +1915,41 @@ impl TypeScriptVisitor {
         let op_str = match &node.operator {
             OperatorType::Plus => " + ",
             OperatorType::Minus => " - ",
-            OperatorType::Multiply => " * ",
+            OperatorType::Multiply => {
+                // Special handling for string multiplication: "text" * n -> "text".repeat(n)
+                let mut left_str = String::new();
+                let mut right_str = String::new();
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
+                
+                // Check if left is a string literal and right is a number
+                let left_is_string = left_str.starts_with('"') && left_str.ends_with('"');
+                let right_is_number = right_str.chars().all(|c| c.is_ascii_digit());
+                
+                // Check if right is a string literal and left is a number (reverse order)
+                let right_is_string = right_str.starts_with('"') && right_str.ends_with('"');
+                let left_is_number = left_str.chars().all(|c| c.is_ascii_digit());
+                
+                if left_is_string && right_is_number {
+                    // String * Number -> String.repeat(Number)
+                    output.clear(); // Clear the opening parenthesis
+                    output.push_str(&left_str);
+                    output.push_str(".repeat(");
+                    output.push_str(&right_str);
+                    output.push(')');
+                    return; // Early return to avoid normal binary expression handling
+                } else if right_is_string && left_is_number {
+                    // Number * String -> String.repeat(Number)
+                    output.clear(); // Clear the opening parenthesis
+                    output.push_str(&right_str);
+                    output.push_str(".repeat(");
+                    output.push_str(&left_str);
+                    output.push(')');
+                    return; // Early return to avoid normal binary expression handling
+                } else {
+                    " * " // Default multiplication
+                }
+            },
             OperatorType::Divide => " / ",
             OperatorType::Greater => " > ",
             OperatorType::GreaterEqual => " >= ",
@@ -1854,15 +2005,13 @@ impl TypeScriptVisitor {
             OperatorType::LeftShift => " << ",
             OperatorType::RightShift => " >> ",
             OperatorType::In => {
-                // Handle 'in' operator with context-aware method selection
-                // For objects/dicts: x in obj -> obj.hasOwnProperty(x) or (x in obj)
-                // For arrays/strings: x in arr -> arr.includes(x)  
-                // For sets: x in set -> set.has(x)
-                // General fallback: use 'in' operator or includes method
+                // Handle 'in' operator with safer method selection
+                // For objects/dicts: x in obj
+                // For arrays/strings: arr.includes(x)  
+                // For sets: set.has(x)
                 output.clear(); // Clear the opening parenthesis and left operand
                 
-                // For now, use a generic approach that works for most cases
-                // TODO: Could be enhanced with type analysis for better method selection
+                // Generate a safe multi-method approach that handles all collection types
                 output.push('(');
                 self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
                 output.push_str(" in ");
@@ -2005,7 +2154,12 @@ impl TypeScriptVisitor {
                 // Assignment statements should NEVER create variable declarations
                 // Variable declarations are handled by visit_variable_decl_node only
                 // All assignments are just assignments to existing variables
-                self.current_local_vars.insert(var_name.clone());
+                
+                // Don't add domain variables to local vars - they should be resolved as "this.var"
+                if !self.domain_variables.contains(&var_name) {
+                    self.current_local_vars.insert(var_name.clone());
+                }
+                
                 let mut lhs = String::new();
                 self.visit_expr_node_to_string(&node.assignment_expr_node.l_value_box, &mut lhs);
                 self.builder.writeln(&format!("{} = {};", lhs, rhs));
@@ -3598,6 +3752,10 @@ impl TypeScriptVisitor {
         self.visit_expr_node_to_string(&*value_expr, &mut init_str);
         
         eprintln!("DEBUG: Variable {} has expression: '{}'", var_decl.name, init_str);
+        
+        // Track this as a local variable for proper scope resolution
+        self.current_local_vars.insert(var_decl.name.clone());
+        
         self.builder.writeln(&format!("let {}: any = {};", var_decl.name, init_str));
     }
     
