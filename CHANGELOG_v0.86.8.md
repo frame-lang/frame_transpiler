@@ -25,8 +25,13 @@ Bug fix release improving TypeScript visitor code generation with multiple criti
    - **AssertStmt**: Converts to runtime checks: `if (!(condition)) { throw new Error('Assertion failed') }`
 
 4. **Improved Python Keyword Handling**
-   - Better handling of Python's `pass` statement (converts to comment in TypeScript)
+   - Fixed `pass` statement handling - now properly converts to `// pass` comment
+   - Applied fix in all AST contexts (VariableExprT, UndeclaredIdentifierNodeT, CallChainNodeT)
    - Proper conversion of `True`/`False` to `true`/`false`
+
+5. **Fixed Destructuring Syntax**
+   - Corrected TypeScript array destructuring type annotations
+   - Now generates valid `let [a, b]: any[] = ...` instead of invalid `let [a, b: any]: any[] = ...`
 
 ## 📊 Impact
 - Significantly reduces TypeScript compilation errors
@@ -43,7 +48,10 @@ Bug fix release improving TypeScript visitor code generation with multiple criti
 - Reduced syntax errors in generated TypeScript code
 - Better handling of Frame language constructs in TypeScript output
 
+## Known Issues
+- Bug #57: Throw statements with variable references are split across lines (documented in `docs/bugs/open/bug_057_typescript_throw_splitting.md`)
+
 ## Next Steps
-- Continue addressing remaining TypeScript visitor issues
-- Focus on throw statement line splitting issue
-- Complete pass statement handling in all contexts
+- Fix throw statement line splitting issue (Bug #57)
+- Continue improving TypeScript visitor for 100% test success rate
+- Add more comprehensive type inference for better TypeScript generation

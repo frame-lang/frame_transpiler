@@ -1317,7 +1317,12 @@ impl TypeScriptVisitor {
                     ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
                         let mut call_str = String::new();
                         self.visit_call_chain_expr_node_to_string(&call_chain_literal_stmt_node.call_chain_literal_expr_node, &mut call_str);
-                        self.builder.writeln(&format!("{};", call_str));
+                        // Don't add semicolon to comments (like // pass)
+                        if call_str.starts_with("//") {
+                            self.builder.writeln(&call_str);
+                        } else {
+                            self.builder.writeln(&format!("{};", call_str));
+                        }
                     }
                     ExprStmtType::CallStmtT { call_stmt_node } => {
                         let call_expr_node = &call_stmt_node.call_expr_node;
@@ -2869,6 +2874,18 @@ impl TypeScriptVisitor {
                             eprintln!("DEBUG TS: Processing CallChainNodeType::VariableNodeT variable: {}", var_name);
                         }
                         
+                        // Handle Python-style keywords
+                        if var_name == "pass" {
+                            output.push_str("// pass");
+                            break; // Don't process further
+                        } else if var_name == "True" {
+                            output.push_str("true");
+                            break;
+                        } else if var_name == "False" {
+                            output.push_str("false");
+                            break;
+                        }
+                        
                         if self.current_local_vars.contains(var_name) {
                             // Local variable - use bare name
                             output.push_str(var_name);
@@ -2920,12 +2937,15 @@ impl TypeScriptVisitor {
                                 eprintln!("DEBUG TS: Processing CallChainNodeType::UndeclaredIdentifierNodeT variable: {}", var_name);
                             }
                             
-                            // Handle Python-style boolean literals as undeclared identifiers
+                            // Handle Python-style keywords as undeclared identifiers
                             if var_name == "True" {
                                 output.push_str("true");
                                 return;
                             } else if var_name == "False" {
                                 output.push_str("false");
+                                return;
+                            } else if var_name == "pass" {
+                                output.push_str("// pass");
                                 return;
                             }
                             
@@ -4014,8 +4034,8 @@ impl TypeScriptVisitor {
             }
             
             // Generate destructuring assignment for TypeScript
-            // [a, b, c] = function_that_returns_array()
-            self.builder.writeln(&format!("let [{}: any]: any[] = {};", 
+            // let [a, b, c]: any[] = function_that_returns_array()
+            self.builder.writeln(&format!("let [{}]: any[] = {};", 
                 var_names.join(", "), init_str));
         } else {
             // Single variable declaration
