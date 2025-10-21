@@ -1396,6 +1396,9 @@ impl TypeScriptVisitor {
                 let is_string_method = matches!(func_name.as_str(), 
                     "upper" | "lower" | "strip" | "replace" | "split" | "join" | "startswith" | "endswith" | "find");
                 
+                // Check if this is a native dict method
+                let is_dict_method = matches!(func_name.as_str(), "get");
+                
                 if is_native_method {
                     // Map native Python list methods to TypeScript array methods
                     let mapped_method = match func_name.as_str() {
@@ -1410,6 +1413,15 @@ impl TypeScriptVisitor {
                         _ => func_name,       // fallback
                     };
                     output.push_str(&format!("{}(", mapped_method));
+                } else if is_dict_method {
+                    // Handle dict.get() method: now handled in call chain processing
+                    // This path should not be reached for chained .get() calls
+                    if func_name == "get" {
+                        // Simple .get() call (not in chain) - still use the simple conversion
+                        output.push_str("GET_METHOD_PLACEHOLDER(");
+                    } else {
+                        output.push_str(&format!("{}(", func_name));
+                    }
                 } else if is_string_method {
                     // Map native Python string methods to TypeScript string methods
                     let mapped_method = match func_name.as_str() {
@@ -1518,6 +1530,32 @@ impl TypeScriptVisitor {
             // Add argument + .length
             output.push_str(&args_part);
             output.push_str(".length");
+        } else if func_name == "get" && output.contains("GET_METHOD_PLACEHOLDER") {
+            // Convert obj.get(key, default) to (obj[key] || default)
+            // Find the position where "GET_METHOD_PLACEHOLDER(" was added
+            if let Some(placeholder_pos) = output.rfind("GET_METHOD_PLACEHOLDER(") {
+                // Get everything before the placeholder and arguments
+                let before_placeholder = output[..placeholder_pos].to_string();
+                let start_pos = placeholder_pos + "GET_METHOD_PLACEHOLDER(".len();
+                let args_part = output[start_pos..output.len() - 1].to_string(); // Remove closing paren
+                
+                // Parse arguments to get key and default
+                let args: Vec<&str> = args_part.split(", ").collect();
+                let key = args.get(0).unwrap_or(&"undefined");
+                let default = args.get(1).unwrap_or(&"undefined");
+                
+                // Rebuild as (obj[key] || default)
+                output.clear();
+                output.push('(');
+                output.push_str(&before_placeholder);
+                output.push('[');
+                output.push_str(key);
+                output.push_str("] || ");
+                output.push_str(default);
+                output.push(')');
+                
+                return; // Early return to skip normal closing paren
+            }
         } else if func_name == "set" {
             // Convert set([1, 2, 3]) to new Set([1, 2, 3]) by preserving the array
             // Find the position where "new Set(" was added
@@ -2585,13 +2623,41 @@ impl TypeScriptVisitor {
                         eprintln!("DEBUG TS: Processing UndeclaredCallT method: {}, is_first: {}", call_node.identifier.name.lexeme, is_first);
                     }
                     
-                    if !is_first {
-                        output.push('.');
-                    } else if call_node.identifier.name.lexeme != "print" {
-                        // For first call in chain that's not print, check if it needs 'this.'
-                        // This handles method calls on self
+                    // Special handling for .get() method - convert to bracket notation
+                    if call_node.identifier.name.lexeme == "get" {
+                        // Convert .get(key, default) to [key] || default
+                        if !is_first {
+                            // No dot needed for bracket notation
+                        }
+                        
+                        // Get the arguments for the .get() call  
+                        let mut key_str = String::new();
+                        let mut default_str = String::new();
+                        
+                        if call_node.call_expr_list.exprs_t.len() >= 1 {
+                            self.visit_expr_node_to_string(&call_node.call_expr_list.exprs_t[0], &mut key_str);
+                        }
+                        if call_node.call_expr_list.exprs_t.len() >= 2 {
+                            self.visit_expr_node_to_string(&call_node.call_expr_list.exprs_t[1], &mut default_str);
+                        } else {
+                            default_str = "undefined".to_string();
+                        }
+                        
+                        // Output: ([previous][key] || default) for proper precedence
+                        output.push('[');
+                        output.push_str(&key_str);
+                        output.push_str("] || ");
+                        output.push_str(&default_str);
+                    } else {
+                        // Regular method call handling
+                        if !is_first {
+                            output.push('.');
+                        } else if call_node.identifier.name.lexeme != "print" {
+                            // For first call in chain that's not print, check if it needs 'this.'
+                            // This handles method calls on self
+                        }
+                        self.visit_call_expr_node_to_string_with_context(call_node, output, is_first);
                     }
-                    self.visit_call_expr_node_to_string_with_context(call_node, output, is_first);
                 }
                 CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => {
                     if !is_first {
@@ -2916,6 +2982,46 @@ impl TypeScriptVisitor {
             }
             is_first = false;
         }
+        
+        // Post-processing: Fix .get() method chaining syntax
+        // Convert patterns like "obj.["key"]" to "obj["key"]"
+        *output = output.replace(".[\"", "[\"");
+        
+        // Fix operator precedence for chained .get() calls
+        // Convert: a["x"] || {}["y"] || {}["z"] || "default"
+        // To: ((a["x"] || {})["y"] || {})["z"] || "default"
+        
+        let mut fixed = output.clone();
+        
+        // Look for the pattern: || {} followed by [
+        while let Some(pos) = fixed.find(" || {}[") {
+            // Find where this sub-expression starts (after = or at the beginning)
+            let mut start = 0;
+            for (i, chunk) in fixed[..pos].split_whitespace().enumerate() {
+                if chunk.ends_with('=') {
+                    // Find the position after the = sign
+                    if let Some(eq_pos) = fixed[..pos].rfind('=') {
+                        start = eq_pos + 1;
+                        while start < fixed.len() && fixed.chars().nth(start) == Some(' ') {
+                            start += 1;
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            // Find the end of the || {} part
+            let or_end = pos + " || {}".len();
+            
+            // Insert parentheses: (expr || {})
+            let before = &fixed[..start];
+            let middle = &fixed[start..or_end];
+            let after = &fixed[or_end..];
+            
+            fixed = format!("{}({}){}", before, middle, after);
+        }
+        
+        *output = fixed;
     }
     
     // Generate missing method stubs for external dependencies
