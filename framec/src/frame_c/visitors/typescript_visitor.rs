@@ -1912,6 +1912,37 @@ impl TypeScriptVisitor {
                     TokenType::ByteString => {
                         // Byte strings can be represented as regular strings in TypeScript
                         let value = &literal_expr_node.value;
+                        // Handle b"content" format - extract content between quotes
+                        let content = if value.starts_with("b\"") && value.ends_with("\"") {
+                            &value[2..value.len()-1]
+                        } else if value.starts_with("b'") && value.ends_with("'") {
+                            &value[2..value.len()-1]
+                        } else {
+                            value
+                        };
+                        output.push('"');
+                        output.push_str(content);
+                        output.push('"');
+                    }
+                    TokenType::TripleQuotedString => {
+                        // Triple quoted strings: convert """content""" to `content` (template literal for multiline)
+                        let value = &literal_expr_node.value;
+                        let content = if value.starts_with("\"\"\"") && value.ends_with("\"\"\"") {
+                            &value[3..value.len()-3]
+                        } else if value.starts_with("'''") && value.ends_with("'''") {
+                            &value[3..value.len()-3]
+                        } else {
+                            value
+                        };
+                        // Use template literals for multiline strings
+                        output.push('`');
+                        output.push_str(content);
+                        output.push('`');
+                    }
+                    TokenType::ComplexNumber => {
+                        // Complex numbers: convert 3+4j to {real: 3, imag: 4} object
+                        let value = &literal_expr_node.value;
+                        // For now, convert to string representation - full complex number support would need a complex number library
                         output.push('"');
                         output.push_str(value);
                         output.push('"');
@@ -2203,6 +2234,32 @@ impl TypeScriptVisitor {
     }
     
     fn visit_binary_expr_node_to_string(&mut self, node: &BinaryExprNode, output: &mut String) {
+        // Special handling for percent formatting - check if it's string formatting vs modulo
+        if matches!(&node.operator, OperatorType::Percent) {
+            // Check if left operand is a string literal containing format specifiers
+            let mut left_str = String::new();
+            self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
+            
+            // If left side is a string containing %s, %d, %f, etc., treat as string formatting
+            if (left_str.starts_with('"') && left_str.ends_with('"')) && 
+               (left_str.contains("%s") || left_str.contains("%d") || left_str.contains("%f") || 
+                left_str.contains("%.") || left_str.contains("%(")) {
+                
+                // This is string formatting - convert to simple template literals for now
+                // Full implementation would need a proper printf-style formatter
+                output.push_str("/* TODO: String formatting - ");
+                output.push_str(&left_str);
+                output.push_str(" % ");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(" */");
+                
+                // For now, just return the string without formatting
+                output.push_str(&left_str);
+                return;
+            }
+            // If not string formatting, fall through to normal % (modulo) handling
+        }
+        
         // Special handling for string multiplication - check before adding parenthesis
         if matches!(&node.operator, OperatorType::Multiply) {
             // Check if this is string multiplication
@@ -2810,10 +2867,69 @@ impl TypeScriptVisitor {
                 }
             }
             
-            // Dictionary .get() method fix: Convert obj.get(key, default) to (obj[key] || default)
+            // Additional check for dict.fromkeys with UndeclaredIdentifierNodeT pattern
+            if let (CallChainNodeType::UndeclaredIdentifierNodeT { id_node }, 
+                    CallChainNodeType::UndeclaredCallT { call_node }) = 
+                    (&node.call_chain[0], &node.call_chain[1]) {
+                
+                let var_name = &id_node.name.lexeme;
+                let method_name = &call_node.identifier.name.lexeme;
+                
+                // Handle dict.fromkeys() static method
+                if var_name == "dict" && method_name == "fromkeys" {
+                    let args = &call_node.call_expr_list.exprs_t;
+                    
+                    if args.len() >= 1 {
+                        // dict.fromkeys(keys, value) -> Object.fromEntries(keys.map(k => [k, value]))
+                        output.push_str("Object.fromEntries(");
+                        self.visit_expr_node_to_string(&args[0], output);
+                        output.push_str(".map(__k => [__k, ");
+                        
+                        if args.len() >= 2 {
+                            // Use provided value
+                            self.visit_expr_node_to_string(&args[1], output);
+                        } else {
+                            // Use null as default (equivalent to Python's None)
+                            output.push_str("null");
+                        }
+                        output.push_str("]))");
+                        return;
+                    }
+                }
+            }
+            
+            // Static method fixes for dict.fromkeys and similar
+            
             if let (CallChainNodeType::VariableNodeT { var_node }, 
                     CallChainNodeType::UndeclaredCallT { call_node }) = 
                     (&node.call_chain[0], &node.call_chain[1]) {
+                
+                let var_name = &var_node.id_node.name.lexeme;
+                let method_name = &call_node.identifier.name.lexeme;
+                
+                // Handle dict.fromkeys() static method
+                if var_name == "dict" && method_name == "fromkeys" {
+                    let args = &call_node.call_expr_list.exprs_t;
+                    
+                    if args.len() >= 1 {
+                        // dict.fromkeys(keys, value) -> Object.fromEntries(keys.map(k => [k, value]))
+                        output.push_str("Object.fromEntries(");
+                        self.visit_expr_node_to_string(&args[0], output);
+                        output.push_str(".map(__k => [__k, ");
+                        
+                        if args.len() >= 2 {
+                            // Use provided value
+                            self.visit_expr_node_to_string(&args[1], output);
+                        } else {
+                            // Use null as default (equivalent to Python's None)
+                            output.push_str("null");
+                        }
+                        output.push_str("]))");
+                        return;
+                    }
+                }
+                
+                // Dictionary .get() method fix: Convert obj.get(key, default) to (obj[key] || default)
                 if call_node.identifier.name.lexeme == "get" {
                     let var_name = &var_node.id_node.name.lexeme;
                     let args = &call_node.call_expr_list.exprs_t;
@@ -3549,8 +3665,16 @@ impl TypeScriptVisitor {
                     // Apply context-aware variable resolution
                     result.push_str("${");
                     
-                    // Handle special cases first
-                    if var_name == "self" {
+                    // Handle expressions that are not simple variables
+                    if var_name.contains(&['+', '-', '*', '/', '%', '(', ')', ':', '='][..]) {
+                        // This looks like an expression, not a simple variable
+                        // Clean up obvious errors like "this.2" -> "2", "this.3.14159:.2f" -> "3.14159"
+                        let cleaned_expr = var_name
+                            .replace("this.", "")  // Remove erroneous "this." prefixes
+                            .split(':').next().unwrap_or(&var_name)  // Remove format specifiers like :.2f
+                            .to_string();
+                        result.push_str(&cleaned_expr);
+                    } else if var_name == "self" {
                         result.push_str("this");
                     } else if var_name.starts_with("self.") {
                         // Convert self.property to this.resolvedProperty
