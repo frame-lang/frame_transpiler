@@ -152,8 +152,28 @@ module Memory {
     
     # Memory pool for frequent allocations
     fn createMemoryPool(itemSize, poolSize) {
-        # Create memory pool for efficient allocation
-        # Useful for languages with manual memory management
+        # Create memory pool for efficient allocation with proper error handling
+        # Returns Result<Pool, Error> for safe construction
+        
+        # Validate inputs first
+        if itemSize <= 0 {
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "itemSize must be positive, got: " + str(itemSize)
+            }
+        }
+        
+        if poolSize <= 0 {
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "poolSize must be positive, got: " + str(poolSize)
+            }
+        }
+        
         var pool = {
             "itemSize": itemSize,
             "poolSize": poolSize,
@@ -161,32 +181,93 @@ module Memory {
             "available": []
         }
         
-        # Pre-allocate items
-        for i in range(poolSize) {
-            var item = allocateBuffer(itemSize)
-            pool["available"].append(item)
+        # Pre-allocate items with proper error handling
+        try {
+            for i in range(poolSize) {
+                var item = allocateBuffer(itemSize)
+                pool["available"].append(item)
+            }
+            
+            return {
+                "isOk": True,
+                "isError": False,
+                "value": pool,
+                "error": None
+            }
+        } except Exception as e {
+            # Cleanup any partially allocated items
+            for item in pool["available"] {
+                cleanup(item)
+            }
+            
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "Pool creation failed: " + str(e)
+            }
         }
-        
-        return pool
     }
     
     fn allocateFromPool(pool) {
-        # Allocate item from memory pool
-        if len(pool["available"]) > 0 {
-            var item = pool["available"].pop()
-            pool["items"].append(item)
-            return item
-        } else {
-            # Pool exhausted, allocate directly
-            return allocateBuffer(pool["itemSize"])
+        # Allocate item from memory pool with Result error handling
+        try {
+            if len(pool["available"]) > 0 {
+                var item = pool["available"].pop()
+                pool["items"].append(item)
+                return {
+                    "isOk": True,
+                    "isError": False,
+                    "value": item,
+                    "error": None
+                }
+            } else {
+                # Pool exhausted, allocate directly
+                var item = allocateBuffer(pool["itemSize"])
+                return {
+                    "isOk": True,
+                    "isError": False,
+                    "value": item,
+                    "error": None
+                }
+            }
+        } except Exception as e {
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "Pool allocation failed: " + str(e)
+            }
         }
     }
     
     fn returnToPool(pool, item) {
-        # Return item to memory pool
-        if item in pool["items"] {
-            pool["items"].remove(item)
-            pool["available"].append(item)
+        # Return item to memory pool with Result error handling
+        try {
+            if item in pool["items"] {
+                pool["items"].remove(item)
+                pool["available"].append(item)
+                return {
+                    "isOk": True,
+                    "isError": False,
+                    "value": None,
+                    "error": None
+                }
+            } else {
+                return {
+                    "isOk": False,
+                    "isError": True,
+                    "value": None,
+                    "error": "Item not found in pool (double-free or invalid item)"
+                }
+            }
+        } except Exception as e {
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "Return to pool failed: " + str(e)
+            }
         }
     }
     

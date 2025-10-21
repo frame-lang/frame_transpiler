@@ -684,16 +684,68 @@ impl AstVisitor for TypeScriptVisitor {
         
         self.builder.newline();
         
-        // Constructor
-        self.builder.writeln("constructor() {");
+        // Constructor with system parameters
+        let mut constructor_params = Vec::new();
+        
+        // Collect all system parameters
+        if let Some(state_params) = &system_node.start_state_state_params_opt {
+            for param in state_params {
+                constructor_params.push(format!("{}: any", param.param_name));
+            }
+        }
+        if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+            for param in enter_params {
+                constructor_params.push(format!("{}: any", param.param_name));
+            }
+        }
+        if let Some(domain_params) = &system_node.domain_params_opt {
+            for param in domain_params {
+                constructor_params.push(format!("{}: any", param.param_name));
+            }
+        }
+        
+        let params_str = constructor_params.join(", ");
+        self.builder.writeln(&format!("constructor({}) {{", params_str));
         self.builder.indent();
         
-        // Initialize first state
+        // Initialize first state with parameters
         if let Some(machine) = &system_node.machine_block_node_opt {
             if let Some(first_state) = machine.states.first() {
                 let state = first_state.borrow();
                 let state_name = self.format_state_name(&state.name);
-                self.builder.writeln(&format!("this._compartment = new FrameCompartment('{}');", state_name));
+                
+                // Build state args and enter args objects
+                let mut state_args = Vec::new();
+                let mut enter_args = Vec::new();
+                
+                if let Some(state_params) = &system_node.start_state_state_params_opt {
+                    for param in state_params {
+                        state_args.push(format!("'{}': {}", param.param_name, param.param_name));
+                    }
+                }
+                
+                if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+                    for param in enter_params {
+                        enter_args.push(format!("'{}': {}", param.param_name, param.param_name));
+                    }
+                }
+                
+                let state_args_str = if state_args.is_empty() {
+                    "{}".to_string()
+                } else {
+                    format!("{{{}}}", state_args.join(", "))
+                };
+                
+                let enter_args_str = if enter_args.is_empty() {
+                    "null".to_string()
+                } else {
+                    format!("{{{}}}", enter_args.join(", "))
+                };
+                
+                self.builder.writeln(&format!(
+                    "this._compartment = new FrameCompartment('{}', {}, null, {}, null);",
+                    state_name, enter_args_str, state_args_str
+                ));
             }
         }
         
@@ -702,13 +754,26 @@ impl AstVisitor for TypeScriptVisitor {
         
         // Initialize domain variables
         if let Some(domain) = &system_node.domain_block_node_opt {
+            // Check if we have domain parameters that match domain variables
+            let domain_param_names: Vec<String> = if let Some(domain_params) = &system_node.domain_params_opt {
+                domain_params.iter().map(|p| p.param_name.clone()).collect()
+            } else {
+                Vec::new()
+            };
+            
+            let mut param_index = 0;
             for var_decl in &domain.member_variables {
                 let var = var_decl.borrow();
                 // Track domain variable name
                 self.domain_variables.insert(var.name.clone());
                 
-                // Check if variable has an initializer
-                if !matches!(*var.value_rc, ExprType::NilExprT) {
+                // Check if this domain variable has a corresponding domain parameter
+                if param_index < domain_param_names.len() {
+                    // Use domain parameter value
+                    self.builder.writeln(&format!("this.{} = {};", var.name, domain_param_names[param_index]));
+                    param_index += 1;
+                } else if !matches!(*var.value_rc, ExprType::NilExprT) {
+                    // Use explicit initializer
                     let mut init_str = String::new();
                     self.visit_expr_node_to_string(&var.value_rc, &mut init_str);
                     self.builder.writeln(&format!("this.{} = {};", var.name, init_str));
@@ -719,8 +784,21 @@ impl AstVisitor for TypeScriptVisitor {
             }
         }
         
-        // Send start event
-        self.builder.writeln("this._frame_kernel(new FrameEvent(\"$>\", null));");
+        // Send start event with enter parameters
+        let enter_params_obj = if let Some(enter_params) = &system_node.start_state_enter_params_opt {
+            let params: Vec<String> = enter_params.iter()
+                .map(|p| format!("'{}': {}", p.param_name, p.param_name))
+                .collect();
+            if params.is_empty() {
+                "null".to_string()
+            } else {
+                format!("{{{}}}", params.join(", "))
+            }
+        } else {
+            "null".to_string()
+        };
+        
+        self.builder.writeln(&format!("this._frame_kernel(new FrameEvent(\"$>\", {}));", enter_params_obj));
         
         self.builder.dedent();
         self.builder.writeln("}");
@@ -3825,7 +3903,9 @@ impl TypeScriptVisitor {
     // These methods were missing and caused incomplete Frame language support
     
     fn visit_function_node(&mut self, function_node: &FunctionNode) {
-        eprintln!("DEBUG: visit_function_node called for function: {}", function_node.name);
+        if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+            eprintln!("DEBUG: visit_function_node called for function: {}", function_node.name);
+        }
         
         let params = if let Some(params) = &function_node.params {
             params.iter()
@@ -3874,7 +3954,9 @@ impl TypeScriptVisitor {
         let mut init_str = String::new();
         self.visit_expr_node_to_string(&*value_expr, &mut init_str);
         
-        eprintln!("DEBUG: Variable {} has expression: '{}'", var_decl.name, init_str);
+        if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+            eprintln!("DEBUG: Variable {} has expression: '{}'", var_decl.name, init_str);
+        }
         
         // Track this as a local variable for proper scope resolution
         self.current_local_vars.insert(var_decl.name.clone());
@@ -4091,11 +4173,15 @@ impl TypeScriptVisitor {
         match decl_or_stmt {
             DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                 let var_decl = var_decl_t_rcref.borrow();
-                eprintln!("DEBUG: Processing VarDeclT for variable: {}", var_decl.name);
+                if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                    eprintln!("DEBUG: Processing VarDeclT for variable: {}", var_decl.name);
+                }
                 self.visit_variable_decl_node(&var_decl);
             }
             DeclOrStmtType::StmtT { stmt_t } => {
-                eprintln!("DEBUG: Processing StmtT");
+                if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                    eprintln!("DEBUG: Processing StmtT");
+                }
                 self.visit_stmt_node(&stmt_t);
             }
         }

@@ -47,14 +47,24 @@ module FileSystem {
         # C: fopen/fread/fclose sequence
         
         if not exists(path) {
-            raise FileNotFoundError("File not found: " + path)
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "File not found: " + path
+            }
         }
         
         print("Reading file: " + path)
-        return "simulated file content from " + path
+        return {
+            "isOk": True,
+            "isError": False,
+            "value": "simulated file content from " + path,
+            "error": None
+        }
     }
     
-    # Write string to file
+    # Write string to file with Result error handling
     fn writeFile(path, content) {
         # Python: Path(path).write_text(content)
         # TypeScript: fs.writeFileSync(path, content, 'utf8')
@@ -64,7 +74,32 @@ module FileSystem {
         # Rust: std::fs::write(path, content)
         # C: fopen/fwrite/fclose sequence
         
-        print("Writing to file: " + path + " (" + str(len(content)) + " chars)")
+        try {
+            print("Writing to file: " + path + " (" + str(len(content)) + " chars)")
+            # Simulate potential write errors
+            if len(content) > 1000000 {
+                return {
+                    "isOk": False,
+                    "isError": True,
+                    "value": None,
+                    "error": "File too large to write: " + str(len(content)) + " chars"
+                }
+            }
+            
+            return {
+                "isOk": True,
+                "isError": False,
+                "value": None,
+                "error": None
+            }
+        } except Exception as e {
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "Write failed: " + str(e)
+            }
+        }
     }
     
     # Append string to file
@@ -339,5 +374,123 @@ module FileSystem {
         # Close file handle
         fileHandle["isOpen"] = False
         print("Closed file: " + fileHandle["path"])
+    }
+    
+    # ============== SAFE FILE OPERATIONS WITH RAII ===============
+    
+    # Safe file operations using RAII pattern from Memory module
+    fn withFile(path, mode, operation) {
+        # Universal RAII pattern for safe file operations
+        # Automatically handles cleanup even if exceptions occur
+        # Python: uses 'with' statement
+        # TypeScript: uses try/finally
+        # C#: uses 'using' statement
+        # Java: uses try-with-resources
+        # Go: uses defer
+        # Rust: automatic Drop trait
+        # C: explicit cleanup with error handling
+        
+        var fileHandleResult = _openSafeFileHandle(path, mode)
+        
+        if fileHandleResult["isError"] {
+            return fileHandleResult
+        }
+        
+        var fileHandle = fileHandleResult["value"]
+        
+        try {
+            var result = operation(fileHandle)
+            return {
+                "isOk": True,
+                "isError": False,
+                "value": result,
+                "error": None
+            }
+        } except Exception as e {
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "File operation failed: " + str(e)
+            }
+        } finally {
+            # Always cleanup, even if operation fails
+            if fileHandle["isOpen"] {
+                _closeSafeFileHandle(fileHandle)
+            }
+        }
+    }
+    
+    fn _openSafeFileHandle(path, mode) {
+        # Private function to create a safe file handle
+        # Returns Result<FileHandle, Error>
+        
+        if not exists(path) and mode == "r" {
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "File not found: " + path
+            }
+        }
+        
+        try {
+            var handle = {
+                "path": path,
+                "mode": mode,
+                "isOpen": True,
+                "position": 0,
+                "close": lambda: _closeSafeFileHandle(handle)
+            }
+            
+            print("Safely opened file: " + path + " (mode: " + mode + ")")
+            
+            return {
+                "isOk": True,
+                "isError": False,
+                "value": handle,
+                "error": None
+            }
+        } except Exception as e {
+            return {
+                "isOk": False,
+                "isError": True,
+                "value": None,
+                "error": "Failed to open file: " + str(e)
+            }
+        }
+    }
+    
+    fn _closeSafeFileHandle(handle) {
+        # Private function to safely close file handle
+        if handle["isOpen"] {
+            handle["isOpen"] = False
+            print("Safely closed file: " + handle["path"])
+        }
+    }
+    
+    # Convenience functions using safe pattern
+    fn safeReadFile(path) {
+        # Read entire file safely
+        return withFile(path, "r", lambda handle: {
+            var content = "simulated content from " + handle["path"]
+            return content
+        })
+    }
+    
+    fn safeWriteFile(path, content) {
+        # Write entire file safely
+        return withFile(path, "w", lambda handle: {
+            print("Writing " + str(len(content)) + " chars to " + handle["path"])
+            return True
+        })
+    }
+    
+    fn safeAppendFile(path, content) {
+        # Append to file safely
+        return withFile(path, "a", lambda handle: {
+            print("Appending " + str(len(content)) + " chars to " + handle["path"])
+            return True
+        })
     }
 }

@@ -3,8 +3,8 @@
 <!-- NEXT BUG NUMBER: #57 -->
 
 **Last Updated:** 2025-10-21  
-**Current Version:** v0.86.6  
-**Test Status:** 🎉 **TYPESCRIPT EXTERNAL API FIX** - Fixed external API method calls (child_process, net, fs) being incorrectly prefixed  
+**Current Version:** v0.86.7  
+**Test Status:** 🎉 **TYPESCRIPT VISITOR IMPROVEMENTS** - Fixed debug output pollution and added system parameter support  
 **Active Bugs:** 0  
 **Resolved Bugs:** 60 (See closed_bugs.md for full history)  
 
