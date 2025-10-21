@@ -1,6 +1,6 @@
 [package]
 name = "frame_runtime"
-version = "0.86.8"
+version = "0.86.9"
 authors = ["Mark Truluck <mark@frame-lang.org>"]
 edition = "2018"
 

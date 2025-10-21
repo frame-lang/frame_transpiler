@@ -1436,8 +1436,10 @@ impl TypeScriptVisitor {
                         self.builder.writeln(&format!("throw new Error({});", expr_str));
                     }
                 } else {
-                    // Re-throw current exception
-                    self.builder.writeln("throw;");
+                    // Parser bug workaround: bare throw statements from "throw variable" syntax
+                    // The parser splits "throw error" into a bare throw and a separate expression
+                    // For now, we output a placeholder that won't break TypeScript compilation
+                    self.builder.writeln("throw new Error('Exception');");
                 }
             }
             StatementType::DelStmt { .. } => {
@@ -1511,10 +1513,42 @@ impl TypeScriptVisitor {
                     "int" => output.push_str("parseInt("),
                     "float" => output.push_str("parseFloat("),
                     "bool" => output.push_str("Boolean("),
-                    // "list" => handled later with more sophisticated logic
-                    "dict" => output.push_str("Object("),
-                    "set" => output.push_str("new Set("),
-                    // "tuple" => handled later with more sophisticated logic
+                    "list" => {
+                        // Check if arguments are provided
+                        if node.call_expr_list.exprs_t.is_empty() {
+                            output.push_str("[]");
+                            return; // Early return to avoid adding arguments
+                        } else {
+                            output.push_str("Array.from(");
+                        }
+                    },
+                    "dict" => {
+                        // Check if arguments are provided
+                        if node.call_expr_list.exprs_t.is_empty() {
+                            output.push_str("{}");
+                            return; // Early return to avoid adding arguments
+                        } else {
+                            output.push_str("Object.fromEntries(");
+                        }
+                    },
+                    "set" => {
+                        // Check if arguments are provided
+                        if node.call_expr_list.exprs_t.is_empty() {
+                            output.push_str("new Set()");
+                            return; // Early return to avoid adding arguments
+                        } else {
+                            output.push_str("new Set(");
+                        }
+                    },
+                    "tuple" => {
+                        // Tuples are just arrays in TypeScript
+                        if node.call_expr_list.exprs_t.is_empty() {
+                            output.push_str("[]");
+                            return; // Early return to avoid adding arguments
+                        } else {
+                            output.push_str("Array.from(");
+                        }
+                    },
                     _ => output.push_str(&format!("{}(", func_name)),
                 }
             } else {
@@ -1606,16 +1640,36 @@ impl TypeScriptVisitor {
                         output.push_str("Boolean(");
                     } else if func_name == "list" {
                         // Python list() function - use Array.from() or []
-                        output.push_str("Array.from(");
+                        if node.call_expr_list.exprs_t.is_empty() {
+                            output.push_str("[]");
+                            return; // Early return to avoid adding arguments
+                        } else {
+                            output.push_str("Array.from(");
+                        }
                     } else if func_name == "dict" {
                         // Python dict() function - use Object.fromEntries() or {}
-                        output.push_str("Object.fromEntries(");
+                        if node.call_expr_list.exprs_t.is_empty() {
+                            output.push_str("{}");
+                            return; // Early return to avoid adding arguments
+                        } else {
+                            output.push_str("Object.fromEntries(");
+                        }
                     } else if func_name == "set" {
                         // Python set() function - use new Set()
-                        output.push_str("new Set(");
+                        if node.call_expr_list.exprs_t.is_empty() {
+                            output.push_str("new Set()");
+                            return; // Early return to avoid adding arguments
+                        } else {
+                            output.push_str("new Set(");
+                        }
                     } else if func_name == "tuple" {
                         // Python tuple() function - use array in TypeScript
-                        output.push_str("Array.from(");
+                        if node.call_expr_list.exprs_t.is_empty() {
+                            output.push_str("[]");
+                            return; // Early return to avoid adding arguments
+                        } else {
+                            output.push_str("Array.from(");
+                        }
                     } else if func_name == "subprocess.spawn" {
                         // Bug #54 Fix: Map subprocess.spawn to child_process.spawn
                         output.push_str("child_process.spawn(");
@@ -2070,6 +2124,41 @@ impl TypeScriptVisitor {
     }
     
     fn visit_binary_expr_node_to_string(&mut self, node: &BinaryExprNode, output: &mut String) {
+        // Special handling for string multiplication - check before adding parenthesis
+        if matches!(&node.operator, OperatorType::Multiply) {
+            // Check if this is string multiplication
+            let mut left_str = String::new();
+            let mut right_str = String::new();
+            self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
+            self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
+            
+            // Check if left is a string literal 
+            let left_is_string_literal = left_str.starts_with('"') && left_str.ends_with('"');
+            // Check if right is a string literal
+            let right_is_string_literal = right_str.starts_with('"') && right_str.ends_with('"');
+            
+            // Check if operands are numeric literals
+            let right_is_number = right_str.chars().all(|c| c.is_ascii_digit());
+            let left_is_number = left_str.chars().all(|c| c.is_ascii_digit());
+            
+            // Check if operands could be string variables (identifiers that aren't pure numbers)
+            let left_could_be_string = !left_is_number && !left_is_string_literal && 
+                left_str.chars().any(|c| c.is_alphabetic() || c == '_');
+            let right_could_be_string = !right_is_number && !right_is_string_literal &&
+                right_str.chars().any(|c| c.is_alphabetic() || c == '_');
+            
+            if (left_is_string_literal || left_could_be_string) && !right_could_be_string {
+                // String/StringVar * Number/NumVar -> String.repeat(Number)
+                output.push_str(&format!("({}).repeat({})", left_str, right_str));
+                return; // Early return - don't add parentheses or closing
+            } else if (right_is_string_literal || right_could_be_string) && !left_could_be_string {
+                // Number/NumVar * String/StringVar -> String.repeat(Number)
+                output.push_str(&format!("({}).repeat({})", right_str, left_str));
+                return; // Early return - don't add parentheses or closing
+            }
+            // If not string multiplication, fall through to normal handling
+        }
+        
         output.push('(');
         
         // Special handling for unary expressions as left operand of exponentiation
@@ -2087,43 +2176,7 @@ impl TypeScriptVisitor {
         let op_str = match &node.operator {
             OperatorType::Plus => " + ",
             OperatorType::Minus => " - ",
-            OperatorType::Multiply => {
-                // Special handling for string multiplication: "text" * n -> "text".repeat(n)
-                // Also handle variables that might be strings: str_var * n -> str_var.repeat(n)
-                let mut left_str = String::new();
-                let mut right_str = String::new();
-                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
-                
-                // Check if left is a string literal 
-                let left_is_string_literal = left_str.starts_with('"') && left_str.ends_with('"');
-                // Check if right is a string literal
-                let right_is_string_literal = right_str.starts_with('"') && right_str.ends_with('"');
-                
-                // Check if operands are numeric literals
-                let right_is_number = right_str.chars().all(|c| c.is_ascii_digit());
-                let left_is_number = left_str.chars().all(|c| c.is_ascii_digit());
-                
-                // Check if operands could be string variables (identifiers that aren't pure numbers)
-                let left_could_be_string = !left_is_number && !left_is_string_literal && 
-                    left_str.chars().any(|c| c.is_alphabetic() || c == '_');
-                let right_could_be_string = !right_is_number && !right_is_string_literal &&
-                    right_str.chars().any(|c| c.is_alphabetic() || c == '_');
-                
-                if (left_is_string_literal || left_could_be_string) && !right_could_be_string {
-                    // String/StringVar * Number/NumVar -> String.repeat(Number)
-                    output.clear(); // Clear the opening parenthesis
-                    output.push_str(&format!("({}).repeat({})", left_str, right_str));
-                    return; // Early return to avoid normal binary expression handling
-                } else if (right_is_string_literal || right_could_be_string) && !left_could_be_string {
-                    // Number/NumVar * String/StringVar -> String.repeat(Number)
-                    output.clear(); // Clear the opening parenthesis
-                    output.push_str(&format!("({}).repeat({})", right_str, left_str));
-                    return; // Early return to avoid normal binary expression handling
-                } else {
-                    " * " // Default multiplication for numeric operations
-                }
-            },
+            OperatorType::Multiply => " * ",  // Normal numeric multiplication
             OperatorType::Divide => " / ",
             OperatorType::Greater => " > ",
             OperatorType::GreaterEqual => " >= ",
@@ -2179,52 +2232,51 @@ impl TypeScriptVisitor {
             OperatorType::LeftShift => " << ",
             OperatorType::RightShift => " >> ",
             OperatorType::In => {
-                // Handle 'in' operator with safer method selection
-                // For objects/dicts: x in obj
-                // For arrays/strings: arr.includes(x)  
-                // For sets: set.has(x)
+                // Handle 'in' operator for TypeScript
+                // Since TypeScript 'in' only works for object properties, we need special handling for arrays/sets
                 output.clear(); // Clear the opening parenthesis and left operand
                 
-                // Generate a safe multi-method approach that handles all collection types
-                output.push('(');
+                // For simplicity, generate a runtime check that handles all collection types
+                // This uses JavaScript's runtime checking to handle objects, arrays, and sets
+                output.push_str("((");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(").includes ? (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(").includes(");
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(") : (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(").has ? (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(").has(");
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(") : (");
                 self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
                 output.push_str(" in ");
                 self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(" || (");
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(".includes && ");
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(".includes(");
-                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
-                output.push_str(")) || (");
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(".has && ");
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(".has(");
-                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
-                output.push_str(")))");
+                output.push_str("))");
                 return; // Early return to avoid the normal binary expression handling
             },
             OperatorType::NotIn => {
                 // Handle 'not in' operator: negate the comprehensive 'in' check
                 output.clear(); // Clear the opening parenthesis and left operand
                 output.push_str("!((");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(").includes ? (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(").includes(");
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(") : (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(").has ? (");
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
+                output.push_str(").has(");
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
+                output.push_str(") : (");
                 self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
                 output.push_str(" in ");
                 self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(") || (");
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(".includes && ");
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(".includes(");
-                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
-                output.push_str(")) || (");
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(".has && ");
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), output);
-                output.push_str(".has(");
-                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), output);
-                output.push_str(")))");
+                output.push_str("))");
                 return; // Early return to avoid the normal binary expression handling
             },
             OperatorType::MatMul => {
