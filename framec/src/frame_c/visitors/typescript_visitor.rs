@@ -105,6 +105,17 @@ impl TypeScriptVisitor {
         }
     }
     
+    /// Embed Frame TypeScript runtime library at the beginning of generated files
+    fn embed_frame_runtime(&mut self) {
+        let runtime_code = include_str!("runtime/typescript/frame_runtime.ts");
+        self.builder.writeln("// Frame TypeScript Runtime Library");
+        self.builder.writeln("// Provides Frame-semantic implementations for consistent behavior");
+        self.builder.newline();
+        self.builder.write(runtime_code);
+        self.builder.newline();
+        self.builder.newline();
+    }
+    
     /// Check if action contains await expressions (making it async)
     fn action_is_async(&self, action: &ActionNode) -> bool {
         // Check if action is explicitly marked as async
@@ -490,6 +501,9 @@ impl TypeScriptVisitor {
 
 impl AstVisitor for TypeScriptVisitor {
     fn visit_frame_module(&mut self, frame_module: &FrameModule) {
+        // Embed Frame TypeScript runtime at the beginning of the file
+        self.embed_frame_runtime();
+        
         // Process imports first (they should be at the top)
         for import_node in &frame_module.imports {
             self.visit_import_node(import_node);
@@ -1481,8 +1495,8 @@ impl TypeScriptVisitor {
             // Built-in string conversion function - use JSON.stringify for objects, String for primitives
             output.push_str("((x) => typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x))(");
         } else if func_name == "type" {
-            // Python type() function - return constructor name or typeof result
-            output.push_str("((x) => x && x.constructor ? x.constructor.name : typeof x)(");
+            // Python type() function - use Frame runtime
+            output.push_str("FrameRuntime.getType(");
         } else if func_name.starts_with("system.") {
             // Bug #52 Fix: Handle system.methodName calls for interface method calls
             // Frame: system.getValue() -> TypeScript: this.getValue()
@@ -1508,11 +1522,10 @@ impl TypeScriptVisitor {
             }
         } else {
             // Check if it's a known built-in function
-            let is_builtin = matches!(func_name.as_str(), "len" | "int" | "float" | "bool" | "list" | "dict" | "set" | "tuple");
+            let is_builtin = matches!(func_name.as_str(), "int" | "float" | "bool" | "list" | "dict" | "set" | "tuple");
             if is_builtin {
                 // Built-in functions - use appropriate TypeScript equivalent
                 match func_name.as_str() {
-                    "len" => output.push_str("("),  // Will be converted to x.length at the end
                     "int" => output.push_str("parseInt("),
                     "float" => output.push_str("parseFloat("),
                     "bool" => output.push_str("Boolean("),
@@ -1616,19 +1629,17 @@ impl TypeScriptVisitor {
                         // It's a defined action - prefix with this._action_
                         output.push_str(&format!("this._action_{}(", func_name));
                     } else if func_name == "range" {
-                        // Python range() function - implement with Array.from() that generates indices
-                        output.push_str("Array.from({length: ");
-                        // Note: we'll handle the arguments in visit_call_expr_node_to_string
+                        // Python range() function - use Frame runtime
+                        output.push_str("FrameRuntime.range(");
                     } else if func_name == "len" {
-                        // Python len() function - use .length property
-                        output.push_str("(");
-                        // Note: we'll handle converting to .length in argument processing
+                        // Python len() function - use Frame runtime
+                        output.push_str("FrameRuntime.len(");
                     } else if func_name == "str" {
                         // Python str() function - use JSON.stringify for objects, String for primitives
                         output.push_str("((x) => typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x))(");
                     } else if func_name == "type" {
-                        // Python type() function - return constructor name or typeof result
-                        output.push_str("((x) => x && x.constructor ? x.constructor.name : typeof x)(");
+                        // Python type() function - use Frame runtime
+                        output.push_str("FrameRuntime.getType(");
                     } else if func_name == "int" {
                         // Python int() function - use parseInt()
                         output.push_str("parseInt(");
@@ -1636,11 +1647,11 @@ impl TypeScriptVisitor {
                         // Python float() function - use parseFloat()
                         output.push_str("parseFloat(");
                     } else if func_name == "range" {
-                        // Python range() function - implement with Array.from() that generates indices
-                        output.push_str("Array.from({length: ");
+                        // Python range() function - use Frame runtime
+                        output.push_str("FrameRuntime.range(");
                     } else if func_name == "len" {
-                        // Python len() function - use .length property
-                        output.push_str("(");
+                        // Python len() function - use Frame runtime
+                        output.push_str("FrameRuntime.len(");
                     } else if func_name == "bool" {
                         // Python bool() function - use Boolean()
                         output.push_str("Boolean(");
@@ -1696,66 +1707,18 @@ impl TypeScriptVisitor {
             }
         }
         
-        // Add arguments if any (except for range() which handles its own arguments)
-        if node.call_expr_list.exprs_t.len() > 0 && func_name != "range" {
+        // Add arguments if any
+        if node.call_expr_list.exprs_t.len() > 0 {
             let mut args_str = String::new();
             self.visit_expr_list_node_to_string(&node.call_expr_list.exprs_t, &mut args_str);
             output.push_str(&args_str);
         }
         
-        // Special handling for range() to add proper index generator
-        if func_name == "range" {
-            let args = &node.call_expr_list.exprs_t;
-            match args.len() {
-                1 => {
-                    // range(stop) -> Array.from({length: stop}, (_, idx) => idx)
-                    self.visit_expr_node_to_string(&args[0], output); // stop
-                    output.push_str("}, (_, idx) => idx)");
-                }
-                2 => {
-                    // range(start, stop) -> Array.from({length: stop-start}, (_, idx) => idx + start)
-                    output.push('(');
-                    self.visit_expr_node_to_string(&args[1], output); // stop
-                    output.push_str(" - ");
-                    self.visit_expr_node_to_string(&args[0], output); // start
-                    output.push_str(")}, (_, idx) => idx + ");
-                    self.visit_expr_node_to_string(&args[0], output); // start
-                    output.push(')');
-                }
-                3 => {
-                    // range(start, stop, step) -> Array.from({length: Math.ceil((stop-start)/step), (_, idx) => idx*step + start)
-                    output.push_str("Math.ceil((");
-                    self.visit_expr_node_to_string(&args[1], output); // stop
-                    output.push_str(" - ");
-                    self.visit_expr_node_to_string(&args[0], output); // start
-                    output.push_str(") / ");
-                    self.visit_expr_node_to_string(&args[2], output); // step
-                    output.push_str(")}, (_, idx) => idx * ");
-                    self.visit_expr_node_to_string(&args[2], output); // step
-                    output.push_str(" + ");
-                    self.visit_expr_node_to_string(&args[0], output); // start
-                    output.push(')');
-                }
-                _ => {
-                    // Invalid number of arguments - fallback
-                    output.push_str("0}, (_, idx) => idx)");
-                }
-            }
-        } else if func_name == "len" {
-            // Convert len(x) to x.length by rewriting the entire output
-            // Find the position where "(" was added for len
-            let start_pos = output.rfind('(').unwrap_or(output.len());
-            
-            // Extract the arguments (everything after the opening parenthesis)
-            let args_part = output[start_pos + 1..].to_string();
-            
-            // Remove everything from the opening parenthesis onwards
-            output.truncate(start_pos);
-            
-            // Add argument + .length
-            output.push_str(&args_part);
-            output.push_str(".length");
-        } else if func_name == "get" && output.contains("GET_METHOD_PLACEHOLDER") {
+        // Special handling for range() is now handled by Frame runtime
+        
+        // Special handling for len() is now handled by Frame runtime in earlier function setup
+        
+        if func_name == "get" && output.contains("GET_METHOD_PLACEHOLDER") {
             // Convert obj.get(key, default) to (obj[key] || default)
             // Find the position where "GET_METHOD_PLACEHOLDER(" was added
             if let Some(placeholder_pos) = output.rfind("GET_METHOD_PLACEHOLDER(") {
@@ -2083,7 +2046,25 @@ impl TypeScriptVisitor {
                 }
             }
             ExprType::BinaryExprT { binary_expr_node } => {
-                self.visit_binary_expr_node_to_string(binary_expr_node, output);
+                // Check for equality operations that should use runtime
+                if matches!(&binary_expr_node.operator, OperatorType::EqualEqual | OperatorType::NotEqual) {
+                    let mut left_str = String::new();
+                    let mut right_str = String::new();
+                    self.visit_expr_node_to_string(&*binary_expr_node.left_rcref.borrow(), &mut left_str);
+                    self.visit_expr_node_to_string(&*binary_expr_node.right_rcref.borrow(), &mut right_str);
+                    
+                    match &binary_expr_node.operator {
+                        OperatorType::EqualEqual => {
+                            output.push_str(&format!("FrameRuntime.equals({}, {})", left_str, right_str));
+                        }
+                        OperatorType::NotEqual => {
+                            output.push_str(&format!("FrameRuntime.notEquals({}, {})", left_str, right_str));
+                        }
+                        _ => unreachable!()
+                    }
+                } else {
+                    self.visit_binary_expr_node_to_string(binary_expr_node, output);
+                }
             }
             ExprType::UnaryExprT { unary_expr_node } => {
                 self.visit_unary_expr_node_to_string(unary_expr_node, output);
@@ -2417,74 +2398,8 @@ impl TypeScriptVisitor {
                 }
             },
             OperatorType::LessEqual => " <= ",
-            OperatorType::EqualEqual => {
-                // Check if we need deep equality for complex objects
-                let mut left_str = String::new();
-                let mut right_str = String::new();
-                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
-                
-                // Only use deep equality for Sets, arrays, or object literals
-                let needs_deep_equality = left_str.contains("new Set") || right_str.contains("new Set") ||
-                                         (left_str.starts_with('[') && left_str.ends_with(']')) || 
-                                         (right_str.starts_with('[') && right_str.ends_with(']')) ||
-                                         (left_str.starts_with('{') && left_str.ends_with('}')) || 
-                                         (right_str.starts_with('{') && right_str.ends_with('}'));
-                
-                if needs_deep_equality {
-                    output.clear(); // Clear the opening parenthesis
-                    output.push_str("((l, r) => {\n");
-                    output.push_str("    if (l instanceof Set && r instanceof Set) {\n");
-                    output.push_str("        return l.size === r.size && [...l].every(x => r.has(x));\n");
-                    output.push_str("    }\n");
-                    output.push_str("    if (Array.isArray(l) && Array.isArray(r)) {\n");
-                    output.push_str("        return l.length === r.length && l.every((x, i) => x === r[i]);\n");
-                    output.push_str("    }\n");
-                    output.push_str("    return l === r;\n");
-                    output.push_str("})(");
-                    output.push_str(&left_str);
-                    output.push_str(", ");
-                    output.push_str(&right_str);
-                    output.push(')');
-                    return;
-                } else {
-                    " === "  // Use simple equality for primitive comparisons
-                }
-            },
-            OperatorType::NotEqual => {
-                // Check if we need deep inequality for complex objects
-                let mut left_str = String::new();
-                let mut right_str = String::new();
-                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
-                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
-                
-                // Only use deep inequality for Sets, arrays, or object literals
-                let needs_deep_equality = left_str.contains("new Set") || right_str.contains("new Set") ||
-                                         (left_str.starts_with('[') && left_str.ends_with(']')) || 
-                                         (right_str.starts_with('[') && right_str.ends_with(']')) ||
-                                         (left_str.starts_with('{') && left_str.ends_with('}')) || 
-                                         (right_str.starts_with('{') && right_str.ends_with('}'));
-                
-                if needs_deep_equality {
-                    output.clear(); // Clear the opening parenthesis
-                    output.push_str("!((l, r) => {\n");
-                    output.push_str("    if (l instanceof Set && r instanceof Set) {\n");
-                    output.push_str("        return l.size === r.size && [...l].every(x => r.has(x));\n");
-                    output.push_str("    }\n");
-                    output.push_str("    if (Array.isArray(l) && Array.isArray(r)) {\n");
-                    output.push_str("        return l.length === r.length && l.every((x, i) => x === r[i]);\n");
-                    output.push_str("    }\n");
-                    output.push_str("    return l === r;\n");
-                    output.push_str("})(");
-                    output.push_str(&left_str);
-                    output.push_str(", ");
-                    output.push_str(&right_str);
-                    output.push(')');
-                    return;
-                } else {
-                    " !== "  // Use simple inequality for primitive comparisons
-                }
-            },
+            OperatorType::EqualEqual => " === ",
+            OperatorType::NotEqual => " !== ",
             OperatorType::LogicalAnd => " && ",
             OperatorType::LogicalOr => " || ",
             OperatorType::Percent => " % ",
