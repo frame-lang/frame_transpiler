@@ -1480,6 +1480,9 @@ impl TypeScriptVisitor {
         } else if func_name == "str" {
             // Built-in string conversion function - use JSON.stringify for objects, String for primitives
             output.push_str("((x) => typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x))(");
+        } else if func_name == "type" {
+            // Python type() function - return constructor name or typeof result
+            output.push_str("((x) => x && x.constructor ? x.constructor.name : typeof x)(");
         } else if func_name.starts_with("system.") {
             // Bug #52 Fix: Handle system.methodName calls for interface method calls
             // Frame: system.getValue() -> TypeScript: this.getValue()
@@ -1623,6 +1626,9 @@ impl TypeScriptVisitor {
                     } else if func_name == "str" {
                         // Python str() function - use JSON.stringify for objects, String for primitives
                         output.push_str("((x) => typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x))(");
+                    } else if func_name == "type" {
+                        // Python type() function - return constructor name or typeof result
+                        output.push_str("((x) => x && x.constructor ? x.constructor.name : typeof x)(");
                     } else if func_name == "int" {
                         // Python int() function - use parseInt()
                         output.push_str("parseInt(");
@@ -1690,16 +1696,51 @@ impl TypeScriptVisitor {
             }
         }
         
-        // Add arguments if any
-        if node.call_expr_list.exprs_t.len() > 0 {
+        // Add arguments if any (except for range() which handles its own arguments)
+        if node.call_expr_list.exprs_t.len() > 0 && func_name != "range" {
             let mut args_str = String::new();
             self.visit_expr_list_node_to_string(&node.call_expr_list.exprs_t, &mut args_str);
             output.push_str(&args_str);
         }
         
-        // Special handling for range() to add index generator
+        // Special handling for range() to add proper index generator
         if func_name == "range" {
-            output.push_str("}, (_, idx) => idx)");
+            let args = &node.call_expr_list.exprs_t;
+            match args.len() {
+                1 => {
+                    // range(stop) -> Array.from({length: stop}, (_, idx) => idx)
+                    self.visit_expr_node_to_string(&args[0], output); // stop
+                    output.push_str("}, (_, idx) => idx)");
+                }
+                2 => {
+                    // range(start, stop) -> Array.from({length: stop-start}, (_, idx) => idx + start)
+                    output.push('(');
+                    self.visit_expr_node_to_string(&args[1], output); // stop
+                    output.push_str(" - ");
+                    self.visit_expr_node_to_string(&args[0], output); // start
+                    output.push_str(")}, (_, idx) => idx + ");
+                    self.visit_expr_node_to_string(&args[0], output); // start
+                    output.push(')');
+                }
+                3 => {
+                    // range(start, stop, step) -> Array.from({length: Math.ceil((stop-start)/step), (_, idx) => idx*step + start)
+                    output.push_str("Math.ceil((");
+                    self.visit_expr_node_to_string(&args[1], output); // stop
+                    output.push_str(" - ");
+                    self.visit_expr_node_to_string(&args[0], output); // start
+                    output.push_str(") / ");
+                    self.visit_expr_node_to_string(&args[2], output); // step
+                    output.push_str(")}, (_, idx) => idx * ");
+                    self.visit_expr_node_to_string(&args[2], output); // step
+                    output.push_str(" + ");
+                    self.visit_expr_node_to_string(&args[0], output); // start
+                    output.push(')');
+                }
+                _ => {
+                    // Invalid number of arguments - fallback
+                    output.push_str("0}, (_, idx) => idx)");
+                }
+            }
         } else if func_name == "len" {
             // Convert len(x) to x.length by rewriting the entire output
             // Find the position where "(" was added for len
@@ -1892,22 +1933,39 @@ impl TypeScriptVisitor {
                         output.push_str(&converted);
                     }
                     TokenType::RawString => {
-                        // Raw strings: convert r"text" to "text" (no escape processing needed)
+                        // Raw strings: convert r"text" to "text" or r"""text""" to `text`
                         let value = &literal_expr_node.value;
                         
-                        // Extract content from raw string format (r"content" or r'content')
-                        let content = if value.starts_with("r\"") && value.ends_with("\"") {
+                        // Extract content from raw string format
+                        let content = if value.starts_with("r\"\"\"") && value.ends_with("\"\"\"") {
+                            // Raw triple quoted: r"""content""" -> content (multiline)
+                            &value[4..value.len()-3]
+                        } else if value.starts_with("r'''") && value.ends_with("'''") {
+                            // Raw triple quoted single quotes: r'''content''' -> content (multiline)
+                            &value[4..value.len()-3]
+                        } else if value.starts_with("r\"") && value.ends_with("\"") {
+                            // Raw double quoted: r"content" -> content (single line)
                             &value[2..value.len()-1]
                         } else if value.starts_with("r'") && value.ends_with("'") {
+                            // Raw single quoted: r'content' -> content (single line)
                             &value[2..value.len()-1]
                         } else {
                             // Fallback if format is unexpected
                             value
                         };
                         
-                        output.push('"');
-                        output.push_str(content);
-                        output.push('"');
+                        // Use template literals for multiline raw strings, regular quotes for single line
+                        if value.contains("\"\"\"") || value.contains("'''") {
+                            // Multiline raw string - use template literal
+                            output.push('`');
+                            output.push_str(content);
+                            output.push('`');
+                        } else {
+                            // Single line raw string - use regular quotes
+                            output.push('"');
+                            output.push_str(content);
+                            output.push('"');
+                        }
                     }
                     TokenType::ByteString => {
                         // Byte strings can be represented as regular strings in TypeScript
@@ -1927,9 +1985,23 @@ impl TypeScriptVisitor {
                     TokenType::TripleQuotedString => {
                         // Triple quoted strings: convert """content""" to `content` (template literal for multiline)
                         let value = &literal_expr_node.value;
-                        let content = if value.starts_with("\"\"\"") && value.ends_with("\"\"\"") {
+                        let content = if value.starts_with("r\"\"\"") && value.ends_with("\"\"\"") {
+                            // Raw triple quoted: r"""content""" -> content (without escaping)
+                            &value[4..value.len()-3]
+                        } else if value.starts_with("f\"\"\"") && value.ends_with("\"\"\"") {
+                            // F-string triple quoted: f"""content""" -> content (will be processed as f-string)
+                            &value[4..value.len()-3]
+                        } else if value.starts_with("\"\"\"") && value.ends_with("\"\"\"") {
+                            // Regular triple quoted: """content""" -> content
                             &value[3..value.len()-3]
+                        } else if value.starts_with("r'''") && value.ends_with("'''") {
+                            // Raw triple quoted single quotes: r'''content''' -> content
+                            &value[4..value.len()-3]
+                        } else if value.starts_with("f'''") && value.ends_with("'''") {
+                            // F-string triple quoted single quotes: f'''content''' -> content
+                            &value[4..value.len()-3]
                         } else if value.starts_with("'''") && value.ends_with("'''") {
+                            // Regular triple quoted single quotes: '''content''' -> content
                             &value[3..value.len()-3]
                         } else {
                             value
@@ -2345,8 +2417,74 @@ impl TypeScriptVisitor {
                 }
             },
             OperatorType::LessEqual => " <= ",
-            OperatorType::EqualEqual => " === ",  // Use strict equality in TypeScript
-            OperatorType::NotEqual => " !== ",    // Use strict inequality in TypeScript
+            OperatorType::EqualEqual => {
+                // Check if we need deep equality for complex objects
+                let mut left_str = String::new();
+                let mut right_str = String::new();
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
+                
+                // Only use deep equality for Sets, arrays, or object literals
+                let needs_deep_equality = left_str.contains("new Set") || right_str.contains("new Set") ||
+                                         (left_str.starts_with('[') && left_str.ends_with(']')) || 
+                                         (right_str.starts_with('[') && right_str.ends_with(']')) ||
+                                         (left_str.starts_with('{') && left_str.ends_with('}')) || 
+                                         (right_str.starts_with('{') && right_str.ends_with('}'));
+                
+                if needs_deep_equality {
+                    output.clear(); // Clear the opening parenthesis
+                    output.push_str("((l, r) => {\n");
+                    output.push_str("    if (l instanceof Set && r instanceof Set) {\n");
+                    output.push_str("        return l.size === r.size && [...l].every(x => r.has(x));\n");
+                    output.push_str("    }\n");
+                    output.push_str("    if (Array.isArray(l) && Array.isArray(r)) {\n");
+                    output.push_str("        return l.length === r.length && l.every((x, i) => x === r[i]);\n");
+                    output.push_str("    }\n");
+                    output.push_str("    return l === r;\n");
+                    output.push_str("})(");
+                    output.push_str(&left_str);
+                    output.push_str(", ");
+                    output.push_str(&right_str);
+                    output.push(')');
+                    return;
+                } else {
+                    " === "  // Use simple equality for primitive comparisons
+                }
+            },
+            OperatorType::NotEqual => {
+                // Check if we need deep inequality for complex objects
+                let mut left_str = String::new();
+                let mut right_str = String::new();
+                self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
+                self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
+                
+                // Only use deep inequality for Sets, arrays, or object literals
+                let needs_deep_equality = left_str.contains("new Set") || right_str.contains("new Set") ||
+                                         (left_str.starts_with('[') && left_str.ends_with(']')) || 
+                                         (right_str.starts_with('[') && right_str.ends_with(']')) ||
+                                         (left_str.starts_with('{') && left_str.ends_with('}')) || 
+                                         (right_str.starts_with('{') && right_str.ends_with('}'));
+                
+                if needs_deep_equality {
+                    output.clear(); // Clear the opening parenthesis
+                    output.push_str("!((l, r) => {\n");
+                    output.push_str("    if (l instanceof Set && r instanceof Set) {\n");
+                    output.push_str("        return l.size === r.size && [...l].every(x => r.has(x));\n");
+                    output.push_str("    }\n");
+                    output.push_str("    if (Array.isArray(l) && Array.isArray(r)) {\n");
+                    output.push_str("        return l.length === r.length && l.every((x, i) => x === r[i]);\n");
+                    output.push_str("    }\n");
+                    output.push_str("    return l === r;\n");
+                    output.push_str("})(");
+                    output.push_str(&left_str);
+                    output.push_str(", ");
+                    output.push_str(&right_str);
+                    output.push(')');
+                    return;
+                } else {
+                    " !== "  // Use simple inequality for primitive comparisons
+                }
+            },
             OperatorType::LogicalAnd => " && ",
             OperatorType::LogicalOr => " || ",
             OperatorType::Percent => " % ",
@@ -3005,8 +3143,26 @@ impl TypeScriptVisitor {
                         eprintln!("DEBUG TS: Processing UndeclaredCallT method: {}, is_first: {}", call_node.identifier.name.lexeme, is_first);
                     }
                     
-                    // Special handling for dictionary methods
                     let method_name = &call_node.identifier.name.lexeme;
+                    
+                    // Check for special @indexed_call node
+                    if method_name == "@indexed_call" {
+                        // This is a synthetic node for array[index](args) or dict[key](args)  
+                        // Just output the arguments without any method name
+                        output.push('(');
+                        let mut first_arg = true;
+                        for arg in &call_node.call_expr_list.exprs_t {
+                            if !first_arg {
+                                output.push_str(", ");
+                            }
+                            self.visit_expr_node_to_string(arg, output);
+                            first_arg = false;
+                        }
+                        output.push(')');
+                        return; // Don't process further
+                    }
+                    
+                    // Special handling for dictionary methods
                     
                     if method_name == "get" {
                         // Convert .get(key, default) to [key] || default
@@ -3275,24 +3431,22 @@ impl TypeScriptVisitor {
                     }
                 }
                 CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
-                    // Handle literal in call chain (like for f-strings)
-                    match &call_chain_literal_expr_node.token_t {
-                        TokenType::String => {
-                            output.push('"');
-                            output.push_str(&call_chain_literal_expr_node.value);
-                            output.push('"');
-                        }
-                        TokenType::FString => {
-                            let converted = self.convert_fstring_to_template_literal(&call_chain_literal_expr_node.value);
-                            output.push_str(&converted);
-                        }
-                        TokenType::Number => {
-                            output.push_str(&call_chain_literal_expr_node.value);
-                        }
-                        _ => {
-                            output.push_str(&call_chain_literal_expr_node.value);
-                        }
-                    }
+                    // Handle literal in call chain - use comprehensive literal processing
+                    // Create a temporary ExprType to reuse the enhanced literal handling
+                    let temp_literal_node = LiteralExprNode {
+                        line: 0,
+                        token_t: call_chain_literal_expr_node.token_t.clone(),
+                        value: call_chain_literal_expr_node.value.clone(),
+                        is_reference: false,
+                        inc_dec: IncDecExpr::None,
+                    };
+                    
+                    let temp_expr = ExprType::LiteralExprT { 
+                        literal_expr_node: temp_literal_node 
+                    };
+                    
+                    // Use the enhanced expression handler that supports all string types
+                    self.visit_expr_node_to_string(&temp_expr, output);
                 }
                 CallChainNodeType::ListElementNodeT { list_elem_node } => {
                     // Handle array/string indexing operations like text[i]
@@ -3773,7 +3927,26 @@ impl TypeScriptVisitor {
                 self.visit_expr_node_to_string(key, output);
             } else {
                 // Regular key-value pair
-                self.visit_expr_node_to_string(key, output);
+                // Check if key needs computed property syntax for complex expressions
+                let needs_computed = match key {
+                    ExprType::ListT { .. } |
+                    ExprType::DictLiteralT { .. } |
+                    ExprType::CallExprT { .. } |
+                    ExprType::BinaryExprT { .. } => true,
+                    _ => false,
+                };
+                
+                if needs_computed {
+                    // Use computed property syntax with string conversion for complex keys
+                    output.push('[');
+                    output.push_str("((x) => typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x))(");
+                    self.visit_expr_node_to_string(key, output);
+                    output.push(')');
+                    output.push(']');
+                } else {
+                    // Simple key - output directly
+                    self.visit_expr_node_to_string(key, output);
+                }
                 output.push_str(": ");
                 self.visit_expr_node_to_string(value, output);
             }

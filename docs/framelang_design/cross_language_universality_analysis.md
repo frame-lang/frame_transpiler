@@ -296,17 +296,426 @@ system ApiClient {
 
 ## Language Feature Matrix
 
-| Feature | Python | C | C++ | Java | C# | JavaScript | Go | Frame Solution |
-|---------|--------|---|-----|------|----|------------|----|--------------| 
-| Static Typing | Optional | Yes | Yes | Yes | Yes | No (TS: Yes) | Yes | Optional type annotations |
-| Garbage Collection | Yes | No | No | Yes | Yes | Yes | Yes | Automatic resource management |
-| Async/Await | Yes | No | C++20 | No | Yes | Yes | No | Unified async model |
-| Exceptions | Yes | No | Yes | Yes | Yes | Yes | No | Unified error model |
-| Generics | Yes | No | Yes | Yes | Yes | No | Yes | Template-like syntax |
-| Operator Overloading | Yes | No | Yes | No | Yes | No | No | Limited to common ops |
-| Multiple Inheritance | Yes | No | Yes | No (interfaces) | No (interfaces) | No | No | Interface composition |
-| Closures | Yes | No | Yes | Yes | Yes | Yes | Yes | Lambda syntax |
-| Pattern Matching | Yes (3.10+) | No | No | Yes (17) | Yes | No | No | Match expressions |
+| Feature | Python | TypeScript | Rust | Go | Java | C++ | C | Frame Solution |
+|---------|--------|------------|------|----|----- |-----|---|--------------|
+| Static Typing | Optional | Yes | Yes | Yes | Yes | Yes | Yes | Optional type annotations |
+| Garbage Collection | Yes | Yes | No | Yes | Yes | No | No | Automatic resource management |
+| Async/Await | Yes | Yes | Yes | No | No | C++20 | No | Unified async model |
+| Exceptions | Yes | Yes | No | No | Yes | Yes | No | Unified error model |
+| Generics | Yes | Yes | Yes | Yes | Yes | Yes | No | Template-like syntax |
+| Operator Overloading | Yes | No | Yes | No | No | Yes | No | Limited to common ops |
+| Multiple Inheritance | Yes | No | No | No | No (interfaces) | Yes | No | Interface composition |
+| Closures | Yes | Yes | Yes | Yes | Yes | Yes | No | Lambda syntax |
+| Pattern Matching | Yes (3.10+) | No | Yes | No | Yes (17+) | No | No | Match expressions |
+| Memory Management | GC | GC | Manual | GC | GC | Manual | Manual | Runtime abstraction |
+| Null Safety | No | Optional | Yes | No | No | No | No | Optional (via types) |
+
+## Complex Syntax Support Decision (Added 2025-01-22)
+
+**Strategic Decision**: Frame will support ALL Python-like syntax (including complex features like tuple dictionary keys, set comprehensions, advanced string formatting, etc.) through comprehensive runtime libraries. Developers never see the generated target language code, so implementation complexity is acceptable to achieve full functional equivalence.
+
+### Functional Equivalence Examples
+
+#### 1. Tuple/Complex Dictionary Keys
+**Frame Code:**
+```frame
+var cache = {(1, 2): "value", [3, 4]: "array key", {"x": 1}: "object key"}
+var result = cache[(1, 2)]
+```
+
+**Python Target:**
+```python
+# Direct mapping - native support
+cache = {(1, 2): "value", (3, 4): "array key", frozenset({"x": 1}.items()): "object key"}
+result = cache[(1, 2)]
+```
+
+**TypeScript Target:**
+```typescript
+// Runtime Map with JSON serialization
+const cache = new FrameDict([
+    [JSON.stringify([1, 2]), "value"],
+    [JSON.stringify([3, 4]), "array key"],  
+    [JSON.stringify({"x": 1}), "object key"]
+]);
+const result = cache.get(JSON.stringify([1, 2]));
+```
+
+**Rust Target:**
+```rust
+// HashMap with serialized keys
+use std::collections::HashMap;
+let mut cache = HashMap::new();
+cache.insert(format!("{:?}", (1, 2)), "value".to_string());
+cache.insert(format!("{:?}", [3, 4]), "array key".to_string());
+let result = cache.get(&format!("{:?}", (1, 2)));
+```
+
+**Go Target:**
+```go
+// Map with string keys
+cache := map[string]string{
+    "[1,2]": "value",
+    "[3,4]": "array key",
+    "{\"x\":1}": "object key",
+}
+result := cache["[1,2]"]
+```
+
+**Java Target:**
+```java
+// HashMap with serialized keys
+Map<String, String> cache = new HashMap<>();
+cache.put(Arrays.toString(new int[]{1, 2}), "value");
+cache.put(Arrays.toString(new int[]{3, 4}), "array key");
+cache.put(new Gson().toJson(Map.of("x", 1)), "object key");
+String result = cache.get(Arrays.toString(new int[]{1, 2}));
+```
+
+**C++ Target:**
+```cpp
+// std::map with serialized keys
+std::map<std::string, std::string> cache;
+cache["[1,2]"] = "value";
+cache["[3,4]"] = "array key";
+cache["{\"x\":1}"] = "object key";
+std::string result = cache["[1,2]"];
+```
+
+**C Target:**
+```c
+// Hash table with string keys
+FrameDict* cache = frame_dict_create();
+frame_dict_set(cache, "[1,2]", "value");
+frame_dict_set(cache, "[3,4]", "array key");
+char* result = frame_dict_get(cache, "[1,2]");
+```
+
+#### 2. Set Comprehensions
+**Frame Code:**
+```frame
+var squares = {x*x for x in numbers if x > 0}
+```
+
+**Python Target:**
+```python
+squares = {x*x for x in numbers if x > 0}
+```
+
+**TypeScript Target:**
+```typescript
+const squares = new Set(numbers.filter(x => x > 0).map(x => x * x));
+```
+
+**Rust Target:**
+```rust
+let squares: HashSet<i32> = numbers.iter()
+    .filter(|&x| *x > 0)
+    .map(|x| x * x)
+    .collect();
+```
+
+**Go Target:**
+```go
+squares := make(map[int]bool)
+for _, x := range numbers {
+    if x > 0 {
+        squares[x*x] = true
+    }
+}
+```
+
+**Java Target:**
+```java
+Set<Integer> squares = numbers.stream()
+    .filter(x -> x > 0)
+    .map(x -> x * x)
+    .collect(Collectors.toSet());
+```
+
+**C++ Target:**
+```cpp
+std::set<int> squares;
+std::transform(numbers.begin(), numbers.end(), 
+    std::inserter(squares, squares.begin()),
+    [](int x) { return x > 0 ? x * x : 0; });
+squares.erase(0); // Remove zeros from filter
+```
+
+**C Target:**
+```c
+FrameSet* squares = frame_set_create();
+for (int i = 0; i < numbers_len; i++) {
+    if (numbers[i] > 0) {
+        frame_set_add(squares, numbers[i] * numbers[i]);
+    }
+}
+```
+
+#### 3. Multiple Assignment with Star Expressions
+**Frame Code:**
+```frame
+var first, *middle, last = [1, 2, 3, 4, 5]
+```
+
+**Python Target:**
+```python
+first, *middle, last = [1, 2, 3, 4, 5]
+```
+
+**TypeScript Target:**
+```typescript
+const [first, ...temp] = [1, 2, 3, 4, 5];
+const last = temp.pop();
+const middle = temp;
+```
+
+**Rust Target:**
+```rust
+let vec = vec![1, 2, 3, 4, 5];
+let first = vec[0];
+let last = vec[vec.len() - 1];
+let middle = vec[1..vec.len()-1].to_vec();
+```
+
+**Go Target:**
+```go
+slice := []int{1, 2, 3, 4, 5}
+first := slice[0]
+last := slice[len(slice)-1]
+middle := slice[1:len(slice)-1]
+```
+
+**Java Target:**
+```java
+List<Integer> list = Arrays.asList(1, 2, 3, 4, 5);
+int first = list.get(0);
+int last = list.get(list.size() - 1);
+List<Integer> middle = list.subList(1, list.size() - 1);
+```
+
+**C++ Target:**
+```cpp
+std::vector<int> vec = {1, 2, 3, 4, 5};
+int first = vec.front();
+int last = vec.back();
+std::vector<int> middle(vec.begin() + 1, vec.end() - 1);
+```
+
+**C Target:**
+```c
+int arr[] = {1, 2, 3, 4, 5};
+int first = arr[0];
+int last = arr[4];
+int* middle = malloc(3 * sizeof(int));
+memcpy(middle, &arr[1], 3 * sizeof(int));
+```
+
+#### 4. Advanced String Formatting
+**Frame Code:**
+```frame
+var msg = f"Value: {x:>10.2f}, Debug: {expr=}"
+var old_style = "Name: %s, Count: %d" % (name, count)
+```
+
+**Python Target:**
+```python
+msg = f"Value: {x:>10.2f}, Debug: {expr=}"
+old_style = "Name: %s, Count: %d" % (name, count)
+```
+
+**TypeScript Target:**
+```typescript
+const msg = FrameString.format("Value: ${0:>10.2f}, Debug: ${1}=", [x, expr]);
+const old_style = FrameString.percent("Name: %s, Count: %d", [name, count]);
+```
+
+**Rust Target:**
+```rust
+let msg = format!("Value: {:>10.2}, Debug: {}={}", x, stringify!(expr), expr);
+let old_style = format!("Name: {}, Count: {}", name, count);
+```
+
+**Go Target:**
+```go
+msg := fmt.Sprintf("Value: %10.2f, Debug: %v=%v", x, "expr", expr)
+old_style := fmt.Sprintf("Name: %s, Count: %d", name, count)
+```
+
+**Java Target:**
+```java
+String msg = FrameString.format("Value: %10.2f, Debug: expr=%s", x, expr);
+String old_style = String.format("Name: %s, Count: %d", name, count);
+```
+
+**C++ Target:**
+```cpp
+#include <format> // C++20
+std::string msg = std::format("Value: {:>10.2f}, Debug: expr={}", x, expr);
+std::string old_style = std::format("Name: {}, Count: {}", name, count);
+```
+
+**C Target:**
+```c
+char msg[256];
+snprintf(msg, sizeof(msg), "Value: %10.2f, Debug: expr=%g", x, expr);
+char old_style[256];
+snprintf(old_style, sizeof(old_style), "Name: %s, Count: %d", name, count);
+```
+
+#### 5. Exception Chaining
+**Frame Code:**
+```frame
+try {
+    risky_operation()
+} except (ValueError, TypeError) as e {
+    raise CustomError("Failed") from e
+}
+```
+
+**Python Target:**
+```python
+try:
+    risky_operation()
+except (ValueError, TypeError) as e:
+    raise CustomError("Failed") from e
+```
+
+**TypeScript Target:**
+```typescript
+try {
+    risky_operation();
+} catch (e) {
+    if (FrameError.isType(e, ["ValueError", "TypeError"])) {
+        throw new FrameError("CustomError", "Failed", {cause: e});
+    }
+    throw e;
+}
+```
+
+**Rust Target:**
+```rust
+match risky_operation() {
+    Err(e) if matches!(e, ValueError(_) | TypeError(_)) => {
+        return Err(CustomError::new("Failed").with_source(e));
+    }
+    result => result,
+}
+```
+
+**Go Target:**
+```go
+if err := risky_operation(); err != nil {
+    if IsValueError(err) || IsTypeError(err) {
+        return WrapError(err, "CustomError: Failed")
+    }
+    return err
+}
+```
+
+**Java Target:**
+```java
+try {
+    risky_operation();
+} catch (ValueError | TypeError e) {
+    throw new CustomError("Failed", e);
+}
+```
+
+**C++ Target:**
+```cpp
+try {
+    risky_operation();
+} catch (const ValueError& e) {
+    throw CustomError("Failed", e);
+} catch (const TypeError& e) {
+    throw CustomError("Failed", e);
+}
+```
+
+**C Target:**
+```c
+FrameResult result = risky_operation();
+if (result.error != NULL && 
+    (result.error_type == VALUE_ERROR || result.error_type == TYPE_ERROR)) {
+    return frame_error_chain(result.error, "CustomError: Failed");
+}
+return result;
+```
+
+#### 6. Keyword Arguments
+**Frame Code:**
+```frame
+result = process_data(source="file.txt", format="json", validate=true)
+```
+
+**Python Target:**
+```python
+result = process_data(source="file.txt", format="json", validate=True)
+```
+
+**TypeScript Target:**
+```typescript
+const result = process_data({source: "file.txt", format: "json", validate: true});
+```
+
+**Rust Target:**
+```rust
+let result = process_data(ProcessDataArgs {
+    source: "file.txt".to_string(),
+    format: "json".to_string(),
+    validate: true,
+});
+```
+
+**Go Target:**
+```go
+result := ProcessData(ProcessDataOpts{
+    Source: "file.txt",
+    Format: "json", 
+    Validate: true,
+})
+```
+
+**Java Target:**
+```java
+ProcessDataResult result = ProcessData.builder()
+    .source("file.txt")
+    .format("json")
+    .validate(true)
+    .execute();
+```
+
+**C++ Target:**
+```cpp
+auto result = process_data({
+    .source = "file.txt",
+    .format = "json", 
+    .validate = true
+});
+```
+
+**C Target:**
+```c
+ProcessDataArgs args = {
+    .source = "file.txt",
+    .format = "json",
+    .validate = true
+};
+FrameResult result = process_data(&args);
+```
+
+### Implementation Strategy
+
+1. **Comprehensive Runtime Libraries**: Each target language gets a complete Frame runtime (`FrameDict`, `FrameSet`, `FrameString`, `FrameError`, etc.)
+
+2. **Complex Code Generation**: Generated code can be arbitrarily complex since developers never see it
+
+3. **Behavioral Correctness**: Focus on identical behavior across languages, not code similarity
+
+4. **Performance Optimization**: Runtime libraries optimized for each target language's strengths
+
+This approach makes Frame a truly universal language while maintaining full Python-like expressiveness.
 
 ## Recommended Frame Language Features
 
