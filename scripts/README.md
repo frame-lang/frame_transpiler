@@ -10,7 +10,7 @@ Updating that value automatically keeps every crate aligned because individual m
 
 ```toml
 [workspace.package]
-version = "0.86.15"
+version = "0.86.16"
 ```
 
 ### Keeping `version.toml` in Sync
@@ -63,7 +63,7 @@ The script extracts the workspace version via `cargo metadata` and rewrites the 
 
 ```bash
 framec --version
-# framec 0.86.15
+# framec 0.86.16
 ```
 
 ### Troubleshooting

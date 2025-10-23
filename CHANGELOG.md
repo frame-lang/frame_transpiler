@@ -2,6 +2,13 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.86.16] - 2025-10-22
+
+### Improved
+- **Debugger Controller Readiness**: Raised TypeScript execution success to 82.5% (354/429) with multifile and capability-focused fixes, keeping Python at 100%.
+- **Documentation Alignment**: Updated `README.md`, `docs/HOW_TO.md`, `docs/project_status.md`, `CLAUDE.md`, and planning docs to track debugger-focused milestones.
+- **Testing Architecture Roadmap**: Added cross-target testing guidance to the master roadmap to support debugger controller workflows.
+
 ## [v0.86.15] - 2025-10-22
 
 ### Added

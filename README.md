@@ -2,18 +2,18 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.86.15  
+**Current Version**: v0.86.16  
 **Test Framework**: Unified multi-language testing (887 total tests)  
 **Python Tests**: 100% execution (458/458)  
-**TypeScript Tests**: 100% transpilation (429/429) · 80.5% execution (66/82 runtime validation)  
+**TypeScript Tests**: 100% transpilation (429/429) · 82.5% execution (354/429)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-22
 
-## Current Features (v0.86.15) 🚀 TypeScript Async Runtime Complete
-- Unified async/await semantics across Frame targets with the new TypeScript `FrameAsync` runtime module.
-- Extended visitor support: async interface/machine functions emit proper `async` signatures and await support for capability calls.
-- Added reusable async capability specifications in `framec_tests/python/src/capability_modules/` to verify HTTP, concurrency, and timing workflows.
-- Documentation refreshed in `docs/HOW_TO.md` with async guidance and CLI usage notes.
+## Current Focus (v0.86.16) 🛠️ Debugger Controller Enablement
+- Laying the groundwork for a TypeScript-based debugger controller: prioritizing multifile execution stability and runtime capability coverage.
+- Expanded runtime validation: TypeScript execution success now 82.5% (354/429) with improvements concentrated in control flow and system orchestration suites.
+- Documentation alignment across `CLAUDE.md`, `docs/HOW_TO.md`, and `docs/project_status.md` to track debugger-controller readiness.
+- Introduced repository-level roadmap guidance for cross-target testing architecture supporting debugger scenarios.
 
 ## Recent Improvements (v0.86.12 – v0.86.14)
 - **Embedded TypeScript Runtime Library (v0.86.14):** Introduced deterministic helpers (`equals`, `range`, `len`, `getType`) with 80.5% execution success (66/82) across `data_types` and `operators`.

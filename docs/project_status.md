@@ -3,18 +3,18 @@
 ## Current State
 
 **Branch**: `dev`  
-**Version**: `v0.86.15`  
-**Status**: ✅ Python 458/458 passing (100%) · ⚠️ TypeScript execution 74.6% (320/429)  
-**Achievement**: Unified async/await capabilities with the embedded TypeScript runtime  
-**Latest Snapshot (2025-10-21)**: Overall TypeScript execution success 80.5% across 887 total tests  
+**Version**: `v0.86.16`  
+**Status**: ✅ Python 458/458 passing (100%) · ⚠️ TypeScript execution 82.5% (354/429)  
+**Achievement**: Debugger-controller readiness milestones with expanded runtime validation  
+**Latest Snapshot (2025-10-22)**: Overall TypeScript execution success 82.5% across 887 total tests  
 **Rust Version**: 1.89.0 (Latest Stable)
 
-## Latest Updates (October 21, 2025)
+## Latest Updates (October 22, 2025)
 
-### 🚀 Frame v0.86.15 - Async Runtime Consolidation
-- **Async/Await Unification**: Embedded TypeScript runtime aligned with Python async behavior
-- **Test Coverage**: Python suite remains 100% (458/458); TypeScript execution success holding at 74.6% (320/429)
-- **Focus**: Continue closing the remaining TypeScript execution gaps while maintaining cross-target parity
+### 🛠️ Frame v0.86.16 - Debugger Controller Preparation
+- **Execution Coverage**: TypeScript execution success improved to 82.5% (354/429) with focus on multifile orchestration and capability modules
+- **Roadmap Alignment**: Documented cross-target testing architecture to support debugger workflow validation
+- **Next Focus**: Implement remaining runtime capabilities (process spawning, networking) required by the debugger controller
 
 ### ✅ Previous Updates (October 19, 2025)
 

@@ -62,10 +62,10 @@ system SystemName {
 - Always check actual test files in `framec_tests/python/src/` for examples
 
 ## Current State
-- **Version**: v0.86.15 (branch `dev`)
-- **Test Status**: 458/458 Python passing (100%), 429 TypeScript tests at 74.6% execution success (overall TS execution success rate 80.5%)
-- **Latest Achievements**: Unified async/await capabilities with the embedded TypeScript runtime; stabilized multi-target generation
-- **Open Focus Areas**: Continue driving TypeScript execution parity up from 74.6%; keep docs/plans in sync with `docs/HOW_TO.md`
+- **Version**: v0.86.16 (branch `dev`)
+- **Test Status**: 458/458 Python passing (100%), 429 TypeScript tests at 82.5% execution success (overall TS execution success rate 82.5%)
+- **Latest Achievements**: Established debugger-controller roadmap with improved TypeScript execution coverage; documentation synchronized across planning guides
+- **Open Focus Areas**: Close remaining TypeScript execution gaps (primarily multifile + capability tests) and keep roadmap/test docs aligned
 
 ## Quick References
 - **Test files**: `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`  
