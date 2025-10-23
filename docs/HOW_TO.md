@@ -22,11 +22,11 @@ This document captures every process, tool, and workflow used in the Frame Trans
 Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.0 and migrating from v0.11 to v0.20 syntax.
 
 ### Current Status
-- **Version**: v0.86.3
+- **Version**: v0.86.15
 - **Branch**: `dev`
-- **Test Success Rate**: 100.0% (887 total tests: 458 Python 100% + 429 TypeScript 100%)
-- **Supported Targets**: Python 3, TypeScript, GraphViz
-- **Recent Achievement**: Perfect TypeScript transpilation achieved (100% success rate)
+- **Test Success Rate**: 80.5% TypeScript overall execution success (887 total tests: 458 Python 100% + 429 TypeScript 74.6%)
+- **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz
+- **Recent Achievement**: Unified async/await capabilities with embedded TypeScript runtime
 
 ## Architecture
 
@@ -526,6 +526,60 @@ system FileIOTest {
 - Multi-system support with clear separation
 - Hierarchical state machine visualization
 - Debug and documentation purposes
+
+## Async/Await Capabilities (v0.86.15)
+
+Frame provides unified async/await functionality across target languages using embedded runtime libraries.
+
+### TypeScript Async Support
+- **FrameAsync Runtime**: Embedded async operations library
+- **HTTP Operations**: `FrameAsync.httpGet()`, `FrameAsync.httpPost()`
+- **Concurrency**: `FrameAsync.parallel()`, `FrameAsync.sequence()`, `FrameAsync.race()`
+- **Timing**: `FrameAsync.sleep()`, `FrameAsync.timeout()`
+
+### Frame Async Syntax
+```frame
+module AsyncCapabilities {
+    async fn httpGet(url) {
+        var response = await fetch(url)
+        return response
+    }
+    
+    async fn parallel(tasks) {
+        var results = []
+        for task in tasks {
+            var result = await task
+            results.append(result)
+        }
+        return results
+    }
+}
+```
+
+### Generated TypeScript
+```typescript
+export namespace AsyncCapabilities {
+    export async function httpGet(url: any): Promise<any> {
+        let response = await fetch(url);
+        return response;
+    }
+    
+    export async function parallel(tasks: any): Promise<any> {
+        let results = [];
+        for (const task of tasks) {
+            let result = await task;
+            results.push(result);
+        }
+        return results;
+    }
+}
+```
+
+### Runtime Architecture
+- **Embedded Runtime**: No external dependencies
+- **Type Safety**: Full TypeScript annotations
+- **Cross-Language Template**: Ready for Rust, C#, Java
+- **Semantic Consistency**: Identical behavior across targets
 
 ## Error Patterns and Solutions
 

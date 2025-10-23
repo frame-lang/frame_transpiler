@@ -417,3 +417,105 @@ export class FrameDict {
         return result;
     }
 }
+
+/**
+ * Frame Async Operations
+ * Universal async/await functionality for TypeScript
+ */
+export class FrameAsync {
+    /**
+     * Universal HTTP GET operation
+     */
+    static async httpGet(url: string): Promise<any> {
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            return {
+                status: response.status,
+                body: data,
+                headers: Object.fromEntries(response.headers.entries())
+            };
+        } catch (error) {
+            throw new Error(`HTTP GET failed: ${error}`);
+        }
+    }
+
+    /**
+     * Universal HTTP POST operation
+     */
+    static async httpPost(url: string, data: any): Promise<any> {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            const responseData = await response.json();
+            return {
+                status: response.status,
+                body: responseData,
+                headers: Object.fromEntries(response.headers.entries())
+            };
+        } catch (error) {
+            throw new Error(`HTTP POST failed: ${error}`);
+        }
+    }
+
+    /**
+     * Universal sleep/delay operation
+     */
+    static async sleep(milliseconds: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, milliseconds));
+    }
+
+    /**
+     * Execute tasks in parallel (Promise.all equivalent)
+     */
+    static async parallel<T>(tasks: (() => Promise<T>)[]): Promise<T[]> {
+        return Promise.all(tasks.map(task => task()));
+    }
+
+    /**
+     * Execute tasks in sequence (one after another)
+     */
+    static async sequence<T>(tasks: (() => Promise<T>)[]): Promise<T[]> {
+        const results: T[] = [];
+        for (const task of tasks) {
+            results.push(await task());
+        }
+        return results;
+    }
+
+    /**
+     * Create an async task (returns a function)
+     */
+    static createTask<T>(taskFunc: () => Promise<T>): () => Promise<T> {
+        return taskFunc;
+    }
+
+    /**
+     * Wait for all tasks to complete
+     */
+    static async waitAll<T>(tasks: (() => Promise<T>)[]): Promise<T[]> {
+        return this.parallel(tasks);
+    }
+
+    /**
+     * Race multiple tasks (first to complete wins)
+     */
+    static async race<T>(tasks: (() => Promise<T>)[]): Promise<T> {
+        return Promise.race(tasks.map(task => task()));
+    }
+
+    /**
+     * Timeout wrapper for async operations
+     */
+    static async timeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs);
+        });
+        return Promise.race([promise, timeoutPromise]);
+    }
+}

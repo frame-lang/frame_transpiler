@@ -3556,9 +3556,14 @@ impl TypeScriptVisitor {
         }
         let params_str = params.join(", ");
         
-        // Generate function signature
-        self.builder.writeln(&format!("export function {}({}): any {{", 
-                                    func_name, params_str));
+        // Generate function signature with async support
+        if function_node.is_async {
+            self.builder.writeln(&format!("export async function {}({}): Promise<any> {{", 
+                                        func_name, params_str));
+        } else {
+            self.builder.writeln(&format!("export function {}({}): any {{", 
+                                        func_name, params_str));
+        }
         self.builder.indent();
         
         // Set module function flag
