@@ -3,38 +3,29 @@ use std::fs;
 use std::path::Path;
 
 fn main() {
-    // Read version.toml from project root
+    let frame_version = env::var("CARGO_PKG_VERSION")
+        .expect("CARGO_PKG_VERSION must be set by Cargo");
+    println!("cargo:rustc-env=FRAME_VERSION={}", frame_version);
+
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let project_root = Path::new(&manifest_dir).parent().unwrap();
     let version_file = project_root.join("version.toml");
-    
-    if version_file.exists() {
-        let version_content = fs::read_to_string(&version_file)
-            .expect("Failed to read version.toml");
-        
-        // Parse TOML (simple parsing for now)
-        let full_version = extract_version_from_toml(&version_content);
-        
-        // Make version available as environment variable for compile time
-        println!("cargo:rustc-env=FRAME_VERSION={}", full_version);
-        
-        // Re-run if version.toml changes
-        println!("cargo:rerun-if-changed={}", version_file.display());
-    } else {
-        // Fallback to Cargo.toml version
-        println!("cargo:rustc-env=FRAME_VERSION={}", env::var("CARGO_PKG_VERSION").unwrap());
-    }
-}
 
-fn extract_version_from_toml(content: &str) -> String {
-    // Simple TOML parsing for full = "x.y.z" line
-    for line in content.lines() {
-        let line = line.trim();
-        if line.starts_with("full = \"") && line.ends_with("\"") {
-            let start = line.find('"').unwrap() + 1;
-            let end = line.rfind('"').unwrap();
-            return line[start..end].to_string();
+    if version_file.exists() {
+        if let Ok(contents) = fs::read_to_string(&version_file) {
+            let expected = format!("full = \"{}\"", frame_version);
+            if !contents.contains(&expected) {
+                println!(
+                    "cargo:warning=version.toml full version does not match workspace version ({})",
+                    frame_version
+                );
+            }
         }
+        println!("cargo:rerun-if-changed={}", version_file.display());
     }
-    "0.78.12".to_string() // fallback
+
+    println!(
+        "cargo:rerun-if-changed={}",
+        project_root.join("Cargo.toml").display()
+    );
 }

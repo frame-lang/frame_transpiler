@@ -2,6 +2,43 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.86.15] - 2025-10-22
+
+### Added
+- **Async/await Runtime Support**: Introduced `FrameAsync` capability module for TypeScript, enabling HTTP, timing, and concurrency operations without external dependencies.
+- **Visitor Enhancements**: TypeScript visitor now emits `async` signatures, `await` expressions, and capability imports for interface, machine, and module functions.
+- **Capability Specs**: Added async capability Frame modules to the test suite to validate runtime behavior.
+
+### Improved
+- **Documentation**: Expanded `docs/HOW_TO.md` with async guidance and CLI usage notes.
+
+## [v0.86.14] - 2025-10-22
+
+### Added
+- **Embedded TypeScript Runtime**: Shipped a bundled runtime library (equals, notEquals, getType, range, len) delivering 80.5% execution success (66/82) across `data_types` and `operators`.
+- **Design Notes**: Documented the cross-language runtime strategy and TypeScript runtime internals.
+
+### Improved
+- **Visitor Reliability**: Cleaned up code generation for runtime function calls, binary expressions, and operand normalization.
+
+## [v0.86.13] - 2025-10-22
+
+### Fixed
+- **Deep Equality**: Implemented computed dictionary keys and Set/array/object deep comparisons for TypeScript output.
+- **Call Chain Literals**: Resolved literal expression handling in chained calls and lambda invocations.
+- **Built-in Functions**: Solidified `type()` and `range()` generation, eliminating runtime errors.
+
+### Improved
+- **Execution Success**: Raised TypeScript runtime execution to 75.8% within the `data_types` category while maintaining 100% transpilation.
+
+## [v0.86.12] - 2025-10-21
+
+### Added
+- **Perfect Transpilation**: Achieved 100% TypeScript transpilation (429/429 tests) by patching complex string literal handling, template interpolation, and `dict.fromkeys()` support.
+
+### Improved
+- **Changelog Clarity**: Documented the difference between transpilation success and runtime execution, highlighting the next focus areas.
+
 ## [v0.85.4] - 2025-10-18
 
 ### Fixed

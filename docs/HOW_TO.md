@@ -156,11 +156,10 @@ python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec
 
 ## Version Management
 
-### Version Files (ALL must be updated together)
-1. `framec/Cargo.toml` - Package version
-2. `frame_build/Cargo.toml` - Build tool version
-3. `version.toml` - Central version configuration
-4. `framec/src/frame_c/compiler.rs` - FRAMEC_VERSION constant
+### Single Source of Truth
+- Root `Cargo.toml` contains `[workspace.package]` and is the authoritative version.
+- Member crates (`framec`, `frame_build`, `frame_runtime`) inherit that value via `version.workspace = true`; no per-crate edits are required.
+- Build-time constants use `env!("FRAME_VERSION")`, which the build script maps directly to `CARGO_PKG_VERSION`.
 
 ### Semantic Versioning Rules
 - **Bug fixes**: Increment patch version (0.85.1 → 0.85.2)
@@ -169,11 +168,11 @@ python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec
 
 ### Version Update Process
 ```bash
-# 1. Update all version files
-# 2. Update Cargo.lock
-cargo update
+# 1. Edit the workspace version in Cargo.toml
+# 2. Sync auxiliary metadata (version.toml)
+./scripts/sync-versions.sh
 
-# 3. Rebuild to pick up new version
+# 3. Rebuild to pick up the new version
 cargo build --release
 
 # 4. Verify version in output

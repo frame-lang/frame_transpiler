@@ -1,9 +1,9 @@
 #!/bin/bash
 # Frame Transpiler Version Sync Script
-# Manually sync versions from version.toml to all relevant files
+# Ensures version.toml mirrors the workspace package version declared in Cargo.toml
 # Usage: ./scripts/sync-versions.sh [--dry-run]
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -13,124 +13,111 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 DRY_RUN=false
-if [ "$1" = "--dry-run" ]; then
+if [ "${1:-}" = "--dry-run" ]; then
     DRY_RUN=true
     echo -e "${YELLOW}🔍 DRY RUN MODE - No files will be modified${NC}"
 fi
 
 echo -e "${BLUE}🔧 Frame Transpiler Version Sync${NC}"
 
-# Check if we're in the right directory
+if ! command -v cargo >/dev/null 2>&1; then
+    echo -e "${RED}❌ Error: cargo is required but not installed${NC}"
+    exit 1
+fi
+
+# Determine workspace version from cargo metadata
+VERSION=$(python3 - <<'PY'
+import json
+import subprocess
+import sys
+
+try:
+    result = subprocess.run(
+        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+except subprocess.CalledProcessError as exc:
+    sys.exit(1)
+
+json_lines = [
+    line.strip()
+    for line in result.stdout.splitlines()
+    if line.strip().startswith("{") or line.strip().startswith("[")
+]
+
+if not json_lines:
+    sys.exit(1)
+
+metadata = json.loads("".join(json_lines))
+packages = metadata.get("packages", [])
+target_pkg = None
+
+for pkg in packages:
+    if pkg.get("name") == "framec":
+        target_pkg = pkg
+        break
+
+if target_pkg is None and packages:
+    target_pkg = packages[0]
+
+if target_pkg is None:
+    sys.exit(1)
+
+print(target_pkg["version"])
+PY
+) || VERSION=""
+
+if [ -z "$VERSION" ]; then
+    echo -e "${RED}❌ Error: Could not determine version from cargo metadata${NC}"
+    exit 1
+fi
+
+echo -e "${YELLOW}📋 Workspace version: $VERSION${NC}"
+
 if [ ! -f "version.toml" ]; then
     echo -e "${RED}❌ Error: version.toml not found. Run from project root.${NC}"
     exit 1
 fi
 
-# Extract version from version.toml
-VERSION=$(grep '^full = ' version.toml | sed 's/.*"\(.*\)".*/\1/')
+# Split semantic version components
+IFS='.' read -r VERSION_MAJOR VERSION_MINOR VERSION_PATCH <<< "$VERSION"
 
-if [ -z "$VERSION" ]; then
-    echo -e "${RED}❌ Error: Could not extract version from version.toml${NC}"
+if [ -z "$VERSION_MAJOR" ] || [ -z "$VERSION_MINOR" ] || [ -z "$VERSION_PATCH" ]; then
+    echo -e "${RED}❌ Error: Version '$VERSION' is not in semantic x.y.z format${NC}"
     exit 1
 fi
 
-echo -e "${YELLOW}📋 Target version: $VERSION${NC}"
+echo -e "${BLUE}🔄 Updating version.toml to mirror workspace version...${NC}"
 
-# Function to update file version
-update_file_version() {
-    local file="$1"
-    local pattern="$2"
-    local replacement="$3"
-    local description="$4"
-    
-    if [ ! -f "$file" ]; then
-        echo -e "${RED}   ❌ Warning: $file not found${NC}"
+apply_replacement() {
+    local pattern="$1"
+    local replacement="$2"
+
+    if ! grep -q "$pattern" version.toml; then
+        echo -e "   ${RED}⚠ Pattern not found:${NC} $pattern"
         return
     fi
-    
-    local current_line=$(grep "$pattern" "$file" || echo "")
-    if [ -z "$current_line" ]; then
-        echo -e "${RED}   ❌ Warning: Pattern not found in $file${NC}"
-        return
-    fi
-    
-    echo -e "${BLUE}   📄 $description${NC}"
-    echo -e "      File: $file"
-    echo -e "      Current: $current_line"
-    echo -e "      New:     $replacement"
-    
+
     if [ "$DRY_RUN" = false ]; then
-        # Create backup
-        cp "$file" "$file.sync-backup"
-        
-        # Apply the change
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS
-            sed -i '' "s|$pattern|$replacement|g" "$file"
+            sed -i '' "s|$pattern|$replacement|" version.toml
         else
-            # Linux
-            sed -i "s|$pattern|$replacement|g" "$file"
+            sed -i "s|$pattern|$replacement|" version.toml
         fi
-        
-        # Verify the change
-        if grep -q "$replacement" "$file"; then
-            echo -e "${GREEN}      ✅ Updated successfully${NC}"
-            rm "$file.sync-backup"
-        else
-            echo -e "${RED}      ❌ Update failed, restoring backup${NC}"
-            mv "$file.sync-backup" "$file"
-        fi
-    else
-        echo -e "${YELLOW}      🔍 Would update (dry run)${NC}"
     fi
-    echo
+    echo -e "   ${GREEN}✔${NC} $replacement"
 }
 
-echo -e "${BLUE}🔄 Syncing all version references...${NC}"
-echo
-
-# Update Cargo.toml files
-update_file_version "framec/Cargo.toml" \
-    '^version = .*' \
-    "version = \"$VERSION\"" \
-    "framec package version"
-
-update_file_version "frame_build/Cargo.toml" \
-    '^version = .*' \
-    "version = \"$VERSION\"" \
-    "frame_build package version"
-
-# Update compiler version string
-update_file_version "framec/src/frame_c/compiler.rs" \
-    'framec_v[0-9.]*' \
-    "framec_v$VERSION" \
-    "compiler version string"
-
-# Show summary
-echo -e "${BLUE}📊 Summary:${NC}"
-if [ -f "framec/Cargo.toml" ]; then
-    FRAMEC_VER=$(grep '^version = ' framec/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    echo -e "   framec/Cargo.toml: $FRAMEC_VER"
-fi
-
-if [ -f "frame_build/Cargo.toml" ]; then
-    FRAME_BUILD_VER=$(grep '^version = ' frame_build/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    echo -e "   frame_build/Cargo.toml: $FRAME_BUILD_VER"
-fi
-
-if [ -f "framec/src/frame_c/compiler.rs" ]; then
-    COMPILER_VER=$(grep 'framec_v' framec/src/frame_c/compiler.rs | sed 's/.*framec_v\([0-9.]*\).*/\1/' | head -1)
-    echo -e "   compiler version string: framec_v$COMPILER_VER"
-fi
+apply_replacement '^major = .*' "major = $VERSION_MAJOR"
+apply_replacement '^minor = .*' "minor = $VERSION_MINOR"
+apply_replacement '^patch = .*' "patch = $VERSION_PATCH"
+apply_replacement '^full = ".*"' "full = \"$VERSION\""
 
 echo
 if [ "$DRY_RUN" = false ]; then
-    echo -e "${GREEN}✅ Version sync complete!${NC}"
-    echo -e "${YELLOW}💡 Next steps:${NC}"
-    echo -e "   1. Run 'cargo build --release' to update Cargo.lock"
-    echo -e "   2. Test with 'framec --version'"
-    echo -e "   3. Commit changes with git"
+    echo -e "${GREEN}✅ Sync complete. version.toml now reflects Cargo workspace version.${NC}"
 else
-    echo -e "${YELLOW}🔍 Dry run complete - no changes made${NC}"
-    echo -e "${BLUE}💡 Run without --dry-run to apply changes${NC}"
+    echo -e "${YELLOW}🔍 Dry run complete - no changes made.${NC}"
 fi

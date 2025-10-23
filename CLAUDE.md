@@ -62,9 +62,10 @@ system SystemName {
 - Always check actual test files in `framec_tests/python/src/` for examples
 
 ## Current State
-- **Version**: v0.85.3, Branch: dev, **100% tests passing** (883/883)
-- **Bug #50**: ✅ RESOLVED - Parser token synchronization for large files (900+ lines)
-- **Recent Achievements**: Critical parser fix, TypeScript 100% success, production-ready transpiler
+- **Version**: v0.86.15 (branch `dev`)
+- **Test Status**: 458/458 Python passing (100%), 429 TypeScript tests at 74.6% execution success (overall TS execution success rate 80.5%)
+- **Latest Achievements**: Unified async/await capabilities with the embedded TypeScript runtime; stabilized multi-target generation
+- **Open Focus Areas**: Continue driving TypeScript execution parity up from 74.6%; keep docs/plans in sync with `docs/HOW_TO.md`
 
 ## Quick References
 - **Test files**: `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`  

@@ -214,12 +214,21 @@ class FrameTestRunner:
     def execute_python(self, py_file: str) -> Tuple[bool, str]:
         """Execute Python file and return success status and output."""
         try:
+            env = os.environ.copy()
+            project_root = str(self.base_dir.parent)
+            existing_pythonpath = env.get("PYTHONPATH", "")
+            if existing_pythonpath:
+                env["PYTHONPATH"] = os.pathsep.join([project_root, existing_pythonpath])
+            else:
+                env["PYTHONPATH"] = project_root
+
             result = subprocess.run(
                 ["python3", py_file],
                 capture_output=True,
                 text=True,
                 timeout=self.config.timeout,
-                cwd=os.path.dirname(py_file)
+                cwd=os.path.dirname(py_file),
+                env=env
             )
             
             # Check for common failure patterns

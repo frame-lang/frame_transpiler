@@ -2,25 +2,31 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.85.4  
-**Test Framework**: Unified multi-language testing (883 total tests)  
-**Python Tests**: 100% passing (456/456)  
-**TypeScript Tests**: 100% passing (427/427) 🎉  
+**Current Version**: v0.86.15  
+**Test Framework**: Unified multi-language testing (887 total tests)  
+**Python Tests**: 100% execution (458/458)  
+**TypeScript Tests**: 100% transpilation (429/429) · 80.5% execution (66/82 runtime validation)  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-10-18
+**Last Updated**: 2025-10-22
 
-## Current Features (v0.85.4) 🎉 BUG #50 PARSER ERROR HANDLING COMPLETE!
+## Current Features (v0.86.15) 🚀 TypeScript Async Runtime Complete
+- Unified async/await semantics across Frame targets with the new TypeScript `FrameAsync` runtime module.
+- Extended visitor support: async interface/machine functions emit proper `async` signatures and await support for capability calls.
+- Added reusable async capability specifications in `framec_tests/python/src/capability_modules/` to verify HTTP, concurrency, and timing workflows.
+- Documentation refreshed in `docs/HOW_TO.md` with async guidance and CLI usage notes.
 
-### Critical Parser Error Handling Fix (NEW in v0.85.4)
-- **Bug #50 Resolution**: Fixed misleading error messages that masked real parsing problems
-- **Root Cause**: Module-level parsing generated generic "Module-level function calls" errors hiding specific syntax issues
-- **Improved Error Reporting**: Parser now shows specific errors with line numbers instead of catch-all messages
-- **Developer Experience**: Error messages provide actionable guidance (e.g., "use system.method() instead of self.method()")
-- **Error Recovery**: Enhanced Frame-specific synchronization and proper error boundaries
-- **Complex File Support**: Large Frame specifications (900+ lines) now show precise syntax errors
-- **Cross-Language Fix**: Improved error handling works across all target languages (Python, TypeScript, GraphViz)
-- **Validation**: Maintained 100% test success rate (456/456 tests) ensuring zero regressions
-- **Production Ready**: Parser error handling now provides clear, helpful feedback for Frame developers
+## Recent Improvements (v0.86.12 – v0.86.14)
+- **Embedded TypeScript Runtime Library (v0.86.14):** Introduced deterministic helpers (`equals`, `range`, `len`, `getType`) with 80.5% execution success (66/82) across `data_types` and `operators`.
+- **Deep Equality & Literal Fixes (v0.86.13):** Implemented computed dictionary keys, Set/array deep comparisons, and lambda fixes, bringing execution success to 75.8% in the data types category.
+- **Perfect Transpilation (v0.86.12):** Achieved 100% TypeScript transpilation (429/429) by addressing complex literals, template interpolation, and `dict.fromkeys()` generation.
+
+## Previous Features (v0.85.4) ✅ BUG #50 PARSER ERROR HANDLING COMPLETE!
+
+### Critical Parser Error Handling Fix
+- **Bug #50 Resolution**: Fixed misleading error messages that masked real parsing problems.
+- **Improved Error Reporting**: Parser now highlights precise syntax issues instead of generic module-level errors.
+- **Complex File Support**: Large Frame specifications (900+ lines) surface actionable diagnostics without test regressions.
+- **Cross-Language Fix**: Improvements apply to Python, TypeScript, and GraphViz generation.
 
 ### Perfect TypeScript Code Generation (v0.85.0)
 - **TypeScript Actions**: Generate complete implementations instead of TODO placeholders
@@ -450,4 +456,3 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 * [Alan Turing](https://en.wikipedia.org/wiki/Alan_Turing) - For inventing automata theory and helping end WWII. See [The Imitation Game](https://www.imdb.com/title/tt2084970/)
 * [Dr. David Harel](http://www.wisdom.weizmann.ac.il/~harel/papers.html) - Who invented [Statecharts](https://www.sciencedirect.com/science/article/pii/0167642387900359) from which came Frame.
-

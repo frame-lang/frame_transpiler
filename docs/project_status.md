@@ -3,24 +3,28 @@
 ## Current State
 
 **Branch**: `dev`  
-**Version**: `v0.85.6`  
-**Status**: ✅ **100% TEST SUCCESS RATE - CRITICAL BUGS RESOLVED**  
-**Achievement**: **Complete TypeScript Bug Fixes - Production Ready**  
-**Latest**: ✅ **ALL 427 TYPESCRIPT + 456 PYTHON TESTS PASSING** (2025-10-19)  
+**Version**: `v0.86.15`  
+**Status**: ✅ Python 458/458 passing (100%) · ⚠️ TypeScript execution 74.6% (320/429)  
+**Achievement**: Unified async/await capabilities with the embedded TypeScript runtime  
+**Latest Snapshot (2025-10-21)**: Overall TypeScript execution success 80.5% across 887 total tests  
 **Rust Version**: 1.89.0 (Latest Stable)
 
-## Latest Updates (October 19, 2025)
+## Latest Updates (October 21, 2025)
 
-### 🎉 Frame v0.85.6 - Critical TypeScript Bug Fixes Complete
+### 🚀 Frame v0.86.15 - Async Runtime Consolidation
+- **Async/Await Unification**: Embedded TypeScript runtime aligned with Python async behavior
+- **Test Coverage**: Python suite remains 100% (458/458); TypeScript execution success holding at 74.6% (320/429)
+- **Focus**: Continue closing the remaining TypeScript execution gaps while maintaining cross-target parity
+
+### ✅ Previous Updates (October 19, 2025)
+
+#### Frame v0.85.6 - Critical TypeScript Bug Fixes Complete
 - **Bug #52 RESOLVED**: Interface method calls now generate `this.method()` correctly in TypeScript
 - **Bug #53 RESOLVED**: Exception variables now generate `e` not `this.e` in TypeScript  
-- **Test Coverage**: Added comprehensive regression tests for both bugs
-- **Production Ready**: TypeScript generation now fully unblocks Frame VS Code Extension development
-- **Test Success**: 100% success rate (427/427 TypeScript + 456/456 Python tests passing)
+- **Regression Tests**: Added targeted fixtures for both bug classes
+- **Result**: TypeScript generation unblocked VS Code extension development; execution rate subsequently tracked separately (see current snapshot)
 
-### ✅ Previous Updates (January 27, 2025)
-
-### ✅ Dependency and Toolchain Updates Complete
+### ✅ Toolchain & Dependency Updates (January 27, 2025)
 - **Rust**: Updated from 1.83.0 → 1.89.0 (latest stable)
 - **Edition**: Upgraded from Rust 2018 → 2021
 - **All Dependencies**: Updated to latest versions

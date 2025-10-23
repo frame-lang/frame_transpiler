@@ -13,6 +13,6 @@ full = "0.86.15"
 
 # Release metadata (optional)
 [metadata]
-release_date = "2025-01-23"
-release_type = "bug-fix"  # major, minor, bug-fix, hotfix
+release_date = "2025-10-22"
+release_type = "minor"  # major, minor, bug-fix, hotfix
 build_number = 15

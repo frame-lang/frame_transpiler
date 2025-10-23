@@ -6,3 +6,6 @@ members = [
     "frame_runtime",
 ]
 exclude = ["framec_tests"]
+
+[workspace.package]
+version = "0.86.15"
