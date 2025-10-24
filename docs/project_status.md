@@ -3,15 +3,15 @@
 ## Current State
 
 **Branch**: `dev`  
-**Version**: `v0.86.17`  
-**Status**: ✅ Python 458/458 passing (100%) · ⚠️ TypeScript execution 84.8% (364/429)  
+**Version**: `v0.86.18`  
+**Status**: ✅ Python 458/458 passing (100%) · ⚠️ TypeScript execution 85.8% (368/429)  
 **Achievement**: Multifile runtime deduplicated; state variable initialization restored for debugger scenarios  
-**Latest Snapshot (2025-10-23)**: Overall TypeScript execution success 84.8% across 887 total tests  
+**Latest Snapshot (2025-10-23)**: Overall TypeScript execution success 85.8% across 887 total tests  
 **Rust Version**: 1.89.0 (Latest Stable)
 
 ## Latest Updates (October 23, 2025)
 
-### 🛠️ Frame v0.86.17 - Multifile Runtime Stabilization
+### 🛠️ Frame v0.86.18 - Multifile Runtime Stabilization
 - **Control Flow**: Execution uplift to 98.0% after fixing compartment state variable updates
 - **Runtime Deduplication**: Shared TypeScript runtime emitted once per multifile bundle, eliminating `FrameRuntime` redeclaration crashes
 - **Next Focus**: Implement math/dict capability shims (`round`, `dict` helpers) to address remaining systems/data_types regressions

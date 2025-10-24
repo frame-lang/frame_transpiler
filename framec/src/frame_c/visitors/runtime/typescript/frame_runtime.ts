@@ -387,135 +387,59 @@ export class FrameCollections {
     }
 }
 
-/**
- * Dictionary/Object key handling utilities
- */
-export class FrameDict {
-    /**
-     * Convert complex keys to string representation for JavaScript objects
-     * Used when complex expressions are used as dictionary keys
-     */
-    static keyToString(key: any): string {
-        if (typeof key === 'string' || typeof key === 'number' || typeof key === 'symbol') {
-            return String(key);
+export class FrameMath {
+    private static toArray(value: any): any[] {
+        if (Array.isArray(value)) {
+            return value;
         }
-        
-        if (typeof key === 'object' && key !== null) {
-            return JSON.stringify(key);
+        if (value instanceof Set) {
+            return Array.from(value);
         }
-        
-        return String(key);
-    }
-
-    /**
-     * Create object with complex key support
-     */
-    static createObjectWithKey(key: any, value: any): any {
-        const result: any = {};
-        const keyStr = this.keyToString(key);
-        result[keyStr] = value;
-        return result;
-    }
-}
-
-/**
- * Frame Async Operations
- * Universal async/await functionality for TypeScript
- */
-export class FrameAsync {
-    /**
-     * Universal HTTP GET operation
-     */
-    static async httpGet(url: string): Promise<any> {
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-            return {
-                status: response.status,
-                body: data,
-                headers: Object.fromEntries(response.headers.entries())
-            };
-        } catch (error) {
-            throw new Error(`HTTP GET failed: ${error}`);
+        if (value instanceof Map) {
+            return Array.from(value.values());
         }
-    }
-
-    /**
-     * Universal HTTP POST operation
-     */
-    static async httpPost(url: string, data: any): Promise<any> {
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-            const responseData = await response.json();
-            return {
-                status: response.status,
-                body: responseData,
-                headers: Object.fromEntries(response.headers.entries())
-            };
-        } catch (error) {
-            throw new Error(`HTTP POST failed: ${error}`);
+        if (value && typeof value[Symbol.iterator] === "function") {
+            return Array.from(value as Iterable<any>);
         }
+        return [value];
     }
 
-    /**
-     * Universal sleep/delay operation
-     */
-    static async sleep(milliseconds: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, milliseconds));
+    static get pi(): number {
+        return Math.PI;
     }
 
-    /**
-     * Execute tasks in parallel (Promise.all equivalent)
-     */
-    static async parallel<T>(tasks: (() => Promise<T>)[]): Promise<T[]> {
-        return Promise.all(tasks.map(task => task()));
-    }
-
-    /**
-     * Execute tasks in sequence (one after another)
-     */
-    static async sequence<T>(tasks: (() => Promise<T>)[]): Promise<T[]> {
-        const results: T[] = [];
-        for (const task of tasks) {
-            results.push(await task());
+    static round(value: any, ndigits?: any): number {
+        const num = Number(value);
+        if (!Number.isFinite(num)) {
+            throw new Error("round() argument must be a finite number");
         }
-        return results;
+
+        if (ndigits === undefined) {
+            return Math.round(num);
+        }
+
+        const digits = Number(ndigits);
+        if (!Number.isFinite(digits)) {
+            throw new Error("round() precision must be a finite integer");
+        }
+
+        const factor = Math.pow(10, digits);
+        return Math.round(num * factor + Number.EPSILON) / factor;
     }
 
-    /**
-     * Create an async task (returns a function)
-     */
-    static createTask<T>(taskFunc: () => Promise<T>): () => Promise<T> {
-        return taskFunc;
+    static min(first: any, ...rest: any[]): any {
+        const values = rest.length === 0 ? this.toArray(first) : [first, ...rest];
+        if (values.length === 0) {
+            throw new Error("min() arg is an empty sequence");
+        }
+        return values.reduce((best, value) => (best <= value ? best : value));
     }
 
-    /**
-     * Wait for all tasks to complete
-     */
-    static async waitAll<T>(tasks: (() => Promise<T>)[]): Promise<T[]> {
-        return this.parallel(tasks);
-    }
-
-    /**
-     * Race multiple tasks (first to complete wins)
-     */
-    static async race<T>(tasks: (() => Promise<T>)[]): Promise<T> {
-        return Promise.race(tasks.map(task => task()));
-    }
-
-    /**
-     * Timeout wrapper for async operations
-     */
-    static async timeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs);
-        });
-        return Promise.race([promise, timeoutPromise]);
+    static max(first: any, ...rest: any[]): any {
+        const values = rest.length === 0 ? this.toArray(first) : [first, ...rest];
+        if (values.length === 0) {
+            throw new Error("max() arg is an empty sequence");
+        }
+        return values.reduce((best, value) => (best >= value ? best : value));
     }
 }

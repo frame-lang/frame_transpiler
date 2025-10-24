@@ -10,7 +10,7 @@ Updating that value automatically keeps every crate aligned because individual m
 
 ```toml
 [workspace.package]
-version = "0.86.17"
+version = "0.86.18"
 ```
 
 ### Keeping `version.toml` in Sync
@@ -31,7 +31,7 @@ The script extracts the workspace version via `cargo metadata` and rewrites the 
 1. Edit `Cargo.toml`:
    ```toml
    [workspace.package]
-   version = "0.86.17"
+   version = "0.86.18"
    ```
 2. Sync auxiliary metadata:
    ```bash
@@ -44,7 +44,7 @@ The script extracts the workspace version via `cargo metadata` and rewrites the 
 4. Verify:
    ```bash
    ./target/release/framec --version
-   # Output: framec 0.86.17
+   # Output: framec 0.86.18
    ```
 
 ### Files Automatically Updated

@@ -2,17 +2,17 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.86.17  
+**Current Version**: v0.86.18  
 **Test Framework**: Unified multi-language testing (887 total tests)  
 **Python Tests**: 100% execution (458/458)  
-**TypeScript Tests**: 100% transpilation (429/429) · 84.8% execution (364/429)  
+**TypeScript Tests**: 100% transpilation (429/429) · 85.8% execution (368/429)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-22
 
-## Current Focus (v0.86.17) 🛠️ Debugger Controller Enablement
+## Current Focus (v0.86.18) 🛠️ Debugger Controller Enablement
 - Stabilized multifile output: the TypeScript runtime is now emitted once per bundle, eliminating duplicate `FrameRuntime` declarations.
 - State machine parity: state variables now stay in `compartment.stateVars`, lifting control-flow execution to 98% and keeping counters stable for debugger scenarios.
-- TypeScript execution success is up to 84.8% (364/429), with remaining gaps concentrated in capability shims (math/dict helpers) slated for the next tranche.
+- TypeScript execution success is up to 85.8% (368/429), with remaining gaps concentrated in capability shims (math/dict helpers) slated for the next tranche.
 - Documentation, roadmap, and status guides remain aligned on debugger-controller readiness milestones.
 
 ## Recent Improvements (v0.86.12 – v0.86.14)
