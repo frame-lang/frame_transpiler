@@ -6,10 +6,10 @@ use super::*;
 use crate::frame_c::ast::*;
 use crate::frame_c::ast::FrameEventPart;
 use crate::frame_c::code_builder::CodeBuilder;
-use crate::frame_c::scanner::{TokenType};
-use crate::frame_c::symbol_table::{SymbolConfig, Arcanum};
-use std::collections::HashSet;
+use crate::frame_c::scanner::TokenType;
+use crate::frame_c::symbol_table::{Arcanum, SymbolConfig};
 use regex;
+use std::collections::{HashMap, HashSet};
 
 pub struct TypeScriptVisitor {
     pub builder: CodeBuilder,
@@ -38,6 +38,7 @@ pub struct TypeScriptVisitor {
     // Control flags for multifile compilation
     generate_runtime_classes: bool, // Whether to generate Frame runtime classes (false for multifile modules)
     in_module_function: bool, // Flag to track when generating module functions
+    state_var_initializers: HashMap<String, String>, // Cached state variable initializers per state
 }
 
 impl TypeScriptVisitor {
@@ -65,6 +66,7 @@ impl TypeScriptVisitor {
             current_event_handler_default_return_value: None,
             generate_runtime_classes: true, // Default: generate runtime classes for standalone compilation
             in_module_function: false, // Default: not in module function
+            state_var_initializers: HashMap::new(),
         }
     }
     
@@ -114,6 +116,44 @@ impl TypeScriptVisitor {
         self.builder.write(runtime_code);
         self.builder.newline();
         self.builder.newline();
+    }
+
+    fn build_state_vars_dict(&mut self, state_node: &StateNode) -> String {
+        if let Some(state_vars) = &state_node.vars_opt {
+            if state_vars.is_empty() {
+                return "{}".to_string();
+            }
+
+            let saved_local = self.current_local_vars.clone();
+            let saved_state_vars = self.current_state_vars.clone();
+            let saved_state_params = self.current_state_params.clone();
+            let saved_handler_params = self.current_handler_params.clone();
+            let saved_exception_vars = self.current_exception_vars.clone();
+
+            self.current_local_vars.clear();
+            self.current_state_vars.clear();
+            self.current_state_params.clear();
+            self.current_handler_params.clear();
+            self.current_exception_vars.clear();
+
+            let mut entries = Vec::new();
+            for var_rcref in state_vars {
+                let var = var_rcref.borrow();
+                let mut value_str = String::new();
+                self.visit_expr_node_to_string(&var.value_rc, &mut value_str);
+                entries.push(format!("'{}': {}", var.name, value_str));
+            }
+
+            self.current_local_vars = saved_local;
+            self.current_state_vars = saved_state_vars;
+            self.current_state_params = saved_state_params;
+            self.current_handler_params = saved_handler_params;
+            self.current_exception_vars = saved_exception_vars;
+
+            format!("{{{}}}", entries.join(", "))
+        } else {
+            "{}".to_string()
+        }
     }
     
     /// Check if action contains await expressions (making it async)
@@ -501,8 +541,10 @@ impl TypeScriptVisitor {
 
 impl AstVisitor for TypeScriptVisitor {
     fn visit_frame_module(&mut self, frame_module: &FrameModule) {
-        // Embed Frame TypeScript runtime at the beginning of the file
-        self.embed_frame_runtime();
+        // Embed Frame TypeScript runtime at the beginning of the file when generating standalone output
+        if self.generate_runtime_classes {
+            self.embed_frame_runtime();
+        }
         
         // Process imports first (they should be at the top)
         for import_node in &frame_module.imports {
@@ -644,6 +686,16 @@ impl AstVisitor for TypeScriptVisitor {
     
     fn visit_system_node(&mut self, system_node: &SystemNode) {
         self.system_name = system_node.name.clone();
+
+        // Prepare state variable initializers for this system
+        self.state_var_initializers.clear();
+        if let Some(machine) = &system_node.machine_block_node_opt {
+            for state_rcref in &machine.states {
+                let state = state_rcref.borrow();
+                let dict = self.build_state_vars_dict(&state);
+                self.state_var_initializers.insert(state.name.clone(), dict);
+            }
+        }
         
         // First pass: Collect action and operation names for proper call resolution
         if let Some(actions) = &system_node.actions_block_node_opt {
@@ -749,16 +801,22 @@ impl AstVisitor for TypeScriptVisitor {
                 } else {
                     format!("{{{}}}", state_args.join(", "))
                 };
-                
+
                 let enter_args_str = if enter_args.is_empty() {
                     "null".to_string()
                 } else {
                     format!("{{{}}}", enter_args.join(", "))
                 };
-                
+
+                let state_vars_str = self
+                    .state_var_initializers
+                    .get(&state.name)
+                    .cloned()
+                    .unwrap_or_else(|| "{}".to_string());
+
                 self.builder.writeln(&format!(
-                    "this._compartment = new FrameCompartment('{}', {}, null, {}, null);",
-                    state_name, enter_args_str, state_args_str
+                    "this._compartment = new FrameCompartment('{}', {}, null, {}, {});",
+                    state_name, enter_args_str, state_args_str, state_vars_str
                 ));
             }
         }
@@ -2570,7 +2628,12 @@ impl TypeScriptVisitor {
                 // All assignments are just assignments to existing variables
                 
                 // Don't add domain variables to local vars - they should be resolved as "this.var"
-                if !self.domain_variables.contains(&var_name) {
+                if !self.domain_variables.contains(&var_name)
+                    && !self.current_state_vars.contains(&var_name)
+                    && !self.current_state_params.contains(&var_name)
+                    && !self.current_handler_params.contains(&var_name)
+                    && !self.current_exception_vars.contains(&var_name)
+                {
                     self.current_local_vars.insert(var_name.clone());
                 }
                 
@@ -2778,10 +2841,10 @@ impl TypeScriptVisitor {
         let debug_enabled = std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1";
         
         // Create compartment for target state
-        let (target_state_name, state_args_opt) = match &transition_node.transition_expr_node.target_state_context_t {
+        let (target_state_name, raw_state_name, state_args_opt) = match &transition_node.transition_expr_node.target_state_context_t {
             TargetStateContextType::StateRef { state_context_node } => {
-                (self.format_state_name(&state_context_node.state_ref_node.name),
-                 state_context_node.state_ref_args_opt.as_ref())
+                let raw_name = state_context_node.state_ref_node.name.clone();
+                (self.format_state_name(&raw_name), raw_name, state_context_node.state_ref_args_opt.as_ref())
             }
             TargetStateContextType::StateStackPop {} => {
                 self.builder.writeln("// TODO: Handle state stack pop");
@@ -2795,9 +2858,11 @@ impl TypeScriptVisitor {
                      state_args_opt.map(|args| args.exprs_t.len()).unwrap_or(0));
         }
         
-        // For now, create a basic compartment with empty state vars
-        // TODO: Implement full state variable and parameter resolution when arcanum is available
-        let state_vars_dict = "{}";
+        let state_vars_dict = self
+            .state_var_initializers
+            .get(&raw_state_name)
+            .cloned()
+            .unwrap_or_else(|| "{}".to_string());
         
         // Build state_args dictionary from transition parameters if they exist
         let state_args_dict = if let Some(state_args) = state_args_opt {
@@ -2825,8 +2890,8 @@ impl TypeScriptVisitor {
         
         // Create the compartment with state variables and state arguments
         self.builder.writeln(&format!(
-            "this._frame_transition(new FrameCompartment('{}', null, null, null, null, {}, {}));",
-            target_state_name, state_vars_dict, state_args_dict
+            "this._frame_transition(new FrameCompartment('{}', null, null, {}, {}));",
+            target_state_name, state_args_dict, state_vars_dict
         ));
     }
     

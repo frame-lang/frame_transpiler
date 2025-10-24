@@ -398,8 +398,10 @@ mod tests {
         builder.writeln("no indent again");
         
         let (output, _) = builder.build();
-        assert_eq!(output, 
-            "no indent\n    indented once\n        indented twice\n    indented once again\nno indent again\n");
+        assert_eq!(
+            output,
+            "no indent\n    indented once\n        indented twice\n    indented once again\nno indent again\n"
+        );
     }
     
     #[test]

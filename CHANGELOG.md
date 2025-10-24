@@ -2,6 +2,16 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.86.17] - 2025-10-23
+
+### Fixed
+- **State Variable Preservation**: TypeScript visitor now keeps state variables in `compartment.stateVars`, restoring loop counters and control-flow stability.
+
+### Improved
+- **Multifile Runtime Deduplication**: TypeScript linker emits the runtime bundle once, eliminating `FrameRuntime` redeclaration crashes across multi-module outputs.
+- **Execution Coverage**: Control-flow suite climbs to 98.0%; overall TypeScript execution rises to 84.8% (364/429) while Python stays at 100%.
+- **Tooling**: Updated docs and scripts to track the new version and debugger-controller milestones.
+
 ## [v0.86.16] - 2025-10-22
 
 ### Improved

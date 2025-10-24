@@ -22,11 +22,11 @@ This document captures every process, tool, and workflow used in the Frame Trans
 Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.0 and migrating from v0.11 to v0.20 syntax.
 
 ### Current Status
-- **Version**: v0.86.16
+- **Version**: v0.86.17
 - **Branch**: `dev`
-- **Test Success Rate**: 82.5% TypeScript overall execution success (887 total tests: 458 Python 100% + 429 TypeScript 82.5%)
+- **Test Success Rate**: 84.8% TypeScript overall execution success (887 total tests: 458 Python 100% + 429 TypeScript 84.8%)
 - **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz
-- **Recent Achievement**: Debugger-controller readiness plan with improved TypeScript execution coverage
+- **Recent Achievement**: Multifile runtime deduplication and state-variable initialization fixes powering debugger controller scenarios
 
 ## Architecture
 
@@ -613,8 +613,8 @@ export namespace AsyncCapabilities {
 
 ---
 
-**Last Updated**: 2025-10-22  
-**Version**: v0.86.16  
-**Status**: Python execution 100% (458/458) · TypeScript execution 82.5% (354/429) — debugger-controller readiness in progress
+**Last Updated**: 2025-10-23  
+**Version**: v0.86.17  
+**Status**: Python execution 100% (458/458) · TypeScript execution 84.8% (364/429) — control-flow tranche green, debugger-controller readiness in progress
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.

@@ -625,7 +625,7 @@ mod tests {
     #[test]
     fn test_multi_file_compiler_creation() {
         let config = FrameConfig::default();
-        let compiler = MultiFileCompiler::new(config);
+        let compiler = MultiFileCompiler::new(config, TargetLanguage::Python3);
         assert!(compiler.is_ok());
     }
 }

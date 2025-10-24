@@ -3,18 +3,18 @@
 ## Current State
 
 **Branch**: `dev`  
-**Version**: `v0.86.16`  
-**Status**: ✅ Python 458/458 passing (100%) · ⚠️ TypeScript execution 82.5% (354/429)  
-**Achievement**: Debugger-controller readiness milestones with expanded runtime validation  
-**Latest Snapshot (2025-10-22)**: Overall TypeScript execution success 82.5% across 887 total tests  
+**Version**: `v0.86.17`  
+**Status**: ✅ Python 458/458 passing (100%) · ⚠️ TypeScript execution 84.8% (364/429)  
+**Achievement**: Multifile runtime deduplicated; state variable initialization restored for debugger scenarios  
+**Latest Snapshot (2025-10-23)**: Overall TypeScript execution success 84.8% across 887 total tests  
 **Rust Version**: 1.89.0 (Latest Stable)
 
-## Latest Updates (October 22, 2025)
+## Latest Updates (October 23, 2025)
 
-### 🛠️ Frame v0.86.16 - Debugger Controller Preparation
-- **Execution Coverage**: TypeScript execution success improved to 82.5% (354/429) with focus on multifile orchestration and capability modules
-- **Roadmap Alignment**: Documented cross-target testing architecture to support debugger workflow validation
-- **Next Focus**: Implement remaining runtime capabilities (process spawning, networking) required by the debugger controller
+### 🛠️ Frame v0.86.17 - Multifile Runtime Stabilization
+- **Control Flow**: Execution uplift to 98.0% after fixing compartment state variable updates
+- **Runtime Deduplication**: Shared TypeScript runtime emitted once per multifile bundle, eliminating `FrameRuntime` redeclaration crashes
+- **Next Focus**: Implement math/dict capability shims (`round`, `dict` helpers) to address remaining systems/data_types regressions
 
 ### ✅ Previous Updates (October 19, 2025)
 
