@@ -1,8 +1,8 @@
 #![allow(clippy::enum_variant_names)]
 #![allow(non_snake_case)]
-#![allow(dead_code)]  // Many AST nodes are part of the API even if not currently used
+#![allow(dead_code)] // Many AST nodes are part of the API even if not currently used
 
-use super::scanner::{Token, TokenType, TokenLiteral};
+use super::scanner::{Token, TokenLiteral, TokenType};
 use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 
 // Removed unused OperatorType imports
@@ -58,21 +58,21 @@ pub struct Module {
 // v0.57: Added imports for multi-file module system
 pub struct FrameModule {
     pub module: Module,
-    pub imports: Vec<ImportNode>,  // v0.57: Track imports for multi-file system
+    pub imports: Vec<ImportNode>, // v0.57: Track imports for multi-file system
     pub functions: Vec<Rc<RefCell<FunctionNode>>>,
     pub systems: Vec<SystemNode>,
-    pub classes: Vec<Rc<RefCell<ClassNode>>>,  // v0.45: Classes
+    pub classes: Vec<Rc<RefCell<ClassNode>>>, // v0.45: Classes
     pub variables: Vec<Rc<RefCell<VariableDeclNode>>>,
     pub enums: Vec<Rc<RefCell<EnumDeclNode>>>,
-    pub modules: Vec<Rc<RefCell<ModuleNode>>>,  // v0.34: Nested modules
+    pub modules: Vec<Rc<RefCell<ModuleNode>>>, // v0.34: Nested modules
     pub statements: Vec<DeclOrStmtType>,
 }
 
 impl FrameModule {
     pub fn new(
-        module: Module, 
-        imports: Vec<ImportNode>,  // v0.57: Added imports parameter
-        functions: Vec<Rc<RefCell<FunctionNode>>>, 
+        module: Module,
+        imports: Vec<ImportNode>, // v0.57: Added imports parameter
+        functions: Vec<Rc<RefCell<FunctionNode>>>,
         systems: Vec<SystemNode>,
         classes: Vec<Rc<RefCell<ClassNode>>>,
         variables: Vec<Rc<RefCell<VariableDeclNode>>>,
@@ -80,9 +80,19 @@ impl FrameModule {
         modules: Vec<Rc<RefCell<ModuleNode>>>,
         statements: Vec<DeclOrStmtType>,
     ) -> FrameModule {
-        FrameModule { module, imports, functions, systems, classes, variables, enums, modules, statements }
+        FrameModule {
+            module,
+            imports,
+            functions,
+            systems,
+            classes,
+            variables,
+            enums,
+            modules,
+            statements,
+        }
     }
-    
+
     // v0.30: Get primary system for single-system compatibility
     pub fn get_primary_system(&self) -> SystemNode {
         if self.systems.is_empty() {
@@ -147,22 +157,42 @@ impl NodeElement for Module {
 }
 
 pub enum ModuleElement {
-    CodeBlock { code_block: String },
-    ModuleAttribute { attribute_node: AttributeNode },
+    CodeBlock {
+        code_block: String,
+    },
+    ModuleAttribute {
+        attribute_node: AttributeNode,
+    },
     // v0.30: Multi-entity support
-    Function { function_node: Rc<RefCell<FunctionNode>> },
-    System { system_node: SystemNode },
+    Function {
+        function_node: Rc<RefCell<FunctionNode>>,
+    },
+    System {
+        system_node: SystemNode,
+    },
     // v0.31: Import support
-    Import { import_node: ImportNode },
+    Import {
+        import_node: ImportNode,
+    },
     // v0.31: Module-scope variables and statements
-    Variable { var_decl_node: Rc<RefCell<VariableDeclNode>> },
-    Statement { stmt_node: DeclOrStmtType },
+    Variable {
+        var_decl_node: Rc<RefCell<VariableDeclNode>>,
+    },
+    Statement {
+        stmt_node: DeclOrStmtType,
+    },
     // v0.32: Module-scope enums
-    Enum { enum_decl_node: Rc<RefCell<EnumDeclNode>> },
+    Enum {
+        enum_decl_node: Rc<RefCell<EnumDeclNode>>,
+    },
     // v0.34: Nested modules
-    Module { module_node: Rc<RefCell<ModuleNode>> },
+    Module {
+        module_node: Rc<RefCell<ModuleNode>>,
+    },
     // v0.56: Type aliases
-    TypeAlias { type_alias_node: TypeAliasNode },
+    TypeAlias {
+        type_alias_node: TypeAliasNode,
+    },
 }
 
 // TODO: is this a good name for Identifier and Call expressions?
@@ -252,21 +282,21 @@ impl CallChainNodeType {
 
 #[derive(Debug, Clone)]
 pub enum IdentifierScope {
-    Unknown,        // External identifiers
-    Variable,       // Local variables  
-    Parameter,      // Parameters
-    Domain,         // Domain variables
-    System,         // System names
-    Function,       // Function names
+    Unknown,   // External identifiers
+    Variable,  // Local variables
+    Parameter, // Parameters
+    Domain,    // Domain variables
+    System,    // System names
+    Function,  // Function names
 }
 
 #[derive(Debug, Clone)]
 pub enum CallTargetType {
-    Unknown,        // External functions like print()
-    Interface,      // Interface methods
-    Operation,      // Operations  
-    Action,         // Actions
-    Function,       // Functions
+    Unknown,   // External functions like print()
+    Interface, // Interface methods
+    Operation, // Operations
+    Action,    // Actions
+    Function,  // Functions
 }
 
 // Context for method/variable access in Frame v0.31
@@ -274,66 +304,70 @@ pub enum CallTargetType {
 pub enum CallContextType {
     SelfCall,           // self.method() - calls action or operation
     StaticCall(String), // For static method calls: System.operation() or Class.method() with @staticmethod
-                        // TODO v0.62: Parser should detect and set this for static call patterns
-    ExternalCall,       // function() - external function or local (default)
+    // TODO v0.62: Parser should detect and set this for static call patterns
+    ExternalCall, // function() - external function or local (default)
 }
 
 // v0.62: Semantic call resolution (to replace CallContextType)
 // This represents the actual semantic meaning of a call, determined during parsing
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResolvedCallType {
-    Action(String),              // Internal action call (needs _ prefix)
-    Operation(String),           // Internal operation call  
-    SystemInterface {            // Interface method call from within system
+    Action(String),    // Internal action call (needs _ prefix)
+    Operation(String), // Internal operation call
+    SystemInterface {
+        // Interface method call from within system
         system: String,
         method: String,
     },
-    SystemOperation {            // Qualified system operation call
+    SystemOperation {
+        // Qualified system operation call
         system: String,
         operation: String,
-        is_static: bool,         // True if marked with @staticmethod
+        is_static: bool, // True if marked with @staticmethod
     },
-    ClassMethod {                // Qualified class method call
+    ClassMethod {
+        // Qualified class method call
         class: String,
         method: String,
-        is_static: bool,         // True if marked with @staticmethod
+        is_static: bool, // True if marked with @staticmethod
     },
-    ModuleFunction {             // Qualified module function call
+    ModuleFunction {
+        // Qualified module function call
         module: String,
         function: String,
     },
-    External(String),            // True external function call
+    External(String), // True external function call
 }
 
 // New simplified call chain node types
 // These will eventually replace CallChainNodeType
 pub enum CallChainNodeTypeV2 {
     // BASE TYPES
-    Identifier { 
-        name: String, 
+    Identifier {
+        name: String,
         scope: IdentifierScope,
         line: usize,
     },
-    Call { 
-        expr: CallExprNode, 
-        target_type: CallTargetType 
+    Call {
+        expr: CallExprNode,
+        target_type: CallTargetType,
     },
-    ListAccess { 
-        expr: ListElementNode 
+    ListAccess {
+        expr: ListElementNode,
     },
-    
+
     // SPECIALIZED TYPES (for optimization/validation)
-    Variable { 
-        var_node: VariableNode 
+    Variable {
+        var_node: VariableNode,
     },
-    InterfaceMethod { 
-        method_node: InterfaceMethodCallExprNode 
+    InterfaceMethod {
+        method_node: InterfaceMethodCallExprNode,
     },
-    Operation { 
-        op_node: OperationCallExprNode 
+    Operation {
+        op_node: OperationCallExprNode,
     },
-    Action { 
-        action_node: ActionCallExprNode 
+    Action {
+        action_node: ActionCallExprNode,
     },
 }
 
@@ -386,20 +420,20 @@ pub enum AttributeAffinity {
 // Assignment operators for compound assignments (v0.39)
 #[derive(Clone, Debug, PartialEq)]
 pub enum AssignmentOperator {
-    Equals,         // =
-    PlusEquals,     // +=
-    MinusEquals,    // -=
-    StarEquals,     // *=
-    SlashEquals,    // /=
+    Equals,            // =
+    PlusEquals,        // +=
+    MinusEquals,       // -=
+    StarEquals,        // *=
+    SlashEquals,       // /=
     FloorDivideEquals, // //=
-    PercentEquals,  // %=
-    PowerEquals,    // **=
-    AndEquals,      // &=
-    OrEquals,       // |=
-    LeftShiftEquals,  // <<=
-    RightShiftEquals, // >>=
-    XorEquals,      // ^= (v0.40)
-    MatMulEquals,   // @= (v0.40)
+    PercentEquals,     // %=
+    PowerEquals,       // **=
+    AndEquals,         // &=
+    OrEquals,          // |=
+    LeftShiftEquals,   // <<=
+    RightShiftEquals,  // >>=
+    XorEquals,         // ^= (v0.40)
+    MatMulEquals,      // @= (v0.40)
 }
 
 // e.g. generate_frame_event
@@ -485,7 +519,7 @@ pub struct SystemNode {
     pub operations_block_node_opt: Option<OperationsBlockNode>,
     pub domain_block_node_opt: Option<DomainBlockNode>,
     pub line: usize,
-    pub runtime_info: Option<RuntimeInfo>,  // v0.37: Runtime async requirements
+    pub runtime_info: Option<RuntimeInfo>, // v0.37: Runtime async requirements
 }
 
 impl SystemNode {
@@ -517,7 +551,7 @@ impl SystemNode {
             operations_block_node_opt,
             domain_block_node_opt,
             line,
-            runtime_info: None,  // v0.37: Will be populated during semantic analysis
+            runtime_info: None, // v0.37: Will be populated during semantic analysis
         }
     }
 
@@ -551,7 +585,7 @@ impl Clone for SystemNode {
             operations_block_node_opt: None,
             domain_block_node_opt: None,
             line: self.line,
-            runtime_info: None,  // v0.37: Runtime info not cloned
+            runtime_info: None, // v0.37: Runtime info not cloned
         }
     }
 }
@@ -590,13 +624,13 @@ impl NodeElement for InterfaceBlockNode {
 //-----------------------------------------------------//
 
 pub struct InterfaceMethodNode {
-    pub line: usize,      // v0.77: source map support for interface definitions
+    pub line: usize, // v0.77: source map support for interface definitions
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
     pub return_type_opt: Option<TypeNode>,
     pub return_init_expr_opt: Option<ExprType>,
     pub alias: Option<MessageNode>,
-    pub is_async: bool,  // v0.35: async interface method support
+    pub is_async: bool, // v0.35: async interface method support
 }
 
 impl InterfaceMethodNode {
@@ -675,21 +709,41 @@ impl NodeElement for ParameterNode {
 pub enum ImportType {
     // Python imports (existing v0.31)
     // import math
-    Simple { module: String },
+    Simple {
+        module: String,
+    },
     // import numpy as np
-    Aliased { module: String, alias: String },
+    Aliased {
+        module: String,
+        alias: String,
+    },
     // from math import sqrt, pi
-    FromImport { module: String, items: Vec<String> },
+    FromImport {
+        module: String,
+        items: Vec<String>,
+    },
     // from math import *
-    FromImportAll { module: String },
-    
+    FromImportAll {
+        module: String,
+    },
+
     // Frame file imports (new v0.57)
     // import Utils from "./utils.frm"
-    FrameModule { module_name: String, file_path: String },
+    FrameModule {
+        module_name: String,
+        file_path: String,
+    },
     // import Utils from "./utils.frm" as U
-    FrameModuleAliased { module_name: String, file_path: String, alias: String },
+    FrameModuleAliased {
+        module_name: String,
+        file_path: String,
+        alias: String,
+    },
     // import { add, multiply } from "./math.frm"
-    FrameSelective { items: Vec<String>, file_path: String },
+    FrameSelective {
+        items: Vec<String>,
+        file_path: String,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -716,13 +770,17 @@ impl NodeElement for ImportNode {
 #[derive(Clone, Debug)]
 pub struct TypeAliasNode {
     pub name: String,
-    pub type_expr: String,  // The type expression as a string (e.g., "tuple[float, float]")
+    pub type_expr: String, // The type expression as a string (e.g., "tuple[float, float]")
     pub line: usize,
 }
 
 impl TypeAliasNode {
     pub fn new(name: String, type_expr: String, line: usize) -> TypeAliasNode {
-        TypeAliasNode { name, type_expr, line }
+        TypeAliasNode {
+            name,
+            type_expr,
+            line,
+        }
     }
 }
 
@@ -741,7 +799,7 @@ pub struct ModuleNode {
     pub systems: Vec<SystemNode>,
     pub variables: Vec<Rc<RefCell<VariableDeclNode>>>,
     pub enums: Vec<Rc<RefCell<EnumDeclNode>>>,
-    pub modules: Vec<Rc<RefCell<ModuleNode>>>,  // Nested modules
+    pub modules: Vec<Rc<RefCell<ModuleNode>>>, // Nested modules
 }
 
 impl ModuleNode {
@@ -776,14 +834,14 @@ impl NodeElement for ModuleNode {
 pub struct ClassNode {
     pub name: String,
     pub parent: Option<String>,  // Parent class name for inheritance
-    pub decorators: Vec<String>,  // v0.58: Class decorators (pass-through to Python)
+    pub decorators: Vec<String>, // v0.58: Class decorators (pass-through to Python)
     pub methods: Vec<Rc<RefCell<MethodNode>>>,
     pub static_methods: Vec<Rc<RefCell<MethodNode>>>,
-    pub class_methods: Vec<Rc<RefCell<MethodNode>>>,  // @classmethod methods
-    pub properties: Vec<Rc<RefCell<PropertyNode>>>,    // @property definitions
+    pub class_methods: Vec<Rc<RefCell<MethodNode>>>, // @classmethod methods
+    pub properties: Vec<Rc<RefCell<PropertyNode>>>,  // @property definitions
     pub instance_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
     pub static_vars: Vec<Rc<RefCell<VariableDeclNode>>>,
-    pub constructor: Option<Rc<RefCell<MethodNode>>>,  // implicit init() or @init methods
+    pub constructor: Option<Rc<RefCell<MethodNode>>>, // implicit init() or @init methods
     pub line: usize,
 }
 
@@ -849,9 +907,9 @@ pub struct MethodNode {
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
-    pub is_constructor: bool,  // true if this is an init method
-    pub is_static: bool,       // true if @staticmethod
-    pub is_class: bool,        // true if @classmethod
+    pub is_constructor: bool, // true if this is an init method
+    pub is_static: bool,      // true if @staticmethod
+    pub is_class: bool,       // true if @classmethod
     pub line: usize,
 }
 
@@ -897,7 +955,7 @@ pub struct FunctionNode {
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
-    pub is_async: bool,  // v0.35: async function support
+    pub is_async: bool, // v0.35: async function support
 }
 
 impl FunctionNode {
@@ -940,14 +998,14 @@ impl NodeElement for FunctionNode {
 //-----------------------------------------------------//
 
 pub struct ActionNode {
-    pub line: usize,  // v0.78.7: source map support
+    pub line: usize, // v0.78.7: source map support
     pub name: String,
     pub params: Option<Vec<ParameterNode>>,
     pub is_implemented: bool,
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
-    pub is_async: bool,  // v0.37: async action support
+    pub is_async: bool,           // v0.37: async action support
     pub code_opt: Option<String>, // TODO - remove
 }
 
@@ -1002,9 +1060,9 @@ pub struct OperationNode {
     pub statements: Vec<DeclOrStmtType>,
     pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
-    pub is_async: bool,  // v0.35: async operation support
+    pub is_async: bool,           // v0.35: async operation support
     pub code_opt: Option<String>, // TODO - remove
-    pub line: usize,  // v0.78.2: source map support for operations
+    pub line: usize,              // v0.78.2: source map support for operations
 }
 
 impl OperationNode {
@@ -1037,7 +1095,9 @@ impl OperationNode {
     pub fn is_static(&self) -> bool {
         if let Some(attributes_map) = &self.attributes_opt {
             // Check for both "static" (legacy) and "staticmethod" (v0.20 Python-style)
-            let is_static = attributes_map.get("staticmethod").or_else(|| attributes_map.get("static"));
+            let is_static = attributes_map
+                .get("staticmethod")
+                .or_else(|| attributes_map.get("static"));
             is_static.is_some()
         } else {
             false
@@ -1150,7 +1210,7 @@ pub struct VariableNode {
     pub id_node: IdentifierNode,
     pub scope: IdentifierDeclScope,
     pub symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>>, // TODO: consider a new enum for just variable types
-    pub is_self: bool,  // NEW: true for self.variable access
+    pub is_self: bool, // NEW: true for self.variable access
 }
 impl VariableNode {
     pub fn new(
@@ -1164,10 +1224,10 @@ impl VariableNode {
             id_node,
             scope, // TODO: consider accessor or moving out of IdentifierNode
             symbol_type_rcref_opt,
-            is_self: false,  // Default to false
+            is_self: false, // Default to false
         }
     }
-    
+
     pub fn new_with_self(
         line: usize,
         id_node: IdentifierNode,
@@ -1238,18 +1298,23 @@ pub enum EnumType {
 pub enum EnumValue {
     Integer(i32),
     String(String),
-    Auto,  // Compiler determines based on enum type
+    Auto, // Compiler determines based on enum type
 }
 
 pub struct EnumDeclNode {
-    pub line: usize,  // v0.78.8: source map support
+    pub line: usize, // v0.78.8: source map support
     pub name: String,
     pub enum_type: EnumType,
     pub enums: Vec<Rc<EnumeratorDeclNode>>,
 }
 
 impl EnumDeclNode {
-    pub fn new(line: usize, identifier: String, enum_type: EnumType, enums: Vec<Rc<EnumeratorDeclNode>>) -> EnumDeclNode {
+    pub fn new(
+        line: usize,
+        identifier: String,
+        enum_type: EnumType,
+        enums: Vec<Rc<EnumeratorDeclNode>>,
+    ) -> EnumDeclNode {
         EnumDeclNode {
             line,
             name: identifier,
@@ -1266,7 +1331,7 @@ impl NodeElement for EnumDeclNode {
 }
 
 pub struct EnumeratorDeclNode {
-    pub line: usize,  // v0.78.9: source map support
+    pub line: usize, // v0.78.9: source map support
     pub name: String,
     pub value: EnumValue,
 }
@@ -1547,8 +1612,8 @@ pub struct EventHandlerNode {
     // top of the event handler.
     pub event_handler_has_transition: bool,
     pub line: usize,
-    pub return_init_expr_opt: Option<ExprType>,  // Default return value for event handler
-    pub is_async: bool,  // v0.37: async event handler support
+    pub return_init_expr_opt: Option<ExprType>, // Default return value for event handler
+    pub is_async: bool,                         // v0.37: async event handler support
 }
 
 impl EventHandlerNode {
@@ -1720,7 +1785,7 @@ pub enum ExprType {
         assignment_expr_node: AssignmentExprNode,
     },
     WalrusExprT {
-        assignment_expr_node: AssignmentExprNode,  // Walrus operator (:=) - assignment that returns value
+        assignment_expr_node: AssignmentExprNode, // Walrus operator (:=) - assignment that returns value
     },
     #[allow(dead_code)] // is used, don't know why I need this
     ActionCallExprT {
@@ -1863,7 +1928,7 @@ impl ExprType {
     pub fn is_valid_binary_expr_type(&self) -> bool {
         match self {
             ExprType::AssignmentExprT { .. } => false,
-            ExprType::WalrusExprT { .. } => true,  // Walrus can be used in binary expressions
+            ExprType::WalrusExprT { .. } => true, // Walrus can be used in binary expressions
             ExprType::TransitionExprT { .. } => false,
             ExprType::StateStackOperationExprT { .. } => false,
             ExprType::CallExprListT { .. } => false, // this shouldn't happen
@@ -1873,7 +1938,7 @@ impl ExprType {
     pub fn is_valid_assignment_rvalue_expr_type(&self) -> bool {
         match self {
             ExprType::AssignmentExprT { .. } => false,
-            ExprType::WalrusExprT { .. } => true,  // Walrus can be used as rvalue (it returns a value)
+            ExprType::WalrusExprT { .. } => true, // Walrus can be used as rvalue (it returns a value)
             ExprType::TransitionExprT { .. } => false,
             ExprType::StateStackOperationExprT { .. } => false,
             ExprType::CallExprListT { .. } => false, // this shouldn't happen
@@ -1979,11 +2044,15 @@ impl ExprType {
                 print!("*");
                 unpack_expr_node.expr.debug_print();
             }
-            ExprType::DictUnpackExprT { dict_unpack_expr_node } => {
+            ExprType::DictUnpackExprT {
+                dict_unpack_expr_node,
+            } => {
                 print!("**");
                 dict_unpack_expr_node.expr.debug_print();
             }
-            ExprType::ListComprehensionExprT { list_comprehension_node } => {
+            ExprType::ListComprehensionExprT {
+                list_comprehension_node,
+            } => {
                 print!("[");
                 list_comprehension_node.expr.debug_print();
                 print!(" for {} in ", list_comprehension_node.target);
@@ -1994,7 +2063,9 @@ impl ExprType {
                 }
                 print!("]");
             }
-            ExprType::DictComprehensionExprT { dict_comprehension_node } => {
+            ExprType::DictComprehensionExprT {
+                dict_comprehension_node,
+            } => {
                 print!("{{");
                 dict_comprehension_node.key_expr.debug_print();
                 print!(": ");
@@ -2007,7 +2078,9 @@ impl ExprType {
                 }
                 print!("}}");
             }
-            ExprType::SetComprehensionExprT { set_comprehension_node } => {
+            ExprType::SetComprehensionExprT {
+                set_comprehension_node,
+            } => {
                 print!("{{");
                 set_comprehension_node.expr.debug_print();
                 print!(" for {} in ", set_comprehension_node.target);
@@ -2022,7 +2095,9 @@ impl ExprType {
                 print!("await ");
                 await_expr_node.expr.debug_print();
             }
-            ExprType::WalrusExprT { assignment_expr_node } => {
+            ExprType::WalrusExprT {
+                assignment_expr_node,
+            } => {
                 print!("(");
                 assignment_expr_node.l_value_box.debug_print();
                 print!(" := ");
@@ -2036,11 +2111,15 @@ impl ExprType {
                     expr.debug_print();
                 }
             }
-            ExprType::YieldFromExprT { yield_from_expr_node } => {
+            ExprType::YieldFromExprT {
+                yield_from_expr_node,
+            } => {
                 print!("yield from ");
                 yield_from_expr_node.expr.debug_print();
             }
-            ExprType::GeneratorExprT { generator_expr_node } => {
+            ExprType::GeneratorExprT {
+                generator_expr_node,
+            } => {
                 print!("(");
                 generator_expr_node.expr.debug_print();
                 print!(" for {} in ", generator_expr_node.target);
@@ -2152,16 +2231,24 @@ impl NodeElement for ExprType {
             ExprType::UnpackExprT { unpack_expr_node } => {
                 ast_visitor.visit_unpack_expr_node(unpack_expr_node);
             }
-            ExprType::DictUnpackExprT { dict_unpack_expr_node } => {
+            ExprType::DictUnpackExprT {
+                dict_unpack_expr_node,
+            } => {
                 ast_visitor.visit_dict_unpack_expr_node(dict_unpack_expr_node);
             }
-            ExprType::ListComprehensionExprT { list_comprehension_node } => {
+            ExprType::ListComprehensionExprT {
+                list_comprehension_node,
+            } => {
                 ast_visitor.visit_list_comprehension_node(list_comprehension_node);
             }
-            ExprType::DictComprehensionExprT { dict_comprehension_node } => {
+            ExprType::DictComprehensionExprT {
+                dict_comprehension_node,
+            } => {
                 ast_visitor.visit_dict_comprehension_node(dict_comprehension_node);
             }
-            ExprType::SetComprehensionExprT { set_comprehension_node } => {
+            ExprType::SetComprehensionExprT {
+                set_comprehension_node,
+            } => {
                 ast_visitor.visit_set_comprehension_node(set_comprehension_node);
             }
             ExprType::AwaitExprT { await_expr_node } => {
@@ -2176,10 +2263,14 @@ impl NodeElement for ExprType {
             ExprType::YieldExprT { yield_expr_node } => {
                 ast_visitor.visit_yield_expr_node(yield_expr_node);
             }
-            ExprType::YieldFromExprT { yield_from_expr_node } => {
+            ExprType::YieldFromExprT {
+                yield_from_expr_node,
+            } => {
                 ast_visitor.visit_yield_from_expr_node(yield_from_expr_node);
             }
-            ExprType::GeneratorExprT { generator_expr_node } => {
+            ExprType::GeneratorExprT {
+                generator_expr_node,
+            } => {
                 ast_visitor.visit_generator_expr_node(generator_expr_node);
             }
             ExprType::StarExprT { star_expr_node } => {
@@ -2270,7 +2361,7 @@ impl NodeElement for ExprType {
                 ast_visitor.visit_transition_expr_node_to_string(transition_expr_node, output);
             }
             ExprType::SelfExprT { self_expr_node } => {
-                ast_visitor.visit_self_expr_node_to_string(self_expr_node,output);
+                ast_visitor.visit_self_expr_node_to_string(self_expr_node, output);
             }
             ExprType::NilExprT => {
                 panic!("Unexpect use of ExprType::NilExprT");
@@ -2281,22 +2372,34 @@ impl NodeElement for ExprType {
             ExprType::UnpackExprT { unpack_expr_node } => {
                 ast_visitor.visit_unpack_expr_node_to_string(unpack_expr_node, output);
             }
-            ExprType::DictUnpackExprT { dict_unpack_expr_node } => {
+            ExprType::DictUnpackExprT {
+                dict_unpack_expr_node,
+            } => {
                 ast_visitor.visit_dict_unpack_expr_node_to_string(dict_unpack_expr_node, output);
             }
-            ExprType::ListComprehensionExprT { list_comprehension_node } => {
-                ast_visitor.visit_list_comprehension_node_to_string(list_comprehension_node, output);
+            ExprType::ListComprehensionExprT {
+                list_comprehension_node,
+            } => {
+                ast_visitor
+                    .visit_list_comprehension_node_to_string(list_comprehension_node, output);
             }
-            ExprType::DictComprehensionExprT { dict_comprehension_node } => {
-                ast_visitor.visit_dict_comprehension_node_to_string(dict_comprehension_node, output);
+            ExprType::DictComprehensionExprT {
+                dict_comprehension_node,
+            } => {
+                ast_visitor
+                    .visit_dict_comprehension_node_to_string(dict_comprehension_node, output);
             }
-            ExprType::SetComprehensionExprT { set_comprehension_node } => {
+            ExprType::SetComprehensionExprT {
+                set_comprehension_node,
+            } => {
                 ast_visitor.visit_set_comprehension_node_to_string(set_comprehension_node, output);
             }
             ExprType::AwaitExprT { await_expr_node } => {
                 ast_visitor.visit_await_expr_node_to_string(await_expr_node, output);
             }
-            ExprType::WalrusExprT { assignment_expr_node } => {
+            ExprType::WalrusExprT {
+                assignment_expr_node,
+            } => {
                 ast_visitor.visit_walrus_expr_node_to_string(assignment_expr_node, output);
             }
             ExprType::LambdaExprT { lambda_expr_node } => {
@@ -2308,10 +2411,14 @@ impl NodeElement for ExprType {
             ExprType::YieldExprT { yield_expr_node } => {
                 ast_visitor.visit_yield_expr_node_to_string(yield_expr_node, output);
             }
-            ExprType::YieldFromExprT { yield_from_expr_node } => {
+            ExprType::YieldFromExprT {
+                yield_from_expr_node,
+            } => {
                 ast_visitor.visit_yield_from_expr_node_to_string(yield_from_expr_node, output);
             }
-            ExprType::GeneratorExprT { generator_expr_node } => {
+            ExprType::GeneratorExprT {
+                generator_expr_node,
+            } => {
                 ast_visitor.visit_generator_expr_node_to_string(generator_expr_node, output);
             }
             ExprType::StarExprT { star_expr_node } => {
@@ -2528,7 +2635,10 @@ pub struct SystemInstanceStmtNode {
 }
 
 impl SystemInstanceStmtNode {
-    pub fn new(line: usize, system_instance_expr_node: SystemInstanceExprNode) -> SystemInstanceStmtNode {
+    pub fn new(
+        line: usize,
+        system_instance_expr_node: SystemInstanceExprNode,
+    ) -> SystemInstanceStmtNode {
         SystemInstanceStmtNode {
             line,
             system_instance_expr_node,
@@ -2573,7 +2683,10 @@ pub struct CallStmtNode {
 
 impl CallStmtNode {
     pub fn new(line: usize, call_expr_node: CallExprNode) -> CallStmtNode {
-        CallStmtNode { line, call_expr_node }
+        CallStmtNode {
+            line,
+            call_expr_node,
+        }
     }
 }
 
@@ -2686,7 +2799,7 @@ pub struct AssignmentExprNode {
     //    pub is_decl: bool,
     // v0.52: Support for multiple assignment targets
     pub is_multiple_assignment: bool,
-    pub l_values: Vec<ExprType>,  // For x, y, z = ...
+    pub l_values: Vec<ExprType>, // For x, y, z = ...
 }
 
 impl AssignmentExprNode {
@@ -2694,15 +2807,20 @@ impl AssignmentExprNode {
         AssignmentExprNode {
             l_value_box: Box::new(l_value),
             r_value_rc: r_value.clone(),
-            assignment_op: AssignmentOperator::Equals,  // Default to simple assignment
+            assignment_op: AssignmentOperator::Equals, // Default to simple assignment
             //            is_decl,
             line,
             is_multiple_assignment: false,
             l_values: Vec::new(),
         }
     }
-    
-    pub fn new_with_op(l_value: ExprType, r_value: Rc<ExprType>, op: AssignmentOperator, line: usize) -> AssignmentExprNode {
+
+    pub fn new_with_op(
+        l_value: ExprType,
+        r_value: Rc<ExprType>,
+        op: AssignmentOperator,
+        line: usize,
+    ) -> AssignmentExprNode {
         AssignmentExprNode {
             l_value_box: Box::new(l_value),
             r_value_rc: r_value.clone(),
@@ -2712,16 +2830,27 @@ impl AssignmentExprNode {
             l_values: Vec::new(),
         }
     }
-    
+
     // v0.52: Constructor for multiple assignment
-    pub fn new_multiple(l_values: Vec<ExprType>, r_value: Rc<ExprType>, line: usize) -> AssignmentExprNode {
+    pub fn new_multiple(
+        l_values: Vec<ExprType>,
+        r_value: Rc<ExprType>,
+        line: usize,
+    ) -> AssignmentExprNode {
         // For multiple assignment, l_value_box is not used (we use l_values instead)
         // Create a dummy for compatibility
         let dummy_l_value = ExprType::VariableExprT {
             var_node: VariableNode::new(
                 line,
                 IdentifierNode::new(
-                    Token::new(TokenType::Identifier, "_multi".to_string(), TokenLiteral::None, line, 0, 6),
+                    Token::new(
+                        TokenType::Identifier,
+                        "_multi".to_string(),
+                        TokenLiteral::None,
+                        line,
+                        0,
+                        6,
+                    ),
                     None,
                     IdentifierDeclScope::UnknownScope,
                     false,
@@ -2729,9 +2858,9 @@ impl AssignmentExprNode {
                 ),
                 IdentifierDeclScope::UnknownScope,
                 None,
-            )
+            ),
         };
-        
+
         AssignmentExprNode {
             l_value_box: Box::new(dummy_l_value),
             r_value_rc: r_value.clone(),
@@ -2812,7 +2941,10 @@ pub struct ExprListStmtNode {
 
 impl ExprListStmtNode {
     pub fn new(line: usize, expr_list_node: ExprListNode) -> ExprListStmtNode {
-        ExprListStmtNode { line, expr_list_node }
+        ExprListStmtNode {
+            line,
+            expr_list_node,
+        }
     }
 
     // TODO
@@ -2836,7 +2968,10 @@ pub struct BinaryStmtNode {
 
 impl BinaryStmtNode {
     pub fn new(line: usize, binary_expr_node: BinaryExprNode) -> BinaryStmtNode {
-        BinaryStmtNode { line, binary_expr_node }
+        BinaryStmtNode {
+            line,
+            binary_expr_node,
+        }
     }
 
     // TODO
@@ -2850,7 +2985,6 @@ impl NodeElement for BinaryStmtNode {
         ast_visitor.visit_binary_stmt_node(self);
     }
 }
-
 
 //-----------------------------------------------------//
 
@@ -2896,13 +3030,13 @@ impl NodeElement for IfStmtNode {
 
 pub struct ForStmtNode {
     pub line: usize,
-    pub variable: Option<VariableNode>, // for var x in items
+    pub variable: Option<VariableNode>,     // for var x in items
     pub identifier: Option<IdentifierNode>, // for x in items
     pub iterable: ExprType,
     pub block: BlockStmtNode,
     pub else_block: Option<BlockStmtNode>, // v0.51: else clause for loops
-    pub is_enum_iteration: bool, // v0.32: Track if iterating over enum
-    pub enum_type_name: Option<String>, // v0.32: Name of enum being iterated
+    pub is_enum_iteration: bool,           // v0.32: Track if iterating over enum
+    pub enum_type_name: Option<String>,    // v0.32: Name of enum being iterated
 }
 
 impl ForStmtNode {
@@ -2924,7 +3058,7 @@ impl ForStmtNode {
             enum_type_name: None,
         }
     }
-    
+
     pub fn with_else(
         line: usize,
         variable: Option<VariableNode>,
@@ -2944,7 +3078,7 @@ impl ForStmtNode {
             enum_type_name: None,
         }
     }
-    
+
     pub fn new_enum_iteration(
         line: usize,
         variable: Option<VariableNode>,
@@ -2983,18 +3117,23 @@ pub struct WhileStmtNode {
 
 impl WhileStmtNode {
     pub fn new(line: usize, condition: ExprType, block: BlockStmtNode) -> WhileStmtNode {
-        WhileStmtNode { 
+        WhileStmtNode {
             line,
-            condition, 
+            condition,
             block,
             else_block: None,
         }
     }
-    
-    pub fn with_else(line: usize, condition: ExprType, block: BlockStmtNode, else_block: BlockStmtNode) -> WhileStmtNode {
-        WhileStmtNode { 
+
+    pub fn with_else(
+        line: usize,
+        condition: ExprType,
+        block: BlockStmtNode,
+        else_block: BlockStmtNode,
+    ) -> WhileStmtNode {
+        WhileStmtNode {
             line,
-            condition, 
+            condition,
             block,
             else_block: Some(else_block),
         }
@@ -3186,8 +3325,7 @@ impl NodeElement for StateStackOperationStatementNode {
 
 //-----------------------------------------------------//
 
-#[derive(PartialEq)]
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 pub enum CallOrigin {
     External,
     Internal,
@@ -3527,7 +3665,7 @@ impl NodeElement for LoopForStmtNode {
 //-----------------------------------------------------//
 
 pub struct BlockStmtNode {
-    pub line: usize,  // v0.78.10: source map support for block start
+    pub line: usize, // v0.78.10: source map support for block start
     pub statements: Vec<DeclOrStmtType>,
 }
 
@@ -3586,7 +3724,7 @@ impl NodeElement for BreakStmtNode {
 // v0.50: Del statement support
 pub struct DelStmtNode {
     pub line: usize,
-    pub target: ExprType,  // The expression to delete (e.g., list[i], dict[key], var)
+    pub target: ExprType, // The expression to delete (e.g., list[i], dict[key], var)
 }
 
 impl DelStmtNode {
@@ -3656,9 +3794,9 @@ impl NodeElement for TryStmtNode {
 //-----------------------------------------------------//
 
 pub struct ExceptClauseNode {
-    pub line: usize,  // v0.78.7: source map support
-    pub exception_types: Option<Vec<String>>,  // None means catch all
-    pub var_name: Option<String>,              // Variable to bind exception to
+    pub line: usize,                          // v0.78.7: source map support
+    pub exception_types: Option<Vec<String>>, // None means catch all
+    pub var_name: Option<String>,             // Variable to bind exception to
     pub block: BlockStmtNode,
 }
 
@@ -3688,8 +3826,8 @@ impl NodeElement for ExceptClauseNode {
 
 pub struct RaiseStmtNode {
     pub line: usize,
-    pub exception_expr: Option<ExprType>,      // What to raise
-    pub from_expr: Option<ExprType>,           // Optional 'from' expression for chaining
+    pub exception_expr: Option<ExprType>, // What to raise
+    pub from_expr: Option<ExprType>,      // Optional 'from' expression for chaining
 }
 
 impl RaiseStmtNode {
@@ -3756,7 +3894,11 @@ pub struct MatchStmtNode {
 
 impl MatchStmtNode {
     pub fn new(line: usize, match_expr: ExprType, cases: Vec<CaseNode>) -> MatchStmtNode {
-        MatchStmtNode { line, match_expr, cases }
+        MatchStmtNode {
+            line,
+            match_expr,
+            cases,
+        }
     }
 }
 
@@ -3768,15 +3910,25 @@ impl NodeElement for MatchStmtNode {
 
 // Case node for match statement (v0.44)
 pub struct CaseNode {
-    pub line: usize,  // v0.78.7: source map support
+    pub line: usize, // v0.78.7: source map support
     pub pattern: PatternNode,
-    pub guard: Option<ExprType>,  // Optional guard clause
+    pub guard: Option<ExprType>, // Optional guard clause
     pub statements: Vec<DeclOrStmtType>,
 }
 
 impl CaseNode {
-    pub fn new(line: usize, pattern: PatternNode, guard: Option<ExprType>, statements: Vec<DeclOrStmtType>) -> CaseNode {
-        CaseNode { line, pattern, guard, statements }
+    pub fn new(
+        line: usize,
+        pattern: PatternNode,
+        guard: Option<ExprType>,
+        statements: Vec<DeclOrStmtType>,
+    ) -> CaseNode {
+        CaseNode {
+            line,
+            pattern,
+            guard,
+            statements,
+        }
     }
 }
 
@@ -3788,7 +3940,7 @@ impl NodeElement for CaseNode {
 
 // Pattern types for match-case (v0.44)
 pub enum PatternNode {
-    Literal(LiteralExprNode),           // Literal pattern: 42, "hello", True
+    Literal(LiteralExprNode),            // Literal pattern: 42, "hello", True
     Capture(String),                     // Capture pattern: x (binds to variable)
     Wildcard,                            // Wildcard pattern: _
     Sequence(Vec<PatternNode>),          // List/tuple pattern: [a, b, c]
@@ -3968,13 +4120,15 @@ impl fmt::Display for CallChainExprNode {
                 CallChainNodeType::UndeclaredSliceT { .. } => {
                     // Undeclared slice nodes similarly
                 }
-                CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
-                    match &call_chain_literal_expr_node.token_t {
-                        TokenType::String => output.push_str(&format!("\"{}\"", call_chain_literal_expr_node.value)),
-                        TokenType::FString => output.push_str(&call_chain_literal_expr_node.value),
-                        _ => output.push_str(&call_chain_literal_expr_node.value),
+                CallChainNodeType::CallChainLiteralExprT {
+                    call_chain_literal_expr_node,
+                } => match &call_chain_literal_expr_node.token_t {
+                    TokenType::String => {
+                        output.push_str(&format!("\"{}\"", call_chain_literal_expr_node.value))
                     }
-                }
+                    TokenType::FString => output.push_str(&call_chain_literal_expr_node.value),
+                    _ => output.push_str(&call_chain_literal_expr_node.value),
+                },
             }
             separator = ".";
         }
@@ -3982,15 +4136,14 @@ impl fmt::Display for CallChainExprNode {
     }
 }
 //-----------------------------------------------------//
-#[derive(PartialEq)]
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 pub enum OperatorType {
     Plus,
     Minus,
     Multiply,
     Divide,
-    FloorDivide,  // Floor division operator //
-    Power,  // For exponent operator **
+    FloorDivide, // Floor division operator //
+    Power,       // For exponent operator **
     Greater,
     GreaterEqual,
     EqualEqual,
@@ -4003,16 +4156,16 @@ pub enum OperatorType {
     Negated,
     Percent,
     BitwiseOr,  // For dict union operator |
-    BitwiseAnd,  // Bitwise AND &
-    BitwiseXor,  // Bitwise XOR ^
-    BitwiseNot,  // Bitwise NOT ~
-    LeftShift,   // Left shift <<
-    RightShift,  // Right shift >>
-    MatMul,      // Matrix multiplication @ (v0.40)
-    In,  // For membership test operator 'in'
-    NotIn,  // For negated membership test 'not in'
-    Is,  // Identity operator 'is'
-    IsNot,  // Identity operator 'is not'
+    BitwiseAnd, // Bitwise AND &
+    BitwiseXor, // Bitwise XOR ^
+    BitwiseNot, // Bitwise NOT ~
+    LeftShift,  // Left shift <<
+    RightShift, // Right shift >>
+    MatMul,     // Matrix multiplication @ (v0.40)
+    In,         // For membership test operator 'in'
+    NotIn,      // For negated membership test 'not in'
+    Is,         // Identity operator 'is'
+    IsNot,      // Identity operator 'is not'
     Unknown,
 }
 
@@ -4033,28 +4186,28 @@ impl OperatorType {
             TokenType::Plus => OperatorType::Plus,
             TokenType::Dash => OperatorType::Minus,
             TokenType::Star => OperatorType::Multiply,
-            TokenType::StarStar => OperatorType::Power,  // Exponent operator **
+            TokenType::StarStar => OperatorType::Power, // Exponent operator **
             TokenType::ForwardSlash => OperatorType::Divide,
-            TokenType::FloorDivide => OperatorType::FloorDivide,  // Floor division //
+            TokenType::FloorDivide => OperatorType::FloorDivide, // Floor division //
             TokenType::GT => OperatorType::Greater,
             TokenType::GreaterEqual => OperatorType::GreaterEqual,
             TokenType::LT => OperatorType::Less,
             TokenType::LessEqual => OperatorType::LessEqual,
-            TokenType::Not => OperatorType::Not,  // Python 'not' keyword only
+            TokenType::Not => OperatorType::Not, // Python 'not' keyword only
             TokenType::EqualEqual => OperatorType::EqualEqual,
             TokenType::BangEqual => OperatorType::NotEqual,
-            TokenType::And => OperatorType::LogicalAnd,  // Python 'and' keyword only
-            TokenType::Or => OperatorType::LogicalOr,  // Python 'or' keyword only
+            TokenType::And => OperatorType::LogicalAnd, // Python 'and' keyword only
+            TokenType::Or => OperatorType::LogicalOr,   // Python 'or' keyword only
             TokenType::Percent => OperatorType::Percent,
-            TokenType::Pipe => OperatorType::BitwiseOr,  // Bitwise OR |
-            TokenType::Ampersand => OperatorType::BitwiseAnd,  // Bitwise AND &
-            TokenType::Caret => OperatorType::BitwiseXor,  // Bitwise XOR ^
-            TokenType::Tilde => OperatorType::BitwiseNot,  // Bitwise NOT ~
-            TokenType::LeftShift => OperatorType::LeftShift,  // Left shift <<
-            TokenType::RightShift => OperatorType::RightShift,  // Right shift >>
-            TokenType::At => OperatorType::MatMul,  // Matrix multiplication @
-            TokenType::In => OperatorType::In,  // Membership test operator
-            TokenType::Is => OperatorType::Is,  // Identity operator 'is'
+            TokenType::Pipe => OperatorType::BitwiseOr, // Bitwise OR |
+            TokenType::Ampersand => OperatorType::BitwiseAnd, // Bitwise AND &
+            TokenType::Caret => OperatorType::BitwiseXor, // Bitwise XOR ^
+            TokenType::Tilde => OperatorType::BitwiseNot, // Bitwise NOT ~
+            TokenType::LeftShift => OperatorType::LeftShift, // Left shift <<
+            TokenType::RightShift => OperatorType::RightShift, // Right shift >>
+            TokenType::At => OperatorType::MatMul,      // Matrix multiplication @
+            TokenType::In => OperatorType::In,          // Membership test operator
+            TokenType::Is => OperatorType::Is,          // Identity operator 'is'
             _ => OperatorType::Unknown,
         }
     }
@@ -4098,7 +4251,12 @@ pub struct BinaryExprNode {
 }
 
 impl BinaryExprNode {
-    pub fn new(line: usize, left: ExprType, operator: OperatorType, right: ExprType) -> BinaryExprNode {
+    pub fn new(
+        line: usize,
+        left: ExprType,
+        operator: OperatorType,
+        right: ExprType,
+    ) -> BinaryExprNode {
         BinaryExprNode {
             line,
             left_rcref: Rc::new(RefCell::new(left)),
@@ -4125,8 +4283,8 @@ pub struct CallExprNode {
     pub identifier: IdentifierNode,
     pub call_expr_list: CallExprListNode,
     pub call_chain: Option<Vec<Box<dyn CallableExpr>>>,
-    pub context: CallContextType,  // NEW: explicit self/system context
-    pub resolved_type: Option<ResolvedCallType>,  // v0.62: Semantic resolution (gradual migration)
+    pub context: CallContextType, // NEW: explicit self/system context
+    pub resolved_type: Option<ResolvedCallType>, // v0.62: Semantic resolution (gradual migration)
 }
 
 impl CallExprNode {
@@ -4141,11 +4299,11 @@ impl CallExprNode {
             identifier,
             call_expr_list,
             call_chain,
-            context: CallContextType::ExternalCall,  // Default to external
-            resolved_type: None,  // Will be set by semantic analysis
+            context: CallContextType::ExternalCall, // Default to external
+            resolved_type: None,                    // Will be set by semantic analysis
         }
     }
-    
+
     pub fn new_with_context(
         line: usize,
         identifier: IdentifierNode,
@@ -4159,7 +4317,7 @@ impl CallExprNode {
             call_expr_list,
             call_chain,
             context,
-            resolved_type: None,  // Will be set by semantic analysis
+            resolved_type: None, // Will be set by semantic analysis
         }
     }
 }
@@ -4281,8 +4439,8 @@ pub enum IdentifierDeclScope {
     EventHandlerVarScope,
     LoopVarScope,
     BlockVarScope,
-    ClassStaticScope,    // v0.45: Class static variables
-    ClassInstanceScope,  // v0.45: Class instance variables
+    ClassStaticScope,   // v0.45: Class static variables
+    ClassInstanceScope, // v0.45: Class instance variables
 }
 
 // #[derive(Clone)]
@@ -4377,21 +4535,26 @@ impl CallChainLiteralExprNode {
 impl NodeElement for CallChainLiteralExprNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         // For now, treat it like a regular literal
-        ast_visitor.visit_literal_expression_node(&LiteralExprNode { line: 0,
+        ast_visitor.visit_literal_expression_node(&LiteralExprNode {
+            line: 0,
             token_t: self.token_t.clone(),
             value: self.value.clone(),
             is_reference: false,
             inc_dec: IncDecExpr::None,
         });
     }
-    
+
     fn accept_to_string(&self, ast_visitor: &mut dyn AstVisitor, output: &mut String) {
-        ast_visitor.visit_literal_expression_node_to_string(&LiteralExprNode { line: 0,
-            token_t: self.token_t.clone(),
-            value: self.value.clone(),
-            is_reference: false,
-            inc_dec: IncDecExpr::None,
-        }, output);
+        ast_visitor.visit_literal_expression_node_to_string(
+            &LiteralExprNode {
+                line: 0,
+                token_t: self.token_t.clone(),
+                value: self.value.clone(),
+                is_reference: false,
+                inc_dec: IncDecExpr::None,
+            },
+            output,
+        );
     }
 }
 
@@ -4415,7 +4578,7 @@ pub enum StateStackOperationType {
 
 #[derive(Clone)]
 pub struct StateStackOperationNode {
-    pub line: usize,  // v0.78.11: source map support
+    pub line: usize, // v0.78.11: source map support
     pub operation_t: StateStackOperationType,
 }
 
@@ -5285,7 +5448,7 @@ impl AwaitExprNode {
 // YieldExprNode for yield expressions (v0.42)
 pub struct YieldExprNode {
     pub line: usize,
-    pub expr: Option<Box<ExprType>>,  // yield can be used without value
+    pub expr: Option<Box<ExprType>>, // yield can be used without value
 }
 
 impl YieldExprNode {
@@ -5300,7 +5463,7 @@ impl YieldExprNode {
 // YieldFromExprNode for yield from expressions (v0.42)
 pub struct YieldFromExprNode {
     pub line: usize,
-    pub expr: Box<ExprType>,  // yield from requires an iterable
+    pub expr: Box<ExprType>, // yield from requires an iterable
 }
 
 impl YieldFromExprNode {
@@ -5322,7 +5485,13 @@ pub struct GeneratorExprNode {
 }
 
 impl GeneratorExprNode {
-    pub fn new(line: usize, expr: ExprType, target: String, iter: ExprType, condition: Option<ExprType>) -> GeneratorExprNode {
+    pub fn new(
+        line: usize,
+        expr: ExprType,
+        target: String,
+        iter: ExprType,
+        condition: Option<ExprType>,
+    ) -> GeneratorExprNode {
         GeneratorExprNode {
             line,
             expr: Box::new(expr),
@@ -5378,8 +5547,8 @@ impl NodeElement for GeneratorExprNode {
 // LambdaExprNode for lambda expressions (v0.38)
 pub struct LambdaExprNode {
     pub line: usize,
-    pub params: Vec<String>,           // Parameter names
-    pub body: Box<ExprType>,           // Lambda body expression
+    pub params: Vec<String>, // Parameter names
+    pub body: Box<ExprType>, // Lambda body expression
 }
 
 impl LambdaExprNode {
@@ -5407,9 +5576,9 @@ impl NodeElement for LambdaExprNode {
 // ListComprehensionNode for [expr for var in iterable if condition] (v0.34)
 pub struct ListComprehensionNode {
     pub line: usize,
-    pub expr: Box<ExprType>,            // The expression to evaluate
-    pub target: String,                 // Loop variable name
-    pub iter: Box<ExprType>,            // The iterable to loop over
+    pub expr: Box<ExprType>,              // The expression to evaluate
+    pub target: String,                   // Loop variable name
+    pub iter: Box<ExprType>,              // The iterable to loop over
     pub condition: Option<Box<ExprType>>, // Optional filter condition
 }
 
@@ -5446,10 +5615,10 @@ impl NodeElement for ListComprehensionNode {
 // DictComprehensionNode for {key: value for var in iterable if condition} (v0.38)
 pub struct DictComprehensionNode {
     pub line: usize,
-    pub key_expr: Box<ExprType>,        // The key expression to evaluate
-    pub value_expr: Box<ExprType>,      // The value expression to evaluate
-    pub target: String,                 // Loop variable name
-    pub iter: Box<ExprType>,            // The iterable to loop over
+    pub key_expr: Box<ExprType>,   // The key expression to evaluate
+    pub value_expr: Box<ExprType>, // The value expression to evaluate
+    pub target: String,            // Loop variable name
+    pub iter: Box<ExprType>,       // The iterable to loop over
     pub condition: Option<Box<ExprType>>, // Optional filter condition
 }
 
@@ -5488,9 +5657,9 @@ impl NodeElement for DictComprehensionNode {
 // SetComprehensionNode for {expr for var in iterable if condition} (v0.41)
 pub struct SetComprehensionNode {
     pub line: usize,
-    pub expr: Box<ExprType>,            // The expression to evaluate
-    pub target: String,                 // Loop variable name
-    pub iter: Box<ExprType>,            // The iterable to loop over
+    pub expr: Box<ExprType>,              // The expression to evaluate
+    pub target: String,                   // Loop variable name
+    pub iter: Box<ExprType>,              // The iterable to loop over
     pub condition: Option<Box<ExprType>>, // Optional filter condition
 }
 
@@ -5576,9 +5745,9 @@ pub struct ParentDispatchStmtNode {
 
 impl ParentDispatchStmtNode {
     pub fn new(target_state_ref_opt: Option<StateRefNode>, line: usize) -> ParentDispatchStmtNode {
-        ParentDispatchStmtNode { 
+        ParentDispatchStmtNode {
             target_state_ref_opt,
-            line 
+            line,
         }
     }
 }
@@ -5617,7 +5786,7 @@ pub struct KernelNode {
 
 impl KernelNode {
     pub fn new(is_async: bool) -> KernelNode {
-        KernelNode { 
+        KernelNode {
             is_async,
             system_ref: String::new(),
         }
@@ -5642,11 +5811,16 @@ pub struct TransitionNode {
     pub from_state: String,
     pub to_state: String,
     pub is_async: bool,
-    pub handler_name: String,  // Which handler triggers this transition
+    pub handler_name: String, // Which handler triggers this transition
 }
 
 impl TransitionNode {
-    pub fn new(from_state: String, to_state: String, is_async: bool, handler_name: String) -> TransitionNode {
+    pub fn new(
+        from_state: String,
+        to_state: String,
+        is_async: bool,
+        handler_name: String,
+    ) -> TransitionNode {
         TransitionNode {
             from_state,
             to_state,

@@ -50,12 +50,12 @@ impl TryFrom<String> for TargetLanguage {
     }
 }
 
+pub mod c_visitor;
 pub mod graphviz_visitor;
 pub mod python_visitor;
-pub mod python_visitor_v2;  // v0.75: Complete implementation using CodeBuilder
-pub mod typescript_visitor;  // v0.82: TypeScript support
-pub mod rust_visitor;  // v0.87: Rust implementation with working Frame semantics
-pub mod c_visitor;     // v0.87: C99 implementation with module scope support
+pub mod python_visitor_v2; // v0.75: Complete implementation using CodeBuilder
+pub mod rust_visitor; // v0.87: Rust implementation with working Frame semantics
+pub mod typescript_visitor; // v0.82: TypeScript support // v0.87: C99 implementation with module scope support
 
 use super::ast::*;
 
@@ -278,4 +278,3 @@ pub trait AstVisitor {
     fn visit_self_expr_node_to_string(&mut self, _self_expr_node: &SelfExprNode, _output: &mut String) {}
 
 }
-

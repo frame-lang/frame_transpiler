@@ -1,9 +1,9 @@
 // Module system error types for Frame v0.57
 // Provides comprehensive error handling for multi-file compilation
 
+use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
-use std::error::Error;
 
 /// Top-level module system error
 #[derive(Debug)]
@@ -29,52 +29,28 @@ pub enum ModuleErrorKind {
         searched_paths: Vec<PathBuf>,
     },
     /// Circular dependency detected
-    CircularDependency {
-        cycle: Vec<String>,
-    },
+    CircularDependency { cycle: Vec<String> },
     /// Symbol conflict between modules
     SymbolConflict {
         symbol: String,
         conflicting_modules: Vec<String>,
     },
     /// Invalid import path
-    InvalidPath {
-        path: String,
-        reason: String,
-    },
+    InvalidPath { path: String, reason: String },
     /// Security violation (path traversal attempt)
-    SecurityViolation {
-        path: String,
-        reason: String,
-    },
+    SecurityViolation { path: String, reason: String },
     /// Module version incompatibility
-    IncompatibleVersion {
-        required: String,
-        found: String,
-    },
+    IncompatibleVersion { required: String, found: String },
     /// Cache corruption or invalid format
-    CacheError {
-        reason: String,
-    },
+    CacheError { reason: String },
     /// I/O error during module operations
-    IoError {
-        path: PathBuf,
-        error: String,
-    },
+    IoError { path: PathBuf, error: String },
     /// I/O error (alias for compatibility)
-    IOError {
-        path: PathBuf,
-        error: String,
-    },
+    IOError { path: PathBuf, error: String },
     /// Parse error
-    ParseError {
-        error: String,
-    },
+    ParseError { error: String },
     /// Import error
-    ImportError {
-        import: String,
-        reason: String,
-    },
+    ImportError { import: String, reason: String },
 }
 
 /// Source code location for error reporting
@@ -96,46 +72,49 @@ impl ModuleError {
             suggestions: Vec::new(),
         }
     }
-    
+
     /// Add source location context
     pub fn with_location(mut self, location: SourceLocation) -> Self {
         self.source_location = Some(location);
         self
     }
-    
+
     /// Add import chain context
     pub fn with_import_chain(mut self, chain: Vec<String>) -> Self {
         self.import_chain = chain;
         self
     }
-    
+
     /// Add helpful suggestions
     pub fn with_suggestions(mut self, suggestions: Vec<String>) -> Self {
         self.suggestions = suggestions;
         self
     }
-    
+
     /// Create a "not found" error with search paths
     pub fn not_found(path: String, searched_paths: Vec<PathBuf>) -> Self {
         Self::new(
-            ModuleErrorKind::NotFound { path: path.clone(), searched_paths },
+            ModuleErrorKind::NotFound {
+                path: path.clone(),
+                searched_paths,
+            },
             path,
         )
     }
-    
+
     /// Create a circular dependency error
     pub fn circular_dependency(cycle: Vec<String>) -> Self {
         let path = cycle.first().cloned().unwrap_or_default();
-        Self::new(
-            ModuleErrorKind::CircularDependency { cycle },
-            path,
-        )
+        Self::new(ModuleErrorKind::CircularDependency { cycle }, path)
     }
-    
+
     /// Create a security violation error
     pub fn security_violation(path: String, reason: String) -> Self {
         Self::new(
-            ModuleErrorKind::SecurityViolation { path: path.clone(), reason },
+            ModuleErrorKind::SecurityViolation {
+                path: path.clone(),
+                reason,
+            },
             path,
         )
     }
@@ -144,29 +123,30 @@ impl ModuleError {
 impl fmt::Display for ModuleError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use colored::*;
-        
+
         // Main error message
         writeln!(f, "{}: {}", "Error".red().bold(), self.kind)?;
-        
+
         // Source location if available
         if let Some(ref loc) = self.source_location {
-            writeln!(f, "  {} {}:{}:{}", 
-                "--&gt;".blue(), 
-                loc.file.display(), 
-                loc.line, 
-                loc.column)?;
+            writeln!(
+                f,
+                "  {} {}:{}:{}",
+                "--&gt;".blue(),
+                loc.file.display(),
+                loc.line,
+                loc.column
+            )?;
         }
-        
+
         // Import chain if relevant
         if !self.import_chain.is_empty() {
             writeln!(f, "\n{}", "Import chain:".yellow())?;
             for (i, module) in self.import_chain.iter().enumerate() {
-                writeln!(f, "  {} {}", 
-                    format!("{}.", i + 1).dimmed(), 
-                    module)?;
+                writeln!(f, "  {} {}", format!("{}.", i + 1).dimmed(), module)?;
             }
         }
-        
+
         // Helpful suggestions
         if !self.suggestions.is_empty() {
             writeln!(f, "\n{}", "Suggestions:".green())?;
@@ -174,7 +154,7 @@ impl fmt::Display for ModuleError {
                 writeln!(f, "  • {}", suggestion)?;
             }
         }
-        
+
         Ok(())
     }
 }
@@ -182,7 +162,10 @@ impl fmt::Display for ModuleError {
 impl fmt::Display for ModuleErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ModuleErrorKind::NotFound { path, searched_paths } => {
+            ModuleErrorKind::NotFound {
+                path,
+                searched_paths,
+            } => {
                 write!(f, "Module not found: '{}'", path)?;
                 if !searched_paths.is_empty() {
                     write!(f, "\n  Searched in:")?;
@@ -191,11 +174,13 @@ impl fmt::Display for ModuleErrorKind {
                     }
                 }
                 Ok(())
-            },
+            }
             ModuleErrorKind::CircularDependency { cycle } => {
                 write!(f, "Circular dependency detected: ")?;
                 for (i, module) in cycle.iter().enumerate() {
-                    if i > 0 { write!(f, " → ")?; }
+                    if i > 0 {
+                        write!(f, " → ")?;
+                    }
                     write!(f, "{}", module)?;
                 }
                 // Add arrow back to first element to show it's a cycle
@@ -204,27 +189,41 @@ impl fmt::Display for ModuleErrorKind {
                     write!(f, " → {}", cycle.first().unwrap())?;
                 }
                 Ok(())
-            },
-            ModuleErrorKind::SymbolConflict { symbol, conflicting_modules } => {
-                write!(f, "Symbol '{}' conflicts between modules: {}", 
-                    symbol, conflicting_modules.join(", "))
-            },
+            }
+            ModuleErrorKind::SymbolConflict {
+                symbol,
+                conflicting_modules,
+            } => {
+                write!(
+                    f,
+                    "Symbol '{}' conflicts between modules: {}",
+                    symbol,
+                    conflicting_modules.join(", ")
+                )
+            }
             ModuleErrorKind::InvalidPath { path, reason } => {
                 write!(f, "Invalid import path '{}': {}", path, reason)
-            },
+            }
             ModuleErrorKind::SecurityViolation { path, reason } => {
                 write!(f, "Security violation in path '{}': {}", path, reason)
-            },
+            }
             ModuleErrorKind::IncompatibleVersion { required, found } => {
-                write!(f, "Version mismatch: required {}, found {}", required, found)
-            },
+                write!(
+                    f,
+                    "Version mismatch: required {}, found {}",
+                    required, found
+                )
+            }
             ModuleErrorKind::CacheError { reason } => {
                 write!(f, "Cache error: {}", reason)
-            },
+            }
             ModuleErrorKind::IoError { path, error } => {
                 write!(f, "I/O error for '{}': {}", path.display(), error)
-            },
-            ModuleErrorKind::ModuleNotFound { module, searched_paths } => {
+            }
+            ModuleErrorKind::ModuleNotFound {
+                module,
+                searched_paths,
+            } => {
                 write!(f, "Module not found: '{}'", module)?;
                 if !searched_paths.is_empty() {
                     write!(f, "\n  Searched in:")?;
@@ -233,16 +232,16 @@ impl fmt::Display for ModuleErrorKind {
                     }
                 }
                 Ok(())
-            },
+            }
             ModuleErrorKind::IOError { path, error } => {
                 write!(f, "I/O error for '{}': {}", path.display(), error)
-            },
+            }
             ModuleErrorKind::ParseError { error } => {
                 write!(f, "Parse error: {}", error)
-            },
+            }
             ModuleErrorKind::ImportError { import, reason } => {
                 write!(f, "Import error for '{}': {}", import, reason)
-            },
+            }
         }
     }
 }

@@ -28,7 +28,7 @@ export class FrameRuntime {
         // Handle Set comparison
         if (left instanceof Set && right instanceof Set) {
             if (left.size !== right.size) return false;
-            for (const item of left) {
+            for (const item of Array.from(left.values())) {
                 if (!right.has(item)) return false;
             }
             return true;
@@ -37,7 +37,7 @@ export class FrameRuntime {
         // Handle Map comparison  
         if (left instanceof Map && right instanceof Map) {
             if (left.size !== right.size) return false;
-            for (const [key, value] of left) {
+            for (const [key, value] of Array.from(left.entries())) {
                 if (!right.has(key) || !this.equals(right.get(key), value)) {
                     return false;
                 }
@@ -194,6 +194,70 @@ export class FrameRuntime {
         
         throw new Error(`object of type '${this.getType(obj)}' has no len()`);
     }
+
+    /**
+     * Convert iterable inputs to arrays for comprehension handling
+     */
+    static iterable(iterable: any): any[] {
+        if (iterable === null || iterable === undefined) {
+            return [];
+        }
+
+        if (Array.isArray(iterable)) {
+            return iterable;
+        }
+
+        if (typeof iterable === 'string') {
+            return Array.from(iterable);
+        }
+
+        if (iterable instanceof Set || iterable instanceof Map) {
+            return Array.from(iterable);
+        }
+
+        if (typeof iterable[Symbol.iterator] === 'function') {
+            return Array.from(iterable);
+        }
+
+        if (typeof iterable === 'object') {
+            return Object.keys(iterable);
+        }
+
+        return [];
+    }
+
+    static jsonLoads(text: any): any {
+        if (typeof text !== "string") {
+            return text;
+        }
+        return JSON.parse(text);
+    }
+
+    static jsonDumps(value: any, replacer?: any, space?: any): string {
+        return JSON.stringify(value, replacer, space);
+    }
+
+    static literalEval(text: any): any {
+        if (typeof text !== "string") {
+            return text;
+        }
+
+        let normalized = text.trim();
+        // Replace Python-style literals with JSON equivalents
+        normalized = normalized
+            .replace(/\bTrue\b/g, "true")
+            .replace(/\bFalse\b/g, "false")
+            .replace(/\bNone\b/g, "null");
+
+        // Replace single quotes with double quotes for JSON parsing
+        normalized = normalized.replace(/'/g, '"');
+
+        try {
+            return JSON.parse(normalized);
+        } catch {
+            throw new Error(`Failed to literal_eval: ${text}`);
+        }
+    }
 }
 
 /**
@@ -301,9 +365,9 @@ export class FrameCollections {
      * Update dictionary with another dictionary
      */
     static dictUpdate(target: Map<any, any>, source: Map<any, any>): void {
-        for (const [key, value] of source) {
+        source.forEach((value, key) => {
             target.set(key, value);
-        }
+        });
     }
 
     /**
@@ -321,21 +385,36 @@ export class FrameCollections {
      * Set union operation
      */
     static setUnion(a: Set<any>, b: Set<any>): Set<any> {
-        return new Set([...a, ...b]);
+        const result = new Set<any>();
+        a.forEach(value => result.add(value));
+        b.forEach(value => result.add(value));
+        return result;
     }
 
     /**
      * Set intersection operation
      */
     static setIntersection(a: Set<any>, b: Set<any>): Set<any> {
-        return new Set([...a].filter(x => b.has(x)));
+        const result = new Set<any>();
+        a.forEach(value => {
+            if (b.has(value)) {
+                result.add(value);
+            }
+        });
+        return result;
     }
 
     /**
      * Set difference operation
      */
     static setDifference(a: Set<any>, b: Set<any>): Set<any> {
-        return new Set([...a].filter(x => !b.has(x)));
+        const result = new Set<any>();
+        a.forEach(value => {
+            if (!b.has(value)) {
+                result.add(value);
+            }
+        });
+        return result;
     }
 
     /**
@@ -441,5 +520,164 @@ export class FrameMath {
             throw new Error("max() arg is an empty sequence");
         }
         return values.reduce((best, value) => (best >= value ? best : value));
+    }
+}
+
+export class FrameDict {
+    static normalizeKey(key: any): string {
+        if (key === null) {
+            return "null";
+        }
+        if (key === undefined) {
+            return "undefined";
+        }
+        if (typeof key === "object") {
+            try {
+                const custom = key.toString();
+                if (typeof custom === "string" && custom !== "[object Object]") {
+                    return custom;
+                }
+            } catch {
+                // Fall through to String conversion
+            }
+        }
+        return String(key);
+    }
+
+    private static assignEntries(target: any, entries: any): any {
+        if (!entries) {
+            return target;
+        }
+
+        if (entries instanceof Map) {
+            entries.forEach((value, key) => {
+                target[FrameDict.normalizeKey(key)] = value;
+            });
+            return target;
+        }
+
+        if (Array.isArray(entries) || typeof entries[Symbol.iterator] === "function") {
+            for (const entry of Array.from(entries as Iterable<any>)) {
+                if (!Array.isArray(entry)) {
+                    throw new Error("dict() expected iterable of key/value pairs");
+                }
+                const [key, value] = entry;
+                target[FrameDict.normalizeKey(key)] = value;
+            }
+            return target;
+        }
+
+        if (typeof entries === "object") {
+            for (const [key, value] of Object.entries(entries)) {
+                target[FrameDict.normalizeKey(key)] = value;
+            }
+            return target;
+        }
+
+        throw new Error("Unsupported dictionary source");
+    }
+
+    private static isDictLike(value: any): value is Record<string, any> {
+        return (
+            value !== null &&
+            typeof value === "object" &&
+            !Array.isArray(value) &&
+            !(value instanceof Date) &&
+            !(value instanceof Set) &&
+            !(value instanceof Map)
+        );
+    }
+
+    static get(dict: any, key: any, defaultValue: any = undefined): any {
+        if (!dict) {
+            return defaultValue;
+        }
+        const normalizedKey = FrameDict.normalizeKey(key);
+        if (Object.prototype.hasOwnProperty.call(dict, normalizedKey)) {
+            const value = dict[normalizedKey];
+            return value === undefined ? defaultValue : value;
+        }
+        return defaultValue;
+    }
+
+    static setdefault(dict: any, key: any, defaultValue: any = null): any {
+        if (!dict) {
+            throw new Error("setdefault() requires a dictionary");
+        }
+        const normalizedKey = FrameDict.normalizeKey(key);
+        if (!Object.prototype.hasOwnProperty.call(dict, normalizedKey)) {
+            dict[normalizedKey] = defaultValue;
+            return defaultValue;
+        }
+        return dict[normalizedKey];
+    }
+
+    static update(target: any, ...sources: any[]): any {
+        if (!target) {
+            return target;
+        }
+        for (const source of sources) {
+            if (!source) {
+                continue;
+            }
+            FrameDict.assignEntries(target, source);
+        }
+        return target;
+    }
+
+    static fromKeys(keys: any, value: any = null): any {
+        const result: any = {};
+        if (!keys) {
+            return result;
+        }
+        for (const key of FrameRuntime.iterable(keys)) {
+            result[FrameDict.normalizeKey(key)] = value;
+        }
+        return result;
+    }
+
+    static fromEntries(entries: any): any {
+        const result: any = {};
+        FrameDict.assignEntries(result, entries);
+        return result;
+    }
+
+    static union(...dicts: any[]): any {
+        const result: any = {};
+        for (const dict of dicts) {
+            FrameDict.update(result, dict);
+        }
+        return result;
+    }
+
+    static unionDynamic(left: any, right: any): any {
+        if (typeof left === "number" && typeof right === "number") {
+            return left | right;
+        }
+
+        if (typeof left === "bigint" && typeof right === "bigint") {
+            return left | right;
+        }
+
+        if (left instanceof Map && right instanceof Map) {
+            const result = new Map(left);
+            right.forEach((value, key) => {
+                result.set(key, value);
+            });
+            return result;
+        }
+
+        if (FrameDict.isDictLike(left) || FrameDict.isDictLike(right)) {
+            const result: any = {};
+            if (FrameDict.isDictLike(left)) {
+                FrameDict.assignEntries(result, left);
+            }
+            if (FrameDict.isDictLike(right)) {
+                FrameDict.assignEntries(result, right);
+            }
+            return result;
+        }
+
+        throw new Error("Unsupported operands for dictionary union");
     }
 }

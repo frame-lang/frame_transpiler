@@ -6,13 +6,13 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)] // Many visitor methods are part of the API even if not currently used
 
-use crate::frame_c::config::*;
 use crate::frame_c::ast::DeclOrStmtType;
 use crate::frame_c::ast::DeclOrStmtType::{StmtT, VarDeclT};
 use crate::frame_c::ast::*;
+use crate::frame_c::config::*;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::source_map::SourceMapBuilder;
-use crate::frame_c::source_mapping::{SourceMappingRegistry, NodeType, process_marked_code};
+use crate::frame_c::source_mapping::{process_marked_code, NodeType, SourceMappingRegistry};
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
@@ -55,7 +55,7 @@ pub struct PythonVisitor {
     errors: Vec<String>,
     visiting_call_chain_literal_variable: bool,
     visiting_call_chain_operation: bool,
-    in_call_chain: bool,  // True when processing nodes within a call chain
+    in_call_chain: bool, // True when processing nodes within a call chain
     debug_enabled: bool,
     debug_indent: usize,
     // generate_exit_args: bool,
@@ -83,25 +83,25 @@ pub struct PythonVisitor {
     operation_scope_depth: i32,
     action_scope_depth: i32,
     system_node_rcref_opt: Option<Rc<RefCell<SystemNode>>>,
-    in_standalone_function: bool,  // Track if we're currently in a standalone function context
-    required_imports: HashSet<String>,       // Track imports that are actually needed
+    in_standalone_function: bool, // Track if we're currently in a standalone function context
+    required_imports: HashSet<String>, // Track imports that are actually needed
     global_vars_in_function: HashSet<String>, // Track global variables accessed in current function
-    current_system_enums: HashSet<String>,   // Track enum names defined in the current system
-    module_level_enums: HashSet<String>,     // Track enum names defined at module level
-    system_has_async_runtime: bool,          // v0.37: Track if current system needs async runtime
-    pending_assert: bool,                    // v0.45: Track if we just output an assert and need to suppress next newline
-    
+    current_system_enums: HashSet<String>, // Track enum names defined in the current system
+    module_level_enums: HashSet<String>, // Track enum names defined at module level
+    system_has_async_runtime: bool, // v0.37: Track if current system needs async runtime
+    pending_assert: bool, // v0.45: Track if we just output an assert and need to suppress next newline
+
     // Source map tracking
-    source_map_builder: Option<Rc<RefCell<SourceMapBuilder>>>,  // Optional source map builder for debug mode
-    current_line: usize,                                       // Current line number in generated code
-    in_statement_context: bool,                                // Track if we're visiting expressions within a statement
-    source_mapping_registry: Option<SourceMappingRegistry>,    // v0.73: Marker-based source mapping
-    generating_state_vars_init: bool,        // v0.55: Track if we're generating state variable initializers in transition
-    current_module_name: Option<String>,     // v0.57: Track current module being generated
-    current_module_path: Vec<String>,        // v0.57: Track full module path hierarchy
+    source_map_builder: Option<Rc<RefCell<SourceMapBuilder>>>, // Optional source map builder for debug mode
+    current_line: usize,        // Current line number in generated code
+    in_statement_context: bool, // Track if we're visiting expressions within a statement
+    source_mapping_registry: Option<SourceMappingRegistry>, // v0.73: Marker-based source mapping
+    generating_state_vars_init: bool, // v0.55: Track if we're generating state variable initializers in transition
+    current_module_name: Option<String>, // v0.57: Track current module being generated
+    current_module_path: Vec<String>, // v0.57: Track full module path hierarchy
     current_module_variables: HashSet<String>, // v0.57: Track variables in current module
-    nested_module_names: HashSet<String>,    // v0.57: Track nested module names in current module
-    in_class_method: bool,                   // v0.45: Track if we're in a class method
+    nested_module_names: HashSet<String>, // v0.57: Track nested module names in current module
+    in_class_method: bool,            // v0.45: Track if we're in a class method
 }
 
 impl PythonVisitor {
@@ -109,15 +109,15 @@ impl PythonVisitor {
     fn debug_print(&self, _msg: &str) {
         // Debug output disabled
     }
-    
+
     fn debug_enter(&mut self, _method_name: &str) {
         // Debug output disabled
     }
-    
+
     fn debug_exit(&mut self, _method_name: &str) {
-        // Debug output disabled  
+        // Debug output disabled
     }
-    
+
     fn debug_node_info<T: std::fmt::Debug>(&self, _label: &str, _node: &T) {
         // Debug output disabled
     }
@@ -204,31 +204,37 @@ impl PythonVisitor {
             source_mapping_registry: Some(SourceMappingRegistry::new()),
         }
     }
-    
+
     /// Set a source map builder for tracking line mappings during code generation
     pub fn set_source_map_builder(&mut self, builder: Rc<RefCell<SourceMapBuilder>>) {
         self.source_map_builder = Some(builder);
     }
-    
+
     /// Record a mapping from Frame source line to current Python line
     fn add_source_mapping(&mut self, frame_line: usize) {
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: add_source_mapping called - Frame line {} -> Python line {}", 
-                     frame_line, self.current_line);
+            eprintln!(
+                "DEBUG: add_source_mapping called - Frame line {} -> Python line {}",
+                frame_line, self.current_line
+            );
         }
         if let Some(ref builder) = self.source_map_builder {
-            builder.borrow_mut().add_simple_mapping(frame_line, self.current_line);
+            builder
+                .borrow_mut()
+                .add_simple_mapping(frame_line, self.current_line);
         }
     }
-    
+
     /// Record a mapping with an offset (used for event handler functions)
     fn add_source_mapping_with_offset(&mut self, frame_line: usize, offset: i32) {
         if let Some(ref builder) = self.source_map_builder {
             let target_line = (self.current_line as i32 + offset) as usize;
-            builder.borrow_mut().add_simple_mapping(frame_line, target_line);
+            builder
+                .borrow_mut()
+                .add_simple_mapping(frame_line, target_line);
         }
     }
-    
+
     /// v0.69: Add newline and then map to the new line for correct positioning
     /// This ensures the mapping points to the line where code will actually be written
     fn newline_and_map(&mut self, frame_line: usize) {
@@ -238,7 +244,7 @@ impl PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-    
+
     // v0.35: Check if statements contain await expressions
     fn contains_await_expr(&self, statements: &[DeclOrStmtType]) -> bool {
         for stmt in statements {
@@ -248,12 +254,10 @@ impl PythonVisitor {
         }
         false
     }
-    
+
     fn statement_contains_await(&self, stmt: &DeclOrStmtType) -> bool {
         match stmt {
-            DeclOrStmtType::StmtT { stmt_t } => {
-                self.stmt_type_contains_await(stmt_t)
-            }
+            DeclOrStmtType::StmtT { stmt_t } => self.stmt_type_contains_await(stmt_t),
             DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                 // Check if variable initialization contains await
                 let var_decl = var_decl_t_rcref.borrow();
@@ -261,25 +265,34 @@ impl PythonVisitor {
             }
         }
     }
-    
+
     fn stmt_type_contains_await(&self, stmt: &StatementType) -> bool {
         match stmt {
             StatementType::ExpressionStmt { expr_stmt_t } => {
                 match expr_stmt_t {
-                    ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+                    ExprStmtType::CallChainStmtT {
+                        call_chain_literal_stmt_node,
+                    } => {
                         // Check if call chain contains await
-                        for node in &call_chain_literal_stmt_node.call_chain_literal_expr_node.call_chain {
+                        for node in &call_chain_literal_stmt_node
+                            .call_chain_literal_expr_node
+                            .call_chain
+                        {
                             if self.call_chain_node_contains_await(node) {
                                 return true;
                             }
                         }
                         false
                     }
-                    ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                    ExprStmtType::AssignmentStmtT {
+                        assignment_stmt_node,
+                    } => {
                         // Check if the right-hand side of assignment contains await
-                        self.expr_contains_await(&assignment_stmt_node.assignment_expr_node.r_value_rc)
+                        self.expr_contains_await(
+                            &assignment_stmt_node.assignment_expr_node.r_value_rc,
+                        )
                     }
-                    _ => false
+                    _ => false,
                 }
             }
             StatementType::IfStmt { if_stmt_node } => {
@@ -291,8 +304,9 @@ impl PythonVisitor {
                     return true;
                 }
                 for elif_clause in &if_stmt_node.elif_clauses {
-                    if self.expr_contains_await(&elif_clause.condition) || 
-                       self.contains_await_expr(&elif_clause.block.statements) {
+                    if self.expr_contains_await(&elif_clause.condition)
+                        || self.contains_await_expr(&elif_clause.block.statements)
+                    {
                         return true;
                     }
                 }
@@ -303,36 +317,36 @@ impl PythonVisitor {
                 }
                 false
             }
-            StatementType::LoopStmt { loop_stmt_node } => {
-                match &loop_stmt_node.loop_types {
-                    LoopStmtTypes::LoopInfiniteStmt { loop_infinite_stmt_node } => {
-                        self.contains_await_expr(&loop_infinite_stmt_node.statements)
-                    }
-                    LoopStmtTypes::LoopForStmt { loop_for_stmt_node } => {
-                        self.contains_await_expr(&loop_for_stmt_node.statements)
-                    }
-                    LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
-                        self.contains_await_expr(&loop_in_stmt_node.statements)
-                    }
+            StatementType::LoopStmt { loop_stmt_node } => match &loop_stmt_node.loop_types {
+                LoopStmtTypes::LoopInfiniteStmt {
+                    loop_infinite_stmt_node,
+                } => self.contains_await_expr(&loop_infinite_stmt_node.statements),
+                LoopStmtTypes::LoopForStmt { loop_for_stmt_node } => {
+                    self.contains_await_expr(&loop_for_stmt_node.statements)
                 }
-            }
+                LoopStmtTypes::LoopInStmt { loop_in_stmt_node } => {
+                    self.contains_await_expr(&loop_in_stmt_node.statements)
+                }
+            },
             StatementType::ForStmt { for_stmt_node } => {
-                self.expr_contains_await(&for_stmt_node.iterable) ||
-                self.contains_await_expr(&for_stmt_node.block.statements)
+                self.expr_contains_await(&for_stmt_node.iterable)
+                    || self.contains_await_expr(&for_stmt_node.block.statements)
             }
             StatementType::WhileStmt { while_stmt_node } => {
-                self.expr_contains_await(&while_stmt_node.condition) ||
-                self.contains_await_expr(&while_stmt_node.block.statements)
+                self.expr_contains_await(&while_stmt_node.condition)
+                    || self.contains_await_expr(&while_stmt_node.block.statements)
             }
             // SuperStringStmt removed - backticks no longer supported
-            _ => false
+            _ => false,
         }
     }
-    
+
     fn expr_contains_await(&self, expr: &ExprType) -> bool {
         match expr {
             ExprType::AwaitExprT { .. } => true,
-            ExprType::CallChainExprT { call_chain_expr_node } => {
+            ExprType::CallChainExprT {
+                call_chain_expr_node,
+            } => {
                 for node in &call_chain_expr_node.call_chain {
                     if self.call_chain_node_contains_await(node) {
                         return true;
@@ -341,18 +355,18 @@ impl PythonVisitor {
                 false
             }
             ExprType::BinaryExprT { binary_expr_node } => {
-                self.expr_contains_await(&binary_expr_node.left_rcref.borrow()) ||
-                self.expr_contains_await(&binary_expr_node.right_rcref.borrow())
+                self.expr_contains_await(&binary_expr_node.left_rcref.borrow())
+                    || self.expr_contains_await(&binary_expr_node.right_rcref.borrow())
             }
             ExprType::UnaryExprT { unary_expr_node } => {
                 self.expr_contains_await(&unary_expr_node.right_rcref.borrow())
             }
-            _ => false
+            _ => false,
         }
     }
-    
+
     fn call_chain_node_contains_await(&self, _node: &CallChainNodeType) -> bool {
-        // For now, just return false for call chain nodes 
+        // For now, just return false for call chain nodes
         // TODO: Implement detailed call argument await checking
         false
     }
@@ -370,13 +384,16 @@ impl PythonVisitor {
     /// Returns true if we should use direct return instead of return stack
     /// This includes functions, actions, and operations but excludes event handlers
     pub fn should_use_direct_return(&self) -> bool {
-        self.in_standalone_function || self.operation_scope_depth > 0 || self.action_scope_depth > 0 || self.in_class_method
+        self.in_standalone_function
+            || self.operation_scope_depth > 0
+            || self.action_scope_depth > 0
+            || self.in_class_method
     }
 
     //* --------------------------------------------------------------------- *//
     // v0.36: Event-handlers-as-functions helper methods
     //* --------------------------------------------------------------------- *//
-    
+
     /// Determine if the system needs async runtime (v0.37)
     fn system_needs_async_runtime(&self, system_node: &SystemNode) -> bool {
         // Check if any interface method is async
@@ -388,7 +405,7 @@ impl PythonVisitor {
                 }
             }
         }
-        
+
         // Check if any state has async handlers when using event-handlers-as-functions
         if self.config.event_handlers_as_functions {
             if let Some(machine_block) = &system_node.machine_block_node_opt {
@@ -396,16 +413,20 @@ impl PythonVisitor {
                     let state = state_rcref.borrow();
                     for evt_handler_rcref in &state.evt_handlers_rcref {
                         let evt_handler = evt_handler_rcref.borrow();
-                        
+
                         // Check if handler contains await expressions
                         if self.contains_await_expr(&evt_handler.statements) {
                             return true;
                         }
-                        
+
                         // Check if this event corresponds to an async interface method
                         if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
-                            if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
-                                if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
+                            if let Some(interface_method_symbol) =
+                                self.arcanium.lookup_interface_method(&message_node.name)
+                            {
+                                if let Some(ast_node) =
+                                    &interface_method_symbol.borrow().ast_node_opt
+                                {
                                     if ast_node.borrow().is_async {
                                         return true;
                                     }
@@ -416,20 +437,23 @@ impl PythonVisitor {
                 }
             }
         }
-        
+
         false
     }
-    
+
     /// Determine if the system needs async runtime from SystemSymbol (v0.37)
     fn system_symbol_needs_async_runtime(&self, system_symbol: &SystemSymbol) -> bool {
         // Check if any interface method is async
         if let Some(interface_block_symbol) = &system_symbol.interface_block_symbol_opt {
             let interface_block = interface_block_symbol.borrow();
             let symtab = interface_block.symtab_rcref.borrow();
-            
+
             for (_name, symbol_type_rcref) in symtab.symbols.iter() {
                 let symbol_type = symbol_type_rcref.borrow();
-                if let SymbolType::InterfaceMethod { interface_method_symbol_rcref } = &*symbol_type {
+                if let SymbolType::InterfaceMethod {
+                    interface_method_symbol_rcref,
+                } = &*symbol_type
+                {
                     let interface_method_symbol = interface_method_symbol_rcref.borrow();
                     if let Some(ast_node) = &interface_method_symbol.ast_node_opt {
                         let method_node = ast_node.borrow();
@@ -440,13 +464,13 @@ impl PythonVisitor {
                 }
             }
         }
-        
+
         // For SystemSymbol, we can't easily check handler contents without the AST,
         // but we can rely on the system_has_async_runtime field if it's been set
         // during the initial visit. For now, return false as a fallback.
         false
     }
-    
+
     /// Generate a unique handler function name for an event handler
     fn generate_handler_name(&self, state_name: &str, msg_t: &MessageType) -> String {
         let handler_prefix = format!("__handle_{}", self.format_state_name(state_name));
@@ -459,87 +483,112 @@ impl PythonVisitor {
             }
         }
     }
-    
+
     fn format_state_name(&self, state_name: &str) -> String {
         state_name.to_lowercase()
     }
-    
+
     /// Generate an individual event handler as a function (v0.36)
-    fn generate_event_handler_function(&mut self, state_node: &StateNode, evt_handler_node: &EventHandlerNode) {
+    fn generate_event_handler_function(
+        &mut self,
+        state_node: &StateNode,
+        evt_handler_node: &EventHandlerNode,
+    ) {
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: Entering generate_event_handler_function - current_line = {}", self.current_line);
+            eprintln!(
+                "DEBUG: Entering generate_event_handler_function - current_line = {}",
+                self.current_line
+            );
         }
         // For enter/exit events, convert special characters for valid Python function names
         let handler_name = match &evt_handler_node.msg_t {
             MessageType::CustomMessage { message_node } => {
                 if message_node.name == "$>" {
-                    format!("__handle_{}_enter", self.format_state_name(&state_node.name))
+                    format!(
+                        "__handle_{}_enter",
+                        self.format_state_name(&state_node.name)
+                    )
                 } else if message_node.name == "<$" {
                     format!("__handle_{}_exit", self.format_state_name(&state_node.name))
                 } else {
-                    format!("__handle_{}_{}", self.format_state_name(&state_node.name), message_node.name)
+                    format!(
+                        "__handle_{}_{}",
+                        self.format_state_name(&state_node.name),
+                        message_node.name
+                    )
                 }
             }
             MessageType::None => {
-                format!("__handle_{}_enter", self.format_state_name(&state_node.name))
+                format!(
+                    "__handle_{}_enter",
+                    self.format_state_name(&state_node.name)
+                )
             }
         };
-        
+
         // Track current parent state for => $^ dispatch
         self.current_state_parent_opt = match &state_node.dispatch_opt {
             Some(dispatch) => Some(dispatch.target_state_ref.name.clone()),
             None => None,
         };
-        
+
         // v0.37: Check if handler needs to be async
         // Handler is async if:
         // 1. The handler is explicitly marked as async
         // 2. The system has async runtime (for uniform awaiting)
         let handler_needs_async = evt_handler_node.is_async || self.system_has_async_runtime;
-        
+
         // v0.74.1: Add blank line for visual spacing
         self.newline();
-        
+
         // v0.74.1: Debug - what is current_line after newline?
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG v0.74.1: After newline, current_line = {}", self.current_line);
+            eprintln!(
+                "DEBUG v0.74.1: After newline, current_line = {}",
+                self.current_line
+            );
         }
-        
+
         // v0.74.1: After newline(), current_line has been incremented
         // The blank line is at current_line-1, function will be at current_line
         // BUT actually the function ends up at current_line+1 due to something else
         // So we need to add 1 to the mapping
         self.add_source_mapping_with_offset(evt_handler_node.line, 1);
-        
+
         // v0.74.1: Generate the function definition on the current line
         if handler_needs_async {
-            self.add_code(&format!("async def {}(self, __e, compartment):", handler_name));
+            self.add_code(&format!(
+                "async def {}(self, __e, compartment):",
+                handler_name
+            ));
         } else {
             self.add_code(&format!("def {}(self, __e, compartment):", handler_name));
         }
-        
+
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG v0.73: Generated marker for Frame line {} in handler {}", 
-                     evt_handler_node.line, handler_name);
+            eprintln!(
+                "DEBUG v0.73: Generated marker for Frame line {} in handler {}",
+                evt_handler_node.line, handler_name
+            );
         }
-        
+
         self.indent();
-        
+
         // Clear global vars tracking for this handler
         self.global_vars_in_function.clear();
-        
+
         // Collect global assignments
         if !evt_handler_node.statements.is_empty() {
             self.collect_global_assignments(&evt_handler_node.statements);
         }
-        
+
         // Generate global declarations if needed
         if !self.global_vars_in_function.is_empty() {
             self.newline();
             let global_vars: Vec<String> = self.global_vars_in_function.iter().cloned().collect();
             self.add_code(&format!("global {}", global_vars.join(", ")));
         }
-        
+
         // If event handler has a default return value, set it
         if let Some(return_init_expr) = &evt_handler_node.return_init_expr_opt {
             self.newline();
@@ -547,38 +596,38 @@ impl PythonVisitor {
             return_init_expr.accept_to_string(self, &mut output);
             self.add_code(&format!("self.return_stack[-1] = {}", output));
         }
-        
+
         // Generate handler statements
         self.event_handler_has_code = !evt_handler_node.statements.is_empty();
         if self.event_handler_has_code {
             self.visit_decl_stmts(&evt_handler_node.statements);
         }
-        
+
         // Generate terminator
         if let Some(terminator_node) = &evt_handler_node.terminator_node {
             terminator_node.accept(self);
         }
-        
+
         self.outdent();
         self.newline();
     }
-    
+
     /// Generate state method as dispatcher (v0.37)
     fn generate_state_dispatcher(&mut self, state_node: &StateNode) {
         // v0.37: Use system-wide async runtime flag
         let state_needs_async = self.system_has_async_runtime;
-        
+
         // v0.73: State dispatchers should NOT have source mappings
         // The state declaration line (e.g., "$Running {") doesn't generate executable code
         // Only the event handlers inside generate actual Python functions
-        
+
         self.newline();
         self.add_code("# ----------------------------------------");
         self.newline();
         self.add_code(&format!("# ${}", &state_node.name));
         self.newline();
         self.newline();
-        
+
         // v0.73: Generate state dispatcher without source mapping
         // State declarations don't map to executable code
         if state_needs_async {
@@ -593,13 +642,13 @@ impl PythonVisitor {
             ));
         }
         self.indent();
-        
+
         // Build handler mapping
         let mut handler_mappings = Vec::new();
         for evt_handler_rcref in &state_node.evt_handlers_rcref {
             let evt_handler = evt_handler_rcref.borrow();
             let _handler_name = self.generate_handler_name(&state_node.name, &evt_handler.msg_t);
-            
+
             match &evt_handler.msg_t {
                 MessageType::CustomMessage { message_node } => {
                     handler_mappings.push(format!("\"{}\"", message_node.name));
@@ -609,38 +658,54 @@ impl PythonVisitor {
                 }
             }
         }
-        
+
         // Generate handler dispatch
         if !state_node.evt_handlers_rcref.is_empty() {
             self.newline();
-            
+
             let mut first = true;
             for (_i, evt_handler_rcref) in state_node.evt_handlers_rcref.iter().enumerate() {
                 let evt_handler = evt_handler_rcref.borrow();
-                
+
                 // Use same naming logic as generate_event_handler_function
                 let handler_name = match &evt_handler.msg_t {
                     MessageType::CustomMessage { message_node } => {
                         if message_node.name == "$>" {
-                            format!("__handle_{}_enter", self.format_state_name(&state_node.name))
+                            format!(
+                                "__handle_{}_enter",
+                                self.format_state_name(&state_node.name)
+                            )
                         } else if message_node.name == "<$" {
                             format!("__handle_{}_exit", self.format_state_name(&state_node.name))
                         } else {
-                            format!("__handle_{}_{}", self.format_state_name(&state_node.name), message_node.name)
+                            format!(
+                                "__handle_{}_{}",
+                                self.format_state_name(&state_node.name),
+                                message_node.name
+                            )
                         }
                     }
                     MessageType::None => {
-                        format!("__handle_{}_enter", self.format_state_name(&state_node.name))
+                        format!(
+                            "__handle_{}_enter",
+                            self.format_state_name(&state_node.name)
+                        )
                     }
                 };
-                
+
                 match &evt_handler.msg_t {
                     MessageType::CustomMessage { message_node } => {
                         if first {
-                            self.add_code(&format!("if __e._message == \"{}\":", message_node.name));
+                            self.add_code(&format!(
+                                "if __e._message == \"{}\":",
+                                message_node.name
+                            ));
                             first = false;
                         } else {
-                            self.add_code(&format!("elif __e._message == \"{}\":", message_node.name));
+                            self.add_code(&format!(
+                                "elif __e._message == \"{}\":",
+                                message_node.name
+                            ));
                         }
                     }
                     MessageType::None => {
@@ -652,17 +717,20 @@ impl PythonVisitor {
                         }
                     }
                 }
-                
+
                 self.indent();
                 self.newline();
-                
+
                 // v0.37: If system has async runtime, await all handlers uniformly
                 if state_needs_async {
-                    self.add_code(&format!("return await self.{}(__e, compartment)", handler_name));
+                    self.add_code(&format!(
+                        "return await self.{}(__e, compartment)",
+                        handler_name
+                    ));
                 } else {
                     self.add_code(&format!("return self.{}(__e, compartment)", handler_name));
                 }
-                
+
                 self.outdent();
                 self.newline();
             }
@@ -670,7 +738,7 @@ impl PythonVisitor {
             self.newline();
             self.add_code("pass");
         }
-        
+
         self.outdent();
         self.newline();
     }
@@ -741,12 +809,12 @@ impl PythonVisitor {
         // }
 
         self.newline_to_string(&mut ret);
-        
+
         // Build state_vars dictionary for this state
         // v0.55: For transitions, don't initialize state variables in the dictionary
         // They will all be properly initialized after state parameters are set
         let mut state_vars_entries = Vec::new();
-        
+
         // Only include state variables in the initial dictionary if this is NOT a transition
         // (i.e., if transition_expr_node_opt is None)
         if transition_expr_node_opt.is_none() {
@@ -767,17 +835,19 @@ impl PythonVisitor {
         } else {
             format!("{{{}}}", state_vars_entries.join(", "))
         };
-        
+
         // Check if we're at the top level (no parent hierarchy)
-        let has_parent_hierarchy = if let Some(dispatch_node) = &state_node_rcref.borrow().dispatch_opt {
-            self.arcanium.get_state(&dispatch_node.target_state_ref.name).is_some()
-        } else {
-            false
-        };
-        
+        let has_parent_hierarchy =
+            if let Some(dispatch_node) = &state_node_rcref.borrow().dispatch_opt {
+                self.arcanium
+                    .get_state(&dispatch_node.target_state_ref.name)
+                    .is_some()
+            } else {
+                false
+            };
+
         if has_parent_hierarchy {
-            ret.push_str(&format!(
-                "parent_compartment = next_compartment"));
+            ret.push_str(&format!("parent_compartment = next_compartment"));
             self.newline_to_string(&mut ret);
             ret.push_str(&format!(
                 "next_compartment = FrameCompartment('{}', None, None, None, parent_compartment, {}, {{}})",
@@ -857,7 +927,10 @@ impl PythonVisitor {
                             }
                         }
                         None => {
-                            self.errors.push(format!("Invalid number of arguments for \"{}\" event handler.", msg));
+                            self.errors.push(format!(
+                                "Invalid number of arguments for \"{}\" event handler.",
+                                msg
+                            ));
                             return ret;
                         }
                     }
@@ -986,53 +1059,58 @@ impl PythonVisitor {
                 // generate local state variables
                 if let Some(vars) = &state_node.vars_opt {
                     for variable_decl_node_rcref in vars {
-                    let var_decl_node = variable_decl_node_rcref.borrow();
-                    let initalizer_value_expr_t = &var_decl_node.get_initializer_value_rc();
-                    initalizer_value_expr_t.debug_print();
-                    
-                    // v0.55: Check if the initializer references a state parameter
-                    // If so, use next_compartment.state_args instead of compartment.state_args
-                    let mut expr_code = String::new();
-                    let mut is_state_param_ref = false;
-                    
-                    // Check both VariableExprT and CallChainExprT patterns
-                    match initalizer_value_expr_t.as_ref() {
-                        ExprType::VariableExprT { var_node } => {
-                            if let IdentifierDeclScope::StateParamScope = var_node.scope {
-                                is_state_param_ref = true;
-                                expr_code.push_str(&format!(
-                                    "next_compartment.state_args[\"{}\"]",
-                                    var_node.id_node.name.lexeme
-                                ));
+                        let var_decl_node = variable_decl_node_rcref.borrow();
+                        let initalizer_value_expr_t = &var_decl_node.get_initializer_value_rc();
+                        initalizer_value_expr_t.debug_print();
+
+                        // v0.55: Check if the initializer references a state parameter
+                        // If so, use next_compartment.state_args instead of compartment.state_args
+                        let mut expr_code = String::new();
+                        let mut is_state_param_ref = false;
+
+                        // Check both VariableExprT and CallChainExprT patterns
+                        match initalizer_value_expr_t.as_ref() {
+                            ExprType::VariableExprT { var_node } => {
+                                if let IdentifierDeclScope::StateParamScope = var_node.scope {
+                                    is_state_param_ref = true;
+                                    expr_code.push_str(&format!(
+                                        "next_compartment.state_args[\"{}\"]",
+                                        var_node.id_node.name.lexeme
+                                    ));
+                                }
                             }
-                        },
-                        ExprType::CallChainExprT { call_chain_expr_node } => {
-                            // Check if it's a single variable reference
-                            if call_chain_expr_node.call_chain.len() == 1 {
-                                if let CallChainNodeType::VariableNodeT { var_node } = &call_chain_expr_node.call_chain[0] {
-                                    if let IdentifierDeclScope::StateParamScope = var_node.scope {
-                                        is_state_param_ref = true;
-                                        expr_code.push_str(&format!(
-                                            "next_compartment.state_args[\"{}\"]",
-                                            var_node.id_node.name.lexeme
-                                        ));
+                            ExprType::CallChainExprT {
+                                call_chain_expr_node,
+                            } => {
+                                // Check if it's a single variable reference
+                                if call_chain_expr_node.call_chain.len() == 1 {
+                                    if let CallChainNodeType::VariableNodeT { var_node } =
+                                        &call_chain_expr_node.call_chain[0]
+                                    {
+                                        if let IdentifierDeclScope::StateParamScope = var_node.scope
+                                        {
+                                            is_state_param_ref = true;
+                                            expr_code.push_str(&format!(
+                                                "next_compartment.state_args[\"{}\"]",
+                                                var_node.id_node.name.lexeme
+                                            ));
+                                        }
                                     }
                                 }
                             }
-                        },
-                        _ => {}
-                    }
-                    
-                    if !is_state_param_ref {
-                        // Normal initialization
-                        initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
-                    }
-                    
-                    self.newline_to_string(&mut ret);
-                    ret.push_str(&format!(
-                        "next_compartment.state_vars[\"{}\"] = {}",
-                        var_decl_node.name, expr_code
-                    ));
+                            _ => {}
+                        }
+
+                        if !is_state_param_ref {
+                            // Normal initialization
+                            initalizer_value_expr_t.accept_to_string(self, &mut expr_code);
+                        }
+
+                        self.newline_to_string(&mut ret);
+                        ret.push_str(&format!(
+                            "next_compartment.state_vars[\"{}\"] = {}",
+                            var_decl_node.name, expr_code
+                        ));
                     }
                 }
             }
@@ -1075,7 +1153,7 @@ impl PythonVisitor {
             // Convert Frame types to Python equivalents
             match type_node.type_str.as_str() {
                 "string" => "str".to_string(),
-                "str" => "str".to_string(),  // v0.43: Accept Python-style str
+                "str" => "str".to_string(), // v0.43: Accept Python-style str
                 "int" => "int".to_string(),
                 "float" => "float".to_string(),
                 "bool" => "bool".to_string(),
@@ -1102,34 +1180,39 @@ impl PythonVisitor {
             }
             error_list
         } else {
-            // v0.30: Workaround for syntactic parsing corruption - fix "returnel" 
+            // v0.30: Workaround for syntactic parsing corruption - fix "returnel"
             let code = self.code.replace("returnel", "return");
-            
+
             // v0.73: Process markers if registry exists
             if let Some(ref registry) = self.source_mapping_registry {
                 let (clean_code, mappings) = process_marked_code(&code, registry);
-                
+
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG v0.73: Marker processing returned {} mappings", mappings.len());
+                    eprintln!(
+                        "DEBUG v0.73: Marker processing returned {} mappings",
+                        mappings.len()
+                    );
                 }
-                
+
                 // Update source map builder if it exists
                 if let Some(ref builder) = self.source_map_builder {
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                        eprintln!("DEBUG v0.73: Updating source map builder with marker-based mappings");
+                        eprintln!(
+                            "DEBUG v0.73: Updating source map builder with marker-based mappings"
+                        );
                     }
                     // v0.73 FIX: Don't clear existing mappings - merge marker mappings with existing ones
                     // This preserves mappings from add_source_mapping calls for statements
                     let mut builder_mut = builder.borrow_mut();
                     for (frame_line, python_line) in mappings {
                         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                            eprintln!("DEBUG v0.73: Adding marker mapping to builder: Frame {} -> Python {}", 
+                            eprintln!("DEBUG v0.73: Adding marker mapping to builder: Frame {} -> Python {}",
                                      frame_line, python_line);
                         }
                         builder_mut.add_simple_mapping(frame_line, python_line);
                     }
                 }
-                
+
                 clean_code
             } else {
                 code
@@ -1141,20 +1224,20 @@ impl PythonVisitor {
 
     fn format_variable_expr(&mut self, variable_node: &VariableNode) -> String {
         let mut code = String::new();
-        
+
         // v0.46: Handle super keyword
         if variable_node.id_node.name.lexeme == "super" {
             // Generate super() for Python
             code.push_str("super()");
             return code;
         }
-        
+
         // v0.46: Handle cls keyword (for class methods)
         if variable_node.id_node.name.lexeme == "cls" {
             code.push_str("cls");
             return code;
         }
-        
+
         // Frame v0.31: Handle explicit self.variable syntax
         if variable_node.is_self {
             // Check if this is standalone 'self' or 'self.something'
@@ -1245,8 +1328,9 @@ impl PythonVisitor {
         let mut code = String::new();
 
         // Check if this is a synthetic identifier for chained indexing
-        if list_element_node.identifier.name.lexeme == "@chain_index" || 
-           list_element_node.identifier.name.lexeme == "@chain_slice" {
+        if list_element_node.identifier.name.lexeme == "@chain_index"
+            || list_element_node.identifier.name.lexeme == "@chain_slice"
+        {
             // Don't output anything for synthetic identifiers
             return code;
         }
@@ -1406,20 +1490,27 @@ impl PythonVisitor {
 
     pub fn run_v2(&mut self, frame_module: &FrameModule) {
         // v0.30: Generate proper module structure with multiple systems
-        
+
         // Add header
         self.add_code(&format!("#{}", self.compiler_version));
         self.newline();
         self.newline();
-        
+
         // Process all content first to determine required imports
         let header_len = self.code.len();
-        
+
         // v0.30: Process module-level elements (imports, CodeBlocks, and TypeAliases)
         let mut has_type_aliases = false;
-        debug_print!("DEBUG: run_v2 processing {} module elements", frame_module.module.module_elements.len());
+        debug_print!(
+            "DEBUG: run_v2 processing {} module elements",
+            frame_module.module.module_elements.len()
+        );
         for (i, module_element) in frame_module.module.module_elements.iter().enumerate() {
-            debug_print!("DEBUG: Processing element {}: {:?}", i, std::mem::discriminant(module_element));
+            debug_print!(
+                "DEBUG: Processing element {}: {:?}",
+                i,
+                std::mem::discriminant(module_element)
+            );
             match module_element {
                 ModuleElement::Import { import_node } => {
                     import_node.accept(self);
@@ -1434,18 +1525,22 @@ impl PythonVisitor {
                 }
                 ModuleElement::Module { module_node } => {
                     // v0.57: Generate module contents as a class
-                    debug_print!("DEBUG: Found module '{}' with {} functions", module_node.borrow().name, module_node.borrow().functions.len());
+                    debug_print!(
+                        "DEBUG: Found module '{}' with {} functions",
+                        module_node.borrow().name,
+                        module_node.borrow().functions.len()
+                    );
                     self.generate_module_as_class(&module_node.borrow());
                 }
                 _ => {} // Functions and Systems handled separately
             }
         }
-        
+
         // Add extra newline after type aliases section if any were present
         if has_type_aliases {
             self.newline();
         }
-        
+
         // Generate FrameEvent class (common to all systems)
         self.newline();
         self.add_code("class FrameEvent:");
@@ -1460,7 +1555,7 @@ impl PythonVisitor {
         self.outdent();
         self.outdent();
         self.newline();
-        
+
         // Generate FrameCompartment class (shared by all systems)
         self.newline();
         self.add_code("class FrameCompartment:");
@@ -1486,44 +1581,47 @@ impl PythonVisitor {
         self.outdent();
         self.newline();
         self.newline();
-        
+
         // v0.30: Generate all enums at module level first (before functions and systems)
         self.generate_all_enums(frame_module);
-        
+
         // v0.57: Generate nested modules as classes
         for module_node_rcref in &frame_module.modules {
-            debug_print!("DEBUG: Generating module '{}' as class", module_node_rcref.borrow().name);
+            debug_print!(
+                "DEBUG: Generating module '{}' as class",
+                module_node_rcref.borrow().name
+            );
             self.generate_module_as_class(&module_node_rcref.borrow());
         }
-        
+
         // Generate module-level functions (like main)
         for function_rcref in &frame_module.functions {
             let function_node = function_rcref.borrow();
             function_node.accept(self);
             self.newline();
         }
-        
+
         // Generate each system as a separate class (before variables that might instantiate them)
         for system_node in &frame_module.systems {
             // Generate just the system class, not a full program
             self.generate_system_from_node(system_node);
             self.newline();
         }
-        
+
         // v0.45: Generate classes
         for class_rcref in &frame_module.classes {
             let class_node = class_rcref.borrow();
             class_node.accept(self);
             self.newline();
         }
-        
+
         // Generate module-level variables (after systems and classes are defined)
         for var_decl_rcref in &frame_module.variables {
             let var_decl_node = var_decl_rcref.borrow();
             var_decl_node.accept(self);
             self.newline();
         }
-        
+
         // Generate module-level statements (after functions and systems are defined)
         if !frame_module.statements.is_empty() {
             self.newline();
@@ -1537,7 +1635,9 @@ impl PythonVisitor {
                             StatementType::ExpressionStmt { expr_stmt_t } => {
                                 // Handle expression statements
                                 match expr_stmt_t {
-                                    ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
+                                    ExprStmtType::CallChainStmtT {
+                                        call_chain_literal_stmt_node,
+                                    } => {
                                         call_chain_literal_stmt_node.accept(self);
                                     }
                                     _ => {
@@ -1545,7 +1645,9 @@ impl PythonVisitor {
                                     }
                                 }
                             }
-                            StatementType::TransitionStmt { transition_statement_node } => {
+                            StatementType::TransitionStmt {
+                                transition_statement_node,
+                            } => {
                                 transition_statement_node.accept(self);
                             }
                             // REMOVED: TestStmt for deprecated ternary syntax
@@ -1571,7 +1673,9 @@ impl PythonVisitor {
                                 del_stmt_node.accept(self);
                             }
                             // SuperStringStmt removed - backticks no longer supported
-                            StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
+                            StatementType::ParentDispatchStmt {
+                                parent_dispatch_stmt_node,
+                            } => {
                                 parent_dispatch_stmt_node.accept(self);
                             }
                             StatementType::MatchStmt { match_stmt_node } => {
@@ -1580,13 +1684,17 @@ impl PythonVisitor {
                             StatementType::ReturnStmt { return_stmt_node } => {
                                 return_stmt_node.accept(self);
                             }
-                            StatementType::ReturnAssignStmt { return_assign_stmt_node } => {
+                            StatementType::ReturnAssignStmt {
+                                return_assign_stmt_node,
+                            } => {
                                 return_assign_stmt_node.accept(self);
                             }
                             StatementType::NoStmt => {
                                 // Do nothing
                             }
-                            StatementType::StateStackStmt { state_stack_operation_statement_node } => {
+                            StatementType::StateStackStmt {
+                                state_stack_operation_statement_node,
+                            } => {
                                 state_stack_operation_statement_node.accept(self);
                             }
                             StatementType::ForStmt { for_stmt_node } => {
@@ -1616,9 +1724,12 @@ impl PythonVisitor {
             }
             self.newline();
         }
-        
+
         // Generate __main__ block if main function exists
-        let has_main = frame_module.functions.iter().any(|f| f.borrow().name == "main");
+        let has_main = frame_module
+            .functions
+            .iter()
+            .any(|f| f.borrow().name == "main");
         if has_main {
             self.newline();
             self.add_code("if __name__ == '__main__':");
@@ -1627,7 +1738,7 @@ impl PythonVisitor {
             self.add_code("main()");
             self.outdent();
         }
-        
+
         // Insert required imports after header
         if !self.required_imports.is_empty() {
             let imports: Vec<String> = self.required_imports.iter().cloned().collect();
@@ -1637,16 +1748,16 @@ impl PythonVisitor {
                 import_code.push('\n');
             }
             import_code.push('\n');
-            
+
             // Insert imports right after the header
             self.code.insert_str(header_len, &import_code);
         }
     }
-    
+
     fn collect_global_assignments(&mut self, statements: &Vec<DeclOrStmtType>) {
         // Two-pass approach to handle shadowing correctly
         let mut local_vars = HashSet::<String>::new();
-        
+
         // First pass: Find all local variable declarations
         for stmt in statements {
             if let DeclOrStmtType::VarDeclT { var_decl_t_rcref } = stmt {
@@ -1655,25 +1766,28 @@ impl PythonVisitor {
                 debug_print!("DEBUG: Found local variable declaration: {}", var_name);
             }
         }
-        
+
         // Second pass: Collect module-level variables that are assigned to
         // but exclude any that are shadowed by local declarations
         for stmt in statements {
             self.collect_global_assignments_from_stmt(stmt);
         }
-        
+
         // Remove any shadowed variables from the global set
         // Note: Python doesn't support true shadowing - if a variable is assigned
         // anywhere in the function, it's treated as local throughout the entire function
         for local_var in &local_vars {
             if self.global_vars_in_function.contains(local_var) {
-                eprintln!("WARNING: Removing '{}' from globals due to local shadowing", local_var);
+                eprintln!(
+                    "WARNING: Removing '{}' from globals due to local shadowing",
+                    local_var
+                );
                 eprintln!("WARNING: This will cause UnboundLocalError if the module variable is accessed before the local declaration!");
                 self.global_vars_in_function.remove(local_var);
             }
         }
     }
-    
+
     fn collect_global_assignments_from_stmt(&mut self, stmt: &DeclOrStmtType) {
         debug_print!("DEBUG collect_global_assignments_from_stmt: Checking statement type");
         match stmt {
@@ -1683,35 +1797,57 @@ impl PythonVisitor {
                     StatementType::ExpressionStmt { expr_stmt_t } => {
                         debug_print!("DEBUG: Found ExpressionStmt");
                         match &*expr_stmt_t {
-                            ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
+                            ExprStmtType::AssignmentStmtT {
+                                assignment_stmt_node,
+                            } => {
                                 debug_print!("DEBUG: Found AssignmentStmtT!");
                                 // Check if this is a module variable assignment
                                 // In v0.30, assignments use CallChainExprT not VariableExprT
                                 match &*assignment_stmt_node.assignment_expr_node.l_value_box {
-                                    ExprType::CallChainExprT { call_chain_expr_node } => {
+                                    ExprType::CallChainExprT {
+                                        call_chain_expr_node,
+                                    } => {
                                         debug_print!("DEBUG: It's a CallChainExprT!");
                                         // Check if this is a simple variable (single node in call chain)
                                         if call_chain_expr_node.call_chain.len() == 1 {
-                                            if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node } = &call_chain_expr_node.call_chain[0] {
+                                            if let CallChainNodeType::UndeclaredIdentifierNodeT {
+                                                id_node,
+                                            } = &call_chain_expr_node.call_chain[0]
+                                            {
                                                 let var_name = &id_node.name.lexeme;
-                                                debug_print!("DEBUG: Found assignment to variable: {}", var_name);
-                                    
+                                                debug_print!(
+                                                    "DEBUG: Found assignment to variable: {}",
+                                                    var_name
+                                                );
+
                                                 // Check if this variable is a module-level variable
-                                                // Check if the variable exists in module scope  
+                                                // Check if the variable exists in module scope
                                                 debug_print!("DEBUG collect_global: Looking for variable '{}' in module scope", var_name);
-                                                debug_print!("DEBUG collect_global: Module symbols: {:?}", 
-                                                        self.arcanium.module_symtab.borrow().symbols.keys().collect::<Vec<_>>());
-                                                
-                                                for (symbol_name, symbol_type_rcref) in &self.arcanium.module_symtab.borrow().symbols {
+                                                debug_print!(
+                                                    "DEBUG collect_global: Module symbols: {:?}",
+                                                    self.arcanium
+                                                        .module_symtab
+                                                        .borrow()
+                                                        .symbols
+                                                        .keys()
+                                                        .collect::<Vec<_>>()
+                                                );
+
+                                                for (symbol_name, symbol_type_rcref) in
+                                                    &self.arcanium.module_symtab.borrow().symbols
+                                                {
                                                     if symbol_name == var_name {
                                                         // Check if it's actually a module variable (not a function or system)
                                                         match &*symbol_type_rcref.borrow() {
-                                                            SymbolType::ModuleVariable { .. } => {
+                                                            SymbolType::ModuleVariable {
+                                                                ..
+                                                            } => {
                                                                 debug_print!("DEBUG: Found module variable '{}' being assigned in function", var_name);
-                                                                self.global_vars_in_function.insert(var_name.clone());
-                                                            },
+                                                                self.global_vars_in_function
+                                                                    .insert(var_name.clone());
+                                                            }
                                                             other => {
-                                                                debug_print!("DEBUG: Found '{}' but it's not a ModuleVariable, it's: {:?}", 
+                                                                debug_print!("DEBUG: Found '{}' but it's not a ModuleVariable, it's: {:?}",
                                                                         var_name, std::mem::discriminant(other));
                                                             }
                                                         }
@@ -1719,7 +1855,8 @@ impl PythonVisitor {
                                                     }
                                                 }
                                                 // Debug if not found
-                                                if !self.global_vars_in_function.contains(var_name) {
+                                                if !self.global_vars_in_function.contains(var_name)
+                                                {
                                                     debug_print!("DEBUG: Variable '{}' not found in module scope at all", var_name);
                                                 }
                                             }
@@ -1728,13 +1865,21 @@ impl PythonVisitor {
                                     ExprType::VariableExprT { var_node } => {
                                         // Legacy compatibility - handle old style VariableExprT
                                         let var_name = &var_node.id_node.name.lexeme;
-                                        debug_print!("DEBUG: Found assignment to variable (legacy): {}", var_name);
-                                        
+                                        debug_print!(
+                                            "DEBUG: Found assignment to variable (legacy): {}",
+                                            var_name
+                                        );
+
                                         // Same logic as above
-                                        for (symbol_name, symbol_type_rcref) in &self.arcanium.module_symtab.borrow().symbols {
+                                        for (symbol_name, symbol_type_rcref) in
+                                            &self.arcanium.module_symtab.borrow().symbols
+                                        {
                                             if symbol_name == var_name {
-                                                if let SymbolType::ModuleVariable { .. } = &*symbol_type_rcref.borrow() {
-                                                    self.global_vars_in_function.insert(var_name.clone());
+                                                if let SymbolType::ModuleVariable { .. } =
+                                                    &*symbol_type_rcref.borrow()
+                                                {
+                                                    self.global_vars_in_function
+                                                        .insert(var_name.clone());
                                                 }
                                                 break;
                                             }
@@ -1745,7 +1890,9 @@ impl PythonVisitor {
                                     }
                                 }
                             }
-                            ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node: _ } => {
+                            ExprStmtType::CallChainStmtT {
+                                call_chain_literal_stmt_node: _,
+                            } => {
                                 debug_print!("DEBUG: Found CallChainStmtT - might be assignment!");
                                 // CallChainStmtT can also contain assignments
                                 // Need to check if this is an assignment expression
@@ -1766,30 +1913,31 @@ impl PythonVisitor {
             }
         }
     }
-    
+
     fn generate_system_from_node(&mut self, system_node: &SystemNode) {
         // Generate a complete system class from a SystemNode
         // This is for v0.30 multi-entity support
-        
+
         // Set up necessary state for visitor methods
         self.system_name = system_node.name.clone();
-        
+
         // v0.37: Determine if system needs async runtime BEFORE visiting interface methods
         if self.config.event_handlers_as_functions {
             self.system_has_async_runtime = self.system_needs_async_runtime(system_node);
         } else {
             self.system_has_async_runtime = false;
         }
-        
+
         // Clear and populate enum names from this system's domain block
         self.current_system_enums.clear();
         if let Some(ref domain_block_node) = system_node.domain_block_node_opt {
             for enum_decl_node_rcref in &domain_block_node.enums {
                 let enum_decl_node = enum_decl_node_rcref.borrow();
-                self.current_system_enums.insert(enum_decl_node.name.clone());
+                self.current_system_enums
+                    .insert(enum_decl_node.name.clone());
             }
         }
-        
+
         // Get first state name if it exists
         if let Some(ref machine_block_node) = system_node.machine_block_node_opt {
             if let Some(first_state) = machine_block_node.get_first_state() {
@@ -1797,18 +1945,18 @@ impl PythonVisitor {
                 self.has_states = true;
             }
         }
-        
+
         self.add_code(&format!("class {}:", system_node.name));
         self.indent();
-        
+
         // v0.70: Add spacing before __init__
         self.newline();
         self.newline();
-        
+
         // Generate constructor parameters based on system parameters
         let mut constructor_params = Vec::new();
         constructor_params.push("self".to_string());
-        
+
         // Count total parameters needed
         let mut param_count = 0;
         if let Some(ref state_params) = system_node.start_state_state_params_opt {
@@ -1820,39 +1968,42 @@ impl PythonVisitor {
         if let Some(ref domain_params) = system_node.domain_params_opt {
             param_count += domain_params.len();
         }
-        
+
         // Add generic parameters
         for i in 0..param_count {
             constructor_params.push(format!("arg{}", i));
         }
-        
+
         let params_str = constructor_params.join(", ");
         self.add_code(&format!("def __init__({}):", params_str));
         self.indent();
-        
+
         // Initialize compartment and runtime if machine block exists
         if self.has_states {
             self.newline();
             self.add_code("# Create and initialize start state compartment");
             self.newline();
-            
+
             // Check if start state has a parent for hierarchical initialization
-            let parent_compartment_init = if let Some(ref machine_block_node) = system_node.machine_block_node_opt {
-                if let Some(first_state) = machine_block_node.get_first_state() {
-                    if let Some(ref dispatch_node) = first_state.borrow().dispatch_opt {
-                        let parent_state_name = &dispatch_node.target_state_ref.name;
-                        format!("FrameCompartment('{}', None, None, None, None, {{}}, {{}})", 
-                            self.format_target_state_name(parent_state_name))
+            let parent_compartment_init =
+                if let Some(ref machine_block_node) = system_node.machine_block_node_opt {
+                    if let Some(first_state) = machine_block_node.get_first_state() {
+                        if let Some(ref dispatch_node) = first_state.borrow().dispatch_opt {
+                            let parent_state_name = &dispatch_node.target_state_ref.name;
+                            format!(
+                                "FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
+                                self.format_target_state_name(parent_state_name)
+                            )
+                        } else {
+                            "None".to_string()
+                        }
                     } else {
                         "None".to_string()
                     }
                 } else {
                     "None".to_string()
-                }
-            } else {
-                "None".to_string()
-            };
-            
+                };
+
             // Get state variables for the first state
             let first_state_vars = if let Some(first_state_rcref) = system_node.get_first_state() {
                 let mut state_vars_entries = Vec::new();
@@ -1874,25 +2025,29 @@ impl PythonVisitor {
             } else {
                 "{}".to_string()
             };
-            
-            self.add_code(&format!("self.__compartment = FrameCompartment('{}', None, None, None, {}, {}, {{}})", 
-                self.format_target_state_name(&self.first_state_name), parent_compartment_init, first_state_vars));
+
+            self.add_code(&format!(
+                "self.__compartment = FrameCompartment('{}', None, None, None, {}, {}, {{}})",
+                self.format_target_state_name(&self.first_state_name),
+                parent_compartment_init,
+                first_state_vars
+            ));
             self.newline();
             self.add_code("self.__next_compartment = None");
-            
+
             // Initialize state stack if needed
             if self.generate_state_stack {
                 self.newline();
                 self.add_code("self.__state_stack = []");
             }
-            
+
             // Initialize return stack
             self.newline();
             self.add_code("self.return_stack = [None]");
-            
+
             // Initialize system parameters
             let mut param_index = 0;
-            
+
             // Initialize state parameters
             if let Some(ref state_params) = system_node.start_state_state_params_opt {
                 if !state_params.is_empty() {
@@ -1902,15 +2057,18 @@ impl PythonVisitor {
                         state_args.push(format!("\"{}\": arg{}", param.param_name, param_index));
                         param_index += 1;
                     }
-                    self.add_code(&format!("self.__compartment.state_args = {{{}}}", state_args.join(", ")));
+                    self.add_code(&format!(
+                        "self.__compartment.state_args = {{{}}}",
+                        state_args.join(", ")
+                    ));
                 }
             }
-            
+
             // Skip enter parameters in param_index (they'll be handled in start event)
             if let Some(ref enter_params) = system_node.start_state_enter_params_opt {
                 param_index += enter_params.len();
             }
-            
+
             // Initialize all domain variables - either from parameters or defaults
             if let Some(ref domain_block_node) = system_node.domain_block_node_opt {
                 if !domain_block_node.member_variables.is_empty() {
@@ -1923,28 +2081,31 @@ impl PythonVisitor {
                             domain_param_index += 1;
                         }
                     }
-                    
+
                     self.newline();
                     self.add_code("# Initialize domain variables");
-                    
+
                     // Iterate through all domain variables
                     for domain_var_decl_rc in &domain_block_node.member_variables {
                         let domain_var_decl = domain_var_decl_rc.borrow();
                         let var_name = &domain_var_decl.name;
-                        
+
                         self.newline();
-                        
+
                         // Get type annotation if available
                         let var_type = match &domain_var_decl.type_opt {
                             Some(type_node) => self.format_type(type_node),
                             None => String::new(),
                         };
-                        
+
                         // Check if this variable has a system parameter override
                         if let Some(&arg_index) = domain_param_map.get(var_name) {
                             // Use the parameter value
                             if !var_type.is_empty() {
-                                self.add_code(&format!("self.{}: {} = arg{}", var_name, var_type, arg_index));
+                                self.add_code(&format!(
+                                    "self.{}: {} = arg{}",
+                                    var_name, var_type, arg_index
+                                ));
                             } else {
                                 self.add_code(&format!("self.{} = arg{}", var_name, arg_index));
                             }
@@ -1955,9 +2116,12 @@ impl PythonVisitor {
                             domain_var_decl.get_initializer_value_rc().accept(self);
                             let init_value = self.code.clone();
                             self.code = saved_code;
-                            
+
                             if !var_type.is_empty() {
-                                self.add_code(&format!("self.{}: {} = {}", var_name, var_type, init_value));
+                                self.add_code(&format!(
+                                    "self.{}: {} = {}",
+                                    var_name, var_type, init_value
+                                ));
                             } else {
                                 self.add_code(&format!("self.{} = {}", var_name, init_value));
                             }
@@ -1974,13 +2138,13 @@ impl PythonVisitor {
                     param_index += 1;
                 }
             }
-            
+
             // Send system start event
             self.newline();
             self.newline();
             self.add_code("# Send system start event");
             self.newline();
-            
+
             // Generate enter event parameters if they exist
             if let Some(ref enter_params) = system_node.start_state_enter_params_opt {
                 if !enter_params.is_empty() {
@@ -1989,10 +2153,13 @@ impl PythonVisitor {
                     if let Some(ref state_params) = system_node.start_state_state_params_opt {
                         enter_param_index += state_params.len();
                     }
-                    
+
                     let mut enter_args = Vec::new();
                     for param in enter_params {
-                        enter_args.push(format!("\"{}\": arg{}", param.param_name, enter_param_index));
+                        enter_args.push(format!(
+                            "\"{}\": arg{}",
+                            param.param_name, enter_param_index
+                        ));
                         enter_param_index += 1;
                     }
                     self.add_code(&format!("enter_params = {{{}}}", enter_args.join(", ")));
@@ -2018,59 +2185,59 @@ impl PythonVisitor {
             self.add_code("self.return_stack = [None]");
         }
         self.outdent();
-        
+
         // Generate operations block
         if let Some(ref operations_block_node) = system_node.operations_block_node_opt {
             operations_block_node.accept(self);
         }
-        
+
         // Generate interface block
         if let Some(ref interface_block_node) = system_node.interface_block_node_opt {
             interface_block_node.accept(self);
         }
-        
+
         // Generate machine block
         if let Some(ref machine_block_node) = system_node.machine_block_node_opt {
             machine_block_node.accept(self);
         }
-        
+
         // Generate actions block
         if let Some(ref actions_block_node) = system_node.actions_block_node_opt {
             actions_block_node.accept(self);
         }
-        
+
         // Generate domain block
         if let Some(ref domain_block_node) = system_node.domain_block_node_opt {
             domain_block_node.accept(self);
         }
-        
+
         // v0.30: Enums are now generated at module level in generate_all_enums()
         // No longer generate them inside system classes to avoid forward reference issues
-        
+
         // Generate system runtime (__kernel, __router, __transition)
         // This is essential for systems to auto-start with enter events
         self.generate_system_runtime_from_node(system_node);
-        
+
         self.outdent();
     }
-    
+
     fn generate_system_runtime_from_node(&mut self, system_node: &SystemNode) {
         // Skip runtime generation if no states
         if system_node.machine_block_node_opt.is_none() {
             return;
         }
-        
+
         let machine_block_node = system_node.machine_block_node_opt.as_ref().unwrap();
-        
+
         // v0.37: Check if system needs async runtime
-        let needs_async = self.config.event_handlers_as_functions && 
-                         self.system_needs_async_runtime(system_node);
-        
+        let needs_async =
+            self.config.event_handlers_as_functions && self.system_needs_async_runtime(system_node);
+
         self.newline();
         self.newline();
         self.add_code("# ==================== System Runtime =================== #");
         self.newline();
-        
+
         // Generate __kernel method (async if needed)
         self.newline();
         if needs_async {
@@ -2157,7 +2324,7 @@ impl PythonVisitor {
         self.outdent();
         self.outdent();
         self.outdent();
-        
+
         // Generate __router method (async if needed)
         self.newline();
         self.newline();
@@ -2170,21 +2337,27 @@ impl PythonVisitor {
         self.newline();
         self.add_code("target_compartment = compartment or self.__compartment");
         self.newline();
-        
+
         // Route to state handlers based on machine block states
         for (index, state_node_rcref) in machine_block_node.states.iter().enumerate() {
             let state_node = state_node_rcref.borrow();
             let state_name = self.format_target_state_name(&state_node.name);
-            
+
             if index == 0 {
                 self.add_code(&format!("if target_compartment.state == '{}':", state_name));
             } else {
-                self.add_code(&format!("elif target_compartment.state == '{}':", state_name));
+                self.add_code(&format!(
+                    "elif target_compartment.state == '{}':",
+                    state_name
+                ));
             }
             self.indent();
             self.newline();
             if needs_async {
-                self.add_code(&format!("await self.{}(__e, target_compartment)", state_name));
+                self.add_code(&format!(
+                    "await self.{}(__e, target_compartment)",
+                    state_name
+                ));
             } else {
                 self.add_code(&format!("self.{}(__e, target_compartment)", state_name));
             }
@@ -2194,7 +2367,7 @@ impl PythonVisitor {
             }
         }
         self.outdent();
-        
+
         // v0.70: Add spacing before __transition
         self.newline();
         self.newline();
@@ -2203,7 +2376,7 @@ impl PythonVisitor {
         self.newline();
         self.add_code("self.__next_compartment = next_compartment");
         self.outdent();
-        
+
         // Generate state stack methods if needed
         if self.generate_state_stack {
             self.newline();
@@ -2221,7 +2394,7 @@ impl PythonVisitor {
             self.add_code("return self.__state_stack.pop()");
             self.outdent();
         }
-        
+
         // v0.37: Generate sync wrapper for async kernel if needed
         if needs_async {
             self.newline();
@@ -2283,38 +2456,41 @@ impl PythonVisitor {
             self.outdent();
         }
     }
-    
+
     fn generate_system_class_simple(&mut self, system_node: &SystemNode) {
         // Generate a simple but complete system as a Python class
         self.add_code(&format!("class {}:", system_node.name));
         self.indent();
-        
+
         // Generate __init__ method
         self.newline();
         self.add_code("def __init__(self):");
         self.indent();
-        
+
         // Initialize state to first state
         if let Some(machine_block) = &system_node.machine_block_node_opt {
             if !machine_block.states.is_empty() {
                 let first_state = &machine_block.states[0];
                 self.newline();
-                self.add_code(&format!("self.__state = self._s{}", first_state.borrow().name));
+                self.add_code(&format!(
+                    "self.__state = self._s{}",
+                    first_state.borrow().name
+                ));
             }
         }
         self.outdent();
-        
+
         // Generate interface methods
         if let Some(interface_block) = &system_node.interface_block_node_opt {
             self.newline();
             self.add_code("# ==================== Interface Block ================== #");
-            
+
             for interface_method_rcref in &interface_block.interface_methods {
                 let interface_method = interface_method_rcref.borrow();
                 self.newline();
                 self.newline();
                 self.add_code(&format!("def {}(self", interface_method.name));
-                
+
                 // Add parameters
                 if let Some(params) = &interface_method.params {
                     for param in params {
@@ -2322,56 +2498,59 @@ impl PythonVisitor {
                         self.add_code(&param.param_name);
                     }
                 }
-                
+
                 self.add_code("):");
                 self.indent();
                 self.newline();
-                
+
                 // Create event and dispatch to state
-                self.add_code(&format!("__e = FrameEvent('{}', None)", interface_method.name));
+                self.add_code(&format!(
+                    "__e = FrameEvent('{}', None)",
+                    interface_method.name
+                ));
                 self.newline();
                 self.add_code("self.__state(__e)");
-                
+
                 self.outdent();
             }
         }
-        
+
         // Generate state methods
         if let Some(machine_block) = &system_node.machine_block_node_opt {
             self.newline();
             self.add_code("# ===================== Machine Block =================== #");
-            
+
             for state_rcref in &machine_block.states {
                 let state_node = state_rcref.borrow();
                 self.newline();
                 self.newline();
                 self.add_code(&format!("def _s{}(self, __e):", state_node.name));
                 self.indent();
-                
+
                 // Generate event handlers
                 let mut first_handler = true;
                 for event_handler_rcref in &state_node.evt_handlers_rcref {
                     let event_handler = event_handler_rcref.borrow();
-                    
+
                     if !first_handler {
                         self.add_code("el");
                     }
                     first_handler = false;
-                    
+
                     // Handle different event types
                     let event_symbol = event_handler.event_symbol_rcref.borrow();
                     let event_name = if event_symbol.msg == "$>" {
                         "$>".to_string()
                     } else if event_symbol.msg == "<$" {
-                        "<$".to_string()  
+                        "<$".to_string()
                     } else {
                         event_symbol.msg.clone()
                     };
-                    
+
                     self.newline();
                     self.add_code(&format!("if __e._message == '{}':", event_name));
                     self.indent();
-                    
+
                     // Generate statements
                     if !event_handler.statements.is_empty() {
                         for statement in &event_handler.statements {
@@ -2386,10 +2565,18 @@ impl PythonVisitor {
                                                 ExprStmtType::CallStmtT { call_stmt_node } => {
                                                     call_stmt_node.accept(self);
                                                 }
-                                                ExprStmtType::TransitionStmtT { transition_statement_node } => {
+                                                ExprStmtType::TransitionStmtT {
+                                                    transition_statement_node,
+                                                } => {
                                                     // For simplicity, just extract the target state name from the label
-                                                    if let Some(label) = &transition_statement_node.transition_expr_node.label_opt {
-                                                        self.add_code(&format!("self.__state = self._s{}", label));
+                                                    if let Some(label) = &transition_statement_node
+                                                        .transition_expr_node
+                                                        .label_opt
+                                                    {
+                                                        self.add_code(&format!(
+                                                            "self.__state = self._s{}",
+                                                            label
+                                                        ));
                                                     }
                                                 }
                                                 _ => {}
@@ -2411,33 +2598,31 @@ impl PythonVisitor {
                             }
                         }
                     }
-                    
+
                     // Handle terminator (transition or return)
                     match &event_handler.terminator_node {
-                        Some(terminator_expr) => {
-                            match &terminator_expr.terminator_type {
-                                TerminatorType::Return => {
-                                    self.newline();
-                                    self.add_code("return");
-                                }
+                        Some(terminator_expr) => match &terminator_expr.terminator_type {
+                            TerminatorType::Return => {
+                                self.newline();
+                                self.add_code("return");
                             }
-                        }
+                        },
                         None => {
                             self.newline();
                             self.add_code("return");
                         }
                     }
-                    
+
                     self.outdent();
                 }
-                
+
                 self.outdent();
             }
         }
-        
+
         self.outdent();
     }
-    
+
     fn generate_frame_event(&mut self) {
         self.newline();
         self.add_code("class FrameEvent:");
@@ -2454,7 +2639,6 @@ impl PythonVisitor {
         self.newline();
         self.newline();
     }
-    
 
     pub fn run(&mut self, system_node_rcref: Rc<RefCell<SystemNode>>) {
         match &system_node_rcref.borrow().system_attributes_opt {
@@ -2575,7 +2759,7 @@ impl PythonVisitor {
 
     fn skip_next_newline(&mut self) {
         self.code.push_str(&*format!("\n{}", self.dent()));
-        self.current_line += 1;  // Track line numbers for source maps
+        self.current_line += 1; // Track line numbers for source maps
         self.skip_next_newline = true;
     }
 
@@ -2586,7 +2770,7 @@ impl PythonVisitor {
             self.skip_next_newline = false;
         } else {
             self.code.push_str(&*format!("\n{}", self.dent()));
-            self.current_line += 1;  // Track line numbers for source maps
+            self.current_line += 1; // Track line numbers for source maps
         }
     }
     //* --------------------------------------------------------------------- *//
@@ -2600,9 +2784,12 @@ impl PythonVisitor {
         } else {
             self.code.push_str(&*format!("\n{}", self.dent()));
             let old_line = self.current_line;
-            self.current_line += 1;  // Track line numbers for source maps
+            self.current_line += 1; // Track line numbers for source maps
             if std::env::var("FRAME_TRANSPILER_DEBUG_LINES").is_ok() {
-                eprintln!("DEBUG: newline() incremented current_line from {} to {}", old_line, self.current_line);
+                eprintln!(
+                    "DEBUG: newline() incremented current_line from {} to {}",
+                    old_line, self.current_line
+                );
             }
         }
     }
@@ -2679,14 +2866,10 @@ impl PythonVisitor {
                                 }
                                 ExprStmtType::ExprListStmtT {
                                     expr_list_stmt_node,
-                                } => {
-                                    expr_list_stmt_node.accept(self)
-                                },
+                                } => expr_list_stmt_node.accept(self),
                                 ExprStmtType::EnumeratorStmtT {
                                     enumerator_stmt_node,
-                                } => {
-                                    enumerator_stmt_node.accept(self)
-                                },
+                                } => enumerator_stmt_node.accept(self),
                                 ExprStmtType::BinaryStmtT { binary_stmt_node } => {
                                     binary_stmt_node.accept(self)
                                 }
@@ -2744,7 +2927,9 @@ impl PythonVisitor {
                         StatementType::ReturnStmt { return_stmt_node } => {
                             return_stmt_node.accept(self);
                         }
-                        StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
+                        StatementType::ParentDispatchStmt {
+                            parent_dispatch_stmt_node,
+                        } => {
                             parent_dispatch_stmt_node.accept(self);
                         }
                         StatementType::MatchStmt { match_stmt_node } => {
@@ -3258,7 +3443,9 @@ impl PythonVisitor {
                     match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
+                                self.errors.push(
+                                    "Fatal error: misaligned parameters to arguments.".to_string(),
+                                );
                                 return;
                             }
                             let mut param_symbols_it = event_params.iter();
@@ -3291,7 +3478,9 @@ impl PythonVisitor {
                             }
                         }
                         None => {
-                            self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
+                            self.errors.push(
+                                "Fatal error: misaligned parameters to arguments.".to_string(),
+                            );
                             return;
                         }
                     }
@@ -3306,7 +3495,7 @@ impl PythonVisitor {
 
         self.newline();
         // Note: next_compartment generation moved to state lookup section below
-        
+
         // v0.30: Use proper state lookup through Arcanum
         // First, set the system_symbol_opt in arcanum so get_state can work
         if self.arcanium.system_symbol_opt.is_none() {
@@ -3314,14 +3503,15 @@ impl PythonVisitor {
                 self.arcanium.system_symbol_opt = Some(system_symbol_rcref.clone());
             }
         }
-        
-        let state_node_rcref_opt = if let Some(state_symbol_rcref) = self.arcanium.get_state(target_state_name) {
-            let state_symbol = state_symbol_rcref.borrow();
-            state_symbol.state_node_opt.clone()
-        } else {
-            None
-        };
-        
+
+        let state_node_rcref_opt =
+            if let Some(state_symbol_rcref) = self.arcanium.get_state(target_state_name) {
+                let state_symbol = state_symbol_rcref.borrow();
+                state_symbol.state_node_opt.clone()
+            } else {
+                None
+            };
+
         if let Some(state_node_rcref) = state_node_rcref_opt {
             let code = self.format_compartment_hierarchy(
                 &state_node_rcref,
@@ -3333,7 +3523,7 @@ impl PythonVisitor {
         } else {
             // Fallback: Generate FrameCompartment directly when state lookup fails
             let target_state_full_name = self.format_target_state_name(target_state_name);
-            
+
             // For hierarchical states, create proper parent compartment relationships
             if target_state_name == "Child1" || target_state_name == "Child2" {
                 // These are child states with Parent as parent
@@ -3558,7 +3748,9 @@ impl PythonVisitor {
                     match &event_sym.borrow().event_symbol_params_opt {
                         Some(event_params) => {
                             if exit_args.exprs_t.len() != event_params.len() {
-                                self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
+                                self.errors.push(
+                                    "Fatal error: misaligned parameters to arguments.".to_string(),
+                                );
                                 return;
                             }
                             let mut param_symbols_it = event_params.iter();
@@ -3592,7 +3784,9 @@ impl PythonVisitor {
                             }
                         }
                         None => {
-                            self.errors.push("Fatal error: misaligned parameters to arguments.".to_string());
+                            self.errors.push(
+                                "Fatal error: misaligned parameters to arguments.".to_string(),
+                            );
                             return;
                         }
                     }
@@ -3815,11 +4009,11 @@ impl PythonVisitor {
         self.newline();
         self.outdent();
     }
-    
+
     // v0.30: Generate all functions from the Arcanum
     fn generate_all_functions(&mut self) {
         let function_symbols = self.arcanium.get_functions().clone(); // Clone to avoid borrow issues
-        
+
         for function_symbol_rcref in function_symbols {
             let function_symbol = function_symbol_rcref.borrow();
             if let Some(function_node_rcref) = &function_symbol.ast_node_opt {
@@ -3833,53 +4027,54 @@ impl PythonVisitor {
     // This ensures enums can be referenced from functions and anywhere in the module
     fn generate_all_enums(&mut self, frame_module: &FrameModule) {
         let mut generated_enums = HashSet::new();
-        
+
         // v0.32: First generate module-level enums
         for enum_rcref in &frame_module.enums {
             let enum_decl_node = enum_rcref.borrow();
-            
+
             // Module-level enums don't need system prefix
             let full_enum_name = enum_decl_node.name.clone();
-            
+
             // Track module-level enum names
             self.module_level_enums.insert(full_enum_name.clone());
-            
+
             if !generated_enums.contains(&full_enum_name) {
                 generated_enums.insert(full_enum_name.clone());
-                
+
                 // Mark enum import as required
-                self.required_imports.insert("from enum import Enum".to_string());
-                
+                self.required_imports
+                    .insert("from enum import Enum".to_string());
+
                 // Generate the enum at module level
                 self.newline();
                 self.add_code(&format!("class {}(Enum):", full_enum_name));
                 self.indent();
-                
+
                 // Generate enum members with proper values
                 for enumerator_decl_node in &enum_decl_node.enums {
                     enumerator_decl_node.accept(self);
                 }
-                
+
                 self.outdent();
                 self.newline();
             }
         }
-        
+
         // Then iterate through all systems and collect their enums
         let system_symbols = self.arcanium.get_systems().clone();
         if system_symbols.is_empty() {
             return;
         }
-        
+
         for system_symbol_rcref in system_symbols {
             let system_symbol = system_symbol_rcref.borrow();
             let system_name = &system_symbol.name;
-            
+
             // Check if this system has a domain block with enums
             if let Some(domain_block_symbol_rcref) = &system_symbol.domain_block_symbol_opt {
                 let domain_block_symbol = domain_block_symbol_rcref.borrow();
                 let domain_symbol_table = domain_block_symbol.symtab_rcref.borrow();
-                
+
                 // Iterate through all symbols in the domain block
                 for (_name, symbol_type_rcref) in &domain_symbol_table.symbols {
                     let symbol_type = symbol_type_rcref.borrow();
@@ -3888,36 +4083,39 @@ impl PythonVisitor {
                             let enum_symbol = enum_symbol_rcref.borrow();
                             if let Some(ast_node_rcref) = &enum_symbol.ast_node_opt {
                                 let enum_decl_node = ast_node_rcref.borrow();
-                                
-                                // Generate unique enum name: SystemName_EnumName  
-                                let full_enum_name = format!("{}_{}", system_name, enum_decl_node.name);
-                                
+
+                                // Generate unique enum name: SystemName_EnumName
+                                let full_enum_name =
+                                    format!("{}_{}", system_name, enum_decl_node.name);
+
                                 // Avoid duplicate generation
                                 if !generated_enums.contains(&full_enum_name) {
                                     generated_enums.insert(full_enum_name.clone());
-                                    
+
                                     // Mark enum import as required
-                                    self.required_imports.insert("from enum import Enum".to_string());
-                                    
+                                    self.required_imports
+                                        .insert("from enum import Enum".to_string());
+
                                     // Generate the enum at module level
                                     self.newline();
                                     self.add_code(&format!("class {}(Enum):", full_enum_name));
                                     self.indent();
-                                    
+
                                     // Track duplicate enum names to avoid Python enum conflicts
                                     let mut enum_names_seen = HashSet::new();
-                                    
+
                                     for enumerator_decl_node in &enum_decl_node.enums {
                                         // Only generate if we haven't seen this name before
                                         if !enum_names_seen.contains(&enumerator_decl_node.name) {
-                                            enum_names_seen.insert(enumerator_decl_node.name.clone());
+                                            enum_names_seen
+                                                .insert(enumerator_decl_node.name.clone());
                                             enumerator_decl_node.accept(self);
                                         }
                                     }
-                                    
+
                                     self.outdent();
                                     self.newline();
-                                    
+
                                     // Generate alias for easier access: EnumName = SystemName_EnumName
                                     let enum_name = &enum_decl_node.name;
                                     self.add_code(&format!("{} = {}", enum_name, full_enum_name));
@@ -3935,7 +4133,7 @@ impl PythonVisitor {
     // v0.30: Generate all systems from the Arcanum
     fn generate_all_systems(&mut self) {
         let system_symbols = self.arcanium.get_systems().clone(); // Clone to avoid borrow issues
-        
+
         for system_symbol_rcref in system_symbols {
             let system_symbol = system_symbol_rcref.borrow();
             self.generate_single_system(&system_symbol);
@@ -3949,17 +4147,20 @@ impl PythonVisitor {
         if self.config.event_handlers_as_functions {
             self.system_has_async_runtime = self.system_symbol_needs_async_runtime(system_symbol);
         }
-        
+
         // domain variable vector
         let mut domain_vec: Vec<(String, String)> = Vec::new();
         if let Some(domain_block_symbol_rcref) = &system_symbol.domain_block_symbol_opt {
             let domain_block_symbol = domain_block_symbol_rcref.borrow();
             let symbol_table = domain_block_symbol.symtab_rcref.borrow();
-            
+
             // Collect domain variables for initialization
             for (_name, symbol_type_rcref) in symbol_table.symbols.iter() {
                 let symbol_type = symbol_type_rcref.borrow();
-                if let SymbolType::DomainVariable { domain_variable_symbol_rcref } = &*symbol_type {
+                if let SymbolType::DomainVariable {
+                    domain_variable_symbol_rcref,
+                } = &*symbol_type
+                {
                     let domain_var_symbol = domain_variable_symbol_rcref.borrow();
                     let var_name = domain_var_symbol.name.clone();
                     let var_decl_node_rcref = &domain_var_symbol.ast_node_rcref;
@@ -3973,21 +4174,27 @@ impl PythonVisitor {
         }
 
         self.system_name = system_symbol.name.clone();
-        
+
         // Generate the system class and its components
         self.generate_system_class(&system_symbol, domain_vec);
     }
 
     // v0.30: Generate system class from system symbol
-    fn generate_system_class(&mut self, system_symbol: &SystemSymbol, domain_vec: Vec<(String, String)>) {
+    fn generate_system_class(
+        &mut self,
+        system_symbol: &SystemSymbol,
+        domain_vec: Vec<(String, String)>,
+    ) {
         let system_name = &system_symbol.name;
-        
+
         // Generate compartment class for this system
         self.newline();
         self.add_code(&format!("class {}Compartment:", system_name));
         self.indent();
         self.newline();
-        self.add_code("def __init__(self, state, forward_event=None, exit_args=None, enter_args=None):");
+        self.add_code(
+            "def __init__(self, state, forward_event=None, exit_args=None, enter_args=None):",
+        );
         self.indent();
         self.newline();
         self.add_code("self.state = state");
@@ -3999,7 +4206,7 @@ impl PythonVisitor {
         self.add_code("self.enter_args = enter_args");
         self.outdent();
         self.outdent();
-        
+
         // Generate system class
         self.newline();
         self.newline();
@@ -4007,14 +4214,16 @@ impl PythonVisitor {
         self.indent();
         self.newline();
         self.newline();
-        
-        self.add_code(&format!("# ==================== System Factory =================== #"));
+
+        self.add_code(&format!(
+            "# ==================== System Factory =================== #"
+        ));
         self.newline();
         self.newline();
-        
+
         // Generate constructor (__init__)
         self.generate_system_constructor(system_symbol, domain_vec);
-        
+
         // Generate interface methods - use proper visitor methods instead of stubs
         if let Some(_interface_block_symbol_rcref) = &system_symbol.interface_block_symbol_opt {
             // TODO: Need to convert from symbol back to AST node to call proper visitor
@@ -4024,8 +4233,8 @@ impl PythonVisitor {
             self.newline();
             // This needs proper implementation - interface methods should be generated here
         }
-        
-        // Generate machine states - use proper visitor methods instead of stubs  
+
+        // Generate machine states - use proper visitor methods instead of stubs
         if let Some(_machine_block_symbol_rcref) = &system_symbol.machine_block_symbol_opt {
             // TODO: Need to convert from symbol back to AST node to call proper visitor
             // For now, generate basic machine structure
@@ -4034,35 +4243,39 @@ impl PythonVisitor {
             self.newline();
             // This needs proper implementation - state methods should be generated here
         }
-        
+
         // Generate action methods
         if let Some(actions_block_symbol_rcref) = &system_symbol.actions_block_symbol_opt {
             self.generate_action_methods(actions_block_symbol_rcref);
         }
-        
+
         // Generate operation methods
         self.newline();
         if let Some(operations_block_symbol_rcref) = &system_symbol.operations_block_symbol_opt {
             self.generate_operation_methods(operations_block_symbol_rcref);
         }
-        
+
         // Generate system runtime (__kernel, __router, __transition)
         self.generate_system_runtime(system_symbol);
-        
+
         self.outdent();
     }
-    
+
     // Helper methods for system generation (stubs for now)
-    fn generate_system_constructor(&mut self, system_symbol: &SystemSymbol, domain_vec: Vec<(String, String)>) {
+    fn generate_system_constructor(
+        &mut self,
+        system_symbol: &SystemSymbol,
+        domain_vec: Vec<(String, String)>,
+    ) {
         // Generate a complete system constructor
         self.add_code("def __init__(self):");
         self.indent();
-        
+
         // Initialize compartment tracking
         if let Some(machine_block_symbol) = &system_symbol.machine_block_symbol_opt {
             let machine_block = machine_block_symbol.borrow();
             let symtab = machine_block.symtab_rcref.borrow();
-            
+
             // Get first state name from symbol table
             let mut first_state_name_opt = None;
             for (_name, symbol_type_rcref) in symtab.symbols.iter() {
@@ -4070,26 +4283,29 @@ impl PythonVisitor {
                 if let SymbolType::State { state_symbol_ref } = &*symbol_type {
                     let state_symbol = state_symbol_ref.borrow();
                     first_state_name_opt = Some(self.format_target_state_name(&state_symbol.name));
-                    break;  // Just need the first state
+                    break; // Just need the first state
                 }
             }
-            
+
             if let Some(first_state_name) = first_state_name_opt {
                 self.newline();
                 self.add_code("# Create and initialize start state compartment");
                 self.newline();
-                self.add_code(&format!("self.__compartment = {}Compartment('{}', None, None)", system_symbol.name, first_state_name));
+                self.add_code(&format!(
+                    "self.__compartment = {}Compartment('{}', None, None)",
+                    system_symbol.name, first_state_name
+                ));
                 self.newline();
                 self.add_code("self.__next_compartment = None");
             }
         }
-        
+
         // Initialize state stack if needed
         if self.generate_state_stack {
             self.newline();
             self.add_code("self.__state_stack = []");
         }
-        
+
         // Initialize domain variables
         if !domain_vec.is_empty() {
             self.newline();
@@ -4099,12 +4315,12 @@ impl PythonVisitor {
                 self.add_code(&format!("self.{} = {}", var_name, init_expression));
             }
         }
-        
+
         // Send system start event
         if system_symbol.machine_block_symbol_opt.is_some() {
             self.newline();
             self.newline();
-            
+
             // v0.37: For async runtime, use sync wrapper in __init__
             self.add_code("# Send system start event");
             self.newline();
@@ -4116,54 +4332,68 @@ impl PythonVisitor {
                 self.add_code("self.__kernel(frame_event)");
             }
         }
-        
+
         self.outdent();
-        
+
         self.newline();
     }
-    
-    fn generate_interface_methods(&mut self, _interface_block_symbol_rcref: &Rc<RefCell<InterfaceBlockScopeSymbol>>) {
+
+    fn generate_interface_methods(
+        &mut self,
+        _interface_block_symbol_rcref: &Rc<RefCell<InterfaceBlockScopeSymbol>>,
+    ) {
         // TODO: Implement interface method generation
         self.newline();
         self.add_code("# Interface methods will be added here");
         self.newline();
     }
-    
-    fn generate_machine_states(&mut self, _machine_block_symbol_rcref: &Rc<RefCell<MachineBlockScopeSymbol>>) {
+
+    fn generate_machine_states(
+        &mut self,
+        _machine_block_symbol_rcref: &Rc<RefCell<MachineBlockScopeSymbol>>,
+    ) {
         // TODO: Implement state machine generation
         self.newline();
         self.add_code("# State machine will be added here");
         self.newline();
     }
-    
-    fn generate_action_methods(&mut self, _actions_block_symbol_rcref: &Rc<RefCell<ActionsBlockScopeSymbol>>) {
+
+    fn generate_action_methods(
+        &mut self,
+        _actions_block_symbol_rcref: &Rc<RefCell<ActionsBlockScopeSymbol>>,
+    ) {
         // TODO: Implement action method generation
         self.newline();
         self.add_code("# Action methods will be added here");
         self.newline();
     }
-    
-    fn generate_operation_methods(&mut self, operations_block_symbol_rcref: &Rc<RefCell<OperationsBlockScopeSymbol>>) {
+
+    fn generate_operation_methods(
+        &mut self,
+        operations_block_symbol_rcref: &Rc<RefCell<OperationsBlockScopeSymbol>>,
+    ) {
         // Generate operations block header
         self.newline();
         self.newline();
         self.add_code("# ==================== Operations Block ================== #");
-        
+
         self.newline();
-        
+
         // Access operations from symbol table
         let operations_block_symbol = operations_block_symbol_rcref.borrow();
         let symbol_table = operations_block_symbol.symtab_rcref.borrow();
-        
-        
+
         // Generate each operation method
         for (_name, symbol_type_rcref) in symbol_table.symbols.iter() {
             let symbol_type = symbol_type_rcref.borrow();
             self.newline();
-            
-            if let SymbolType::OperationScope { operation_scope_symbol_rcref } = &*symbol_type {
+
+            if let SymbolType::OperationScope {
+                operation_scope_symbol_rcref,
+            } = &*symbol_type
+            {
                 let operation_symbol = operation_scope_symbol_rcref.borrow();
-                
+
                 // Try to use AST node if available
                 if let Some(operation_node_rcref) = &operation_symbol.ast_node_opt {
                     let operation_node = operation_node_rcref.borrow();
@@ -4183,18 +4413,18 @@ impl PythonVisitor {
             }
         }
     }
-    
+
     fn generate_system_runtime(&mut self, system_symbol: &SystemSymbol) {
         // Generate the system runtime methods (__kernel, __router, __transition)
         self.newline();
         self.newline();
         self.add_code("# ==================== System Runtime =================== #");
         self.newline();
-        
+
         // v0.37: Check if system needs async runtime
-        let needs_async = self.config.event_handlers_as_functions && 
-                         self.system_symbol_needs_async_runtime(system_symbol);
-        
+        let needs_async = self.config.event_handlers_as_functions
+            && self.system_symbol_needs_async_runtime(system_symbol);
+
         // Generate __kernel method
         self.newline();
         if needs_async {
@@ -4281,7 +4511,7 @@ impl PythonVisitor {
         self.outdent();
         self.outdent();
         self.outdent();
-        
+
         // Generate __router method (async if needed)
         self.newline();
         self.newline();
@@ -4294,15 +4524,15 @@ impl PythonVisitor {
         self.newline();
         self.add_code("target_compartment = compartment or self.__compartment");
         self.newline();
-        
+
         // Route to state handlers based on compartment state
         if let Some(machine_block_symbol) = &system_symbol.machine_block_symbol_opt {
             let machine_block = machine_block_symbol.borrow();
             let symtab = machine_block.symtab_rcref.borrow();
-            
+
             let mut index = 0;
             let mut state_names = Vec::new();
-            
+
             // Collect all state names first
             for (_name, symbol_type_rcref) in symtab.symbols.iter() {
                 let symbol_type = symbol_type_rcref.borrow();
@@ -4311,18 +4541,24 @@ impl PythonVisitor {
                     state_names.push(self.format_target_state_name(&state_symbol.name));
                 }
             }
-            
+
             // Generate if/elif chain for state routing
             for state_name in &state_names {
                 if index == 0 {
                     self.add_code(&format!("if target_compartment.state == '{}':", state_name));
                 } else {
-                    self.add_code(&format!("elif target_compartment.state == '{}':", state_name));
+                    self.add_code(&format!(
+                        "elif target_compartment.state == '{}':",
+                        state_name
+                    ));
                 }
                 self.indent();
                 self.newline();
                 if needs_async {
-                    self.add_code(&format!("return await self.{}(__e, target_compartment)", state_name));
+                    self.add_code(&format!(
+                        "return await self.{}(__e, target_compartment)",
+                        state_name
+                    ));
                 } else {
                     self.add_code(&format!("self.{}(__e, target_compartment)", state_name));
                 }
@@ -4334,7 +4570,7 @@ impl PythonVisitor {
             }
         }
         self.outdent();
-        
+
         // Generate __transition method
         self.newline();
         self.newline();
@@ -4343,7 +4579,7 @@ impl PythonVisitor {
         self.newline();
         self.add_code("self.__next_compartment = next_compartment");
         self.outdent();
-        
+
         // Generate state stack methods if needed
         if self.generate_state_stack {
             self.newline();
@@ -4362,14 +4598,14 @@ impl PythonVisitor {
             self.outdent();
         }
     }
-    
+
     //* --------------------------------------------------------------------- *//
     // ===================== Frame v0.31 Explicit Self/System Context =====================
-    
+
     /// Handle collection constructor calls - transform into Python literals
     fn handle_collection_constructor(&mut self, method_call: &CallExprNode) {
         let method_name = &method_call.identifier.name.lexeme;
-        
+
         match method_name.as_str() {
             "list" => {
                 self.add_code("[");
@@ -4420,11 +4656,15 @@ impl PythonVisitor {
             }
         }
     }
-    
+
     /// Handle collection constructor calls for string output
-    fn handle_collection_constructor_to_string(&mut self, method_call: &CallExprNode, output: &mut String) {
+    fn handle_collection_constructor_to_string(
+        &mut self,
+        method_call: &CallExprNode,
+        output: &mut String,
+    ) {
         let method_name = &method_call.identifier.name.lexeme;
-        
+
         match method_name.as_str() {
             "list" => {
                 output.push('[');
@@ -4475,23 +4715,29 @@ impl PythonVisitor {
             }
         }
     }
-    
+
     /// v0.64: Handle calls using semantic resolution (to_string variant)
     /// This method uses the resolved_type field to generate the correct call syntax
     /// without needing complex call chain analysis
-    fn handle_call_with_resolved_type_to_string(&mut self, method_call: &CallExprNode, output: &mut String) -> bool {
+    fn handle_call_with_resolved_type_to_string(
+        &mut self,
+        method_call: &CallExprNode,
+        output: &mut String,
+    ) -> bool {
         // Check if we have a resolved type
         let resolved_type = match &method_call.resolved_type {
             Some(rt) => rt,
             None => return false, // No resolution, fall back to old logic
         };
-        
+
         // Debug output
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG v0.64: Using resolved type {:?} for {} (to_string)", 
-                resolved_type, method_call.identifier.name.lexeme);
+            eprintln!(
+                "DEBUG v0.64: Using resolved type {:?} for {} (to_string)",
+                resolved_type, method_call.identifier.name.lexeme
+            );
         }
-        
+
         // Generate code based on resolved type
         match resolved_type {
             ResolvedCallType::Action(name) => {
@@ -4524,7 +4770,11 @@ impl PythonVisitor {
                 method_call.call_expr_list.accept_to_string(self, output);
                 true
             }
-            ResolvedCallType::SystemOperation { system, operation, is_static } => {
+            ResolvedCallType::SystemOperation {
+                system,
+                operation,
+                is_static,
+            } => {
                 // Qualified system operation call
                 if *is_static {
                     output.push_str(&format!("{}.{}", system, operation));
@@ -4535,7 +4785,11 @@ impl PythonVisitor {
                 method_call.call_expr_list.accept_to_string(self, output);
                 true
             }
-            ResolvedCallType::ClassMethod { class, method, is_static } => {
+            ResolvedCallType::ClassMethod {
+                class,
+                method,
+                is_static,
+            } => {
                 // Class method call
                 if *is_static {
                     output.push_str(&format!("{}.{}", class, method));
@@ -4573,12 +4827,12 @@ impl PythonVisitor {
                             }
                         }
                     }
-                    
+
                     output.push_str(name);
                     output.push('(');
-                    
+
                     let expr_count = method_call.call_expr_list.exprs_t.len();
-                    
+
                     if expr_count > 1 {
                         // Multiple arguments: wrap them in a list
                         output.push('[');
@@ -4593,7 +4847,7 @@ impl PythonVisitor {
                         let arg = &method_call.call_expr_list.exprs_t[0];
                         arg.accept_to_string(self, output);
                     }
-                    
+
                     output.push(')');
                     true
                 } else {
@@ -4618,7 +4872,7 @@ impl PythonVisitor {
             }
         }
     }
-    
+
     /// v0.64: Handle calls using semantic resolution
     /// This method uses the resolved_type field to generate the correct call syntax
     /// without needing complex call chain analysis
@@ -4629,13 +4883,15 @@ impl PythonVisitor {
             Some(rt) => rt,
             None => return false, // No resolution, fall back to old logic
         };
-        
+
         // Debug output
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG v0.64: Using resolved type {:?} for {}", 
-                resolved_type, method_call.identifier.name.lexeme);
+            eprintln!(
+                "DEBUG v0.64: Using resolved type {:?} for {}",
+                resolved_type, method_call.identifier.name.lexeme
+            );
         }
-        
+
         // Generate code based on resolved type
         match resolved_type {
             ResolvedCallType::Action(name) => {
@@ -4668,7 +4924,11 @@ impl PythonVisitor {
                 method_call.call_expr_list.accept(self);
                 true
             }
-            ResolvedCallType::SystemOperation { system, operation, is_static } => {
+            ResolvedCallType::SystemOperation {
+                system,
+                operation,
+                is_static,
+            } => {
                 // Qualified system operation call
                 if *is_static {
                     self.add_code(&format!("{}.{}", system, operation));
@@ -4679,7 +4939,11 @@ impl PythonVisitor {
                 method_call.call_expr_list.accept(self);
                 true
             }
-            ResolvedCallType::ClassMethod { class, method, is_static } => {
+            ResolvedCallType::ClassMethod {
+                class,
+                method,
+                is_static,
+            } => {
                 // Class method call
                 if *is_static {
                     self.add_code(&format!("{}.{}", class, method));
@@ -4713,12 +4977,12 @@ impl PythonVisitor {
                             }
                         }
                     }
-                    
+
                     self.add_code(name);
                     self.add_code("(");
-                    
+
                     let expr_count = method_call.call_expr_list.exprs_t.len();
-                    
+
                     if expr_count > 1 {
                         // Multiple arguments: wrap them in a list
                         self.add_code("[");
@@ -4733,7 +4997,7 @@ impl PythonVisitor {
                         let arg = &method_call.call_expr_list.exprs_t[0];
                         arg.accept(self);
                     }
-                    
+
                     self.add_code(")");
                     true
                 } else {
@@ -4767,32 +5031,32 @@ impl PythonVisitor {
         let saved_module_name = self.current_module_name.clone();
         let saved_nested_names = self.nested_module_names.clone();
         let saved_module_variables = self.current_module_variables.clone();
-        
+
         // Set module context
         self.current_module_name = Some(module_node.name.clone());
         self.current_module_path.push(module_node.name.clone());
         self.current_module_variables.clear();
         self.nested_module_names.clear();
-        
+
         // Collect module variable names
         for var_node_rcref in &module_node.variables {
             let var = var_node_rcref.borrow();
             self.current_module_variables.insert(var.name.clone());
         }
-        
+
         // Collect nested module names for sibling resolution
         for nested_module_rcref in &module_node.modules {
             let nested = nested_module_rcref.borrow();
             self.nested_module_names.insert(nested.name.clone());
         }
-        
+
         // Generate a Python class to act as namespace for the module
         self.newline();
         self.add_code(&format!("class {}:", module_node.name));
         self.indent();
-        
+
         let mut has_content = false;
-        
+
         // Process module variables as class variables
         for var_node_rcref in &module_node.variables {
             if has_content {
@@ -4806,7 +5070,7 @@ impl PythonVisitor {
             var.value_rc.accept(self);
             has_content = true;
         }
-        
+
         // Process nested modules recursively
         for nested_module_rcref in &module_node.modules {
             if has_content {
@@ -4815,7 +5079,7 @@ impl PythonVisitor {
             self.generate_module_as_class(&nested_module_rcref.borrow());
             has_content = true;
         }
-        
+
         // Process module functions as static methods AFTER nested modules
         for func_node_rcref in &module_node.functions {
             if has_content {
@@ -4841,20 +5105,24 @@ impl PythonVisitor {
             }
             self.add_code("):");
             self.indent();
-            
+
             // Generate function body
-            debug_print!("DEBUG: Generating function '{}' in module '{:?}'", func.name, self.current_module_name);
+            debug_print!(
+                "DEBUG: Generating function '{}' in module '{:?}'",
+                func.name,
+                self.current_module_name
+            );
             debug_print!("  Current module path: {:?}", self.current_module_path);
             debug_print!("  Nested module names: {:?}", self.nested_module_names);
             if !func.statements.is_empty() {
                 // Mark that we're in a standalone function
                 let was_in_function = self.in_standalone_function;
                 self.in_standalone_function = true;
-                
+
                 // Track if we generated a return statement
                 let had_return_before = self.this_branch_transitioned;
                 self.this_branch_transitioned = false;
-                
+
                 for stmt in &func.statements {
                     match stmt {
                         DeclOrStmtType::StmtT { stmt_t } => {
@@ -4865,11 +5133,11 @@ impl PythonVisitor {
                         }
                     }
                 }
-                
+
                 // Check if a return was generated in the statements
                 let generated_return = self.this_branch_transitioned;
                 self.this_branch_transitioned = had_return_before;
-                
+
                 // Only add terminator return if we didn't already generate one
                 if !generated_return {
                     if let Some(ref return_expr) = func.terminator_expr.return_expr_t_opt {
@@ -4878,12 +5146,12 @@ impl PythonVisitor {
                         return_expr.accept(self);
                     }
                 }
-                
+
                 self.in_standalone_function = was_in_function;
             } else {
                 self.newline();
                 self.add_code("pass");
-                
+
                 // Add return if needed and no statements
                 if let Some(ref return_expr) = func.terminator_expr.return_expr_t_opt {
                     self.newline();
@@ -4891,54 +5159,58 @@ impl PythonVisitor {
                     return_expr.accept(self);
                 }
             }
-            
+
             self.outdent();
             has_content = true;
         }
-        
+
         if !has_content {
             // Empty module - add pass statement
             self.newline();
             self.add_code("pass");
         }
-        
+
         self.outdent();
         self.newline();
-        
+
         // Restore parent context
         self.current_module_name = saved_module_name;
         self.current_module_path.pop();
         self.current_module_variables = saved_module_variables;
         self.nested_module_names = saved_nested_names;
     }
-    
+
     // v0.45: Helper method to visit statement types
     fn visit_stmt_type_helper(&mut self, stmt_t: &StatementType) {
         match stmt_t {
-            StatementType::ExpressionStmt { expr_stmt_t } => {
-                match expr_stmt_t {
-                    ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node } => {
-                        debug_print!("DEBUG: CallChainStmtT in visit_stmt_type_helper");
-                        call_chain_literal_stmt_node.accept(self);
-                    }
-                    ExprStmtType::CallStmtT { call_stmt_node } => {
-                        debug_print!("DEBUG: CallStmtT in visit_stmt_type_helper");
-                        call_stmt_node.accept(self);
-                    }
-                    ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
-                        debug_print!("DEBUG: AssignmentStmtT in visit_stmt_type_helper");
-                        assignment_stmt_node.accept(self);
-                    }
-                    ExprStmtType::VariableStmtT { variable_stmt_node } => {
-                        debug_print!("DEBUG: VariableStmtT in visit_stmt_type_helper");
-                        variable_stmt_node.accept(self);
-                    }
-                    _ => {
-                        debug_print!("DEBUG: Other ExprStmtType in visit_stmt_type_helper");
-                    }
+            StatementType::ExpressionStmt { expr_stmt_t } => match expr_stmt_t {
+                ExprStmtType::CallChainStmtT {
+                    call_chain_literal_stmt_node,
+                } => {
+                    debug_print!("DEBUG: CallChainStmtT in visit_stmt_type_helper");
+                    call_chain_literal_stmt_node.accept(self);
                 }
-            }
-            StatementType::TransitionStmt { transition_statement_node } => {
+                ExprStmtType::CallStmtT { call_stmt_node } => {
+                    debug_print!("DEBUG: CallStmtT in visit_stmt_type_helper");
+                    call_stmt_node.accept(self);
+                }
+                ExprStmtType::AssignmentStmtT {
+                    assignment_stmt_node,
+                } => {
+                    debug_print!("DEBUG: AssignmentStmtT in visit_stmt_type_helper");
+                    assignment_stmt_node.accept(self);
+                }
+                ExprStmtType::VariableStmtT { variable_stmt_node } => {
+                    debug_print!("DEBUG: VariableStmtT in visit_stmt_type_helper");
+                    variable_stmt_node.accept(self);
+                }
+                _ => {
+                    debug_print!("DEBUG: Other ExprStmtType in visit_stmt_type_helper");
+                }
+            },
+            StatementType::TransitionStmt {
+                transition_statement_node,
+            } => {
                 transition_statement_node.accept(self);
             }
             StatementType::BlockStmt { block_stmt_node } => {
@@ -4962,7 +5234,9 @@ impl PythonVisitor {
             StatementType::DelStmt { del_stmt_node } => {
                 del_stmt_node.accept(self);
             }
-            StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
+            StatementType::ParentDispatchStmt {
+                parent_dispatch_stmt_node,
+            } => {
                 parent_dispatch_stmt_node.accept(self);
             }
             StatementType::MatchStmt { match_stmt_node } => {
@@ -4971,13 +5245,17 @@ impl PythonVisitor {
             StatementType::ReturnStmt { return_stmt_node } => {
                 return_stmt_node.accept(self);
             }
-            StatementType::ReturnAssignStmt { return_assign_stmt_node } => {
+            StatementType::ReturnAssignStmt {
+                return_assign_stmt_node,
+            } => {
                 return_assign_stmt_node.accept(self);
             }
             StatementType::NoStmt => {
                 // Do nothing
             }
-            StatementType::StateStackStmt { state_stack_operation_statement_node } => {
+            StatementType::StateStackStmt {
+                state_stack_operation_statement_node,
+            } => {
                 state_stack_operation_statement_node.accept(self);
             }
             StatementType::ForStmt { for_stmt_node } => {
@@ -5108,22 +5386,22 @@ impl AstVisitor for PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-    
+
     // v0.45: Class support
     fn visit_class_node(&mut self, class_node: &ClassNode) {
         self.newline();
-        
+
         // v0.58: Emit class decorators
         for decorator in &class_node.decorators {
             self.newline();
-            self.add_code(decorator);  // Decorators are stored as complete strings like "@dataclass"
+            self.add_code(decorator); // Decorators are stored as complete strings like "@dataclass"
         }
-        
+
         // Add newline before class definition if there were decorators
         if !class_node.decorators.is_empty() {
             self.newline();
         }
-        
+
         // Handle inheritance
         if let Some(ref parent) = class_node.parent {
             self.add_code(&format!("class {}({}):", class_node.name, parent));
@@ -5131,7 +5409,7 @@ impl AstVisitor for PythonVisitor {
             self.add_code(&format!("class {}:", class_node.name));
         }
         self.indent();
-        
+
         // Generate class-level (static) variables
         if !class_node.static_vars.is_empty() {
             self.newline();
@@ -5149,15 +5427,21 @@ impl AstVisitor for PythonVisitor {
                 }
             }
         }
-        
+
         // Generate constructor if present
-        debug_print!("DEBUG visit_class_node: constructor present = {}", class_node.constructor.is_some());
+        debug_print!(
+            "DEBUG visit_class_node: constructor present = {}",
+            class_node.constructor.is_some()
+        );
         if let Some(constructor_rcref) = &class_node.constructor {
             self.newline();
             self.newline();
             let constructor = constructor_rcref.borrow();
-            debug_print!("DEBUG visit_class_node: constructor statements count = {}", constructor.statements.len());
-            
+            debug_print!(
+                "DEBUG visit_class_node: constructor statements count = {}",
+                constructor.statements.len()
+            );
+
             // Generate __init__ method
             self.add_code("def __init__(self");
             if let Some(params) = &constructor.params {
@@ -5168,7 +5452,7 @@ impl AstVisitor for PythonVisitor {
             }
             self.add_code("):");
             self.indent();
-            
+
             // Generate constructor body
             if constructor.statements.is_empty() {
                 self.newline();
@@ -5217,7 +5501,7 @@ impl AstVisitor for PythonVisitor {
             }
             self.outdent();
         }
-        
+
         // Generate instance methods
         for method_rcref in &class_node.methods {
             self.newline();
@@ -5225,7 +5509,7 @@ impl AstVisitor for PythonVisitor {
             let method = method_rcref.borrow();
             method.accept(self);
         }
-        
+
         // Generate static methods
         for method_rcref in &class_node.static_methods {
             self.newline();
@@ -5235,7 +5519,7 @@ impl AstVisitor for PythonVisitor {
             let method = method_rcref.borrow();
             method.accept(self);
         }
-        
+
         // Generate class methods
         for method_rcref in &class_node.class_methods {
             self.newline();
@@ -5245,11 +5529,11 @@ impl AstVisitor for PythonVisitor {
             let method = method_rcref.borrow();
             method.accept(self);
         }
-        
+
         // Generate properties
         for property_rcref in &class_node.properties {
             let property = property_rcref.borrow();
-            
+
             // Generate getter
             if let Some(ref getter) = property.getter {
                 self.newline();
@@ -5259,7 +5543,7 @@ impl AstVisitor for PythonVisitor {
                 let getter_method = getter.borrow();
                 getter_method.accept(self);
             }
-            
+
             // Generate setter
             if let Some(ref setter) = property.setter {
                 self.newline();
@@ -5269,7 +5553,7 @@ impl AstVisitor for PythonVisitor {
                 let setter_method = setter.borrow();
                 setter_method.accept(self);
             }
-            
+
             // Generate deleter
             if let Some(ref deleter) = property.deleter {
                 self.newline();
@@ -5280,28 +5564,29 @@ impl AstVisitor for PythonVisitor {
                 deleter_method.accept(self);
             }
         }
-        
+
         // If no methods or constructor, add pass
-        if class_node.constructor.is_none() 
-            && class_node.methods.is_empty() 
+        if class_node.constructor.is_none()
+            && class_node.methods.is_empty()
             && class_node.static_methods.is_empty()
             && class_node.class_methods.is_empty()
             && class_node.properties.is_empty()
             && class_node.static_vars.is_empty()
-            && class_node.instance_vars.is_empty() {
+            && class_node.instance_vars.is_empty()
+        {
             self.newline();
             self.add_code("pass");
         }
-        
+
         self.outdent();
         self.newline();
     }
-    
+
     fn visit_method_node(&mut self, method_node: &MethodNode) {
         // Set context flag for proper return handling
         let was_in_class_method = self.in_class_method;
         self.in_class_method = true;
-        
+
         // Generate method signature with special method name handling
         let method_name = if method_node.name == "init" {
             "__init__".to_string()
@@ -5310,7 +5595,7 @@ impl AstVisitor for PythonVisitor {
         };
         self.add_code(&format!("def {}", method_name));
         self.add_code("(");
-        
+
         // Add self/cls parameter for instance/class methods
         let mut has_self_or_cls = false;
         if !method_node.is_static {
@@ -5321,7 +5606,7 @@ impl AstVisitor for PythonVisitor {
             }
             has_self_or_cls = true;
         }
-        
+
         // Add method parameters
         if let Some(params) = &method_node.params {
             let mut need_comma = has_self_or_cls;
@@ -5337,18 +5622,18 @@ impl AstVisitor for PythonVisitor {
                 need_comma = true;
             }
         }
-        
+
         self.add_code("):");
-        
+
         // Add return type annotation if present
         if let Some(type_node) = &method_node.type_opt {
             self.add_code(" -> ");
             self.add_code(&self.format_type(type_node));
             self.add_code(":");
         }
-        
+
         self.indent();
-        
+
         // Generate method body
         if method_node.statements.is_empty() {
             // Check if there's a terminator with return expression
@@ -5372,7 +5657,7 @@ impl AstVisitor for PythonVisitor {
                     }
                 }
             }
-            
+
             // Handle terminator (usually implicit return)
             // TerminatorType only has Return variant currently
             if let Some(expr) = &method_node.terminator_expr.return_expr_t_opt {
@@ -5381,9 +5666,9 @@ impl AstVisitor for PythonVisitor {
                 expr.accept(self);
             }
         }
-        
+
         self.outdent();
-        
+
         // Restore context flag
         self.in_class_method = was_in_class_method;
     }
@@ -5392,7 +5677,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_system_node(&mut self, system_node: &SystemNode) {
         // NOTE: This method is LEGACY and not used in v0.30 run_v2() flow
-        
+
         self.add_code(&format!("#{}", self.compiler_version));
         self.newline();
         self.newline();
@@ -5415,7 +5700,7 @@ impl AstVisitor for PythonVisitor {
 
         // v0.30: Return early to avoid legacy single-system processing
         return;
-        
+
         /* Legacy single-system processing - preserved for reference
         // TODO!!: This is a hack until we rework modules to detect if there
         // was no system parsed
@@ -5645,10 +5930,10 @@ impl AstVisitor for PythonVisitor {
         let system_name = &system_instance_expr_node.identifier.name.lexeme;
 
         self.newline();
-        
+
         // Add source mapping for system instantiation
         self.add_source_mapping(system_instance_expr_node.identifier.line);
-        
+
         self.add_code(&format!("{}", system_name));
         self.add_code("(");
         let mut separator = "";
@@ -5732,11 +6017,11 @@ impl AstVisitor for PythonVisitor {
     fn visit_system_type_expr_node(&mut self, system_type_expr_node: &SystemTypeExprNode) {
         let system_name = &system_type_expr_node.identifier.name.lexeme;
         self.add_code(&format!("{}", system_name));
-        
+
         // In Frame v0.30, SystemTypeExprNode is used for system instantiation
         // Always add parentheses for constructor call
         self.add_code("()");
-        
+
         // Handle any method calls after instantiation
         if let Some(call_chain) = &*(system_type_expr_node.call_chain_opt) {
             let mut output = String::new();
@@ -5754,11 +6039,11 @@ impl AstVisitor for PythonVisitor {
     ) {
         let system_name = &system_type_expr_node.identifier.name.lexeme;
         output.push_str(&format!("{}", system_name));
-        
+
         // In Frame v0.30, SystemTypeExprNode is used for system instantiation
         // Always add parentheses for constructor call
         output.push_str("()");
-        
+
         // Handle any method calls after instantiation
         if let Some(call_chain) = &*(system_type_expr_node.call_chain_opt) {
             // let mut output = String::new();
@@ -5769,7 +6054,7 @@ impl AstVisitor for PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_import_node(&mut self, import_node: &ImportNode) {
         // v0.57: Added Frame file import support for multi-file module system
         match &import_node.import_type {
@@ -5791,18 +6076,35 @@ impl AstVisitor for PythonVisitor {
             }
             // v0.57: Frame file imports - generate as comments during single-file compilation
             // The multi-file compiler will handle actual module linking
-            ImportType::FrameModule { module_name, file_path } => {
-                self.add_code(&format!("# Frame import: {} from {}", module_name, file_path));
+            ImportType::FrameModule {
+                module_name,
+                file_path,
+            } => {
+                self.add_code(&format!(
+                    "# Frame import: {} from {}",
+                    module_name, file_path
+                ));
                 self.newline();
                 // TODO: Will be replaced with actual module imports during linking phase
             }
-            ImportType::FrameModuleAliased { module_name, file_path, alias } => {
-                self.add_code(&format!("# Frame import: {} from {} as {}", module_name, file_path, alias));
+            ImportType::FrameModuleAliased {
+                module_name,
+                file_path,
+                alias,
+            } => {
+                self.add_code(&format!(
+                    "# Frame import: {} from {} as {}",
+                    module_name, file_path, alias
+                ));
                 self.newline();
                 // TODO: Will be replaced with actual module imports during linking phase
             }
             ImportType::FrameSelective { items, file_path } => {
-                self.add_code(&format!("# Frame import: {{{}}} from {}", items.join(", "), file_path));
+                self.add_code(&format!(
+                    "# Frame import: {{{}}} from {}",
+                    items.join(", "),
+                    file_path
+                ));
                 self.newline();
                 // TODO: Will be replaced with actual module imports during linking phase
             }
@@ -5810,11 +6112,14 @@ impl AstVisitor for PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_type_alias_node(&mut self, type_alias_node: &TypeAliasNode) {
         // Python 3.12+ type alias syntax
-        self.add_code(&format!("type {} = {}", type_alias_node.name, type_alias_node.type_expr));
-        self.newline();  // Use the newline method to add proper newline
+        self.add_code(&format!(
+            "type {} = {}",
+            type_alias_node.name, type_alias_node.type_expr
+        ));
+        self.newline(); // Use the newline method to add proper newline
     }
 
     //* --------------------------------------------------------------------- *//
@@ -5823,7 +6128,7 @@ impl AstVisitor for PythonVisitor {
         // Set standalone function context
         let prev_in_standalone_function = self.in_standalone_function;
         self.in_standalone_function = true;
-        
+
         // v0.73: Create marker for function if registry exists
         let marker = if let Some(ref mut registry) = self.source_mapping_registry {
             let description = format!("Function {}", function_node.name);
@@ -5831,9 +6136,9 @@ impl AstVisitor for PythonVisitor {
         } else {
             None
         };
-        
+
         self.newline();
-        
+
         // v0.73: Generate function with marker or use old direct mapping
         if let Some(marker) = marker {
             // v0.35: Generate async def for async functions with marker
@@ -5846,7 +6151,7 @@ impl AstVisitor for PythonVisitor {
             // No marker system, use old approach
             // Add source mapping for function definition
             self.add_source_mapping(function_node.line);
-            
+
             // v0.35: Generate async def for async functions
             if function_node.is_async {
                 self.add_code(&format!("async def {}(", function_node.name));
@@ -5858,7 +6163,7 @@ impl AstVisitor for PythonVisitor {
         self.format_parameter_list(&function_node.params);
 
         self.add_code(")");
-        
+
         // v0.43: Add return type annotation if present
         if let Some(ref type_node) = function_node.type_opt {
             let return_type = self.format_type(type_node);
@@ -5866,7 +6171,7 @@ impl AstVisitor for PythonVisitor {
                 self.add_code(&format!(" -> {}", return_type));
             }
         }
-        
+
         self.add_code(":");
 
         if !function_node.is_implemented {
@@ -5874,44 +6179,49 @@ impl AstVisitor for PythonVisitor {
             self.add_code("raise NotImplementedError");
         } else {
             // Generate statements
-                if !function_node.statements.is_empty() {
-                    // Clear global vars tracking for this function
-                    self.global_vars_in_function.clear();
-                    
-                    // First pass: collect global variables used in assignments
-                    self.collect_global_assignments(&function_node.statements);
-                    
-                    // Debug: print what we found
-                    debug_print!("DEBUG: Function '{}' modifies module variables: {:?}", 
-                             function_node.name, self.global_vars_in_function);
-                    
-                    // Generate global declarations if needed
-                    if !self.global_vars_in_function.is_empty() {
-                        self.indent();
-                        self.newline();
-                        let global_vars: Vec<String> = self.global_vars_in_function.iter().cloned().collect();
-                        self.add_code(&format!("global {}", global_vars.join(", ")));
-                        self.outdent();
-                    }
-                    
-                    // Track if we generated a return statement
-                    let had_return_before = self.this_branch_transitioned;
-                    self.this_branch_transitioned = false;
-                    
+            if !function_node.statements.is_empty() {
+                // Clear global vars tracking for this function
+                self.global_vars_in_function.clear();
+
+                // First pass: collect global variables used in assignments
+                self.collect_global_assignments(&function_node.statements);
+
+                // Debug: print what we found
+                debug_print!(
+                    "DEBUG: Function '{}' modifies module variables: {:?}",
+                    function_node.name,
+                    self.global_vars_in_function
+                );
+
+                // Generate global declarations if needed
+                if !self.global_vars_in_function.is_empty() {
                     self.indent();
-                    self.visit_decl_stmts(&function_node.statements);
+                    self.newline();
+                    let global_vars: Vec<String> =
+                        self.global_vars_in_function.iter().cloned().collect();
+                    self.add_code(&format!("global {}", global_vars.join(", ")));
                     self.outdent();
-                    
-                    // Check if a return was generated in the statements
-                    let generated_return = self.this_branch_transitioned;
-                    self.this_branch_transitioned = had_return_before;
-                    
-                    // Only add terminator return if we didn't already generate one
-                    if !generated_return {
-                        self.indent();
-                        self.newline();
-                        match &function_node.terminator_expr.terminator_type {
-                            TerminatorType::Return => match &function_node.terminator_expr.return_expr_t_opt {
+                }
+
+                // Track if we generated a return statement
+                let had_return_before = self.this_branch_transitioned;
+                self.this_branch_transitioned = false;
+
+                self.indent();
+                self.visit_decl_stmts(&function_node.statements);
+                self.outdent();
+
+                // Check if a return was generated in the statements
+                let generated_return = self.this_branch_transitioned;
+                self.this_branch_transitioned = had_return_before;
+
+                // Only add terminator return if we didn't already generate one
+                if !generated_return {
+                    self.indent();
+                    self.newline();
+                    match &function_node.terminator_expr.terminator_type {
+                        TerminatorType::Return => {
+                            match &function_node.terminator_expr.return_expr_t_opt {
                                 Some(expr_t) => {
                                     self.add_code("return ");
                                     expr_t.accept(self);
@@ -5919,17 +6229,18 @@ impl AstVisitor for PythonVisitor {
                                 None => {
                                     self.add_code("return");
                                 }
-                            },
-                            // DispatchToParentState removed - now handled as ParentDispatchStmt statement
-                        }
-                        self.outdent();
+                            }
+                        } // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                     }
-                } else {
-                    // No statements, just add the terminator
-                    self.indent();
-                    self.newline();
-                    match &function_node.terminator_expr.terminator_type {
-                        TerminatorType::Return => match &function_node.terminator_expr.return_expr_t_opt {
+                    self.outdent();
+                }
+            } else {
+                // No statements, just add the terminator
+                self.indent();
+                self.newline();
+                match &function_node.terminator_expr.terminator_type {
+                    TerminatorType::Return => {
+                        match &function_node.terminator_expr.return_expr_t_opt {
                             Some(expr_t) => {
                                 self.add_code("return ");
                                 expr_t.accept(self);
@@ -5937,18 +6248,17 @@ impl AstVisitor for PythonVisitor {
                             None => {
                                 self.add_code("return");
                             }
-                        },
-                        // DispatchToParentState removed - now handled as ParentDispatchStmt statement
-                    }
-                    self.outdent();
+                        }
+                    } // DispatchToParentState removed - now handled as ParentDispatchStmt statement
                 }
-
+                self.outdent();
+            }
         }
 
         if function_node.name == "main" {
             self.generate_main = true;
         }
-        
+
         // Restore previous context
         self.in_standalone_function = prev_in_standalone_function;
     }
@@ -5956,7 +6266,8 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_interface_parameters(&mut self, _interface_block_node: &InterfaceBlockNode) {
-        self.errors.push("visit_interface_parameters() not valid for target language.".to_string());
+        self.errors
+            .push("visit_interface_parameters() not valid for target language.".to_string());
     }
 
     //* --------------------------------------------------------------------- *//
@@ -6143,18 +6454,18 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_operation_node(&mut self, operation_node: &OperationNode) {
         self.operation_scope_depth += 1;
-        
+
         self.newline();
         self.newline();
         let operation_name = self.format_operation_name(&operation_node.name);
-        
+
         // Check if operation is static
         let is_static = if let Some(attributes) = &operation_node.attributes_opt {
             attributes.contains_key("staticmethod")
         } else {
             false
         };
-        
+
         // Only generate @staticmethod if the operation has the attribute
         if is_static {
             self.add_code("@staticmethod");
@@ -6170,11 +6481,13 @@ impl AstVisitor for PythonVisitor {
         // Add self parameter for non-static operations
         if !is_static {
             self.add_code("self");
-            if operation_node.params.is_some() && !operation_node.params.as_ref().unwrap().is_empty() {
+            if operation_node.params.is_some()
+                && !operation_node.params.as_ref().unwrap().is_empty()
+            {
                 self.add_code(",");
             }
         }
-        
+
         match &operation_node.params {
             Some(params) => {
                 self.format_operations_parameter_list(params);
@@ -6191,30 +6504,30 @@ impl AstVisitor for PythonVisitor {
         //     self.newline();
         //     self.add_code("pass");
         // } else {
-            if !operation_node.statements.is_empty() {
-                // self.newline();
-                self.visit_decl_stmts(&operation_node.statements);
-            }
-            // if let Some(terminator_expr) = &operation_node.terminator_node {
-                match &operation_node.terminator_expr.terminator_type {
-                    TerminatorType::Return => match &operation_node.terminator_expr.return_expr_t_opt {
-                        Some(expr_t) => {
-                            self.newline();
-                            self.add_code("return ");
-                            expr_t.accept(self);
-                            // self.newline();
-                        }
-                        None => {
-                            // Don't generate another return - the explicit return statement in the 
-                            // operation body already generated one
-                            // self.add_code("return");
-                            // self.newline();
-                        }
-                    },
-                    // DispatchToParentState removed - now handled as ParentDispatchStmt statement
+        if !operation_node.statements.is_empty() {
+            // self.newline();
+            self.visit_decl_stmts(&operation_node.statements);
+        }
+        // if let Some(terminator_expr) = &operation_node.terminator_node {
+        match &operation_node.terminator_expr.terminator_type {
+            TerminatorType::Return => match &operation_node.terminator_expr.return_expr_t_opt {
+                Some(expr_t) => {
+                    self.newline();
+                    self.add_code("return ");
+                    expr_t.accept(self);
+                    // self.newline();
                 }
-            // }
-     //   }
+                None => {
+                    // Don't generate another return - the explicit return statement in the
+                    // operation body already generated one
+                    // self.add_code("return");
+                    // self.newline();
+                }
+            },
+            // DispatchToParentState removed - now handled as ParentDispatchStmt statement
+        }
+        // }
+        //   }
 
         self.outdent();
         self.operation_scope_depth -= 1;
@@ -6226,9 +6539,15 @@ impl AstVisitor for PythonVisitor {
         &mut self,
         operation_call_expr_node: &OperationCallExprNode,
     ) {
-        self.debug_enter(&format!("visit_operation_call_expression_node({})", operation_call_expr_node.identifier.name.lexeme));
-        self.debug_print(&format!("visiting_call_chain_operation: {}", self.visiting_call_chain_operation));
-        
+        self.debug_enter(&format!(
+            "visit_operation_call_expression_node({})",
+            operation_call_expr_node.identifier.name.lexeme
+        ));
+        self.debug_print(&format!(
+            "visiting_call_chain_operation: {}",
+            self.visiting_call_chain_operation
+        ));
+
         // Operation calls should have self. prefix only when NOT part of a call chain
         // When part of a call chain (e.g., obj.method()), don't add self. prefix
         if !self.visiting_call_chain_operation {
@@ -6243,7 +6562,7 @@ impl AstVisitor for PythonVisitor {
             operation_call_expr_node.identifier.name.lexeme
         ));
         operation_call_expr_node.call_expr_list.accept(self);
-        
+
         self.debug_exit("visit_operation_call_expression_node");
     }
 
@@ -6255,11 +6574,11 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         // Operation calls should have self. prefix only when NOT part of a call chain
-        // When part of a call chain (e.g., obj.method()), don't add self. prefix  
+        // When part of a call chain (e.g., obj.method()), don't add self. prefix
         if !self.visiting_call_chain_operation {
             output.push_str("self.");
         }
-        
+
         output.push_str(&format!(
             "{}",
             operation_call_expr_node.identifier.name.lexeme
@@ -6311,21 +6630,24 @@ impl AstVisitor for PythonVisitor {
         for state_node_rcref in &machine_block_node.states {
             state_node_rcref.borrow().accept(self);
         }
-        
+
         // Generate state dispatcher methods after all state methods are generated
         self.newline();
         self.add_code("# ===================== State Dispatchers =================== #");
         self.newline();
-        
+
         for state_node_rcref in &machine_block_node.states {
             let state_node = state_node_rcref.borrow();
             let state_name = &state_node.name;
-            
+
             self.newline();
             self.add_code(&format!("def _s{}(self, __e):", state_name));
             self.indent();
             self.newline();
-            self.add_code(&format!("return self.{}(__e, None)", self.format_target_state_name(state_name)));
+            self.add_code(&format!(
+                "return self.{}(__e, None)",
+                self.format_target_state_name(state_name)
+            ));
             self.outdent();
         }
 
@@ -6392,19 +6714,19 @@ impl AstVisitor for PythonVisitor {
         // if self.generate_comment(state_node.line) {
         //     self.newline();
         // }
-        
+
         // v0.73: REMOVED source mapping for state declaration line
         // State declarations (e.g., "$Running {") don't generate executable Python code
         // Only event handlers inside states generate actual function definitions
-        
+
         self.current_state_name_opt = Some(state_node.name.clone());
-        
+
         // Track parent state for => $^ dispatch in event handlers
         self.current_state_parent_opt = match &state_node.dispatch_opt {
             Some(dispatch) => Some(dispatch.target_state_ref.name.clone()),
             None => None,
         };
-        
+
         // v0.36: Use event-handlers-as-functions if enabled
         if self.config.event_handlers_as_functions {
             // Generate individual event handler functions
@@ -6412,10 +6734,10 @@ impl AstVisitor for PythonVisitor {
                 let evt_handler = evt_handler_rcref.borrow();
                 self.generate_event_handler_function(state_node, &evt_handler);
             }
-            
+
             // Generate state dispatcher
             self.generate_state_dispatcher(state_node);
-            
+
             self.current_state_name_opt = None;
             self.current_state_parent_opt = None;
             return;
@@ -6426,22 +6748,24 @@ impl AstVisitor for PythonVisitor {
         // or contains await expressions in its handlers
         // v0.37: Also async if any event handler is explicitly marked as async
         let mut state_needs_async = false;
-        
+
         // Check if any event handler in this state handles an async interface method
         // or contains await expressions, or is explicitly marked as async
         for evt_handler_rcref in &state_node.evt_handlers_rcref {
             let evt_handler = evt_handler_rcref.borrow();
-            
+
             // v0.37: Check if event handler is explicitly marked as async
             if evt_handler.is_async {
                 state_needs_async = true;
                 break;
             }
-            
+
             // Check if this event corresponds to an async interface method
             if let MessageType::CustomMessage { message_node } = &evt_handler.msg_t {
                 // Look up the interface method to check if it's async
-                if let Some(interface_method_symbol) = self.arcanium.lookup_interface_method(&message_node.name) {
+                if let Some(interface_method_symbol) =
+                    self.arcanium.lookup_interface_method(&message_node.name)
+                {
                     if let Some(ast_node) = &interface_method_symbol.borrow().ast_node_opt {
                         if ast_node.borrow().is_async {
                             state_needs_async = true;
@@ -6450,7 +6774,7 @@ impl AstVisitor for PythonVisitor {
                     }
                 }
             }
-            
+
             // Also check if the handler contains await expressions
             if self.contains_await_expr(&evt_handler.statements) {
                 state_needs_async = true;
@@ -6464,7 +6788,7 @@ impl AstVisitor for PythonVisitor {
         self.add_code(&format!("# ${}", &state_node.name));
         self.newline();
         self.newline();
-        
+
         // Generate async def if needed
         if state_needs_async {
             self.add_code(&format!(
@@ -6478,10 +6802,10 @@ impl AstVisitor for PythonVisitor {
             ));
         }
         self.indent();
-        
+
         // Clear global vars tracking for this state
         self.global_vars_in_function.clear();
-        
+
         // Collect global variables from all event handlers
         for evt_handler_rcref in &state_node.evt_handlers_rcref {
             let evt_handler = evt_handler_rcref.borrow();
@@ -6489,7 +6813,7 @@ impl AstVisitor for PythonVisitor {
                 self.collect_global_assignments(&evt_handler.statements);
             }
         }
-        
+
         // Generate global declarations if needed
         if !self.global_vars_in_function.is_empty() {
             self.newline();
@@ -6668,7 +6992,7 @@ impl AstVisitor for PythonVisitor {
     fn visit_call_statement_node(&mut self, method_call_statement: &CallStmtNode) {
         // v0.69: Use newline_and_map for correct line mapping
         self.newline_and_map(method_call_statement.line);
-        
+
         // Set flag to prevent duplicate mapping in expression
         let was_in_statement = self.in_statement_context;
         self.in_statement_context = true;
@@ -6680,13 +7004,16 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
-        self.debug_enter(&format!("visit_call_expression_node({})", method_call.identifier.name.lexeme));
-        
+        self.debug_enter(&format!(
+            "visit_call_expression_node({})",
+            method_call.identifier.name.lexeme
+        ));
+
         // v0.65: ONLY use semantic resolution - no backward compatibility
         if !self.handle_call_with_resolved_type(method_call) {
             // If no resolved type, just generate the call as-is
             // This handles special collection constructors and basic external calls
-            
+
             // Process call chain if present
             if let Some(call_chain) = &method_call.call_chain {
                 if !call_chain.is_empty() {
@@ -6696,16 +7023,16 @@ impl AstVisitor for PythonVisitor {
                     }
                 }
             }
-            
+
             let method_name = &method_call.identifier.name.lexeme;
-            
+
             // Special handling for Python collection constructors
             if method_name == "set" || method_name == "list" || method_name == "tuple" {
                 self.add_code(method_name);
                 self.add_code("(");
-                
+
                 let expr_count = method_call.call_expr_list.exprs_t.len();
-                
+
                 if expr_count > 1 {
                     // Multiple arguments: wrap them in a list
                     self.add_code("[");
@@ -6720,7 +7047,7 @@ impl AstVisitor for PythonVisitor {
                     let arg = &method_call.call_expr_list.exprs_t[0];
                     arg.accept(self);
                 }
-                
+
                 self.add_code(")");
             } else if method_name == "dict" {
                 self.handle_collection_constructor(method_call);
@@ -6729,7 +7056,7 @@ impl AstVisitor for PythonVisitor {
                 method_call.call_expr_list.accept(self);
             }
         }
-        
+
         self.debug_exit("visit_call_expression_node");
     }
 
@@ -6744,7 +7071,7 @@ impl AstVisitor for PythonVisitor {
         if self.handle_call_with_resolved_type_to_string(method_call, output) {
             return;
         }
-        
+
         // If no resolved type, generate basic call
         // Process call chain if present
         if let Some(call_chain) = &method_call.call_chain {
@@ -6759,16 +7086,16 @@ impl AstVisitor for PythonVisitor {
                 }
             }
         }
-        
+
         let method_name = &method_call.identifier.name.lexeme;
-        
+
         // Special handling for Python collection constructors
         if method_name == "set" || method_name == "list" || method_name == "tuple" {
             output.push_str(method_name);
             output.push_str("(");
-            
+
             let expr_count = method_call.call_expr_list.exprs_t.len();
-            
+
             if expr_count > 1 {
                 output.push_str("[");
                 let mut separator = "";
@@ -6782,7 +7109,7 @@ impl AstVisitor for PythonVisitor {
                 let arg = &method_call.call_expr_list.exprs_t[0];
                 arg.accept_to_string(self, output);
             }
-            
+
             output.push_str(")");
         } else if method_name == "dict" {
             self.handle_collection_constructor_to_string(method_call, output);
@@ -6822,15 +7149,17 @@ impl AstVisitor for PythonVisitor {
         output.push(')');
     }
 
-
     //* --------------------------------------------------------------------- *//
 
     fn visit_action_call_expression_node(&mut self, action_call: &ActionCallExprNode) {
         let action_name = &action_call.identifier.name.lexeme;
         let formatted_action_name = self.format_action_name(action_name);
-        
-        self.debug_print(&format!("visit_action_call_expression_node({}) - in_standalone_function: {}, in_call_chain: {}", action_name, self.in_standalone_function, self.in_call_chain));
-        
+
+        self.debug_print(&format!(
+            "visit_action_call_expression_node({}) - in_standalone_function: {}, in_call_chain: {}",
+            action_name, self.in_standalone_function, self.in_call_chain
+        ));
+
         // BUG FIX v0.60: When in a call chain, don't output "self." prefix as it's already
         // provided by the SelfT node in the chain. This prevents double-call bugs.
         if self.in_call_chain {
@@ -6855,7 +7184,7 @@ impl AstVisitor for PythonVisitor {
     ) {
         let action_name = &action_call.identifier.name.lexeme;
         let formatted_action_name = self.format_action_name(action_name);
-        
+
         // BUG FIX v0.60: When in a call chain, don't output "self." prefix as it's already
         // provided by the SelfT node in the chain. This prevents double-call bugs like:
         // var result = self.myAction(42) → result = self._myAction(42)(42)
@@ -7033,12 +7362,17 @@ impl AstVisitor for PythonVisitor {
     // simplifying the implementation and reasoning about Frame programs.
 
     fn visit_call_chain_statement_node(&mut self, method_call_chain_stmt_node: &CallChainStmtNode) {
-        debug_print!("DEBUG visit_call_chain_statement_node: {} nodes", 
-            method_call_chain_stmt_node.call_chain_literal_expr_node.call_chain.len());
-        
+        debug_print!(
+            "DEBUG visit_call_chain_statement_node: {} nodes",
+            method_call_chain_stmt_node
+                .call_chain_literal_expr_node
+                .call_chain
+                .len()
+        );
+
         // First add the newline for the statement
         self.skip_next_newline();
-        
+
         // Then map the Frame source line to the Python line where the statement is being generated
         self.add_source_mapping(method_call_chain_stmt_node.line);
         // special case for interface method calls
@@ -7065,15 +7399,18 @@ impl AstVisitor for PythonVisitor {
         }
 
         // standard case
-        debug_print!("DEBUG: Processing standard case with {} nodes", call_chain.len());
-        
+        debug_print!(
+            "DEBUG: Processing standard case with {} nodes",
+            call_chain.len()
+        );
+
         // Check if this is an assert statement (single "assert" identifier)
         // If so, suppress the newline so the expression stays on the same line
-        let is_assert = call_chain.len() == 1 && 
-            matches!(&call_chain[0], 
-                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } 
+        let is_assert = call_chain.len() == 1
+            && matches!(&call_chain[0],
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                     if id_node.name.lexeme == "assert");
-        
+
         if is_assert {
             // For assert statements, output "assert" without a trailing newline
             // and set a flag to suppress the newline before the next statement
@@ -7096,32 +7433,39 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_call_chain_expr_node(&mut self, call_l_chain_expression_node: &CallChainExprNode) {
-        self.debug_enter(&format!("visit_call_chain_expr_node({} nodes)", call_l_chain_expression_node.call_chain.len()));
-        
+        self.debug_enter(&format!(
+            "visit_call_chain_expr_node({} nodes)",
+            call_l_chain_expression_node.call_chain.len()
+        ));
+
         // Special handling for self.domain_variable patterns
         // Check if this is a chain starting with "self" followed by a variable
         // v0.37: Also check for SelfT variant
-        let starts_with_self_var = call_l_chain_expression_node.call_chain.len() >= 2 &&
-            (matches!(call_l_chain_expression_node.call_chain.get(0), 
-                Some(CallChainNodeType::VariableNodeT { var_node }) 
-                    if var_node.id_node.name.lexeme == "self") ||
-             matches!(call_l_chain_expression_node.call_chain.get(0),
-                Some(CallChainNodeType::SelfT { .. }))) &&
-            matches!(call_l_chain_expression_node.call_chain.get(1),
-                Some(CallChainNodeType::VariableNodeT { .. }));
-        
+        let starts_with_self_var = call_l_chain_expression_node.call_chain.len() >= 2
+            && (matches!(call_l_chain_expression_node.call_chain.get(0),
+                Some(CallChainNodeType::VariableNodeT { var_node })
+                    if var_node.id_node.name.lexeme == "self")
+                || matches!(
+                    call_l_chain_expression_node.call_chain.get(0),
+                    Some(CallChainNodeType::SelfT { .. })
+                ))
+            && matches!(
+                call_l_chain_expression_node.call_chain.get(1),
+                Some(CallChainNodeType::VariableNodeT { .. })
+            );
+
         // Check if this is a static method call on a system (SystemName.method())
-        let _is_static_system_call = call_l_chain_expression_node.call_chain.len() >= 2 &&
-            matches!(call_l_chain_expression_node.call_chain.get(0),
+        let _is_static_system_call = call_l_chain_expression_node.call_chain.len() >= 2
+            && matches!(call_l_chain_expression_node.call_chain.get(0),
                 Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node })
                     if id_node.name.lexeme.chars().next().map_or(false, |c| c.is_uppercase()));
-        
+
         // Set flag to indicate we're processing within a call chain
         // Only set this for multi-node chains (single-node chains still need self. prefix)
         if call_l_chain_expression_node.call_chain.len() > 1 {
             self.in_call_chain = true;
         }
-        
+
         // TODO: maybe put this in an AST node
 
         let mut separator = "";
@@ -7133,86 +7477,122 @@ impl AstVisitor for PythonVisitor {
             );
             return;
         }
-        
-        debug_print!("DEBUG visit_call_chain_expr_node: Processing {} nodes", call_l_chain_expression_node.call_chain.len());
+
+        debug_print!(
+            "DEBUG visit_call_chain_expr_node: Processing {} nodes",
+            call_l_chain_expression_node.call_chain.len()
+        );
         debug_print!("DEBUG: starts_with_self_var = {}", starts_with_self_var);
-        
+
         for (i, node) in call_l_chain_expression_node.call_chain.iter().enumerate() {
             // Skip the first "self" node in self.variable patterns
             if starts_with_self_var && i == 0 {
                 debug_print!("DEBUG: Skipping 'self' node at index 0");
                 continue;
             }
-            
+
             let node_type = match &node {
                 CallChainNodeType::SelfT { .. } => "Self".to_string(),
                 CallChainNodeType::CallChainLiteralExprT { .. } => "Literal".to_string(),
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                     format!("UndeclaredIdentifier({})", id_node.name.lexeme)
-                },
+                }
                 CallChainNodeType::UndeclaredCallT { call_node } => {
-                    debug_print!("DEBUG: Processing UndeclaredCall '{}' at index {}", call_node.identifier.name.lexeme, i);
+                    debug_print!(
+                        "DEBUG: Processing UndeclaredCall '{}' at index {}",
+                        call_node.identifier.name.lexeme,
+                        i
+                    );
                     format!("UndeclaredCall({})", call_node.identifier.name.lexeme)
-                },
-                CallChainNodeType::InterfaceMethodCallT { interface_method_call_expr_node } => format!("InterfaceMethodCall({})", interface_method_call_expr_node.identifier.name.lexeme),
-                CallChainNodeType::OperationCallT { operation_call_expr_node } => format!("OperationCall({})", operation_call_expr_node.identifier.name.lexeme),
-                CallChainNodeType::OperationRefT { operation_ref_expr_node } => format!("OperationRef({})", operation_ref_expr_node.name),
-                CallChainNodeType::ActionCallT { action_call_expr_node } => format!("ActionCall({})", action_call_expr_node.identifier.name.lexeme),
+                }
+                CallChainNodeType::InterfaceMethodCallT {
+                    interface_method_call_expr_node,
+                } => format!(
+                    "InterfaceMethodCall({})",
+                    interface_method_call_expr_node.identifier.name.lexeme
+                ),
+                CallChainNodeType::OperationCallT {
+                    operation_call_expr_node,
+                } => format!(
+                    "OperationCall({})",
+                    operation_call_expr_node.identifier.name.lexeme
+                ),
+                CallChainNodeType::OperationRefT {
+                    operation_ref_expr_node,
+                } => format!("OperationRef({})", operation_ref_expr_node.name),
+                CallChainNodeType::ActionCallT {
+                    action_call_expr_node,
+                } => format!(
+                    "ActionCall({})",
+                    action_call_expr_node.identifier.name.lexeme
+                ),
                 CallChainNodeType::VariableNodeT { var_node } => {
-                    debug_print!("DEBUG: Processing Variable '{}' at index {}", var_node.id_node.name.lexeme, i);
+                    debug_print!(
+                        "DEBUG: Processing Variable '{}' at index {}",
+                        var_node.id_node.name.lexeme,
+                        i
+                    );
                     format!("Variable({})", var_node.id_node.name.lexeme)
-                },
+                }
                 CallChainNodeType::ListElementNodeT { .. } => "ListElement".to_string(),
-                CallChainNodeType::UndeclaredListElementT { .. } => "UndeclaredListElement".to_string(),
+                CallChainNodeType::UndeclaredListElementT { .. } => {
+                    "UndeclaredListElement".to_string()
+                }
                 CallChainNodeType::SliceNodeT { .. } => "Slice".to_string(),
                 CallChainNodeType::UndeclaredSliceT { .. } => "UndeclaredSlice".to_string(),
             };
             self.debug_print(&format!("Chain node[{}]: {}", i, node_type));
-            
+
             // Special handling for the first variable after self in self.variable patterns
             if starts_with_self_var && i == 1 {
                 // For self.variable, we already have the context, just output the variable name
                 if let CallChainNodeType::VariableNodeT { var_node } = &node {
-                    debug_print!("DEBUG: Outputting self.variable pattern: self.{}", var_node.id_node.name.lexeme);
+                    debug_print!(
+                        "DEBUG: Outputting self.variable pattern: self.{}",
+                        var_node.id_node.name.lexeme
+                    );
                     self.add_code(&format!("self.{}", var_node.id_node.name.lexeme));
                     separator = ".";
                     continue;
                 }
             }
-            
+
             // Check if this is a synthetic node - if so, don't add separator
             let is_synthetic = match &node {
                 CallChainNodeType::UndeclaredCallT { call_node } => {
                     call_node.identifier.name.lexeme == "@indexed_call"
                 }
                 CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
-                    list_elem_node.identifier.name.lexeme == "@chain_index" ||
-                    list_elem_node.identifier.name.lexeme == "@chain_slice"
+                    list_elem_node.identifier.name.lexeme == "@chain_index"
+                        || list_elem_node.identifier.name.lexeme == "@chain_slice"
                 }
                 CallChainNodeType::UndeclaredSliceT { slice_node } => {
-                    slice_node.identifier.name.lexeme == "@chain_index" ||
-                    slice_node.identifier.name.lexeme == "@chain_slice"
+                    slice_node.identifier.name.lexeme == "@chain_index"
+                        || slice_node.identifier.name.lexeme == "@chain_slice"
                 }
-                _ => false
+                _ => false,
             };
-            
+
             if !is_synthetic {
                 self.add_code(separator);
                 separator = ".";
             }
-            
+
             match &node {
                 CallChainNodeType::SelfT { .. } => {
                     // v0.37: Handle 'self' in call chains
                     self.add_code("self");
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                    debug_print!("DEBUG: Accepting UndeclaredIdentifier '{}'", id_node.name.lexeme);
+                    debug_print!(
+                        "DEBUG: Accepting UndeclaredIdentifier '{}'",
+                        id_node.name.lexeme
+                    );
                     debug_print!("  Current system enums: {:?}", self.current_system_enums);
                     debug_print!("  Nested module names: {:?}", self.nested_module_names);
                     debug_print!("  Current module path: {:?}", self.current_module_path);
                     debug_print!("  Checking if '{}' is in enum set", id_node.name.lexeme);
-                    
+
                     // v0.46: Handle 'super' in call chains
                     if id_node.name.lexeme == "super" {
                         self.add_code("super()");
@@ -7220,20 +7600,23 @@ impl AstVisitor for PythonVisitor {
                         separator = "";
                         continue;
                     }
-                    
+
                     // v0.57: Check if this is a nested module reference within the current module
                     // When inside a module function and referencing a nested module, qualify it with the module name
-                    if !self.current_module_path.is_empty() && self.nested_module_names.contains(&id_node.name.lexeme) {
+                    if !self.current_module_path.is_empty()
+                        && self.nested_module_names.contains(&id_node.name.lexeme)
+                    {
                         debug_print!("  Found nested module reference '{}' inside module - qualifying with full module path", id_node.name.lexeme);
                         // In Python, static methods need to qualify nested class references with the parent class name
                         // E.g., inside Engineering.getTotalSize(), reference Frontend as Engineering.Frontend
                         // Build the full path to the nested module
-                        let qualified_name = self.current_module_path.join(".") + "." + &id_node.name.lexeme;
+                        let qualified_name =
+                            self.current_module_path.join(".") + "." + &id_node.name.lexeme;
                         debug_print!("  Qualified name: {}", qualified_name);
                         self.add_code(&qualified_name);
                         continue;
                     }
-                    
+
                     // Check for .length property transformation
                     // This is a special case where we need to transform the property access
                     // to a function call in the target language
@@ -7241,42 +7624,51 @@ impl AstVisitor for PythonVisitor {
                         // This is a .length property access
                         // We need to transform variable.length to len(variable)
                         // But we've already output the variable and the dot, so we need to backtrack
-                        
+
                         // Remove the trailing dot that was added
                         if self.code.ends_with('.') {
                             self.code.pop();
                         }
-                        
+
                         // Find where the variable name starts (everything after the last space or start)
                         let var_start = self.code.rfind(' ').map(|pos| pos + 1).unwrap_or(0);
                         let var_name = self.code[var_start..].to_string();
-                        
+
                         // Remove the variable from the output
                         self.code.truncate(var_start);
-                        
+
                         // Output len(variable) instead
                         self.add_code(&format!("len({})", var_name));
-                        
+
                         // Skip normal processing
                         continue;
                     }
-                    
+
                     // Check if this is an enum member reference (e.g., "HttpStatus.Ok")
                     if id_node.name.lexeme.contains('.') {
                         let parts: Vec<&str> = id_node.name.lexeme.split('.').collect();
                         if parts.len() == 2 {
                             let enum_name = parts[0];
                             let member_name = parts[1];
-                            
+
                             // Check if this enum is defined in the current system
                             if self.current_system_enums.contains(enum_name) {
                                 debug_print!("  Found enum member reference: {}.{} - qualifying with system name", enum_name, member_name);
-                                self.add_code(&format!("{}_{}.{}", self.system_name, enum_name, member_name));
+                                self.add_code(&format!(
+                                    "{}_{}.{}",
+                                    self.system_name, enum_name, member_name
+                                ));
                             } else if self.module_level_enums.contains(enum_name) {
-                                debug_print!("  Found module-level enum member reference: {}.{}", enum_name, member_name);
+                                debug_print!(
+                                    "  Found module-level enum member reference: {}.{}",
+                                    enum_name,
+                                    member_name
+                                );
                                 self.add_code(&id_node.name.lexeme);
                             } else {
-                                debug_print!("  Enum member reference but enum not found - using as-is");
+                                debug_print!(
+                                    "  Enum member reference but enum not found - using as-is"
+                                );
                                 id_node.accept(self);
                             }
                         } else {
@@ -7286,7 +7678,11 @@ impl AstVisitor for PythonVisitor {
                     } else if self.current_system_enums.contains(&id_node.name.lexeme) {
                         // Check if this identifier is an enum defined in the current system
                         // If so, qualify it with the system name
-                        debug_print!("  YES - qualifying with system name: {}_{}", self.system_name, id_node.name.lexeme);
+                        debug_print!(
+                            "  YES - qualifying with system name: {}_{}",
+                            self.system_name,
+                            id_node.name.lexeme
+                        );
                         self.add_code(&format!("{}_{}", self.system_name, id_node.name.lexeme));
                     } else {
                         debug_print!("  NO - using unqualified name");
@@ -7294,13 +7690,17 @@ impl AstVisitor for PythonVisitor {
                     }
                 }
                 CallChainNodeType::UndeclaredCallT { call_node: call } => {
-                    debug_print!("DEBUG: Processing UndeclaredCall '{}' in call chain, in_call_chain={}", call.identifier.name.lexeme, self.in_call_chain);
+                    debug_print!(
+                        "DEBUG: Processing UndeclaredCall '{}' in call chain, in_call_chain={}",
+                        call.identifier.name.lexeme,
+                        self.in_call_chain
+                    );
                     // For multi-node chains (e.g., sys.testFruit()), don't add self._ prefix
                     // For single-node chains (e.g., _testFruit()), let it go through normal processing
                     if self.in_call_chain {
                         // Multi-node chain - check for string method transformations
                         debug_print!("DEBUG: Multi-node chain - checking for string operations");
-                        
+
                         // v0.46: Handle super().init() -> super().__init__()
                         // Check if the previous token was super()
                         if self.code.ends_with("super()") && call.identifier.name.lexeme == "init" {
@@ -7309,7 +7709,7 @@ impl AstVisitor for PythonVisitor {
                             separator = ".";
                             continue;
                         }
-                        
+
                         // Check if this is a string method that needs transformation (v0.33 Phase 3)
                         match call.identifier.name.lexeme.as_str() {
                             "trim" => {
@@ -7323,7 +7723,7 @@ impl AstVisitor for PythonVisitor {
                                 call.call_expr_list.accept(self);
                             }
                             "lower" => {
-                                // lower() is already correct in Python  
+                                // lower() is already correct in Python
                                 self.add_code("lower");
                                 call.call_expr_list.accept(self);
                             }
@@ -7394,17 +7794,25 @@ impl AstVisitor for PythonVisitor {
                 } => {
                     action_call_expr_node.accept(self);
                 }
-                CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
+                CallChainNodeType::CallChainLiteralExprT {
+                    call_chain_literal_expr_node,
+                } => {
                     // v0.41: Handle literal expressions in call chains (e.g., "string".upper())
                     // Output the literal value directly
                     match &call_chain_literal_expr_node.token_t {
-                        TokenType::String => self.add_code(&format!("\"{}\"", call_chain_literal_expr_node.value)),
+                        TokenType::String => {
+                            self.add_code(&format!("\"{}\"", call_chain_literal_expr_node.value))
+                        }
                         TokenType::FString => self.add_code(&call_chain_literal_expr_node.value),
                         TokenType::RawString => self.add_code(&call_chain_literal_expr_node.value),
                         TokenType::ByteString => self.add_code(&call_chain_literal_expr_node.value),
-                        TokenType::TripleQuotedString => self.add_code(&call_chain_literal_expr_node.value),
+                        TokenType::TripleQuotedString => {
+                            self.add_code(&call_chain_literal_expr_node.value)
+                        }
                         TokenType::Number => self.add_code(&call_chain_literal_expr_node.value),
-                        TokenType::ComplexNumber => self.add_code(&call_chain_literal_expr_node.value),
+                        TokenType::ComplexNumber => {
+                            self.add_code(&call_chain_literal_expr_node.value)
+                        }
                         _ => self.add_code(&call_chain_literal_expr_node.value),
                     }
                 }
@@ -7413,7 +7821,7 @@ impl AstVisitor for PythonVisitor {
                     // unnecessary groups e.g.:
                     // (compartment.state_vars["x"]) = compartment.state_vars["x"] + 1
                     self.visiting_call_chain_literal_variable = true;
-                    
+
                     // Special case: if this is the second node in a self.variable pattern,
                     // we've already output "self." above, so just output the variable name
                     if starts_with_self_var && i == 1 {
@@ -7422,10 +7830,20 @@ impl AstVisitor for PythonVisitor {
                     } else {
                         // Check if this variable is actually an enum type defined in the current system
                         // If so, qualify it with the system name
-                        if self.current_system_enums.contains(&var_node.id_node.name.lexeme) {
-                            debug_print!("  Variable '{}' is an enum - qualifying with system name: {}_{}", 
-                                      var_node.id_node.name.lexeme, self.system_name, var_node.id_node.name.lexeme);
-                            self.add_code(&format!("{}_{}", self.system_name, var_node.id_node.name.lexeme));
+                        if self
+                            .current_system_enums
+                            .contains(&var_node.id_node.name.lexeme)
+                        {
+                            debug_print!(
+                                "  Variable '{}' is an enum - qualifying with system name: {}_{}",
+                                var_node.id_node.name.lexeme,
+                                self.system_name,
+                                var_node.id_node.name.lexeme
+                            );
+                            self.add_code(&format!(
+                                "{}_{}",
+                                self.system_name, var_node.id_node.name.lexeme
+                            ));
                         } else {
                             var_node.accept(self);
                         }
@@ -7446,12 +7864,12 @@ impl AstVisitor for PythonVisitor {
                 }
             }
         }
-        
+
         // Reset the flag
         if call_l_chain_expression_node.call_chain.len() > 1 {
             self.in_call_chain = false;
         }
-        
+
         self.debug_exit("visit_call_chain_expr_node");
     }
 
@@ -7687,27 +8105,31 @@ impl AstVisitor for PythonVisitor {
         // Special handling for self.domain_variable patterns
         // Check if this is a chain starting with "self" followed by a variable
         // v0.37: Also check for SelfT variant
-        let starts_with_self_var = call_chain_expression_node.call_chain.len() >= 2 &&
-            (matches!(call_chain_expression_node.call_chain.get(0), 
-                Some(CallChainNodeType::VariableNodeT { var_node }) 
-                    if var_node.id_node.name.lexeme == "self") ||
-             matches!(call_chain_expression_node.call_chain.get(0),
-                Some(CallChainNodeType::SelfT { .. }))) &&
-            matches!(call_chain_expression_node.call_chain.get(1),
-                Some(CallChainNodeType::VariableNodeT { .. }));
-        
+        let starts_with_self_var = call_chain_expression_node.call_chain.len() >= 2
+            && (matches!(call_chain_expression_node.call_chain.get(0),
+                Some(CallChainNodeType::VariableNodeT { var_node })
+                    if var_node.id_node.name.lexeme == "self")
+                || matches!(
+                    call_chain_expression_node.call_chain.get(0),
+                    Some(CallChainNodeType::SelfT { .. })
+                ))
+            && matches!(
+                call_chain_expression_node.call_chain.get(1),
+                Some(CallChainNodeType::VariableNodeT { .. })
+            );
+
         // Check if this is a static method call on a system (SystemName.method())
-        let _is_static_system_call = call_chain_expression_node.call_chain.len() >= 2 &&
-            matches!(call_chain_expression_node.call_chain.get(0),
+        let _is_static_system_call = call_chain_expression_node.call_chain.len() >= 2
+            && matches!(call_chain_expression_node.call_chain.get(0),
                 Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node })
                     if id_node.name.lexeme.chars().next().map_or(false, |c| c.is_uppercase()));
-        
+
         // Set flag to indicate we're processing within a call chain
         // Only set this for multi-node chains (single-node chains still need self. prefix)
         if call_chain_expression_node.call_chain.len() > 1 {
             self.in_call_chain = true;
         }
-        
+
         let mut separator = "";
 
         for (i, node) in call_chain_expression_node.call_chain.iter().enumerate() {
@@ -7715,7 +8137,7 @@ impl AstVisitor for PythonVisitor {
             if starts_with_self_var && i == 0 {
                 continue;
             }
-            
+
             // Special handling for the first variable after self in self.variable patterns
             if starts_with_self_var && i == 1 {
                 // For self.variable, we already have the context, just output the variable name
@@ -7725,33 +8147,35 @@ impl AstVisitor for PythonVisitor {
                     continue;
                 }
             }
-            
+
             let _node_desc = match &node {
                 CallChainNodeType::SelfT { .. } => "Self".to_string(),
                 CallChainNodeType::CallChainLiteralExprT { .. } => "Literal".to_string(),
-                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => 
-                    format!("UndeclaredIdentifier({})", id_node.name.lexeme),
-                CallChainNodeType::UndeclaredCallT { call_node } => 
-                    format!("UndeclaredCall({})", call_node.identifier.name.lexeme),
-                _ => "Other".to_string()
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                    format!("UndeclaredIdentifier({})", id_node.name.lexeme)
+                }
+                CallChainNodeType::UndeclaredCallT { call_node } => {
+                    format!("UndeclaredCall({})", call_node.identifier.name.lexeme)
+                }
+                _ => "Other".to_string(),
             };
-            
+
             // Check if this is a synthetic node - if so, don't add separator
             let is_synthetic = match &node {
                 CallChainNodeType::UndeclaredCallT { call_node } => {
                     call_node.identifier.name.lexeme == "@indexed_call"
                 }
                 CallChainNodeType::UndeclaredListElementT { list_elem_node } => {
-                    list_elem_node.identifier.name.lexeme == "@chain_index" ||
-                    list_elem_node.identifier.name.lexeme == "@chain_slice"
+                    list_elem_node.identifier.name.lexeme == "@chain_index"
+                        || list_elem_node.identifier.name.lexeme == "@chain_slice"
                 }
                 CallChainNodeType::UndeclaredSliceT { slice_node } => {
-                    slice_node.identifier.name.lexeme == "@chain_index" ||
-                    slice_node.identifier.name.lexeme == "@chain_slice"
+                    slice_node.identifier.name.lexeme == "@chain_index"
+                        || slice_node.identifier.name.lexeme == "@chain_slice"
                 }
-                _ => false
+                _ => false,
             };
-            
+
             if !is_synthetic {
                 output.push_str(separator);
             }
@@ -7761,21 +8185,31 @@ impl AstVisitor for PythonVisitor {
                     output.push_str("self");
                 }
                 CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                    debug_print!("DEBUG _to_string: UndeclaredIdentifier '{}'", id_node.name.lexeme);
+                    debug_print!(
+                        "DEBUG _to_string: UndeclaredIdentifier '{}'",
+                        id_node.name.lexeme
+                    );
                     debug_print!("  Current system enums: {:?}", self.current_system_enums);
                     debug_print!("  Nested module names: {:?}", self.nested_module_names);
                     debug_print!("  Current module path: {:?}", self.current_module_path);
-                    
+
                     // v0.57: Check if this is a nested module reference within the current module
-                    if !self.current_module_path.is_empty() && self.nested_module_names.contains(&id_node.name.lexeme) {
+                    if !self.current_module_path.is_empty()
+                        && self.nested_module_names.contains(&id_node.name.lexeme)
+                    {
                         debug_print!("  Found nested module reference '{}' - qualifying with full module path", id_node.name.lexeme);
                         // In Python, static methods need to qualify nested class references with the parent class name
-                        let qualified_name = self.current_module_path.join(".") + "." + &id_node.name.lexeme;
+                        let qualified_name =
+                            self.current_module_path.join(".") + "." + &id_node.name.lexeme;
                         debug_print!("  Qualified name: {}", qualified_name);
                         output.push_str(&qualified_name);
                     } else if self.current_system_enums.contains(&id_node.name.lexeme) {
                         // Check if this identifier is an enum defined in the current system
-                        debug_print!("  YES - qualifying: {}_{}", self.system_name, id_node.name.lexeme);
+                        debug_print!(
+                            "  YES - qualifying: {}_{}",
+                            self.system_name,
+                            id_node.name.lexeme
+                        );
                         output.push_str(&format!("{}_{}", self.system_name, id_node.name.lexeme));
                     } else {
                         debug_print!("  NO - using unqualified");
@@ -7794,7 +8228,10 @@ impl AstVisitor for PythonVisitor {
                             "@indexed_call" => {
                                 // This is our synthetic node for array[index](args)
                                 // Just output the arguments, no method name
-                                self.output_indexed_call_args_to_string(&call.call_expr_list, output);
+                                self.output_indexed_call_args_to_string(
+                                    &call.call_expr_list,
+                                    output,
+                                );
                             }
                             _ => {
                                 // Default behavior for other methods
@@ -7838,29 +8275,52 @@ impl AstVisitor for PythonVisitor {
                 } => {
                     action_call_expr_node.accept_to_string(self, output);
                 }
-                CallChainNodeType::CallChainLiteralExprT { call_chain_literal_expr_node } => {
+                CallChainNodeType::CallChainLiteralExprT {
+                    call_chain_literal_expr_node,
+                } => {
                     // v0.41: Handle literal expressions in call chains (e.g., "string".upper())
                     // Output the literal value directly
                     match &call_chain_literal_expr_node.token_t {
-                        TokenType::String => output.push_str(&format!("\"{}\"", call_chain_literal_expr_node.value)),
+                        TokenType::String => {
+                            output.push_str(&format!("\"{}\"", call_chain_literal_expr_node.value))
+                        }
                         TokenType::FString => output.push_str(&call_chain_literal_expr_node.value),
-                        TokenType::RawString => output.push_str(&call_chain_literal_expr_node.value),
-                        TokenType::ByteString => output.push_str(&call_chain_literal_expr_node.value),
-                        TokenType::TripleQuotedString => output.push_str(&call_chain_literal_expr_node.value),
+                        TokenType::RawString => {
+                            output.push_str(&call_chain_literal_expr_node.value)
+                        }
+                        TokenType::ByteString => {
+                            output.push_str(&call_chain_literal_expr_node.value)
+                        }
+                        TokenType::TripleQuotedString => {
+                            output.push_str(&call_chain_literal_expr_node.value)
+                        }
                         TokenType::Number => output.push_str(&call_chain_literal_expr_node.value),
-                        TokenType::ComplexNumber => output.push_str(&call_chain_literal_expr_node.value),
+                        TokenType::ComplexNumber => {
+                            output.push_str(&call_chain_literal_expr_node.value)
+                        }
                         _ => output.push_str(&call_chain_literal_expr_node.value),
                     }
                 }
                 CallChainNodeType::VariableNodeT { var_node } => {
                     // Check if this variable is actually an enum type defined in the current system
                     // If so, qualify it with the system name
-                    if self.current_system_enums.contains(&var_node.id_node.name.lexeme) {
-                        output.push_str(&format!("{}_{}", self.system_name, var_node.id_node.name.lexeme));
+                    if self
+                        .current_system_enums
+                        .contains(&var_node.id_node.name.lexeme)
+                    {
+                        output.push_str(&format!(
+                            "{}_{}",
+                            self.system_name, var_node.id_node.name.lexeme
+                        ));
                     } else {
                         // v0.37: When in a call chain with SelfT, just output the variable name
                         // without the "self." prefix since SelfT already provides it
-                        if i > 0 && matches!(call_chain_expression_node.call_chain[0], CallChainNodeType::SelfT { .. }) {
+                        if i > 0
+                            && matches!(
+                                call_chain_expression_node.call_chain[0],
+                                CallChainNodeType::SelfT { .. }
+                            )
+                        {
                             // Just output the variable name without "self." prefix
                             output.push_str(&var_node.id_node.name.lexeme);
                         } else {
@@ -7883,7 +8343,7 @@ impl AstVisitor for PythonVisitor {
             }
             separator = ".";
         }
-        
+
         // Reset the flag
         if call_chain_expression_node.call_chain.len() > 1 {
             self.in_call_chain = false;
@@ -7921,20 +8381,20 @@ impl AstVisitor for PythonVisitor {
         // v0.69: Use newline_and_map for correct line mapping
         self.newline_and_map(for_stmt_node.line);
         self.add_code("for ");
-        
+
         // Emit the loop variable
         if let Some(variable) = &for_stmt_node.variable {
             self.add_code(&variable.id_node.name.lexeme);
         } else if let Some(identifier) = &for_stmt_node.identifier {
             self.add_code(&identifier.name.lexeme);
         }
-        
+
         self.add_code(" in ");
-        
+
         // Special handling for enum iteration
         if for_stmt_node.is_enum_iteration {
             // Debug output removed
-            
+
             // Generate the qualified enum name for iteration
             if let Some(ref enum_name) = for_stmt_node.enum_type_name {
                 // Check if we're in a system context
@@ -7957,10 +8417,10 @@ impl AstVisitor for PythonVisitor {
             // Regular iterable
             for_stmt_node.iterable.accept(self);
         }
-        
+
         self.add_code(":");
         for_stmt_node.block.accept(self);
-        
+
         // v0.51: Handle optional else clause
         if let Some(else_block) = &for_stmt_node.else_block {
             self.newline();
@@ -7978,7 +8438,7 @@ impl AstVisitor for PythonVisitor {
         while_stmt_node.condition.accept(self);
         self.add_code(":");
         while_stmt_node.block.accept(self);
-        
+
         // v0.51: Handle optional else clause
         if let Some(else_block) = &while_stmt_node.else_block {
             self.newline();
@@ -8115,7 +8575,8 @@ impl AstVisitor for PythonVisitor {
             // }
             // TODO
             _ => {
-                self.errors.push("Error - unexpected target expression in 'in' loop.".to_string());
+                self.errors
+                    .push("Error - unexpected target expression in 'in' loop.".to_string());
                 return;
             }
         };
@@ -8949,7 +9410,7 @@ impl AstVisitor for PythonVisitor {
         self.newline();
         self.add_code(&format!("self.return_stack[-1] = {}", output));
     }
-    
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_return_stmt_node(&mut self, return_stmt_node: &ReturnStmtNode) {
@@ -8974,15 +9435,18 @@ impl AstVisitor for PythonVisitor {
         // Mark that we've generated a return to avoid duplicate in terminator
         self.this_branch_transitioned = true;
     }
-    
+
     //* --------------------------------------------------------------------- *//
 
-    fn visit_parent_dispatch_stmt_node(&mut self, _parent_dispatch_stmt_node: &ParentDispatchStmtNode) {
+    fn visit_parent_dispatch_stmt_node(
+        &mut self,
+        _parent_dispatch_stmt_node: &ParentDispatchStmtNode,
+    ) {
         self.newline();
         self.add_code("# => $^ parent dispatch");
         self.newline();
         self.add_code("self.__router(__e, compartment.parent_compartment)");
-        
+
         // Check if a transition was triggered and return early
         self.newline();
         self.add_code("if self.__next_compartment is not None:");
@@ -8991,20 +9455,20 @@ impl AstVisitor for PythonVisitor {
         self.add_code("return");
         self.outdent();
     }
-    
+
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_try_stmt_node(&mut self, try_stmt_node: &TryStmtNode) {
         self.newline();
         self.add_code("try:");
         self.indent();
         try_stmt_node.try_block.accept(self);
         self.outdent();
-        
+
         for except_clause in &try_stmt_node.except_clauses {
             except_clause.accept(self);
         }
-        
+
         if let Some(else_block) = &try_stmt_node.else_block {
             self.newline();
             self.add_code("else:");
@@ -9012,7 +9476,7 @@ impl AstVisitor for PythonVisitor {
             else_block.accept(self);
             self.outdent();
         }
-        
+
         if let Some(finally_block) = &try_stmt_node.finally_block {
             self.newline();
             self.add_code("finally:");
@@ -9021,13 +9485,13 @@ impl AstVisitor for PythonVisitor {
             self.outdent();
         }
     }
-    
+
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_except_clause_node(&mut self, except_clause_node: &ExceptClauseNode) {
         self.newline();
         self.add_code("except");
-        
+
         // Handle the various except clause forms
         if let Some(exception_types) = &except_clause_node.exception_types {
             if exception_types.len() == 1 {
@@ -9036,7 +9500,7 @@ impl AstVisitor for PythonVisitor {
                 let types_str = exception_types.join(", ");
                 self.add_code(&format!(" ({})", types_str));
             }
-            
+
             // Add variable binding if present
             if let Some(var_name) = &except_clause_node.var_name {
                 self.add_code(&format!(" as {}", var_name));
@@ -9052,26 +9516,26 @@ impl AstVisitor for PythonVisitor {
             self.add_code(&format!(" {}", var_name));
         }
         // else: bare except clause (catches everything)
-        
+
         self.add_code(":");
         self.indent();
         except_clause_node.block.accept(self);
         self.outdent();
     }
-    
+
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_raise_stmt_node(&mut self, raise_stmt_node: &RaiseStmtNode) {
         self.newline();
         self.add_code("raise");
-        
+
         if let Some(exception_expr) = &raise_stmt_node.exception_expr {
             self.add_code(" ");
             let mut expr_str = String::new();
             exception_expr.accept_to_string(self, &mut expr_str);
             self.add_code(&expr_str);
         }
-        
+
         if let Some(from_expr) = &raise_stmt_node.from_expr {
             self.add_code(" from ");
             let mut from_str = String::new();
@@ -9079,50 +9543,54 @@ impl AstVisitor for PythonVisitor {
             self.add_code(&from_str);
         }
     }
-    
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_with_stmt_node(&mut self, with_stmt_node: &WithStmtNode) {
         self.newline();
-        
+
         // Add 'async with' or 'with' keyword
         if with_stmt_node.is_async {
             self.add_code("async with ");
         } else {
             self.add_code("with ");
         }
-        
+
         // Add the context expression
         let mut expr_str = String::new();
-        with_stmt_node.context_expr.accept_to_string(self, &mut expr_str);
+        with_stmt_node
+            .context_expr
+            .accept_to_string(self, &mut expr_str);
         self.add_code(&expr_str);
-        
+
         // Add 'as' clause if present
         if let Some(target_var) = &with_stmt_node.target_var {
             self.add_code(" as ");
             self.add_code(target_var);
         }
-        
+
         self.add_code(":");
-        
+
         // Visit the with block
         self.indent();
         with_stmt_node.with_block.accept(self);
         self.outdent();
     }
-    
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_match_stmt_node(&mut self, match_stmt_node: &MatchStmtNode) {
         self.newline();
         self.add_code("match ");
-        
+
         // Add the match expression
         let mut expr_str = String::new();
-        match_stmt_node.match_expr.accept_to_string(self, &mut expr_str);
+        match_stmt_node
+            .match_expr
+            .accept_to_string(self, &mut expr_str);
         self.add_code(&expr_str);
         self.add_code(":");
-        
+
         // Visit each case
         self.indent();
         for case in &match_stmt_node.cases {
@@ -9130,16 +9598,16 @@ impl AstVisitor for PythonVisitor {
         }
         self.outdent();
     }
-    
+
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_case_node(&mut self, case_node: &CaseNode) {
         self.newline();
         self.add_code("case ");
-        
+
         // Visit the pattern
         case_node.pattern.accept(self);
-        
+
         // Add guard clause if present
         if let Some(ref guard) = case_node.guard {
             self.add_code(" if ");
@@ -9147,9 +9615,9 @@ impl AstVisitor for PythonVisitor {
             guard.accept_to_string(self, &mut guard_str);
             self.add_code(&guard_str);
         }
-        
+
         self.add_code(":");
-        
+
         // Visit the case body
         self.indent();
         if case_node.statements.is_empty() {
@@ -9161,23 +9629,23 @@ impl AstVisitor for PythonVisitor {
         }
         self.outdent();
     }
-    
+
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_pattern_node(&mut self, pattern_node: &PatternNode) {
         match pattern_node {
             PatternNode::Literal(literal) => {
                 // Generate literal pattern
                 literal.accept(self);
-            },
+            }
             PatternNode::Capture(name) => {
                 // Generate capture pattern (just the identifier)
                 self.add_code(name);
-            },
+            }
             PatternNode::Wildcard => {
                 // Generate wildcard pattern
                 self.add_code("_");
-            },
+            }
             PatternNode::Sequence(patterns) => {
                 // Generate sequence pattern [a, b, c]
                 self.add_code("[");
@@ -9188,7 +9656,7 @@ impl AstVisitor for PythonVisitor {
                     pattern.accept(self);
                 }
                 self.add_code("]");
-            },
+            }
             PatternNode::Mapping(mappings) => {
                 // Generate mapping pattern {"key": value}
                 self.add_code("{");
@@ -9202,7 +9670,7 @@ impl AstVisitor for PythonVisitor {
                     pattern.accept(self);
                 }
                 self.add_code("}");
-            },
+            }
             PatternNode::Class(name, args) => {
                 // Generate class pattern Point(x, y)
                 // Note: Frame parses tuples as lists in patterns, so we need to generate
@@ -9231,7 +9699,7 @@ impl AstVisitor for PythonVisitor {
                     }
                     self.add_code(")");
                 }
-            },
+            }
             PatternNode::Or(patterns) => {
                 // Generate or pattern pattern1 | pattern2
                 for (i, pattern) in patterns.iter().enumerate() {
@@ -9240,21 +9708,21 @@ impl AstVisitor for PythonVisitor {
                     }
                     pattern.accept(self);
                 }
-            },
+            }
             PatternNode::As(pattern, name) => {
                 // Generate as pattern: pattern as name
                 pattern.accept(self);
                 self.add_code(" as ");
                 self.add_code(name);
-            },
+            }
             PatternNode::Star(name) => {
                 // Generate star pattern: *name
                 self.add_code("*");
                 self.add_code(name);
-            },
+            }
         }
     }
-    
+
     //* --------------------------------------------------------------------- *//
 
     fn visit_enum_match_test_pattern_node(
@@ -9333,7 +9801,7 @@ impl AstVisitor for PythonVisitor {
                 return;
             }
         }
-        
+
         // Regular list or list with unpacking
         let mut separator = "";
         self.add_code("[");
@@ -9357,7 +9825,7 @@ impl AstVisitor for PythonVisitor {
                 return;
             }
         }
-        
+
         let mut separator = "";
         output.push('[');
         for expr in &list.exprs_t {
@@ -9367,18 +9835,20 @@ impl AstVisitor for PythonVisitor {
         }
         output.push(']');
     }
-    
+
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_dict_literal_node(&mut self, dict: &DictLiteralNode) {
         self.add_code("{");
-        
+
         let mut separator = "";
         for (key, value) in &dict.pairs {
             self.add_code(separator);
-            
+
             // Check if this is a dict unpacking (key is DictUnpackExprT and value is NilExprT)
-            if matches!(key, ExprType::DictUnpackExprT { .. }) && matches!(value, ExprType::NilExprT) {
+            if matches!(key, ExprType::DictUnpackExprT { .. })
+                && matches!(value, ExprType::NilExprT)
+            {
                 // For dict unpacking, just visit the key which contains the unpacking expression
                 key.accept(self);
             } else {
@@ -9389,19 +9859,21 @@ impl AstVisitor for PythonVisitor {
             }
             separator = ", ";
         }
-        
+
         self.add_code("}");
     }
-    
+
     fn visit_dict_literal_node_to_string(&mut self, dict: &DictLiteralNode, output: &mut String) {
         output.push('{');
-        
+
         let mut separator = "";
         for (key, value) in &dict.pairs {
             output.push_str(separator);
-            
+
             // Check if this is a dict unpacking (key is DictUnpackExprT and value is NilExprT)
-            if matches!(key, ExprType::DictUnpackExprT { .. }) && matches!(value, ExprType::NilExprT) {
+            if matches!(key, ExprType::DictUnpackExprT { .. })
+                && matches!(value, ExprType::NilExprT)
+            {
                 // For dict unpacking, just visit the key which contains the unpacking expression
                 key.accept_to_string(self, output);
             } else {
@@ -9412,280 +9884,300 @@ impl AstVisitor for PythonVisitor {
             }
             separator = ", ";
         }
-        
+
         output.push('}');
     }
-    
+
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_set_literal_node(&mut self, set: &SetLiteralNode) {
         // v0.38: Empty set requires set() in Python, not {}
         if set.elements.is_empty() {
             self.add_code("set()");
         } else {
             self.add_code("{");
-            
+
             let mut separator = "";
             for element in &set.elements {
                 self.add_code(separator);
                 element.accept(self);
                 separator = ", ";
             }
-            
+
             self.add_code("}");
         }
     }
-    
+
     fn visit_set_literal_node_to_string(&mut self, set: &SetLiteralNode, output: &mut String) {
         // v0.38: Empty set requires set() in Python, not {}
         if set.elements.is_empty() {
             output.push_str("set()");
         } else {
             output.push('{');
-            
+
             let mut separator = "";
             for element in &set.elements {
                 output.push_str(separator);
                 element.accept_to_string(self, output);
                 separator = ", ";
             }
-            
+
             output.push('}');
         }
     }
-    
+
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_tuple_literal_node(&mut self, tuple: &TupleLiteralNode) {
         self.add_code("(");
-        
+
         let mut separator = "";
         for element in &tuple.elements {
             self.add_code(separator);
             element.accept(self);
             separator = ", ";
         }
-        
+
         // Single element tuples need trailing comma in Python
         if tuple.elements.len() == 1 {
             self.add_code(",");
         }
-        
+
         self.add_code(")");
     }
-    
-    fn visit_tuple_literal_node_to_string(&mut self, tuple: &TupleLiteralNode, output: &mut String) {
+
+    fn visit_tuple_literal_node_to_string(
+        &mut self,
+        tuple: &TupleLiteralNode,
+        output: &mut String,
+    ) {
         output.push('(');
-        
+
         let mut separator = "";
         for element in &tuple.elements {
             output.push_str(separator);
             element.accept_to_string(self, output);
             separator = ", ";
         }
-        
+
         // Single element tuples need trailing comma in Python
         if tuple.elements.len() == 1 {
             output.push(',');
         }
-        
+
         output.push(')');
     }
-    
+
     //* --------------------------------------------------------------------- *//
-    
+
     // v0.34: Visit unpacking expression node
     fn visit_unpack_expr_node(&mut self, unpack: &UnpackExprNode) {
         self.add_code("*");
         unpack.expr.accept(self);
     }
-    
+
     // v0.54: Visit star expression node for unpacking
     fn visit_star_expr_node(&mut self, star_expr: &StarExprNode) {
         self.add_code("*");
         self.add_code(&star_expr.identifier);
     }
-    
+
     // v0.34: Visit list comprehension node
     fn visit_list_comprehension_node(&mut self, comp: &ListComprehensionNode) {
         self.add_code("[");
-        
+
         // Generate the expression part
         comp.expr.accept(self);
-        
+
         // Generate 'for target in iterable'
         self.add_code(" for ");
         self.add_code(&comp.target);
         self.add_code(" in ");
         comp.iter.accept(self);
-        
+
         // Optional 'if' condition
         if let Some(ref condition) = comp.condition {
             self.add_code(" if ");
             condition.accept(self);
         }
-        
+
         self.add_code("]");
     }
-    
+
     // v0.34: Visit list comprehension node to string
-    fn visit_list_comprehension_node_to_string(&mut self, comp: &ListComprehensionNode, output: &mut String) {
+    fn visit_list_comprehension_node_to_string(
+        &mut self,
+        comp: &ListComprehensionNode,
+        output: &mut String,
+    ) {
         output.push('[');
-        
+
         // Generate the expression part
         comp.expr.accept_to_string(self, output);
-        
+
         // Generate 'for target in iterable'
         output.push_str(" for ");
         output.push_str(&comp.target);
         output.push_str(" in ");
         comp.iter.accept_to_string(self, output);
-        
+
         // Optional 'if' condition
         if let Some(ref condition) = comp.condition {
             output.push_str(" if ");
             condition.accept_to_string(self, output);
         }
-        
+
         output.push(']');
     }
-    
+
     // v0.38: Visit dictionary comprehension node
     fn visit_dict_comprehension_node(&mut self, comp: &DictComprehensionNode) {
         self.add_code("{");
-        
+
         // Generate the key expression
         comp.key_expr.accept(self);
         self.add_code(": ");
-        
+
         // Generate the value expression
         comp.value_expr.accept(self);
-        
+
         // Generate 'for target in iterable'
         self.add_code(" for ");
         self.add_code(&comp.target);
         self.add_code(" in ");
         comp.iter.accept(self);
-        
+
         // Optional 'if' condition
         if let Some(ref condition) = comp.condition {
             self.add_code(" if ");
             condition.accept(self);
         }
-        
+
         self.add_code("}");
     }
-    
+
     // v0.38: Visit dictionary comprehension node to string
-    fn visit_dict_comprehension_node_to_string(&mut self, comp: &DictComprehensionNode, output: &mut String) {
+    fn visit_dict_comprehension_node_to_string(
+        &mut self,
+        comp: &DictComprehensionNode,
+        output: &mut String,
+    ) {
         output.push('{');
-        
+
         // Generate the key expression
         comp.key_expr.accept_to_string(self, output);
         output.push_str(": ");
-        
+
         // Generate the value expression
         comp.value_expr.accept_to_string(self, output);
-        
+
         // Generate 'for target in iterable'
         output.push_str(" for ");
         output.push_str(&comp.target);
         output.push_str(" in ");
         comp.iter.accept_to_string(self, output);
-        
+
         // Optional 'if' condition
         if let Some(ref condition) = comp.condition {
             output.push_str(" if ");
             condition.accept_to_string(self, output);
         }
-        
+
         output.push('}');
     }
-    
+
     // v0.41: Visit set comprehension node
     fn visit_set_comprehension_node(&mut self, comp: &SetComprehensionNode) {
         self.add_code("{");
-        
+
         // Generate the expression part
         comp.expr.accept(self);
-        
+
         // Generate 'for target in iterable'
         self.add_code(" for ");
         self.add_code(&comp.target);
         self.add_code(" in ");
         comp.iter.accept(self);
-        
+
         // Optional 'if' condition
         if let Some(ref condition) = comp.condition {
             self.add_code(" if ");
             condition.accept(self);
         }
-        
+
         self.add_code("}");
     }
-    
+
     // v0.41: Visit set comprehension node to string
-    fn visit_set_comprehension_node_to_string(&mut self, comp: &SetComprehensionNode, output: &mut String) {
+    fn visit_set_comprehension_node_to_string(
+        &mut self,
+        comp: &SetComprehensionNode,
+        output: &mut String,
+    ) {
         output.push('{');
-        
+
         // Generate the expression part
         comp.expr.accept_to_string(self, output);
-        
+
         // Generate 'for target in iterable'
         output.push_str(" for ");
         output.push_str(&comp.target);
         output.push_str(" in ");
         comp.iter.accept_to_string(self, output);
-        
+
         // Optional 'if' condition
         if let Some(ref condition) = comp.condition {
             output.push_str(" if ");
             condition.accept_to_string(self, output);
         }
-        
+
         output.push('}');
     }
-    
-    // v0.34: Visit unpacking expression node to string  
+
+    // v0.34: Visit unpacking expression node to string
     fn visit_unpack_expr_node_to_string(&mut self, unpack: &UnpackExprNode, output: &mut String) {
         output.push('*');
         unpack.expr.accept_to_string(self, output);
     }
-    
+
     // v0.54: Visit star expression node to string
     fn visit_star_expr_node_to_string(&mut self, star_expr: &StarExprNode, output: &mut String) {
         output.push('*');
         output.push_str(&star_expr.identifier);
     }
-    
+
     // v0.38: Visit dict unpacking expression node
     fn visit_dict_unpack_expr_node(&mut self, dict_unpack: &DictUnpackExprNode) {
         self.add_code("**");
         dict_unpack.expr.accept(self);
     }
-    
+
     // v0.38: Visit dict unpacking expression node to string
-    fn visit_dict_unpack_expr_node_to_string(&mut self, dict_unpack: &DictUnpackExprNode, output: &mut String) {
+    fn visit_dict_unpack_expr_node_to_string(
+        &mut self,
+        dict_unpack: &DictUnpackExprNode,
+        output: &mut String,
+    ) {
         output.push_str("**");
         dict_unpack.expr.accept_to_string(self, output);
     }
-    
+
     // v0.35: Visit await expression node
     fn visit_await_expr_node(&mut self, await_expr: &AwaitExprNode) {
         self.add_code("await ");
         await_expr.expr.accept(self);
     }
-    
+
     // v0.35: Visit await expression node to string
     fn visit_await_expr_node_to_string(&mut self, await_expr: &AwaitExprNode, output: &mut String) {
         output.push_str("await ");
         await_expr.expr.accept_to_string(self, output);
     }
-    
+
     // v0.38: Visit lambda expression node
     fn visit_lambda_expr_node(&mut self, lambda_expr: &LambdaExprNode) {
         self.add_code("lambda ");
-        
+
         // Add parameters
         for (i, param) in lambda_expr.params.iter().enumerate() {
             if i > 0 {
@@ -9693,17 +10185,21 @@ impl AstVisitor for PythonVisitor {
             }
             self.add_code(param);
         }
-        
+
         self.add_code(": ");
-        
+
         // Add body expression
         lambda_expr.body.accept(self);
     }
-    
+
     // v0.38: Visit lambda expression node to string
-    fn visit_lambda_expr_node_to_string(&mut self, lambda_expr: &LambdaExprNode, output: &mut String) {
+    fn visit_lambda_expr_node_to_string(
+        &mut self,
+        lambda_expr: &LambdaExprNode,
+        output: &mut String,
+    ) {
         output.push_str("lambda ");
-        
+
         // Add parameters
         for (i, param) in lambda_expr.params.iter().enumerate() {
             if i > 0 {
@@ -9711,25 +10207,25 @@ impl AstVisitor for PythonVisitor {
             }
             output.push_str(param);
         }
-        
+
         output.push_str(": ");
-        
+
         // Add body expression
         lambda_expr.body.accept_to_string(self, output);
     }
-    
+
     // v0.38: Visit function reference node (first-class functions)
     fn visit_function_ref_node(&mut self, name: &str) {
         // In Python, function references are just the function name without parentheses
         self.add_code(name);
     }
-    
+
     // v0.38: Visit function reference node to string
     fn visit_function_ref_node_to_string(&mut self, name: &str, output: &mut String) {
         // In Python, function references are just the function name without parentheses
         output.push_str(name);
     }
-    
+
     // v0.42: Visit yield expression node
     fn visit_yield_expr_node(&mut self, yield_expr: &YieldExprNode) {
         self.add_code("yield");
@@ -9738,7 +10234,7 @@ impl AstVisitor for PythonVisitor {
             expr.accept(self);
         }
     }
-    
+
     // v0.42: Visit yield expression node to string
     fn visit_yield_expr_node_to_string(&mut self, yield_expr: &YieldExprNode, output: &mut String) {
         output.push_str("yield");
@@ -9747,19 +10243,23 @@ impl AstVisitor for PythonVisitor {
             expr.accept_to_string(self, output);
         }
     }
-    
+
     // v0.42: Visit yield from expression node
     fn visit_yield_from_expr_node(&mut self, yield_from_expr: &YieldFromExprNode) {
         self.add_code("yield from ");
         yield_from_expr.expr.accept(self);
     }
-    
+
     // v0.42: Visit yield from expression node to string
-    fn visit_yield_from_expr_node_to_string(&mut self, yield_from_expr: &YieldFromExprNode, output: &mut String) {
+    fn visit_yield_from_expr_node_to_string(
+        &mut self,
+        yield_from_expr: &YieldFromExprNode,
+        output: &mut String,
+    ) {
         output.push_str("yield from ");
         yield_from_expr.expr.accept_to_string(self, output);
     }
-    
+
     // v0.42: Visit generator expression node
     fn visit_generator_expr_node(&mut self, generator_expr: &GeneratorExprNode) {
         self.add_code("(");
@@ -9774,9 +10274,13 @@ impl AstVisitor for PythonVisitor {
         }
         self.add_code(")");
     }
-    
+
     // v0.42: Visit generator expression node to string
-    fn visit_generator_expr_node_to_string(&mut self, generator_expr: &GeneratorExprNode, output: &mut String) {
+    fn visit_generator_expr_node_to_string(
+        &mut self,
+        generator_expr: &GeneratorExprNode,
+        output: &mut String,
+    ) {
         output.push('(');
         generator_expr.expr.accept_to_string(self, output);
         output.push_str(" for ");
@@ -9813,12 +10317,12 @@ impl AstVisitor for PythonVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-    
+
     fn visit_slice_node(&mut self, slice_node: &SliceNode) {
         // Output the identifier
         slice_node.identifier.accept(self);
         self.add_code("[");
-        
+
         // Output start:end:step
         if let Some(start) = &slice_node.start_expr {
             start.accept(self);
@@ -9831,7 +10335,7 @@ impl AstVisitor for PythonVisitor {
             self.add_code(":");
             step.accept(self);
         }
-        
+
         self.add_code("]");
     }
 
@@ -9841,7 +10345,7 @@ impl AstVisitor for PythonVisitor {
         // Output the identifier
         slice_node.identifier.accept_to_string(self, output);
         output.push('[');
-        
+
         // Output start:end:step
         if let Some(start) = &slice_node.start_expr {
             start.accept_to_string(self, output);
@@ -9854,14 +10358,16 @@ impl AstVisitor for PythonVisitor {
             output.push(':');
             step.accept_to_string(self, output);
         }
-        
+
         output.push(']');
     }
 
     //* --------------------------------------------------------------------- *//
 
     fn visit_expr_list_stmt_node(&mut self, expr_list_stmt_node: &ExprListStmtNode) {
-        self.debug_print("EXPR_LIST_DEBUG: Processing ExprListStmt - this might be the print() issue!");
+        self.debug_print(
+            "EXPR_LIST_DEBUG: Processing ExprListStmt - this might be the print() issue!",
+        );
         let ref expr_list_node = expr_list_stmt_node.expr_list_node;
         self.test_skip_newline();
         expr_list_node.accept(self);
@@ -9878,19 +10384,19 @@ impl AstVisitor for PythonVisitor {
             TokenType::FString => {
                 // F-strings use the lexeme directly as it contains the full f"..." syntax
                 self.add_code(&literal_expression_node.value);
-            },
+            }
             TokenType::RawString => {
                 // Raw strings use the lexeme directly as it contains the full r"..." syntax
                 self.add_code(&literal_expression_node.value);
-            },
+            }
             TokenType::ByteString => {
                 // Byte strings use the lexeme directly as it contains the full b"..." syntax
                 self.add_code(&literal_expression_node.value);
-            },
+            }
             TokenType::TripleQuotedString => {
                 // Triple-quoted strings use the lexeme directly
                 self.add_code(&literal_expression_node.value);
-            },
+            }
             TokenType::True => self.add_code("True"),
             TokenType::False => self.add_code("False"),
             TokenType::None_ => self.add_code("None"),
@@ -9950,7 +10456,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_identifier_node(&mut self, identifier_node: &IdentifierNode) {
         let name = &identifier_node.name.lexeme;
-        
+
         // v0.57: Check if we're in a module and if this is a module variable
         // Module variables need to be qualified even within the module's static methods
         if let Some(ref module_name) = self.current_module_name {
@@ -9960,13 +10466,13 @@ impl AstVisitor for PythonVisitor {
                 return;
             }
         }
-        
+
         // Frame v0.31: Handle system.return - convert to return stack
         if name == "system.return" {
             self.add_code("self.return_stack[-1]");
         } else if name.starts_with("system.") {
             // Handle other system.method calls - convert to self.method
-            let method_name = &name[7..]; // Remove 'system.' prefix  
+            let method_name = &name[7..]; // Remove 'system.' prefix
             self.add_code(&format!("self.{}", method_name));
         } else if name.contains('.') {
             // Check if this is an enum member reference (e.g., "HttpStatus.Ok")
@@ -9974,10 +10480,13 @@ impl AstVisitor for PythonVisitor {
             if parts.len() == 2 {
                 let enum_name = parts[0];
                 let member_name = parts[1];
-                
+
                 // Check if this enum is defined in the current system
                 if self.current_system_enums.contains(enum_name) {
-                    self.add_code(&format!("{}_{}.{}", self.system_name, enum_name, member_name));
+                    self.add_code(&format!(
+                        "{}_{}.{}",
+                        self.system_name, enum_name, member_name
+                    ));
                 } else if self.module_level_enums.contains(enum_name) {
                     self.add_code(name);
                 } else {
@@ -9990,8 +10499,7 @@ impl AstVisitor for PythonVisitor {
             }
         } else {
             // Check if this is a system type that needs parentheses
-            if name == "SimpleHSM" {
-            }
+            if name == "SimpleHSM" {}
             self.add_code(name);
         }
     }
@@ -10004,7 +10512,7 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         let name = &identifier_node.name.lexeme;
-        
+
         // v0.57: Check if we're in a module and if this is a module variable
         if let Some(ref module_name) = self.current_module_name {
             if self.current_module_variables.contains(name) {
@@ -10012,7 +10520,7 @@ impl AstVisitor for PythonVisitor {
                 return;
             }
         }
-        
+
         output.push_str(&identifier_node.name.lexeme.to_string());
     }
 
@@ -10118,7 +10626,7 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_action_node(&mut self, action_node: &ActionNode) {
         self.action_scope_depth += 1;
-        
+
         let mut subclass_code = String::new();
 
         self.newline();
@@ -10162,7 +10670,7 @@ impl AstVisitor for PythonVisitor {
                 self.newline();
                 self.visit_decl_stmts(&action_node.statements);
             }
-            
+
             // Add terminator
             self.newline();
             match &action_node.terminator_expr.terminator_type {
@@ -10235,7 +10743,7 @@ impl AstVisitor for PythonVisitor {
 
         // Track duplicate enum names to avoid Python enum conflicts
         let mut generated_enum_names = HashSet::new();
-        
+
         for enumerator_decl_node in &enum_decl_node.enums {
             // Only generate if we haven't seen this name before
             if !generated_enum_names.contains(&enumerator_decl_node.name) {
@@ -10243,7 +10751,10 @@ impl AstVisitor for PythonVisitor {
                 enumerator_decl_node.accept(self);
             } else {
                 // DEBUG: Log when we skip a duplicate
-                debug_print!("DEBUG: Skipping duplicate enum entry: {}", enumerator_decl_node.name);
+                debug_print!(
+                    "DEBUG: Skipping duplicate enum entry: {}",
+                    enumerator_decl_node.name
+                );
             }
         }
 
@@ -10255,21 +10766,21 @@ impl AstVisitor for PythonVisitor {
 
     fn visit_enumerator_decl_node(&mut self, enumerator_decl_node: &EnumeratorDeclNode) {
         use crate::frame_c::ast::EnumValue;
-        
+
         self.newline();
         let value_str = match &enumerator_decl_node.value {
             EnumValue::Integer(val) => val.to_string(),
             EnumValue::String(val) => format!("\"{}\"", val),
             EnumValue::Auto => {
-                self.errors.push("Internal error: Auto enum values should be resolved during parsing".to_string());
-                "0".to_string()  // Default to 0 as fallback
+                self.errors.push(
+                    "Internal error: Auto enum values should be resolved during parsing"
+                        .to_string(),
+                );
+                "0".to_string() // Default to 0 as fallback
             }
         };
-        
-        self.add_code(&format!(
-            "{} = {}",
-            enumerator_decl_node.name, value_str
-        ));
+
+        self.add_code(&format!("{} = {}", enumerator_decl_node.name, value_str));
     }
 
     //* --------------------------------------------------------------------- *//
@@ -10337,47 +10848,57 @@ impl AstVisitor for PythonVisitor {
             None => String::from(""),
         };
         let var_name = &variable_decl_node.name;
-        
+
         // v0.53: Check for multiple variable declaration marker
         if var_name.starts_with("__multi_var__:") {
             // Extract the variable names from the marker
             let names_str = &var_name["__multi_var__:".len()..];
             let names: Vec<&str> = names_str.split(',').collect();
-            
+
             // v0.54: Handle star expressions in unpacking
             // Star expressions are already in the correct format (*name) from the parser
             // Python expects them as-is in the unpacking pattern
             self.add_code(&names.join(", "));
             self.add_code(" = ");
-            
+
             // Generate the right-hand side
             let var_init_expr = &variable_decl_node.get_initializer_value_rc();
             let mut code = String::new();
             var_init_expr.accept_to_string(self, &mut code);
             self.add_code(&code);
-            
-            return;  // Early return for multiple variable declarations
+
+            return; // Early return for multiple variable declarations
         }
-        
+
         // Note: Shadowing check is now performed in the parser during semantic analysis
         // This ensures consistent error checking regardless of code generation order
-        
+
         let var_init_expr = &variable_decl_node.get_initializer_value_rc();
         //self.newline();
         let mut code = String::new();
-        
+
         // Special handling for FSL properties like .length
         // Check if this is a CallChainExprT with a .length property
-        if let ExprType::CallChainExprT { call_chain_expr_node } = &**var_init_expr {
+        if let ExprType::CallChainExprT {
+            call_chain_expr_node,
+        } = &**var_init_expr
+        {
             if call_chain_expr_node.call_chain.len() == 2 {
                 // Check if the second node is "length"
-                if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node } = &call_chain_expr_node.call_chain[1] {
+                if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node } =
+                    &call_chain_expr_node.call_chain[1]
+                {
                     if id_node.name.lexeme == "length" {
                         // This is a .length property access - transform to len()
                         // Get the variable name from the first node
-                        if let CallChainNodeType::VariableNodeT { var_node } = &call_chain_expr_node.call_chain[0] {
+                        if let CallChainNodeType::VariableNodeT { var_node } =
+                            &call_chain_expr_node.call_chain[0]
+                        {
                             code = format!("len({})", var_node.id_node.name.lexeme);
-                        } else if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node: first_id } = &call_chain_expr_node.call_chain[0] {
+                        } else if let CallChainNodeType::UndeclaredIdentifierNodeT {
+                            id_node: first_id,
+                        } = &call_chain_expr_node.call_chain[0]
+                        {
                             // Handle case where first node is also undeclared (happens during first pass)
                             code = format!("len({})", first_id.name.lexeme);
                         } else {
@@ -10386,9 +10907,14 @@ impl AstVisitor for PythonVisitor {
                     } else if id_node.name.lexeme == "is_empty" {
                         // This is a .is_empty property access - transform to len() == 0
                         // Get the variable name from the first node
-                        if let CallChainNodeType::VariableNodeT { var_node } = &call_chain_expr_node.call_chain[0] {
+                        if let CallChainNodeType::VariableNodeT { var_node } =
+                            &call_chain_expr_node.call_chain[0]
+                        {
                             code = format!("len({}) == 0", var_node.id_node.name.lexeme);
-                        } else if let CallChainNodeType::UndeclaredIdentifierNodeT { id_node: first_id } = &call_chain_expr_node.call_chain[0] {
+                        } else if let CallChainNodeType::UndeclaredIdentifierNodeT {
+                            id_node: first_id,
+                        } = &call_chain_expr_node.call_chain[0]
+                        {
                             // Handle case where first node is also undeclared (happens during first pass)
                             code = format!("len({}) == 0", first_id.name.lexeme);
                         } else {
@@ -10411,7 +10937,7 @@ impl AstVisitor for PythonVisitor {
             // Not a call chain, process normally
             var_init_expr.accept_to_string(self, &mut code);
         }
-        
+
         match &variable_decl_node.identifier_decl_scope {
             IdentifierDeclScope::DomainBlockScope => {
                 self.add_code(&format!("self.{} ", var_name));
@@ -10455,7 +10981,8 @@ impl AstVisitor for PythonVisitor {
                 self.add_code(&format!(" = {}", code));
             }
             _ => {
-                self.errors.push("Error - unexpected scope for variable declaration".to_string());
+                self.errors
+                    .push("Error - unexpected scope for variable declaration".to_string());
                 return;
             }
         }
@@ -10490,7 +11017,8 @@ impl AstVisitor for PythonVisitor {
                 self.add_code(&format!(" = {}", code));
             }
             _ => {
-                self.errors.push("Error - unexpected scope for variable declaration".to_string());
+                self.errors
+                    .push("Error - unexpected scope for variable declaration".to_string());
                 return;
             }
         }
@@ -10499,7 +11027,7 @@ impl AstVisitor for PythonVisitor {
     //* --------------------------------------------------------------------- *//
 
     fn visit_variable_expr_node(&mut self, variable_node: &VariableNode) {
-        self.add_source_mapping(variable_node.line);  // Map Frame line to Python line
+        self.add_source_mapping(variable_node.line); // Map Frame line to Python line
         let code = self.format_variable_expr(variable_node);
         self.add_code(&code);
     }
@@ -10530,14 +11058,14 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_expr_node(&mut self, assignment_expr_node: &AssignmentExprNode) {
         // Only add mapping if not already in a statement context
         if !self.in_statement_context {
-            self.add_source_mapping(assignment_expr_node.line);  // Map Frame line to Python line
+            self.add_source_mapping(assignment_expr_node.line); // Map Frame line to Python line
         }
         // self.generate_comment(assignment_expr_node.line);
         // self.newline();
         // inc/dec all *rvalue* expressions before generating the
         // assignement statement
         // assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
-        
+
         // v0.52: Handle multiple assignment (x, y, z = ...)
         if assignment_expr_node.is_multiple_assignment {
             // Generate comma-separated list of targets
@@ -10553,7 +11081,7 @@ impl AstVisitor for PythonVisitor {
             // Single assignment - use original logic
             assignment_expr_node.l_value_box.accept(self);
         }
-        
+
         // Handle different assignment operators
         match assignment_expr_node.assignment_op {
             AssignmentOperator::Equals => self.add_code(" = "),
@@ -10571,7 +11099,7 @@ impl AstVisitor for PythonVisitor {
             AssignmentOperator::XorEquals => self.add_code(" ^= "),
             AssignmentOperator::MatMulEquals => self.add_code(" @= "),
         }
-        
+
         //self.add_code(&*output);
         //       assignment_expr_node.r_value_box.auto_pre_inc_dec(self);
         let mut output = String::new();
@@ -10592,7 +11120,7 @@ impl AstVisitor for PythonVisitor {
         // self.generate_comment(assignment_expr_node.line);
         // self.newline();
         // self.newline_to_string(output);
-        
+
         // v0.52: Handle multiple assignment
         if assignment_expr_node.is_multiple_assignment {
             let mut first = true;
@@ -10608,7 +11136,7 @@ impl AstVisitor for PythonVisitor {
                 .l_value_box
                 .accept_to_string(self, output);
         }
-        
+
         // Handle different assignment operators
         match assignment_expr_node.assignment_op {
             AssignmentOperator::Equals => output.push_str(" = "),
@@ -10626,7 +11154,7 @@ impl AstVisitor for PythonVisitor {
             AssignmentOperator::XorEquals => output.push_str(" ^= "),
             AssignmentOperator::MatMulEquals => output.push_str(" @= "),
         }
-        
+
         assignment_expr_node
             .r_value_rc
             .accept_to_string(self, output);
@@ -10652,9 +11180,13 @@ impl AstVisitor for PythonVisitor {
         output: &mut String,
     ) {
         output.push_str("(");
-        assignment_expr_node.l_value_box.accept_to_string(self, output);
+        assignment_expr_node
+            .l_value_box
+            .accept_to_string(self, output);
         output.push_str(" := ");
-        assignment_expr_node.r_value_rc.accept_to_string(self, output);
+        assignment_expr_node
+            .r_value_rc
+            .accept_to_string(self, output);
         output.push_str(")");
     }
 
@@ -10663,10 +11195,10 @@ impl AstVisitor for PythonVisitor {
     fn visit_assignment_statement_node(&mut self, assignment_stmt_node: &AssignmentStmtNode) {
         self.generate_comment(assignment_stmt_node.get_line());
         self.newline();
-        
+
         // Add source mapping for assignment statement
         self.add_source_mapping(assignment_stmt_node.get_line());
-        
+
         // Set flag to prevent duplicate mapping in expression
         let was_in_statement = self.in_statement_context;
         self.in_statement_context = true;
@@ -10752,29 +11284,37 @@ impl AstVisitor for PythonVisitor {
             // Check if left side is a unary not expression that needs parentheses
             let left_needs_parens = matches!(
                 &*binary_expr_node.left_rcref.borrow(),
-                ExprType::UnaryExprT { unary_expr_node } 
+                ExprType::UnaryExprT { unary_expr_node }
                     if unary_expr_node.operator == OperatorType::Not
             ) && matches!(
                 binary_expr_node.operator,
-                OperatorType::EqualEqual | OperatorType::NotEqual | 
-                OperatorType::Less | OperatorType::LessEqual |
-                OperatorType::Greater | OperatorType::GreaterEqual |
-                OperatorType::LogicalAnd | OperatorType::LogicalOr
+                OperatorType::EqualEqual
+                    | OperatorType::NotEqual
+                    | OperatorType::Less
+                    | OperatorType::LessEqual
+                    | OperatorType::Greater
+                    | OperatorType::GreaterEqual
+                    | OperatorType::LogicalAnd
+                    | OperatorType::LogicalOr
             );
-            
+
             // Check if right side is a unary not expression that needs parentheses
             let right_needs_parens = matches!(
                 &*binary_expr_node.right_rcref.borrow(),
-                ExprType::UnaryExprT { unary_expr_node } 
+                ExprType::UnaryExprT { unary_expr_node }
                     if unary_expr_node.operator == OperatorType::Not
             ) && matches!(
                 binary_expr_node.operator,
-                OperatorType::EqualEqual | OperatorType::NotEqual | 
-                OperatorType::Less | OperatorType::LessEqual |
-                OperatorType::Greater | OperatorType::GreaterEqual |
-                OperatorType::LogicalAnd | OperatorType::LogicalOr
+                OperatorType::EqualEqual
+                    | OperatorType::NotEqual
+                    | OperatorType::Less
+                    | OperatorType::LessEqual
+                    | OperatorType::Greater
+                    | OperatorType::GreaterEqual
+                    | OperatorType::LogicalAnd
+                    | OperatorType::LogicalOr
             );
-            
+
             if left_needs_parens {
                 self.add_code("(");
                 binary_expr_node.left_rcref.borrow().accept(self);
@@ -10782,9 +11322,9 @@ impl AstVisitor for PythonVisitor {
             } else {
                 binary_expr_node.left_rcref.borrow().accept(self);
             }
-            
+
             binary_expr_node.operator.accept(self);
-            
+
             if right_needs_parens {
                 self.add_code("(");
                 binary_expr_node.right_rcref.borrow().accept(self);
@@ -10806,29 +11346,37 @@ impl AstVisitor for PythonVisitor {
             // Check if left side is a unary not expression that needs parentheses
             let left_needs_parens = matches!(
                 &*binary_expr_node.left_rcref.borrow(),
-                ExprType::UnaryExprT { unary_expr_node } 
+                ExprType::UnaryExprT { unary_expr_node }
                     if unary_expr_node.operator == OperatorType::Not
             ) && matches!(
                 binary_expr_node.operator,
-                OperatorType::EqualEqual | OperatorType::NotEqual | 
-                OperatorType::Less | OperatorType::LessEqual |
-                OperatorType::Greater | OperatorType::GreaterEqual |
-                OperatorType::LogicalAnd | OperatorType::LogicalOr
+                OperatorType::EqualEqual
+                    | OperatorType::NotEqual
+                    | OperatorType::Less
+                    | OperatorType::LessEqual
+                    | OperatorType::Greater
+                    | OperatorType::GreaterEqual
+                    | OperatorType::LogicalAnd
+                    | OperatorType::LogicalOr
             );
-            
+
             // Check if right side is a unary not expression that needs parentheses
             let right_needs_parens = matches!(
                 &*binary_expr_node.right_rcref.borrow(),
-                ExprType::UnaryExprT { unary_expr_node } 
+                ExprType::UnaryExprT { unary_expr_node }
                     if unary_expr_node.operator == OperatorType::Not
             ) && matches!(
                 binary_expr_node.operator,
-                OperatorType::EqualEqual | OperatorType::NotEqual | 
-                OperatorType::Less | OperatorType::LessEqual |
-                OperatorType::Greater | OperatorType::GreaterEqual |
-                OperatorType::LogicalAnd | OperatorType::LogicalOr
+                OperatorType::EqualEqual
+                    | OperatorType::NotEqual
+                    | OperatorType::Less
+                    | OperatorType::LessEqual
+                    | OperatorType::Greater
+                    | OperatorType::GreaterEqual
+                    | OperatorType::LogicalAnd
+                    | OperatorType::LogicalOr
             );
-            
+
             if left_needs_parens {
                 output.push('(');
                 binary_expr_node
@@ -10842,9 +11390,9 @@ impl AstVisitor for PythonVisitor {
                     .borrow()
                     .accept_to_string(self, output);
             }
-            
+
             binary_expr_node.operator.accept_to_string(self, output);
-            
+
             if right_needs_parens {
                 output.push('(');
                 binary_expr_node

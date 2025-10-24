@@ -28,26 +28,31 @@ impl ValidationEngine {
     /// Create engine with default rules for the specified level
     pub fn with_default_rules(config: ValidationConfig) -> Self {
         let mut engine = Self::new(config);
-        
+
         // Add rules based on validation level
         if engine.config.level >= ValidationLevel::Basic {
-            engine = engine.add_rule(crate::frame_c::validation::rules::MalformedHandlerRule::new());
+            engine =
+                engine.add_rule(crate::frame_c::validation::rules::MalformedHandlerRule::new());
             engine = engine.add_rule(crate::frame_c::validation::rules::UnmatchedBracesRule::new());
         }
-        
+
         if engine.config.level >= ValidationLevel::Structural {
-            engine = engine.add_rule(crate::frame_c::validation::rules::InterfaceCompletenessRule::new());
-            engine = engine.add_rule(crate::frame_c::validation::rules::StateReachabilityRule::new());
+            engine = engine
+                .add_rule(crate::frame_c::validation::rules::InterfaceCompletenessRule::new());
+            engine =
+                engine.add_rule(crate::frame_c::validation::rules::StateReachabilityRule::new());
         }
-        
+
         if engine.config.level >= ValidationLevel::Semantic {
-            engine = engine.add_rule(crate::frame_c::validation::rules::EventFlowAnalysisRule::new());
-            engine = engine.add_rule(crate::frame_c::validation::rules::ReturnValueConsistencyRule::new());
+            engine =
+                engine.add_rule(crate::frame_c::validation::rules::EventFlowAnalysisRule::new());
+            engine = engine
+                .add_rule(crate::frame_c::validation::rules::ReturnValueConsistencyRule::new());
         }
 
         // Add default reporter
         engine = engine.add_reporter(crate::frame_c::validation::reporters::HumanReporter::new());
-        
+
         engine
     }
 
@@ -56,7 +61,7 @@ impl ValidationEngine {
         let start_time = Instant::now();
         let mut result = ValidationResult::new(
             context.file_path.to_string_lossy().to_string(),
-            self.config.level
+            self.config.level,
         );
 
         // Execute enabled validation rules
@@ -70,7 +75,7 @@ impl ValidationEngine {
 
             for issue in rule_issues {
                 result.add_issue(issue);
-                
+
                 // Check if we've hit the error limit
                 if let Some(max_errors) = self.config.max_errors {
                     if result.metrics.errors >= max_errors {
@@ -99,14 +104,16 @@ impl ValidationEngine {
         if let Some(machine) = &context.ast.machine_block_node_opt {
             result.metrics.states_analyzed = machine.states.len();
             // Count total events across all states
-            result.metrics.events_analyzed = machine.states.iter()
+            result.metrics.events_analyzed = machine
+                .states
+                .iter()
                 .map(|state_ref| state_ref.borrow().evt_handlers_rcref.len())
                 .sum();
         }
 
         // Determine final success status
-        result.success = result.metrics.errors == 0 && 
-                        (!self.config.fail_on_warnings || result.metrics.warnings == 0);
+        result.success = result.metrics.errors == 0
+            && (!self.config.fail_on_warnings || result.metrics.warnings == 0);
 
         result.duration_ms = start_time.elapsed().as_millis() as u64;
         result
@@ -116,18 +123,24 @@ impl ValidationEngine {
     pub fn format_results(&self, result: &ValidationResult) -> Vec<String> {
         if self.reporters.is_empty() {
             // Fallback to simple formatting if no reporters
-            return vec![format!("Validation completed: {} errors, {} warnings", 
-                               result.metrics.errors, result.metrics.warnings)];
+            return vec![format!(
+                "Validation completed: {} errors, {} warnings",
+                result.metrics.errors, result.metrics.warnings
+            )];
         }
 
-        self.reporters.iter()
+        self.reporters
+            .iter()
             .filter(|reporter| reporter.format() == self.config.output_format)
             .map(|reporter| reporter.report(result))
             .collect()
     }
 
     /// Validate and format results in one call
-    pub fn validate_and_format(&self, context: ValidationContext) -> (ValidationResult, Vec<String>) {
+    pub fn validate_and_format(
+        &self,
+        context: ValidationContext,
+    ) -> (ValidationResult, Vec<String>) {
         let result = self.validate(context);
         let formatted = self.format_results(&result);
         (result, formatted)
@@ -158,7 +171,7 @@ mod tests {
         assert!(engine.rules.len() > 0);
     }
 
-    #[test] 
+    #[test]
     fn test_validation_result_creation() {
         let result = ValidationResult::new("test.frm".to_string(), ValidationLevel::Basic);
         assert_eq!(result.file_path, "test.frm");

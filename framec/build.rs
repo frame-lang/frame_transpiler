@@ -3,8 +3,8 @@ use std::fs;
 use std::path::Path;
 
 fn main() {
-    let frame_version = env::var("CARGO_PKG_VERSION")
-        .expect("CARGO_PKG_VERSION must be set by Cargo");
+    let frame_version =
+        env::var("CARGO_PKG_VERSION").expect("CARGO_PKG_VERSION must be set by Cargo");
     println!("cargo:rustc-env=FRAME_VERSION={}", frame_version);
 
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();

@@ -1,8 +1,8 @@
 use crate::frame_c::compiler::{Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
+use clap::{Arg, Command};
 use std::convert::TryFrom;
 use std::path::PathBuf;
-use clap::{Arg, Command};
 
 /// Command line arguments to the `framec` executable.
 //#[derive(StructOpt)]
@@ -15,31 +15,31 @@ pub struct Cli {
 
     /// Target language.
     language: Option<String>,
-    
+
     /// Multi-file project mode
     multifile: bool,
-    
+
     /// Output directory for multi-file mode
     output_dir: Option<PathBuf>,
-    
+
     /// Path to frame.toml config file
     config: Option<PathBuf>,
-    
+
     /// Debug output mode - returns JSON with code and source map
     debug_output: bool,
-    
+
     /// Enable syntax validation
     validate_syntax: bool,
-    
+
     /// Validation level
     validation_level: Option<String>,
-    
+
     /// Validation output format
     validation_format: Option<String>,
-    
+
     /// Validation only mode (skip transpilation)
     validation_only: bool,
-    
+
     /// Subcommand (build, init, etc.)
     command: Option<String>,
 }
@@ -51,34 +51,37 @@ impl Cli {
             .about("Frame language transpiler")
             .subcommand_required(false)
             .arg_required_else_help(false)
-            .subcommand(
-                Command::new("build")
-                    .about("Build project using frame.toml configuration")
-            )
+            .subcommand(Command::new("build").about("Build project using frame.toml configuration"))
             .subcommand(
                 Command::new("init")
                     .about("Initialize a new Frame project with frame.toml")
-                    .arg(Arg::new("name")
-                        .help("Project name")
-                        .value_name("NAME")
-                        .index(1))
+                    .arg(
+                        Arg::new("name")
+                            .help("Project name")
+                            .value_name("NAME")
+                            .index(1),
+                    ),
             )
-            .arg(Arg::new("FILE-PATH")
-                .help("File path")
-                .value_name("FILE")
-                .index(1))
+            .arg(
+                Arg::new("FILE-PATH")
+                    .help("File path")
+                    .value_name("FILE")
+                    .index(1),
+            )
             .arg(
                 Arg::new("language")
                     .value_name("LANG")
                     .long("language")
                     .short('l')
                     .help("Target language (python_3, typescript, graphviz, rust, c)")
-                    .long_help("Target language for code generation:\n  \
+                    .long_help(
+                        "Target language for code generation:\n  \
                                - python_3:       Python 3 with Frame runtime\n  \
                                - typescript:     TypeScript with state machine classes\n  \
                                - graphviz:       DOT format for state diagrams\n  \
                                - rust:           Type-safe Rust with generated visitor\n  \
-                               - c:              C99 with Frame state machines")
+                               - c:              C99 with Frame state machines",
+                    )
                     .num_args(1),
             )
             .arg(
@@ -157,19 +160,23 @@ impl Cli {
 
         let language = matches.get_one::<String>("language");
         let language_opt = language.map(|lang| lang.clone());
-        
+
         let multifile = matches.get_flag("multifile");
-        
+
         let output_dir = matches.get_one::<String>("output-dir");
         let output_dir_opt = output_dir.map(|dir| PathBuf::from(dir.clone()));
-        
+
         let config = matches.get_one::<String>("config");
         let config_opt = config.map(|cfg| PathBuf::from(cfg.clone()));
-        
+
         let debug_output = matches.get_flag("debug-output");
         let validate_syntax = matches.get_flag("validate-syntax");
-        let validation_level = matches.get_one::<String>("validation-level").map(|s| s.clone());
-        let validation_format = matches.get_one::<String>("validation-format").map(|s| s.clone());
+        let validation_level = matches
+            .get_one::<String>("validation-level")
+            .map(|s| s.clone());
+        let validation_format = matches
+            .get_one::<String>("validation-format")
+            .map(|s| s.clone());
         let validation_only = matches.get_flag("validation-only");
 
         Cli {
@@ -214,7 +221,10 @@ pub fn run_with(args: Cli) {
                 return;
             }
             _ => {
-                eprintln!("Unknown command '{}'. Use 'framec --help' for available commands.", command);
+                eprintln!(
+                    "Unknown command '{}'. Use 'framec --help' for available commands.",
+                    command
+                );
                 std::process::exit(exitcode::USAGE);
             }
         }
@@ -237,13 +247,13 @@ pub fn run_with(args: Cli) {
     // Handle validation if requested
     if args.validate_syntax || args.validation_only {
         let validation_result = handle_validation(&args, target_language);
-        
+
         // If validation-only mode, exit after validation
         if args.validation_only {
             std::process::exit(if validation_result { 0 } else { 1 });
         }
-        
-        // If validation failed and we're not in validation-only mode, 
+
+        // If validation failed and we're not in validation-only mode,
         // still continue with transpilation but show the validation results
     }
 
@@ -268,7 +278,7 @@ pub fn run_with(args: Cli) {
         } else {
             exe.run_file(&path, target_language)
         };
-        
+
         match result {
             Ok(code) => {
                 println!("{}", code);
@@ -283,32 +293,33 @@ pub fn run_with(args: Cli) {
 
 /// Handle the 'init' subcommand to create a new Frame project
 fn handle_init_command() {
-    use std::fs;
     use std::env;
-    
+    use std::fs;
+
     let current_dir = env::current_dir().expect("Failed to get current directory");
     let config_path = current_dir.join("frame.toml");
-    
+
     if config_path.exists() {
         eprintln!("frame.toml already exists in this directory");
         std::process::exit(exitcode::CANTCREAT);
     }
-    
+
     // Get project name from directory name
-    let project_name = current_dir.file_name()
+    let project_name = current_dir
+        .file_name()
         .and_then(|n| n.to_str())
         .map(|s| s.to_string());
-    
+
     match FrameConfig::create_default(&config_path, project_name.as_deref()) {
         Ok(_) => {
             println!("Created frame.toml");
-            
+
             // Create src directory if it doesn't exist
             let src_dir = current_dir.join("src");
             if !src_dir.exists() {
                 fs::create_dir(&src_dir).expect("Failed to create src directory");
                 println!("Created src/");
-                
+
                 // Create a simple main.frm file
                 let main_file = src_dir.join("main.frm");
                 let main_content = r#"# Main entry point for Frame project
@@ -320,7 +331,7 @@ fn main() {
                 fs::write(&main_file, main_content).expect("Failed to create main.frm");
                 println!("Created src/main.frm");
             }
-            
+
             println!("\nFrame project initialized successfully!");
             println!("Run 'framec build' to compile your project.");
         }
@@ -345,11 +356,11 @@ fn handle_build_command(config_path: Option<PathBuf>) {
             std::process::exit(exitcode::CONFIG);
         }
     };
-    
+
     // Use configuration to build
     let exe = Exe::new();
     let entry_point = config.entry_point();
-    
+
     let target_language = match TargetLanguage::try_from(config.build.target.clone()) {
         Ok(lang) => Some(lang),
         Err(err) => {
@@ -357,20 +368,23 @@ fn handle_build_command(config_path: Option<PathBuf>) {
             std::process::exit(exitcode::CONFIG);
         }
     };
-    
+
     let output_dir = if config.use_separate_files() {
         Some(PathBuf::from(&config.build.output_dir))
     } else {
         None
     };
-    
+
     // Always use multifile mode when building from config
     let result = exe.run_multifile(&entry_point, target_language, output_dir);
-    
+
     match result {
         Ok(code) => {
             if config.use_separate_files() {
-                println!("Build successful! Output written to {}/", config.build.output_dir.display());
+                println!(
+                    "Build successful! Output written to {}/",
+                    config.build.output_dir.display()
+                );
             } else {
                 println!("{}", code);
             }
@@ -384,12 +398,12 @@ fn handle_build_command(config_path: Option<PathBuf>) {
 
 /// Handle validation logic
 fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> bool {
-    use crate::frame_c::validation::*;
-    use crate::frame_c::scanner::Scanner;
     use crate::frame_c::parser::Parser;
+    use crate::frame_c::scanner::Scanner;
     use crate::frame_c::symbol_table::Arcanum;
+    use crate::frame_c::validation::*;
     use std::fs;
-    
+
     // Ensure we have a file path for validation
     let path = match &args.path {
         Some(path) => path,
@@ -398,7 +412,7 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
             return false;
         }
     };
-    
+
     // Read the source file
     let source_code = match fs::read_to_string(path) {
         Ok(content) => content,
@@ -407,7 +421,7 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
             return false;
         }
     };
-    
+
     // Parse validation level
     let validation_level = match args.validation_level.as_deref() {
         Some("basic") => ValidationLevel::Basic,
@@ -420,7 +434,7 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
             return false;
         }
     };
-    
+
     // Parse output format
     let output_format = match args.validation_format.as_deref() {
         Some("human") => OutputFormat::Human,
@@ -428,12 +442,15 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
         Some("junit") => OutputFormat::Junit,
         None => OutputFormat::Human, // Default
         Some(invalid) => {
-            eprintln!("Error: Invalid validation format '{}'. Use: human, json, junit", invalid);
+            eprintln!(
+                "Error: Invalid validation format '{}'. Use: human, json, junit",
+                invalid
+            );
             return false;
         }
     };
-    
-    // Convert target language  
+
+    // Convert target language
     use crate::frame_c::visitors::TargetLanguage as VisitorTargetLanguage;
     let target_lang = target_language.map(|tl| match tl {
         VisitorTargetLanguage::Python3 => crate::frame_c::validation::TargetLanguage::Python,
@@ -442,7 +459,7 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
         VisitorTargetLanguage::Rust => crate::frame_c::validation::TargetLanguage::Python, // TODO: Rust target not yet implemented
         VisitorTargetLanguage::C => crate::frame_c::validation::TargetLanguage::Python, // TODO: C target not yet implemented
     });
-    
+
     // Create validation configuration
     let config = ValidationConfig {
         level: validation_level,
@@ -451,36 +468,39 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
         fail_on_warnings: false,
         max_errors: Some(100),
     };
-    
+
     // Create validation engine with default rules and appropriate reporter
     let mut engine = ValidationEngine::with_default_rules(config);
-    
+
     // Add the appropriate reporter based on output format
     match output_format {
         OutputFormat::Json => {
-            engine = engine.add_reporter(crate::frame_c::validation::reporters::JsonReporter::new());
-        },
+            engine =
+                engine.add_reporter(crate::frame_c::validation::reporters::JsonReporter::new());
+        }
         OutputFormat::Junit => {
-            engine = engine.add_reporter(crate::frame_c::validation::reporters::JunitReporter::new());
-        },
+            engine =
+                engine.add_reporter(crate::frame_c::validation::reporters::JunitReporter::new());
+        }
         OutputFormat::Human => {
             // Human reporter is already added by default
-        },
+        }
         OutputFormat::Sarif => {
             // SARIF reporter not implemented yet - fall back to JSON
-            engine = engine.add_reporter(crate::frame_c::validation::reporters::JsonReporter::new());
-        },
+            engine =
+                engine.add_reporter(crate::frame_c::validation::reporters::JsonReporter::new());
+        }
     }
-    
+
     // Parse the Frame file to get the actual AST using two-pass approach
     let scanner = Scanner::new(source_code.clone());
     let (has_errors, errors, tokens) = scanner.scan_tokens();
-    
+
     if has_errors {
         eprintln!("Scanning errors: {}", errors);
         return false;
     }
-    
+
     // First pass: symbol table building
     let mut arcanum = Arcanum::new();
     let mut comments = Vec::new();
@@ -502,11 +522,11 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
             }
         }
     }
-    
-    // Second pass: semantic analysis  
+
+    // Second pass: semantic analysis
     let mut comments2 = comments.clone();
     let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
-    
+
     let ast = match semantic_parser.parse() {
         Ok(frame_module) => frame_module,
         Err(parse_error) => {
@@ -514,20 +534,23 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
             return false;
         }
     };
-    
+
     if semantic_parser.had_error() {
-        eprintln!("Parser errors during validation: {}", semantic_parser.get_errors());
+        eprintln!(
+            "Parser errors during validation: {}",
+            semantic_parser.get_errors()
+        );
         return false;
     }
-    
+
     // Validate each system in the frame module
     let mut overall_success = true;
-    
+
     if ast.systems.is_empty() {
         eprintln!("Warning: No systems found in Frame module");
         return true; // No validation needed
     }
-    
+
     for system_node in &ast.systems {
         // Create validation context with real AST
         let context = ValidationContext {
@@ -538,19 +561,19 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
             generated_code: None,
             symbol_table: None,
         };
-        
+
         // Run validation
         let (result, formatted_output) = engine.validate_and_format(context);
-        
+
         // Print results
         for output in formatted_output {
             println!("{}", output);
         }
-        
+
         if !result.success {
             overall_success = false;
         }
     }
-    
+
     overall_success
 }

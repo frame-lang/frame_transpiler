@@ -2,7 +2,7 @@
 // Formats validation results as structured JSON
 
 use crate::frame_c::validation::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub struct JsonReporter;
 
@@ -69,23 +69,26 @@ impl ValidationReporter for JsonReporter {
                 states_analyzed: result.metrics.states_analyzed,
                 events_analyzed: result.metrics.events_analyzed,
             },
-            issues: result.issues.iter().map(|issue| JsonIssue {
-                severity: format!("{:?}", issue.severity),
-                category: format!("{:?}", issue.category),
-                rule_name: issue.rule_name.clone(),
-                message: issue.message.clone(),
-                location: JsonLocation {
-                    line: issue.location.line,
-                    column: issue.location.column,
-                    file_path: issue.location.file_path.clone(),
-                },
-                suggestion: issue.suggestion.clone(),
-                help_url: issue.help_url.clone(),
-            }).collect(),
+            issues: result
+                .issues
+                .iter()
+                .map(|issue| JsonIssue {
+                    severity: format!("{:?}", issue.severity),
+                    category: format!("{:?}", issue.category),
+                    rule_name: issue.rule_name.clone(),
+                    message: issue.message.clone(),
+                    location: JsonLocation {
+                        line: issue.location.line,
+                        column: issue.location.column,
+                        file_path: issue.location.file_path.clone(),
+                    },
+                    suggestion: issue.suggestion.clone(),
+                    help_url: issue.help_url.clone(),
+                })
+                .collect(),
         };
 
-        serde_json::to_string_pretty(&json_result).unwrap_or_else(|_| {
-            r#"{"error": "Failed to serialize validation result"}"#.to_string()
-        })
+        serde_json::to_string_pretty(&json_result)
+            .unwrap_or_else(|_| r#"{"error": "Failed to serialize validation result"}"#.to_string())
     }
 }

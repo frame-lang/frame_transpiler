@@ -337,7 +337,7 @@ impl GraphVizVisitor {
     }
 
     //* --------------------------------------------------------------------- *//
-    
+
     // Reset all visitor state between systems
     fn reset(&mut self) {
         self.code.clear();
@@ -351,26 +351,26 @@ impl GraphVizVisitor {
         self.dent = 0;
         self.current_event_ret_type.clear();
     }
-    
+
     //* --------------------------------------------------------------------- *//
 
     pub fn run_v2(&mut self, frame_module: &FrameModule) -> Vec<(String, String)> {
         let mut results = Vec::new();
-        
+
         for system in &frame_module.systems {
             // Reset all visitor state between systems
             self.reset();
-            
+
             // Generate DOT for this system
             system.accept(self);
-            
+
             // Collect result
             results.push((system.name.clone(), self.code.clone()));
         }
-        
-        results  // Returns [(system_name, dot_code), ...]
+
+        results // Returns [(system_name, dot_code), ...]
     }
-    
+
     pub fn run(&mut self, system_node: &SystemNode) {
         system_node.accept(self);
     }
@@ -455,9 +455,9 @@ impl GraphVizVisitor {
                             transition_statement.accept(self);
                         }
                         // REMOVED: TestStmt for deprecated ternary syntax
-//                         // StatementType::TestStmt { test_stmt_node } => {
-//                         //     test_stmt_node.accept(self);
-//                         // }
+                        //                         // StatementType::TestStmt { test_stmt_node } => {
+                        //                         //     test_stmt_node.accept(self);
+                        //                         // }
                         StatementType::StateStackStmt {
                             state_stack_operation_statement_node,
                         } => {
@@ -490,10 +490,14 @@ impl GraphVizVisitor {
                         StatementType::WhileStmt { .. } => {
                             // TODO: Implement while statement visualization
                         }
-                        StatementType::ReturnStmt { return_stmt_node: _ } => {
+                        StatementType::ReturnStmt {
+                            return_stmt_node: _,
+                        } => {
                             // Return statements don't affect state machine graph
                         }
-                        StatementType::ParentDispatchStmt { parent_dispatch_stmt_node } => {
+                        StatementType::ParentDispatchStmt {
+                            parent_dispatch_stmt_node,
+                        } => {
                             parent_dispatch_stmt_node.accept(self);
                         }
                         StatementType::TryStmt { .. } => {
@@ -2242,7 +2246,10 @@ impl AstVisitor for GraphVizVisitor {
 
     //* --------------------------------------------------------------------- *//
 
-    fn visit_parent_dispatch_stmt_node(&mut self, _parent_dispatch_stmt_node: &ParentDispatchStmtNode) {
+    fn visit_parent_dispatch_stmt_node(
+        &mut self,
+        _parent_dispatch_stmt_node: &ParentDispatchStmtNode,
+    ) {
         // GraphViz visualization doesn't need to generate runtime behavior for parent dispatch
     }
 

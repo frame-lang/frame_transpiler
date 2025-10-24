@@ -1,14 +1,16 @@
+use crate::frame_c::ast::NodeElement;
+use crate::frame_c::ast_serialize::{
+    ast_summary, generate_line_map, save_ast_to_file, serialize_ast_to_json,
+};
 use crate::frame_c::config::FrameConfig;
+use crate::frame_c::modules::MultiFileCompiler;
 use crate::frame_c::parser::*;
 use crate::frame_c::scanner::*;
 use crate::frame_c::source_map::SourceMapBuilder;
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::{frame_exitcode, RunError};
-use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
-use crate::frame_c::modules::MultiFileCompiler;
-use crate::frame_c::ast_serialize::{serialize_ast_to_json, save_ast_to_file, ast_summary, generate_line_map};
-use crate::frame_c::ast::NodeElement;
+use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -76,7 +78,7 @@ impl Exe {
             }
         }
     }
-    
+
     /// Run the Frame compiler with debug output (JSON with code and source map)
     ///
     /// # Arguments
@@ -103,7 +105,7 @@ impl Exe {
     }
 
     /* --------------------------------------------------------------------- */
-    
+
     /// Run the Frame compiler in multi-file mode on a Frame project.
     ///
     /// # Arguments
@@ -123,33 +125,37 @@ impl Exe {
             let error_msg = "Multi-file compilation is only supported for Python and TypeScript target languages";
             return Err(RunError::new(exitcode::USAGE, error_msg));
         }
-        
+
         // Create default config
         let config = FrameConfig::default();
-        
+
         // Create and run multi-file compiler
-        let mut compiler = MultiFileCompiler::new_for_entry(config, entry_path, lang).map_err(|e| {
-            RunError::new(frame_exitcode::PARSE_ERR, &format!("Cannot initialize multi-file compiler: {}", e))
-        })?;
-        
+        let mut compiler =
+            MultiFileCompiler::new_for_entry(config, entry_path, lang).map_err(|e| {
+                RunError::new(
+                    frame_exitcode::PARSE_ERR,
+                    &format!("Cannot initialize multi-file compiler: {}", e),
+                )
+            })?;
+
         // If output_dir is specified, use separate files strategy
         if let Some(dir) = output_dir {
             compiler.set_output_dir(dir);
         }
-        
+
         let output = compiler.compile(entry_path).map_err(|e| {
-            RunError::new(frame_exitcode::PARSE_ERR, &format!("Multi-file compilation failed: {}", e))
+            RunError::new(
+                frame_exitcode::PARSE_ERR,
+                &format!("Multi-file compilation failed: {}", e),
+            )
         })?;
-        
+
         Ok(output)
     }
 
     /* --------------------------------------------------------------------- */
 
-    pub fn run_stdin(
-        &self,
-        target_language: Option<TargetLanguage>,
-    ) -> Result<String, RunError> {
+    pub fn run_stdin(&self, target_language: Option<TargetLanguage>) -> Result<String, RunError> {
         let mut buffer = String::new();
         let mut stdin = io::stdin(); // We get `Stdin` here.
         match stdin.read_to_string(&mut buffer) {
@@ -256,12 +262,15 @@ impl Exe {
                     let current_table = arcanum.current_symtab.borrow();
                     let symbol_keys: Vec<String> = current_table.symbols.keys().cloned().collect();
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                        eprintln!("DEBUG: Symbols in arcanum after first pass: {:?}", symbol_keys);
+                        eprintln!(
+                            "DEBUG: Symbols in arcanum after first pass: {:?}",
+                            symbol_keys
+                        );
                     }
                 }
                 Err(parse_error) => {
                     let mut errors = String::new();
-                    
+
                     // Check if parser has accumulated detailed errors (includes line numbers)
                     if syntactic_parser.had_error() {
                         errors.push_str(&syntactic_parser.get_errors());
@@ -269,7 +278,7 @@ impl Exe {
                         // Fallback to ParseError if no accumulated errors
                         errors.push_str(&parse_error.error);
                     }
-                    
+
                     errors.push_str("\n\nPlease check your Frame syntax for missing braces, semicolons, or malformed blocks.");
                     let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                     return Err(run_error);
@@ -285,16 +294,18 @@ impl Exe {
         let module_table = arcanum.module_symtab.borrow();
         let module_symbol_keys: Vec<String> = module_table.symbols.keys().cloned().collect();
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: Symbols in module scope before second pass: {:?}", module_symbol_keys);
+            eprintln!(
+                "DEBUG: Symbols in module scope before second pass: {:?}",
+                module_symbol_keys
+            );
         }
         drop(module_table);
         let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
-        
-        
+
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
         }
-        
+
         // Parse with proper error handling - no more fallback architecture
         let frame_module = match semantic_parser.parse() {
             Ok(module) => module,
@@ -309,13 +320,15 @@ impl Exe {
                     // Fall back to ParseError message if no accumulated errors
                     let mut errors = "Parse error:\n".to_string();
                     errors.push_str(&parse_error.error);
-                    errors.push_str("\n\nParsing failed. Please check your Frame syntax and try again.");
+                    errors.push_str(
+                        "\n\nParsing failed. Please check your Frame syntax and try again.",
+                    );
                     let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                     return Err(run_error);
                 }
             }
         };
-        
+
         if semantic_parser.had_error() {
             let mut errors = "Terminating with errors.\n".to_string();
             errors.push_str(&semantic_parser.get_errors());
@@ -326,20 +339,23 @@ impl Exe {
         // AST Serialization for debugging (v0.60)
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: AST Serialization enabled");
-            
+
             // Generate AST summary
             let summary = ast_summary(&frame_module);
             eprintln!("DEBUG: {}", summary);
-            
+
             // Generate line map
             let line_map = generate_line_map(&frame_module);
             eprintln!("DEBUG: Line Map:\n{}", line_map);
-            
+
             // Full AST serialization
             match serialize_ast_to_json(&frame_module) {
                 Ok(json) => {
-                    eprintln!("DEBUG: Full AST JSON available (length: {} chars)", json.len());
-                    
+                    eprintln!(
+                        "DEBUG: Full AST JSON available (length: {} chars)",
+                        json.len()
+                    );
+
                     // Save to file if requested
                     if let Ok(output_file) = std::env::var("FRAME_AST_OUTPUT") {
                         match save_ast_to_file(&frame_module, &output_file) {
@@ -349,7 +365,7 @@ impl Exe {
                     } else {
                         eprintln!("DEBUG: Set FRAME_AST_OUTPUT=filename.json to save AST to file");
                     }
-                    
+
                     // Only print full JSON if explicitly requested (can be very large)
                     if std::env::var("FRAME_TRANSPILER_DEBUG_VERBOSE").is_ok() {
                         eprintln!("DEBUG: Full AST JSON:\n{}", json);
@@ -413,7 +429,7 @@ impl Exe {
                             comments,
                         );
                         let results = visitor.run_v2(&frame_module);
-                        
+
                         // For backward compatibility, concatenate all system DOT outputs
                         // with comments separating them
                         if results.is_empty() {
@@ -443,15 +459,12 @@ impl Exe {
                     }
                 }
                 TargetLanguage::TypeScript => {
-                    use crate::frame_c::visitors::typescript_visitor::TypeScriptVisitor;
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    
+                    use crate::frame_c::visitors::typescript_visitor::TypeScriptVisitor;
+
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let visitor = TypeScriptVisitor::new(
-                        arcanum_vec,
-                        SymbolConfig::new(),
-                    );
+                    let visitor = TypeScriptVisitor::new(arcanum_vec, SymbolConfig::new());
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::Python3 => {
@@ -473,9 +486,9 @@ impl Exe {
                         output = visitor.get_code();
                     } else {
                         // Use new V2 visitor with CodeBuilder architecture
-                        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
                         use crate::frame_c::symbol_table::SymbolConfig;
-                        
+                        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
+
                         let arcanum = semantic_parser.get_arcanum();
                         let arcanum_vec = vec![arcanum];
                         let mut visitor = PythonVisitorV2::new(
@@ -489,9 +502,9 @@ impl Exe {
                 }
                 TargetLanguage::Rust => {
                     // Use standard Rust visitor with working Frame semantics
-                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    
+                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
+
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
                     let visitor = RustVisitor::new(
@@ -500,22 +513,18 @@ impl Exe {
                         config.clone(),
                         comments,
                     );
-                    
+
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::C => {
-                    use crate::frame_c::visitors::c_visitor::CVisitor;
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    
+                    use crate::frame_c::visitors::c_visitor::CVisitor;
+
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let visitor = CVisitor::new(
-                        arcanum_vec,
-                        SymbolConfig::new(),
-                        config.clone(),
-                        comments,
-                    );
-                    
+                    let visitor =
+                        CVisitor::new(arcanum_vec, SymbolConfig::new(), config.clone(), comments);
+
                     output = visitor.run(&frame_module);
                 }
             },
@@ -523,7 +532,7 @@ impl Exe {
 
         Ok(output)
     }
-    
+
     /// Run the Frame compiler with source map tracking
     fn run_with_source_map(
         &self,
@@ -533,7 +542,7 @@ impl Exe {
         source_map_builder: Rc<RefCell<SourceMapBuilder>>,
     ) -> Result<String, RunError> {
         // This is mostly the same as run(), but passes source_map_builder to PythonVisitor
-        
+
         let mut hasher = Sha256::new();
         hasher.update(&content);
 
@@ -592,12 +601,15 @@ impl Exe {
                     let current_table = arcanum.current_symtab.borrow();
                     let symbol_keys: Vec<String> = current_table.symbols.keys().cloned().collect();
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                        eprintln!("DEBUG: Symbols in arcanum after first pass: {:?}", symbol_keys);
+                        eprintln!(
+                            "DEBUG: Symbols in arcanum after first pass: {:?}",
+                            symbol_keys
+                        );
                     }
                 }
                 Err(parse_error) => {
                     let mut errors = String::new();
-                    
+
                     // Check if parser has accumulated detailed errors (includes line numbers)
                     if syntactic_parser.had_error() {
                         errors.push_str(&syntactic_parser.get_errors());
@@ -605,7 +617,7 @@ impl Exe {
                         // Fallback to ParseError if no accumulated errors
                         errors.push_str(&parse_error.error);
                     }
-                    
+
                     errors.push_str("\n\nPlease check your Frame syntax for missing braces, semicolons, or malformed blocks.");
                     let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                     return Err(run_error);
@@ -621,16 +633,18 @@ impl Exe {
         let module_table = arcanum.module_symtab.borrow();
         let module_symbol_keys: Vec<String> = module_table.symbols.keys().cloned().collect();
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: Symbols in module scope before second pass: {:?}", module_symbol_keys);
+            eprintln!(
+                "DEBUG: Symbols in module scope before second pass: {:?}",
+                module_symbol_keys
+            );
         }
         drop(module_table);
         let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
-        
-        
+
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
         }
-        
+
         // Parse with proper error handling - no more fallback architecture
         let frame_module = match semantic_parser.parse() {
             Ok(module) => module,
@@ -645,13 +659,15 @@ impl Exe {
                     // Fall back to ParseError message if no accumulated errors
                     let mut errors = "Parse error:\n".to_string();
                     errors.push_str(&parse_error.error);
-                    errors.push_str("\n\nParsing failed. Please check your Frame syntax and try again.");
+                    errors.push_str(
+                        "\n\nParsing failed. Please check your Frame syntax and try again.",
+                    );
                     let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
                     return Err(run_error);
                 }
             }
         };
-        
+
         if semantic_parser.had_error() {
             let mut errors = "Terminating with errors.\n".to_string();
             errors.push_str(&semantic_parser.get_errors());
@@ -695,15 +711,12 @@ impl Exe {
             }
             Some(lang) => match lang {
                 TargetLanguage::TypeScript => {
-                    use crate::frame_c::visitors::typescript_visitor::TypeScriptVisitor;
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    
+                    use crate::frame_c::visitors::typescript_visitor::TypeScriptVisitor;
+
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let visitor = TypeScriptVisitor::new(
-                        arcanum_vec,
-                        SymbolConfig::new(),
-                    );
+                    let visitor = TypeScriptVisitor::new(arcanum_vec, SymbolConfig::new());
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::Python3 => {
@@ -724,9 +737,9 @@ impl Exe {
                         output = visitor.get_code();
                     } else {
                         // Use new V2 visitor with built-in CodeBuilder source mapping
-                        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
                         use crate::frame_c::symbol_table::SymbolConfig;
-                        
+                        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
+
                         let arcanum = semantic_parser.get_arcanum();
                         let arcanum_vec = vec![arcanum];
                         let mut visitor = PythonVisitorV2::new(
@@ -743,9 +756,9 @@ impl Exe {
                 }
                 TargetLanguage::Rust => {
                     // Use standard Rust visitor with working Frame semantics
-                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    
+                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
+
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
                     let visitor = RustVisitor::new(
@@ -755,27 +768,26 @@ impl Exe {
                         comments,
                     );
                     // Note: Standard Rust visitor doesn't use external source maps yet
-                    
+
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::C => {
-                    use crate::frame_c::visitors::c_visitor::CVisitor;
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    
+                    use crate::frame_c::visitors::c_visitor::CVisitor;
+
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let visitor = CVisitor::new(
-                        arcanum_vec,
-                        SymbolConfig::new(),
-                        config.clone(),
-                        comments,
-                    );
+                    let visitor =
+                        CVisitor::new(arcanum_vec, SymbolConfig::new(), config.clone(), comments);
                     // Note: C visitor doesn't use external source maps yet, but may in future
-                    
+
                     output = visitor.run(&frame_module);
                 }
                 _ => {
-                    let run_error = RunError::new(USAGE, "Source maps only supported for Python, Rust, and C targets.");
+                    let run_error = RunError::new(
+                        USAGE,
+                        "Source maps only supported for Python, Rust, and C targets.",
+                    );
                     return Err(run_error);
                 }
             },
@@ -783,7 +795,7 @@ impl Exe {
 
         Ok(output)
     }
-    
+
     /// Run the Frame compiler with debug output, generating both code and source map
     pub fn run_debug(
         &self,
@@ -792,18 +804,23 @@ impl Exe {
         mut target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
         use crate::frame_c::source_map::DebugOutput;
-        
+
         // For now, only support Python and Rust for source maps
-        if !matches!(target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::Rust) | None) {
-            let error_msg = "Source map generation is only supported for Python and Rust target languages";
+        if !matches!(
+            target_language,
+            Some(TargetLanguage::Python3) | Some(TargetLanguage::Rust) | None
+        ) {
+            let error_msg =
+                "Source map generation is only supported for Python and Rust target languages";
             return Err(RunError::new(exitcode::USAGE, error_msg));
         }
-        
+
         // Set default to Python3 if not specified
         target_language = target_language.or(Some(TargetLanguage::Python3));
-        
+
         // Create source map builder
-        let source_file = input_path.file_name()
+        let source_file = input_path
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown.frm")
             .to_string();
@@ -811,22 +828,25 @@ impl Exe {
             Some(TargetLanguage::Rust) => source_file.replace(".frm", ".rs"),
             _ => source_file.replace(".frm", ".py"), // Default to Python
         };
-        let source_map_builder = Rc::new(RefCell::new(SourceMapBuilder::new(source_file, target_file)));
-        
+        let source_map_builder = Rc::new(RefCell::new(SourceMapBuilder::new(
+            source_file,
+            target_file,
+        )));
+
         // Run compilation with source map tracking
         let generated_code = self.run_with_source_map(
             input_path.to_str(),
             content.clone(),
             target_language,
-            source_map_builder.clone()
+            source_map_builder.clone(),
         )?;
-        
+
         // Build the final source map
         let source_map = source_map_builder.borrow().build();
-        
+
         // Create debug output
         let debug_output = DebugOutput::new(generated_code, source_map, &content);
-        
+
         // Serialize to JSON
         match serde_json::to_string_pretty(&debug_output) {
             Ok(json) => Ok(json),

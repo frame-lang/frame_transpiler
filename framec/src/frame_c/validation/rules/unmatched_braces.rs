@@ -21,7 +21,7 @@ impl UnmatchedBracesRule {
         let mut in_string = false;
         let mut in_comment = false;
         let mut escape_next = false;
-        
+
         for (line_num, line) in source_code.lines().enumerate() {
             for (col_num, ch) in line.chars().enumerate() {
                 // Handle escape sequences
@@ -29,32 +29,32 @@ impl UnmatchedBracesRule {
                     escape_next = false;
                     continue;
                 }
-                
+
                 if ch == '\\' {
                     escape_next = true;
                     continue;
                 }
-                
+
                 // Handle string literals
                 if ch == '"' && !in_comment {
                     in_string = !in_string;
                     continue;
                 }
-                
+
                 if in_string {
                     continue;
                 }
-                
+
                 // Handle comments
                 if ch == '/' && line.chars().nth(col_num + 1) == Some('/') {
                     in_comment = true;
                     continue;
                 }
-                
+
                 if in_comment {
                     continue;
                 }
-                
+
                 // Track braces
                 match ch {
                     '{' => {
@@ -92,7 +92,9 @@ impl UnmatchedBracesRule {
                                     length: 1,
                                     file_path: None,
                                 },
-                                suggestion: Some("Remove this brace or add a matching opening brace".to_string()),
+                                suggestion: Some(
+                                    "Remove this brace or add a matching opening brace".to_string(),
+                                ),
                                 help_url: None,
                             });
                         }
@@ -100,11 +102,11 @@ impl UnmatchedBracesRule {
                     _ => {}
                 }
             }
-            
+
             // Reset comment state at end of line
             in_comment = false;
         }
-        
+
         // Check for unclosed braces
         for (line, col, brace_char) in brace_stack {
             issues.push(ValidationIssue {
@@ -123,7 +125,7 @@ impl UnmatchedBracesRule {
                 help_url: None,
             });
         }
-        
+
         issues
     }
 }

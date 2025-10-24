@@ -1,8 +1,8 @@
 // Source mapping system using markers for accurate line tracking
 // v0.73 - Fixed state/event handler source mappings
 
-use std::collections::HashMap;
 use regex::Regex;
+use std::collections::HashMap;
 
 /// Types of AST nodes we track for source mapping
 #[derive(Debug, Clone, PartialEq)]
@@ -41,31 +41,39 @@ impl SourceMappingRegistry {
             next_id: 1,
         }
     }
-    
+
     /// Generate a unique marker ID
     pub fn next_marker(&mut self) -> String {
         let marker = format!("##FRAME_MAP_{}##", self.next_id);
         self.next_id += 1;
         marker
     }
-    
+
     /// Record a mapping between a marker and source location
     pub fn record(&mut self, marker: String, location: SourceLocation) {
         self.mappings.insert(marker, location);
     }
-    
+
     /// Create and record a marker in one step
-    pub fn create_marker(&mut self, frame_line: usize, node_type: NodeType, description: String) -> String {
+    pub fn create_marker(
+        &mut self,
+        frame_line: usize,
+        node_type: NodeType,
+        description: String,
+    ) -> String {
         let marker = self.next_marker();
-        self.record(marker.clone(), SourceLocation {
-            frame_line,
-            frame_file: String::new(), // Will be set by visitor
-            node_type,
-            description,
-        });
+        self.record(
+            marker.clone(),
+            SourceLocation {
+                frame_line,
+                frame_file: String::new(), // Will be set by visitor
+                node_type,
+                description,
+            },
+        );
         marker
     }
-    
+
     /// Get the source location for a marker
     pub fn get_location(&self, marker: &str) -> Option<&SourceLocation> {
         self.mappings.get(marker)
@@ -73,19 +81,22 @@ impl SourceMappingRegistry {
 }
 
 /// Process marked code to produce clean code and source map
-pub fn process_marked_code(marked_code: &str, registry: &SourceMappingRegistry) -> (String, Vec<(usize, usize)>) {
+pub fn process_marked_code(
+    marked_code: &str,
+    registry: &SourceMappingRegistry,
+) -> (String, Vec<(usize, usize)>) {
     let mut clean_code = String::new();
     let mut source_mappings = Vec::new();
     let mut current_output_line = 1;
-    
+
     // Regex to find markers
     let marker_regex = Regex::new(r"##FRAME_MAP_\d+##").unwrap();
-    
+
     for (input_line_num, line) in marked_code.lines().enumerate() {
         // Check if this line contains a marker
         if let Some(marker_match) = marker_regex.find(line) {
             let marker = marker_match.as_str();
-            
+
             // Check if marker is alone on the line
             if line.trim() == marker {
                 // Marker is alone - look up mapping and record it
@@ -93,7 +104,7 @@ pub fn process_marked_code(marked_code: &str, registry: &SourceMappingRegistry) 
                     // v0.73: Account for the blank line before the marker
                     // The def appears on the line AFTER current_output_line due to the blank line
                     source_mappings.push((source_loc.frame_line, current_output_line + 1));
-                    
+
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                         eprintln!("DEBUG v0.71: Found standalone marker {} at input line {} (1-indexed: {}), current_output_line={}, mapping Frame line {} to Python line {} (adjusted +1)", 
                                  marker, input_line_num, input_line_num + 1, current_output_line, source_loc.frame_line, current_output_line + 1);
@@ -120,7 +131,7 @@ pub fn process_marked_code(marked_code: &str, registry: &SourceMappingRegistry) 
             current_output_line += 1;
         }
     }
-    
+
     (clean_code, source_mappings)
 }
 
@@ -133,33 +144,35 @@ pub fn strip_markers(marked_code: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_marker_generation() {
         let mut registry = SourceMappingRegistry::new();
-        
+
         let marker1 = registry.next_marker();
         let marker2 = registry.next_marker();
-        
+
         assert_eq!(marker1, "##FRAME_MAP_1##");
         assert_eq!(marker2, "##FRAME_MAP_2##");
         assert_ne!(marker1, marker2);
     }
-    
+
     #[test]
     fn test_process_marked_code() {
         let mut registry = SourceMappingRegistry::new();
-        
+
         // Create some markers
-        let marker1 = registry.create_marker(10, NodeType::FunctionDef, "main function".to_string());
-        let marker2 = registry.create_marker(11, NodeType::Statement, "print statement".to_string());
-        
+        let marker1 =
+            registry.create_marker(10, NodeType::FunctionDef, "main function".to_string());
+        let marker2 =
+            registry.create_marker(11, NodeType::Statement, "print statement".to_string());
+
         // Create marked code
         let marked_code = format!("{}def main():\n    {}print('hello')\n", marker1, marker2);
-        
+
         // Process it
         let (clean_code, mappings) = process_marked_code(&marked_code, &registry);
-        
+
         // Check results
         assert_eq!(clean_code, "def main():\n    print('hello')\n");
         assert_eq!(mappings.len(), 2);

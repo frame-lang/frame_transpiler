@@ -1,11 +1,11 @@
 // Frame Transpiler Validation System
 // Comprehensive validation framework for Frame language syntax and semantics
 
-pub mod engine;
-pub mod rules;
-pub mod reporters;
-pub mod targets;
 pub mod analysis;
+pub mod engine;
+pub mod reporters;
+pub mod rules;
+pub mod targets;
 
 use crate::frame_c::ast::*;
 use crate::frame_c::symbol_table::SymbolTable;
@@ -33,7 +33,7 @@ pub struct ValidationConfig {
 pub enum ValidationLevel {
     Basic = 1,          // Level 1: Syntax only
     Structural = 2,     // Level 2: + Frame structure
-    Semantic = 3,       // Level 3: + Semantic analysis  
+    Semantic = 3,       // Level 3: + Semantic analysis
     TargetLanguage = 4, // Level 4: + Generated code
 }
 
@@ -51,10 +51,10 @@ pub enum TargetLanguage {
 /// Output formats for validation results
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
-    Human,          // Human-readable text
-    Json,           // Structured JSON
-    Junit,          // JUnit XML for CI/CD
-    Sarif,          // SARIF format for security tools
+    Human, // Human-readable text
+    Json,  // Structured JSON
+    Junit, // JUnit XML for CI/CD
+    Sarif, // SARIF format for security tools
 }
 
 /// Context provided to validation rules
@@ -109,10 +109,10 @@ pub struct ValidationIssue {
 /// Issue severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Severity {
-    Error,      // Validation fails
-    Warning,    // Potential issue
-    Info,       // Informational
-    Hint,       // Optimization suggestion
+    Error,   // Validation fails
+    Warning, // Potential issue
+    Info,    // Informational
+    Hint,    // Optimization suggestion
 }
 
 /// Issue categories
@@ -120,7 +120,7 @@ pub enum Severity {
 pub enum Category {
     Syntax,         // Basic syntax errors
     Structure,      // Frame structure issues
-    Semantic,       // Logic/flow issues  
+    Semantic,       // Logic/flow issues
     TargetLanguage, // Generated code issues
     Performance,    // Optimization suggestions
     Style,          // Code style issues

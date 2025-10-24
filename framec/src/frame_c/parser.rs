@@ -1,30 +1,29 @@
 #![allow(clippy::unnecessary_wraps)]
-#![allow(dead_code)]  // Many parser methods are part of the complete grammar even if not currently used
+#![allow(dead_code)] // Many parser methods are part of the complete grammar even if not currently used
 
 use super::ast::AssignmentExprNode;
 use super::ast::AssignmentOperator;
-use super::ast::CallChainNodeType;
 use super::ast::CallChainLiteralExprNode;
+use super::ast::CallChainNodeType;
 use super::ast::CallExprListNode;
 use super::ast::DeclOrStmtType;
 use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
 use super::ast::ExprType::*;
+use super::ast::TargetStateContextType;
 use super::ast::TerminatorType::Return;
 use super::ast::*;
-use super::ast::TargetStateContextType;
-use std::collections::VecDeque;
 use super::scanner::*;
 use super::semantic_analyzer::SemanticCallAnalyzer;
 use super::symbol_table::*;
-use crate::frame_c::ast::ModuleElement;
 use crate::frame_c::ast::CallContextType;
+use crate::frame_c::ast::ModuleElement;
 use crate::frame_c::utils::SystemHierarchy;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::fmt;
 use std::rc::Rc;
-
 
 pub struct ParseError {
     // TODO:
@@ -42,13 +41,15 @@ impl ParseError {
 struct StateEventHandlers {
     pub enter_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
     pub exit_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
-    pub event_handlers: Vec<Rc<RefCell<EventHandlerNode>>>
+    pub event_handlers: Vec<Rc<RefCell<EventHandlerNode>>>,
 }
 
 impl StateEventHandlers {
-    pub fn new(    enter_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
-               exit_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
-               event_handlers: Vec<Rc<RefCell<EventHandlerNode>>>) -> StateEventHandlers {
+    pub fn new(
+        enter_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
+        exit_event_handler_opt: Option<Rc<RefCell<EventHandlerNode>>>,
+        event_handlers: Vec<Rc<RefCell<EventHandlerNode>>>,
+    ) -> StateEventHandlers {
         StateEventHandlers {
             enter_event_handler_opt,
             exit_event_handler_opt,
@@ -128,12 +129,12 @@ pub struct Parser<'a> {
     last_sync_token_idx: usize,
     system_hierarchy_opt: Option<SystemHierarchy>,
     is_parsing_rhs: bool,
-    is_parsing_collection: bool,  // v0.53: Track when inside collection literals
+    is_parsing_collection: bool, // v0.53: Track when inside collection literals
     event_handler_has_transition: bool,
     is_action_scope: bool,
     operation_scope_depth: i32,
     is_static_operation: bool,
-    is_class_method: bool,  // v0.45: Track if we're in a class method
+    is_class_method: bool, // v0.45: Track if we're in a class method
     is_function_scope: bool,
     is_system_scope: bool,
     is_loop_scope: bool,
@@ -178,7 +179,7 @@ impl<'a> Parser<'a> {
             // Second pass: Set current scope to module scope to start semantic analysis
             arcanum.current_symtab = Rc::clone(&arcanum.module_symtab);
         }
-        
+
         Parser {
             tokens,
             comments,
@@ -197,7 +198,7 @@ impl<'a> Parser<'a> {
             current_tok_ref: &tokens[0],
             system_hierarchy_opt: None,
             is_parsing_rhs: false,
-            is_parsing_collection: false,  // v0.53: Initialize
+            is_parsing_collection: false, // v0.53: Initialize
             event_handler_has_transition: false,
             generate_enter_args: false,
             generate_exit_args: false,
@@ -212,8 +213,8 @@ impl<'a> Parser<'a> {
             is_function_scope: false,
             is_system_scope: false,
             is_loop_scope: false,
-            current_system_name: None,  // v0.63
-            current_class_name: None,   // v0.63
+            current_system_name: None,   // v0.63
+            current_class_name: None,    // v0.63
             current_function_name: None, // v0.63
             stmt_idx: 0,
             interface_method_called: false,
@@ -234,10 +235,10 @@ impl<'a> Parser<'a> {
         // Properly manage module scope for both passes
         self.module_scope()
     }
-    
+
     fn module_scope(&mut self) -> Result<FrameModule, ParseError> {
         // Module scope management following the function_scope() pattern
-        
+
         if self.is_building_symbol_table {
             // First pass: lexical analysis
             // Module scope is already created by initialize_scope_stack()
@@ -249,20 +250,20 @@ impl<'a> Parser<'a> {
             // Just ensure we're in the right context
             self.arcanum.set_scope_context(ScopeContext::Global);
         }
-        
+
         // Parse the module content
         let module = self.parse_module_content()?;
-        
+
         // Note: We don't exit scope here because the module scope
         // should remain active for the entire file parsing
-        
+
         Ok(module)
     }
-    
-    
+
     fn parse_module_content(&mut self) -> Result<FrameModule, ParseError> {
         if self.match_token(&[TokenType::Eof]) {
-            let err_msg = "Empty module - Frame files must contain at least one function or system.";
+            let err_msg =
+                "Empty module - Frame files must contain at least one function or system.";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
@@ -282,16 +283,19 @@ impl<'a> Parser<'a> {
         // v0.31: Parse module-level variables, functions, systems, and statements
         let mut functions = Vec::new();
         let mut systems = Vec::new();
-        let mut classes = Vec::new();   // v0.45: Classes
+        let mut classes = Vec::new(); // v0.45: Classes
         let mut variables = Vec::new();
         let mut enums = Vec::new();
-        let mut modules = Vec::new();  // v0.34: Nested modules
-        // Note: statements are not allowed at module level (like C)
-        
+        let mut modules = Vec::new(); // v0.34: Nested modules
+                                      // Note: statements are not allowed at module level (like C)
+
         // Parse all entities in sequence
         loop {
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                eprintln!("DEBUG: Top of parsing loop, current token: {:?}", self.peek());
+                eprintln!(
+                    "DEBUG: Top of parsing loop, current token: {:?}",
+                    self.peek()
+                );
             }
             // Check for module-level enum declarations
             if self.match_token(&[TokenType::Enum]) {
@@ -300,21 +304,23 @@ impl<'a> Parser<'a> {
                         enums.push(enum_decl.clone());
                         // Also add to module elements for backward compatibility
                         if let Some(ref mut elements) = module_elements_opt {
-                            elements.push(crate::frame_c::ast::ModuleElement::Enum { enum_decl_node: enum_decl });
+                            elements.push(crate::frame_c::ast::ModuleElement::Enum {
+                                enum_decl_node: enum_decl,
+                            });
                         }
                     }
                     Err(e) => return Err(e),
                 }
                 continue;
             }
-            
+
             // Check for class decorators (only if @ is followed eventually by 'class')
             // We need to look ahead to see if this is a decorator for a class
             if self.check(TokenType::At) {
                 // Save position in case we need to backtrack
                 let saved_pos = self.current;
                 let mut temp_decorators = Vec::new();
-                
+
                 // Try to parse decorators
                 while self.check(TokenType::At) {
                     match self.parse_class_decorator() {
@@ -326,11 +332,11 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
-                
+
                 // Check if followed by 'class'
                 if self.check(TokenType::Class) {
                     // This is a decorated class
-                    self.advance();  // consume 'class'
+                    self.advance(); // consume 'class'
                     match self.class_decl_with_decorators(temp_decorators) {
                         Ok(class_decl) => {
                             classes.push(class_decl);
@@ -348,7 +354,7 @@ impl<'a> Parser<'a> {
                     self.current = saved_pos;
                 }
             }
-            
+
             // Check for undecorated class declarations
             if self.match_token(&[TokenType::Class]) {
                 match self.class_decl() {
@@ -359,7 +365,7 @@ impl<'a> Parser<'a> {
                 }
                 continue;
             }
-            
+
             // Check for module-level variable declarations
             if self.match_token(&[TokenType::Var, TokenType::Const]) {
                 match self.var_declaration(IdentifierDeclScope::ModuleScope) {
@@ -367,30 +373,32 @@ impl<'a> Parser<'a> {
                         variables.push(var_decl.clone());
                         // Also add to module elements for backward compatibility
                         if let Some(ref mut elements) = module_elements_opt {
-                            elements.push(crate::frame_c::ast::ModuleElement::Variable { var_decl_node: var_decl });
+                            elements.push(crate::frame_c::ast::ModuleElement::Variable {
+                                var_decl_node: var_decl,
+                            });
                         }
                     }
                     Err(e) => return Err(e),
                 }
                 continue;
             }
-            
+
             // Check for attributes that might precede a system
             let entity_attributes_opt = if self.check(TokenType::OuterAttributeOrDomainParams) {
                 self.entity_attributes()?
             } else {
                 None
             };
-            
+
             // Check what entity type we have
             if self.match_token(&[TokenType::System]) {
                 // v0.30: All individual systems get empty modules - module elements belong to FrameModule
                 let module_for_system = crate::frame_c::ast::Module::new(vec![]);
-                
+
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     eprintln!("DEBUG: Parsing system at token index {}", self.current);
                 }
-                
+
                 // PHASE 2 FIX: Add error boundary for system parsing to prevent early returns to module context
                 match self.system_scope(Some(module_for_system), entity_attributes_opt, None) {
                     Ok(system) => {
@@ -403,11 +411,11 @@ impl<'a> Parser<'a> {
                         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                             eprintln!("DEBUG: System parsing failed: {}", system_error);
                         }
-                        
+
                         // Instead of immediately returning the error (which causes context loss),
                         // try to recover by skipping to the next system/function boundary
                         self.recover_from_system_error(&system_error)?;
-                        
+
                         // Continue parsing instead of aborting the entire module
                         continue;
                     }
@@ -442,7 +450,7 @@ impl<'a> Parser<'a> {
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     eprintln!("DEBUG: Parsing function at token index {}", self.current);
                 }
-                
+
                 // Add error boundary for function parsing
                 match self.function_scope_async(false) {
                     Ok(function) => {
@@ -451,7 +459,10 @@ impl<'a> Parser<'a> {
                         }
                         functions.push(function);
                         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                            eprintln!("DEBUG: After parsing function, next token: {:?}", self.peek());
+                            eprintln!(
+                                "DEBUG: After parsing function, next token: {:?}",
+                                self.peek()
+                            );
                         }
                     }
                     Err(func_error) => {
@@ -482,7 +493,8 @@ impl<'a> Parser<'a> {
             } else if self.match_token(&[TokenType::Class]) {
                 // v0.45: Parse class declaration
                 if entity_attributes_opt.is_some() {
-                    let err_msg = "Classes do not support attributes in the current implementation.";
+                    let err_msg =
+                        "Classes do not support attributes in the current implementation.";
                     self.error_at_current(err_msg);
                     return Err(ParseError::new(err_msg));
                 }
@@ -497,7 +509,8 @@ impl<'a> Parser<'a> {
                 }
             } else if entity_attributes_opt.is_some() {
                 // We parsed attributes but found no system or function - this is an error
-                let err_msg = "Expected 'system' after attributes. Functions do not support attributes.";
+                let err_msg =
+                    "Expected 'system' after attributes. Functions do not support attributes.";
                 self.error_at_current(err_msg);
                 return Err(ParseError::new(err_msg));
             } else if self.check(TokenType::Identifier) {
@@ -509,16 +522,18 @@ impl<'a> Parser<'a> {
                 if self.check(TokenType::LParen) {
                     // Check if this is a system instantiation or function call at module scope
                     // Both are not allowed
-                    self.current = saved_pos;  // Reset for better error reporting
-                    
+                    self.current = saved_pos; // Reset for better error reporting
+
                     // Check if identifier matches any system name or class name
                     let is_system = systems.iter().any(|s| s.name == identifier_name);
                     let is_class = classes.iter().any(|c| c.borrow().name == identifier_name);
-                    
+
                     // Also check if it starts with uppercase (likely a class/system)
-                    let starts_with_uppercase = identifier_name.chars().next()
+                    let starts_with_uppercase = identifier_name
+                        .chars()
+                        .next()
                         .map_or(false, |c| c.is_uppercase());
-                    
+
                     if is_system || is_class || starts_with_uppercase {
                         let err_msg = &format!(
                             "Module-level instantiation is not allowed. '{}' cannot be instantiated at module scope. \
@@ -560,7 +575,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        
+
         // Check for any remaining module-level statements (which are not allowed)
         // This catches cases where someone tries to call functions or instantiate systems at module level
         while !self.is_at_end() {
@@ -569,30 +584,35 @@ impl<'a> Parser<'a> {
                 self.advance();
                 continue;
             }
-            
+
             // Debug: print current token
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                eprintln!("DEBUG: Checking for module-level statements, current token: {:?}", self.peek());
+                eprintln!(
+                    "DEBUG: Checking for module-level statements, current token: {:?}",
+                    self.peek()
+                );
             }
-            
+
             // Check for identifier followed by parenthesis (function call or instantiation)
             if self.check(TokenType::Identifier) {
                 let saved_pos = self.current;
                 let identifier = self.advance();
                 let identifier_name = identifier.lexeme.clone();
-                
+
                 if self.check(TokenType::LParen) {
                     // This is a module-level call/instantiation - not allowed!
-                    self.current = saved_pos;  // Reset for better error reporting
-                    
+                    self.current = saved_pos; // Reset for better error reporting
+
                     // Check if identifier matches any system name or class name
                     let is_system = systems.iter().any(|s| s.name == identifier_name);
                     let is_class = classes.iter().any(|c| c.borrow().name == identifier_name);
-                    
+
                     // Also check if it starts with uppercase (likely a class/system)
-                    let starts_with_uppercase = identifier_name.chars().next()
+                    let starts_with_uppercase = identifier_name
+                        .chars()
+                        .next()
                         .map_or(false, |c| c.is_uppercase());
-                    
+
                     if is_system || is_class || starts_with_uppercase {
                         let err_msg = &format!(
                             "Module-level instantiation is not allowed. '{}' cannot be instantiated at module scope. \
@@ -611,17 +631,17 @@ impl<'a> Parser<'a> {
                         return Err(ParseError::new(err_msg));
                     }
                 }
-                
+
                 // If it's not a call, it might be an invalid statement
                 // For now, skip it and let the next iteration handle it
                 self.current = saved_pos;
-                break;  // Exit to avoid infinite loop
+                break; // Exit to avoid infinite loop
             }
-            
+
             // If we encounter any other token, break to avoid infinite loop
             break;
         }
-        
+
         // v0.37: Analyze runtime async requirements for all systems
         if !self.is_building_symbol_table {
             // Only do runtime analysis in the semantic pass
@@ -629,15 +649,25 @@ impl<'a> Parser<'a> {
                 self.analyze_system_runtime_info(system)?;
             }
         }
-        
+
         // v0.31: Create FrameModule with all parsed elements
         let final_module = match module_elements_opt {
             Some(module_elements) => crate::frame_c::ast::Module::new(module_elements),
             None => crate::frame_c::ast::Module::new(vec![]),
         };
-        
+
         // Module-level statements not allowed - pass empty vector
-        Ok(FrameModule::new(final_module, imports, functions, systems, classes, variables, enums, modules, Vec::new()))
+        Ok(FrameModule::new(
+            final_module,
+            imports,
+            functions,
+            systems,
+            classes,
+            variables,
+            enums,
+            modules,
+            Vec::new(),
+        ))
     }
 
     /* --------------------------------------------------------------------- */
@@ -654,7 +684,9 @@ impl<'a> Parser<'a> {
                         {
                             return Err(parse_error);
                         }
-                        module_elements.push(crate::frame_c::ast::ModuleElement::ModuleAttribute { attribute_node });
+                        module_elements.push(crate::frame_c::ast::ModuleElement::ModuleAttribute {
+                            attribute_node,
+                        });
                     }
                     Err(err) => {
                         return Err(err);
@@ -670,7 +702,8 @@ impl<'a> Parser<'a> {
                 // Parse import statement: import module [as alias]
                 match self.parse_import_statement() {
                     Ok(import_node) => {
-                        module_elements.push(crate::frame_c::ast::ModuleElement::Import { import_node });
+                        module_elements
+                            .push(crate::frame_c::ast::ModuleElement::Import { import_node });
                     }
                     Err(err) => {
                         return Err(err);
@@ -680,7 +713,8 @@ impl<'a> Parser<'a> {
                 // Parse from import: from module import ...
                 match self.parse_from_import_statement() {
                     Ok(import_node) => {
-                        module_elements.push(crate::frame_c::ast::ModuleElement::Import { import_node });
+                        module_elements
+                            .push(crate::frame_c::ast::ModuleElement::Import { import_node });
                     }
                     Err(err) => {
                         return Err(err);
@@ -691,7 +725,9 @@ impl<'a> Parser<'a> {
                 self.advance(); // consume 'type'
                 match self.parse_type_alias() {
                     Ok(type_alias_node) => {
-                        module_elements.push(crate::frame_c::ast::ModuleElement::TypeAlias { type_alias_node });
+                        module_elements.push(crate::frame_c::ast::ModuleElement::TypeAlias {
+                            type_alias_node,
+                        });
                     }
                     Err(err) => {
                         return Err(err);
@@ -732,7 +768,7 @@ impl<'a> Parser<'a> {
         module_opt: Option<Module>,
         system_attributes_opt: Option<HashMap<String, AttributeNode>>,
         _functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
-        line: usize,  // Add line parameter to receive system declaration line
+        line: usize, // Add line parameter to receive system declaration line
     ) -> Result<SystemNode, ParseError> {
         let interface_block_node_opt;
         let machine_block_node_opt;
@@ -742,13 +778,13 @@ impl<'a> Parser<'a> {
 
         // SystemHierarchy is used in the GraphViz visitor rather than the AST
         self.system_hierarchy_opt = Some(SystemHierarchy::new(system_name.clone()));
-        
+
         // v0.63: Set current system context for semantic resolution
         self.current_system_name = Some(system_name.clone());
         self.is_system_scope = true;
 
         // Parse system parameters and set up scope
-        let (system_start_state_state_params_opt, system_enter_params_opt, domain_params_opt) = 
+        let (system_start_state_state_params_opt, system_enter_params_opt, domain_params_opt) =
             self.parse_system_params_and_setup_scope(&system_name)?;
 
         if self.consume(TokenType::OpenBrace, "Expected '{'").is_err() {
@@ -775,19 +811,21 @@ impl<'a> Parser<'a> {
 
         if !self.match_token(&[TokenType::CloseBrace]) {
             if self.peek().lexeme == "$" {
-                let err_msg = &format!("Found {} token. Possible missing machine block.", self.peek().lexeme);
+                let err_msg = &format!(
+                    "Found {} token. Possible missing machine block.",
+                    self.peek().lexeme
+                );
                 self.error_at_current(err_msg);
             } else {
                 let err_msg = &format!("Expected '}}' - found '{}'. Missing closing brace for previous block or handler.", self.peek().lexeme);
                 self.error_at_current(err_msg);
             }
-
         }
 
         // Line number was already captured at the beginning when parsing system name
-        
+
         self.arcanum.exit_scope();
-        
+
         // v0.63: Clear system context after parsing
         self.current_system_name = None;
         self.is_system_scope = false;
@@ -826,17 +864,24 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
     // Helper function to parse system parameters and set up scope
-    
+
     fn parse_system_params_and_setup_scope(
         &mut self,
         system_name: &str,
-    ) -> Result<(Option<Vec<ParameterNode>>, Option<Vec<ParameterNode>>, Option<Vec<ParameterNode>>), ParseError> {
+    ) -> Result<
+        (
+            Option<Vec<ParameterNode>>,
+            Option<Vec<ParameterNode>>,
+            Option<Vec<ParameterNode>>,
+        ),
+        ParseError,
+    > {
         if self.is_building_symbol_table {
             let mut system_symbol = SystemSymbol::new(system_name.to_string());
-            
-            let (system_start_state_state_params_opt, system_enter_params_opt, domain_params_opt) = 
+
+            let (system_start_state_state_params_opt, system_enter_params_opt, domain_params_opt) =
                 self.system_params();
-            
+
             // Cache off param count for instance arg verification
             if let Some(system_start_state_state_params) = &system_start_state_state_params_opt {
                 system_symbol.start_state_params_cnt = system_start_state_state_params.len();
@@ -847,24 +892,31 @@ impl<'a> Parser<'a> {
             if let Some(domain_params) = &domain_params_opt {
                 system_symbol.domain_params_cnt = domain_params.len();
             }
-            
+
             let system_symbol_rcref = Rc::new(RefCell::new(system_symbol));
             self.arcanum.enter_scope(ParseScopeType::System {
                 system_symbol: system_symbol_rcref,
             });
-            
-            Ok((system_start_state_state_params_opt, system_enter_params_opt, domain_params_opt))
+
+            Ok((
+                system_start_state_state_params_opt,
+                system_enter_params_opt,
+                domain_params_opt,
+            ))
         } else {
             if let Err(err) = self.arcanum.set_parse_scope(system_name) {
-                return Err(ParseError::new(&format!("Failed to set system scope '{}': {}", system_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set system scope '{}': {}",
+                    system_name, err
+                )));
             }
             Ok(self.system_params())
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to parse operations block with ordering check
-    
+
     fn parse_operations_block(&mut self) -> Result<Option<OperationsBlockNode>, ParseError> {
         if self.match_token(&[TokenType::OperationsBlock]) {
             Ok(Some(self.operations_block()))
@@ -872,85 +924,95 @@ impl<'a> Parser<'a> {
             Ok(None)
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to parse interface block with ordering check
-    
+
     fn parse_interface_block(&mut self) -> Result<Option<InterfaceBlockNode>, ParseError> {
         // Check for operations block appearing after interface (wrong order)
         if self.peek().token_type == TokenType::OperationsBlock {
-            let err_msg = "Block ordering error: 'operations:' block must come before 'interface:' block";
+            let err_msg =
+                "Block ordering error: 'operations:' block must come before 'interface:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         if self.match_token(&[TokenType::InterfaceBlock]) {
-            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            self.arcanum
+                .debug_print_current_symbols(self.arcanum.get_current_symtab());
             let interface_block = self.interface_block();
-            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            self.arcanum
+                .debug_print_current_symbols(self.arcanum.get_current_symtab());
             Ok(Some(interface_block))
         } else {
             Ok(None)
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to parse machine block with ordering check
-    
+
     fn parse_machine_block(&mut self) -> Result<Option<MachineBlockNode>, ParseError> {
         // Check for blocks appearing after machine in wrong order
         if self.peek().token_type == TokenType::InterfaceBlock {
-            let err_msg = "Block ordering error: 'interface:' block must come before 'machine:' block";
+            let err_msg =
+                "Block ordering error: 'interface:' block must come before 'machine:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
         if self.peek().token_type == TokenType::OperationsBlock {
-            let err_msg = "Block ordering error: 'operations:' block must come before 'machine:' block";
+            let err_msg =
+                "Block ordering error: 'operations:' block must come before 'machine:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         if self.match_token(&[TokenType::MachineBlock]) {
-            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            self.arcanum
+                .debug_print_current_symbols(self.arcanum.get_current_symtab());
             let machine_block = self.machine_block();
-            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            self.arcanum
+                .debug_print_current_symbols(self.arcanum.get_current_symtab());
             Ok(Some(machine_block))
         } else {
             Ok(None)
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to parse actions block with ordering check
-    
+
     fn parse_actions_block(&mut self) -> Result<Option<ActionsBlockNode>, ParseError> {
         // Check for blocks appearing after actions (wrong order)
         if self.peek().token_type == TokenType::MachineBlock {
-            let err_msg = "Block ordering error: 'machine:' block must come before 'actions:' block";
+            let err_msg =
+                "Block ordering error: 'machine:' block must come before 'actions:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
         if self.peek().token_type == TokenType::InterfaceBlock {
-            let err_msg = "Block ordering error: 'interface:' block must come before 'actions:' block";
+            let err_msg =
+                "Block ordering error: 'interface:' block must come before 'actions:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
         if self.peek().token_type == TokenType::OperationsBlock {
-            let err_msg = "Block ordering error: 'operations:' block must come before 'actions:' block";
+            let err_msg =
+                "Block ordering error: 'operations:' block must come before 'actions:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         if self.match_token(&[TokenType::ActionsBlock]) {
             Ok(Some(self.actions_block()))
         } else {
             Ok(None)
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to parse domain block with ordering check
-    
+
     fn parse_domain_block(&mut self) -> Result<Option<DomainBlockNode>, ParseError> {
         // Check for blocks appearing after domain (wrong order - domain must be last)
         if self.peek().token_type == TokenType::MachineBlock {
@@ -959,12 +1021,14 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new(err_msg));
         }
         if self.peek().token_type == TokenType::InterfaceBlock {
-            let err_msg = "Block ordering error: 'interface:' block must come before 'domain:' block";
+            let err_msg =
+                "Block ordering error: 'interface:' block must come before 'domain:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
         if self.peek().token_type == TokenType::OperationsBlock {
-            let err_msg = "Block ordering error: 'operations:' block must come before 'domain:' block";
+            let err_msg =
+                "Block ordering error: 'operations:' block must come before 'domain:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
@@ -973,20 +1037,22 @@ impl<'a> Parser<'a> {
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         if self.match_token(&[TokenType::DomainBlock]) {
-            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            self.arcanum
+                .debug_print_current_symbols(self.arcanum.get_current_symtab());
             let domain_block = self.domain_block();
-            self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+            self.arcanum
+                .debug_print_current_symbols(self.arcanum.get_current_symtab());
             Ok(Some(domain_block))
         } else {
             Ok(None)
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to validate start state parameters
-    
+
     fn validate_start_state_params(
         &mut self,
         machine_block_node_opt: &Option<MachineBlockNode>,
@@ -995,7 +1061,10 @@ impl<'a> Parser<'a> {
     ) {
         if let Some(machine_block_node) = machine_block_node_opt.as_ref() {
             if machine_block_node.states.is_empty() {
-                self.validate_empty_states(system_start_state_state_params_opt, system_enter_params_opt);
+                self.validate_empty_states(
+                    system_start_state_state_params_opt,
+                    system_enter_params_opt,
+                );
             } else {
                 self.validate_start_state_with_states(
                     &machine_block_node.states[0],
@@ -1004,29 +1073,35 @@ impl<'a> Parser<'a> {
                 );
             }
         } else if system_start_state_state_params_opt.is_some() {
-            self.error_at_current("System start state parameters declared but no start state exists.");
+            self.error_at_current(
+                "System start state parameters declared but no start state exists.",
+            );
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper to validate when there are no states
-    
+
     fn validate_empty_states(
         &mut self,
         system_start_state_state_params_opt: &Option<Vec<ParameterNode>>,
         system_enter_params_opt: &Option<Vec<ParameterNode>>,
     ) {
         if system_start_state_state_params_opt.is_some() {
-            self.error_at_current("System start state parameters declared but no start state exists.");
+            self.error_at_current(
+                "System start state parameters declared but no start state exists.",
+            );
         }
         if system_enter_params_opt.is_some() {
-            self.error_at_current("System start state enter parameters declared but no start state exists.");
+            self.error_at_current(
+                "System start state enter parameters declared but no start state exists.",
+            );
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper to validate start state when states exist
-    
+
     fn validate_start_state_with_states(
         &mut self,
         start_state_rcref: &Rc<RefCell<StateNode>>,
@@ -1034,33 +1109,37 @@ impl<'a> Parser<'a> {
         system_enter_params_opt: &Option<Vec<ParameterNode>>,
     ) {
         let start_state = start_state_rcref.borrow();
-        
+
         // Validate state parameters
         self.validate_state_parameters(&start_state, system_start_state_state_params_opt);
-        
+
         // Validate enter event parameters
         self.validate_enter_event_parameters(&start_state, system_enter_params_opt);
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper to validate state parameters match system parameters
-    
+
     fn validate_state_parameters(
         &mut self,
         start_state: &StateNode,
         system_start_state_state_params_opt: &Option<Vec<ParameterNode>>,
     ) {
         match (&start_state.params_opt, system_start_state_state_params_opt) {
-            (None, None) => {}, // Both None - ok
+            (None, None) => {} // Both None - ok
             (Some(_), None) => {
                 self.error_at_current("Start state parameters declared but no system start state parameters are declared.");
             }
             (None, Some(_)) => {
-                self.error_at_current("System start state parameters declared but no start state exists.");
+                self.error_at_current(
+                    "System start state parameters declared but no start state exists.",
+                );
             }
             (Some(start_state_params), Some(system_params)) => {
                 if start_state_params.len() != system_params.len() {
-                    self.error_at_current("System start state parameters do not match actual start state parameters.");
+                    self.error_at_current(
+                        "System start state parameters do not match actual start state parameters.",
+                    );
                 } else {
                     for (i, state_param) in start_state_params.iter().enumerate() {
                         let system_param = &system_params[i];
@@ -1072,10 +1151,10 @@ impl<'a> Parser<'a> {
             }
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper to validate enter event parameters
-    
+
     fn validate_enter_event_parameters(
         &mut self,
         start_state: &StateNode,
@@ -1085,14 +1164,18 @@ impl<'a> Parser<'a> {
             let event_handler = enter_event_handler.borrow();
             let event_symbol = event_handler.event_symbol_rcref.borrow();
             let enter_event_handler_params_opt = &event_symbol.event_symbol_params_opt;
-            
+
             match (enter_event_handler_params_opt, system_enter_params_opt) {
-                (None, None) => {}, // Both None - ok
+                (None, None) => {} // Both None - ok
                 (None, Some(_)) => {
-                    self.error_at_current("System has enter parameters but start state enter handler does not.");
+                    self.error_at_current(
+                        "System has enter parameters but start state enter handler does not.",
+                    );
                 }
                 (Some(_), None) => {
-                    self.error_at_current("Start state has enter parameters but system does not define any.");
+                    self.error_at_current(
+                        "Start state has enter parameters but system does not define any.",
+                    );
                 }
                 (Some(enter_params), Some(system_params)) => {
                     self.validate_matching_enter_params(enter_params, system_params);
@@ -1102,10 +1185,10 @@ impl<'a> Parser<'a> {
             self.error_at_current("System has enter parameters but the start state does not have an enter event handler.");
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper to validate that enter parameters match
-    
+
     fn validate_matching_enter_params(
         &mut self,
         enter_event_handler_params: &Vec<ParameterSymbol>,
@@ -1115,23 +1198,26 @@ impl<'a> Parser<'a> {
             self.error_at_current("Start state and system enter parameters are different.");
             return;
         }
-        
+
         for (i, param) in system_enter_params.iter().enumerate() {
             let parameter_symbol = &enter_event_handler_params[i];
-            
+
             if parameter_symbol.name != param.param_name {
                 self.error_at_current("Start state and system enter parameters are different.");
-            } else if let (Some(param_symbol_type), Some(param_type)) = 
-                (&parameter_symbol.param_type_opt, &param.param_type_opt) {
+            } else if let (Some(param_symbol_type), Some(param_type)) =
+                (&parameter_symbol.param_type_opt, &param.param_type_opt)
+            {
                 if param_symbol_type != param_type {
-                    self.error_at_current("System enter params do not match start state enter params.");
+                    self.error_at_current(
+                        "System enter params do not match start state enter params.",
+                    );
                 }
             } else if parameter_symbol.param_type_opt.is_some() != param.param_type_opt.is_some() {
                 self.error_at_current("Start state and system enter parameters are different.");
             }
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Parse optional system args.
     // [ $(start_state_param), >(start_state_enter_param), #(domain_param) ]
@@ -1340,11 +1426,12 @@ impl<'a> Parser<'a> {
         // v0.20 syntax: domain args are just plain arguments (no # prefix)
         // They're parsed as part of a flat argument list: Foo($(a), $>(b), c, d)
         // But at instantiation: Foo($("val1"), $>("val2"), "val3", "val4")
-        
+
         // Check if we have plain arguments (not $ or $> prefixed)
-        if self.peek().token_type != TokenType::RParen 
+        if self.peek().token_type != TokenType::RParen
             && self.peek().token_type != TokenType::State
-            && self.peek().token_type != TokenType::EnterStateMsg {
+            && self.peek().token_type != TokenType::EnterStateMsg
+        {
             match self.expr_list_node() {
                 Ok(Some(expr_list_node)) => {
                     return Ok(Some(expr_list_node));
@@ -1463,9 +1550,7 @@ impl<'a> Parser<'a> {
                 Err(_) => {}
             }
             if self.consume(TokenType::RParen, "Expected ')'").is_err() {
-                let sync_tokens = vec![
-                    TokenType::OpenBrace,
-                ];
+                let sync_tokens = vec![TokenType::OpenBrace];
                 self.synchronize(&sync_tokens);
             }
         }
@@ -1519,10 +1604,7 @@ impl<'a> Parser<'a> {
                 Err(_) => {}
             }
             if self.consume(TokenType::RParen, "Expected ')'").is_err() {
-                let sync_tokens = vec![
-                    TokenType::Comma,
-                    TokenType::RParen,
-                ];
+                let sync_tokens = vec![TokenType::Comma, TokenType::RParen];
                 self.synchronize(&sync_tokens);
             }
         }
@@ -1660,12 +1742,18 @@ impl<'a> Parser<'a> {
     // the scope symbol creation and association with the AST node.
 
     // ===================== Scope Management Functions =====================
-    
+
     // ===================== Entity Scope Functions =====================
-    
-    fn function_scope_async(&mut self, is_async: bool) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
+
+    fn function_scope_async(
+        &mut self,
+        is_async: bool,
+    ) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: Entered function_scope_async, next token: {:?}", self.peek());
+            eprintln!(
+                "DEBUG: Entered function_scope_async, next token: {:?}",
+                self.peek()
+            );
         }
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected function name.";
@@ -1683,7 +1771,7 @@ impl<'a> Parser<'a> {
         // to be called in the context of an function. Transitions, for example, are not
         // allowed.
         self.is_function_scope = true;
-        
+
         // v0.63: Set current function context for semantic resolution
         self.current_function_name = Some(function_name.clone());
 
@@ -1701,9 +1789,10 @@ impl<'a> Parser<'a> {
             };
             // eprintln!("DEBUG: Entering function scope for: {}", function_name);
             self.arcanum.enter_scope(function_symbol_parse_scope_t);
-            
+
             // Set scope context to Function
-            self.arcanum.set_scope_context(ScopeContext::Function(function_name.clone()));
+            self.arcanum
+                .set_scope_context(ScopeContext::Function(function_name.clone()));
             // eprintln!("DEBUG: Function symbol table building complete for: {}", function_name);
         } else {
             // semantic pass
@@ -1719,11 +1808,15 @@ impl<'a> Parser<'a> {
             // see if we can get the function symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
             if let Err(err) = self.arcanum.set_parse_scope(&function_name) {
-                return Err(ParseError::new(&format!("Failed to set function scope '{}': {}", function_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set function scope '{}': {}",
+                    function_name, err
+                )));
             }
-            
+
             // Set scope context to Function for semantic pass too
-            self.arcanum.set_scope_context(ScopeContext::Function(function_name.clone()));
+            self.arcanum
+                .set_scope_context(ScopeContext::Function(function_name.clone()));
         }
 
         let ret = self.function(function_name.clone(), is_async, line);
@@ -1742,7 +1835,10 @@ impl<'a> Parser<'a> {
                         // Function symbol not found - this shouldn't happen in normal cases
                         // Continue processing but log for debugging
                         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                            eprintln!("Warning: Function symbol '{}' not found during AST association", function_name);
+                            eprintln!(
+                                "Warning: Function symbol '{}' not found during AST association",
+                                function_name
+                            );
                         }
                     }
                 }
@@ -1756,7 +1852,7 @@ impl<'a> Parser<'a> {
         // Reset scope context back to Global (module level)
         self.arcanum.set_scope_context(ScopeContext::Global);
         self.is_function_scope = false;
-        
+
         // v0.63: Clear function context after parsing
         self.current_function_name = None;
         ret
@@ -1771,7 +1867,10 @@ impl<'a> Parser<'a> {
         functions_opt: Option<Vec<Rc<RefCell<FunctionNode>>>>,
     ) -> Result<SystemNode, ParseError> {
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: Entered system_scope, current token: {:?}", self.peek());
+            eprintln!(
+                "DEBUG: Entered system_scope, current token: {:?}",
+                self.peek()
+            );
         }
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected system identifier.";
@@ -1794,18 +1893,23 @@ impl<'a> Parser<'a> {
                 system_symbol: system_symbol_rcref.clone(),
             };
             self.arcanum.enter_scope(system_symbol_parse_scope_t);
-            
+
             // Set scope context to System
-            self.arcanum.set_scope_context(ScopeContext::System(system_name.clone()));
+            self.arcanum
+                .set_scope_context(ScopeContext::System(system_name.clone()));
         } else {
             // semantic pass
             if let Err(err) = self.arcanum.set_parse_scope(&system_name) {
-                return Err(ParseError::new(&format!("Failed to set system scope '{}': {}", system_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set system scope '{}': {}",
+                    system_name, err
+                )));
             }
-            
+
             // Set scope context to System for semantic pass too
-            self.arcanum.set_scope_context(ScopeContext::System(system_name.clone()));
-            
+            self.arcanum
+                .set_scope_context(ScopeContext::System(system_name.clone()));
+
             // CRITICAL: Also set the system symbol for the semantic pass
             // Look up the system symbol from the module scope
             if let Some(system_symbol) = self.arcanum.get_system_by_name(&system_name) {
@@ -1813,23 +1917,41 @@ impl<'a> Parser<'a> {
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     let sys = system_symbol.borrow();
                     // eprintln!("DEBUG: Retrieved system '{}' in semantic pass", sys.name);
-                    eprintln!("  Has actions block: {}", sys.actions_block_symbol_opt.is_some());
-                    eprintln!("  Has machine block: {}", sys.machine_block_symbol_opt.is_some());
-                    eprintln!("  Has interface block: {}", sys.interface_block_symbol_opt.is_some());
+                    eprintln!(
+                        "  Has actions block: {}",
+                        sys.actions_block_symbol_opt.is_some()
+                    );
+                    eprintln!(
+                        "  Has machine block: {}",
+                        sys.machine_block_symbol_opt.is_some()
+                    );
+                    eprintln!(
+                        "  Has interface block: {}",
+                        sys.interface_block_symbol_opt.is_some()
+                    );
                 }
                 self.arcanum.set_current_system_symbol(Some(system_symbol));
             } else {
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("WARNING: Could not find system symbol '{}' in semantic pass", system_name);
+                    eprintln!(
+                        "WARNING: Could not find system symbol '{}' in semantic pass",
+                        system_name
+                    );
                 }
             }
         }
 
         // Call the actual system parsing method, passing the line number
-        let ret = self.system(system_name.clone(), module_opt, system_attributes_opt, functions_opt, line);
+        let ret = self.system(
+            system_name.clone(),
+            module_opt,
+            system_attributes_opt,
+            functions_opt,
+            line,
+        );
 
         if self.is_building_symbol_table {
-            // Associate AST node with symbol if successful  
+            // Associate AST node with symbol if successful
             // (System symbols are managed in the symbol table enter/exit scope logic)
         }
 
@@ -1840,7 +1962,7 @@ impl<'a> Parser<'a> {
         // Clear the system symbol when exiting system scope
         self.arcanum.set_current_system_symbol(None);
         self.is_system_scope = prev_is_system_scope;
-        
+
         ret
     }
 
@@ -1853,7 +1975,10 @@ impl<'a> Parser<'a> {
         line: usize,
     ) -> Result<Rc<RefCell<FunctionNode>>, ParseError> {
         // foo(
-        if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
+        if let Err(parse_error) = self.consume(
+            TokenType::LParen,
+            &format!("Expected '(' - found '{}'", self.current_token),
+        ) {
             return Err(parse_error);
         }
 
@@ -1875,15 +2000,14 @@ impl<'a> Parser<'a> {
         }
 
         // foo(...) : type {
-        if let Err(parse_error) = self.consume(TokenType::OpenBrace, &format!("Expected '{{' - found '{}'", self.current_token)) {
+        if let Err(parse_error) = self.consume(
+            TokenType::OpenBrace,
+            &format!("Expected '{{' - found '{}'", self.current_token),
+        ) {
             return Err(parse_error);
         }
 
-        let mut terminator_expr = TerminatorExpr::new(
-            Return,
-            None,
-            self.previous().line,
-        );
+        let mut terminator_expr = TerminatorExpr::new(Return, None, self.previous().line);
         let is_implemented = true;
         // TODO - figure out how this needs to be added to statements
         // if self.match_token(&[TokenType::SuperString]) {
@@ -1892,16 +2016,21 @@ impl<'a> Parser<'a> {
         // }
 
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: About to parse function body statements, current token: {:?}", self.peek());
+            eprintln!(
+                "DEBUG: About to parse function body statements, current token: {:?}",
+                self.peek()
+            );
         }
         let statements = self.statements(IdentifierDeclScope::BlockVarScope);
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: Finished parsing function body, current token: {:?}", self.peek());
+            eprintln!(
+                "DEBUG: Finished parsing function body, current token: {:?}",
+                self.peek()
+            );
         }
 
         // foo(...) : type { ... return
         if self.match_token(&[TokenType::Return_]) {
-
             let expr_t = match self.expression() {
                 Ok(Some(expr_t)) => expr_t,
                 _ => {
@@ -1911,15 +2040,14 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            terminator_expr = TerminatorExpr::new(
-                Return,
-                Some(expr_t),
-                self.previous().line,
-            );
+            terminator_expr = TerminatorExpr::new(Return, Some(expr_t), self.previous().line);
         }
 
         // foo(...) : type { ... return True }
-        if let Err(parse_error) = self.consume(TokenType::CloseBrace, &format!("Expected '}}' - found '{}'", self.current_token)) {
+        if let Err(parse_error) = self.consume(
+            TokenType::CloseBrace,
+            &format!("Expected '}}' - found '{}'", self.current_token),
+        ) {
             return Err(parse_error);
         }
 
@@ -2085,11 +2213,13 @@ impl<'a> Parser<'a> {
                         None
                     }
                 };
-                
+
                 if let Some(symtab) = interface_symtab {
                     self.arcanum.set_current_symtab(symtab);
                 } else {
-                    eprintln!("ERROR: interface_block() called but system has no interface block symbol");
+                    eprintln!(
+                        "ERROR: interface_block() called but system has no interface block symbol"
+                    );
                 }
             } else {
                 eprintln!("ERROR: interface_block() called but no current system symbol");
@@ -2107,7 +2237,7 @@ impl<'a> Parser<'a> {
         loop {
             // v0.35: Check for async interface methods
             let is_async = self.match_token(&[TokenType::Async]);
-            
+
             if self.match_token(&[TokenType::Identifier]) {
                 match self.interface_method(is_async) {
                     Ok(interface_method_node) => {
@@ -2125,7 +2255,7 @@ impl<'a> Parser<'a> {
                     }
                 }
             } else {
-                break;  // Exit loop when no more identifiers
+                break; // Exit loop when no more identifiers
             }
         }
 
@@ -2141,7 +2271,10 @@ impl<'a> Parser<'a> {
 
     // interface_method -> identifier ('[' parameters ']')? (':' return_type)?
 
-    fn interface_method(&mut self, is_async: bool) -> Result<Rc<RefCell<InterfaceMethodNode>>, ParseError> {
+    fn interface_method(
+        &mut self,
+        is_async: bool,
+    ) -> Result<Rc<RefCell<InterfaceMethodNode>>, ParseError> {
         let method_token = self.previous();
         let name = method_token.lexeme.clone();
         let line = method_token.line;
@@ -2150,10 +2283,11 @@ impl<'a> Parser<'a> {
         let mut return_type_opt: Option<TypeNode> = Option::None;
         let mut alias_opt: Option<MessageNode> = Option::None;
 
-        if self.consume(TokenType::LParen, &format!("Expected '('.")).is_err() {
-            let sync_tokens = vec![
-                TokenType::MachineBlock,
-            ];
+        if self
+            .consume(TokenType::LParen, &format!("Expected '('."))
+            .is_err()
+        {
+            let sync_tokens = vec![TokenType::MachineBlock];
             self.synchronize(&sync_tokens);
             // if !self.follows(
             //     self.peek(),
@@ -2167,7 +2301,7 @@ impl<'a> Parser<'a> {
 
         match self.parameters() {
             Ok(Some(parameters)) => params_opt = Some(parameters),
-            Ok(None) => {},
+            Ok(None) => {}
             Err(parse_error) => return Err(parse_error),
         }
 
@@ -2196,7 +2330,7 @@ impl<'a> Parser<'a> {
                 Ok(type_node) => return_type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
             }
-            
+
             // Parse default return value: = value (with type)
             if self.match_token(&[TokenType::Equals]) {
                 let return_expr_result = self.expression();
@@ -2315,8 +2449,8 @@ impl<'a> Parser<'a> {
             return_type_opt,
             return_init_expr_opt,
             alias_opt,
-            is_async,  // v0.35: async interface methods support
-            line,      // v0.77: source map support for interface definitions
+            is_async, // v0.35: async interface methods support
+            line,     // v0.77: source map support for interface definitions
         );
         let interface_method_rcref = Rc::new(RefCell::new(interface_method_node));
 
@@ -2539,8 +2673,14 @@ impl<'a> Parser<'a> {
                 params_scope_symbol_rcref,
             });
         } else {
-            if let Err(err) = self.arcanum.set_parse_scope(ParamsScopeSymbol::scope_name()) {
-                return Err(ParseError::new(&format!("Failed to set parameters scope: {}", err)));
+            if let Err(err) = self
+                .arcanum
+                .set_parse_scope(ParamsScopeSymbol::scope_name())
+            {
+                return Err(ParseError::new(&format!(
+                    "Failed to set parameters scope: {}",
+                    err
+                )));
             }
         }
 
@@ -2618,7 +2758,10 @@ impl<'a> Parser<'a> {
             }
             if self.match_token(&[TokenType::RParen]) {
                 break;
-            } else if let Err(parse_error) = self.consume(TokenType::Comma, &format!("Expected comma - found '{}'", self.peek().lexeme)) {
+            } else if let Err(parse_error) = self.consume(
+                TokenType::Comma,
+                &format!("Expected comma - found '{}'", self.peek().lexeme),
+            ) {
                 return Err(parse_error);
             }
         }
@@ -2650,11 +2793,8 @@ impl<'a> Parser<'a> {
                     }
                 },
                 Err(_parse_error) => {
-                    let sync_tokens = vec![
-                        TokenType::RParen,
-                        TokenType::Colon,
-                        TokenType::RBracket,
-                    ];
+                    let sync_tokens =
+                        vec![TokenType::RParen, TokenType::Colon, TokenType::RBracket];
                     self.synchronize(&sync_tokens);
                     if !self.follows(
                         self.peek(),
@@ -2676,7 +2816,7 @@ impl<'a> Parser<'a> {
         }
 
         if !parameters.is_empty() {
-            return Ok(Some(parameters))
+            return Ok(Some(parameters));
         }
 
         Ok(None)
@@ -2743,11 +2883,13 @@ impl<'a> Parser<'a> {
                         None
                     }
                 };
-                
+
                 if let Some(symtab) = machine_symtab {
                     self.arcanum.set_current_symtab(symtab);
                 } else {
-                    eprintln!("ERROR: machine_block() called but system has no machine block symbol");
+                    eprintln!(
+                        "ERROR: machine_block() called but system has no machine block symbol"
+                    );
                 }
             } else {
                 eprintln!("ERROR: machine_block() called but no current system symbol");
@@ -2804,11 +2946,13 @@ impl<'a> Parser<'a> {
                         None
                     }
                 };
-                
+
                 if let Some(symtab) = actions_symtab {
                     self.arcanum.set_current_symtab(symtab);
                 } else {
-                    eprintln!("ERROR: actions_block() called but system has no actions block symbol");
+                    eprintln!(
+                        "ERROR: actions_block() called but system has no actions block symbol"
+                    );
                 }
             } else {
                 eprintln!("ERROR: actions_block() called but no current system symbol");
@@ -2820,7 +2964,7 @@ impl<'a> Parser<'a> {
         loop {
             // v0.37: Check for async keyword before action identifier
             let is_async = self.match_token(&[TokenType::Async]);
-            
+
             if self.match_token(&[TokenType::Identifier]) {
                 if let Ok(action_decl_node) = self.action_scope(is_async) {
                     actions.push(action_decl_node);
@@ -2948,7 +3092,10 @@ impl<'a> Parser<'a> {
             // see if we can get the action symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
             if let Err(err) = self.arcanum.set_parse_scope(&action_name) {
-                return Err(ParseError::new(&format!("Failed to set action scope '{}': {}", action_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set action scope '{}': {}",
+                    action_name, err
+                )));
             }
         }
 
@@ -2979,9 +3126,17 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn action(&mut self, action_name: String, action_line: usize, is_async: bool) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
+    fn action(
+        &mut self,
+        action_name: String,
+        action_line: usize,
+        is_async: bool,
+    ) -> Result<Rc<RefCell<ActionNode>>, ParseError> {
         // foo(
-        if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
+        if let Err(parse_error) = self.consume(
+            TokenType::LParen,
+            &format!("Expected '(' - found '{}'", self.current_token),
+        ) {
             return Err(parse_error);
         }
 
@@ -3001,7 +3156,7 @@ impl<'a> Parser<'a> {
                 Ok(type_node) => type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
             }
-            
+
             // Parse default return value: = value
             if self.match_token(&[TokenType::Equals]) {
                 let return_expr_result = self.expression();
@@ -3018,14 +3173,13 @@ impl<'a> Parser<'a> {
         }
 
         let code_opt: Option<String> = None;
-        let mut terminator_node  = TerminatorExpr::new(
-            Return,
-            None,
-            self.previous().line,
-        );
+        let mut terminator_node = TerminatorExpr::new(Return, None, self.previous().line);
 
         // foo(...) : type {
-        if let Err(parse_error) = self.consume(TokenType::OpenBrace, &format!("Expected '{{' - found '{}'", self.current_token)) {
+        if let Err(parse_error) = self.consume(
+            TokenType::OpenBrace,
+            &format!("Expected '{{' - found '{}'", self.current_token),
+        ) {
             return Err(parse_error);
         }
 
@@ -3040,7 +3194,6 @@ impl<'a> Parser<'a> {
 
         // foo(...) : type { ... return
         if self.match_token(&[TokenType::Return_]) {
-
             let expr_t = match self.expression() {
                 Ok(Some(expr_t)) => expr_t,
                 _ => {
@@ -3050,16 +3203,14 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            terminator_node = TerminatorExpr::new(
-                Return,
-                Some(expr_t),
-                self.previous().line,
-            );
-
+            terminator_node = TerminatorExpr::new(Return, Some(expr_t), self.previous().line);
         }
 
         // foo(...) : type { ... return True }
-        if let Err(parse_error) = self.consume(TokenType::CloseBrace, &format!("Expected '}}' - found '{}'", self.current_token)) {
+        if let Err(parse_error) = self.consume(
+            TokenType::CloseBrace,
+            &format!("Expected '}}' - found '{}'", self.current_token),
+        ) {
             return Err(parse_error);
         }
 
@@ -3132,7 +3283,7 @@ impl<'a> Parser<'a> {
         // }
 
         let action_node = ActionNode::new(
-            action_line,  // v0.78.7: source map support
+            action_line, // v0.78.7: source map support
             action_name.clone(),
             params,
             is_implemented,
@@ -3170,7 +3321,7 @@ impl<'a> Parser<'a> {
                         None
                     }
                 };
-                
+
                 if let Some(symtab) = operations_symtab {
                     self.arcanum.set_current_symtab(symtab);
                 } else {
@@ -3196,7 +3347,8 @@ impl<'a> Parser<'a> {
                 TokenType::OuterAttributeOrDomainParams
             ) || matches!(self.peek().token_type, TokenType::At)
                 || matches!(self.peek().token_type, TokenType::Identifier)
-                || matches!(self.peek().token_type, TokenType::Async)  // v0.35: async operations
+                || matches!(self.peek().token_type, TokenType::Async)
+            // v0.35: async operations
             {
                 if let Ok(operation_node) = self.operation_scope() {
                     operations.push(operation_node);
@@ -3234,7 +3386,7 @@ impl<'a> Parser<'a> {
                 return Err(parse_err);
             }
         }
-        
+
         // v0.35: Check for async operations
         let is_async = self.match_token(&[TokenType::Async]);
 
@@ -3252,7 +3404,7 @@ impl<'a> Parser<'a> {
         // to be called in the context of an operation. Transitions, for example, are not
         // allowed.
         self.operation_scope_depth += 1;
-        
+
         // Check if this is a static operation
         if let Some(ref attrs) = attributes_opt {
             if attrs.contains_key("staticmethod") {
@@ -3276,11 +3428,19 @@ impl<'a> Parser<'a> {
             // see if we can get the operation symbol set in the lexical pass. if so, then move
             // all this to the calling function and pass inthe symbol
             if let Err(err) = self.arcanum.set_parse_scope(&operation_name) {
-                return Err(ParseError::new(&format!("Failed to set operation scope '{}': {}", operation_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set operation scope '{}': {}",
+                    operation_name, err
+                )));
             }
         }
 
-        let ret = self.operation(operation_name.clone(), attributes_opt, is_async, operation_line);
+        let ret = self.operation(
+            operation_name.clone(),
+            attributes_opt,
+            is_async,
+            operation_line,
+        );
 
         if self.is_building_symbol_table {
             match &ret {
@@ -3312,11 +3472,14 @@ impl<'a> Parser<'a> {
         &mut self,
         operation_name: String,
         attributes_opt: Option<HashMap<String, AttributeNode>>,
-        is_async: bool,  // v0.35: async operations support
-        operation_line: usize,  // v0.78.2: source map support
+        is_async: bool,        // v0.35: async operations support
+        operation_line: usize, // v0.78.2: source map support
     ) -> Result<Rc<RefCell<OperationNode>>, ParseError> {
         // foo(
-        if let Err(parse_error) = self.consume(TokenType::LParen, &format!("Expected '(' - found '{}'", self.current_token)) {
+        if let Err(parse_error) = self.consume(
+            TokenType::LParen,
+            &format!("Expected '(' - found '{}'", self.current_token),
+        ) {
             return Err(parse_error);
         }
 
@@ -3336,7 +3499,7 @@ impl<'a> Parser<'a> {
                 Ok(type_node) => type_opt = Some(type_node),
                 Err(parse_error) => return Err(parse_error),
             }
-            
+
             // Parse default return value: = value
             if self.match_token(&[TokenType::Equals]) {
                 let return_expr_result = self.expression();
@@ -3353,14 +3516,13 @@ impl<'a> Parser<'a> {
         }
 
         let code_opt: Option<String> = None;
-        let mut terminator_node =  TerminatorExpr::new(
-            Return,
-            None,
-            self.previous().line,
-        );
+        let mut terminator_node = TerminatorExpr::new(Return, None, self.previous().line);
 
         // foo(...) : type {
-        if let Err(parse_error) = self.consume(TokenType::OpenBrace, &format!("Expected '{{' - found '{}'", self.current_token)) {
+        if let Err(parse_error) = self.consume(
+            TokenType::OpenBrace,
+            &format!("Expected '{{' - found '{}'", self.current_token),
+        ) {
             return Err(parse_error);
         }
 
@@ -3376,29 +3538,24 @@ impl<'a> Parser<'a> {
         // TODO P0: align/factor return statements into a function
         // foo(...) : type { ... return
         if self.match_token(&[TokenType::Return_]) {
-
             let mut expr_t_opt: Option<ExprType> = None;
-            let return_expr_result =  self.expression();
+            let return_expr_result = self.expression();
             match return_expr_result {
-                Ok(Some(expr_t)) => {
-                    expr_t_opt = Some(expr_t)
-                },
-                Ok(None) => {},
+                Ok(Some(expr_t)) => expr_t_opt = Some(expr_t),
+                Ok(None) => {}
                 Err(parse_error) => {
                     return Err(parse_error);
                 }
             }
 
-            terminator_node = TerminatorExpr::new(
-                Return,
-                expr_t_opt,
-                self.previous().line,
-            );
-
+            terminator_node = TerminatorExpr::new(Return, expr_t_opt, self.previous().line);
         }
 
         // foo(...) : type { ... return True }
-        if let Err(parse_error) = self.consume(TokenType::CloseBrace, &format!("Expected '}}' - found '{}'", self.current_token)) {
+        if let Err(parse_error) = self.consume(
+            TokenType::CloseBrace,
+            &format!("Expected '}}' - found '{}'", self.current_token),
+        ) {
             return Err(parse_error);
         }
 
@@ -3410,9 +3567,9 @@ impl<'a> Parser<'a> {
             statements,
             terminator_node,
             type_opt,
-            is_async,  // v0.35: async operations support
+            is_async, // v0.35: async operations support
             code_opt,
-            operation_line,  // v0.78.2: source map support for operations
+            operation_line, // v0.78.2: source map support for operations
         );
 
         let operation_node_ref = RefCell::new(operation_node);
@@ -3442,7 +3599,7 @@ impl<'a> Parser<'a> {
                         None
                     }
                 };
-                
+
                 if let Some(symtab) = domain_symtab {
                     self.arcanum.set_current_symtab(symtab);
                 } else {
@@ -3504,7 +3661,7 @@ impl<'a> Parser<'a> {
             }
             true => self.previous().lexeme.clone(),
         };
-        
+
         // v0.78.8: Capture line for source mapping
         let enum_line = self.previous().line;
 
@@ -3524,7 +3681,7 @@ impl<'a> Parser<'a> {
                 EnumType::Integer
             }
         } else {
-            EnumType::Integer  // Default to integer
+            EnumType::Integer // Default to integer
         };
 
         if !self.match_token(&[TokenType::OpenBrace]) {
@@ -3533,19 +3690,19 @@ impl<'a> Parser<'a> {
         }
 
         let mut enums = Vec::new();
-        let mut enum_value = 0;  // For auto-incrementing integers
-        
+        let mut enum_value = 0; // For auto-incrementing integers
+
         while self.match_token(&[TokenType::Identifier]) {
             let enum_member_token = self.previous();
             let identifier = enum_member_token.lexeme.clone();
-            let enum_member_line = enum_member_token.line;  // v0.78.9: capture line for source mapping
+            let enum_member_line = enum_member_token.line; // v0.78.9: capture line for source mapping
             let value = if self.match_token(&[TokenType::Equals]) {
                 // Explicit value provided
                 match enum_type {
                     EnumType::Integer => {
                         // Handle negative numbers
                         let is_negative = self.match_token(&[TokenType::Dash]);
-                        
+
                         if self.match_token(&[TokenType::Number]) {
                             let tok = self.previous();
                             let tok_lit = &tok.literal;
@@ -3589,13 +3746,14 @@ impl<'a> Parser<'a> {
                     }
                 }
             };
-            
+
             // For explicit integer values, update the auto-increment counter
             if let EnumValue::Integer(val) = &value {
                 enum_value = val + 1;
             }
-            
-            let enumerator_node = Rc::new(EnumeratorDeclNode::new(enum_member_line, identifier, value));
+
+            let enumerator_node =
+                Rc::new(EnumeratorDeclNode::new(enum_member_line, identifier, value));
             enums.push(enumerator_node);
         }
 
@@ -3669,15 +3827,15 @@ impl<'a> Parser<'a> {
             }
             true => self.previous().lexeme.clone(),
         };
-        
+
         let line = self.previous().line;
-        
+
         // v0.66: Set current class context for semantic resolution
         self.current_class_name = Some(class_name.clone());
         if self.debug_mode {
             eprintln!("DEBUG v0.66: Set current_class_name to {}", class_name);
         }
-        
+
         // Check for inheritance with Python-style syntax: class Child(Parent)
         let parent = if self.match_token(&[TokenType::LParen]) {
             if !self.match_token(&[TokenType::Identifier]) {
@@ -3685,7 +3843,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new("Expected parent class name after '('"));
             }
             let parent_name = self.previous().lexeme.clone();
-            
+
             if !self.match_token(&[TokenType::RParen]) {
                 self.error_at_current("Expected ')' after parent class name");
                 return Err(ParseError::new("Expected ')' after parent class name"));
@@ -3694,13 +3852,13 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        
+
         // Expect opening brace
         if !self.match_token(&[TokenType::OpenBrace]) {
             self.error_at_current("Expected '{' after class declaration");
             return Err(ParseError::new("Expected '{' after class declaration"));
         }
-        
+
         let instance_vars = Vec::new();
         let mut static_vars = Vec::new();
         let mut methods = Vec::new();
@@ -3708,29 +3866,30 @@ impl<'a> Parser<'a> {
         let mut class_methods = Vec::new();
         let mut properties: Vec<Rc<RefCell<PropertyNode>>> = Vec::new();
         let mut constructor = None;
-        
+
         // Parse class body
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                 eprintln!("DEBUG: In class body, current token: {:?}", self.peek());
             }
-            
+
             // Skip comments
             if self.match_token(&[TokenType::PythonComment]) {
                 continue;
             }
-            
+
             // Check for decorators
             if self.check(TokenType::At) {
                 eprintln!("DEBUG: Found @ token");
                 let saved_pos = self.current;
                 self.advance(); // consume @
                 eprintln!("DEBUG: After @, next token: {:?}", self.peek());
-                
+
                 // Check decorator type - decorators come as identifiers or keywords
-                if self.check(TokenType::Identifier) || self.check(TokenType::ClassMethod) || 
-                   self.check(TokenType::Property) {
-                    
+                if self.check(TokenType::Identifier)
+                    || self.check(TokenType::ClassMethod)
+                    || self.check(TokenType::Property)
+                {
                     let decorator_name = if self.check(TokenType::ClassMethod) {
                         "classmethod".to_string()
                     } else if self.check(TokenType::Property) {
@@ -3738,7 +3897,7 @@ impl<'a> Parser<'a> {
                     } else {
                         self.peek().lexeme.clone()
                     };
-                    
+
                     if decorator_name == "staticmethod" {
                         self.advance(); // consume "staticmethod"
                         if self.match_token(&[TokenType::Function]) {
@@ -3777,13 +3936,16 @@ impl<'a> Parser<'a> {
                         // Format: @property_name.setter or @property_name.deleter
                         let property_name = decorator_name.clone();
                         self.advance(); // consume property name
-                        
+
                         if self.match_token(&[TokenType::Dot]) {
-                            if self.check(TokenType::Identifier) || self.check(TokenType::Setter) || self.check(TokenType::Deleter) {
+                            if self.check(TokenType::Identifier)
+                                || self.check(TokenType::Setter)
+                                || self.check(TokenType::Deleter)
+                            {
                                 let decorator_type = self.peek().lexeme.clone();
                                 if decorator_type == "setter" || decorator_type == "deleter" {
                                     self.advance(); // consume "setter" or "deleter"
-                                    
+
                                     // Find the existing property
                                     let mut found_property = None;
                                     for prop in &properties {
@@ -3792,10 +3954,11 @@ impl<'a> Parser<'a> {
                                             break;
                                         }
                                     }
-                                    
+
                                     if let Some(prop) = found_property {
                                         if self.match_token(&[TokenType::Function]) {
-                                            let method = self.parse_class_method_v2(false, false)?;
+                                            let method =
+                                                self.parse_class_method_v2(false, false)?;
                                             if decorator_type == "setter" {
                                                 prop.borrow_mut().setter = Some(method);
                                             } else {
@@ -3803,28 +3966,55 @@ impl<'a> Parser<'a> {
                                             }
                                             continue;
                                         } else {
-                                            self.error_at_current(&format!("Expected 'fn' after @{}.{}", property_name, decorator_type));
-                                            return Err(ParseError::new(&format!("Expected 'fn' after @{}.{}", property_name, decorator_type)));
+                                            self.error_at_current(&format!(
+                                                "Expected 'fn' after @{}.{}",
+                                                property_name, decorator_type
+                                            ));
+                                            return Err(ParseError::new(&format!(
+                                                "Expected 'fn' after @{}.{}",
+                                                property_name, decorator_type
+                                            )));
                                         }
                                     } else {
                                         self.error_at_current(&format!("Property '{}' not found. @property must be defined before @{}.setter or @{}.deleter", property_name, property_name, property_name));
-                                        return Err(ParseError::new(&format!("Property '{}' not found", property_name)));
+                                        return Err(ParseError::new(&format!(
+                                            "Property '{}' not found",
+                                            property_name
+                                        )));
                                     }
                                 } else {
                                     // Unknown decorator type after dot, this is an error
-                                    self.error_at_current(&format!("Unknown property decorator @{}.{}", property_name, decorator_type));
-                                    return Err(ParseError::new(&format!("Unknown property decorator @{}.{}", property_name, decorator_type)));
+                                    self.error_at_current(&format!(
+                                        "Unknown property decorator @{}.{}",
+                                        property_name, decorator_type
+                                    ));
+                                    return Err(ParseError::new(&format!(
+                                        "Unknown property decorator @{}.{}",
+                                        property_name, decorator_type
+                                    )));
                                 }
                             } else {
                                 // No identifier after dot, this is an error
-                                self.error_at_current(&format!("Expected 'setter' or 'deleter' after @{}.", property_name));
-                                return Err(ParseError::new(&format!("Expected 'setter' or 'deleter' after @{}.", property_name)));
+                                self.error_at_current(&format!(
+                                    "Expected 'setter' or 'deleter' after @{}.",
+                                    property_name
+                                ));
+                                return Err(ParseError::new(&format!(
+                                    "Expected 'setter' or 'deleter' after @{}.",
+                                    property_name
+                                )));
                             }
                         } else {
                             // No dot after property name, this must be an unknown decorator
                             // Don't rewind since we already consumed the name
-                            self.error_at_current(&format!("Unknown decorator '@{}'", property_name));
-                            return Err(ParseError::new(&format!("Unknown decorator '@{}'", property_name)));
+                            self.error_at_current(&format!(
+                                "Unknown decorator '@{}'",
+                                property_name
+                            ));
+                            return Err(ParseError::new(&format!(
+                                "Unknown decorator '@{}'",
+                                property_name
+                            )));
                         }
                     }
                 } else {
@@ -3837,7 +4027,10 @@ impl<'a> Parser<'a> {
             else if self.match_token(&[TokenType::Function]) {
                 let method = self.parse_class_method_v2(false, false)?;
                 // Check if it's a constructor
-                if method.borrow().name == "init" || method.borrow().name == "__init__" || method.borrow().is_constructor {
+                if method.borrow().name == "init"
+                    || method.borrow().name == "__init__"
+                    || method.borrow().is_constructor
+                {
                     constructor = Some(method);
                 } else {
                     methods.push(method);
@@ -3851,8 +4044,7 @@ impl<'a> Parser<'a> {
                 // In the future, we might want to use a decorator to distinguish
                 static_vars.push(var_decl);
                 continue;
-            }
-            else {
+            } else {
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     eprintln!("DEBUG: Unexpected token in class body: {:?}", self.peek());
                     eprintln!("DEBUG: Current position: {}", self.current);
@@ -3862,17 +4054,17 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new("Unexpected token in class body"));
             }
         }
-        
+
         // Expect closing brace
         if !self.match_token(&[TokenType::CloseBrace]) {
             self.error_at_current("Expected '}' after class body");
             return Err(ParseError::new("Expected '}' after class body"));
         }
-        
+
         let class_node = ClassNode::new(
             class_name,
             parent,
-            Vec::new(),  // v0.58: No decorators in this path (comes from class_declaration)
+            Vec::new(), // v0.58: No decorators in this path (comes from class_declaration)
             methods,
             static_methods,
             class_methods,
@@ -3882,19 +4074,26 @@ impl<'a> Parser<'a> {
             constructor,
             line,
         );
-        
+
         // v0.66: Clear class context after parsing
         if self.debug_mode {
-            eprintln!("DEBUG v0.66: Clearing current_class_name (was {:?})", self.current_class_name);
+            eprintln!(
+                "DEBUG v0.66: Clearing current_class_name (was {:?})",
+                self.current_class_name
+            );
         }
         self.current_class_name = None;
-        
+
         Ok(Rc::new(RefCell::new(class_node)))
     }
-    
+
     // v0.45: The active class method parser (supports @classmethod)
     // TODO: Merge with parse_class_method and remove duplication
-    fn parse_class_method_v2(&mut self, is_static: bool, is_class: bool) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
+    fn parse_class_method_v2(
+        &mut self,
+        is_static: bool,
+        is_class: bool,
+    ) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
         // Get method name
         let method_name = match self.match_token(&[TokenType::Identifier]) {
             false => {
@@ -3903,91 +4102,96 @@ impl<'a> Parser<'a> {
             }
             true => self.previous().lexeme.clone(),
         };
-        
+
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Parsing method '{}'", method_name);
         }
-        
+
         let line = self.previous().line;
         let is_constructor = method_name == "init" || method_name == "__init__";
-        
+
         // Set is_class_method flag for non-static methods
         let saved_is_class_method = self.is_class_method;
         let saved_is_static = self.is_static_operation;
         self.is_class_method = !is_static && !is_class;
         self.is_static_operation = is_static || is_class;
-        
+
         // Parse parameters - parentheses are required for methods
         if !self.match_token(&[TokenType::LParen]) {
             self.error_at_current("Expected '(' after method name");
             return Err(ParseError::new("Expected '(' after method name"));
         }
         let params_opt = self.parameters()?;
-        
+
         // Consume closing parenthesis
         if !self.match_token(&[TokenType::RParen]) {
             self.error_at_current("Expected ')' after parameters");
             return Err(ParseError::new("Expected ')' after parameters"));
         }
-        
+
         // Parse return type if specified
         let type_opt = if self.match_token(&[TokenType::Colon]) {
             Some(self.type_decl()?)
         } else {
             None
         };
-        
+
         // Expect opening brace for method body
         if !self.match_token(&[TokenType::OpenBrace]) {
             self.error_at_current("Expected '{' after method declaration");
             return Err(ParseError::new("Expected '{' after method declaration"));
         }
-        
+
         // Parse method body
         let mut statements = Vec::new();
         let mut explicit_return_expr_opt: Option<ExprType> = None;
-        let mut return_line = line;  // Default to method declaration line if no explicit return
-        
+        let mut return_line = line; // Default to method declaration line if no explicit return
+
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
             // Check for explicit return statement as terminator
             if self.check(TokenType::Return_) {
-                return_line = self.peek().line;  // Capture the actual return statement line
+                return_line = self.peek().line; // Capture the actual return statement line
                 self.advance(); // consume 'return'
-                
+
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG: Found return in method_decl, is_class_method={}, return_line={}", self.is_class_method, return_line);
+                    eprintln!(
+                        "DEBUG: Found return in method_decl, is_class_method={}, return_line={}",
+                        self.is_class_method, return_line
+                    );
                 }
-                
+
                 // Parse the return expression
                 explicit_return_expr_opt = self.expression()?;
-                
+
                 // A return statement should be the last thing in the method
                 break;
             }
             // Use EventHandlerVarScope for local variables in methods
             // This prevents them from getting the self. prefix
-            else if let Some(stmt) = self.decl_or_stmt(IdentifierDeclScope::EventHandlerVarScope)? {
+            else if let Some(stmt) =
+                self.decl_or_stmt(IdentifierDeclScope::EventHandlerVarScope)?
+            {
                 statements.push(stmt);
             }
         }
-        
+
         // Expect closing brace
         if !self.match_token(&[TokenType::CloseBrace]) {
             self.error_at_current("Expected '}' after method body");
             return Err(ParseError::new("Expected '}' after method body"));
         }
-        
+
         // Use explicit return expression if found, otherwise empty terminator
         let terminator_expr = TerminatorExpr::new(
             TerminatorType::Return,
             explicit_return_expr_opt,
-            return_line,  // Use the actual return statement line, not the method declaration line
+            return_line, // Use the actual return statement line, not the method declaration line
         );
-        
+
         // Restore flags
         self.is_class_method = saved_is_class_method;
         self.is_static_operation = saved_is_static;
-        
+
         let method_node = MethodNode::new(
             method_name,
             params_opt,
@@ -3999,7 +4203,7 @@ impl<'a> Parser<'a> {
             is_class,
             line,
         );
-        
+
         Ok(Rc::new(RefCell::new(method_node)))
     }
 
@@ -4030,12 +4234,16 @@ impl<'a> Parser<'a> {
             self.error_at_current("Expected declaration identifier or star expression");
             return Err(ParseError::new("Expected identifier or *identifier"));
         };
-        
+
         // v0.52: Check for multiple variable declarations (var x, y = ...)
         // v0.54: Support star expressions (var x, *rest, y = ...)
         let mut names = vec![first_name.clone()];
-        let mut star_index = if first_name.starts_with("*") { Some(0) } else { None };
-        
+        let mut star_index = if first_name.starts_with("*") {
+            Some(0)
+        } else {
+            None
+        };
+
         while self.match_token(&[TokenType::Comma]) {
             // Check for star expression
             if self.match_token(&[TokenType::Star]) {
@@ -4052,17 +4260,26 @@ impl<'a> Parser<'a> {
             } else if self.match_token(&[TokenType::Identifier]) {
                 names.push(self.previous().lexeme.clone());
             } else {
-                self.error_at_current("Expected identifier or star expression after ',' in variable declaration");
-                return Err(ParseError::new("Expected identifier or star expression after ','"));
+                self.error_at_current(
+                    "Expected identifier or star expression after ',' in variable declaration",
+                );
+                return Err(ParseError::new(
+                    "Expected identifier or star expression after ','",
+                ));
             }
         }
-        
+
         // If we have multiple names or a star expression, handle it specially
         // Note: Single star expression (*rest = ...) is also handled as multiple var declaration
         if names.len() > 1 || first_name.starts_with("*") {
-            return self.handle_multiple_var_declaration(var_line, names, is_constant, identifier_decl_scope);
+            return self.handle_multiple_var_declaration(
+                var_line,
+                names,
+                is_constant,
+                identifier_decl_scope,
+            );
         }
-        
+
         // For single regular variable, use the name directly
         let name = first_name.clone();
 
@@ -4107,10 +4324,15 @@ impl<'a> Parser<'a> {
 
         if self.is_building_symbol_table {
             // lexical pass - add variable to current symbol table
-            self.create_variable_symbol(name, type_node_opt, &identifier_decl_scope, variable_decl_node_rcref.clone())?;
+            self.create_variable_symbol(
+                name,
+                type_node_opt,
+                &identifier_decl_scope,
+                variable_decl_node_rcref.clone(),
+            )?;
         } else {
             // semantic pass
-            
+
             // Check for variable shadowing in functions/event handlers
             self.check_variable_shadowing(&name, &identifier_decl_scope)?;
 
@@ -4177,7 +4399,7 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
-    
+
     // v0.52: Handle multiple variable declaration (var x, y = ...)
     fn handle_multiple_var_declaration(
         &mut self,
@@ -4188,16 +4410,22 @@ impl<'a> Parser<'a> {
     ) -> Result<Rc<RefCell<VariableDeclNode>>, ParseError> {
         // Multiple variable declaration doesn't support type annotations
         if self.match_token(&[TokenType::Colon]) {
-            self.error_at_current("Type annotations not supported in multiple variable declarations");
-            return Err(ParseError::new("Type annotations not supported in multiple variable declarations"));
+            self.error_at_current(
+                "Type annotations not supported in multiple variable declarations",
+            );
+            return Err(ParseError::new(
+                "Type annotations not supported in multiple variable declarations",
+            ));
         }
-        
+
         // Require equals for initialization
         if !self.match_token(&[TokenType::Equals]) {
             self.error_at_current("Multiple variable declaration requires initialization");
-            return Err(ParseError::new("Multiple variable declaration requires initialization"));
+            return Err(ParseError::new(
+                "Multiple variable declaration requires initialization",
+            ));
         }
-        
+
         // Parse the right-hand side
         // For multiple variable declarations, if the RHS is not parenthesized,
         // we need to explicitly parse it as a tuple
@@ -4211,22 +4439,26 @@ impl<'a> Parser<'a> {
             match self.logical_or() {
                 Ok(Some(expr)) => values.push(expr),
                 Ok(None) => {
-                    return Err(ParseError::new("Expected value in multiple variable initialization"));
+                    return Err(ParseError::new(
+                        "Expected value in multiple variable initialization",
+                    ));
                 }
                 Err(e) => return Err(e),
             }
-            
+
             // Parse remaining comma-separated values
             while self.match_token(&[TokenType::Comma]) {
                 match self.logical_or() {
                     Ok(Some(expr)) => values.push(expr),
                     Ok(None) => {
-                        return Err(ParseError::new("Expected value after comma in multiple variable initialization"));
+                        return Err(ParseError::new(
+                            "Expected value after comma in multiple variable initialization",
+                        ));
                     }
                     Err(e) => return Err(e),
                 }
             }
-            
+
             // If we have multiple values, create a tuple. If single value, use it directly
             if values.len() > 1 {
                 Rc::new(ExprType::TupleLiteralT {
@@ -4237,7 +4469,7 @@ impl<'a> Parser<'a> {
                 Rc::new(values.into_iter().next().unwrap())
             }
         };
-        
+
         // v0.53: Properly register ALL variables in the symbol table during first pass
         if self.is_building_symbol_table {
             // During first pass, create placeholder symbols for all variables
@@ -4248,7 +4480,7 @@ impl<'a> Parser<'a> {
                 } else {
                     name.clone()
                 };
-                
+
                 // Create a simple placeholder node for each variable
                 let var_node = VariableDeclNode::new(
                     var_line,
@@ -4260,17 +4492,17 @@ impl<'a> Parser<'a> {
                     identifier_decl_scope.clone(),
                 );
                 let var_node_rcref = Rc::new(RefCell::new(var_node));
-                
+
                 // Register each variable in the symbol table
                 self.create_variable_symbol(
-                    actual_name, 
-                    None, 
-                    &identifier_decl_scope, 
-                    var_node_rcref
+                    actual_name,
+                    None,
+                    &identifier_decl_scope,
+                    var_node_rcref,
                 )?;
             }
         }
-        
+
         // Create a special node that encodes all the variable names for the visitor
         // We'll use a comma-separated string in the name field as a signal to the visitor
         let multi_var_marker = format!("__multi_var__:{}", names.join(","));
@@ -4283,71 +4515,149 @@ impl<'a> Parser<'a> {
             value.clone(),
             identifier_decl_scope.clone(),
         );
-        
+
         let variable_decl_node_rcref = Rc::new(RefCell::new(variable_decl_node));
-        
+
         Ok(variable_decl_node_rcref)
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to parse variable initializer value
-    
+
     fn parse_variable_initializer(&mut self, _name: &str) -> Result<Rc<ExprType>, ParseError> {
         match self.assignment() {
             Ok(Some(expr)) => {
                 let value = match expr {
-                    LiteralExprT { literal_expr_node } => Rc::new(LiteralExprT { literal_expr_node }),
+                    LiteralExprT { literal_expr_node } => {
+                        Rc::new(LiteralExprT { literal_expr_node })
+                    }
                     VariableExprT { var_node } => Rc::new(VariableExprT { var_node }),
-                    ActionCallExprT { action_call_expr_node } => Rc::new(ActionCallExprT { action_call_expr_node }),
-                    CallChainExprT { call_chain_expr_node } => Rc::new(CallChainExprT { call_chain_expr_node }),
+                    ActionCallExprT {
+                        action_call_expr_node,
+                    } => Rc::new(ActionCallExprT {
+                        action_call_expr_node,
+                    }),
+                    CallChainExprT {
+                        call_chain_expr_node,
+                    } => Rc::new(CallChainExprT {
+                        call_chain_expr_node,
+                    }),
                     UnaryExprT { unary_expr_node } => Rc::new(UnaryExprT { unary_expr_node }),
                     BinaryExprT { binary_expr_node } => Rc::new(BinaryExprT { binary_expr_node }),
-                    FrameEventExprT { frame_event_part } => Rc::new(FrameEventExprT { frame_event_part }),
-                    EnumeratorExprT { enum_expr_node } => Rc::new(EnumeratorExprT { enum_expr_node }),
-                    SystemInstanceExprT { system_instance_expr_node } => Rc::new(SystemInstanceExprT { system_instance_expr_node }),
-                    SystemTypeExprT { system_type_expr_node } => Rc::new(SystemTypeExprT { system_type_expr_node }),
+                    FrameEventExprT { frame_event_part } => {
+                        Rc::new(FrameEventExprT { frame_event_part })
+                    }
+                    EnumeratorExprT { enum_expr_node } => {
+                        Rc::new(EnumeratorExprT { enum_expr_node })
+                    }
+                    SystemInstanceExprT {
+                        system_instance_expr_node,
+                    } => Rc::new(SystemInstanceExprT {
+                        system_instance_expr_node,
+                    }),
+                    SystemTypeExprT {
+                        system_type_expr_node,
+                    } => Rc::new(SystemTypeExprT {
+                        system_type_expr_node,
+                    }),
                     CallExprT { call_expr_node } => Rc::new(CallExprT { call_expr_node }),
                     DefaultLiteralValueForTypeExprT => Rc::new(DefaultLiteralValueForTypeExprT),
                     NilExprT => Rc::new(NilExprT),
                     SelfExprT { self_expr_node } => Rc::new(SelfExprT { self_expr_node }),
                     ListT { list_node } => Rc::new(ListT { list_node }),
-                    DictLiteralT { dict_literal_node } => Rc::new(DictLiteralT { dict_literal_node }),
+                    DictLiteralT { dict_literal_node } => {
+                        Rc::new(DictLiteralT { dict_literal_node })
+                    }
                     SetLiteralT { set_literal_node } => Rc::new(SetLiteralT { set_literal_node }),
-                    TupleLiteralT { tuple_literal_node } => Rc::new(TupleLiteralT { tuple_literal_node }),
-                    ListComprehensionExprT { list_comprehension_node } => Rc::new(ListComprehensionExprT { list_comprehension_node }),
+                    TupleLiteralT { tuple_literal_node } => {
+                        Rc::new(TupleLiteralT { tuple_literal_node })
+                    }
+                    ListComprehensionExprT {
+                        list_comprehension_node,
+                    } => Rc::new(ListComprehensionExprT {
+                        list_comprehension_node,
+                    }),
                     UnpackExprT { unpack_expr_node } => Rc::new(UnpackExprT { unpack_expr_node }),
-                    DictUnpackExprT { dict_unpack_expr_node } => Rc::new(DictUnpackExprT { dict_unpack_expr_node }),
+                    DictUnpackExprT {
+                        dict_unpack_expr_node,
+                    } => Rc::new(DictUnpackExprT {
+                        dict_unpack_expr_node,
+                    }),
                     AwaitExprT { await_expr_node } => Rc::new(AwaitExprT { await_expr_node }),
                     LambdaExprT { lambda_expr_node } => Rc::new(LambdaExprT { lambda_expr_node }),
-                    DictComprehensionExprT { dict_comprehension_node } => Rc::new(DictComprehensionExprT { dict_comprehension_node }),
-                    SetComprehensionExprT { set_comprehension_node } => Rc::new(SetComprehensionExprT { set_comprehension_node }),
+                    DictComprehensionExprT {
+                        dict_comprehension_node,
+                    } => Rc::new(DictComprehensionExprT {
+                        dict_comprehension_node,
+                    }),
+                    SetComprehensionExprT {
+                        set_comprehension_node,
+                    } => Rc::new(SetComprehensionExprT {
+                        set_comprehension_node,
+                    }),
                     FunctionRefT { name } => Rc::new(FunctionRefT { name }),
                     YieldExprT { yield_expr_node } => Rc::new(YieldExprT { yield_expr_node }),
-                    YieldFromExprT { yield_from_expr_node } => Rc::new(YieldFromExprT { yield_from_expr_node }),
-                    GeneratorExprT { generator_expr_node } => Rc::new(GeneratorExprT { generator_expr_node }),
+                    YieldFromExprT {
+                        yield_from_expr_node,
+                    } => Rc::new(YieldFromExprT {
+                        yield_from_expr_node,
+                    }),
+                    GeneratorExprT {
+                        generator_expr_node,
+                    } => Rc::new(GeneratorExprT {
+                        generator_expr_node,
+                    }),
                     StarExprT { star_expr_node } => Rc::new(StarExprT { star_expr_node }),
-                    WalrusExprT { assignment_expr_node } => Rc::new(WalrusExprT { assignment_expr_node }),
-                    
+                    WalrusExprT {
+                        assignment_expr_node,
+                    } => Rc::new(WalrusExprT {
+                        assignment_expr_node,
+                    }),
+
                     // Invalid assignment types
                     ExprListT { expr_list_node } => {
-                        self.error_at_current("Expr type 'ExprList' is not a valid rvalue assignment type.");
+                        self.error_at_current(
+                            "Expr type 'ExprList' is not a valid rvalue assignment type.",
+                        );
                         Rc::new(ExprListT { expr_list_node })
                     }
-                    TransitionExprT { transition_expr_node } => {
-                        self.error_at_current("Expr type 'TransitionExpr' is not a valid rvalue assignment type.");
-                        Rc::new(TransitionExprT { transition_expr_node })
+                    TransitionExprT {
+                        transition_expr_node,
+                    } => {
+                        self.error_at_current(
+                            "Expr type 'TransitionExpr' is not a valid rvalue assignment type.",
+                        );
+                        Rc::new(TransitionExprT {
+                            transition_expr_node,
+                        })
                     }
-                    AssignmentExprT { assignment_expr_node } => {
-                        self.error_at_current("Expr type 'AssignmentExpr' is not a valid rvalue assignment type.");
-                        Rc::new(AssignmentExprT { assignment_expr_node })
+                    AssignmentExprT {
+                        assignment_expr_node,
+                    } => {
+                        self.error_at_current(
+                            "Expr type 'AssignmentExpr' is not a valid rvalue assignment type.",
+                        );
+                        Rc::new(AssignmentExprT {
+                            assignment_expr_node,
+                        })
                     }
-                    StateStackOperationExprT { state_stack_op_node } => {
+                    StateStackOperationExprT {
+                        state_stack_op_node,
+                    } => {
                         self.error_at_current("Expr type 'StateStackOperationExpr' is not a valid rvalue assignment type.");
-                        Rc::new(StateStackOperationExprT { state_stack_op_node })
+                        Rc::new(StateStackOperationExprT {
+                            state_stack_op_node,
+                        })
                     }
-                    CallExprListT { call_expr_list_node } => {
-                        self.error_at_current("Expr type 'CallExprList' is not a valid rvalue assignment type.");
-                        Rc::new(CallExprListT { call_expr_list_node })
+                    CallExprListT {
+                        call_expr_list_node,
+                    } => {
+                        self.error_at_current(
+                            "Expr type 'CallExprList' is not a valid rvalue assignment type.",
+                        );
+                        Rc::new(CallExprListT {
+                            call_expr_list_node,
+                        })
                     }
                 };
                 Ok(value)
@@ -4360,18 +4670,24 @@ impl<'a> Parser<'a> {
             Err(parse_err) => Err(parse_err),
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to check for variable shadowing
-    
-    fn check_variable_shadowing(&mut self, name: &str, identifier_decl_scope: &IdentifierDeclScope) -> Result<(), ParseError> {
+
+    fn check_variable_shadowing(
+        &mut self,
+        name: &str,
+        identifier_decl_scope: &IdentifierDeclScope,
+    ) -> Result<(), ParseError> {
         match identifier_decl_scope {
-            IdentifierDeclScope::EventHandlerVarScope | 
-            IdentifierDeclScope::BlockVarScope | 
-            IdentifierDeclScope::LoopVarScope => {
+            IdentifierDeclScope::EventHandlerVarScope
+            | IdentifierDeclScope::BlockVarScope
+            | IdentifierDeclScope::LoopVarScope => {
                 // Check if this shadows a module-level variable
-                let lookup_result = self.arcanum.lookup(&name, &IdentifierDeclScope::UnknownScope);
-                
+                let lookup_result = self
+                    .arcanum
+                    .lookup(&name, &IdentifierDeclScope::UnknownScope);
+
                 // If found, check if it's a module variable
                 let shadows_module_var = if let Some(symbol_rcref) = lookup_result {
                     let symbol = symbol_rcref.borrow();
@@ -4379,12 +4695,12 @@ impl<'a> Parser<'a> {
                 } else {
                     false
                 };
-                
+
                 if shadows_module_var {
                     let err_msg = format!(
                         "Cannot shadow module-level variable '{}' with local variable. \
                         Module variables cannot be shadowed in functions or event handlers. \
-                        Please use a different variable name.", 
+                        Please use a different variable name.",
                         name
                     );
                     self.error_at_previous(&err_msg);
@@ -4395,10 +4711,10 @@ impl<'a> Parser<'a> {
         }
         Ok(())
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to create and register variable symbol
-    
+
     fn create_variable_symbol(
         &mut self,
         name: String,
@@ -4407,9 +4723,10 @@ impl<'a> Parser<'a> {
         variable_decl_node_rcref: Rc<RefCell<VariableDeclNode>>,
     ) -> Result<(), ParseError> {
         let scope = self.arcanum.get_current_identifier_scope();
-        let variable_symbol = VariableSymbol::new(name, type_node_opt, scope, variable_decl_node_rcref.clone());
+        let variable_symbol =
+            VariableSymbol::new(name, type_node_opt, scope, variable_decl_node_rcref.clone());
         let variable_symbol_rcref = Rc::new(RefCell::new(variable_symbol));
-        
+
         let variable_symbol_t = match identifier_decl_scope {
             IdentifierDeclScope::DomainBlockScope => SymbolType::DomainVariable {
                 domain_variable_symbol_rcref: variable_symbol_rcref,
@@ -4443,9 +4760,14 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(err_msg));
             }
         };
-        
-        self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
-        let ret = self.arcanum.current_symtab.borrow_mut().define(&variable_symbol_t);
+
+        self.arcanum
+            .debug_print_current_symbols(self.arcanum.get_current_symtab());
+        let ret = self
+            .arcanum
+            .current_symtab
+            .borrow_mut()
+            .define(&variable_symbol_t);
         match ret {
             Ok(()) => {}
             Err(err_msg) => {
@@ -4453,14 +4775,18 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(err_msg.as_str()));
             }
         }
-        self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+        self.arcanum
+            .debug_print_current_symbols(self.arcanum.get_current_symtab());
         Ok(())
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to parse state name and setup scope
-    
-    fn parse_state_name_and_scope(&mut self, line: usize) -> Result<(String, Rc<RefCell<StateSymbol>>), ParseError> {
+
+    fn parse_state_name_and_scope(
+        &mut self,
+        line: usize,
+    ) -> Result<(String, Rc<RefCell<StateSymbol>>), ParseError> {
         if !self.match_token(&[TokenType::Identifier]) {
             // error message and synchronize
             self.error_at_current("Expected state name.");
@@ -4486,7 +4812,7 @@ impl<'a> Parser<'a> {
             let _state_node_rcref = Rc::new(RefCell::new(state_node));
             return Err(ParseError::new("Expected state name"));
         }
-        
+
         let id = self.previous();
         let state_name = id.lexeme.clone();
         self.state_name_opt = Some(state_name.clone());
@@ -4503,34 +4829,40 @@ impl<'a> Parser<'a> {
             state_symbol_rcref
         } else {
             if let Err(err) = self.arcanum.set_parse_scope(&state_name) {
-                return Err(ParseError::new(&format!("Failed to set state scope '{}': {}", state_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set state scope '{}': {}",
+                    state_name, err
+                )));
             }
             self.arcanum.get_state(&state_name).unwrap()
         };
-        
+
         Ok((state_name, state_symbol_rcref))
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to parse state parameters
-    
-    fn parse_state_parameters(&mut self, state_name: &str) -> Result<(Option<Vec<ParameterNode>>, bool), ParseError> {
+
+    fn parse_state_parameters(
+        &mut self,
+        state_name: &str,
+    ) -> Result<(Option<Vec<ParameterNode>>, bool), ParseError> {
         if !self.match_token(&[TokenType::LParen]) {
             return Ok((None, false));
         }
-        
+
         // generate StateContext mechanism for state parameter support
         self.generate_state_context = true;
-        
+
         match self.parameters() {
             Ok(Some(parameters)) => {
                 let pop_state_params_scope = true;
-                
+
                 if self.is_building_symbol_table {
                     match self.arcanum.get_state(&state_name) {
                         Some(state_symbol) => {
                             let state_params_scope_symbol = StateParamsScopeSymbol::new();
-                            let state_params_scope_symbol_rcref = 
+                            let state_params_scope_symbol_rcref =
                                 Rc::new(RefCell::new(state_params_scope_symbol));
                             self.arcanum.enter_scope(ParseScopeType::StateParams {
                                 state_params_scope_symbol_rcref,
@@ -4560,53 +4892,55 @@ impl<'a> Parser<'a> {
                         }
                     }
                 } else {
-                    if let Err(err) = self.arcanum.set_parse_scope(StateParamsScopeSymbol::scope_name()) {
-                        return Err(ParseError::new(&format!("Failed to set state params scope: {}", err)));
+                    if let Err(err) = self
+                        .arcanum
+                        .set_parse_scope(StateParamsScopeSymbol::scope_name())
+                    {
+                        return Err(ParseError::new(&format!(
+                            "Failed to set state params scope: {}",
+                            err
+                        )));
                     }
                 }
-                
+
                 // Consume closing paren
                 if self.consume(TokenType::RParen, "Expected ')'").is_err() {
-                    let sync_tokens = vec![
-                        TokenType::Colon,
-                        TokenType::Dispatch,
-                        TokenType::OpenBrace,
-                    ];
+                    let sync_tokens =
+                        vec![TokenType::Colon, TokenType::Dispatch, TokenType::OpenBrace];
                     self.synchronize(&sync_tokens);
                     if !self.follows(
                         self.peek(),
-                        &[
-                            TokenType::Colon,
-                            TokenType::Dispatch,
-                            TokenType::OpenBrace,
-                        ],
+                        &[TokenType::Colon, TokenType::Dispatch, TokenType::OpenBrace],
                     ) {
-                        return Err(ParseError::new(&format!("Unparseable state {}", state_name)));
+                        return Err(ParseError::new(&format!(
+                            "Unparseable state {}",
+                            state_name
+                        )));
                     }
                 }
-                
+
                 Ok((Some(parameters), pop_state_params_scope))
             }
             Err(parse_error) => Err(parse_error),
             Ok(None) => {
                 // Consume closing paren
                 if self.consume(TokenType::RParen, "Expected ')'").is_err() {
-                    let sync_tokens = vec![
-                        TokenType::Colon,
-                        TokenType::Dispatch,
-                        TokenType::OpenBrace,
-                    ];
+                    let sync_tokens =
+                        vec![TokenType::Colon, TokenType::Dispatch, TokenType::OpenBrace];
                     self.synchronize(&sync_tokens);
                 }
                 Ok((None, false))
             }
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to parse dispatch clause
-    
-    fn parse_state_dispatch(&mut self, state_name: &str) -> Result<Option<DispatchNode>, ParseError> {
+
+    fn parse_state_dispatch(
+        &mut self,
+        state_name: &str,
+    ) -> Result<Option<DispatchNode>, ParseError> {
         if !self.match_token(&[TokenType::Dispatch]) {
             // Update hierarchy without dispatch
             match &mut self.system_hierarchy_opt {
@@ -4619,16 +4953,16 @@ impl<'a> Parser<'a> {
             }
             return Ok(None);
         }
-        
+
         match self.consume(TokenType::State, "Expected '$'") {
             Ok(_) => {
                 if self.match_token(&[TokenType::Identifier]) {
                     let id = self.previous();
                     let target_state_name = id.lexeme.clone();
-                    
+
                     let target_state_ref = StateRefNode::new(target_state_name.clone());
                     let dispatch_node = DispatchNode::new(target_state_ref, id.line);
-                    
+
                     // Update hierarchy with dispatch
                     match &mut self.system_hierarchy_opt {
                         Some(system_hierarchy) => {
@@ -4638,10 +4972,10 @@ impl<'a> Parser<'a> {
                             return Err(ParseError::new("System Hierarchy should always be here."));
                         }
                     }
-                    
+
                     // Track parent state for => $^ validation
                     self.state_parent_opt = Some(dispatch_node.target_state_ref.name.clone());
-                    
+
                     Ok(Some(dispatch_node))
                 } else {
                     self.error_at_current("Expected dispatch target state identifier.");
@@ -4670,13 +5004,13 @@ impl<'a> Parser<'a> {
             }
         }
     }
-    
+
     /* --------------------------------------------------------------------- */
     // Helper function to setup state local scope
-    
+
     fn setup_state_local_scope(&mut self) -> Result<(), ParseError> {
         let _ = self.consume(TokenType::OpenBrace, "Expected '{'");
-        
+
         if self.is_building_symbol_table {
             let state_local_scope_struct = StateLocalScopeSymbol::new();
             let state_local_scope_symbol_rcref = Rc::new(RefCell::new(state_local_scope_struct));
@@ -4685,30 +5019,35 @@ impl<'a> Parser<'a> {
             };
             self.arcanum.enter_scope(state_local_scope);
         } else {
-            if let Err(err) = self.arcanum.set_parse_scope(StateLocalScopeSymbol::scope_name()) {
-                return Err(ParseError::new(&format!("Failed to set state local scope: {}", err)));
+            if let Err(err) = self
+                .arcanum
+                .set_parse_scope(StateLocalScopeSymbol::scope_name())
+            {
+                return Err(ParseError::new(&format!(
+                    "Failed to set state local scope: {}",
+                    err
+                )));
             }
         }
         Ok(())
     }
-    
+
     /* --------------------------------------------------------------------- */
 
     // TODO return result
     //    fn state(&mut self) -> Rc<RefCell<StateNode>> {
     fn state(&mut self) -> Result<Rc<RefCell<StateNode>>, ParseError> {
         let line = self.previous().line;
-        
+
         // Parse state name and setup scope
         let (state_name, state_symbol_rcref) = self.parse_state_name_and_scope(line)?;
 
         // Parse state parameters
         let (params_opt, pop_state_params_scope) = self.parse_state_parameters(&state_name)?;
 
-
         // Parse dispatch clause
         let dispatch_opt = self.parse_state_dispatch(&state_name)?;
-        
+
         // Setup state local scope
         self.setup_state_local_scope()?;
 
@@ -4721,8 +5060,7 @@ impl<'a> Parser<'a> {
         // Parse event handlers
         let state_event_handlers = self.parse_state_event_handlers(&state_name)?;
 
-
-        let _ = self.consume(TokenType::CloseBrace, "Expected '}'")? ;
+        let _ = self.consume(TokenType::CloseBrace, "Expected '}'")?;
 
         // Create state node and update symbol table
         let state_node_rcref = self.create_and_register_state_node(
@@ -4742,7 +5080,9 @@ impl<'a> Parser<'a> {
         Ok(state_node_rcref)
     }
 
-    fn parse_state_variables(&mut self) -> Result<Option<Vec<Rc<RefCell<VariableDeclNode>>>>, ParseError> {
+    fn parse_state_variables(
+        &mut self,
+    ) -> Result<Option<Vec<Rc<RefCell<VariableDeclNode>>>>, ParseError> {
         // state local variables
         // $S1 {
         //    var a = 1
@@ -4756,7 +5096,10 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-    fn parse_state_event_handlers(&mut self, state_name: &str) -> Result<StateEventHandlers, ParseError> {
+    fn parse_state_event_handlers(
+        &mut self,
+        state_name: &str,
+    ) -> Result<StateEventHandlers, ParseError> {
         let mut state_event_handlers = StateEventHandlers {
             enter_event_handler_opt: None,
             exit_event_handler_opt: None,
@@ -4769,11 +5112,16 @@ impl<'a> Parser<'a> {
 
         // Check for async keyword before event handler
         let is_async_handler = self.match_token(&[TokenType::Async]);
-        
-        if self.match_token(&[TokenType::Identifier,TokenType::EnterStateMsg,TokenType::ExitStateMsg]) {
-            state_event_handlers = self.event_handlers(&state_name.to_string(), is_async_handler)?;
+
+        if self.match_token(&[
+            TokenType::Identifier,
+            TokenType::EnterStateMsg,
+            TokenType::ExitStateMsg,
+        ]) {
+            state_event_handlers =
+                self.event_handlers(&state_name.to_string(), is_async_handler)?;
         }
-        
+
         Ok(state_event_handlers)
     }
 
@@ -4841,13 +5189,15 @@ impl<'a> Parser<'a> {
             self.arcanum.exit_scope(); // state params scope
         }
         self.arcanum.exit_scope(); // state scope
-        
+
         Ok(())
     }
 
     /* --------------------------------------------------------------------- */
 
-    fn state_variables(&mut self) -> Result<Option<Vec<Rc<RefCell<VariableDeclNode>>>>, ParseError> {
+    fn state_variables(
+        &mut self,
+    ) -> Result<Option<Vec<Rc<RefCell<VariableDeclNode>>>>, ParseError> {
         // variable decl
         // let v     (mutable)
         // const c   (immutable)
@@ -4877,8 +5227,11 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn event_handlers(&mut self,state_name:&String, is_async: bool) -> Result<StateEventHandlers, ParseError> {
-
+    fn event_handlers(
+        &mut self,
+        state_name: &String,
+        is_async: bool,
+    ) -> Result<StateEventHandlers, ParseError> {
         let mut evt_handlers: Vec<Rc<RefCell<EventHandlerNode>>> = Vec::new();
         let mut enter_event_handler = Option::None;
         let mut exit_event_handler = Option::None;
@@ -4889,7 +5242,14 @@ impl<'a> Parser<'a> {
         match self.event_handler(is_async) {
             Ok(eh_opt) => {
                 if let Some(eh) = eh_opt {
-                    self.process_event_handler(eh, &mut evt_handlers, &mut enter_event_handler, &mut exit_event_handler, &mut event_names, state_name)?;
+                    self.process_event_handler(
+                        eh,
+                        &mut evt_handlers,
+                        &mut enter_event_handler,
+                        &mut exit_event_handler,
+                        &mut event_names,
+                        state_name,
+                    )?;
                 }
             }
             Err(eh_error) => {
@@ -4900,17 +5260,15 @@ impl<'a> Parser<'a> {
 
         // Continue with remaining event handlers using improved loop with better error recovery
         self.parse_remaining_event_handlers_with_recovery(
-            state_name, 
-            &mut evt_handlers, 
-            &mut enter_event_handler, 
-            &mut exit_event_handler, 
-            &mut event_names
+            state_name,
+            &mut evt_handlers,
+            &mut enter_event_handler,
+            &mut exit_event_handler,
+            &mut event_names,
         )?;
 
-        let state_event_handlers = StateEventHandlers::new(
-            enter_event_handler,
-            exit_event_handler,
-            evt_handlers);
+        let state_event_handlers =
+            StateEventHandlers::new(enter_event_handler, exit_event_handler, evt_handlers);
         Ok(state_event_handlers)
     }
 
@@ -4922,7 +5280,7 @@ impl<'a> Parser<'a> {
         enter_event_handler: &mut Option<Rc<RefCell<EventHandlerNode>>>,
         exit_event_handler: &mut Option<Rc<RefCell<EventHandlerNode>>>,
         event_names: &mut HashMap<String, String>,
-        state_name: &String
+        state_name: &String,
     ) -> Result<(), ParseError> {
         let eh_rcref = Rc::new(RefCell::new(eh));
 
@@ -4952,10 +5310,7 @@ impl<'a> Parser<'a> {
                 }
             } else {
                 if event_names.contains_key(&evt.msg) {
-                    let err_msg = &format!(
-                        "Event handler {} already exists.",
-                        evt.msg
-                    );
+                    let err_msg = &format!("Event handler {} already exists.", evt.msg);
                     self.error_at_previous(&err_msg);
                     //                                            return Err(ParseError::new(err_msg));
                 } else {
@@ -4976,38 +5331,47 @@ impl<'a> Parser<'a> {
         evt_handlers: &mut Vec<Rc<RefCell<EventHandlerNode>>>,
         enter_event_handler: &mut Option<Rc<RefCell<EventHandlerNode>>>,
         exit_event_handler: &mut Option<Rc<RefCell<EventHandlerNode>>>,
-        event_names: &mut HashMap<String, String>
+        event_names: &mut HashMap<String, String>,
     ) -> Result<(), ParseError> {
-
         // Use loop with improved error recovery instead of pure recursion to avoid stack issues
         let mut error_count = 0;
         const MAX_ERRORS: usize = 10; // Prevent infinite error loops
-        
+
         loop {
             // Check for async keyword before event handler
             let next_is_async = self.match_token(&[TokenType::Async]);
-            
+
             // PARSER FIX: Use check() to avoid consuming tokens during loop continuation check
             // Then explicitly consume the token for the next event_handler() call
-            if !self.check(TokenType::Identifier) && 
-               !self.check(TokenType::EnterStateMsg) && 
-               !self.check(TokenType::ExitStateMsg) {
+            if !self.check(TokenType::Identifier)
+                && !self.check(TokenType::EnterStateMsg)
+                && !self.check(TokenType::ExitStateMsg)
+            {
                 // If we consumed async but no event handler follows, that's an error
                 if next_is_async {
                     self.error_at_current("Expected event handler after 'async' keyword");
-                    return Err(ParseError::new("Expected event handler after 'async' keyword"));
+                    return Err(ParseError::new(
+                        "Expected event handler after 'async' keyword",
+                    ));
                 }
                 break; // Successful termination
             }
-            
+
             // Explicitly consume the event identifier token for the next event_handler() call
             self.advance();
-            
+
             // Parse current event handler
             match self.event_handler(next_is_async) {
                 Ok(eh_opt) => {
                     if let Some(eh) = eh_opt {
-                        self.process_event_handler(eh, evt_handlers, enter_event_handler, exit_event_handler, event_names, state_name)?;
+                        self.process_event_handler(
+                            eh,
+                            evt_handlers,
+                            enter_event_handler,
+                            exit_event_handler,
+                            event_names,
+                            state_name,
+                        )?;
                     }
                     // Reset error count on successful parse
                     error_count = 0;
@@ -5016,22 +5380,22 @@ impl<'a> Parser<'a> {
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                         eprintln!("DEBUG: Event handler parsing failed: {}", eh_error);
                     }
-                    
+
                     eprintln!("Warning: Event handler parsing failed: {}", eh_error);
                     error_count += 1;
-                    
+
                     // PHASE 4 FIX: Improved error recovery with counter to prevent infinite loops
                     if error_count >= MAX_ERRORS {
                         eprintln!("Warning: Too many event handler errors, stopping parse");
                         break;
                     }
-                    
+
                     // Try to recover by finding next event handler boundary
                     self.recover_from_event_handler_error(&eh_error)?;
                 }
             }
         }
-        
+
         Ok(())
     }
 
@@ -5064,11 +5428,9 @@ impl<'a> Parser<'a> {
     fn parse_event_message(&mut self) -> Result<(MessageType, String, usize), ParseError> {
         let tt = self.previous().token_type;
         let message_node = match tt {
-            TokenType::Identifier
-            | TokenType::EnterStateMsg
-            | TokenType::ExitStateMsg => {
+            TokenType::Identifier | TokenType::EnterStateMsg | TokenType::ExitStateMsg => {
                 self.create_message_node(tt)
-            },
+            }
             _ => {
                 let token_str = self.previous().lexeme.clone();
                 let err_msg = &format!("Invalid event type. Found {}. ", token_str);
@@ -5076,12 +5438,12 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(err_msg));
             }
         };
-        
+
         let message_type = MessageType::CustomMessage { message_node };
         let id = self.previous();
         let msg = id.lexeme.clone();
         let line_number = id.line;
-        
+
         Ok((message_type, msg, line_number))
     }
 
@@ -5126,7 +5488,10 @@ impl<'a> Parser<'a> {
             });
         } else {
             if let Err(err) = self.arcanum.set_parse_scope(msg) {
-                return Err(ParseError::new(&format!("Failed to set event handler scope '{}': {}", msg, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set event handler scope '{}': {}",
+                    msg, err
+                )));
             }
         }
 
@@ -5134,7 +5499,11 @@ impl<'a> Parser<'a> {
     }
 
     // Helper: Parse event handler parameters
-    fn parse_event_handler_parameters(&mut self, msg: &str, is_declaring_event: bool) -> Result<bool, ParseError> {
+    fn parse_event_handler_parameters(
+        &mut self,
+        msg: &str,
+        is_declaring_event: bool,
+    ) -> Result<bool, ParseError> {
         let mut pop_params_scope = false;
 
         if self.match_token(&[TokenType::LParen]) {
@@ -5145,22 +5514,36 @@ impl<'a> Parser<'a> {
             match self.parameters() {
                 Ok(Some(parameters)) => {
                     pop_params_scope = true;
-                    
+
                     if self.is_building_symbol_table {
-                        self.process_event_handler_parameters_symbol_table(msg, &parameters, is_declaring_event)?;
+                        self.process_event_handler_parameters_symbol_table(
+                            msg,
+                            &parameters,
+                            is_declaring_event,
+                        )?;
                     } else {
-                        if let Err(err) = self.arcanum.set_parse_scope(EventHandlerParamsScopeSymbol::scope_name()) {
-                            return Err(ParseError::new(&format!("Failed to set event handler params scope: {}", err)));
+                        if let Err(err) = self
+                            .arcanum
+                            .set_parse_scope(EventHandlerParamsScopeSymbol::scope_name())
+                        {
+                            return Err(ParseError::new(&format!(
+                                "Failed to set event handler params scope: {}",
+                                err
+                            )));
                         }
                     }
                 }
-                Ok(None) => { },
+                Ok(None) => {}
                 Err(parse_error) => return Err(parse_error),
             }
         } else {
             // no parameter list - validate no parameters expected
             let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
-            if event_symbol_rcref.borrow().event_symbol_params_opt.is_some() {
+            if event_symbol_rcref
+                .borrow()
+                .event_symbol_params_opt
+                .is_some()
+            {
                 self.error_at_current(&format!(
                     "Event handler {} parameters do not match a previous declaration.",
                     msg
@@ -5176,7 +5559,7 @@ impl<'a> Parser<'a> {
         &mut self,
         msg: &str,
         parameters: &Vec<ParameterNode>,
-        is_declaring_event: bool
+        is_declaring_event: bool,
     ) -> Result<(), ParseError> {
         let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
 
@@ -5194,7 +5577,12 @@ impl<'a> Parser<'a> {
             event_symbol_rcref.borrow_mut().event_symbol_params_opt = Some(vec);
         } else {
             // Validate parameters match previous declaration
-            if event_symbol_rcref.borrow().event_symbol_params_opt.is_none() && !parameters.is_empty() {
+            if event_symbol_rcref
+                .borrow()
+                .event_symbol_params_opt
+                .is_none()
+                && !parameters.is_empty()
+            {
                 self.error_at_current(&format!(
                     "Event handler {} parameters do not match a previous declaration.",
                     msg
@@ -5203,8 +5591,10 @@ impl<'a> Parser<'a> {
         }
 
         // Set up parameter scope
-        let event_handler_params_scope_struct = EventHandlerParamsScopeSymbol::new(event_symbol_rcref);
-        let event_handler_params_scope_symbol_rcref = Rc::new(RefCell::new(event_handler_params_scope_struct));
+        let event_handler_params_scope_struct =
+            EventHandlerParamsScopeSymbol::new(event_symbol_rcref);
+        let event_handler_params_scope_symbol_rcref =
+            Rc::new(RefCell::new(event_handler_params_scope_struct));
         let event_handler_params_scope = ParseScopeType::EventHandlerParams {
             event_handler_params_scope_symbol_rcref,
         };
@@ -5220,7 +5610,7 @@ impl<'a> Parser<'a> {
     fn process_individual_parameters(
         &mut self,
         msg: &str,
-        parameters: &Vec<ParameterNode>
+        parameters: &Vec<ParameterNode>,
     ) -> Result<(), ParseError> {
         let event_symbol_rcref = match self.arcanum.get_event(msg, &self.state_name_opt) {
             Some(x) => x,
@@ -5232,9 +5622,10 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let mut event_handler_params_scope_symbol = EventHandlerParamsScopeSymbol::new(Rc::clone(&event_symbol_rcref));
+        let mut event_handler_params_scope_symbol =
+            EventHandlerParamsScopeSymbol::new(Rc::clone(&event_symbol_rcref));
         let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
-        
+
         let mut event_symbol_params_opt: Option<Vec<ParameterSymbol>> = None;
 
         match &event_symbol_rcref.borrow().event_symbol_params_opt {
@@ -5250,9 +5641,11 @@ impl<'a> Parser<'a> {
                                     parameter_node.param_type_opt.clone(),
                                     scope,
                                 );
-                                self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+                                self.arcanum
+                                    .debug_print_current_symbols(self.arcanum.get_current_symtab());
                                 let ret = self.arcanum.insert_symbol(symbol_type);
-                                self.arcanum.debug_print_current_symbols(self.arcanum.get_current_symtab());
+                                self.arcanum
+                                    .debug_print_current_symbols(self.arcanum.get_current_symtab());
                                 if let Err(err_msg) = ret {
                                     self.error_at_previous(err_msg.as_str());
                                     return Err(ParseError::new(err_msg.as_str()));
@@ -5281,11 +5674,7 @@ impl<'a> Parser<'a> {
                         param_type_opt = Some(pt.clone());
                     }
                     let scope = self.arcanum.get_current_identifier_scope();
-                    let b = ParameterSymbol::new(
-                        param_name.clone(),
-                        param_type_opt.clone(),
-                        scope,
-                    );
+                    let b = ParameterSymbol::new(param_name.clone(), param_type_opt.clone(), scope);
                     event_symbol_params.push(b);
 
                     // Add to event handler scope symbol for scope chain lookups
@@ -5314,23 +5703,24 @@ impl<'a> Parser<'a> {
     // Helper: Consume closing paren with error synchronization
     fn consume_rparen_with_sync(&mut self) -> Result<(), ParseError> {
         if self.consume(TokenType::RParen, "Expected ')'").is_err() {
-            let sync_tokens = vec![
-                TokenType::Colon,
-                TokenType::OpenBrace,
-            ];
+            let sync_tokens = vec![TokenType::Colon, TokenType::OpenBrace];
             self.synchronize(&sync_tokens);
         }
         Ok(())
     }
 
     // Helper: Parse event handler return type
-    fn parse_event_handler_return_type(&mut self, msg: &str, is_declaring_event: bool) -> Result<(), ParseError> {
+    fn parse_event_handler_return_type(
+        &mut self,
+        msg: &str,
+        is_declaring_event: bool,
+    ) -> Result<(), ParseError> {
         if self.match_token(&[TokenType::Colon]) {
             let return_type_opt = match self.type_decl() {
                 Ok(type_node) => Some(type_node),
                 Err(parse_error) => return Err(parse_error),
             };
-            
+
             if is_declaring_event {
                 // declaring event so add return type to event symbol
                 let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
@@ -5365,8 +5755,14 @@ impl<'a> Parser<'a> {
             };
             self.arcanum.enter_scope(event_handler_local_scope);
         } else {
-            if let Err(err) = self.arcanum.set_parse_scope(EventHandlerLocalScopeSymbol::scope_name()) {
-                return Err(ParseError::new(&format!("Failed to set event handler local scope: {}", err)));
+            if let Err(err) = self
+                .arcanum
+                .set_parse_scope(EventHandlerLocalScopeSymbol::scope_name())
+            {
+                return Err(ParseError::new(&format!(
+                    "Failed to set event handler local scope: {}",
+                    err
+                )));
             }
         }
         Ok(())
@@ -5401,33 +5797,32 @@ impl<'a> Parser<'a> {
 
         //    let a = self.message();
 
-
- //        let message_node;
- //        let tt = self.previous().token_type;
- //        match tt {
- //            TokenType::Identifier
- //  //          | TokenType::String
- //            | TokenType::GT
- //            | TokenType::LT
- //  //          | TokenType::SuperString
- //            // | TokenType::GTx2
- //            // | TokenType::GTx3
- //            // | TokenType::LTx2
- //            // | TokenType::LTx3
- //
- //            => {
- // //               message_node = self.create_message_node(tt)
- //                let id = self.previous();
- //                msg = id.lexeme.clone();
- //
- //            },
- //            _ => {
- //                let token_str = self.peek().lexeme.clone();
- //                let err_msg = &format!("Invalid event handler name {}. ", token_str);
- //                self.error_at_current(err_msg);
- //    //            return Err(ParseError::new(err_msg));
- //            }
- //        }
+        //        let message_node;
+        //        let tt = self.previous().token_type;
+        //        match tt {
+        //            TokenType::Identifier
+        //  //          | TokenType::String
+        //            | TokenType::GT
+        //            | TokenType::LT
+        //  //          | TokenType::SuperString
+        //            // | TokenType::GTx2
+        //            // | TokenType::GTx3
+        //            // | TokenType::LTx2
+        //            // | TokenType::LTx3
+        //
+        //            => {
+        // //               message_node = self.create_message_node(tt)
+        //                let id = self.previous();
+        //                msg = id.lexeme.clone();
+        //
+        //            },
+        //            _ => {
+        //                let token_str = self.peek().lexeme.clone();
+        //                let err_msg = &format!("Invalid event handler name {}. ", token_str);
+        //                self.error_at_current(err_msg);
+        //    //            return Err(ParseError::new(err_msg));
+        //            }
+        //        }
 
         // match self.message_selector() {
         //     Ok(MessageType::CustomMessage { message_node }) => {
@@ -5462,7 +5857,7 @@ impl<'a> Parser<'a> {
         // Consume closing paren and handle return type
         self.consume_rparen_with_sync()?;
         self.parse_event_handler_return_type(&msg, is_declaring_event)?;
-        
+
         // Parse default return value for event handler: = value
         let event_handler_return_init_expr_opt = self.parse_event_handler_return_init()?;
 
@@ -5470,7 +5865,7 @@ impl<'a> Parser<'a> {
 
         // Set up local scope and parse body
         self.enter_event_handler_local_scope()?;
-        
+
         let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
@@ -5533,13 +5928,17 @@ impl<'a> Parser<'a> {
                 let needs_return = match statements.last() {
                     Some(DeclOrStmtType::StmtT { stmt_t }) => {
                         !matches!(stmt_t, StatementType::ReturnStmt { .. })
-                    },
+                    }
                     Some(DeclOrStmtType::VarDeclT { .. }) => true, // Variable declaration, need return
-                    None => true, // Empty handler needs return
+                    None => true,                                  // Empty handler needs return
                 };
-                
+
                 if needs_return {
-                    Some(TerminatorExpr::new(TerminatorType::Return, None, line_number))
+                    Some(TerminatorExpr::new(
+                        TerminatorType::Return,
+                        None,
+                        line_number,
+                    ))
                 } else {
                     None // Last statement is already a return, don't add another
                 }
@@ -5592,9 +5991,13 @@ impl<'a> Parser<'a> {
 
         loop {
             self.stmt_idx = self.stmt_idx + 1;
-            
+
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                eprintln!("DEBUG: statements() loop iteration {}, current token: {:?}", self.stmt_idx, self.peek());
+                eprintln!(
+                    "DEBUG: statements() loop iteration {}, current token: {:?}",
+                    self.stmt_idx,
+                    self.peek()
+                );
             }
 
             match self.decl_or_stmt(identifier_decl_scope.clone()) {
@@ -5609,29 +6012,37 @@ impl<'a> Parser<'a> {
                                         statements.push(decl_or_statement);
                                         // Mark that we found a transition - any subsequent code is unreachable
                                         let mut _found_unreachable_code = false;
-                                        
+
                                         // Continue parsing to detect any unreachable code after transition
-                                        while !self.check(TokenType::Eof) && !self.check(TokenType::CloseBrace) {
-                                            if self.check(TokenType::Var) || self.check(TokenType::Const) || 
-                                               self.check(TokenType::Return_) || self.check(TokenType::If) || 
-                                               self.check(TokenType::Identifier) || self.check(TokenType::LParen) {
+                                        while !self.check(TokenType::Eof)
+                                            && !self.check(TokenType::CloseBrace)
+                                        {
+                                            if self.check(TokenType::Var)
+                                                || self.check(TokenType::Const)
+                                                || self.check(TokenType::Return_)
+                                                || self.check(TokenType::If)
+                                                || self.check(TokenType::Identifier)
+                                                || self.check(TokenType::LParen)
+                                            {
                                                 let error_token = self.peek().clone();
                                                 self.error_at_current(&format!(
-                                                    "Unreachable code: '{}' statement after transition", 
+                                                    "Unreachable code: '{}' statement after transition",
                                                     error_token.lexeme
                                                 ));
                                                 _found_unreachable_code = true;
                                                 // is_err = true; // TODO: Use this flag for error recovery
                                                 // Skip the unreachable statement to continue error detection
-                                                match self.decl_or_stmt(identifier_decl_scope.clone()) {
-                                                    Ok(_) => {}, // Consume but don't add to statements
+                                                match self
+                                                    .decl_or_stmt(identifier_decl_scope.clone())
+                                                {
+                                                    Ok(_) => {}      // Consume but don't add to statements
                                                     Err(_) => break, // Stop on parse errors
                                                 }
                                             } else {
                                                 break; // End of statements in this block
                                             }
                                         }
-                                        
+
                                         // Transition ends the event handler - no more statements allowed
                                         return statements;
                                     }
@@ -5693,7 +6104,8 @@ impl<'a> Parser<'a> {
                                         if self.is_loop_scope {
                                             statements.push(decl_or_statement);
                                         } else {
-                                            let err_msg = "'break' statement is only allowed inside a loop.";
+                                            let err_msg =
+                                                "'break' statement is only allowed inside a loop.";
                                             self.error_at_current(err_msg);
                                             // Continue parsing - error reported but don't break out of statements
                                         }
@@ -5710,7 +6122,9 @@ impl<'a> Parser<'a> {
                     }
                     None => {
                         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                            eprintln!("DEBUG: statements() returning early - decl_or_stmt returned None");
+                            eprintln!(
+                                "DEBUG: statements() returning early - decl_or_stmt returned None"
+                            );
                         }
                         return statements;
                     }
@@ -5718,51 +6132,47 @@ impl<'a> Parser<'a> {
                 Err(_err) => {
                     // ERROR ALREADY REPORTED by the lower-level parsing function that detected it
                     // Just synchronize and continue parsing
-                    
+
                     // FRAME-SPECIFIC SYNCHRONIZATION: Use Frame's grammar structure for recovery
                     // Based on Frame language hierarchy: Module > System > State > EventHandler > Statements
                     let sync_tokens = vec![
                         // Next statement in current event handler
-                        TokenType::Identifier,          // next statement/method call  
-                        TokenType::If,                  // control structures
-                        TokenType::Return_,             // return statements
-                        TokenType::Var,                 // variable declarations
-                        TokenType::Const,               // const declarations
-                        TokenType::Self_,               // self.method calls
-                        TokenType::System,              // system method calls
-                        TokenType::Async,               // async keyword for async handlers
-                        
+                        TokenType::Identifier, // next statement/method call
+                        TokenType::If,         // control structures
+                        TokenType::Return_,    // return statements
+                        TokenType::Var,        // variable declarations
+                        TokenType::Const,      // const declarations
+                        TokenType::Self_,      // self.method calls
+                        TokenType::System,     // system method calls
+                        TokenType::Async,      // async keyword for async handlers
                         // Event handler boundaries (within same state)
-                        TokenType::EnterStateMsg,       // $>() next enter handler
-                        TokenType::ExitStateMsg,        // <$() next exit handler
+                        TokenType::EnterStateMsg, // $>() next enter handler
+                        TokenType::ExitStateMsg,  // <$() next exit handler
                         // Note: Next eventName() is TokenType::Identifier + LParen pattern
-                        
-                        // State boundaries (within same system)  
-                        TokenType::State,               // $NextState
-                        
+
+                        // State boundaries (within same system)
+                        TokenType::State, // $NextState
                         // System block boundaries
-                        TokenType::ActionsBlock,        // actions:
-                        TokenType::DomainBlock,         // domain:
-                        TokenType::InterfaceBlock,      // interface: (shouldn't reach here but safety)
-                        TokenType::MachineBlock,        // machine: (shouldn't reach here but safety)
-                        TokenType::OperationsBlock,     // operations: (v0.20 addition)
-                        
+                        TokenType::ActionsBlock,    // actions:
+                        TokenType::DomainBlock,     // domain:
+                        TokenType::InterfaceBlock,  // interface: (shouldn't reach here but safety)
+                        TokenType::MachineBlock,    // machine: (shouldn't reach here but safety)
+                        TokenType::OperationsBlock, // operations: (v0.20 addition)
                         // Block/scope boundaries
-                        TokenType::CloseBrace,          // } end of current block
-                        
+                        TokenType::CloseBrace, // } end of current block
                         // Module boundaries (fallback)
-                        TokenType::Function,            // fn next function
+                        TokenType::Function, // fn next function
                         // TokenType::System already included above
-                        TokenType::Eof,                 // end of file
+                        TokenType::Eof, // end of file
                     ];
-                    
+
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                         eprintln!("DEBUG: statements() synchronizing with Frame-specific tokens after error");
                     }
-                    
+
                     // Use Frame's standard synchronization mechanism
                     self.synchronize(&sync_tokens);
-                    
+
                     // Continue parsing after synchronization
                     // This allows the loop to continue and parse the next statement/handler/state
                 }
@@ -5834,7 +6244,7 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => Err(parse_error),
             };
         }
-        
+
         if self.match_token(&[TokenType::If]) {
             return match self.if_statement() {
                 Ok(Some(if_stmt_t)) => Ok(Some(if_stmt_t)),
@@ -5844,7 +6254,7 @@ impl<'a> Parser<'a> {
         }
 
         if self.match_token(&[TokenType::Try]) {
-            let try_line = self.previous().line;  // Capture the Try token line
+            let try_line = self.previous().line; // Capture the Try token line
             return match self.try_statement_with_line(try_line) {
                 Ok(Some(try_stmt_t)) => Ok(Some(try_stmt_t)),
                 Ok(None) => Err(ParseError::new("Expected try statement")),
@@ -5917,7 +6327,7 @@ impl<'a> Parser<'a> {
         }
 
         if self.match_token(&[TokenType::OpenBrace]) {
-            let block_line = self.previous().line;  // v0.78.10: capture line for block mapping
+            let block_line = self.previous().line; // v0.78.10: capture line for block mapping
             return match self.block_scope(block_line) {
                 Ok(block_stmt_t) => Ok(Some(block_stmt_t)),
                 Err(parse_error) => Err(parse_error),
@@ -5929,13 +6339,13 @@ impl<'a> Parser<'a> {
             let continue_stmt_node = ContinueStmtNode::new(line);
             return Ok(Some(StatementType::ContinueStmt { continue_stmt_node }));
         }
-        
+
         if self.match_token(&[TokenType::Break]) {
             let line = self.previous().line;
             let break_stmt_node = BreakStmtNode::new(line);
             return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
         }
-        
+
         // v0.46: Handle assert statements
         if self.match_token(&[TokenType::Assert]) {
             // Parse the condition expression
@@ -5947,13 +6357,13 @@ impl<'a> Parser<'a> {
                 }
                 Err(e) => return Err(e),
             };
-            
+
             // Create an assert statement node
             let assert_stmt_node = AssertStmtNode::new(self.previous().line, expr);
             let stmt_type = StatementType::AssertStmt { assert_stmt_node };
             return Ok(Some(stmt_type));
         }
-        
+
         if self.match_token(&[TokenType::Return_]) {
             return self.parse_return_statement();
         }
@@ -5963,8 +6373,8 @@ impl<'a> Parser<'a> {
 
     // Helper: Parse return statement
     fn parse_return_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-        let line = self.previous().line;  // Get line from return token
-        
+        let line = self.previous().line; // Get line from return token
+
         // Check if this is an incorrect return assignment: "return = expr"
         if self.check(TokenType::Equals) {
             // This is the deprecated "return = expr" syntax - provide helpful error
@@ -5972,31 +6382,46 @@ impl<'a> Parser<'a> {
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // Regular return statement: "return expr?"
         let expr_t_opt = match self.expression() {
             Ok(Some(expr_t)) => Some(expr_t),
             Ok(None) => None,
             Err(parse_error) => return Err(parse_error),
         };
-        
+
         let return_stmt_node = ReturnStmtNode::new(line, expr_t_opt);
         Ok(Some(StatementType::ReturnStmt { return_stmt_node }))
     }
 
     // Helper: Convert expression to statement
-    fn convert_expression_to_statement(&mut self, expr_t: ExprType) -> Result<Option<StatementType>, ParseError> {
+    fn convert_expression_to_statement(
+        &mut self,
+        expr_t: ExprType,
+    ) -> Result<Option<StatementType>, ParseError> {
         use ExprType::*;
-        
+
         match expr_t {
-            SystemInstanceExprT { system_instance_expr_node } => {
-                let system_instance_stmt_node = SystemInstanceStmtNode::new(system_instance_expr_node.line, system_instance_expr_node);
-                let expr_stmt_t = SystemInstanceStmtT { system_instance_stmt_node };
+            SystemInstanceExprT {
+                system_instance_expr_node,
+            } => {
+                let system_instance_stmt_node = SystemInstanceStmtNode::new(
+                    system_instance_expr_node.line,
+                    system_instance_expr_node,
+                );
+                let expr_stmt_t = SystemInstanceStmtT {
+                    system_instance_stmt_node,
+                };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
-            SystemTypeExprT { system_type_expr_node } => {
-                let system_type_stmt_node = SystemTypeStmtNode::new(system_type_expr_node.line, system_type_expr_node);
-                let expr_stmt_t = SystemTypeStmtT { system_type_stmt_node };
+            SystemTypeExprT {
+                system_type_expr_node,
+            } => {
+                let system_type_stmt_node =
+                    SystemTypeStmtNode::new(system_type_expr_node.line, system_type_expr_node);
+                let expr_stmt_t = SystemTypeStmtT {
+                    system_type_stmt_node,
+                };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             ListT { list_node } => {
@@ -6006,11 +6431,15 @@ impl<'a> Parser<'a> {
             }
             DictLiteralT { .. } => {
                 self.error_at_previous("Dictionary literal expressions not allowed as statements.");
-                Err(ParseError::new("Dictionary literal must be part of an assignment or expression"))
+                Err(ParseError::new(
+                    "Dictionary literal must be part of an assignment or expression",
+                ))
             }
             SetLiteralT { .. } => {
                 self.error_at_previous("Set literal expressions not allowed as statements.");
-                Err(ParseError::new("Set literal must be part of an assignment or expression"))
+                Err(ParseError::new(
+                    "Set literal must be part of an assignment or expression",
+                ))
             }
             TupleLiteralT { tuple_literal_node } => {
                 // Check if this is part of a transition (exit args)
@@ -6028,7 +6457,9 @@ impl<'a> Parser<'a> {
                     }
                 } else {
                     self.error_at_previous("Tuple literal expressions not allowed as statements.");
-                    Err(ParseError::new("Tuple literal must be part of an assignment or expression"))
+                    Err(ParseError::new(
+                        "Tuple literal must be part of an assignment or expression",
+                    ))
                 }
             }
             ExprListT { expr_list_node } => {
@@ -6045,8 +6476,11 @@ impl<'a> Parser<'a> {
                     }
                 } else {
                     // Just a group not associated with a transition.
-                    let expr_list_stmt_node = ExprListStmtNode::new(self.previous().line, expr_list_node);
-                    let expr_stmt_t = ExprListStmtT { expr_list_stmt_node };
+                    let expr_list_stmt_node =
+                        ExprListStmtNode::new(self.previous().line, expr_list_node);
+                    let expr_stmt_t = ExprListStmtT {
+                        expr_list_stmt_node,
+                    };
                     Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
                 }
             }
@@ -6082,31 +6516,51 @@ impl<'a> Parser<'a> {
                     Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
                 }
             }
-            ActionCallExprT { action_call_expr_node } => {
-                let action_call_stmt_node = ActionCallStmtNode::new(self.previous().line, action_call_expr_node);
-                let expr_stmt_t = ActionCallStmtT { action_call_stmt_node };
+            ActionCallExprT {
+                action_call_expr_node,
+            } => {
+                let action_call_stmt_node =
+                    ActionCallStmtNode::new(self.previous().line, action_call_expr_node);
+                let expr_stmt_t = ActionCallStmtT {
+                    action_call_stmt_node,
+                };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
-            CallChainExprT { call_chain_expr_node } => {
-                let call_chain_literal_stmt_node = CallChainStmtNode::new(call_chain_expr_node.line, call_chain_expr_node);
-                let expr_stmt_t = CallChainStmtT { call_chain_literal_stmt_node };
+            CallChainExprT {
+                call_chain_expr_node,
+            } => {
+                let call_chain_literal_stmt_node =
+                    CallChainStmtNode::new(call_chain_expr_node.line, call_chain_expr_node);
+                let expr_stmt_t = CallChainStmtT {
+                    call_chain_literal_stmt_node,
+                };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
-            StateStackOperationExprT { state_stack_op_node } => {
+            StateStackOperationExprT {
+                state_stack_op_node,
+            } => {
                 let state_stack_operation_statement_node =
                     StateStackOperationStatementNode::new(state_stack_op_node);
                 Ok(Some(StatementType::StateStackStmt {
                     state_stack_operation_statement_node,
                 }))
             }
-            AssignmentExprT { assignment_expr_node } => {
-                let assignment_stmt_node = AssignmentStmtNode::new(assignment_expr_node.line, assignment_expr_node);
-                let expr_stmt_t = AssignmentStmtT { assignment_stmt_node };
+            AssignmentExprT {
+                assignment_expr_node,
+            } => {
+                let assignment_stmt_node =
+                    AssignmentStmtNode::new(assignment_expr_node.line, assignment_expr_node);
+                let expr_stmt_t = AssignmentStmtT {
+                    assignment_stmt_node,
+                };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             EnumeratorExprT { enum_expr_node } => {
-                let enumerator_stmt_node = EnumeratorStmtNode::new(enum_expr_node.line, enum_expr_node);
-                let expr_stmt_t = EnumeratorStmtT { enumerator_stmt_node };
+                let enumerator_stmt_node =
+                    EnumeratorStmtNode::new(enum_expr_node.line, enum_expr_node);
+                let expr_stmt_t = EnumeratorStmtT {
+                    enumerator_stmt_node,
+                };
                 Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
             }
             BinaryExprT { binary_expr_node } => {
@@ -6125,7 +6579,8 @@ impl<'a> Parser<'a> {
                         Err(parse_err) => Err(parse_err),
                     }
                 } else {
-                    let binary_stmt_node = BinaryStmtNode::new(binary_expr_node.line, binary_expr_node);
+                    let binary_stmt_node =
+                        BinaryStmtNode::new(binary_expr_node.line, binary_expr_node);
                     let expr_stmt_t = BinaryStmtT { binary_stmt_node };
                     Ok(Some(StatementType::ExpressionStmt { expr_stmt_t }))
                 }
@@ -6150,9 +6605,14 @@ impl<'a> Parser<'a> {
                     Err(ParseError::new("TODO"))
                 }
             }
-            TransitionExprT { transition_expr_node } => {
-                let transition_statement_node =
-                    TransitionStatementNode::new(transition_expr_node.line, transition_expr_node, None);
+            TransitionExprT {
+                transition_expr_node,
+            } => {
+                let transition_statement_node = TransitionStatementNode::new(
+                    transition_expr_node.line,
+                    transition_expr_node,
+                    None,
+                );
                 Ok(Some(StatementType::TransitionStmt {
                     transition_statement_node,
                 }))
@@ -6174,20 +6634,30 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new("Unexpected ExprType::SelfExprT"));
             }
             DefaultLiteralValueForTypeExprT => {
-                self.error_at_current("Unexpected use of ExprType::DefaultLiteralValueForTypeExprT");
-                return Err(ParseError::new("Unexpected ExprType::DefaultLiteralValueForTypeExprT"));
+                self.error_at_current(
+                    "Unexpected use of ExprType::DefaultLiteralValueForTypeExprT",
+                );
+                return Err(ParseError::new(
+                    "Unexpected ExprType::DefaultLiteralValueForTypeExprT",
+                ));
             }
             UnpackExprT { .. } | DictUnpackExprT { .. } => {
                 self.error_at_previous("Unpacking expressions not allowed as statements.");
-                Err(ParseError::new("Unpacking must be part of an assignment or function call"))
+                Err(ParseError::new(
+                    "Unpacking must be part of an assignment or function call",
+                ))
             }
             ListComprehensionExprT { .. } => {
                 self.error_at_previous("List comprehension expressions not allowed as statements.");
-                Err(ParseError::new("List comprehension must be part of an assignment or expression"))
+                Err(ParseError::new(
+                    "List comprehension must be part of an assignment or expression",
+                ))
             }
             SetComprehensionExprT { .. } => {
                 self.error_at_previous("Set comprehension expressions not allowed as statements.");
-                Err(ParseError::new("Set comprehension must be part of an assignment or expression"))
+                Err(ParseError::new(
+                    "Set comprehension must be part of an assignment or expression",
+                ))
             }
             AwaitExprT { await_expr_node } => {
                 // Await expressions can be statements (like await some_async_call())
@@ -6200,16 +6670,24 @@ impl<'a> Parser<'a> {
                 Ok(Some(stmt))
             }
             DictComprehensionExprT { .. } => {
-                self.error_at_previous("Dictionary comprehension expressions not allowed as statements.");
-                Err(ParseError::new("Dictionary comprehension must be part of an assignment or expression"))
+                self.error_at_previous(
+                    "Dictionary comprehension expressions not allowed as statements.",
+                );
+                Err(ParseError::new(
+                    "Dictionary comprehension must be part of an assignment or expression",
+                ))
             }
             LambdaExprT { .. } => {
                 self.error_at_previous("Lambda expressions not allowed as statements.");
-                Err(ParseError::new("Lambda expression must be part of an assignment or expression"))
+                Err(ParseError::new(
+                    "Lambda expression must be part of an assignment or expression",
+                ))
             }
             FunctionRefT { .. } => {
                 self.error_at_previous("Function reference expressions not allowed as statements.");
-                Err(ParseError::new("Function reference must be part of an assignment or call"))
+                Err(ParseError::new(
+                    "Function reference must be part of an assignment or call",
+                ))
             }
             YieldExprT { yield_expr_node } => {
                 // Yield expressions can be statements (like yield value)
@@ -6221,9 +6699,13 @@ impl<'a> Parser<'a> {
                 };
                 Ok(Some(stmt))
             }
-            YieldFromExprT { yield_from_expr_node } => {
+            YieldFromExprT {
+                yield_from_expr_node,
+            } => {
                 // Yield from expressions can be statements (like yield from iterator)
-                let expr_list_node = ExprListNode::new(vec![YieldFromExprT { yield_from_expr_node }]);
+                let expr_list_node = ExprListNode::new(vec![YieldFromExprT {
+                    yield_from_expr_node,
+                }]);
                 let stmt = StatementType::ExpressionStmt {
                     expr_stmt_t: ExprListStmtT {
                         expr_list_stmt_node: ExprListStmtNode::new(0, expr_list_node),
@@ -6233,15 +6715,21 @@ impl<'a> Parser<'a> {
             }
             GeneratorExprT { .. } => {
                 self.error_at_previous("Generator expressions not allowed as statements.");
-                Err(ParseError::new("Generator expression must be part of an assignment or expression"))
+                Err(ParseError::new(
+                    "Generator expression must be part of an assignment or expression",
+                ))
             }
             StarExprT { .. } => {
                 self.error_at_previous("Star expressions not allowed as statements.");
-                Err(ParseError::new("Star expression must be part of an unpacking assignment"))
+                Err(ParseError::new(
+                    "Star expression must be part of an unpacking assignment",
+                ))
             }
             WalrusExprT { .. } => {
                 self.error_at_previous("Walrus operator expressions not allowed as statements.");
-                Err(ParseError::new("Walrus operator must be part of a larger expression"))
+                Err(ParseError::new(
+                    "Walrus operator must be part of a larger expression",
+                ))
             }
         }
     }
@@ -6359,22 +6847,26 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         // Check for => $^ (parent dispatch)
         if self.match_token(&[TokenType::Dispatch]) {
             if self.match_token(&[TokenType::ParentState]) {
                 // Validate that we're in a hierarchical state
                 if self.state_parent_opt.is_none() {
-                    self.error_at_current("Cannot use '=> $^' parent dispatch in non-hierarchical state");
+                    self.error_at_current(
+                        "Cannot use '=> $^' parent dispatch in non-hierarchical state",
+                    );
                     return Err(ParseError::new("Parent dispatch not allowed here"));
                 }
-                
-                let target_state_ref_opt = self.state_parent_opt.as_ref().map(|parent_name| {
-                    StateRefNode {
-                        name: parent_name.clone()
-                    }
-                });
-                let parent_dispatch_stmt_node = ParentDispatchStmtNode::new(target_state_ref_opt, self.previous().line);
+
+                let target_state_ref_opt =
+                    self.state_parent_opt
+                        .as_ref()
+                        .map(|parent_name| StateRefNode {
+                            name: parent_name.clone(),
+                        });
+                let parent_dispatch_stmt_node =
+                    ParentDispatchStmtNode::new(target_state_ref_opt, self.previous().line);
                 return Ok(Some(StatementType::ParentDispatchStmt {
                     parent_dispatch_stmt_node,
                 }));
@@ -6394,12 +6886,11 @@ impl<'a> Parser<'a> {
         //     };
         // }
 
-
         // Check for control flow statements
         if let Some(stmt) = self.parse_control_flow_statement()? {
             return Ok(Some(stmt));
         }
-        
+
         // if self.match_token(&[TokenType::OpenBrace]) {
         //     let break_stmt_node = BreakStmtNode::new();
         //     return Ok(Some(StatementType::BreakStmt { break_stmt_node }));
@@ -6420,7 +6911,10 @@ impl<'a> Parser<'a> {
                 .enter_scope(ParseScopeType::Block { block_scope_rcref });
         } else {
             if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
-                return Err(ParseError::new(&format!("Failed to set block scope '{}': {}", scope_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set block scope '{}': {}",
+                    scope_name, err
+                )));
             }
         }
         let ret = self.block(block_line);
@@ -6521,7 +7015,9 @@ impl<'a> Parser<'a> {
 
         // REMOVED: Deprecated ternary test syntax
         // '?' and '?!' tokens removed in v0.30
-        return Err(ParseError::new("Ternary operators have been removed. Use if/elif/else statements instead."));
+        return Err(ParseError::new(
+            "Ternary operators have been removed. Use if/elif/else statements instead.",
+        ));
 
         // All code below is unreachable - ternary syntax removed
         /*
@@ -6607,7 +7103,10 @@ impl<'a> Parser<'a> {
                 .enter_scope(ParseScopeType::Block { block_scope_rcref });
         } else {
             if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
-                return Err(ParseError::new(&format!("Failed to set bool test conditional branch scope '{}': {}", scope_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set bool test conditional branch scope '{}': {}",
+                    scope_name, err
+                )));
             }
         }
         let ret = self.bool_test_conditional_branch_statements(is_negated, expr_t);
@@ -6648,7 +7147,10 @@ impl<'a> Parser<'a> {
                 .enter_scope(ParseScopeType::Block { block_scope_rcref });
         } else {
             if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
-                return Err(ParseError::new(&format!("Failed to set bool test else branch scope '{}': {}", scope_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set bool test else branch scope '{}': {}",
+                    scope_name, err
+                )));
             }
         }
         let ret = self.bool_test_else_branch();
@@ -6867,9 +7369,7 @@ impl<'a> Parser<'a> {
                     ExprType::ExprListT { expr_list_node } => {
                         Ok(Some(ExprType::ExprListT { expr_list_node }))
                     }
-                    ExprType::ListT { list_node } => {
-                        Ok(Some(ExprType::ListT { list_node }))
-                    }
+                    ExprType::ListT { list_node } => Ok(Some(ExprType::ListT { list_node })),
                     ExprType::DictLiteralT { dict_literal_node } => {
                         Ok(Some(ExprType::DictLiteralT { dict_literal_node }))
                     }
@@ -6961,14 +7461,14 @@ impl<'a> Parser<'a> {
     fn parse_lambda(&mut self) -> Result<Option<ExprType>, ParseError> {
         // Parse parameters (optional)
         let mut params = Vec::new();
-        
+
         // Check if we have parameters before the colon
         if !self.check(TokenType::Colon) {
             loop {
                 if self.check(TokenType::Identifier) {
                     let param_token = self.advance();
                     params.push(param_token.lexeme.clone());
-                    
+
                     if !self.match_token(&[TokenType::Comma]) {
                         break;
                     }
@@ -6977,10 +7477,10 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         // Consume the colon
         self.consume(TokenType::Colon, "Expected ':' after lambda parameters")?;
-        
+
         // Parse the body expression - use assignment() to allow nested lambdas
         let body_result = self.assignment()?;
         if let Some(body) = body_result {
@@ -6994,13 +7494,13 @@ impl<'a> Parser<'a> {
     fn assignment(&mut self) -> Result<Option<ExprType>, ParseError> {
         self.assignment_or_lambda()
     }
-    
+
     fn assignment_or_lambda(&mut self) -> Result<Option<ExprType>, ParseError> {
         // Check for lambda first (lowest precedence except for assignment)
         if self.match_token(&[TokenType::Lambda]) {
             return self.parse_lambda();
         }
-        
+
         let mut l_value = match self.walrus() {
             Ok(Some(expr_type)) => expr_type,
             Ok(None) => return Ok(None),
@@ -7010,15 +7510,15 @@ impl<'a> Parser<'a> {
         // v0.52: Check for multiple assignment targets (x, y, z = ...)
         let mut l_values = Vec::new();
         let mut is_multiple = false;
-        let saved_l_value;  // Save the original l_value
-        
+        let saved_l_value; // Save the original l_value
+
         // v0.53: Only process comma-separated values as tuple/multiple assignment if not inside collection
         // Check if we have comma-separated targets
         if self.peek().token_type == TokenType::Comma && !self.is_parsing_collection {
             is_multiple = true;
-            saved_l_value = l_value;  // Move l_value to saved
+            saved_l_value = l_value; // Move l_value to saved
             l_values.push(saved_l_value);
-            
+
             while self.match_token(&[TokenType::Comma]) {
                 // Parse the next target
                 match self.logical_or() {
@@ -7032,7 +7532,7 @@ impl<'a> Parser<'a> {
                     Err(parse_error) => return Err(parse_error),
                 }
             }
-            
+
             // Check if this is an assignment or just a tuple/expression list
             if self.peek().token_type != TokenType::Equals {
                 // Not an assignment - return as tuple
@@ -7040,14 +7540,21 @@ impl<'a> Parser<'a> {
                     tuple_literal_node: TupleLiteralNode::new(self.previous().line, l_values),
                 }));
             }
-            
+
             // It's an assignment - create a dummy l_value for the assignment node
             let line = self.previous().line;
             l_value = ExprType::VariableExprT {
                 var_node: VariableNode::new(
                     line,
                     IdentifierNode::new(
-                        Token::new(TokenType::Identifier, "_multi".to_string(), TokenLiteral::None, line, 0, 6),
+                        Token::new(
+                            TokenType::Identifier,
+                            "_multi".to_string(),
+                            TokenLiteral::None,
+                            line,
+                            0,
+                            6,
+                        ),
                         None,
                         IdentifierDeclScope::UnknownScope,
                         false,
@@ -7055,7 +7562,7 @@ impl<'a> Parser<'a> {
                     ),
                     IdentifierDeclScope::UnknownScope,
                     None,
-                )
+                ),
             };
         }
 
@@ -7091,7 +7598,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        
+
         if let Some(op) = assignment_op {
             // this changes the tokens generated for expression lists
             // like (a) and (a,b,c)
@@ -7128,7 +7635,7 @@ impl<'a> Parser<'a> {
                         return Err(parse_error);
                     }
                 };
-                
+
                 // v0.53: Only wrap comma-separated values in tuple if not inside collection
                 // Check if right side is also comma-separated (for tuple on RHS)
                 if self.peek().token_type == TokenType::Comma && !self.is_parsing_collection {
@@ -7141,7 +7648,9 @@ impl<'a> Parser<'a> {
                             Ok(None) => {
                                 self.error_at_current("Expected expression after ',' in RHS");
                                 self.is_parsing_rhs = false;
-                                return Err(ParseError::new("Expected expression after ',' in RHS"));
+                                return Err(ParseError::new(
+                                    "Expected expression after ',' in RHS",
+                                ));
                             }
                             Err(parse_error) => {
                                 self.is_parsing_rhs = false;
@@ -7185,7 +7694,9 @@ impl<'a> Parser<'a> {
                 // Multiple assignment only supports simple equals
                 if op != AssignmentOperator::Equals {
                     self.error_at_current("Multiple assignment only supports '=' operator");
-                    return Err(ParseError::new("Multiple assignment only supports '=' operator"));
+                    return Err(ParseError::new(
+                        "Multiple assignment only supports '=' operator",
+                    ));
                 }
                 AssignmentExprNode::new_multiple(l_values, r_value_rc.clone(), line)
             } else if op == AssignmentOperator::Equals {
@@ -7210,7 +7721,13 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual, TokenType::In, TokenType::Not, TokenType::Is]) {
+        while self.match_token(&[
+            TokenType::BangEqual,
+            TokenType::EqualEqual,
+            TokenType::In,
+            TokenType::Not,
+            TokenType::Is,
+        ]) {
             //           let line = self.previous().line;
             let operator_token = self.previous();
             let op_type = if operator_token.token_type == TokenType::Not {
@@ -7248,7 +7765,8 @@ impl<'a> Parser<'a> {
             //     self.error_at_current(err_msg);
             // }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7282,7 +7800,8 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7307,10 +7826,11 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
             };
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
-        
+
         Ok(Some(l_value))
     }
 
@@ -7341,7 +7861,8 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7380,7 +7901,8 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7414,7 +7936,8 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7457,7 +7980,8 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7473,7 +7997,12 @@ impl<'a> Parser<'a> {
             Err(parse_error) => return Err(parse_error),
         };
 
-        while self.match_token(&[TokenType::ForwardSlash, TokenType::Star, TokenType::FloorDivide, TokenType::At]) {
+        while self.match_token(&[
+            TokenType::ForwardSlash,
+            TokenType::Star,
+            TokenType::FloorDivide,
+            TokenType::At,
+        ]) {
             let operator_token = self.previous();
             let op_type = self.get_operator_type(&operator_token.clone());
             let r_value = match self.power() {
@@ -7482,7 +8011,8 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
             };
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7509,7 +8039,8 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => return Err(parse_error),
             };
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7524,11 +8055,12 @@ impl<'a> Parser<'a> {
         // This allows us to handle (n := expr) where n is a new variable
         if self.peek().token_type == TokenType::Identifier {
             let next_idx = self.current + 1;
-            if next_idx < self.tokens.len() && self.tokens[next_idx].token_type == TokenType::Walrus {
+            if next_idx < self.tokens.len() && self.tokens[next_idx].token_type == TokenType::Walrus
+            {
                 // This is a walrus expression with a simple identifier
                 let id_token = self.advance().clone();
                 self.advance(); // consume :=
-                
+
                 // Create a variable node for the identifier
                 let id_node = IdentifierNode::new(
                     id_token.clone(),
@@ -7544,7 +8076,7 @@ impl<'a> Parser<'a> {
                     None,
                 );
                 let l_value = ExprType::VariableExprT { var_node };
-                
+
                 // Parse the right side
                 let r_value = match self.logical_or() {
                     Ok(Some(expr_type)) => Rc::new(expr_type),
@@ -7554,21 +8086,18 @@ impl<'a> Parser<'a> {
                     }
                     Err(parse_error) => return Err(parse_error),
                 };
-                
+
                 // Create walrus assignment expression
-                let assignment_expr = AssignmentExprNode::new(
-                    l_value,
-                    r_value,
-                    self.previous().line,
-                );
-                
+                let assignment_expr =
+                    AssignmentExprNode::new(l_value, r_value, self.previous().line);
+
                 // Return as walrus expression
                 return Ok(Some(ExprType::WalrusExprT {
                     assignment_expr_node: assignment_expr,
                 }));
             }
         }
-        
+
         // Not a walrus expression, parse normally
         let l_value = match self.logical_or() {
             Ok(Some(expr_type)) => expr_type,
@@ -7584,7 +8113,9 @@ impl<'a> Parser<'a> {
                     // Valid - proceed with walrus assignment
                 }
                 _ => {
-                    self.error_at_current("Walrus operator (:=) requires a simple variable on the left side");
+                    self.error_at_current(
+                        "Walrus operator (:=) requires a simple variable on the left side",
+                    );
                     return Err(ParseError::new("Invalid walrus operator usage"));
                 }
             }
@@ -7600,11 +8131,7 @@ impl<'a> Parser<'a> {
             };
 
             // Create walrus assignment expression
-            let assignment_expr = AssignmentExprNode::new(
-                l_value,
-                r_value,
-                self.previous().line,
-            );
+            let assignment_expr = AssignmentExprNode::new(l_value, r_value, self.previous().line);
 
             // Return as walrus expression (assignment that yields its value)
             return Ok(Some(ExprType::WalrusExprT {
@@ -7614,7 +8141,6 @@ impl<'a> Parser<'a> {
 
         Ok(Some(l_value))
     }
-
 
     /* --------------------------------------------------------------------- */
 
@@ -7643,7 +8169,8 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7677,7 +8204,8 @@ impl<'a> Parser<'a> {
                 self.error_at_current(err_msg);
             }
 
-            let binary_expr_node = BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
+            let binary_expr_node =
+                BinaryExprNode::new(self.previous().line, l_value, op_type, r_value);
             l_value = BinaryExprT { binary_expr_node };
         }
 
@@ -7834,7 +8362,7 @@ impl<'a> Parser<'a> {
     // Helper: Parse await expression
     fn parse_await_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         use crate::frame_c::ast::ExprType::AwaitExprT;
-        
+
         let expr_result = self.unary_expression()?;
         if let Some(expr) = expr_result {
             let await_expr_node = AwaitExprNode::new(self.previous().line, expr);
@@ -7847,14 +8375,16 @@ impl<'a> Parser<'a> {
     // v0.42: Parse yield expressions
     fn parse_yield_expression(&mut self) -> Result<Option<ExprType>, ParseError> {
         use crate::frame_c::ast::ExprType::{YieldExprT, YieldFromExprT};
-        
+
         // Check for "yield from"
         if self.match_token(&[TokenType::From]) {
             // yield from expression
             let expr_result = self.unary_expression()?;
             if let Some(expr) = expr_result {
                 let yield_from_expr_node = YieldFromExprNode::new(self.previous().line, expr);
-                Ok(Some(YieldFromExprT { yield_from_expr_node }))
+                Ok(Some(YieldFromExprT {
+                    yield_from_expr_node,
+                }))
             } else {
                 Err(ParseError::new("Expected expression after 'yield from'"))
             }
@@ -7863,20 +8393,20 @@ impl<'a> Parser<'a> {
             // Check if the next token could be the start of an expression
             // Common statement starts that aren't expressions: if, while, for, return, yield, etc.
             // Also check for block end
-            let next_is_expr = !self.check(TokenType::If) 
+            let next_is_expr = !self.check(TokenType::If)
                 && !self.check(TokenType::While)
                 && !self.check(TokenType::For)
                 && !self.check(TokenType::Return_)
                 && !self.check(TokenType::Yield)
                 && !self.check(TokenType::CloseBrace)  // End of block
                 && !self.is_at_end();
-            
+
             let expr_result = if next_is_expr {
                 self.assignment()?
             } else {
                 None
             };
-            
+
             let yield_expr_node = YieldExprNode::new(self.previous().line, expr_result);
             Ok(Some(YieldExprT { yield_expr_node }))
         }
@@ -7891,14 +8421,14 @@ impl<'a> Parser<'a> {
             // -x rather than - x
             operator_type = OperatorType::Negated;
         }
-        
+
         match self.unary_expression() {
             Ok(Some(x)) => {
                 let unary_expr_node = UnaryExprNode::new(self.previous().line, operator_type, x);
                 Ok(Some(UnaryExprT { unary_expr_node }))
             }
             Err(parse_error) => Err(parse_error),
-            Ok(None) => Ok(None)
+            Ok(None) => Ok(None),
         }
     }
 
@@ -7945,7 +8475,7 @@ impl<'a> Parser<'a> {
     fn create_system_return_variable(&mut self) -> ExprType {
         let system_return_token = self.previous().clone();
         let line_number = system_return_token.line;
-        
+
         let system_return_node = VariableNode::new(
             line_number,
             IdentifierNode::new(
@@ -7965,9 +8495,9 @@ impl<'a> Parser<'a> {
             IdentifierDeclScope::UnknownScope,
             None,
         );
-        
-        ExprType::VariableExprT { 
-            var_node: system_return_node 
+
+        ExprType::VariableExprT {
+            var_node: system_return_node,
         }
     }
 
@@ -7975,7 +8505,7 @@ impl<'a> Parser<'a> {
     fn create_system_method_reference_or_call(&mut self) -> ExprType {
         let system_method_token = self.previous().clone();
         let line_number = system_method_token.line;
-        
+
         // Extract the method name from the lexeme (format is "system.methodName")
         let method_name = if let Some(dot_index) = system_method_token.lexeme.find('.') {
             system_method_token.lexeme[(dot_index + 1)..].to_string()
@@ -7983,43 +8513,50 @@ impl<'a> Parser<'a> {
             // Fallback - shouldn't happen but handle gracefully
             system_method_token.lexeme.clone()
         };
-        
+
         // Validate that this method exists in the current system's interface (only in second pass)
         if !self.is_building_symbol_table {
-            if let Err(validation_error) = self.validate_system_interface_method(&method_name, line_number) {
+            if let Err(validation_error) =
+                self.validate_system_interface_method(&method_name, line_number)
+            {
                 self.error_at_current(&validation_error);
                 // Return a placeholder expression to continue parsing
                 return self.create_system_return_variable(); // Fallback
             }
         }
-        
+
         // Check if this is followed by a '(' to determine if it's a call or reference
         if self.match_token(&[TokenType::LParen]) {
             // This is a call: system.methodName()
             // The '(' token has been consumed by match_token
-            
+
             // Parse the call arguments using the same pattern as finish_call
             let call_expr_list_node = match self.expr_list() {
                 Ok(Some(ExprListT { expr_list_node })) => Some(expr_list_node),
                 Ok(None) => None,
                 Ok(_) => {
-                    self.error_at_current("Expected expression list for system method call arguments");
+                    self.error_at_current(
+                        "Expected expression list for system method call arguments",
+                    );
                     None
                 }
                 Err(parse_error) => {
-                    self.error_at_current(&format!("Error parsing arguments: {}", parse_error.error));
+                    self.error_at_current(&format!(
+                        "Error parsing arguments: {}",
+                        parse_error.error
+                    ));
                     None
                 }
             };
-            
+
             // expr_list() should have consumed the ')' token
-            
+
             // Create a CallExprNode for system.methodName()
             let call_expr_list = match call_expr_list_node {
                 Some(expr_list) => CallExprListNode::new(expr_list.exprs_t),
                 None => CallExprListNode::new(Vec::new()),
             };
-            
+
             let call_expr_node = CallExprNode::new(
                 line_number,
                 IdentifierNode::new(
@@ -8039,10 +8576,8 @@ impl<'a> Parser<'a> {
                 call_expr_list,
                 None, // No call chain for system methods
             );
-            
-            ExprType::CallExprT {
-                call_expr_node
-            }
+
+            ExprType::CallExprT { call_expr_node }
         } else {
             // This is a reference: system.methodName
             let system_method_node = VariableNode::new(
@@ -8064,15 +8599,19 @@ impl<'a> Parser<'a> {
                 IdentifierDeclScope::UnknownScope,
                 None,
             );
-            
-            ExprType::VariableExprT { 
-                var_node: system_method_node 
+
+            ExprType::VariableExprT {
+                var_node: system_method_node,
             }
         }
     }
 
     // Helper: Validate that a method exists in the current system's interface
-    fn validate_system_interface_method(&mut self, method_name: &str, _line_number: usize) -> Result<(), String> {
+    fn validate_system_interface_method(
+        &mut self,
+        method_name: &str,
+        _line_number: usize,
+    ) -> Result<(), String> {
         // Check if we're in a system context
         if let Some(system_name) = &self.current_system_name {
             // Get the current system symbol from arcanum
@@ -8081,7 +8620,7 @@ impl<'a> Parser<'a> {
                 if let Some(interface_block_symbol) = &system.interface_block_symbol_opt {
                     let interface_block = interface_block_symbol.borrow();
                     let interface_symtab = interface_block.symtab_rcref.borrow();
-                    
+
                     // Check if the method exists in the interface symbol table
                     if interface_symtab.symbols.contains_key(method_name) {
                         return Ok(());
@@ -8094,59 +8633,66 @@ impl<'a> Parser<'a> {
                     }
                 } else {
                     return Err(format!(
-                        "System '{}' has no interface block - cannot use system.{}", 
+                        "System '{}' has no interface block - cannot use system.{}",
                         system_name, method_name
                     ));
                 }
             } else {
                 return Err(format!(
-                    "Unable to access system symbol table for '{}'", 
+                    "Unable to access system symbol table for '{}'",
                     system_name
                 ));
             }
         } else {
             return Err(format!(
-                "system.{} can only be used within a system context", 
+                "system.{} can only be used within a system context",
                 method_name
             ));
         }
     }
 
     // Helper: Validate that self.interfaceMethod should be system.interfaceMethod instead
-    fn validate_self_interface_method_usage(&mut self, method_name: &str, _line_number: usize) -> Result<(), String> {
+    fn validate_self_interface_method_usage(
+        &mut self,
+        method_name: &str,
+        _line_number: usize,
+    ) -> Result<(), String> {
         // Check if we're in a system context
         if let Some(_system_name) = &self.current_system_name {
             // Get the current system symbol from arcanum
             if let Some(system_symbol) = self.arcanum.get_current_system_symbol() {
                 let system = system_symbol.borrow();
-                
+
                 // Check for actions first
-                let has_action = if let Some(actions_block_symbol) = &system.actions_block_symbol_opt {
-                    let actions_block = actions_block_symbol.borrow();
-                    let actions_symtab = actions_block.symtab_rcref.borrow();
-                    actions_symtab.symbols.contains_key(method_name)
-                } else {
-                    false
-                };
-                
+                let has_action =
+                    if let Some(actions_block_symbol) = &system.actions_block_symbol_opt {
+                        let actions_block = actions_block_symbol.borrow();
+                        let actions_symtab = actions_block.symtab_rcref.borrow();
+                        actions_symtab.symbols.contains_key(method_name)
+                    } else {
+                        false
+                    };
+
                 // Check for operations
-                let has_operation = if let Some(operations_block_symbol) = &system.operations_block_symbol_opt {
-                    let operations_block = operations_block_symbol.borrow();
-                    let operations_symtab = operations_block.symtab_rcref.borrow();
-                    operations_symtab.symbols.contains_key(method_name)
-                } else {
-                    false
-                };
-                
+                let has_operation =
+                    if let Some(operations_block_symbol) = &system.operations_block_symbol_opt {
+                        let operations_block = operations_block_symbol.borrow();
+                        let operations_symtab = operations_block.symtab_rcref.borrow();
+                        operations_symtab.symbols.contains_key(method_name)
+                    } else {
+                        false
+                    };
+
                 // Check for interface method
-                let has_interface_method = if let Some(interface_block_symbol) = &system.interface_block_symbol_opt {
-                    let interface_block = interface_block_symbol.borrow();
-                    let interface_symtab = interface_block.symtab_rcref.borrow();
-                    interface_symtab.symbols.contains_key(method_name)
-                } else {
-                    false
-                };
-                
+                let has_interface_method =
+                    if let Some(interface_block_symbol) = &system.interface_block_symbol_opt {
+                        let interface_block = interface_block_symbol.borrow();
+                        let interface_symtab = interface_block.symtab_rcref.borrow();
+                        interface_symtab.symbols.contains_key(method_name)
+                    } else {
+                        false
+                    };
+
                 // Apply method resolution policy
                 if has_action && has_operation {
                     // Conflict between action and operation with same name
@@ -8164,7 +8710,7 @@ impl<'a> Parser<'a> {
                         method_name, method_name, method_name, method_name
                     ));
                 }
-                
+
                 // Method doesn't exist in any block - this will be caught by other validation
             }
         }
@@ -8186,7 +8732,8 @@ impl<'a> Parser<'a> {
                 let var_scope = id_node.scope.clone();
                 let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
 
-                let var_node = VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
+                let var_node =
+                    VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
                 if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                     return Err(parse_error);
                 }
@@ -8206,7 +8753,8 @@ impl<'a> Parser<'a> {
                 );
                 let var_scope = id_node.scope.clone();
                 let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-                let var_node = VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
+                let var_node =
+                    VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
                 Ok(Some(VariableExprT { var_node }))
             } else {
                 self.error_at_current("Expected identifier.");
@@ -8230,8 +8778,9 @@ impl<'a> Parser<'a> {
             );
             let var_scope = id_node.scope.clone();
             let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-            let var_node = VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
-            
+            let var_node =
+                VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
+
             if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']'.") {
                 return Err(parse_error);
             }
@@ -8253,10 +8802,11 @@ impl<'a> Parser<'a> {
                 false,
                 self.previous().line,
             );
-            
+
             let var_scope = id_node.scope.clone();
             let symbol_type_rcref_opt = self.arcanum.lookup(&id_node.name.lexeme, &var_scope);
-            let var_node = VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
+            let var_node =
+                VariableNode::new(id_node.line, id_node, var_scope, symbol_type_rcref_opt);
             Ok(Some(VariableExprT { var_node }))
         } else {
             self.error_at_current("Expected identifier.");
@@ -8269,12 +8819,12 @@ impl<'a> Parser<'a> {
         if self.match_token(&[TokenType::Yield]) {
             return self.parse_yield_expression();
         }
-        
+
         // v0.35: Handle await expressions
         if self.match_token(&[TokenType::Await]) {
             return self.parse_await_expression();
         }
-        
+
         // Handle unary operators (!, -, ~)
         if self.match_token(&[TokenType::Not, TokenType::Dash, TokenType::Tilde]) {
             return self.parse_unary_operator();
@@ -8292,7 +8842,7 @@ impl<'a> Parser<'a> {
                     // Return empty tuple for consistency with Python
                     return Ok(Some(TupleLiteralT {
                         tuple_literal_node: TupleLiteralNode::new(self.previous().line, Vec::new()),
-                    }))
+                    }));
                 }
             }
         }
@@ -8419,23 +8969,20 @@ impl<'a> Parser<'a> {
         //         return Ok(Some(SelfExprT {self_expr_node}));
         //     }
 
-
-
-            // TODO 23/SEP/10 - I *think* this is dead code as all tests pass.            // else {
-            //     // System reference
-            //     //               scope = IdentifierDeclScope::System;
-            //     let id_node = IdentifierNode::new(
-            //         self.previous().clone(),
-            //         None,
-            //         IdentifierDeclScope::System,
-            //         false,
-            //         self.previous().line,
-            //     );
-            //     let var_scope = id_node.scope.clone();
-            //     let var_node = VariableNode::new(id_node.line, id_node, var_scope, None);
-            //     return Ok(Some(VariableExprT { var_node }));
-            // }
-
+        // TODO 23/SEP/10 - I *think* this is dead code as all tests pass.            // else {
+        //     // System reference
+        //     //               scope = IdentifierDeclScope::System;
+        //     let id_node = IdentifierNode::new(
+        //         self.previous().clone(),
+        //         None,
+        //         IdentifierDeclScope::System,
+        //         false,
+        //         self.previous().line,
+        //     );
+        //     let var_scope = id_node.scope.clone();
+        //     let var_node = VariableNode::new(id_node.line, id_node, var_scope, None);
+        //     return Ok(Some(VariableExprT { var_node }));
+        // }
 
         // @TODO need to determine if this is the best way to
         // deal w/ references. We can basically put & in front
@@ -8478,7 +9025,7 @@ impl<'a> Parser<'a> {
                 _ => {}
             }
         }
-        
+
         // Handle super keyword specially
         if self.match_token(&[TokenType::Super]) {
             // super can only be used in methods within a class that extends another class
@@ -8512,7 +9059,7 @@ impl<'a> Parser<'a> {
                 _ => {}
             }
         }
-        
+
         // TODO: I think only identifier is allowed?
         if self.match_token(&[TokenType::Identifier]) {
             // let debug_is_building_symbol_table = self.is_building_symbol_table;
@@ -8561,7 +9108,7 @@ impl<'a> Parser<'a> {
                 }
                 Ok(Some(FunctionRefT { name })) => {
                     // v0.38: Function reference as value (first-class function)
-                    return Ok(Some(FunctionRefT { name }))
+                    return Ok(Some(FunctionRefT { name }));
                 }
                 Ok(Some(_)) => return Err(ParseError::new("TODO")),
                 Err(parse_error) => return Err(parse_error),
@@ -8573,7 +9120,7 @@ impl<'a> Parser<'a> {
         match self.literal_expr() {
             Ok(Some(mut literal_expr_node)) => {
                 literal_expr_node.is_reference = is_reference;
-                
+
                 // Check if there's a dot after the literal for method calls like "string".upper()
                 if self.peek().token_type == TokenType::Dot {
                     // Create a temporary variable to hold the literal value
@@ -8593,7 +9140,7 @@ impl<'a> Parser<'a> {
                         false,
                         self.peek().line,
                     );
-                    
+
                     // Create a variable node wrapping the literal
                     let _var_node = VariableNode::new(
                         temp_id.line,
@@ -8601,19 +9148,20 @@ impl<'a> Parser<'a> {
                         IdentifierDeclScope::UnknownScope,
                         None,
                     );
-                    
+
                     // Build a call chain starting with the literal as a pseudo-variable
                     let mut call_chain = std::collections::VecDeque::new();
-                    
+
                     // Add the literal as a special node type that will be handled by the visitor
                     // We'll use CallChainNodeType::CallChainLiteralExprT to represent this
-                    call_chain.push_back(CallChainNodeType::CallChainLiteralExprT { 
-                        call_chain_literal_expr_node: CallChainLiteralExprNode::new(literal_expr_node.line, 
+                    call_chain.push_back(CallChainNodeType::CallChainLiteralExprT {
+                        call_chain_literal_expr_node: CallChainLiteralExprNode::new(
+                            literal_expr_node.line,
                             literal_expr_node.token_t.clone(),
                             literal_expr_node.value.clone(),
                         ),
                     });
-                    
+
                     // Now consume the dot and parse the method call
                     while self.match_token(&[TokenType::Dot]) {
                         if !self.match_token(&[TokenType::Identifier]) {
@@ -8621,7 +9169,7 @@ impl<'a> Parser<'a> {
                             self.error_at_current(err_msg);
                             return Err(ParseError::new(err_msg));
                         }
-                        
+
                         let method_id = IdentifierNode::new(
                             self.previous().clone(),
                             None,
@@ -8629,41 +9177,40 @@ impl<'a> Parser<'a> {
                             false,
                             self.previous().line,
                         );
-                        
+
                         // Check if it's a method call (has parentheses) or property access
                         if self.match_token(&[TokenType::LParen]) {
                             // It's a method call
                             let expr_list_opt = match self.expr_list() {
-                                Ok(Some(expr_list_t)) => {
-                                    match expr_list_t {
-                                        ExprListT { expr_list_node } => Some(expr_list_node),
-                                        _ => None,
-                                    }
-                                }
+                                Ok(Some(expr_list_t)) => match expr_list_t {
+                                    ExprListT { expr_list_node } => Some(expr_list_node),
+                                    _ => None,
+                                },
                                 Ok(None) => None,
                                 Err(parse_error) => return Err(parse_error),
                             };
-                            
+
                             // Note: expr_list() already consumes the RParen, so we don't need to do it again
-                            
+
                             // Create a CallExprListNode from the expression list
                             let call_expr_list = if let Some(expr_list) = expr_list_opt {
                                 CallExprListNode::new(expr_list.exprs_t)
                             } else {
                                 CallExprListNode::new(Vec::new())
                             };
-                            
-                            let mut call_expr_node = CallExprNode::new(method_id.line, 
+
+                            let mut call_expr_node = CallExprNode::new(
+                                method_id.line,
                                 method_id,
                                 call_expr_list,
-                                None,  // No call chain continuation
+                                None, // No call chain continuation
                             );
-                            
+
                             // v0.62: Perform semantic resolution if enabled
                             self.resolve_call_expr(&mut call_expr_node);
-                            
-                            call_chain.push_back(CallChainNodeType::UndeclaredCallT { 
-                                call_node: call_expr_node 
+
+                            call_chain.push_back(CallChainNodeType::UndeclaredCallT {
+                                call_node: call_expr_node,
                             });
                         } else {
                             // It's property access (rare for literals but possible)
@@ -8676,14 +9223,17 @@ impl<'a> Parser<'a> {
                             call_chain.push_back(CallChainNodeType::VariableNodeT { var_node });
                         }
                     }
-                    
+
                     // If we built a call chain, return it
                     if call_chain.len() > 1 {
-                        let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
-                        return Ok(Some(CallChainExprT { call_chain_expr_node }));
+                        let call_chain_expr_node =
+                            CallChainExprNode::new(self.previous().line, call_chain);
+                        return Ok(Some(CallChainExprT {
+                            call_chain_expr_node,
+                        }));
                     }
                 }
-                
+
                 // No dot after literal, return as normal
                 return Ok(Some(LiteralExprT { literal_expr_node }));
             }
@@ -8742,12 +9292,12 @@ impl<'a> Parser<'a> {
 
     fn stack_operation(&mut self) -> Result<Option<StateStackOperationNode>, ParseError> {
         if self.match_token(&[TokenType::StateStackOperationPush]) {
-            let line = self.previous().line;  // v0.78.11: capture line for source mapping
+            let line = self.previous().line; // v0.78.11: capture line for source mapping
             self.generate_state_stack = true;
             let ssot = StateStackOperationNode::new(line, StateStackOperationType::Push);
             return Ok(Some(ssot));
         } else if self.match_token(&[TokenType::StateStackOperationPop]) {
-            let line = self.previous().line;  // v0.78.11: capture line for source mapping
+            let line = self.previous().line; // v0.78.11: capture line for source mapping
             self.generate_state_stack = true;
             let ssot = StateStackOperationNode::new(line, StateStackOperationType::Pop);
             return Ok(Some(ssot));
@@ -8761,20 +9311,23 @@ impl<'a> Parser<'a> {
     // Scope manager wrapper that ensures scope is always properly closed
     fn with_block_scope<F, R>(&mut self, scope_prefix: &str, parse_fn: F) -> Result<R, ParseError>
     where
-        F: FnOnce(&mut Self) -> Result<R, ParseError>
+        F: FnOnce(&mut Self) -> Result<R, ParseError>,
     {
         let scope_name = &format!("{}_{}", scope_prefix, self.stmt_idx);
-        
+
         if self.is_building_symbol_table {
             let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
             self.arcanum
                 .enter_scope(ParseScopeType::Block { block_scope_rcref });
         } else {
             if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
-                return Err(ParseError::new(&format!("Failed to set block scope '{}': {}", scope_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set block scope '{}': {}",
+                    scope_name, err
+                )));
             }
         }
-        
+
         let result = parse_fn(self);
         self.arcanum.exit_scope();
         result
@@ -8783,7 +9336,10 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     // Helper function to parse a single statement after colon (Python-style)
-    fn parse_single_statement_block(&mut self, scope_prefix: &str) -> Result<BlockStmtNode, ParseError> {
+    fn parse_single_statement_block(
+        &mut self,
+        scope_prefix: &str,
+    ) -> Result<BlockStmtNode, ParseError> {
         // For single statements, use the current position
         let block_line = self.peek().line;
         self.with_block_scope(scope_prefix, |parser| {
@@ -8792,7 +9348,7 @@ impl<'a> Parser<'a> {
                 parser.error_at_current("Block statements not allowed after ':'. Use either ':' for single statement or '{' for block.");
                 return Err(ParseError::new("Block statements not allowed after ':'. Use either ':' for single statement or '{' for block."));
             }
-            
+
             match parser.decl_or_stmt(IdentifierDeclScope::BlockVarScope) {
                 Ok(Some(stmt)) => Ok(BlockStmtNode::new(block_line, vec![stmt])),
                 Ok(None) => {
@@ -8812,11 +9368,11 @@ impl<'a> Parser<'a> {
         let block_line = self.previous().line;
         self.with_block_scope(scope_prefix, |parser| {
             let statements = parser.statements(IdentifierDeclScope::BlockVarScope);
-            
+
             if let Err(parse_error) = parser.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
             }
-            
+
             Ok(BlockStmtNode::new(block_line, statements))
         })
     }
@@ -8824,10 +9380,13 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     // Helper function to parse either a block { stmt* } or a single statement (legacy)
-    fn parse_block_or_statement(&mut self, scope_prefix: &str) -> Result<BlockStmtNode, ParseError> {
+    fn parse_block_or_statement(
+        &mut self,
+        scope_prefix: &str,
+    ) -> Result<BlockStmtNode, ParseError> {
         if self.match_token(&[TokenType::OpenBrace]) {
             // Parse block with braces
-            let block_line = self.previous().line;  // v0.78.10: capture line for block mapping
+            let block_line = self.previous().line; // v0.78.10: capture line for block mapping
             let scope_name = &format!("{}_{}", scope_prefix, self.stmt_idx);
             if self.is_building_symbol_table {
                 let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
@@ -8835,12 +9394,15 @@ impl<'a> Parser<'a> {
                     .enter_scope(ParseScopeType::Block { block_scope_rcref });
             } else {
                 if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
-                    return Err(ParseError::new(&format!("Failed to set block scope '{}': {}", scope_name, err)));
+                    return Err(ParseError::new(&format!(
+                        "Failed to set block scope '{}': {}",
+                        scope_name, err
+                    )));
                 }
             }
 
             let statements = self.statements(IdentifierDeclScope::BlockVarScope);
-            
+
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 self.arcanum.exit_scope();
                 return Err(parse_error);
@@ -8850,7 +9412,7 @@ impl<'a> Parser<'a> {
             Ok(BlockStmtNode::new(block_line, statements))
         } else {
             // Parse single statement
-            let stmt_line = self.peek().line;  // v0.78.10: capture line for single statement
+            let stmt_line = self.peek().line; // v0.78.10: capture line for single statement
             let scope_name = &format!("{}_{}", scope_prefix, self.stmt_idx);
             if self.is_building_symbol_table {
                 let block_scope_rcref = Rc::new(RefCell::new(BlockScope::new(scope_name)));
@@ -8858,7 +9420,10 @@ impl<'a> Parser<'a> {
                     .enter_scope(ParseScopeType::Block { block_scope_rcref });
             } else {
                 if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
-                    return Err(ParseError::new(&format!("Failed to set block scope '{}': {}", scope_name, err)));
+                    return Err(ParseError::new(&format!(
+                        "Failed to set block scope '{}': {}",
+                        scope_name, err
+                    )));
                 }
             }
 
@@ -8882,7 +9447,10 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
-    fn try_statement_with_line(&mut self, try_line: usize) -> Result<Option<StatementType>, ParseError> {
+    fn try_statement_with_line(
+        &mut self,
+        try_line: usize,
+    ) -> Result<Option<StatementType>, ParseError> {
         // Parse the try block
         if !self.match_token(&[TokenType::OpenBrace]) {
             self.error_at_current("Expected '{' after 'try'.");
@@ -8896,105 +9464,108 @@ impl<'a> Parser<'a> {
 
         // Parse except clauses (optional - try/finally is allowed without except)
         let mut except_clauses = Vec::new();
-        
+
         // Check if we have except clauses
         let has_except = self.match_token(&[TokenType::Except]);
-        
+
         if has_except {
             loop {
-            // Capture line number for source mapping (v0.78.7)
-            let except_line = self.previous().line;
-            
-            // Parse exception specification (optional)
-            let mut exception_types = None;
-            let mut var_name = None;
+                // Capture line number for source mapping (v0.78.7)
+                let except_line = self.previous().line;
 
-            // Check if there's an exception type specified
-            if self.check(TokenType::Identifier) || self.check(TokenType::LParen) {
-                // Could be:
-                // 1. except ValueError
-                // 2. except ValueError as e
-                // 3. except (ValueError, TypeError)
-                // 4. except (ValueError, TypeError) as e
-                // 5. except e  (just binding, no type)
-                
-                if self.match_token(&[TokenType::LParen]) {
-                    // Multiple exception types
-                    let mut types = Vec::new();
-                    loop {
-                        if self.peek().token_type == TokenType::Identifier {
-                            types.push(self.peek().lexeme.clone());
-                            self.advance();
+                // Parse exception specification (optional)
+                let mut exception_types = None;
+                let mut var_name = None;
+
+                // Check if there's an exception type specified
+                if self.check(TokenType::Identifier) || self.check(TokenType::LParen) {
+                    // Could be:
+                    // 1. except ValueError
+                    // 2. except ValueError as e
+                    // 3. except (ValueError, TypeError)
+                    // 4. except (ValueError, TypeError) as e
+                    // 5. except e  (just binding, no type)
+
+                    if self.match_token(&[TokenType::LParen]) {
+                        // Multiple exception types
+                        let mut types = Vec::new();
+                        loop {
+                            if self.peek().token_type == TokenType::Identifier {
+                                types.push(self.peek().lexeme.clone());
+                                self.advance();
+                            } else {
+                                break;
+                            }
+
+                            if !self.match_token(&[TokenType::Comma]) {
+                                break;
+                            }
+                        }
+
+                        if !self.match_token(&[TokenType::RParen]) {
+                            self.error_at_current("Expected ')' after exception types.");
+                            return Err(ParseError::new("Expected ')' after exception types."));
+                        }
+
+                        if !types.is_empty() {
+                            exception_types = Some(types);
+                        }
+                    } else if self.peek().token_type == TokenType::Identifier {
+                        // Check if next token is 'as' to determine if this is a type or just a binding
+                        let ident = self.peek().lexeme.clone();
+                        self.advance();
+
+                        if self.match_token(&[TokenType::As]) {
+                            // This was an exception type, now get the variable name
+                            exception_types = Some(vec![ident]);
+
+                            if self.peek().token_type == TokenType::Identifier {
+                                var_name = Some(self.peek().lexeme.clone());
+                                self.advance();
+                            }
+                        } else if self.check(TokenType::OpenBrace) {
+                            // Just a variable binding (except e {})
+                            var_name = Some(ident);
                         } else {
-                            break;
-                        }
-                        
-                        if !self.match_token(&[TokenType::Comma]) {
-                            break;
+                            // Just an exception type (except ValueError {})
+                            exception_types = Some(vec![ident]);
                         }
                     }
-                    
-                    if !self.match_token(&[TokenType::RParen]) {
-                        self.error_at_current("Expected ')' after exception types.");
-                        return Err(ParseError::new("Expected ')' after exception types."));
-                    }
-                    
-                    if !types.is_empty() {
-                        exception_types = Some(types);
-                    }
-                } else if self.peek().token_type == TokenType::Identifier {
-                    // Check if next token is 'as' to determine if this is a type or just a binding
-                    let ident = self.peek().lexeme.clone();
-                    self.advance();
-                    
-                    if self.match_token(&[TokenType::As]) {
-                        // This was an exception type, now get the variable name
-                        exception_types = Some(vec![ident]);
-                        
+
+                    // Check for 'as' if we haven't processed it yet
+                    if exception_types.is_some()
+                        && var_name.is_none()
+                        && self.match_token(&[TokenType::As])
+                    {
                         if self.peek().token_type == TokenType::Identifier {
                             var_name = Some(self.peek().lexeme.clone());
                             self.advance();
                         }
-                    } else if self.check(TokenType::OpenBrace) {
-                        // Just a variable binding (except e {})
-                        var_name = Some(ident);
-                    } else {
-                        // Just an exception type (except ValueError {})
-                        exception_types = Some(vec![ident]);
                     }
                 }
-                
-                // Check for 'as' if we haven't processed it yet
-                if exception_types.is_some() && var_name.is_none() && self.match_token(&[TokenType::As]) {
-                    if self.peek().token_type == TokenType::Identifier {
-                        var_name = Some(self.peek().lexeme.clone());
-                        self.advance();
-                    }
+
+                // Parse the except block
+                if !self.match_token(&[TokenType::OpenBrace]) {
+                    self.error_at_current("Expected '{' after except clause.");
+                    return Err(ParseError::new("Expected '{' after except clause."));
                 }
-            }
 
-            // Parse the except block
-            if !self.match_token(&[TokenType::OpenBrace]) {
-                self.error_at_current("Expected '{' after except clause.");
-                return Err(ParseError::new("Expected '{' after except clause."));
-            }
+                let except_block = match self.parse_braced_block("except_block") {
+                    Ok(block) => block,
+                    Err(e) => return Err(e),
+                };
 
-            let except_block = match self.parse_braced_block("except_block") {
-                Ok(block) => block,
-                Err(e) => return Err(e),
-            };
+                except_clauses.push(ExceptClauseNode::new(
+                    except_line, // v0.78.7: source map support
+                    exception_types,
+                    var_name,
+                    except_block,
+                ));
 
-            except_clauses.push(ExceptClauseNode::new(
-                except_line,  // v0.78.7: source map support
-                exception_types,
-                var_name,
-                except_block,
-            ));
-
-            // Check for more except clauses
-            if !self.match_token(&[TokenType::Except]) {
-                break;
-            }
+                // Check for more except clauses
+                if !self.match_token(&[TokenType::Except]) {
+                    break;
+                }
             }
         }
 
@@ -9030,11 +9601,16 @@ impl<'a> Parser<'a> {
 
         // Validate that we have at least except clauses or finally block
         if except_clauses.is_empty() && finally_block.is_none() {
-            self.error_at_current("Try statement must have either 'except' clauses or 'finally' block.");
-            return Err(ParseError::new("Try statement must have either 'except' clauses or 'finally' block."));
+            self.error_at_current(
+                "Try statement must have either 'except' clauses or 'finally' block.",
+            );
+            return Err(ParseError::new(
+                "Try statement must have either 'except' clauses or 'finally' block.",
+            ));
         }
 
-        let try_stmt_node = TryStmtNode::new(try_line,  // Use the captured Try token line
+        let try_stmt_node = TryStmtNode::new(
+            try_line, // Use the captured Try token line
             try_block,
             except_clauses,
             else_block,
@@ -9048,7 +9624,7 @@ impl<'a> Parser<'a> {
         // Parse optional exception expression
         let exception_expr = match self.expression() {
             Ok(Some(expr)) => Some(expr),
-            Ok(None) => None,  // bare 'raise' for re-raising
+            Ok(None) => None, // bare 'raise' for re-raising
             Err(e) => return Err(e),
         };
 
@@ -9107,7 +9683,8 @@ impl<'a> Parser<'a> {
             Err(e) => return Err(e),
         };
 
-        let with_stmt_node = WithStmtNode::new(self.previous().line, 
+        let with_stmt_node = WithStmtNode::new(
+            self.previous().line,
             is_async,
             context_expr,
             target_var,
@@ -9143,7 +9720,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current("Expected 'case' in match statement.");
                 return Err(ParseError::new("Expected 'case' in match statement."));
             }
-            
+
             // Capture line number for source mapping (v0.78.7)
             let case_line = self.previous().line;
 
@@ -9204,21 +9781,26 @@ impl<'a> Parser<'a> {
 
     fn parse_literal(&mut self) -> Result<LiteralExprNode, ParseError> {
         let token = self.peek();
-        if matches!(token.token_type, 
-            TokenType::Number | 
-            TokenType::String | 
-            TokenType::FString |
-            TokenType::RawString |
-            TokenType::ByteString |
-            TokenType::TripleQuotedString |
-            TokenType::True | 
-            TokenType::False | 
-            TokenType::None_
+        if matches!(
+            token.token_type,
+            TokenType::Number
+                | TokenType::String
+                | TokenType::FString
+                | TokenType::RawString
+                | TokenType::ByteString
+                | TokenType::TripleQuotedString
+                | TokenType::True
+                | TokenType::False
+                | TokenType::None_
         ) {
             let token_type = token.token_type;
             let lexeme = token.lexeme.clone();
             self.advance();
-            Ok(LiteralExprNode::new(self.previous().line, token_type, lexeme))
+            Ok(LiteralExprNode::new(
+                self.previous().line,
+                token_type,
+                lexeme,
+            ))
         } else {
             Err(ParseError::new("Expected literal value"))
         }
@@ -9226,33 +9808,35 @@ impl<'a> Parser<'a> {
 
     fn parse_pattern(&mut self) -> Result<PatternNode, ParseError> {
         let mut pattern = self.parse_pattern_inner()?;
-        
+
         // Check for OR patterns using 'or' keyword
         if self.match_token(&[TokenType::Or]) {
             let mut patterns = vec![pattern];
             patterns.push(self.parse_pattern_inner()?);
-            
+
             // Continue collecting patterns connected by 'or'
             while self.match_token(&[TokenType::Or]) {
                 patterns.push(self.parse_pattern_inner()?);
             }
-            
+
             pattern = PatternNode::Or(patterns);
         }
-        
+
         // Check if this pattern has an 'as' clause
         if self.match_token(&[TokenType::As]) {
             if self.peek().token_type != TokenType::Identifier {
-                return Err(ParseError::new("Expected identifier after 'as' in pattern."));
+                return Err(ParseError::new(
+                    "Expected identifier after 'as' in pattern.",
+                ));
             }
             let as_name = self.peek().lexeme.clone();
             self.advance();
             return Ok(PatternNode::As(Box::new(pattern), as_name));
         }
-        
+
         Ok(pattern)
     }
-    
+
     fn parse_pattern_inner(&mut self) -> Result<PatternNode, ParseError> {
         // Check for wildcard pattern
         if self.peek().lexeme == "_" && self.peek().token_type == TokenType::Identifier {
@@ -9261,7 +9845,14 @@ impl<'a> Parser<'a> {
         }
 
         // Check for literal patterns
-        if matches!(self.peek().token_type, TokenType::Number | TokenType::String | TokenType::True | TokenType::False | TokenType::None_) {
+        if matches!(
+            self.peek().token_type,
+            TokenType::Number
+                | TokenType::String
+                | TokenType::True
+                | TokenType::False
+                | TokenType::None_
+        ) {
             let literal = self.parse_literal()?;
             return Ok(PatternNode::Literal(literal));
         }
@@ -9274,7 +9865,9 @@ impl<'a> Parser<'a> {
                     // Check for star pattern (*identifier)
                     if self.match_token(&[TokenType::Star]) {
                         if self.peek().token_type != TokenType::Identifier {
-                            return Err(ParseError::new("Expected identifier after '*' in star pattern."));
+                            return Err(ParseError::new(
+                                "Expected identifier after '*' in star pattern.",
+                            ));
                         }
                         let star_name = self.peek().lexeme.clone();
                         self.advance();
@@ -9301,7 +9894,9 @@ impl<'a> Parser<'a> {
                     // Check for star pattern (*identifier)
                     if self.match_token(&[TokenType::Star]) {
                         if self.peek().token_type != TokenType::Identifier {
-                            return Err(ParseError::new("Expected identifier after '*' in star pattern."));
+                            return Err(ParseError::new(
+                                "Expected identifier after '*' in star pattern.",
+                            ));
                         }
                         let star_name = self.peek().lexeme.clone();
                         self.advance();
@@ -9336,11 +9931,15 @@ impl<'a> Parser<'a> {
                         self.advance();
                         id
                     } else {
-                        return Err(ParseError::new("Expected string or identifier as dictionary key in pattern."));
+                        return Err(ParseError::new(
+                            "Expected string or identifier as dictionary key in pattern.",
+                        ));
                     };
 
                     if !self.match_token(&[TokenType::Colon]) {
-                        return Err(ParseError::new("Expected ':' after dictionary key in pattern."));
+                        return Err(ParseError::new(
+                            "Expected ':' after dictionary key in pattern.",
+                        ));
                     }
 
                     let value_pattern = self.parse_pattern()?;
@@ -9361,7 +9960,7 @@ impl<'a> Parser<'a> {
         if self.peek().token_type == TokenType::Identifier {
             let name = self.peek().lexeme.clone();
             self.advance();
-            
+
             // Check for class pattern
             if self.match_token(&[TokenType::LParen]) {
                 let mut args = Vec::new();
@@ -9374,14 +9973,16 @@ impl<'a> Parser<'a> {
                     }
                 }
                 if !self.match_token(&[TokenType::RParen]) {
-                    return Err(ParseError::new("Expected ')' after class pattern arguments."));
+                    return Err(ParseError::new(
+                        "Expected ')' after class pattern arguments.",
+                    ));
                 }
                 return Ok(PatternNode::Class(name, args));
             }
-            
+
             // DON'T check for OR pattern here - it needs to be handled differently
             // The pipe character conflicts with other uses in Frame
-            
+
             return Ok(PatternNode::Capture(name));
         }
 
@@ -9390,8 +9991,8 @@ impl<'a> Parser<'a> {
     }
 
     fn if_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-        let if_line = self.previous().line;  // Get line from 'if' token
-        
+        let if_line = self.previous().line; // Get line from 'if' token
+
         // Parse the condition expression
         let condition = match self.expression() {
             Ok(Some(expr)) => expr,
@@ -9422,7 +10023,7 @@ impl<'a> Parser<'a> {
         // Parse elif clauses
         let mut elif_clauses = Vec::new();
         while self.match_token(&[TokenType::Elif]) {
-            let elif_line = self.previous().line;  // Get line from 'elif' token
+            let elif_line = self.previous().line; // Get line from 'elif' token
             let elif_condition = match self.expression() {
                 Ok(Some(expr)) => expr,
                 Ok(None) => {
@@ -9484,14 +10085,14 @@ impl<'a> Parser<'a> {
         // Check if this is a C-style for loop by looking for var declaration followed by semicolon
         // or an assignment followed by semicolon
         let checkpoint = self.current;
-        
+
         // Try to parse as C-style for loop first
         // for var i = 0; i < 10; i = i + 1 { ... }
         // for i = 0; i < 10; i = i + 1 { ... }
-        
+
         let mut init_stmt = LoopFirstStmt::None;
         let mut _is_c_style = false;
-        
+
         if self.match_token(&[TokenType::Var]) {
             // Try parsing var declaration
             match self.var_declaration(IdentifierDeclScope::LoopVarScope) {
@@ -9509,7 +10110,9 @@ impl<'a> Parser<'a> {
                             self.current = checkpoint;
                             return self.for_in_statement();
                         } else {
-                            self.error_at_current("Expected ';' for C-style loop or 'in' for iteration.");
+                            self.error_at_current(
+                                "Expected ';' for C-style loop or 'in' for iteration.",
+                            );
                             return Err(ParseError::new("Invalid for loop syntax."));
                         }
                     }
@@ -9521,12 +10124,14 @@ impl<'a> Parser<'a> {
             // We need to check this BEFORE parsing as expression to avoid consuming 'in' as operator
             if self.check(TokenType::Identifier) {
                 let next_token_idx = self.current + 1;
-                if next_token_idx < self.tokens.len() && self.tokens[next_token_idx].token_type == TokenType::In {
+                if next_token_idx < self.tokens.len()
+                    && self.tokens[next_token_idx].token_type == TokenType::In
+                {
                     // This is definitely a for-in loop with identifier
                     return self.for_in_statement();
                 }
             }
-            
+
             // Otherwise try to parse as expression (for C-style loop)
             let first_expr_result = self.expression();
             match first_expr_result {
@@ -9552,7 +10157,9 @@ impl<'a> Parser<'a> {
                         self.current = checkpoint;
                         return self.for_in_statement();
                     } else {
-                        self.error_at_current("Expected ';' for C-style loop or 'in' for iteration.");
+                        self.error_at_current(
+                            "Expected ';' for C-style loop or 'in' for iteration.",
+                        );
                         return Err(ParseError::new("Invalid for loop syntax."));
                     }
                 }
@@ -9561,52 +10168,56 @@ impl<'a> Parser<'a> {
                     if self.match_token(&[TokenType::Semicolon]) {
                         _is_c_style = true;
                     } else {
-                        self.error_at_current("Expected expression or variable declaration after 'for'.");
+                        self.error_at_current(
+                            "Expected expression or variable declaration after 'for'.",
+                        );
                         return Err(ParseError::new("Invalid for loop syntax."));
                     }
                 }
                 Err(err) => return Err(err),
             }
         }
-        
+
         if _is_c_style {
             // Continue parsing C-style for loop
             // We've already consumed init and first semicolon
             // Now parse condition
             let condition_expr_t_opt = self.expression()?;
-            
+
             if !self.match_token(&[TokenType::Semicolon]) {
                 self.error_at_current("Expected ';' after for loop condition.");
                 return Err(ParseError::new("Expected ';' after for loop condition."));
             }
-            
+
             // Parse increment expression
             let inc_expr_t_opt = self.expression()?;
-            
+
             // Parse block
             if !self.match_token(&[TokenType::OpenBrace]) {
                 self.error_at_current("Expected '{' after for loop header.");
                 return Err(ParseError::new("Expected '{' after for loop header."));
             }
-            
+
             let statements = self.statements(IdentifierDeclScope::BlockVarScope);
-            
+
             if let Err(parse_error) = self.consume(TokenType::CloseBrace, "Expected '}'.") {
                 return Err(parse_error);
             }
-            
+
             // Create a LoopForStmtNode using existing loop infrastructure
-            let loop_for_stmt_node = LoopForStmtNode::new(self.previous().line, 
+            let loop_for_stmt_node = LoopForStmtNode::new(
+                self.previous().line,
                 Some(init_stmt),
                 condition_expr_t_opt,
                 inc_expr_t_opt,
                 statements,
             );
-            
-            let loop_stmt_node = LoopStmtNode::new(self.previous().line, LoopStmtTypes::LoopForStmt {
-                loop_for_stmt_node,
-            });
-            
+
+            let loop_stmt_node = LoopStmtNode::new(
+                self.previous().line,
+                LoopStmtTypes::LoopForStmt { loop_for_stmt_node },
+            );
+
             Ok(Some(StatementType::LoopStmt { loop_stmt_node }))
         } else {
             // Should not reach here as we handle for-in above
@@ -9614,9 +10225,9 @@ impl<'a> Parser<'a> {
             self.for_in_statement()
         }
     }
-    
+
     fn for_in_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-        let for_line = self.previous().line;  // Get line from 'for' token that was already matched
+        let for_line = self.previous().line; // Get line from 'for' token that was already matched
         let mut variable: Option<VariableNode> = None;
         let mut identifier: Option<IdentifierNode> = None;
 
@@ -9641,7 +10252,12 @@ impl<'a> Parser<'a> {
                         false,
                         0,
                     );
-                    let var_node = VariableNode::new(id_node.line, id_node, IdentifierDeclScope::LoopVarScope, None);
+                    let var_node = VariableNode::new(
+                        id_node.line,
+                        id_node,
+                        IdentifierDeclScope::LoopVarScope,
+                        None,
+                    );
                     variable = Some(var_node);
                 }
                 Err(parse_error) => return Err(parse_error),
@@ -9682,7 +10298,7 @@ impl<'a> Parser<'a> {
         // Check if iterating over an enum type
         let mut is_enum_iteration = false;
         let mut enum_type_name = None;
-        
+
         // eprintln!("DEBUG: Checking iterable for enum iteration");
         match &iterable {
             VariableExprT { ref var_node } => {
@@ -9690,9 +10306,12 @@ impl<'a> Parser<'a> {
                 // Check if this variable refers to an enum type
                 let var_name = &var_node.id_node.name.lexeme;
                 // eprintln!("  Variable name: {}", var_name);
-                
+
                 // Look up the symbol to see if it's an enum
-                if let Some(symbol_type_rcref) = self.arcanum.lookup(var_name, &IdentifierDeclScope::UnknownScope) {
+                if let Some(symbol_type_rcref) = self
+                    .arcanum
+                    .lookup(var_name, &IdentifierDeclScope::UnknownScope)
+                {
                     let symbol_type = symbol_type_rcref.borrow();
                     // eprintln!("  Found symbol type: {:?}", &*symbol_type);
                     if let SymbolType::EnumDeclSymbolT { .. } = &*symbol_type {
@@ -9702,7 +10321,9 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            CallChainExprT { ref call_chain_expr_node } => {
+            CallChainExprT {
+                ref call_chain_expr_node,
+            } => {
                 // eprintln!("  Iterable is CallChainExprT with {} nodes", call_chain_expr_node.call_chain.len());
                 // Check if it's a single-node chain with an enum variable
                 if call_chain_expr_node.call_chain.len() == 1 {
@@ -9711,7 +10332,7 @@ impl<'a> Parser<'a> {
                             CallChainNodeType::VariableNodeT { ref var_node } => {
                                 let var_name = &var_node.id_node.name.lexeme;
                                 // eprintln!("  Single VariableNodeT in chain: {}", var_name);
-                                
+
                                 // Check if the variable's symbol type is an enum
                                 if let Some(ref symbol_type_opt) = var_node.symbol_type_rcref_opt {
                                     let symbol_type = symbol_type_opt.borrow();
@@ -9764,7 +10385,7 @@ impl<'a> Parser<'a> {
                 self.error_at_current("Expected ':' or '{' after 'else'.");
                 return Err(ParseError::new("Expected ':' or '{' after 'else'."));
             };
-            
+
             match else_block {
                 Ok(block) => Some(block),
                 Err(e) => return Err(e),
@@ -9776,18 +10397,15 @@ impl<'a> Parser<'a> {
         let for_stmt_node = if let Some(else_block) = else_block_opt {
             if is_enum_iteration {
                 let mut node = ForStmtNode::with_else(
-                    for_line,
-                    variable,
-                    identifier,
-                    iterable,
-                    for_block,
-                    else_block,
+                    for_line, variable, identifier, iterable, for_block, else_block,
                 );
                 node.is_enum_iteration = true;
                 node.enum_type_name = enum_type_name;
                 node
             } else {
-                ForStmtNode::with_else(for_line, variable, identifier, iterable, for_block, else_block)
+                ForStmtNode::with_else(
+                    for_line, variable, identifier, iterable, for_block, else_block,
+                )
             }
         } else if is_enum_iteration {
             ForStmtNode::new_enum_iteration(
@@ -9807,8 +10425,8 @@ impl<'a> Parser<'a> {
     /* --------------------------------------------------------------------- */
 
     fn while_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
-        let while_line = self.previous().line;  // Get line from 'while' token
-        
+        let while_line = self.previous().line; // Get line from 'while' token
+
         // Parse the condition expression
         let condition = match self.expression() {
             Ok(Some(expr)) => expr,
@@ -9828,7 +10446,9 @@ impl<'a> Parser<'a> {
             self.parse_braced_block("while_block")
         } else {
             self.error_at_current("Expected ':' or '{' after while condition.");
-            return Err(ParseError::new("Expected ':' or '{' after while condition."));
+            return Err(ParseError::new(
+                "Expected ':' or '{' after while condition.",
+            ));
         };
 
         let while_block = match while_block {
@@ -9848,17 +10468,17 @@ impl<'a> Parser<'a> {
                 self.error_at_current("Expected ':' or '{' after 'else'.");
                 return Err(ParseError::new("Expected ':' or '{' after 'else'."));
             };
-            
+
             let else_block = match else_block {
                 Ok(block) => block,
                 Err(e) => return Err(e),
             };
-            
+
             WhileStmtNode::with_else(while_line, condition, while_block, else_block)
         } else {
             WhileStmtNode::new(while_line, condition, while_block)
         };
-        
+
         Ok(Some(StatementType::WhileStmt { while_stmt_node }))
     }
 
@@ -9900,7 +10520,10 @@ impl<'a> Parser<'a> {
             // give each loop in a scope a unique name
             let scope_name = &format!("{}.{}", LoopStmtScopeSymbol::scope_name(), self.stmt_idx);
             if let Err(err) = self.arcanum.set_parse_scope(scope_name) {
-                return Err(ParseError::new(&format!("Failed to set loop scope '{}': {}", scope_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to set loop scope '{}': {}",
+                    scope_name, err
+                )));
             }
         }
         // parse loop
@@ -9921,7 +10544,7 @@ impl<'a> Parser<'a> {
     fn loop_statement(&mut self) -> Result<Option<StatementType>, ParseError> {
         // Deprecation warning for 'loop' keyword
         eprintln!("Warning: The 'loop' keyword is deprecated. Use 'for' or 'while' instead for better readability and Python compatibility.");
-        
+
         if self.match_token(&[TokenType::OpenBrace]) {
             // loop { foo() }
             return self.loop_infinite_statement();
@@ -9991,7 +10614,6 @@ impl<'a> Parser<'a> {
         // loop x in range(5) { foo(x) }
         if self.match_token(&[TokenType::In]) {
             return self.loop_in_statement(init_stmt);
-
         }
 
         return Err(ParseError::new("Unrecognized loop syntax."));
@@ -10008,9 +10630,12 @@ impl<'a> Parser<'a> {
 
         let loop_infinite_stmt_node = LoopInfiniteStmtNode::new(self.previous().line, statements);
 
-        let loop_stmt_node = LoopStmtNode::new(self.previous().line, LoopStmtTypes::LoopInfiniteStmt {
-            loop_infinite_stmt_node,
-        });
+        let loop_stmt_node = LoopStmtNode::new(
+            self.previous().line,
+            LoopStmtTypes::LoopInfiniteStmt {
+                loop_infinite_stmt_node,
+            },
+        );
         let stmt_type = StatementType::LoopStmt { loop_stmt_node };
         Ok(Some(stmt_type))
     }
@@ -10055,11 +10680,18 @@ impl<'a> Parser<'a> {
                 return Err(parse_error);
             }
 
-            let loop_for_stmt_node =
-                LoopForStmtNode::new(self.previous().line, init_stmt, test_expr_opt, inc_dec_expr_opt, statements);
+            let loop_for_stmt_node = LoopForStmtNode::new(
+                self.previous().line,
+                init_stmt,
+                test_expr_opt,
+                inc_dec_expr_opt,
+                statements,
+            );
 
-            let loop_stmt_node =
-                LoopStmtNode::new(self.previous().line, LoopStmtTypes::LoopForStmt { loop_for_stmt_node });
+            let loop_stmt_node = LoopStmtNode::new(
+                self.previous().line,
+                LoopStmtTypes::LoopForStmt { loop_for_stmt_node },
+            );
             let stmt_type = StatementType::LoopStmt { loop_stmt_node };
             return Ok(Some(stmt_type));
         } else {
@@ -10106,9 +10738,17 @@ impl<'a> Parser<'a> {
             //         return Err(ParseError::new(err_msg));
             //     }
             // };
-            let loop_in_stmt_node = LoopInStmtNode::new(self.previous().line, loop_first_stmt, iterable_expr, statements);
+            let loop_in_stmt_node = LoopInStmtNode::new(
+                self.previous().line,
+                loop_first_stmt,
+                iterable_expr,
+                statements,
+            );
 
-            let loop_stmt_node = LoopStmtNode::new(self.previous().line, LoopStmtTypes::LoopInStmt { loop_in_stmt_node });
+            let loop_stmt_node = LoopStmtNode::new(
+                self.previous().line,
+                LoopStmtTypes::LoopInStmt { loop_in_stmt_node },
+            );
             let stmt_type = StatementType::LoopStmt { loop_stmt_node };
             return Ok(Some(stmt_type));
         } else {
@@ -10230,37 +10870,39 @@ impl<'a> Parser<'a> {
         // v0.53: Set flag to indicate we're inside a collection literal
         let was_parsing_collection = self.is_parsing_collection;
         self.is_parsing_collection = true;
-        
+
         // Handle empty {} - default to empty dict
         // v0.38: Use {,} for empty set (single comma inside)
         if self.peek().token_type == TokenType::CloseBrace {
             self.advance(); // consume '}'
-            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-            return Ok(ExprType::DictLiteralT { 
-                dict_literal_node: DictLiteralNode::new(self.previous().line, Vec::new())
+            self.is_parsing_collection = was_parsing_collection; // Restore flag
+            return Ok(ExprType::DictLiteralT {
+                dict_literal_node: DictLiteralNode::new(self.previous().line, Vec::new()),
             });
         }
-        
+
         // v0.38: Check for {,} pattern for empty set
         if self.peek().token_type == TokenType::Comma {
             self.advance(); // consume ','
             if self.peek().token_type == TokenType::CloseBrace {
                 self.advance(); // consume '}'
-                self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                self.is_parsing_collection = was_parsing_collection; // Restore flag
                 return Ok(ExprType::SetLiteralT {
-                    set_literal_node: SetLiteralNode::new(self.previous().line, Vec::new())
+                    set_literal_node: SetLiteralNode::new(self.previous().line, Vec::new()),
                 });
             } else {
-                self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                return Err(ParseError::new("Expected '}' after ',' for empty set literal"));
+                self.is_parsing_collection = was_parsing_collection; // Restore flag
+                return Err(ParseError::new(
+                    "Expected '}' after ',' for empty set literal",
+                ));
             }
         }
-        
+
         // Check for dict unpacking (**expr)
         if self.match_token(&[TokenType::StarStar]) {
             // This is a dict with unpacking
             let mut pairs = Vec::new();
-            
+
             // Parse unpacked expression
             match self.expression() {
                 Ok(Some(expr)) => {
@@ -10268,51 +10910,55 @@ impl<'a> Parser<'a> {
                     // The visitor will recognize this pattern
                     let dict_unpack = DictUnpackExprNode::new(self.previous().line, expr);
                     pairs.push((
-                        ExprType::DictUnpackExprT { dict_unpack_expr_node: dict_unpack },
-                        ExprType::NilExprT  // Placeholder value for unpacking
+                        ExprType::DictUnpackExprT {
+                            dict_unpack_expr_node: dict_unpack,
+                        },
+                        ExprType::NilExprT, // Placeholder value for unpacking
                     ));
                 }
                 Ok(None) => {
-                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                    return Err(ParseError::new("Expected expression after '**'"))
-                },
+                    self.is_parsing_collection = was_parsing_collection; // Restore flag
+                    return Err(ParseError::new("Expected expression after '**'"));
+                }
                 Err(e) => {
-                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                    return Err(e)
-                },
+                    self.is_parsing_collection = was_parsing_collection; // Restore flag
+                    return Err(e);
+                }
             };
-            
+
             // Parse remaining items (could be more unpacking or regular pairs)
             while !self.match_token(&[TokenType::CloseBrace]) {
                 if !self.match_token(&[TokenType::Comma]) {
-                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                    self.is_parsing_collection = was_parsing_collection; // Restore flag
                     return Err(ParseError::new("Expected ',' or '}' in dictionary"));
                 }
-                
+
                 // Allow trailing comma
                 if self.peek().token_type == TokenType::CloseBrace {
                     self.advance();
                     break;
                 }
-                
+
                 // Check for another unpacking
                 if self.match_token(&[TokenType::StarStar]) {
                     match self.expression() {
                         Ok(Some(expr)) => {
                             let dict_unpack = DictUnpackExprNode::new(self.previous().line, expr);
                             pairs.push((
-                                ExprType::DictUnpackExprT { dict_unpack_expr_node: dict_unpack },
-                                ExprType::NilExprT  // Placeholder value for unpacking
+                                ExprType::DictUnpackExprT {
+                                    dict_unpack_expr_node: dict_unpack,
+                                },
+                                ExprType::NilExprT, // Placeholder value for unpacking
                             ));
                         }
                         Ok(None) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(ParseError::new("Expected expression after '**'"))
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(ParseError::new("Expected expression after '**'"));
+                        }
                         Err(e) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(e)
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(e);
+                        }
                     };
                 } else {
                     // Regular key-value pair
@@ -10320,43 +10966,43 @@ impl<'a> Parser<'a> {
                     let key = match self.equality() {
                         Ok(Some(expr)) => expr,
                         Ok(None) => {
-                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
-                            return Err(ParseError::new("Expected key in dictionary"))
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
+                            return Err(ParseError::new("Expected key in dictionary"));
+                        }
                         Err(e) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(e)
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(e);
+                        }
                     };
-                    
+
                     if !self.match_token(&[TokenType::Colon]) {
-                        self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                        self.is_parsing_collection = was_parsing_collection; // Restore flag
                         return Err(ParseError::new("Expected ':' after dictionary key"));
                     }
-                    
+
                     // For values, we want full expressions including lambda
                     let value = match self.expression() {
                         Ok(Some(expr)) => expr,
                         Ok(None) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(ParseError::new("Expected value in dictionary"))
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(ParseError::new("Expected value in dictionary"));
+                        }
                         Err(e) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(e)
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(e);
+                        }
                     };
-                    
+
                     pairs.push((key, value));
                 }
             }
-            
-            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-            return Ok(ExprType::DictLiteralT { 
-                dict_literal_node: DictLiteralNode::new(self.previous().line, pairs)
+
+            self.is_parsing_collection = was_parsing_collection; // Restore flag
+            return Ok(ExprType::DictLiteralT {
+                dict_literal_node: DictLiteralNode::new(self.previous().line, pairs),
             });
         }
-        
+
         // Parse first element (regular, not unpacking)
         // Use equality() here to avoid parsing lambda as a key
         let first_expr = match self.equality() {
@@ -10365,66 +11011,68 @@ impl<'a> Parser<'a> {
                 if self.peek().token_type == TokenType::CloseBrace {
                     // Empty dict
                     self.advance();
-                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                    return Ok(ExprType::DictLiteralT { 
-                        dict_literal_node: DictLiteralNode::new(self.previous().line, Vec::new())
+                    self.is_parsing_collection = was_parsing_collection; // Restore flag
+                    return Ok(ExprType::DictLiteralT {
+                        dict_literal_node: DictLiteralNode::new(self.previous().line, Vec::new()),
                     });
                 }
-                self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                self.is_parsing_collection = was_parsing_collection; // Restore flag
                 return Err(ParseError::new("Expected expression in literal"));
             }
             Err(e) => {
-                self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                return Err(e)
-            },
+                self.is_parsing_collection = was_parsing_collection; // Restore flag
+                return Err(e);
+            }
         };
-        
+
         // Check if it's a dictionary (has colon) or set (has comma or closing brace)
         if self.match_token(&[TokenType::Colon]) {
             // It's a dictionary
             let mut pairs = Vec::new();
-            
+
             // Parse first value
             let value = match self.expression() {
                 Ok(Some(expr)) => expr,
                 Ok(None) => {
-                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                    return Err(ParseError::new("Expected value after ':' in dictionary"))
-                },
+                    self.is_parsing_collection = was_parsing_collection; // Restore flag
+                    return Err(ParseError::new("Expected value after ':' in dictionary"));
+                }
                 Err(e) => {
-                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                    return Err(e)
-                },
+                    self.is_parsing_collection = was_parsing_collection; // Restore flag
+                    return Err(e);
+                }
             };
-            
+
             // Check if it's a dictionary comprehension (has 'for' keyword)
             if self.peek().token_type == TokenType::For {
                 // It's a dictionary comprehension
                 let comp_result = self.dict_comprehension(first_expr, value)?;
                 // Consume the closing brace
                 if !self.match_token(&[TokenType::CloseBrace]) {
-                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                    return Err(ParseError::new("Expected '}' after dictionary comprehension"));
+                    self.is_parsing_collection = was_parsing_collection; // Restore flag
+                    return Err(ParseError::new(
+                        "Expected '}' after dictionary comprehension",
+                    ));
                 }
-                self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                self.is_parsing_collection = was_parsing_collection; // Restore flag
                 return Ok(comp_result);
             }
-            
+
             pairs.push((first_expr, value));
-            
+
             // Parse remaining pairs
             while !self.match_token(&[TokenType::CloseBrace]) {
                 if !self.match_token(&[TokenType::Comma]) {
-                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                    self.is_parsing_collection = was_parsing_collection; // Restore flag
                     return Err(ParseError::new("Expected ',' or '}' in dictionary"));
                 }
-                
+
                 // Allow trailing comma
                 if self.peek().token_type == TokenType::CloseBrace {
                     self.advance();
                     break;
                 }
-                
+
                 // Check for dict unpacking
                 if self.match_token(&[TokenType::StarStar]) {
                     // Dict unpacking in the middle
@@ -10432,62 +11080,64 @@ impl<'a> Parser<'a> {
                         Ok(Some(expr)) => {
                             let dict_unpack = DictUnpackExprNode::new(self.previous().line, expr);
                             pairs.push((
-                                ExprType::DictUnpackExprT { dict_unpack_expr_node: dict_unpack },
-                                ExprType::NilExprT  // Placeholder value for unpacking
+                                ExprType::DictUnpackExprT {
+                                    dict_unpack_expr_node: dict_unpack,
+                                },
+                                ExprType::NilExprT, // Placeholder value for unpacking
                             ));
                         }
                         Ok(None) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(ParseError::new("Expected expression after '**'"))
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(ParseError::new("Expected expression after '**'"));
+                        }
                         Err(e) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(e)
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(e);
+                        }
                     };
                 } else {
                     // Parse next key - don't allow lambda as key
                     let key = match self.equality() {
                         Ok(Some(expr)) => expr,
                         Ok(None) => {
-                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
-                            return Err(ParseError::new("Expected key in dictionary"))
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
+                            return Err(ParseError::new("Expected key in dictionary"));
+                        }
                         Err(e) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(e)
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(e);
+                        }
                     };
-                    
+
                     if !self.match_token(&[TokenType::Colon]) {
-                        self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                        self.is_parsing_collection = was_parsing_collection; // Restore flag
                         return Err(ParseError::new("Expected ':' after dictionary key"));
                     }
-                    
+
                     // Parse value - allow full expressions including lambda
                     let value = match self.expression() {
                         Ok(Some(expr)) => expr,
                         Ok(None) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(ParseError::new("Expected value in dictionary"))
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(ParseError::new("Expected value in dictionary"));
+                        }
                         Err(e) => {
-                            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                            return Err(e)
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // Restore flag
+                            return Err(e);
+                        }
                     };
-                    
+
                     pairs.push((key, value));
                 }
             }
-            
-            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-            Ok(ExprType::DictLiteralT { 
-                dict_literal_node: DictLiteralNode::new(self.previous().line, pairs)
+
+            self.is_parsing_collection = was_parsing_collection; // Restore flag
+            Ok(ExprType::DictLiteralT {
+                dict_literal_node: DictLiteralNode::new(self.previous().line, pairs),
             })
         } else {
             // It's a set or set comprehension
-            
+
             // Check if it's a set comprehension (has 'for' keyword after first expression)
             if self.peek().token_type == TokenType::For {
                 // It's a set comprehension
@@ -10498,57 +11148,57 @@ impl<'a> Parser<'a> {
                 }
                 return Ok(comp_result);
             }
-            
+
             // It's a regular set literal
             let mut elements = vec![first_expr];
-            
+
             // Check for single element set
             if self.match_token(&[TokenType::CloseBrace]) {
-                self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                return Ok(ExprType::SetLiteralT { 
-                    set_literal_node: SetLiteralNode::new(self.previous().line, elements)
+                self.is_parsing_collection = was_parsing_collection; // Restore flag
+                return Ok(ExprType::SetLiteralT {
+                    set_literal_node: SetLiteralNode::new(self.previous().line, elements),
                 });
             }
-            
+
             // Parse remaining elements
             if !self.match_token(&[TokenType::Comma]) {
-                self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                self.is_parsing_collection = was_parsing_collection; // Restore flag
                 return Err(ParseError::new("Expected ',' or '}' in set literal"));
             }
-            
+
             loop {
                 // Allow trailing comma
                 if self.peek().token_type == TokenType::CloseBrace {
                     self.advance();
                     break;
                 }
-                
+
                 // Parse next element
                 match self.expression() {
                     Ok(Some(expr)) => elements.push(expr),
                     Ok(None) => {
-                        self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                        return Err(ParseError::new("Expected element in set"))
-                    },
+                        self.is_parsing_collection = was_parsing_collection; // Restore flag
+                        return Err(ParseError::new("Expected element in set"));
+                    }
                     Err(e) => {
-                        self.is_parsing_collection = was_parsing_collection;  // Restore flag
-                        return Err(e)
-                    },
+                        self.is_parsing_collection = was_parsing_collection; // Restore flag
+                        return Err(e);
+                    }
                 }
-                
+
                 if self.match_token(&[TokenType::CloseBrace]) {
                     break;
                 }
-                
+
                 if !self.match_token(&[TokenType::Comma]) {
-                    self.is_parsing_collection = was_parsing_collection;  // Restore flag
+                    self.is_parsing_collection = was_parsing_collection; // Restore flag
                     return Err(ParseError::new("Expected ',' or '}' in set"));
                 }
             }
-            
-            self.is_parsing_collection = was_parsing_collection;  // Restore flag
-            Ok(ExprType::SetLiteralT { 
-                set_literal_node: SetLiteralNode::new(self.previous().line, elements)
+
+            self.is_parsing_collection = was_parsing_collection; // Restore flag
+            Ok(ExprType::SetLiteralT {
+                set_literal_node: SetLiteralNode::new(self.previous().line, elements),
             })
         }
     }
@@ -10557,22 +11207,22 @@ impl<'a> Parser<'a> {
         // v0.53: Set flag to indicate we're inside a collection literal
         let was_parsing_collection = self.is_parsing_collection;
         self.is_parsing_collection = true;
-        
+
         // First, check if this is a list comprehension by looking ahead
-        // We need to look for the pattern: expr 'for' ... 
+        // We need to look for the pattern: expr 'for' ...
         let checkpoint = self.current;
         let mut is_comprehension = false;
-        
+
         // Try to parse first expression and check if 'for' follows
         if let Ok(Some(_first_expr)) = self.expression() {
             if self.peek().token_type == TokenType::For {
                 is_comprehension = true;
             }
         }
-        
+
         // Reset to start of list content
         self.current = checkpoint;
-        
+
         if is_comprehension {
             // Parse as list comprehension
             let result = self.list_comprehension();
@@ -10580,7 +11230,7 @@ impl<'a> Parser<'a> {
             self.is_parsing_collection = was_parsing_collection;
             return result;
         }
-        
+
         // Parse as regular list with possible unpacking
         let mut expressions: Vec<ExprType> = Vec::new();
 
@@ -10588,14 +11238,16 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::RBracket]) {
                 break;
             }
-            
+
             // Check for unpacking operator
             if self.match_token(&[TokenType::Star]) {
                 // Parse unpacked expression
                 match self.expression() {
                     Ok(Some(expr)) => {
                         let unpack_node = UnpackExprNode::new(self.previous().line, expr);
-                        expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
+                        expressions.push(ExprType::UnpackExprT {
+                            unpack_expr_node: unpack_node,
+                        });
                     }
                     Ok(None) => {
                         return Err(ParseError::new("Expected expression after '*' operator"));
@@ -10612,7 +11264,7 @@ impl<'a> Parser<'a> {
                     Err(parse_error) => return Err(parse_error),
                 }
             }
-            
+
             if self.peek().token_type == TokenType::RBracket {
                 continue;
             }
@@ -10625,62 +11277,89 @@ impl<'a> Parser<'a> {
         self.is_parsing_collection = was_parsing_collection;
         Ok(ListNode::new(self.previous().line, expressions))
     }
-    
+
     // Parse dictionary comprehension: {key: value for var in iterable if condition}
-    fn dict_comprehension(&mut self, key_expr: ExprType, value_expr: ExprType) -> Result<ExprType, ParseError> {
+    fn dict_comprehension(
+        &mut self,
+        key_expr: ExprType,
+        value_expr: ExprType,
+    ) -> Result<ExprType, ParseError> {
         // Consume 'for' keyword
         if !self.match_token(&[TokenType::For]) {
-            return Err(ParseError::new("Expected 'for' in dictionary comprehension"));
+            return Err(ParseError::new(
+                "Expected 'for' in dictionary comprehension",
+            ));
         }
-        
+
         // Parse target variable(s) - could be k, v for unpacking
         let mut targets = Vec::new();
-        
+
         // Parse first target
         if !self.match_token(&[TokenType::Identifier]) {
-            return Err(ParseError::new("Expected identifier after 'for' in dictionary comprehension"));
+            return Err(ParseError::new(
+                "Expected identifier after 'for' in dictionary comprehension",
+            ));
         }
         targets.push(self.previous().lexeme.clone());
-        
+
         // Check for comma (for multiple targets like k, v)
         if self.match_token(&[TokenType::Comma]) {
             if !self.match_token(&[TokenType::Identifier]) {
-                return Err(ParseError::new("Expected identifier after ',' in dictionary comprehension"));
+                return Err(ParseError::new(
+                    "Expected identifier after ',' in dictionary comprehension",
+                ));
             }
             targets.push(self.previous().lexeme.clone());
         }
-        
+
         // Join targets with comma for Python code generation
         let target = targets.join(", ");
-        
+
         // Consume 'in' keyword
         if !self.match_token(&[TokenType::In]) {
-            return Err(ParseError::new("Expected 'in' after variable in dictionary comprehension"));
+            return Err(ParseError::new(
+                "Expected 'in' after variable in dictionary comprehension",
+            ));
         }
-        
+
         // Parse iterable expression
         let iter = match self.expression() {
             Ok(Some(e)) => e,
-            Ok(None) => return Err(ParseError::new("Expected iterable in dictionary comprehension")),
+            Ok(None) => {
+                return Err(ParseError::new(
+                    "Expected iterable in dictionary comprehension",
+                ))
+            }
             Err(e) => return Err(e),
         };
-        
+
         // Parse optional condition
         let condition = if self.match_token(&[TokenType::If]) {
             match self.expression() {
                 Ok(Some(e)) => Some(e),
-                Ok(None) => return Err(ParseError::new("Expected condition after 'if' in dictionary comprehension")),
+                Ok(None) => {
+                    return Err(ParseError::new(
+                        "Expected condition after 'if' in dictionary comprehension",
+                    ))
+                }
                 Err(e) => return Err(e),
             }
         } else {
             None
         };
-        
+
         // DO NOT consume closing brace - let dict_or_set_literal handle it
-        
-        let comprehension_node = DictComprehensionNode::new(self.previous().line, key_expr, value_expr, target, iter, condition);
-        Ok(ExprType::DictComprehensionExprT { 
-            dict_comprehension_node: comprehension_node 
+
+        let comprehension_node = DictComprehensionNode::new(
+            self.previous().line,
+            key_expr,
+            value_expr,
+            target,
+            iter,
+            condition,
+        );
+        Ok(ExprType::DictComprehensionExprT {
+            dict_comprehension_node: comprehension_node,
         })
     }
 
@@ -10690,41 +11369,50 @@ impl<'a> Parser<'a> {
         if !self.match_token(&[TokenType::For]) {
             return Err(ParseError::new("Expected 'for' in set comprehension"));
         }
-        
+
         // Parse target variable
         if !self.match_token(&[TokenType::Identifier]) {
-            return Err(ParseError::new("Expected identifier after 'for' in set comprehension"));
+            return Err(ParseError::new(
+                "Expected identifier after 'for' in set comprehension",
+            ));
         }
         let target = self.previous().lexeme.clone();
-        
+
         // Consume 'in' keyword
         if !self.match_token(&[TokenType::In]) {
-            return Err(ParseError::new("Expected 'in' after variable in set comprehension"));
+            return Err(ParseError::new(
+                "Expected 'in' after variable in set comprehension",
+            ));
         }
-        
+
         // Parse iterable expression
         let iter = match self.expression() {
             Ok(Some(e)) => e,
             Ok(None) => return Err(ParseError::new("Expected iterable in set comprehension")),
             Err(e) => return Err(e),
         };
-        
+
         // Parse optional condition
         let condition = if self.match_token(&[TokenType::If]) {
             match self.expression() {
                 Ok(Some(e)) => Some(e),
-                Ok(None) => return Err(ParseError::new("Expected condition after 'if' in set comprehension")),
+                Ok(None) => {
+                    return Err(ParseError::new(
+                        "Expected condition after 'if' in set comprehension",
+                    ))
+                }
                 Err(e) => return Err(e),
             }
         } else {
             None
         };
-        
+
         // DO NOT consume closing brace - let dict_or_set_literal handle it
-        
-        let comprehension_node = SetComprehensionNode::new(self.previous().line, expr, target, iter, condition);
-        Ok(ExprType::SetComprehensionExprT { 
-            set_comprehension_node: comprehension_node 
+
+        let comprehension_node =
+            SetComprehensionNode::new(self.previous().line, expr, target, iter, condition);
+        Ok(ExprType::SetComprehensionExprT {
+            set_comprehension_node: comprehension_node,
         })
     }
 
@@ -10736,12 +11424,12 @@ impl<'a> Parser<'a> {
             Ok(None) => return Err(ParseError::new("Expected expression in list comprehension")),
             Err(e) => return Err(e),
         };
-        
+
         // Expect 'for'
         if !self.match_token(&[TokenType::For]) {
             return Err(ParseError::new("Expected 'for' in list comprehension"));
         }
-        
+
         // Parse target variable
         let target = if self.peek().token_type == TokenType::Identifier {
             let token = self.advance();
@@ -10749,19 +11437,21 @@ impl<'a> Parser<'a> {
         } else {
             return Err(ParseError::new("Expected identifier after 'for'"));
         };
-        
+
         // Expect 'in'
         if !self.match_token(&[TokenType::In]) {
-            return Err(ParseError::new("Expected 'in' after identifier in list comprehension"));
+            return Err(ParseError::new(
+                "Expected 'in' after identifier in list comprehension",
+            ));
         }
-        
+
         // Parse iterable expression
         let iter = match self.expression() {
             Ok(Some(e)) => e,
             Ok(None) => return Err(ParseError::new("Expected iterable expression after 'in'")),
             Err(e) => return Err(e),
         };
-        
+
         // Optional 'if' condition
         let condition = if self.match_token(&[TokenType::If]) {
             match self.expression() {
@@ -10772,18 +11462,22 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        
+
         // Consume the closing bracket
-        if let Err(parse_error) = self.consume(TokenType::RBracket, "Expected ']' after list comprehension.") {
+        if let Err(parse_error) = self.consume(
+            TokenType::RBracket,
+            "Expected ']' after list comprehension.",
+        ) {
             return Err(parse_error);
         }
-        
+
         // Create comprehension node and wrap it in a list
-        let comprehension_node = ListComprehensionNode::new(self.previous().line, expr, target, iter, condition);
-        let comp_expr = ExprType::ListComprehensionExprT { 
-            list_comprehension_node: comprehension_node 
+        let comprehension_node =
+            ListComprehensionNode::new(self.previous().line, expr, target, iter, condition);
+        let comp_expr = ExprType::ListComprehensionExprT {
+            list_comprehension_node: comprehension_node,
         };
-        
+
         // Return as a ListNode with a single comprehension expression
         Ok(ListNode::new(self.previous().line, vec![comp_expr]))
     }
@@ -10796,21 +11490,23 @@ impl<'a> Parser<'a> {
         // Set flag to prevent comma-separated values from being parsed as tuples
         let was_parsing_collection = self.is_parsing_collection;
         self.is_parsing_collection = true;
-        
+
         let mut expressions: Vec<ExprType> = Vec::new();
 
         loop {
             if self.match_token(&[TokenType::RParen]) {
                 break;
             }
-            
+
             // Check for unpacking operator in function arguments
             if self.match_token(&[TokenType::Star]) {
                 // Parse unpacked expression
                 match self.expression() {
                     Ok(Some(expr)) => {
                         let unpack_node = UnpackExprNode::new(self.previous().line, expr);
-                        expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
+                        expressions.push(ExprType::UnpackExprT {
+                            unpack_expr_node: unpack_node,
+                        });
                     }
                     Ok(None) => {
                         self.is_parsing_collection = was_parsing_collection;
@@ -10838,7 +11534,7 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            
+
             if self.peek().token_type == TokenType::RParen {
                 continue;
             }
@@ -10849,7 +11545,7 @@ impl<'a> Parser<'a> {
 
         // Restore the flag before returning
         self.is_parsing_collection = was_parsing_collection;
-        
+
         if expressions.is_empty() {
             Ok(None)
         } else {
@@ -10865,7 +11561,7 @@ impl<'a> Parser<'a> {
         // v0.53: Set flag to indicate we're inside a collection literal (tuples)
         let was_parsing_collection = self.is_parsing_collection;
         self.is_parsing_collection = true;
-        
+
         let mut expressions: Vec<ExprType> = Vec::new();
         let mut has_trailing_comma = false;
 
@@ -10873,7 +11569,7 @@ impl<'a> Parser<'a> {
         if self.peek().token_type == TokenType::RParen {
             self.advance();
             // Empty () is an empty tuple
-            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+            self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
             return Ok(Some(TupleLiteralT {
                 tuple_literal_node: TupleLiteralNode::new(self.previous().line, Vec::new()),
             }));
@@ -10885,78 +11581,89 @@ impl<'a> Parser<'a> {
                 // v0.42: Check for generator expression (expr for var in iterable)
                 if self.peek().token_type == TokenType::For {
                     self.advance(); // consume 'for'
-                    
+
                     // Parse target variable
                     let target = if self.peek().token_type == TokenType::Identifier {
                         let token = self.advance();
                         token.lexeme.clone()
                     } else {
-                        return Err(ParseError::new("Expected identifier after 'for' in generator expression"));
+                        return Err(ParseError::new(
+                            "Expected identifier after 'for' in generator expression",
+                        ));
                     };
-                    
+
                     // Expect 'in'
                     if !self.match_token(&[TokenType::In]) {
-                        return Err(ParseError::new("Expected 'in' after identifier in generator expression"));
+                        return Err(ParseError::new(
+                            "Expected 'in' after identifier in generator expression",
+                        ));
                     }
-                    
+
                     // Parse iterable expression
                     let iter = match self.expression() {
                         Ok(Some(e)) => e,
-                        Ok(None) => return Err(ParseError::new("Expected iterable expression after 'in'")),
+                        Ok(None) => {
+                            return Err(ParseError::new("Expected iterable expression after 'in'"))
+                        }
                         Err(e) => return Err(e),
                     };
-                    
+
                     // Optional 'if' condition
                     let condition = if self.match_token(&[TokenType::If]) {
                         match self.expression() {
                             Ok(Some(e)) => Some(e),
-                            Ok(None) => return Err(ParseError::new("Expected condition after 'if'")),
+                            Ok(None) => {
+                                return Err(ParseError::new("Expected condition after 'if'"))
+                            }
                             Err(e) => return Err(e),
                         }
                     } else {
                         None
                     };
-                    
+
                     // Expect closing parenthesis
                     if !self.match_token(&[TokenType::RParen]) {
-                        self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                        self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
                         return Err(ParseError::new("Expected ')' after generator expression"));
                     }
-                    
-                    let generator_expr_node = GeneratorExprNode::new(self.previous().line, expr, target, iter, condition);
-                    self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
-                    return Ok(Some(GeneratorExprT { generator_expr_node }));
+
+                    let generator_expr_node =
+                        GeneratorExprNode::new(self.previous().line, expr, target, iter, condition);
+                    self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
+                    return Ok(Some(GeneratorExprT {
+                        generator_expr_node,
+                    }));
                 }
-                
+
                 expressions.push(expr);
             }
             Ok(None) => {
                 // No expression, just close paren
                 if self.match_token(&[TokenType::RParen]) {
-                    self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                    self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
                     return Ok(Some(TupleLiteralT {
                         tuple_literal_node: TupleLiteralNode::new(self.previous().line, Vec::new()),
                     }));
                 }
-                self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
                 return Err(ParseError::new("Expected expression in parentheses"));
             }
             Err(e) => {
-                self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
-                return Err(e)
-            },
+                self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
+                return Err(e);
+            }
         }
 
         // Check for comma (which makes it a tuple) or close paren
         if self.match_token(&[TokenType::RParen]) {
             // Single expression without comma - just a parenthesized expression
             if expressions.len() == 1 {
-                self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
                 return Ok(Some(expressions.into_iter().next().unwrap()));
             }
         } else if self.match_token(&[TokenType::Comma]) {
             has_trailing_comma = true;
-            
+
             // Parse remaining elements
             loop {
                 // Check for trailing comma before close paren
@@ -10964,22 +11671,24 @@ impl<'a> Parser<'a> {
                     self.advance();
                     break;
                 }
-                
+
                 // Check for unpacking in tuple
                 if self.match_token(&[TokenType::Star]) {
                     match self.expression() {
                         Ok(Some(expr)) => {
                             let unpack_node = UnpackExprNode::new(self.previous().line, expr);
-                            expressions.push(ExprType::UnpackExprT { unpack_expr_node: unpack_node });
+                            expressions.push(ExprType::UnpackExprT {
+                                unpack_expr_node: unpack_node,
+                            });
                         }
                         Ok(None) => {
-                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
-                            return Err(ParseError::new("Expected expression after '*'"))
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
+                            return Err(ParseError::new("Expected expression after '*'"));
+                        }
                         Err(e) => {
-                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
-                            return Err(e)
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
+                            return Err(e);
+                        }
                     }
                 } else {
                     // Regular expression
@@ -10987,35 +11696,35 @@ impl<'a> Parser<'a> {
                         Ok(Some(expr)) => expressions.push(expr),
                         Ok(None) => break,
                         Err(e) => {
-                            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
-                            return Err(e)
-                        },
+                            self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
+                            return Err(e);
+                        }
                     }
                 }
-                
+
                 if self.match_token(&[TokenType::RParen]) {
                     break;
                 }
-                
+
                 if !self.match_token(&[TokenType::Comma]) {
-                    self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+                    self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
                     return Err(ParseError::new("Expected ',' or ')' in tuple"));
                 }
             }
         } else {
-            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+            self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
             return Err(ParseError::new("Expected ',' or ')' after expression"));
         }
 
         // If we have multiple expressions or a trailing comma, it's a tuple
         if expressions.len() > 1 || has_trailing_comma {
-            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+            self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
             Ok(Some(TupleLiteralT {
                 tuple_literal_node: TupleLiteralNode::new(self.previous().line, expressions),
             }))
         } else {
             // Single expression without comma - return the expression itself
-            self.is_parsing_collection = was_parsing_collection;  // v0.53: Restore flag
+            self.is_parsing_collection = was_parsing_collection; // v0.53: Restore flag
             Ok(Some(expressions.into_iter().next().unwrap()))
         }
     }
@@ -11103,7 +11812,6 @@ impl<'a> Parser<'a> {
         if self.previous().token_type == TokenType::Self_ {
             if self.match_token(&[TokenType::Dot]) {
                 if self.match_token(&[TokenType::Identifier]) {
-
                     let id_node = IdentifierNode::new(
                         self.previous().clone(),
                         None,
@@ -11114,10 +11822,11 @@ impl<'a> Parser<'a> {
 
                     let node = match self.arcanum.get_system_symbol(id_node.name.lexeme.as_str()) {
                         Ok(SystemSymbolType::DomainSymbol {
-                               domain_scope_symbol_rcref,
-                           }) => {
+                            domain_scope_symbol_rcref,
+                        }) => {
                             let x = Some(domain_scope_symbol_rcref.clone());
-                            let var_node = VariableNode::new(id_node.line, 
+                            let var_node = VariableNode::new(
+                                id_node.line,
                                 id_node,
                                 IdentifierDeclScope::DomainBlockScope,
                                 x,
@@ -11126,8 +11835,10 @@ impl<'a> Parser<'a> {
                             // CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
                         }
                         Ok(SystemSymbolType::OperationSymbol { .. }) => {
-                            let operation_ref_expr_node =
-                                OperationRefExprNode::new(id_node.line, id_node.name.lexeme.clone());
+                            let operation_ref_expr_node = OperationRefExprNode::new(
+                                id_node.line,
+                                id_node.name.lexeme.clone(),
+                            );
                             CallChainNodeType::OperationRefT {
                                 operation_ref_expr_node,
                             }
@@ -11139,7 +11850,6 @@ impl<'a> Parser<'a> {
                         Ok(SystemSymbolType::InterfaceSymbol { .. }) => {
                             // TODO!! Finish this. Add InterfaceRefT.
                             CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-
                         }
                         Err(_err) => {
                             // For unrecognized identifiers, just pass them through as undeclared
@@ -11153,28 +11863,28 @@ impl<'a> Parser<'a> {
                     // We've parsed the system field so now scope is unknown.
 
                     scope = IdentifierDeclScope::UnknownScope;
-                    
+
                     // eprintln!("DEBUG: After self.identifier, current token: {:?}", self.peek());
 
                     // After parsing self.something, we need to continue the chain
                     // The main loop below will handle additional dots and method calls
                     // TODO: Add proper context tracking for static operations
                     // For now, we'll allow self.method() calls but document the need for validation
-                    
+
                     if self.debug_mode {
                         // eprintln!("DEBUG: After self.property parsed, checking for LParen. Current token: {:?}", self.peek());
                     }
-                    
+
                     // The method identifier was already added to call_chain, now convert it to a call
                     if self.match_token(&[TokenType::LParen]) {
                         // Remove the last node (which is the method identifier)
                         if let Some(last_node) = call_chain.pop_back() {
                             // Get the method name from the last node
                             let method_id = match last_node {
-                                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
-                                    id_node
-                                }
-                                CallChainNodeType::OperationRefT { operation_ref_expr_node } => {
+                                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => id_node,
+                                CallChainNodeType::OperationRefT {
+                                    operation_ref_expr_node,
+                                } => {
                                     // Create an identifier node from the operation ref
                                     let mut token = self.previous().clone();
                                     token.lexeme = operation_ref_expr_node.name.clone();
@@ -11199,25 +11909,27 @@ impl<'a> Parser<'a> {
                                     )
                                 }
                             };
-                            
+
                             // Now finish the call with the method identifier
                             let call_expr_node_result = self.finish_call(method_id);
                             match call_expr_node_result {
                                 Ok(call_expr_node) => {
                                     // Determine if this is an interface or operation call
                                     let method_name = call_expr_node.get_name();
-                                    
+
                                     // Check if it's an interface method
-                                    if let Some(interface_method_symbol_rcref) = 
-                                        self.arcanum.lookup_interface_method(&method_name) {
+                                    if let Some(interface_method_symbol_rcref) =
+                                        self.arcanum.lookup_interface_method(&method_name)
+                                    {
                                         let node = self.create_interface_method_call_node(
                                             call_expr_node,
                                             &interface_method_symbol_rcref,
                                             CallOrigin::External,
                                         );
                                         call_chain.push_back(node);
-                                    } else if let Some(operation_symbol_rcref) = 
-                                        self.arcanum.lookup_operation(&method_name) {
+                                    } else if let Some(operation_symbol_rcref) =
+                                        self.arcanum.lookup_operation(&method_name)
+                                    {
                                         let node = self.create_operation_call_node(
                                             call_expr_node,
                                             &operation_symbol_rcref,
@@ -11229,7 +11941,7 @@ impl<'a> Parser<'a> {
                                             call_node: call_expr_node,
                                         });
                                     }
-                                    
+
                                     // v0.37: Check if there's more to the chain (like .method() after self.property)
                                     // Continue parsing dots and method calls
                                     while self.match_token(&[TokenType::Dot]) {
@@ -11237,7 +11949,7 @@ impl<'a> Parser<'a> {
                                             let err_msg = "Expected identifier after '.'";
                                             return Err(ParseError::new(err_msg));
                                         }
-                                        
+
                                         let next_id = IdentifierNode::new(
                                             self.previous().clone(),
                                             None,
@@ -11245,22 +11957,27 @@ impl<'a> Parser<'a> {
                                             false,
                                             self.previous().line,
                                         );
-                                        
+
                                         // Check if it's a method call
                                         if self.match_token(&[TokenType::LParen]) {
                                             let call_expr = self.finish_call(next_id)?;
-                                            call_chain.push_back(CallChainNodeType::UndeclaredCallT {
-                                                call_node: call_expr,
-                                            });
+                                            call_chain.push_back(
+                                                CallChainNodeType::UndeclaredCallT {
+                                                    call_node: call_expr,
+                                                },
+                                            );
                                         } else {
                                             // Just a property access
-                                            call_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT {
-                                                id_node: next_id,
-                                            });
+                                            call_chain.push_back(
+                                                CallChainNodeType::UndeclaredIdentifierNodeT {
+                                                    id_node: next_id,
+                                                },
+                                            );
                                         }
                                     }
-                                    
-                                    let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
+
+                                    let call_chain_expr_node =
+                                        CallChainExprNode::new(self.previous().line, call_chain);
                                     return Ok(Some(CallChainExprT {
                                         call_chain_expr_node,
                                     }));
@@ -11279,7 +11996,7 @@ impl<'a> Parser<'a> {
                                 let err_msg = "Expected identifier after '.'";
                                 return Err(ParseError::new(err_msg));
                             }
-                            
+
                             let next_id = IdentifierNode::new(
                                 self.previous().clone(),
                                 None,
@@ -11287,7 +12004,7 @@ impl<'a> Parser<'a> {
                                 false,
                                 self.previous().line,
                             );
-                            
+
                             // Check if it's a method call
                             if self.match_token(&[TokenType::LParen]) {
                                 let call_expr = self.finish_call(next_id)?;
@@ -11296,33 +12013,35 @@ impl<'a> Parser<'a> {
                                 });
                             } else {
                                 // Just a property access
-                                call_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT {
-                                    id_node: next_id,
-                                });
+                                call_chain.push_back(
+                                    CallChainNodeType::UndeclaredIdentifierNodeT {
+                                        id_node: next_id,
+                                    },
+                                );
                             }
                         }
-                        
+
                         // IMPORTANT: Always return the call chain here, even if no further dots were found
                         // We've already parsed self.property and need to return that chain
-                        let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
+                        let call_chain_expr_node =
+                            CallChainExprNode::new(self.previous().line, call_chain);
                         return Ok(Some(CallChainExprT {
                             call_chain_expr_node,
                         }));
                     }
                     // Continue to main loop if no property after self
                 } else {
-                    let err_msg = format!("Expected Identifier. Found '{}'.", self.previous().lexeme);
+                    let err_msg =
+                        format!("Expected Identifier. Found '{}'.", self.previous().lexeme);
                     self.error_at_previous(&err_msg);
-                    let parse_error =
-                        ParseError::new(err_msg.as_str());
+                    let parse_error = ParseError::new(err_msg.as_str());
                     return Err(parse_error);
                 }
             } else {
                 let self_expr_node = SelfExprNode::new(self.previous().line);
-                return Ok(Some(SelfExprT {self_expr_node}));
+                return Ok(Some(SelfExprT { self_expr_node }));
             }
         }
-
 
         let mut id_node = IdentifierNode::new(
             self.previous().clone(),
@@ -11331,7 +12050,6 @@ impl<'a> Parser<'a> {
             false,
             self.previous().line,
         );
-
 
         // Loop over the tokens looking for "callable" tokens (methods and identifiers)
         // separated by '.' and build the "call_chain".
@@ -11343,7 +12061,7 @@ impl<'a> Parser<'a> {
 
             if self.match_token(&[TokenType::LParen]) {
                 // For simple function calls, we'll let the UndeclaredCallT handle everything
-                
+
                 // v0.30: Try the new simplified call chain method for external functions ONLY
                 // Use V2 only for: External functions (first node, empty chain)
                 // Do NOT use V2 for method calls as it breaks the object-method relationship
@@ -11354,7 +12072,7 @@ impl<'a> Parser<'a> {
                     let result = self.build_call_chain_v2_with_existing(id_node, call_chain);
                     return result;
                 }
-                
+
                 let call_expr_node_result = self.finish_call(id_node);
                 match call_expr_node_result {
                     Ok(call_expr_node) => {
@@ -11381,15 +12099,23 @@ impl<'a> Parser<'a> {
                                                 // Test if var_node value references a system.
                                                 ExprType::SystemInstanceExprT { .. } => {
                                                     // Determine if call is to an interface method.
-                                                    if let Some(interface_method_symbol_rcref) = 
-                                                        self.arcanum.lookup_interface_method(call_expr_node.get_name()) {
-                                                        interface_method_symbol_rcref_opt = Some(interface_method_symbol_rcref.clone());
+                                                    if let Some(interface_method_symbol_rcref) =
+                                                        self.arcanum.lookup_interface_method(
+                                                            call_expr_node.get_name(),
+                                                        )
+                                                    {
+                                                        interface_method_symbol_rcref_opt = Some(
+                                                            interface_method_symbol_rcref.clone(),
+                                                        );
                                                         // Validation is handled when we create the call chain node later
                                                     }
                                                     // now check if the call was to a system operation
-                                                    if let Some(operation_symbol_rcref) = 
-                                                        self.arcanum.lookup_operation(call_expr_node.get_name()) {
-                                                        operation_symbol_rcref_opt = Some(operation_symbol_rcref.clone());
+                                                    if let Some(operation_symbol_rcref) = self
+                                                        .arcanum
+                                                        .lookup_operation(call_expr_node.get_name())
+                                                    {
+                                                        operation_symbol_rcref_opt =
+                                                            Some(operation_symbol_rcref.clone());
                                                         // Validation is handled when we create the call chain node later
                                                     }
                                                     if interface_method_symbol_rcref_opt.is_none()
@@ -11434,13 +12160,17 @@ impl<'a> Parser<'a> {
                                 }
 
                                 // Use helper functions to create the appropriate call chain node
-                                let call_t = if let Some(interface_method_symbol_rcref) = interface_method_symbol_rcref_opt {
+                                let call_t = if let Some(interface_method_symbol_rcref) =
+                                    interface_method_symbol_rcref_opt
+                                {
                                     self.create_interface_method_call_node(
                                         call_expr_node,
                                         &interface_method_symbol_rcref,
                                         CallOrigin::External,
                                     )
-                                } else if let Some(operation_symbol_rcref) = operation_symbol_rcref_opt {
+                                } else if let Some(operation_symbol_rcref) =
+                                    operation_symbol_rcref_opt
+                                {
                                     self.create_operation_call_node(
                                         call_expr_node,
                                         &operation_symbol_rcref,
@@ -11461,7 +12191,7 @@ impl<'a> Parser<'a> {
                                 };
                                 call_chain.push_back(call_t);
                                 // eprintln!("DEBUG PARSER: Added UndeclaredCallT to call_chain, new length: {}", call_chain.len());
-                                
+
                                 // For now, skip the complex action/interface lookup logic for simple calls
                                 /*
                                 // Debug dump before symbol lookup
@@ -11469,7 +12199,7 @@ impl<'a> Parser<'a> {
                                     // eprintln!(">>> PARSER: About to lookup action '{}' in call chain", method_name);
                                     self.arcanum.debug_dump_arcanum();
                                 }
-                                
+
                                 let action_decl_symbol_opt =
                                     self.arcanum.lookup_action(&method_name);
 
@@ -11477,7 +12207,7 @@ impl<'a> Parser<'a> {
                                 match action_decl_symbol_opt {
                                     Some(ads) => {
                                         // eprintln!("DEBUG PARSER: Found action, processing...");
-                                        
+
                                         // SCOPE CHECK: Functions cannot call actions
                                         match self.arcanum.scope_context {
                                             ScopeContext::Function(_) => {
@@ -11582,7 +12312,7 @@ impl<'a> Parser<'a> {
                                                 let err_msg = format!("Interface calls disallowed inside of actions.");
                                                 self.error_at_current(&err_msg);
                                             }
-                                            
+
                                             // Use helper to create interface method call with validation
                                             let node = self.create_interface_method_call_node(
                                                 call_expr_node,
@@ -11671,35 +12401,36 @@ impl<'a> Parser<'a> {
                     //     //     }
                     //     // }
                     // } else {
-                        // Lookup the symbol name in the arcanum and then return a node
-                        // based on if this is a known or unknown symbol.
+                    // Lookup the symbol name in the arcanum and then return a node
+                    // based on if this is a known or unknown symbol.
 
-                        let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> =
-                            self.arcanum.lookup(&symbol_name, &explicit_scope).clone();
-                        let call_chain_node_t = match &symbol_type_rcref_opt {
-                            // found symbol
-                            Some(symbol_t) => {
-                                match &*symbol_t.borrow() {
-                                    // node is Enumeration decl
-                                    SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
-                                        let enum_symbol = enum_symbol_rcref.borrow();
+                    let symbol_type_rcref_opt: Option<Rc<RefCell<SymbolType>>> =
+                        self.arcanum.lookup(&symbol_name, &explicit_scope).clone();
+                    let call_chain_node_t = match &symbol_type_rcref_opt {
+                        // found symbol
+                        Some(symbol_t) => {
+                            match &*symbol_t.borrow() {
+                                // node is Enumeration decl
+                                SymbolType::EnumDeclSymbolT { enum_symbol_rcref } => {
+                                    let enum_symbol = enum_symbol_rcref.borrow();
 
-                                        let _enum_decl_node =
-                                            enum_symbol.ast_node_opt.as_ref().unwrap().borrow();
-                                        
-                                        // Check if there's a dot for enum member access
-                                        // If not, this is a reference to the enum type itself (e.g., for iteration)
-                                        if !self.match_token(&[TokenType::Dot]) {
-                                            // Return just the enum type identifier (for iteration over enum)
-                                            let var_node = VariableNode::new(id_node.line, 
-                                                id_node,
-                                                IdentifierDeclScope::UnknownScope,
-                                                symbol_type_rcref_opt.clone(),
-                                            );
-                                            CallChainNodeType::VariableNodeT { var_node }
-                                        } else {
-                                            // Enum member access (e.g., MenuOption.Start)
-                                            if self.match_token(&[TokenType::Identifier]) {
+                                    let _enum_decl_node =
+                                        enum_symbol.ast_node_opt.as_ref().unwrap().borrow();
+
+                                    // Check if there's a dot for enum member access
+                                    // If not, this is a reference to the enum type itself (e.g., for iteration)
+                                    if !self.match_token(&[TokenType::Dot]) {
+                                        // Return just the enum type identifier (for iteration over enum)
+                                        let var_node = VariableNode::new(
+                                            id_node.line,
+                                            id_node,
+                                            IdentifierDeclScope::UnknownScope,
+                                            symbol_type_rcref_opt.clone(),
+                                        );
+                                        CallChainNodeType::VariableNodeT { var_node }
+                                    } else {
+                                        // Enum member access (e.g., MenuOption.Start)
+                                        if self.match_token(&[TokenType::Identifier]) {
                                             let enumerator_name = &self.previous().lexeme;
                                             let mut found_enumerator = false;
                                             for enum_decl_node in &enum_symbol
@@ -11723,139 +12454,140 @@ impl<'a> Parser<'a> {
                                                 return Err(ParseError::new(msg));
                                             }
 
-                                                // Create an EnumeratorExprNode for the enum member access
-                                                // This is the proper way to represent enum member access in the AST
-                                                // The visitor will then properly qualify the enum name with the system name
-                                                let enum_expr_node = EnumeratorExprNode::new(self.previous().line, 
-                                                    enum_symbol.name.clone(),
-                                                    enumerator_name.clone(),
-                                                );
-                                                
-                                                // Store this so we can return it as an EnumeratorExprT
-                                                // We need to break out of the normal call chain processing
-                                                // and return the enum expression directly
-                                                call_chain.clear(); // Clear any nodes we've collected
-                                                return Ok(Some(EnumeratorExprT { enum_expr_node }));
-                                            } else {
-                                                return Err(ParseError::new("Expected enum member name after '.'"));
-                                            }
-                                        }
-                                    }
-                                    // TODO!!! Need to figure out how parameters should work wrt
-                                    // setting their values in assignments. Parameters are different
-                                    // than variables as THEY ARE NOT INITIALIZED in a variable
-                                    // declaration. So lumping them in with variables is likely a
-                                    // problem.
+                                            // Create an EnumeratorExprNode for the enum member access
+                                            // This is the proper way to represent enum member access in the AST
+                                            // The visitor will then properly qualify the enum name with the system name
+                                            let enum_expr_node = EnumeratorExprNode::new(
+                                                self.previous().line,
+                                                enum_symbol.name.clone(),
+                                                enumerator_name.clone(),
+                                            );
 
-                                    // #STATE_NODE_UPDATE_BUG - Not updating the symbol table in the semantic pass
-                                    // with resolved AST value for variables caused a very subtle bug
-                                    // that resulted in the node always being UndeclaredIdentifierNodeT
-                                    // rather than being updadted to VariableNodeT in the semantic pass.
-                                    // Search on #STATE_NODE_UPDATE_BUG  to see other areas that are
-                                    // related to his particular problem.
-
-                                    // TODO!! It is a general point of failure
-                                    // and source of fragility for the compiler that the sympol table references
-                                    // AST nodes from the semantic pass to resolve parameters and types.
-                                    SymbolType::BlockVar { .. }
-                                    | SymbolType::DomainVariable { .. }
-                                    | SymbolType::StateVariable { .. }
-                                    | SymbolType::EventHandlerVariable { .. }
-                                    | SymbolType::ParamSymbol { .. }
-                                    | SymbolType::StateParam { .. }
-                                    | SymbolType::EventHandlerParam { .. } => {
-                                        if self.match_token(&[TokenType::LBracket]) {
-                                            // Check if this is a slice or regular index
-                                            let bracket_result = self.parse_bracket_expression();
-                                            match bracket_result {
-                                                Ok(BracketExpressionType::Index(expr)) => {
-                                                    let list_elem_node = ListElementNode::new(
-                                                        id_node,
-                                                        scope.clone(),
-                                                        expr,
-                                                    );
-                                                    CallChainNodeType::ListElementNodeT {
-                                                        list_elem_node,
-                                                    }
-                                                }
-                                                Ok(BracketExpressionType::Slice { start, end, step }) => {
-                                                    let slice_node = SliceNode {
-                                            line: self.previous().line,
-                                                        identifier: id_node,
-                                                        scope: scope.clone(),
-                                                        start_expr: start,
-                                                        end_expr: end,
-                                                        step_expr: step,
-                                                    };
-                                                    CallChainNodeType::SliceNodeT {
-                                                        slice_node,
-                                                    }
-                                                }
-                                                Err(err) => return Err(err),
-                                            }
+                                            // Store this so we can return it as an EnumeratorExprT
+                                            // We need to break out of the normal call chain processing
+                                            // and return the enum expression directly
+                                            call_chain.clear(); // Clear any nodes we've collected
+                                            return Ok(Some(EnumeratorExprT { enum_expr_node }));
                                         } else {
-                                            let var_node = VariableNode::new(id_node.line, 
-                                                id_node,
-                                                scope.clone(),
-                                                (&symbol_type_rcref_opt).clone(),
-                                            );
-                                            CallChainNodeType::VariableNodeT { var_node }
+                                            return Err(ParseError::new(
+                                                "Expected enum member name after '.'",
+                                            ));
                                         }
                                     }
-                                    // SymbolType::ParamSymbol {..} |
-                                    // SymbolType::StateParam {..} |
-                                    // SymbolType::EventHandlerParam {..} => {
-                                    //     // TODO - need to support passing Frame types.
-                                    //     // See https://github.com/frame-lang/frame_transpiler/issues/151
-                                    //     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-                                    // }
-                                    _ => CallChainNodeType::UndeclaredIdentifierNodeT { id_node },
                                 }
-                            }
-                            None => {
-                                // Check if this could be an imported module (has :: after it)
-                                // This allows us to support things like Math::PI, Module::function() 
-                                if self.peek().token_type == TokenType::ColonColon {
-                                    // This could be an imported module, allow it as an undeclared identifier
-                                    // The visitor will handle the actual module resolution
-                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-                                } else if self.match_token(&[TokenType::LBracket]) {
-                                    // Check if this is a slice or regular index
-                                    let bracket_result = self.parse_bracket_expression();
-                                    match bracket_result {
-                                        Ok(BracketExpressionType::Index(expr)) => {
-                                            let list_elem_node = ListElementNode::new(
-                                                id_node,
-                                                scope.clone(),
-                                                expr,
-                                            );
-                                            CallChainNodeType::ListElementNodeT { list_elem_node }
-                                        }
-                                        Ok(BracketExpressionType::Slice { start, end, step }) => {
-                                            let slice_node = SliceNode {
-                                        line: self.previous().line,
-                                                identifier: id_node,
-                                                scope: scope.clone(),
-                                                start_expr: start,
-                                                end_expr: end,
-                                                step_expr: step,
-                                            };
-                                            CallChainNodeType::SliceNodeT {
-                                                slice_node,
-                                            }
-                                        }
-                                        Err(err) => return Err(err),
-                                    }
-                                } else {
-                                    // v0.38: During both passes, allow undeclared identifiers here
-                                    // They could be function references which we'll check later
-                                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
-                                }
-                            }
-                        };
+                                // TODO!!! Need to figure out how parameters should work wrt
+                                // setting their values in assignments. Parameters are different
+                                // than variables as THEY ARE NOT INITIALIZED in a variable
+                                // declaration. So lumping them in with variables is likely a
+                                // problem.
 
-                        call_chain_node_t
-                  //  }
+                                // #STATE_NODE_UPDATE_BUG - Not updating the symbol table in the semantic pass
+                                // with resolved AST value for variables caused a very subtle bug
+                                // that resulted in the node always being UndeclaredIdentifierNodeT
+                                // rather than being updadted to VariableNodeT in the semantic pass.
+                                // Search on #STATE_NODE_UPDATE_BUG  to see other areas that are
+                                // related to his particular problem.
+
+                                // TODO!! It is a general point of failure
+                                // and source of fragility for the compiler that the sympol table references
+                                // AST nodes from the semantic pass to resolve parameters and types.
+                                SymbolType::BlockVar { .. }
+                                | SymbolType::DomainVariable { .. }
+                                | SymbolType::StateVariable { .. }
+                                | SymbolType::EventHandlerVariable { .. }
+                                | SymbolType::ParamSymbol { .. }
+                                | SymbolType::StateParam { .. }
+                                | SymbolType::EventHandlerParam { .. } => {
+                                    if self.match_token(&[TokenType::LBracket]) {
+                                        // Check if this is a slice or regular index
+                                        let bracket_result = self.parse_bracket_expression();
+                                        match bracket_result {
+                                            Ok(BracketExpressionType::Index(expr)) => {
+                                                let list_elem_node = ListElementNode::new(
+                                                    id_node,
+                                                    scope.clone(),
+                                                    expr,
+                                                );
+                                                CallChainNodeType::ListElementNodeT {
+                                                    list_elem_node,
+                                                }
+                                            }
+                                            Ok(BracketExpressionType::Slice {
+                                                start,
+                                                end,
+                                                step,
+                                            }) => {
+                                                let slice_node = SliceNode {
+                                                    line: self.previous().line,
+                                                    identifier: id_node,
+                                                    scope: scope.clone(),
+                                                    start_expr: start,
+                                                    end_expr: end,
+                                                    step_expr: step,
+                                                };
+                                                CallChainNodeType::SliceNodeT { slice_node }
+                                            }
+                                            Err(err) => return Err(err),
+                                        }
+                                    } else {
+                                        let var_node = VariableNode::new(
+                                            id_node.line,
+                                            id_node,
+                                            scope.clone(),
+                                            (&symbol_type_rcref_opt).clone(),
+                                        );
+                                        CallChainNodeType::VariableNodeT { var_node }
+                                    }
+                                }
+                                // SymbolType::ParamSymbol {..} |
+                                // SymbolType::StateParam {..} |
+                                // SymbolType::EventHandlerParam {..} => {
+                                //     // TODO - need to support passing Frame types.
+                                //     // See https://github.com/frame-lang/frame_transpiler/issues/151
+                                //     CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                                // }
+                                _ => CallChainNodeType::UndeclaredIdentifierNodeT { id_node },
+                            }
+                        }
+                        None => {
+                            // Check if this could be an imported module (has :: after it)
+                            // This allows us to support things like Math::PI, Module::function()
+                            if self.peek().token_type == TokenType::ColonColon {
+                                // This could be an imported module, allow it as an undeclared identifier
+                                // The visitor will handle the actual module resolution
+                                CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                            } else if self.match_token(&[TokenType::LBracket]) {
+                                // Check if this is a slice or regular index
+                                let bracket_result = self.parse_bracket_expression();
+                                match bracket_result {
+                                    Ok(BracketExpressionType::Index(expr)) => {
+                                        let list_elem_node =
+                                            ListElementNode::new(id_node, scope.clone(), expr);
+                                        CallChainNodeType::ListElementNodeT { list_elem_node }
+                                    }
+                                    Ok(BracketExpressionType::Slice { start, end, step }) => {
+                                        let slice_node = SliceNode {
+                                            line: self.previous().line,
+                                            identifier: id_node,
+                                            scope: scope.clone(),
+                                            start_expr: start,
+                                            end_expr: end,
+                                            step_expr: step,
+                                        };
+                                        CallChainNodeType::SliceNodeT { slice_node }
+                                    }
+                                    Err(err) => return Err(err),
+                                }
+                            } else {
+                                // v0.38: During both passes, allow undeclared identifiers here
+                                // They could be function references which we'll check later
+                                CallChainNodeType::UndeclaredIdentifierNodeT { id_node }
+                            }
+                        }
+                    };
+
+                    call_chain_node_t
+                    //  }
                 } else {
                     if self.match_token(&[TokenType::LBracket]) {
                         // Check if this is a slice or regular index
@@ -11875,9 +12607,7 @@ impl<'a> Parser<'a> {
                                     end_expr: end,
                                     step_expr: step,
                                 };
-                                CallChainNodeType::UndeclaredSliceT {
-                                    slice_node,
-                                }
+                                CallChainNodeType::UndeclaredSliceT { slice_node }
                             }
                             Err(err) => return Err(err),
                         }
@@ -11894,10 +12624,10 @@ impl<'a> Parser<'a> {
             loop {
                 if let Some(last_node) = call_chain.back() {
                     match last_node {
-                        CallChainNodeType::ListElementNodeT { .. } |
-                        CallChainNodeType::SliceNodeT { .. } |
-                        CallChainNodeType::UndeclaredListElementT { .. } |
-                        CallChainNodeType::UndeclaredSliceT { .. } => {
+                        CallChainNodeType::ListElementNodeT { .. }
+                        | CallChainNodeType::SliceNodeT { .. }
+                        | CallChainNodeType::UndeclaredListElementT { .. }
+                        | CallChainNodeType::UndeclaredSliceT { .. } => {
                             // Check for consecutive bracket indexing first
                             if self.match_token(&[TokenType::LBracket]) {
                                 // Another indexing operation on the result
@@ -11912,21 +12642,20 @@ impl<'a> Parser<'a> {
                                                 TokenLiteral::None,
                                                 self.previous().line,
                                                 0,
-                                                0
+                                                0,
                                             ),
                                             None,
                                             IdentifierDeclScope::UnknownScope,
                                             false,
                                             self.previous().line,
                                         );
-                                        let list_elem_node = ListElementNode::new(
-                                            synthetic_id,
-                                            scope.clone(),
-                                            expr,
+                                        let list_elem_node =
+                                            ListElementNode::new(synthetic_id, scope.clone(), expr);
+                                        call_chain.push_back(
+                                            CallChainNodeType::UndeclaredListElementT {
+                                                list_elem_node,
+                                            },
                                         );
-                                        call_chain.push_back(CallChainNodeType::UndeclaredListElementT { 
-                                            list_elem_node 
-                                        });
                                         // Continue checking for more operations
                                         continue;
                                     }
@@ -11939,7 +12668,7 @@ impl<'a> Parser<'a> {
                                                 TokenLiteral::None,
                                                 self.previous().line,
                                                 0,
-                                                0
+                                                0,
                                             ),
                                             None,
                                             IdentifierDeclScope::UnknownScope,
@@ -11947,7 +12676,7 @@ impl<'a> Parser<'a> {
                                             self.previous().line,
                                         );
                                         let slice_node = SliceNode {
-                                        line: self.previous().line,
+                                            line: self.previous().line,
                                             identifier: synthetic_id,
                                             scope: scope.clone(),
                                             start_expr: start,
@@ -11965,27 +12694,33 @@ impl<'a> Parser<'a> {
                             } else if self.match_token(&[TokenType::LParen]) {
                                 // The indexed value is being called as a function
                                 // Create a synthetic call node for this
-                                
+
                                 // Parse arguments using expr_list() to avoid tuple creation
                                 let args = match self.expr_list() {
-                                    Ok(Some(ExprListT { expr_list_node })) => expr_list_node.exprs_t,
-                                    Ok(Some(_)) => return Err(ParseError::new("Invalid expression list in indexed call")),
+                                    Ok(Some(ExprListT { expr_list_node })) => {
+                                        expr_list_node.exprs_t
+                                    }
+                                    Ok(Some(_)) => {
+                                        return Err(ParseError::new(
+                                            "Invalid expression list in indexed call",
+                                        ))
+                                    }
                                     Ok(None) => Vec::new(),
                                     Err(e) => return Err(e),
                                 };
-                                
+
                                 // Create a call expression node for the indexed call
                                 let call_expr_list = CallExprListNode::new(args);
                                 let mut call_expr_node = CallExprNode::new(
-                                    self.previous().line,  // Add line parameter
+                                    self.previous().line, // Add line parameter
                                     IdentifierNode::new(
                                         Token::new(
-                                            TokenType::Identifier, 
-                                            "@indexed_call".to_string(), 
+                                            TokenType::Identifier,
+                                            "@indexed_call".to_string(),
                                             TokenLiteral::None,
                                             self.previous().line,
                                             0,
-                                            0
+                                            0,
                                         ),
                                         None,
                                         IdentifierDeclScope::UnknownScope,
@@ -11993,24 +12728,24 @@ impl<'a> Parser<'a> {
                                         self.previous().line,
                                     ),
                                     call_expr_list,
-                                    None,  // No call chain for the synthetic call
+                                    None, // No call chain for the synthetic call
                                 );
-                                
+
                                 // v0.62: Perform semantic resolution if enabled
                                 self.resolve_call_expr(&mut call_expr_node);
-                                
+
                                 // Add the call to the chain
                                 call_chain.push_back(CallChainNodeType::UndeclaredCallT {
                                     call_node: call_expr_node,
                                 });
                             } else {
-                                break;  // No more operations to handle
+                                break; // No more operations to handle
                             }
                         }
-                        _ => break,  // No more operations on list element
+                        _ => break, // No more operations on list element
                     }
                 } else {
-                    break;  // No more nodes in chain
+                    break; // No more nodes in chain
                 }
             }
 
@@ -12018,9 +12753,9 @@ impl<'a> Parser<'a> {
             // Module access uses :: while instance members use .
             let is_module_access = self.match_token(&[TokenType::ColonColon]);
             let is_member_access = !is_module_access && self.match_token(&[TokenType::Dot]);
-            
+
             if !is_module_access && !is_member_access {
-                break;  // End of chain
+                break; // End of chain
             }
 
             if self.match_token(&[TokenType::Identifier]) {
@@ -12037,13 +12772,14 @@ impl<'a> Parser<'a> {
             is_first_node = false;
         }
 
-        
         // v0.38: Check if this is a single function reference (first-class function)
         // If we have a single UndeclaredIdentifierNodeT that's actually a function,
         // return it as FunctionRefT instead of CallChainExprT
         // Check in second pass only to avoid errors during symbol table building
         if call_chain.len() == 1 && !self.is_building_symbol_table {
-            if let Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node }) = call_chain.get(0) {
+            if let Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node }) =
+                call_chain.get(0)
+            {
                 let function_symbol_opt = self.arcanum.lookup_function(&id_node.name.lexeme);
                 if function_symbol_opt.is_some() {
                     // This is a function being used as a value - return FunctionRefT
@@ -12053,7 +12789,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
         Ok(Some(CallChainExprT {
             call_chain_expr_node,
@@ -12061,7 +12797,7 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
-    
+
     // v0.30 Improved call chain parsing method
     // This method provides a cleaner, more maintainable approach to parsing call chains
 
@@ -12074,7 +12810,7 @@ impl<'a> Parser<'a> {
     ) {
         let params_is_none = params_opt.is_none();
         let args_is_empty = call_expr_node.call_expr_list.exprs_t.is_empty();
-        
+
         if (!params_is_none && args_is_empty) || (params_is_none && !args_is_empty) {
             let err_msg = format!(
                 "Incorrect number of arguments for {} '{}'.",
@@ -12103,22 +12839,15 @@ impl<'a> Parser<'a> {
     ) -> CallChainNodeType {
         // Validate arguments
         let interface_method_symbol = interface_method_symbol_rcref.borrow();
-        let interface_method_node_rcref = interface_method_symbol
-            .ast_node_opt
-            .as_ref()
-            .unwrap();
-        let parameter_node_vec_opt = &interface_method_node_rcref
-            .borrow()
-            .params;
-        
+        let interface_method_node_rcref = interface_method_symbol.ast_node_opt.as_ref().unwrap();
+        let parameter_node_vec_opt = &interface_method_node_rcref.borrow().params;
+
         self.validate_call_arguments(&call_expr_node, parameter_node_vec_opt, "interface method");
-        
-        let mut interface_method_call_expr_node = InterfaceMethodCallExprNode::new(call_expr_node.line, 
-            call_expr_node,
-            origin,
-        );
+
+        let mut interface_method_call_expr_node =
+            InterfaceMethodCallExprNode::new(call_expr_node.line, call_expr_node, origin);
         interface_method_call_expr_node.set_interface_symbol(interface_method_symbol_rcref);
-        
+
         CallChainNodeType::InterfaceMethodCallT {
             interface_method_call_expr_node,
         }
@@ -12134,12 +12863,13 @@ impl<'a> Parser<'a> {
         let operation_symbol = operation_symbol_rcref.borrow();
         let operation_node_rcref = operation_symbol.ast_node_opt.as_ref().unwrap();
         let parameter_node_vec_opt = &operation_node_rcref.borrow().params;
-        
+
         self.validate_call_arguments(&call_expr_node, parameter_node_vec_opt, "operation");
-        
-        let mut operation_call_expr_node = OperationCallExprNode::new(call_expr_node.line, call_expr_node);
+
+        let mut operation_call_expr_node =
+            OperationCallExprNode::new(call_expr_node.line, call_expr_node);
         operation_call_expr_node.set_operation_symbol(operation_symbol_rcref);
-        
+
         CallChainNodeType::OperationCallT {
             operation_call_expr_node,
         }
@@ -12155,27 +12885,31 @@ impl<'a> Parser<'a> {
         let action_symbol = action_symbol_rcref.borrow();
         let action_decl_node_rcref = action_symbol.ast_node_opt.as_ref().unwrap();
         let parameter_node_vec_opt = &action_decl_node_rcref.borrow().params;
-        
+
         self.validate_call_arguments(&call_expr_node, parameter_node_vec_opt, "action");
-        
-        let mut action_call_expr_node = ActionCallExprNode::new(call_expr_node.line, call_expr_node);
+
+        let mut action_call_expr_node =
+            ActionCallExprNode::new(call_expr_node.line, call_expr_node);
         action_call_expr_node.set_action_symbol(action_symbol_rcref);
-        
+
         CallChainNodeType::ActionCallT {
             action_call_expr_node,
         }
     }
 
     // Helper function to parse and add a dot-separated continuation
-    fn parse_dot_continuation(&mut self, call_chain: &mut std::collections::VecDeque<CallChainNodeType>) -> Result<bool, ParseError> {
+    fn parse_dot_continuation(
+        &mut self,
+        call_chain: &mut std::collections::VecDeque<CallChainNodeType>,
+    ) -> Result<bool, ParseError> {
         if !self.match_token(&[TokenType::Dot]) {
-            return Ok(false);  // No continuation
+            return Ok(false); // No continuation
         }
-        
+
         if !self.match_token(&[TokenType::Identifier]) {
             return Err(ParseError::new("Expected identifier after '.'"));
         }
-        
+
         let next_id = IdentifierNode::new(
             self.previous().clone(),
             None,
@@ -12183,7 +12917,7 @@ impl<'a> Parser<'a> {
             false,
             self.previous().line,
         );
-        
+
         // Check if this is a method call
         if self.match_token(&[TokenType::LParen]) {
             let call_expr_node = self.finish_call(next_id)?;
@@ -12191,22 +12925,22 @@ impl<'a> Parser<'a> {
                 call_node: call_expr_node,
             });
         } else {
-            call_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT {
-                id_node: next_id,
-            });
+            call_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT { id_node: next_id });
         }
-        
-        Ok(true)  // Continuation found and processed
+
+        Ok(true) // Continuation found and processed
     }
 
-    fn build_call_chain_v2(&mut self, base_id: IdentifierNode) -> Result<Option<ExprType>, ParseError> {
+    fn build_call_chain_v2(
+        &mut self,
+        base_id: IdentifierNode,
+    ) -> Result<Option<ExprType>, ParseError> {
         use crate::frame_c::ast::CallChainNodeTypeV2;
         use std::collections::VecDeque;
-        
+
         let mut chain: VecDeque<CallChainNodeTypeV2> = VecDeque::new();
         let mut current_id = base_id;
-        
-        
+
         // Parse the rest of the chain
         loop {
             if self.match_token(&[TokenType::LParen]) {
@@ -12223,7 +12957,7 @@ impl<'a> Parser<'a> {
                     let err_msg = format!("Expected identifier after '.'");
                     return Err(ParseError::new(&err_msg));
                 }
-                
+
                 current_id = IdentifierNode::new(
                     self.previous().clone(),
                     None,
@@ -12231,7 +12965,7 @@ impl<'a> Parser<'a> {
                     false,
                     self.previous().line,
                 );
-                
+
                 chain.push_back(CallChainNodeTypeV2::Identifier {
                     name: current_id.name.lexeme.clone(),
                     scope: IdentifierScope::Unknown, // Will be resolved later
@@ -12242,45 +12976,58 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        
-        
+
         // Convert to legacy CallChainExprNode for compatibility
         let legacy_chain = self.convert_v2_to_legacy_chain(chain)?;
         let call_chain_expr_node = CallChainExprNode::new(self.previous().line, legacy_chain);
-        
+
         Ok(Some(CallChainExprT {
             call_chain_expr_node,
         }))
     }
-    
+
     // Helper method to determine identifier scope using new enums
     fn determine_identifier_scope_v2(&self, _id_node: &IdentifierNode) -> IdentifierScope {
         // For now, return Unknown - this will be enhanced later
         IdentifierScope::Unknown
     }
-    
+
     // Helper method to determine call target type
-    fn determine_call_target_type_v2(&self, _chain: &VecDeque<CallChainNodeTypeV2>) -> CallTargetType {
+    fn determine_call_target_type_v2(
+        &self,
+        _chain: &VecDeque<CallChainNodeTypeV2>,
+    ) -> CallTargetType {
         // For now, return Unknown - this will be enhanced later
         CallTargetType::Unknown
     }
-    
+
     // Convert V2 chain to legacy chain for compatibility
-    fn convert_v2_to_legacy_chain(&self, v2_chain: VecDeque<CallChainNodeTypeV2>) -> Result<VecDeque<CallChainNodeType>, ParseError> {
+    fn convert_v2_to_legacy_chain(
+        &self,
+        v2_chain: VecDeque<CallChainNodeTypeV2>,
+    ) -> Result<VecDeque<CallChainNodeType>, ParseError> {
         let mut legacy_chain = VecDeque::new();
-        
+
         for node in v2_chain {
             match node {
                 CallChainNodeTypeV2::Identifier { name, line, .. } => {
                     // Create a basic IdentifierNode for the legacy system
                     let id_node = IdentifierNode::new(
-                        Token::new(TokenType::Identifier, name.clone(), TokenLiteral::None, line, 0, name.len()),
+                        Token::new(
+                            TokenType::Identifier,
+                            name.clone(),
+                            TokenLiteral::None,
+                            line,
+                            0,
+                            name.len(),
+                        ),
                         None,
                         IdentifierDeclScope::UnknownScope,
                         false,
                         line,
                     );
-                    legacy_chain.push_back(CallChainNodeType::UndeclaredIdentifierNodeT { id_node });
+                    legacy_chain
+                        .push_back(CallChainNodeType::UndeclaredIdentifierNodeT { id_node });
                 }
                 CallChainNodeTypeV2::Call { expr, .. } => {
                     // Always create UndeclaredCallT here - resolution happens in visitor
@@ -12291,18 +13038,18 @@ impl<'a> Parser<'a> {
                     legacy_chain.push_back(CallChainNodeType::VariableNodeT { var_node });
                 }
                 CallChainNodeTypeV2::InterfaceMethod { method_node } => {
-                    legacy_chain.push_back(CallChainNodeType::InterfaceMethodCallT { 
-                        interface_method_call_expr_node: method_node 
+                    legacy_chain.push_back(CallChainNodeType::InterfaceMethodCallT {
+                        interface_method_call_expr_node: method_node,
                     });
                 }
                 CallChainNodeTypeV2::Operation { op_node } => {
-                    legacy_chain.push_back(CallChainNodeType::OperationCallT { 
-                        operation_call_expr_node: op_node 
+                    legacy_chain.push_back(CallChainNodeType::OperationCallT {
+                        operation_call_expr_node: op_node,
                     });
                 }
                 CallChainNodeTypeV2::Action { action_node } => {
-                    legacy_chain.push_back(CallChainNodeType::ActionCallT { 
-                        action_call_expr_node: action_node 
+                    legacy_chain.push_back(CallChainNodeType::ActionCallT {
+                        action_call_expr_node: action_node,
                     });
                 }
                 _ => {
@@ -12310,24 +13057,31 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         Ok(legacy_chain)
     }
 
     // v0.30: Modified build_call_chain_v2 that can append to existing call chain for method calls
-    fn build_call_chain_v2_with_existing(&mut self, base_id: IdentifierNode, mut existing_chain: VecDeque<CallChainNodeType>) -> Result<Option<ExprType>, ParseError> {
+    fn build_call_chain_v2_with_existing(
+        &mut self,
+        base_id: IdentifierNode,
+        mut existing_chain: VecDeque<CallChainNodeType>,
+    ) -> Result<Option<ExprType>, ParseError> {
         use crate::frame_c::ast::CallChainNodeTypeV2;
-        
+
         // Debug dump when starting V2 call chain building
         if std::env::var("FRAME_DEBUG").is_ok() {
-            eprintln!(">>> PARSER: Starting V2 call chain for '{}'", base_id.name.lexeme);
+            eprintln!(
+                ">>> PARSER: Starting V2 call chain for '{}'",
+                base_id.name.lexeme
+            );
             self.arcanum.debug_dump_arcanum();
         }
-        
+
         // Continue with regular call chain building
         let mut chain: VecDeque<CallChainNodeTypeV2> = VecDeque::new();
         let current_id = base_id;
-        
+
         // Parse the call
         if self.match_token(&[TokenType::LParen]) {
             // It's a call - for method calls, just create the call node
@@ -12337,13 +13091,13 @@ impl<'a> Parser<'a> {
                 target_type: self.determine_call_target_type_v2(&chain),
             });
         }
-        
+
         // Convert to legacy and append to existing chain
         let legacy_chain = self.convert_v2_to_legacy_chain(chain)?;
         for node in legacy_chain {
             existing_chain.push_back(node);
         }
-        
+
         let call_chain_expr_node = CallChainExprNode::new(self.previous().line, existing_chain);
         Ok(Some(CallChainExprT {
             call_chain_expr_node,
@@ -12479,14 +13233,20 @@ impl<'a> Parser<'a> {
         let call_context = if identifer_node.name.lexeme.starts_with("self.") {
             CallContextType::SelfCall
         } else {
-            CallContextType::ExternalCall  // Default
+            CallContextType::ExternalCall // Default
         };
 
-        let mut call_expr_node = CallExprNode::new_with_context(identifer_node.line, identifer_node, call_expr_list_node, None, call_context);
-        
+        let mut call_expr_node = CallExprNode::new_with_context(
+            identifer_node.line,
+            identifer_node,
+            call_expr_list_node,
+            None,
+            call_context,
+        );
+
         // v0.62: Perform semantic resolution if enabled
         self.resolve_call_expr(&mut call_expr_node);
-        
+
         //        let method_call_expression_type = ExpressionType::MethodCallExprType {method_call_expr_node};
         Ok(call_expr_node)
     }
@@ -12497,7 +13257,10 @@ impl<'a> Parser<'a> {
 
     fn literal_expr(&mut self) -> Result<Option<LiteralExprNode>, ParseError> {
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: literal_expr() called, current token: {:?}", self.peek());
+            eprintln!(
+                "DEBUG: literal_expr() called, current token: {:?}",
+                self.peek()
+            );
         }
         // TODO: move this vec to the scanner
         let literal_tokens = vec![
@@ -12517,9 +13280,14 @@ impl<'a> Parser<'a> {
         for literal_tok in literal_tokens {
             if self.match_token(&[literal_tok]) {
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG: literal_expr() matched token: {:?} with lexeme: '{}'", literal_tok, self.previous().lexeme);
+                    eprintln!(
+                        "DEBUG: literal_expr() matched token: {:?} with lexeme: '{}'",
+                        literal_tok,
+                        self.previous().lexeme
+                    );
                 }
-                return Ok(Some(LiteralExprNode::new(self.previous().line, 
+                return Ok(Some(LiteralExprNode::new(
+                    self.previous().line,
                     literal_tok,
                     self.previous().lexeme.clone(),
                 )));
@@ -12625,16 +13393,16 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::LParen]) {
                 // Parse arguments directly to avoid tuple wrapping
                 let mut args = Vec::new();
-                
+
                 // Handle empty argument list
                 if self.peek().token_type == TokenType::RParen {
                     // expr_list() will consume the RParen
                 }
-                
+
                 // Set flag to prevent comma-separated values from being parsed as tuples
                 let was_parsing_collection = self.is_parsing_collection;
                 self.is_parsing_collection = true;
-                
+
                 // Parse arguments directly like function call arguments
                 while !self.check(TokenType::RParen) {
                     match self.expression() {
@@ -12644,7 +13412,9 @@ impl<'a> Parser<'a> {
                                 if !self.match_token(&[TokenType::Comma]) {
                                     self.is_parsing_collection = was_parsing_collection;
                                     self.error_at_current("Expected ',' or ')' in state arguments");
-                                    return Err(ParseError::new("Expected ',' or ')' in state arguments"));
+                                    return Err(ParseError::new(
+                                        "Expected ',' or ')' in state arguments",
+                                    ));
                                 }
                             }
                         }
@@ -12659,19 +13429,18 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
-                
+
                 // Restore the flag
                 self.is_parsing_collection = was_parsing_collection;
-                
+
                 if !self.match_token(&[TokenType::RParen]) {
                     self.error_at_current("Expected ')' after state arguments");
                     return Err(ParseError::new("Expected ')' after state arguments"));
                 }
-                
+
                 if !args.is_empty() {
                     state_ref_args_opt = Some(ExprListNode::new(args));
                 }
-                
             }
 
             if !self.is_building_symbol_table {
@@ -12767,8 +13536,11 @@ impl<'a> Parser<'a> {
         }
         match self.transition_expr() {
             Ok(transition_expr_node) => {
-                let transition_stmt_node =
-                    TransitionStatementNode::new(transition_expr_node.line, transition_expr_node, exit_args_opt);
+                let transition_stmt_node = TransitionStatementNode::new(
+                    transition_expr_node.line,
+                    transition_expr_node,
+                    exit_args_opt,
+                );
                 Ok(transition_stmt_node)
             }
             Err(parse_err) => Err(parse_err),
@@ -12859,8 +13631,12 @@ impl<'a> Parser<'a> {
 
         // Use the line from the previous token (which should be from the target state)
         let transition_line = self.previous().line;
-        let transition_expr_node =
-            TransitionExprNode::new(transition_line, target_state_context_t, label_opt, forward_event);
+        let transition_expr_node = TransitionExprNode::new(
+            transition_line,
+            target_state_context_t,
+            label_opt,
+            forward_event,
+        );
 
         Ok(transition_expr_node)
     }
@@ -12972,7 +13748,9 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<NumberMatchTestMatchBranchNode, ParseError> {
         // NumberMatchStart token was removed in v0.31
-        self.error_at_current("Number pattern matching has been removed. Use if/else statements instead.");
+        self.error_at_current(
+            "Number pattern matching has been removed. Use if/else statements instead.",
+        );
         return Err(ParseError::new("Number pattern matching removed"));
     }
 
@@ -12998,7 +13776,7 @@ impl<'a> Parser<'a> {
 
     // match_enum_test -> '?:' '(' enum_type ')  ('/' match_enum_pattern  ('|' match_enum_pattern)* '/' (statement* branch_terminator?) ':>')+ ':' (statement* branch_terminator?) '::'
 
-    // REMOVED: Deprecated ternary enum match test function  
+    // REMOVED: Deprecated ternary enum match test function
     /*
     fn enum_match_test(&mut self, expr_t: ExprType) -> Result<EnumMatchTestNode, ParseError> {
         if let Err(parse_error) = self.consume(TokenType::EnumTest, "Expected '?:'.") {
@@ -13151,17 +13929,17 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
-    
+
     // v0.62: Helper method to resolve call expression types during semantic analysis
     fn resolve_call_expr(&mut self, call_expr_node: &mut CallExprNode) {
         // Only perform resolution during second pass
         if self.is_building_symbol_table {
             return;
         }
-        
+
         // Create a temporary semantic analyzer
         let mut analyzer = SemanticCallAnalyzer::new(&self.arcanum);
-        
+
         // v0.63: Set context in the analyzer for accurate resolution
         // Check class context first (most specific for method calls)
         if let Some(ref class_name) = self.current_class_name {
@@ -13184,22 +13962,23 @@ impl<'a> Parser<'a> {
                 eprintln!("DEBUG: No context set for resolution");
             }
         }
-        
+
         // Check if we're in a static context
         if self.is_static_operation {
             analyzer.set_static_context(true);
         }
-        
+
         // Resolve the call type
         let resolved_type = analyzer.resolve_call(call_expr_node);
-        
+
         // Store the resolution in the AST node
         call_expr_node.resolved_type = Some(resolved_type);
-        
+
         if self.debug_mode {
-            eprintln!("DEBUG: Resolved call {} to {:?}", 
-                call_expr_node.identifier.name.lexeme, 
-                call_expr_node.resolved_type);
+            eprintln!(
+                "DEBUG: Resolved call {} to {:?}",
+                call_expr_node.identifier.name.lexeme, call_expr_node.resolved_type
+            );
         }
     }
 
@@ -13387,121 +14166,137 @@ impl<'a> Parser<'a> {
     }
 
     /* --------------------------------------------------------------------- */
-    
+
     // PHASE 3 FIX: Event handler-level error recovery for recursive descent parsing
     fn recover_from_event_handler_error(&mut self, error: &ParseError) -> Result<(), ParseError> {
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: Recovering from event handler parsing error: {}", error);
+            eprintln!(
+                "DEBUG: Recovering from event handler parsing error: {}",
+                error
+            );
         }
-        
+
         // Report the original error but continue parsing
         eprintln!("Warning: Event handler parsing failed: {}", error);
-        
+
         // Look for the next event handler or state boundary
         // We want to find: next event handler, state end, actions/domain blocks, or system end
         let sync_tokens = [
-            TokenType::Identifier,      // Next event handler
-            TokenType::EnterStateMsg,   // $>() enter event  
-            TokenType::ExitStateMsg,    // <$() exit event
-            TokenType::State,           // Next state
-            TokenType::ActionsBlock,    // actions: block
-            TokenType::DomainBlock,     // domain: block  
-            TokenType::CloseBrace,      // End of current scope
-            TokenType::Eof
+            TokenType::Identifier,    // Next event handler
+            TokenType::EnterStateMsg, // $>() enter event
+            TokenType::ExitStateMsg,  // <$() exit event
+            TokenType::State,         // Next state
+            TokenType::ActionsBlock,  // actions: block
+            TokenType::DomainBlock,   // domain: block
+            TokenType::CloseBrace,    // End of current scope
+            TokenType::Eof,
         ];
-        
+
         // Skip tokens until we find an event handler or structural boundary
         let mut recovery_attempts = 0;
         const MAX_RECOVERY_ATTEMPTS: usize = 50; // Smaller limit for event handler scope
-        
+
         while !self.is_at_end() && recovery_attempts < MAX_RECOVERY_ATTEMPTS {
             let current_token = self.peek().token_type;
-            
+
             // Check if we found a valid recovery point
             for sync_token in &sync_tokens {
                 if current_token == *sync_token {
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                        eprintln!("DEBUG: Event handler error recovery found boundary at: {:?}", current_token);
+                        eprintln!(
+                            "DEBUG: Event handler error recovery found boundary at: {:?}",
+                            current_token
+                        );
                     }
                     return Ok(()); // Successfully recovered
                 }
             }
-            
+
             // Skip structural tokens that might be left from failed event handler parsing
             if current_token == TokenType::OpenBrace || current_token == TokenType::CloseBrace {
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG: Skipping brace during event handler recovery: {:?}", current_token);
+                    eprintln!(
+                        "DEBUG: Skipping brace during event handler recovery: {:?}",
+                        current_token
+                    );
                 }
             }
-            
+
             self.advance();
             recovery_attempts += 1;
         }
-        
+
         if recovery_attempts >= MAX_RECOVERY_ATTEMPTS {
-            return Err(ParseError::new("Unable to recover from event handler parsing error - too many tokens skipped"));
+            return Err(ParseError::new(
+                "Unable to recover from event handler parsing error - too many tokens skipped",
+            ));
         }
-        
+
         // If we reached EOF, that's also a valid recovery point
         Ok(())
     }
-    
+
     /* --------------------------------------------------------------------- */
-    
+
     // PHASE 2 FIX: System-level error recovery to prevent context loss
     fn recover_from_system_error(&mut self, error: &ParseError) -> Result<(), ParseError> {
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Recovering from system parsing error: {}", error);
         }
-        
+
         // Report the original error but continue parsing
         eprintln!("Warning: System parsing failed: {}", error);
-        
+
         // Look for the next module-level entity boundary
         // We want to find: 'system', 'function', 'async', 'class', 'enum', 'var', 'const', or EOF
         let sync_tokens = [
             TokenType::System,
-            TokenType::Function, 
+            TokenType::Function,
             TokenType::Async,
             TokenType::Class,
             TokenType::Enum,
             TokenType::Var,
             TokenType::Const,
-            TokenType::Eof
+            TokenType::Eof,
         ];
-        
+
         // Skip tokens until we find a module-level boundary
         let mut recovery_attempts = 0;
         const MAX_RECOVERY_ATTEMPTS: usize = 100; // Prevent infinite loops
-        
+
         while !self.is_at_end() && recovery_attempts < MAX_RECOVERY_ATTEMPTS {
             let current_token = self.peek().token_type;
-            
+
             // Check if we found a valid module-level start token
             for sync_token in &sync_tokens {
                 if current_token == *sync_token {
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                        eprintln!("DEBUG: System error recovery found boundary at: {:?}", current_token);
+                        eprintln!(
+                            "DEBUG: System error recovery found boundary at: {:?}",
+                            current_token
+                        );
                     }
                     return Ok(()); // Successfully recovered
                 }
             }
-            
+
             // Skip braces and other structural tokens that might be left from failed system parsing
             if current_token == TokenType::CloseBrace {
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     eprintln!("DEBUG: Skipping orphaned close brace during system recovery");
                 }
             }
-            
+
             self.advance();
             recovery_attempts += 1;
         }
-        
+
         if recovery_attempts >= MAX_RECOVERY_ATTEMPTS {
-            return Err(ParseError::new("Unable to recover from system parsing error - too many tokens skipped"));
+            return Err(ParseError::new(
+                "Unable to recover from system parsing error - too many tokens skipped",
+            ));
         }
-        
+
         // If we reached EOF, that's also a valid recovery point
         Ok(())
     }
@@ -13581,11 +14376,15 @@ impl<'a> Parser<'a> {
         r_value_rc: Rc<ExprType>,
     ) -> Result<(), ParseError> {
         // Check if this is a self.variable assignment (domain variable)
-        if let ExprType::CallChainExprT { call_chain_expr_node } = l_value {
+        if let ExprType::CallChainExprT {
+            call_chain_expr_node,
+        } = l_value
+        {
             if call_chain_expr_node.call_chain.len() >= 2 {
                 // Check if first element is "self"
-                if let Some(CallChainNodeType::VariableNodeT { var_node }) = 
-                    call_chain_expr_node.call_chain.get(0) {
+                if let Some(CallChainNodeType::VariableNodeT { var_node }) =
+                    call_chain_expr_node.call_chain.get(0)
+                {
                     if var_node.id_node.name.lexeme == "self" {
                         // This is a self.variable assignment - allow it
                         // Domain variable assignments are handled by the code generator
@@ -13594,14 +14393,14 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         // Now get the variable and assign new value
         // let debug_expr_name = l_value.expr_type_name();
         let name_opt = l_value.get_name();
         if name_opt.is_some() {
             // this is a variable so update value
             let l_value_name = name_opt.unwrap();
-            
+
             // Special case for system.return
             if l_value_name == "system.return" {
                 // Check if we're in a context where system.return is allowed
@@ -13613,7 +14412,7 @@ impl<'a> Parser<'a> {
                 // system.return is valid, just return Ok
                 return Ok(());
             }
-            
+
             let symbol_t_opt = self
                 .arcanum
                 .lookup(l_value_name.as_str(), &IdentifierDeclScope::UnknownScope);
@@ -13686,7 +14485,7 @@ impl<'a> Parser<'a> {
     fn scope_aware_symbol_lookup(&self, name: &str) -> Option<Rc<RefCell<SymbolType>>> {
         // Use LEGB lookup first
         let symbol_opt = self.arcanum.legb_lookup(name);
-        
+
         // Apply scope accessibility check
         match symbol_opt {
             Some(symbol_ref) => {
@@ -13698,7 +14497,7 @@ impl<'a> Parser<'a> {
                     None
                 }
             }
-            None => None
+            None => None,
         }
     }
 
@@ -13725,7 +14524,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Check if we can call an operation in the current scope context  
+    /// Check if we can call an operation in the current scope context
     fn can_call_operation_in_current_scope(&self, operation_name: &str) -> bool {
         // Functions should NOT be able to call system operations directly
         match self.arcanum.scope_context {
@@ -13747,28 +14546,30 @@ impl<'a> Parser<'a> {
             }
         }
     }
-    
+
     // ===================== Frame v0.31 Explicit Self/System Support =====================
-    
+
     /// Parse self, self.method() or self.variable syntax
     fn parse_self_context(&mut self) -> Result<Option<ExprType>, ParseError> {
         use crate::frame_c::ast::SelfExprNode;
-        
+
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG parse_self_context: is_class_method={}, is_static_operation={}", 
-                      self.is_class_method, self.is_static_operation);
+            eprintln!(
+                "DEBUG parse_self_context: is_class_method={}, is_static_operation={}",
+                self.is_class_method, self.is_static_operation
+            );
         }
-        
+
         // Check if we're in a static operation - if so, self is not allowed
         if self.is_static_operation {
             let err_msg = "Cannot use 'self' in a static operation (marked with @staticmethod)";
             self.error_at_previous(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // v0.45: Allow self in class instance methods
         // For class methods, we allow self to work similarly to system contexts
-        
+
         // We've already consumed 'self' token
         if !self.match_token(&[TokenType::Dot]) {
             // Standalone 'self' - create a special variable node representing the system instance
@@ -13778,7 +14579,7 @@ impl<'a> Parser<'a> {
                 literal: TokenLiteral::None,
                 line: self.previous().line,
                 start: self.previous().start,
-                length: 4,  // "self" is 4 characters
+                length: 4, // "self" is 4 characters
             };
             let id_node = IdentifierNode::new(
                 self_token,
@@ -13787,32 +14588,35 @@ impl<'a> Parser<'a> {
                 false,
                 self.previous().line,
             );
-            let var_node = VariableNode::new_with_self(id_node.line, 
+            let var_node = VariableNode::new_with_self(
+                id_node.line,
                 id_node,
                 IdentifierDeclScope::SystemScope,
-                None,  // Symbol will be resolved later
-                true,  // is_self = true
+                None, // Symbol will be resolved later
+                true, // is_self = true
             );
             return Ok(Some(ExprType::VariableExprT { var_node }));
         }
-        
+
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected identifier after 'self.'";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let identifier_token = self.previous().clone();
         let method_name = &identifier_token.lexeme;
-        
+
         // Validate that interface methods should use system.method, not self.method (only in second pass)
         if !self.is_building_symbol_table {
-            if let Err(validation_error) = self.validate_self_interface_method_usage(method_name, identifier_token.line) {
+            if let Err(validation_error) =
+                self.validate_self_interface_method_usage(method_name, identifier_token.line)
+            {
                 self.error_at_previous(&validation_error);
                 return Err(ParseError::new(&validation_error));
             }
         }
-        
+
         let id_node = IdentifierNode::new(
             identifier_token.clone(),
             None,
@@ -13820,57 +14624,61 @@ impl<'a> Parser<'a> {
             false,
             identifier_token.line,
         );
-        
+
         // Check if this is a method call or variable access
         if self.match_token(&[TokenType::LParen]) {
             // self.method() - parse as method call
             let params = match self.expr_list() {
                 Ok(Some(ExprListT { expr_list_node })) => expr_list_node.exprs_t,
-                Ok(None) => Vec::new(),  // Empty parameter list
-                Ok(Some(_)) => Vec::new(),  // Other expression types - treat as empty
+                Ok(None) => Vec::new(),    // Empty parameter list
+                Ok(Some(_)) => Vec::new(), // Other expression types - treat as empty
                 Err(err) => return Err(err),
             };
-            
+
             // NOTE: expr_list() already consumes the RParen token, so we don't need to consume it again
-            
+
             let call_expr_list = CallExprListNode::new(params);
-            let mut call_expr = CallExprNode::new_with_context(id_node.line, 
+            let mut call_expr = CallExprNode::new_with_context(
+                id_node.line,
                 id_node,
                 call_expr_list,
                 None,
                 CallContextType::SelfCall,
             );
-            
+
             // v0.62: Perform semantic resolution if enabled
             self.resolve_call_expr(&mut call_expr);
-            
-            return Ok(Some(ExprType::CallExprT { call_expr_node: call_expr }));
+
+            return Ok(Some(ExprType::CallExprT {
+                call_expr_node: call_expr,
+            }));
         } else {
             // self.variable - create a CallChainExprT to represent self.variable access
             // This is needed so that assignments can recognize self.variable patterns
-            
+
             // First create the 'self' node using the proper SelfT variant
             let self_expr_node = SelfExprNode::new(self.previous().line);
-            
+
             // Then create the variable node for the property
-            let var_node = VariableNode::new(id_node.line, 
+            let var_node = VariableNode::new(
+                id_node.line,
                 id_node,
                 IdentifierDeclScope::DomainBlockScope,
                 None,
             );
-            
+
             // Build the call chain starting with SelfT
             let mut call_chain = VecDeque::new();
             call_chain.push_back(CallChainNodeType::SelfT { self_expr_node });
             call_chain.push_back(CallChainNodeType::VariableNodeT { var_node });
-            
+
             // v0.37: Check for further dots in self.property.method() patterns
             while self.match_token(&[TokenType::Dot]) {
                 if !self.match_token(&[TokenType::Identifier]) {
                     let err_msg = "Expected identifier after '.'";
                     return Err(ParseError::new(err_msg));
                 }
-                
+
                 let next_id = IdentifierNode::new(
                     self.previous().clone(),
                     None,
@@ -13878,7 +14686,7 @@ impl<'a> Parser<'a> {
                     false,
                     self.previous().line,
                 );
-                
+
                 // Check if it's a method call
                 if self.match_token(&[TokenType::LParen]) {
                     let params = match self.expr_list() {
@@ -13887,13 +14695,14 @@ impl<'a> Parser<'a> {
                         Ok(Some(_)) => Vec::new(),
                         Err(err) => return Err(err),
                     };
-                    
+
                     let call_expr_list = CallExprListNode::new(params);
-                    let mut call_expr = CallExprNode::new(next_id.line, next_id, call_expr_list, None);
-                    
+                    let mut call_expr =
+                        CallExprNode::new(next_id.line, next_id, call_expr_list, None);
+
                     // v0.62: Perform semantic resolution if enabled
                     self.resolve_call_expr(&mut call_expr);
-                    
+
                     call_chain.push_back(CallChainNodeType::UndeclaredCallT {
                         call_node: call_expr,
                     });
@@ -13904,15 +14713,17 @@ impl<'a> Parser<'a> {
                     });
                 }
             }
-            
+
             let call_chain_expr_node = CallChainExprNode::new(self.previous().line, call_chain);
-            
-            return Ok(Some(ExprType::CallChainExprT { call_chain_expr_node }));
+
+            return Ok(Some(ExprType::CallChainExprT {
+                call_chain_expr_node,
+            }));
         }
     }
-    
+
     // ===================== Frame v0.34 Module Support =====================
-    
+
     fn module_declaration(&mut self) -> Result<Rc<RefCell<ModuleNode>>, ParseError> {
         // We've already consumed 'module' keyword
         if !self.match_token(&[TokenType::Identifier]) {
@@ -13920,36 +14731,39 @@ impl<'a> Parser<'a> {
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let module_name = self.previous().lexeme.clone();
-        
+
         if !self.match_token(&[TokenType::OpenBrace]) {
             let err_msg = "Expected '{' after module name";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // v0.34: Enter the named module scope in the symbol table
         // We need to do this in both passes so functions inside modules can be found
         if self.is_building_symbol_table {
-            self.arcanum.enter_scope(ParseScopeType::NamedModule { 
-                module_name: module_name.clone() 
+            self.arcanum.enter_scope(ParseScopeType::NamedModule {
+                module_name: module_name.clone(),
             });
         } else {
             // Second pass: we need to navigate to the module scope
             if let Err(err) = self.arcanum.set_parse_scope(&module_name) {
                 // Module not found - this shouldn't happen if first pass succeeded
-                return Err(ParseError::new(&format!("Failed to enter module scope '{}': {}", module_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to enter module scope '{}': {}",
+                    module_name, err
+                )));
             }
         }
-        
+
         // Parse module contents
         let mut functions = Vec::new();
         let mut systems = Vec::new();
         let mut variables = Vec::new();
         let mut enums = Vec::new();
         let mut nested_modules = Vec::new();
-        
+
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
             if self.match_token(&[TokenType::Async]) {
                 // Check for async function in module
@@ -13957,7 +14771,9 @@ impl<'a> Parser<'a> {
                     let function = self.function_scope_async(true)?;
                     functions.push(function);
                 } else {
-                    return Err(ParseError::new("Expected function declaration after 'async' keyword"));
+                    return Err(ParseError::new(
+                        "Expected function declaration after 'async' keyword",
+                    ));
                 }
             } else if self.match_token(&[TokenType::Function]) {
                 let function = self.function_scope_async(false)?;
@@ -13986,13 +14802,13 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(&err_msg));
             }
         }
-        
+
         if !self.match_token(&[TokenType::CloseBrace]) {
             let err_msg = "Expected '}' after module body";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // v0.34: Exit the named module scope
         // Exit in both passes to maintain proper scope
         if self.is_building_symbol_table {
@@ -14000,7 +14816,7 @@ impl<'a> Parser<'a> {
         } else {
             self.arcanum.exit_scope();
         }
-        
+
         Ok(Rc::new(RefCell::new(ModuleNode::new(
             module_name,
             functions,
@@ -14010,9 +14826,9 @@ impl<'a> Parser<'a> {
             nested_modules,
         ))))
     }
-    
+
     // ===================== Frame v0.45 Class Support =====================
-    
+
     fn class_declaration(&mut self) -> Result<Rc<RefCell<ClassNode>>, ParseError> {
         // We've already consumed 'class' keyword
         if !self.match_token(&[TokenType::Identifier]) {
@@ -14020,34 +14836,37 @@ impl<'a> Parser<'a> {
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let class_name = self.previous().lexeme.clone();
         let line = self.previous().line;
-        
+
         // v0.63: Set current class context for semantic resolution
         self.current_class_name = Some(class_name.clone());
         if self.debug_mode {
             eprintln!("DEBUG: Set current_class_name to {}", class_name);
         }
-        
+
         if !self.match_token(&[TokenType::OpenBrace]) {
             let err_msg = "Expected '{' after class name";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // Enter class scope for parsing
         if self.is_building_symbol_table {
-            self.arcanum.enter_scope(ParseScopeType::Class { 
-                class_name: class_name.clone() 
+            self.arcanum.enter_scope(ParseScopeType::Class {
+                class_name: class_name.clone(),
             });
         } else {
             // Second pass: navigate to class scope
             if let Err(err) = self.arcanum.set_parse_scope(&class_name) {
-                return Err(ParseError::new(&format!("Failed to enter class scope '{}': {}", class_name, err)));
+                return Err(ParseError::new(&format!(
+                    "Failed to enter class scope '{}': {}",
+                    class_name, err
+                )));
             }
         }
-        
+
         // Parse class members
         let mut methods = Vec::new();
         let mut static_methods = Vec::new();
@@ -14055,7 +14874,7 @@ impl<'a> Parser<'a> {
         let mut static_vars = Vec::new();
         let mut constructor = None;
         let mut has_explicit_init_annotation = false;
-        
+
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
             // Check for @staticmethod decorator
             let is_static = if self.check(TokenType::OuterAttributeOrDomainParams) {
@@ -14079,45 +14898,46 @@ impl<'a> Parser<'a> {
             } else {
                 false
             };
-            
+
             // Check for @init decorator
-            let is_init_annotated = if !is_static && self.check(TokenType::OuterAttributeOrDomainParams) {
-                let saved_pos = self.current;
-                if self.match_token(&[TokenType::OuterAttributeOrDomainParams]) {
-                    if self.match_token(&[TokenType::Identifier]) {
-                        let attr_name = self.previous().lexeme.clone();
-                        if !self.match_token(&[TokenType::RBracket]) {
-                            return Err(ParseError::new("Expected ']' after attribute"));
-                        }
-                        if attr_name == "init" {
-                            has_explicit_init_annotation = true;
-                            true
+            let is_init_annotated =
+                if !is_static && self.check(TokenType::OuterAttributeOrDomainParams) {
+                    let saved_pos = self.current;
+                    if self.match_token(&[TokenType::OuterAttributeOrDomainParams]) {
+                        if self.match_token(&[TokenType::Identifier]) {
+                            let attr_name = self.previous().lexeme.clone();
+                            if !self.match_token(&[TokenType::RBracket]) {
+                                return Err(ParseError::new("Expected ']' after attribute"));
+                            }
+                            if attr_name == "init" {
+                                has_explicit_init_annotation = true;
+                                true
+                            } else {
+                                // Rewind if not init attribute
+                                self.current = saved_pos;
+                                false
+                            }
                         } else {
-                            // Rewind if not init attribute
+                            // Rewind if not a simple identifier attribute
                             self.current = saved_pos;
                             false
                         }
                     } else {
-                        // Rewind if not a simple identifier attribute
-                        self.current = saved_pos;
                         false
                     }
                 } else {
                     false
-                }
-            } else {
-                false
-            };
-            
+                };
+
             if self.match_token(&[TokenType::Var, TokenType::Const]) {
                 // Variable declaration (instance or static based on context/decorator)
                 let _is_const = self.previous().token_type == TokenType::Const;
-                let var_decl = self.var_declaration(if is_static { 
-                    IdentifierDeclScope::ClassStaticScope 
-                } else { 
-                    IdentifierDeclScope::ClassInstanceScope 
+                let var_decl = self.var_declaration(if is_static {
+                    IdentifierDeclScope::ClassStaticScope
+                } else {
+                    IdentifierDeclScope::ClassInstanceScope
                 })?;
-                
+
                 if is_static {
                     static_vars.push(var_decl);
                 } else {
@@ -14126,15 +14946,20 @@ impl<'a> Parser<'a> {
             } else if self.match_token(&[TokenType::Function]) {
                 // Method declaration
                 let method = self.parse_class_method(is_static, is_init_annotated)?;
-                
+
                 // Check if this is a constructor
                 let method_ref = method.borrow();
-                if is_init_annotated || (!has_explicit_init_annotation && method_ref.name == "init" && !is_static) {
+                if is_init_annotated
+                    || (!has_explicit_init_annotation && method_ref.name == "init" && !is_static)
+                {
                     if constructor.is_some() {
                         return Err(ParseError::new("Class can only have one constructor"));
                     }
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                        eprintln!("DEBUG: Setting constructor for class, statements count: {}", method_ref.statements.len());
+                        eprintln!(
+                            "DEBUG: Setting constructor for class, statements count: {}",
+                            method_ref.statements.len()
+                        );
                     }
                     drop(method_ref); // Release borrow
                     constructor = Some(method.clone());
@@ -14151,115 +14976,131 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(err_msg));
             }
         }
-        
+
         if !self.match_token(&[TokenType::CloseBrace]) {
             let err_msg = "Expected '}' at end of class";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // Exit class scope
         if self.is_building_symbol_table {
             self.arcanum.exit_scope();
         }
-        
+
         // v0.63: Clear class context after parsing
         if self.debug_mode {
-            eprintln!("DEBUG: Clearing current_class_name (was {:?})", self.current_class_name);
+            eprintln!(
+                "DEBUG: Clearing current_class_name (was {:?})",
+                self.current_class_name
+            );
         }
         self.current_class_name = None;
-        
+
         Ok(Rc::new(RefCell::new(ClassNode::new(
             class_name,
-            None,  // parent - not supported in this old function
-            Vec::new(),  // v0.58: No decorators in this old path
+            None,       // parent - not supported in this old function
+            Vec::new(), // v0.58: No decorators in this old path
             methods,
             static_methods,
-            Vec::new(),  // class_methods - not supported in this old function  
-            Vec::new(),  // properties - not supported in this old function
+            Vec::new(), // class_methods - not supported in this old function
+            Vec::new(), // properties - not supported in this old function
             instance_vars,
             static_vars,
             constructor,
             line,
         ))))
     }
-    
+
     // DEPRECATED: Old class method parser - doesn't support @classmethod
     // TODO: Remove this and use parse_class_method_v2 everywhere
-    fn parse_class_method(&mut self, is_static: bool, is_constructor: bool) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
+    fn parse_class_method(
+        &mut self,
+        is_static: bool,
+        is_constructor: bool,
+    ) -> Result<Rc<RefCell<MethodNode>>, ParseError> {
         // We've already consumed 'fn' token
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected method name after 'fn'";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let method_name = self.previous().lexeme.clone();
         let line = self.previous().line;
-        
+
         // Set flag to indicate we're in a class method (for self support)
         let saved_is_class_method = self.is_class_method;
         let saved_is_static = self.is_static_operation;
         self.is_class_method = !is_static;
         self.is_static_operation = is_static;
-        
+
         // Parse parameters
         if !self.match_token(&[TokenType::LParen]) {
             let err_msg = "Expected '(' after method name";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let params = self.parameters()?;
-        
+
         if !self.match_token(&[TokenType::RParen]) {
             let err_msg = "Expected ')' after parameters";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // Optional return type
         let type_opt = if self.match_token(&[TokenType::Colon]) {
             Some(self.type_decl()?)
         } else {
             None
         };
-        
+
         // Parse method body
         if !self.match_token(&[TokenType::OpenBrace]) {
             let err_msg = "Expected '{' to begin method body";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // Parse statements
         let mut statements = Vec::new();
         let mut explicit_return_expr_opt: Option<ExprType> = None;
-        
+
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("DEBUG: Starting to parse class method body, is_class_method={}", self.is_class_method);
+            eprintln!(
+                "DEBUG: Starting to parse class method body, is_class_method={}",
+                self.is_class_method
+            );
         }
-        
+
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                eprintln!("DEBUG: Parsing statement in class method, current token: {:?}", self.peek());
+                eprintln!(
+                    "DEBUG: Parsing statement in class method, current token: {:?}",
+                    self.peek()
+                );
             }
-            
+
             // Check for explicit return statement as terminator
             if self.check(TokenType::Return_) {
                 self.advance(); // consume 'return'
-                
+
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG: Found return statement in class method, is_class_method={}", self.is_class_method);
+                    eprintln!(
+                        "DEBUG: Found return statement in class method, is_class_method={}",
+                        self.is_class_method
+                    );
                 }
-                
+
                 // Parse the return expression
                 explicit_return_expr_opt = self.expression()?;
-                
+
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     eprintln!("DEBUG: Parsed explicit return expression in class method");
                 }
-                
+
                 // A return statement should be the last thing in the method
                 break;
             }
@@ -14268,7 +15109,9 @@ impl<'a> Parser<'a> {
                 self.match_token(&[TokenType::Var, TokenType::Const]);
                 // Use EventHandlerVarScope for method local variables (similar to how event handlers work)
                 let var_decl = self.var_declaration(IdentifierDeclScope::EventHandlerVarScope)?;
-                let decl_or_stmt = DeclOrStmtType::VarDeclT { var_decl_t_rcref: var_decl };
+                let decl_or_stmt = DeclOrStmtType::VarDeclT {
+                    var_decl_t_rcref: var_decl,
+                };
                 statements.push(decl_or_stmt);
             } else if let Some(stmt) = self.statement()? {
                 let decl_or_stmt = DeclOrStmtType::StmtT { stmt_t: stmt };
@@ -14282,20 +15125,21 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         if !self.match_token(&[TokenType::CloseBrace]) {
             let err_msg = "Expected '}' at end of method body";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // Create terminator - use explicit return expression if found, otherwise implicit empty return
-        let terminator = TerminatorExpr::new(TerminatorType::Return, explicit_return_expr_opt, line);
-        
+        let terminator =
+            TerminatorExpr::new(TerminatorType::Return, explicit_return_expr_opt, line);
+
         // Restore flags
         self.is_class_method = saved_is_class_method;
         self.is_static_operation = saved_is_static;
-        
+
         Ok(Rc::new(RefCell::new(MethodNode::new(
             method_name,
             params,
@@ -14304,31 +15148,31 @@ impl<'a> Parser<'a> {
             type_opt,
             is_constructor,
             is_static,
-            false,  // is_class - not supported in this old function
+            false, // is_class - not supported in this old function
             line,
         ))))
     }
-    
+
     // ===================== Frame v0.31 Import Support =====================
-    
+
     /// Parse import statement: import module [as alias]
     fn parse_import_statement(&mut self) -> Result<ImportNode, ParseError> {
         // We've already consumed 'import' token
         let line = self.previous().line;
-        
+
         // Check for destructuring import syntax: import { ... } from "..."
         if self.match_token(&[TokenType::OpenBrace]) {
             return self.parse_frame_selective_import(line);
         }
-        
+
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected module name after 'import'";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let mut module_name = self.previous().lexeme.clone();
-        
+
         // Handle dotted module names (e.g., os.path, fsl.str)
         while self.match_token(&[TokenType::Dot]) {
             if !self.match_token(&[TokenType::Identifier]) {
@@ -14339,14 +15183,14 @@ impl<'a> Parser<'a> {
             module_name.push('.');
             module_name.push_str(&self.previous().lexeme);
         }
-        
+
         // Check for Frame file import: import Utils from "./utils.frm"
         // Only check if we're still on the same line (not a new statement)
         if self.peek().token_type == TokenType::From && self.peek().line == line {
             self.advance(); // Consume the 'from' token
             return self.parse_frame_module_import(module_name, line);
         }
-        
+
         // Check for 'as alias' syntax (Python imports)
         if self.match_token(&[TokenType::As]) {
             if !self.match_token(&[TokenType::Identifier]) {
@@ -14355,24 +15199,24 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(err_msg));
             }
             let alias = self.previous().lexeme.clone();
-            
+
             Ok(ImportNode::new(
-                ImportType::Aliased { 
-                    module: module_name, 
-                    alias 
+                ImportType::Aliased {
+                    module: module_name,
+                    alias,
                 },
-                line
+                line,
             ))
         } else {
             Ok(ImportNode::new(
-                ImportType::Simple { 
-                    module: module_name 
+                ImportType::Simple {
+                    module: module_name,
                 },
-                line
+                line,
             ))
         }
     }
-    
+
     /// Parse from import: from module import item1, item2 or from module import *
     fn parse_from_import_statement(&mut self) -> Result<ImportNode, ParseError> {
         // We've already consumed 'from' token
@@ -14381,10 +15225,10 @@ impl<'a> Parser<'a> {
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let mut module_name = self.previous().lexeme.clone();
         let line = self.previous().line;
-        
+
         // Handle dotted module names (e.g., os.path, fsl.list)
         while self.match_token(&[TokenType::Dot]) {
             if !self.match_token(&[TokenType::Identifier]) {
@@ -14395,35 +15239,34 @@ impl<'a> Parser<'a> {
             module_name.push('.');
             module_name.push_str(&self.previous().lexeme);
         }
-        
+
         if !self.match_token(&[TokenType::Import]) {
             let err_msg = "Expected 'import' after module name";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // Check for wildcard import
         if self.match_token(&[TokenType::Star]) {
             return Ok(ImportNode::new(
-                ImportType::FromImportAll { 
-                    module: module_name 
+                ImportType::FromImportAll {
+                    module: module_name,
                 },
-                line
+                line,
             ));
         }
-        
+
         // Parse list of imported items
         let mut items = Vec::new();
-        
+
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected identifier or '*' after 'import'";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         items.push(self.previous().lexeme.clone());
-        
-        
+
         // Parse additional items separated by commas
         while self.match_token(&[TokenType::Comma]) {
             if !self.match_token(&[TokenType::Identifier]) {
@@ -14432,38 +15275,42 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(err_msg));
             }
             items.push(self.previous().lexeme.clone());
-            
-            // v0.34: Track specific FSL imports  
+
+            // v0.34: Track specific FSL imports
         }
-        
+
         Ok(ImportNode::new(
-            ImportType::FromImport { 
-                module: module_name, 
-                items 
+            ImportType::FromImport {
+                module: module_name,
+                items,
             },
-            line
+            line,
         ))
     }
-    
+
     /// Parse Frame module import: import Utils from "./utils.frm" [as alias]
     /// v0.57: Added for multi-file module system
-    fn parse_frame_module_import(&mut self, module_name: String, line: usize) -> Result<ImportNode, ParseError> {
+    fn parse_frame_module_import(
+        &mut self,
+        module_name: String,
+        line: usize,
+    ) -> Result<ImportNode, ParseError> {
         // We've already consumed 'from' token, expect string literal for file path
         if !self.match_token(&[TokenType::String]) {
             let err_msg = "Expected string literal file path after 'from'";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let file_path = self.extract_string_literal(&self.previous().lexeme);
-        
+
         // Validate that this is a Frame file (.frm extension)
         if !file_path.ends_with(".frm") {
             let err_msg = "Frame module imports must reference .frm files";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // Check for optional 'as alias' syntax
         if self.match_token(&[TokenType::As]) {
             if !self.match_token(&[TokenType::Identifier]) {
@@ -14472,40 +15319,40 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(err_msg));
             }
             let alias = self.previous().lexeme.clone();
-            
+
             Ok(ImportNode::new(
-                ImportType::FrameModuleAliased { 
-                    module_name, 
-                    file_path, 
-                    alias 
+                ImportType::FrameModuleAliased {
+                    module_name,
+                    file_path,
+                    alias,
                 },
-                line
+                line,
             ))
         } else {
             Ok(ImportNode::new(
-                ImportType::FrameModule { 
-                    module_name, 
-                    file_path 
+                ImportType::FrameModule {
+                    module_name,
+                    file_path,
                 },
-                line
+                line,
             ))
         }
     }
-    
+
     /// Parse Frame selective import: import { add, multiply } from "./math.frm"
     /// v0.57: Added for multi-file module system
     fn parse_frame_selective_import(&mut self, line: usize) -> Result<ImportNode, ParseError> {
         // We've already consumed '{' token, parse list of imported items
         let mut items = Vec::new();
-        
+
         if !self.match_token(&[TokenType::Identifier]) {
             let err_msg = "Expected identifier after '{'";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         items.push(self.previous().lexeme.clone());
-        
+
         // Parse additional items separated by commas
         while self.match_token(&[TokenType::Comma]) {
             if !self.match_token(&[TokenType::Identifier]) {
@@ -14515,56 +15362,53 @@ impl<'a> Parser<'a> {
             }
             items.push(self.previous().lexeme.clone());
         }
-        
+
         if !self.match_token(&[TokenType::CloseBrace]) {
             let err_msg = "Expected '}' after import list";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         if !self.match_token(&[TokenType::From]) {
             let err_msg = "Expected 'from' after import list";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         if !self.match_token(&[TokenType::String]) {
             let err_msg = "Expected string literal file path after 'from'";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let file_path = self.extract_string_literal(&self.previous().lexeme);
-        
+
         // Validate that this is a Frame file (.frm extension)
         if !file_path.ends_with(".frm") {
             let err_msg = "Frame module imports must reference .frm files";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         Ok(ImportNode::new(
-            ImportType::FrameSelective { 
-                items, 
-                file_path 
-            },
-            line
+            ImportType::FrameSelective { items, file_path },
+            line,
         ))
     }
-    
+
     /// Extract string content from string literal token
     /// v0.57: Helper for Frame file import parsing
     fn extract_string_literal(&self, lexeme: &str) -> String {
         // Remove surrounding quotes from string literal
         if lexeme.len() >= 2 && lexeme.starts_with('"') && lexeme.ends_with('"') {
-            lexeme[1..lexeme.len()-1].to_string()
+            lexeme[1..lexeme.len() - 1].to_string()
         } else if lexeme.len() >= 2 && lexeme.starts_with('\'') && lexeme.ends_with('\'') {
-            lexeme[1..lexeme.len()-1].to_string()
+            lexeme[1..lexeme.len() - 1].to_string()
         } else {
             lexeme.to_string() // Return as-is if not quoted
         }
     }
-    
+
     // v0.56: Parse type alias: type Name = type_expression
     fn parse_type_alias(&mut self) -> Result<TypeAliasNode, ParseError> {
         // We've already consumed 'type' token
@@ -14573,47 +15417,55 @@ impl<'a> Parser<'a> {
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         let alias_name = self.previous().lexeme.clone();
         let line = self.previous().line;
-        
-        // Expect '=' 
+
+        // Expect '='
         if !self.match_token(&[TokenType::Equals]) {
             let err_msg = "Expected '=' after type alias name";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         // Parse the type expression
         // Capture everything on the same line as the type expression
         let mut type_expr = String::new();
         let mut bracket_depth = 0;
-        
+
         // Collect tokens until end of line or next major statement
         while !self.is_at_end() {
             let token = self.peek();
-            
+
             // Track bracket depth
             if token.token_type == TokenType::LBracket {
                 bracket_depth += 1;
             } else if token.token_type == TokenType::RBracket {
                 bracket_depth -= 1;
             }
-            
+
             // Stop conditions:
             // 1. Found a comment (marks end of line)
             // 2. Found next line starting with keyword (only if brackets are balanced)
             if token.token_type == TokenType::PythonComment {
                 break;
             }
-            
+
             // If brackets are balanced and at depth 0, check for line end
             if bracket_depth == 0 {
                 // Check if this token itself is start of new statement
-                if matches!(token.token_type,
-                    TokenType::Type | TokenType::Import | TokenType::From |
-                    TokenType::Function | TokenType::Class | TokenType::System |
-                    TokenType::Var | TokenType::Const | TokenType::Enum) {
+                if matches!(
+                    token.token_type,
+                    TokenType::Type
+                        | TokenType::Import
+                        | TokenType::From
+                        | TokenType::Function
+                        | TokenType::Class
+                        | TokenType::System
+                        | TokenType::Var
+                        | TokenType::Const
+                        | TokenType::Enum
+                ) {
                     break;
                 }
                 // Also check for 'type' keyword as identifier (since it's no longer a reserved keyword)
@@ -14621,10 +15473,14 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
-            
+
             // Add the token to type expression with appropriate spacing
             // Add space after commas for readability
-            if !type_expr.is_empty() && !type_expr.ends_with('[') && token.lexeme != "]" && token.lexeme != "[" {
+            if !type_expr.is_empty()
+                && !type_expr.ends_with('[')
+                && token.lexeme != "]"
+                && token.lexeme != "["
+            {
                 // Add space before token if it's not a bracket and previous char wasn't an opening bracket
                 if token.lexeme != "," {
                     type_expr.push(' ');
@@ -14632,37 +15488,37 @@ impl<'a> Parser<'a> {
             }
             type_expr.push_str(&token.lexeme);
             if token.lexeme == "," {
-                type_expr.push(' ');  // Add space after comma
+                type_expr.push(' '); // Add space after comma
             }
             self.advance();
-            
+
             // After consuming the token, check if we should stop
             if bracket_depth < 0 {
                 // Unbalanced brackets - stop
                 break;
             }
         }
-        
+
         if type_expr.is_empty() {
             let err_msg = "Expected type expression after '='";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        
+
         Ok(TypeAliasNode::new(alias_name, type_expr, line))
     }
-    
+
     // v0.37: Analyze system runtime async requirements
     fn analyze_system_runtime_info(&mut self, system: &mut SystemNode) -> Result<(), ParseError> {
         // Create new runtime info
         let mut runtime_info = RuntimeInfo::new();
         runtime_info.kernel.system_ref = system.name.clone();
         runtime_info.router.system_ref = system.name.clone();
-        
+
         // Check if the system has any async requirements
         let mut system_needs_async = false;
         let mut async_transitions: Vec<TransitionNode> = Vec::new();
-        
+
         // Analyze the machine block
         if let Some(machine_block) = &system.machine_block_node_opt {
             // Process each state
@@ -14670,39 +15526,49 @@ impl<'a> Parser<'a> {
                 let state = state_rc.borrow();
                 let state_name = state.name.clone();
                 let mut state_needs_async = false;
-                
+
                 // Check event handlers
                 for event_handler_rc in &state.evt_handlers_rcref {
                     let handler = event_handler_rc.borrow();
-                    
+
                     // Check if this handler is async or contains await
                     if handler.is_async || self.handler_contains_await(&handler) {
                         state_needs_async = true;
                         system_needs_async = true;
-                        
+
                         // Track async requirements for transitions
                         // Check if handler has transition statements
                         {
                             for stmt in &handler.statements {
                                 if let DeclOrStmtType::StmtT { stmt_t } = stmt {
-                                    if let StatementType::TransitionStmt { transition_statement_node } = stmt_t {
+                                    if let StatementType::TransitionStmt {
+                                        transition_statement_node,
+                                    } = stmt_t
+                                    {
                                         // Get target state name
-                                        let target_state_name = match &transition_statement_node.transition_expr_node.target_state_context_t {
-                                            TargetStateContextType::StateRef { state_context_node } => state_context_node.state_ref_node.name.clone(),
+                                        let target_state_name = match &transition_statement_node
+                                            .transition_expr_node
+                                            .target_state_context_t
+                                        {
+                                            TargetStateContextType::StateRef {
+                                                state_context_node,
+                                            } => state_context_node.state_ref_node.name.clone(),
                                             _ => continue,
                                         };
-                                        
+
                                         // This async handler performs a transition
                                         async_transitions.push(TransitionNode::new(
                                             state_name.clone(),
                                             target_state_name.clone(),
                                             true,
                                             match &handler.msg_t {
-                                                MessageType::CustomMessage { message_node } => message_node.name.clone(),
+                                                MessageType::CustomMessage { message_node } => {
+                                                    message_node.name.clone()
+                                                }
                                                 MessageType::None => "unknown".to_string(),
                                             },
                                         ));
-                                        
+
                                         // NOTE: We do NOT force exit/enter handlers to be async
                                         // They should only be async if they actually use await
                                     }
@@ -14711,7 +15577,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
-                
+
                 // Check enter handler
                 if let Some(enter_handler_rc) = &state.enter_event_handler_opt {
                     let handler = enter_handler_rc.borrow();
@@ -14720,7 +15586,7 @@ impl<'a> Parser<'a> {
                         system_needs_async = true;
                     }
                 }
-                
+
                 // Check exit handler
                 if let Some(exit_handler_rc) = &state.exit_event_handler_opt {
                     let handler = exit_handler_rc.borrow();
@@ -14729,17 +15595,16 @@ impl<'a> Parser<'a> {
                         system_needs_async = true;
                     }
                 }
-                
+
                 // Add state dispatcher if state needs async
                 if state_needs_async {
-                    runtime_info.state_dispatchers.push(StateDispatcherNode::new(
-                        state_name.clone(),
-                        true,
-                    ));
+                    runtime_info
+                        .state_dispatchers
+                        .push(StateDispatcherNode::new(state_name.clone(), true));
                 }
             }
         }
-        
+
         // Check interface methods for async
         if let Some(interface_block) = &system.interface_block_node_opt {
             for method in &interface_block.interface_methods {
@@ -14748,7 +15613,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         // Check actions for async
         if let Some(actions_block) = &system.actions_block_node_opt {
             for action in &actions_block.actions {
@@ -14757,21 +15622,21 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         // Set kernel and router async requirements
         runtime_info.kernel.is_async = system_needs_async;
         runtime_info.router.is_async = system_needs_async;
         runtime_info.transitions = async_transitions;
-        
+
         // Store runtime info in the system
         system.runtime_info = Some(runtime_info);
-        
+
         // Validate that async handlers are properly marked
         self.validate_async_handlers(system)?;
-        
+
         Ok(())
     }
-    
+
     // Check if an event handler contains await expressions
     fn handler_contains_await(&self, handler: &EventHandlerNode) -> bool {
         // Check statements for await expressions
@@ -14782,19 +15647,17 @@ impl<'a> Parser<'a> {
         }
         false
     }
-    
+
     // Check if a statement contains await expressions
     fn statement_contains_await(&self, stmt: &DeclOrStmtType) -> bool {
         match stmt {
-            DeclOrStmtType::StmtT { stmt_t } => {
-                match stmt_t {
-                    StatementType::ExpressionStmt { expr_stmt_t } => {
-                        self.expr_stmt_contains_await(expr_stmt_t)
-                    }
-                    StatementType::TransitionStmt { .. } => false,
-                    _ => false,
+            DeclOrStmtType::StmtT { stmt_t } => match stmt_t {
+                StatementType::ExpressionStmt { expr_stmt_t } => {
+                    self.expr_stmt_contains_await(expr_stmt_t)
                 }
-            }
+                StatementType::TransitionStmt { .. } => false,
+                _ => false,
+            },
             DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                 let var_decl = var_decl_t_rcref.borrow();
                 // Check if the value_rc contains await
@@ -14802,25 +15665,27 @@ impl<'a> Parser<'a> {
             }
         }
     }
-    
+
     fn expr_stmt_contains_await(&self, expr_stmt: &ExprStmtType) -> bool {
         match expr_stmt {
-            ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
-                self.expr_contains_await(&assignment_stmt_node.assignment_expr_node.r_value_rc)
-            }
+            ExprStmtType::AssignmentStmtT {
+                assignment_stmt_node,
+            } => self.expr_contains_await(&assignment_stmt_node.assignment_expr_node.r_value_rc),
             ExprStmtType::CallStmtT { call_stmt_node: _ } => {
                 // Check if the call expression might contain await
                 // This is a simplified check - just returns false for now
                 false
             }
-            ExprStmtType::CallChainStmtT { call_chain_literal_stmt_node: _ } => {
+            ExprStmtType::CallChainStmtT {
+                call_chain_literal_stmt_node: _,
+            } => {
                 // Check each node in the chain for an expression that might contain await
                 false
             }
             _ => false,
         }
     }
-    
+
     fn expr_contains_await(&self, expr: &ExprType) -> bool {
         use crate::frame_c::ast::ExprType::*;
         match expr {
@@ -14833,20 +15698,22 @@ impl<'a> Parser<'a> {
             _ => false,
         }
     }
-    
+
     // Validate that handlers using await are marked async
     fn validate_async_handlers(&self, system: &SystemNode) -> Result<(), ParseError> {
         if let Some(machine_block) = &system.machine_block_node_opt {
             for state_rc in &machine_block.states {
                 let state = state_rc.borrow();
                 let state_name = &state.name;
-                
+
                 // Check event handlers
                 for handler_rc in &state.evt_handlers_rcref {
                     let handler = handler_rc.borrow();
                     if self.handler_contains_await(&handler) && !handler.is_async {
                         let handler_name = match &handler.msg_t {
-                            MessageType::CustomMessage { message_node } => message_node.name.clone(),
+                            MessageType::CustomMessage { message_node } => {
+                                message_node.name.clone()
+                            }
                             MessageType::None => "unknown".to_string(),
                         };
                         return Err(ParseError::new(&format!(
@@ -14855,7 +15722,7 @@ impl<'a> Parser<'a> {
                         )));
                     }
                 }
-                
+
                 // Check enter handler
                 if let Some(enter_handler_rc) = &state.enter_event_handler_opt {
                     let handler = enter_handler_rc.borrow();
@@ -14866,7 +15733,7 @@ impl<'a> Parser<'a> {
                         )));
                     }
                 }
-                
+
                 // Check exit handler
                 if let Some(exit_handler_rc) = &state.exit_event_handler_opt {
                     let handler = exit_handler_rc.borrow();
@@ -14879,28 +15746,27 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
-    
+
     // Collect tokens until we hit one of the stop tokens (at the same nesting level)
     fn collect_tokens_until(&mut self, stop_tokens: &[TokenType]) -> Vec<Token> {
         let mut tokens = Vec::new();
         let mut paren_depth = 0;
         let mut bracket_depth = 0;
         let mut brace_depth = 0;
-        
+
         while !self.is_at_end() {
             let token = self.peek();
-            
+
             // Check if we should stop (only at depth 0)
             if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 {
                 if stop_tokens.contains(&token.token_type) {
                     break;
                 }
             }
-            
+
             // Track nesting depth
             match token.token_type {
                 TokenType::LParen => paren_depth += 1,
@@ -14926,38 +15792,41 @@ impl<'a> Parser<'a> {
                 }
                 _ => {}
             }
-            
+
             tokens.push(self.advance().clone());
         }
-        
+
         tokens
     }
-    
+
     // Parse a sequence of tokens as an expression
-    fn parse_token_sequence_as_expr(&mut self, tokens: Vec<Token>) -> Result<Option<ExprType>, ParseError> {
+    fn parse_token_sequence_as_expr(
+        &mut self,
+        tokens: Vec<Token>,
+    ) -> Result<Option<ExprType>, ParseError> {
         if tokens.is_empty() {
             return Ok(None);
         }
-        
+
         // Save current position
         let saved_pos = self.current;
         let saved_tok_ref = self.current_tok_ref;
-        
+
         // Create a temporary parser state for these tokens
         // We'll insert the tokens at the current position and parse them
         let mut temp_tokens = Vec::new();
-        
+
         // Add tokens before current position
         for i in 0..saved_pos {
             temp_tokens.push(self.tokens[i].clone());
         }
-        
+
         // Add our tokens to parse
         let parse_start = temp_tokens.len();
         for token in tokens {
             temp_tokens.push(token);
         }
-        
+
         // Add an EOF token to ensure parsing stops
         temp_tokens.push(Token {
             token_type: TokenType::Eof,
@@ -14967,61 +15836,59 @@ impl<'a> Parser<'a> {
             start: 0,
             length: 0,
         });
-        
+
         // Store the original tokens reference
         let original_tokens = self.tokens;
-        
+
         // Temporarily replace tokens
         // SAFETY: This is safe because we restore it before returning
-        let temp_tokens_ref: &'a [Token] = unsafe {
-            std::mem::transmute(temp_tokens.as_slice())
-        };
+        let temp_tokens_ref: &'a [Token] = unsafe { std::mem::transmute(temp_tokens.as_slice()) };
         self.tokens = temp_tokens_ref;
         self.current = parse_start;
-        
+
         // Parse the expression
         let result = self.expression();
-        
+
         // Restore original state
         self.tokens = original_tokens;
         self.current = saved_pos;
         self.current_tok_ref = saved_tok_ref;
-        
+
         result
     }
-    
+
     // Parse bracket expressions to distinguish between indexing and slicing
     fn parse_bracket_expression(&mut self) -> Result<BracketExpressionType, ParseError> {
         // Simple decision tree approach
-        
+
         // Check for :: (ColonColon) which in bracket context means slice with no start/end
         if self.check(TokenType::ColonColon) {
             // [::step] pattern - module separator :: is two colons in slice context
             self.advance(); // consume '::'
-            
+
             let mut step_expr: Option<Box<ExprType>> = None;
             if !self.check(TokenType::RBracket) {
                 let tokens = self.collect_tokens_until(&[TokenType::RBracket]);
                 step_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
             }
-            
+
             self.consume(TokenType::RBracket, "Expected ']'")?;
-            
+
             return Ok(BracketExpressionType::Slice {
                 start: None,
                 end: None,
                 step: step_expr,
             });
         }
-        
+
         // Look at what comes first: expression, colon, or bracket
         if self.check(TokenType::Colon) {
             // Starts with colon: slice like [:end] or [:end:step] or [::step]
             self.advance(); // consume first ':'
-            
+
             let mut end_expr: Option<Box<ExprType>> = None;
             let mut step_expr: Option<Box<ExprType>> = None;
-            
+
             // Check if this is [::step] pattern (double colon at start)
             if self.check(TokenType::Colon) {
                 // It's [::step] - skip end, go straight to step
@@ -15033,10 +15900,11 @@ impl<'a> Parser<'a> {
             } else {
                 // Parse end if not bracket
                 if !self.check(TokenType::RBracket) {
-                    let tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
+                    let tokens =
+                        self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
                     end_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
                 }
-                
+
                 // Check for step after end
                 if self.match_token(&[TokenType::Colon]) {
                     if !self.check(TokenType::RBracket) {
@@ -15045,30 +15913,32 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            
+
             self.consume(TokenType::RBracket, "Expected ']'")?;
-            
+
             Ok(BracketExpressionType::Slice {
                 start: None,
                 end: end_expr,
                 step: step_expr,
             })
-            
         } else if self.check(TokenType::RBracket) {
             // Empty brackets - error
             let err_msg = "Empty brackets not allowed";
             self.error_at_current(err_msg);
             Err(ParseError::new(err_msg))
-            
         } else {
             // Starts with expression
-            let first_tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::ColonColon, TokenType::RBracket]);
+            let first_tokens = self.collect_tokens_until(&[
+                TokenType::Colon,
+                TokenType::ColonColon,
+                TokenType::RBracket,
+            ]);
             let first_expr = self.parse_token_sequence_as_expr(first_tokens)?;
-            
+
             if self.check(TokenType::RBracket) {
                 // Just an index: expr]
                 self.advance(); // consume ']'
-                
+
                 if let Some(expr) = first_expr {
                     Ok(BracketExpressionType::Index(expr))
                 } else {
@@ -15077,38 +15947,37 @@ impl<'a> Parser<'a> {
                     self.error_at_previous(err_msg);
                     Err(ParseError::new(err_msg))
                 }
-                
             } else if self.check(TokenType::ColonColon) {
                 // It's a slice with no end: expr::step
                 self.advance(); // consume '::'
-                
+
                 let mut step_expr: Option<Box<ExprType>> = None;
                 if !self.check(TokenType::RBracket) {
                     let tokens = self.collect_tokens_until(&[TokenType::RBracket]);
                     step_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
                 }
-                
+
                 self.consume(TokenType::RBracket, "Expected ']'")?;
-                
+
                 Ok(BracketExpressionType::Slice {
                     start: first_expr.map(Box::new),
                     end: None,
                     step: step_expr,
                 })
-                
             } else if self.check(TokenType::Colon) {
                 // It's a slice: expr:...
                 self.advance(); // consume ':'
-                
+
                 let mut end_expr: Option<Box<ExprType>> = None;
                 let mut step_expr: Option<Box<ExprType>> = None;
-                
+
                 // Parse end if present
                 if !self.check(TokenType::Colon) && !self.check(TokenType::RBracket) {
-                    let tokens = self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
+                    let tokens =
+                        self.collect_tokens_until(&[TokenType::Colon, TokenType::RBracket]);
                     end_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
                 }
-                
+
                 // Check for step
                 if self.match_token(&[TokenType::Colon]) {
                     if !self.check(TokenType::RBracket) {
@@ -15116,15 +15985,14 @@ impl<'a> Parser<'a> {
                         step_expr = self.parse_token_sequence_as_expr(tokens)?.map(Box::new);
                     }
                 }
-                
+
                 self.consume(TokenType::RBracket, "Expected ']'")?;
-                
+
                 Ok(BracketExpressionType::Slice {
                     start: first_expr.map(Box::new),
                     end: end_expr,
                     step: step_expr,
                 })
-                
             } else {
                 let err_msg = format!("Expected ':' or ']' but found '{}'", self.peek().lexeme);
                 self.error_at_current(&err_msg);
@@ -15132,53 +16000,53 @@ impl<'a> Parser<'a> {
             }
         }
     }
-    
+
     // Classify what type of call this is based on the method name
     fn classify_call_type(&self, method_name: &str) -> CallType {
         // Check interface methods first (highest priority in Frame)
         if self.arcanum.lookup_interface_method(method_name).is_some() {
             return CallType::Interface;
         }
-        
+
         // Check actions
         if self.arcanum.lookup_action(method_name).is_some() {
             return CallType::Action;
         }
-        
+
         // Check operations
         if self.arcanum.lookup_operation(method_name).is_some() {
             return CallType::Operation;
         }
-        
+
         // Check module-level functions
         if self.arcanum.lookup_function(method_name).is_some() {
             return CallType::Function;
         }
-        
+
         // Unknown type (could be external function like print())
         CallType::Unknown
     }
-    
+
     // Parse function/method arguments using token collection for better handling of nested expressions
     fn parse_arguments_with_collection(&mut self) -> Result<ExprListNode, ParseError> {
         let mut args = Vec::new();
-        
+
         // If immediate closing paren, no arguments
         if self.check(TokenType::RParen) {
             self.advance();
             return Ok(ExprListNode::new(args));
         }
-        
+
         // Collect and parse arguments
         loop {
             // Collect tokens for this argument (until comma or closing paren)
             let arg_tokens = self.collect_tokens_until(&[TokenType::Comma, TokenType::RParen]);
-            
+
             // Parse the collected tokens as an expression
             if let Some(expr) = self.parse_token_sequence_as_expr(arg_tokens)? {
                 args.push(expr);
             }
-            
+
             // Check what stopped us
             if self.match_token(&[TokenType::Comma]) {
                 // More arguments to come
@@ -15195,81 +16063,84 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new("Expected ',' or ')' in argument list"));
             }
         }
-        
+
         Ok(ExprListNode::new(args))
     }
 
     // ===================== Frame v0.58 Class Decorators =====================
-    
+
     fn parse_class_decorator(&mut self) -> Result<String, ParseError> {
         // Consume the @ symbol
         if !self.match_token(&[TokenType::At]) {
             return Err(ParseError::new("Expected '@' for decorator"));
         }
-        
+
         // Get the decorator name
         if !self.match_token(&[TokenType::Identifier]) {
             self.error_at_current("Expected decorator name after '@'");
             return Err(ParseError::new("Expected decorator name after '@'"));
         }
-        
+
         let mut decorator_str = format!("@{}", self.previous().lexeme);
-        
+
         // Check for decorator arguments (optional)
         if self.match_token(&[TokenType::LParen]) {
             decorator_str.push('(');
-            
+
             // For decorator arguments, just collect the raw tokens until closing paren
             // This preserves the exact Python syntax for pass-through
             let mut depth = 1;
             let mut arg_tokens = Vec::new();
-            
+
             while depth > 0 && !self.is_at_end() {
                 let token = self.peek();
-                
+
                 if token.token_type == TokenType::LParen {
                     depth += 1;
                 } else if token.token_type == TokenType::RParen {
                     depth -= 1;
                     if depth == 0 {
-                        break;  // Don't include the final closing paren
+                        break; // Don't include the final closing paren
                     }
                 }
-                
+
                 // Collect the token for pass-through
                 arg_tokens.push(token.lexeme.clone());
                 self.advance();
             }
-            
+
             // Join all tokens with appropriate spacing
             decorator_str.push_str(&arg_tokens.join(""));
-            
+
             if !self.match_token(&[TokenType::RParen]) {
                 self.error_at_current("Expected ')' after decorator arguments");
                 return Err(ParseError::new("Expected ')' after decorator arguments"));
             }
             decorator_str.push(')');
         }
-        
+
         Ok(decorator_str)
     }
-    
-    fn class_decl_with_decorators(&mut self, decorators: Vec<String>) -> Result<Rc<RefCell<ClassNode>>, ParseError> {
+
+    fn class_decl_with_decorators(
+        &mut self,
+        decorators: Vec<String>,
+    ) -> Result<Rc<RefCell<ClassNode>>, ParseError> {
         // We've already consumed 'class' keyword, now delegate to existing class_decl
         // but we need to modify it to accept decorators
-        
+
         // Get the class using existing logic
         let class_node = self.class_decl()?;
-        
+
         // Update the class node with decorators
         {
             let mut class = class_node.borrow_mut();
             class.decorators = decorators;
         }
-        
+
         Ok(class_node)
     }
-    
+
     // Helper function to convert expression to string for decorator pass-through
     fn expr_to_string(&self, expr: &ExprType) -> String {
         // Simplified expression to string conversion
@@ -15278,7 +16149,9 @@ impl<'a> Parser<'a> {
             ExprType::LiteralExprT { literal_expr_node } => {
                 // Handle different literal types
                 match literal_expr_node.token_t {
-                    TokenType::String | TokenType::RawString => format!("\"{}\"", literal_expr_node.value),
+                    TokenType::String | TokenType::RawString => {
+                        format!("\"{}\"", literal_expr_node.value)
+                    }
                     _ => literal_expr_node.value.clone(),
                 }
             }

@@ -1,20 +1,20 @@
 // Module path resolver for Frame v0.57
 // Resolves import statements to actual file system paths
 
-use std::path::{Path, PathBuf};
+use super::errors::{ModuleError, ModuleErrorKind, ModuleResult};
+use crate::config::FrameConfig;
 use std::collections::HashMap;
 use std::fs;
-use crate::config::FrameConfig;
-use super::errors::{ModuleError, ModuleErrorKind, ModuleResult};
+use std::path::{Path, PathBuf};
 
 /// Module resolver that converts import paths to file system paths
 pub struct ModuleResolver {
     /// Search paths in priority order
     search_paths: Vec<PathBuf>,
-    
+
     /// Cache of resolved module paths
     resolution_cache: HashMap<String, ResolvedModule>,
-    
+
     /// Project root directory for security validation
     project_root: PathBuf,
 }
@@ -24,10 +24,10 @@ pub struct ModuleResolver {
 pub struct ResolvedModule {
     /// Original import path from source
     pub import_path: String,
-    
+
     /// Resolved filesystem path
     pub fs_path: PathBuf,
-    
+
     /// Module type classification
     pub module_type: ModuleType,
 }
@@ -37,60 +37,57 @@ pub struct ResolvedModule {
 pub enum ModuleType {
     /// Local .frm file within project
     LocalFile,
-    
+
     /// Future: External package
-    Package {
-        name: String,
-        version: String,
-    },
+    Package { name: String, version: String },
 }
 
 impl ModuleResolver {
     /// Create a new module resolver with configuration
     pub fn new(config: &FrameConfig) -> ModuleResult<Self> {
         let mut search_paths = Vec::new();
-        
+
         // Add configured source directories
         for dir in &config.build.source_dirs {
             search_paths.push(dir.clone());
         }
-        
+
         // Add project root as fallback
         search_paths.push(config.project.root.clone());
-        
+
         Ok(Self {
             search_paths,
             resolution_cache: HashMap::new(),
             project_root: config.project.root.clone(),
         })
     }
-    
+
     /// Create a resolver for a specific entry file
     pub fn new_for_entry(config: &FrameConfig, entry_file: &Path) -> ModuleResult<Self> {
         let mut search_paths = Vec::new();
-        
+
         // Add configured source directories
         for dir in &config.build.source_dirs {
             search_paths.push(dir.clone());
         }
-        
+
         // Use the entry file's directory as the project root for resolution
         let effective_root = if let Some(parent) = entry_file.parent() {
             parent.to_path_buf()
         } else {
             config.project.root.clone()
         };
-        
+
         // Add effective root as primary search path
         search_paths.insert(0, effective_root.clone());
-        
+
         Ok(Self {
             search_paths,
             resolution_cache: HashMap::new(),
             project_root: effective_root,
         })
     }
-    
+
     /// Resolve an import path to a filesystem path
     pub fn resolve(&mut self, import_path: &str, from_file: &Path) -> ModuleResult<ResolvedModule> {
         // Check cache first
@@ -98,22 +95,27 @@ impl ModuleResolver {
         if let Some(resolved) = self.resolution_cache.get(&cache_key) {
             return Ok(resolved.clone());
         }
-        
+
         // Try resolution strategies in order
-        let resolved = self.try_relative_path(import_path, from_file)
+        let resolved = self
+            .try_relative_path(import_path, from_file)
             .or_else(|_| self.try_search_paths(import_path))?;
-        
+
         // Validate security constraints
         self.validate_path(&resolved)?;
-        
+
         // Cache the result
         self.resolution_cache.insert(cache_key, resolved.clone());
-        
+
         Ok(resolved)
     }
-    
+
     /// Try resolving as relative path
-    fn try_relative_path(&self, import_path: &str, from_file: &Path) -> ModuleResult<ResolvedModule> {
+    fn try_relative_path(
+        &self,
+        import_path: &str,
+        from_file: &Path,
+    ) -> ModuleResult<ResolvedModule> {
         if !import_path.starts_with("./") && !import_path.starts_with("../") {
             return Err(ModuleError::new(
                 ModuleErrorKind::InvalidPath {
@@ -123,7 +125,7 @@ impl ModuleResolver {
                 import_path.to_string(),
             ));
         }
-        
+
         let from_dir = from_file.parent().ok_or_else(|| {
             ModuleError::new(
                 ModuleErrorKind::InvalidPath {
@@ -133,9 +135,9 @@ impl ModuleResolver {
                 import_path.to_string(),
             )
         })?;
-        
+
         let candidate_path = from_dir.join(import_path);
-        
+
         if candidate_path.exists() {
             Ok(ResolvedModule {
                 import_path: import_path.to_string(),
@@ -149,15 +151,15 @@ impl ModuleResolver {
             ))
         }
     }
-    
+
     /// Try resolving using configured search paths
     fn try_search_paths(&self, import_path: &str) -> ModuleResult<ResolvedModule> {
         let mut searched_paths = Vec::new();
-        
+
         for search_dir in &self.search_paths {
             let candidate_path = search_dir.join(import_path);
             searched_paths.push(search_dir.clone());
-            
+
             if candidate_path.exists() {
                 return Ok(ResolvedModule {
                     import_path: import_path.to_string(),
@@ -166,10 +168,13 @@ impl ModuleResolver {
                 });
             }
         }
-        
-        Err(ModuleError::not_found(import_path.to_string(), searched_paths))
+
+        Err(ModuleError::not_found(
+            import_path.to_string(),
+            searched_paths,
+        ))
     }
-    
+
     /// Validate that the resolved path is safe and within project bounds
     fn validate_path(&self, resolved: &ResolvedModule) -> ModuleResult<()> {
         // Ensure file has .frm extension
@@ -192,11 +197,11 @@ impl ModuleResolver {
                 resolved.import_path.clone(),
             ));
         }
-        
+
         // Only check security if we can canonicalize both paths
         if let (Ok(canonical), Ok(root_canonical)) = (
             resolved.fs_path.canonicalize(),
-            self.project_root.canonicalize()
+            self.project_root.canonicalize(),
         ) {
             // Ensure path is within project root
             if !canonical.starts_with(&root_canonical) {
@@ -209,7 +214,7 @@ impl ModuleResolver {
                 }
             }
         }
-        
+
         // Check for suspicious symlinks
         if resolved.fs_path.is_symlink() {
             let target = fs::read_link(&resolved.fs_path).map_err(|e| {
@@ -221,28 +226,29 @@ impl ModuleResolver {
                     resolved.import_path.clone(),
                 )
             })?;
-            
+
             // Don't allow symlinks to system directories
             let target_str = target.to_string_lossy();
-            if target_str.starts_with("/etc") || 
-               target_str.starts_with("/usr") ||
-               target_str.starts_with("/var") ||
-               target_str.starts_with("/System") {
+            if target_str.starts_with("/etc")
+                || target_str.starts_with("/usr")
+                || target_str.starts_with("/var")
+                || target_str.starts_with("/System")
+            {
                 return Err(ModuleError::security_violation(
                     resolved.import_path.clone(),
                     "Symlink points to system directory".to_string(),
                 ));
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Clear the resolution cache (useful for development/testing)
     pub fn clear_cache(&mut self) {
         self.resolution_cache.clear();
     }
-    
+
     /// Get statistics about resolver performance
     pub fn get_stats(&self) -> ResolverStats {
         ResolverStats {

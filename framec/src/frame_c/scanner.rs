@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 
-
 pub(crate) struct Scanner {
     source: String,
     chars: Vec<char>,
@@ -196,7 +195,7 @@ impl Scanner {
                         self.error(self.line, "Use 'or' keyword instead of '||' operator");
                     }
                 } else if self.match_char('=') {
-                    self.add_token(TokenType::PipeEqual);  // |= bitwise OR compound assignment
+                    self.add_token(TokenType::PipeEqual); // |= bitwise OR compound assignment
                 } else {
                     self.add_token(TokenType::Pipe)
                 }
@@ -204,12 +203,12 @@ impl Scanner {
             '*' => {
                 if self.match_char('*') {
                     if self.match_char('=') {
-                        self.add_token(TokenType::StarStarEqual);  // **= compound assignment
+                        self.add_token(TokenType::StarStarEqual); // **= compound assignment
                     } else {
                         self.add_token(TokenType::StarStar);
                     }
                 } else if self.match_char('=') {
-                    self.add_token(TokenType::StarEqual);  // *= compound assignment
+                    self.add_token(TokenType::StarEqual); // *= compound assignment
                 } else {
                     self.add_token(TokenType::Star);
                 }
@@ -218,14 +217,14 @@ impl Scanner {
                 if self.match_char('+') {
                     self.add_token(TokenType::PlusPlus);
                 } else if self.match_char('=') {
-                    self.add_token(TokenType::PlusEqual);  // += compound assignment
+                    self.add_token(TokenType::PlusEqual); // += compound assignment
                 } else {
                     self.add_token(TokenType::Plus);
                 }
             }
             '!' => {
                 if self.match_char('=') {
-                    self.add_token(TokenType::BangEqual);  // != is still valid for not-equal
+                    self.add_token(TokenType::BangEqual); // != is still valid for not-equal
                 } else if self.peek() == '/' && self.peek_next() == '/' {
                     // !/! pattern matching syntax removed
                     self.error(self.line, "Pattern matching syntax '!//' has been removed.");
@@ -246,7 +245,6 @@ impl Scanner {
                 } else if self.match_char('^') {
                     self.add_token(TokenType::ParentState);
                 } else if self.match_char('$') {
-
                     let st;
                     if self.match_char('[') {
                         if self.match_char('+') {
@@ -278,9 +276,9 @@ impl Scanner {
             }
             '^' => {
                 if self.match_char('=') {
-                    self.add_token(TokenType::CaretEqual);  // ^= bitwise XOR compound assignment
+                    self.add_token(TokenType::CaretEqual); // ^= bitwise XOR compound assignment
                 } else {
-                    self.add_token(TokenType::Caret);  // ^ bitwise XOR operator
+                    self.add_token(TokenType::Caret); // ^ bitwise XOR operator
                 }
             }
             '>' => {
@@ -288,9 +286,9 @@ impl Scanner {
                     self.add_token(TokenType::GreaterEqual);
                 } else if self.match_char('>') {
                     if self.match_char('=') {
-                        self.add_token(TokenType::RightShiftEqual);  // >>= right shift compound assignment
+                        self.add_token(TokenType::RightShiftEqual); // >>= right shift compound assignment
                     } else {
-                        self.add_token(TokenType::RightShift);  // >> right shift
+                        self.add_token(TokenType::RightShift); // >> right shift
                     }
                 } else {
                     self.add_token(TokenType::GT);
@@ -303,9 +301,9 @@ impl Scanner {
                     self.add_token(TokenType::LessEqual);
                 } else if self.match_char('<') {
                     if self.match_char('=') {
-                        self.add_token(TokenType::LeftShiftEqual);  // <<= left shift compound assignment
+                        self.add_token(TokenType::LeftShiftEqual); // <<= left shift compound assignment
                     } else {
-                        self.add_token(TokenType::LeftShift);  // << left shift
+                        self.add_token(TokenType::LeftShift); // << left shift
                     }
                 } else {
                     self.add_token(TokenType::LT);
@@ -317,9 +315,12 @@ impl Scanner {
                     self.error(self.line, "Use 'and' keyword instead of '&&' operator");
                 } else if self.match_char('|') {
                     // &| operator has been removed - use '^' operator instead
-                    self.error(self.line, "Operator '&|' has been removed. Use '^' operator for XOR instead.");
+                    self.error(
+                        self.line,
+                        "Operator '&|' has been removed. Use '^' operator for XOR instead.",
+                    );
                 } else if self.match_char('=') {
-                    self.add_token(TokenType::AmpersandEqual);  // &= bitwise AND compound assignment
+                    self.add_token(TokenType::AmpersandEqual); // &= bitwise AND compound assignment
                 } else {
                     self.add_token(TokenType::Ampersand)
                 }
@@ -327,7 +328,10 @@ impl Scanner {
             '?' => {
                 // Question mark is no longer used for ternary operators
                 // Could potentially be used for optional types in the future
-                self.error(self.line, "Ternary operator '?' not supported. Use if/else statements instead");
+                self.error(
+                    self.line,
+                    "Ternary operator '?' not supported. Use if/else statements instead",
+                );
             }
             '~' => {
                 if self.match_char('/') {
@@ -366,7 +370,7 @@ impl Scanner {
                 } else if self.match_char('-') {
                     self.add_token(TokenType::DashDash);
                 } else if self.match_char('=') {
-                    self.add_token(TokenType::DashEqual);  // -= compound assignment
+                    self.add_token(TokenType::DashEqual); // -= compound assignment
                 } else {
                     // Always emit Dash token, let parser handle negative numbers in context
                     self.add_token(TokenType::Dash);
@@ -424,12 +428,12 @@ impl Scanner {
             '/' => {
                 if self.match_char('/') {
                     if self.match_char('=') {
-                        self.add_token(TokenType::FloorDivideEqual);  // //= floor division compound assignment
+                        self.add_token(TokenType::FloorDivideEqual); // //= floor division compound assignment
                     } else {
-                        self.add_token(TokenType::FloorDivide);  // // floor division operator
+                        self.add_token(TokenType::FloorDivide); // // floor division operator
                     }
                 } else if self.match_char('=') {
-                    self.add_token(TokenType::SlashEqual);  // /= compound assignment
+                    self.add_token(TokenType::SlashEqual); // /= compound assignment
                 } else {
                     self.add_token(TokenType::ForwardSlash);
                 }
@@ -443,7 +447,7 @@ impl Scanner {
             }
             '%' => {
                 if self.match_char('=') {
-                    self.add_token(TokenType::PercentEqual);  // %= compound assignment
+                    self.add_token(TokenType::PercentEqual); // %= compound assignment
                 } else {
                     self.add_token(TokenType::Percent);
                 }
@@ -458,9 +462,16 @@ impl Scanner {
                     } else {
                         // Provide helpful error messages for common Unicode quote characters
                         match c {
-                            '\u{2018}' | '\u{2019}' => self.error(self.line, "Found Unicode smart quote. Use ASCII single quote (') instead."),
-                            '\u{201C}' | '\u{201D}' => self.error(self.line, "Found Unicode smart quote. Use ASCII double quote (\") instead."),
-                            _ => self.error(self.line, &format!("Found unexpected character '{}'.", c)),
+                            '\u{2018}' | '\u{2019}' => self.error(
+                                self.line,
+                                "Found Unicode smart quote. Use ASCII single quote (') instead.",
+                            ),
+                            '\u{201C}' | '\u{201D}' => self.error(
+                                self.line,
+                                "Found Unicode smart quote. Use ASCII double quote (\") instead.",
+                            ),
+                            _ => self
+                                .error(self.line, &format!("Found unexpected character '{}'.", c)),
                         }
                     }
                 }
@@ -510,7 +521,7 @@ impl Scanner {
         }
         return self.chars[self.current + 1];
     }
-    
+
     fn peek_at(&self, offset: usize) -> char {
         let pos = self.current + offset;
         if pos >= self.chars.len() {
@@ -549,7 +560,11 @@ impl Scanner {
             } else if next_char == 'x' || next_char == 'X' {
                 // Hexadecimal literal (with optional underscores)
                 self.advance(); // consume 'x' or 'X'
-                while self.is_digit(self.peek()) || ('a'..='f').contains(&self.peek()) || ('A'..='F').contains(&self.peek()) || self.peek() == '_' {
+                while self.is_digit(self.peek())
+                    || ('a'..='f').contains(&self.peek())
+                    || ('A'..='F').contains(&self.peek())
+                    || self.peek() == '_'
+                {
                     self.advance();
                 }
                 let _s: String = self.chars[self.start..self.current].iter().collect();
@@ -580,12 +595,12 @@ impl Scanner {
         if self.peek() == 'e' || self.peek() == 'E' {
             is_integer = false; // Scientific notation is always treated as float
             self.advance(); // consume 'e' or 'E'
-            
+
             // Handle optional sign
             if self.peek() == '+' || self.peek() == '-' {
                 self.advance();
             }
-            
+
             // Consume exponent digits
             while self.is_digit(self.peek()) || self.peek() == '_' {
                 self.advance();
@@ -595,7 +610,7 @@ impl Scanner {
         // Check for complex number suffix (j or J)
         if self.peek() == 'j' || self.peek() == 'J' {
             self.advance(); // consume 'j' or 'J'
-            // Complex number - treat as special token
+                            // Complex number - treat as special token
             let _s: String = self.chars[self.start..self.current].iter().collect();
             self.add_token_literal(TokenType::ComplexNumber, TokenLiteral::Float(0.0)); // Placeholder value
             return;
@@ -634,16 +649,22 @@ impl Scanner {
     fn identifier(&mut self) {
         // Check for string prefixes before consuming the identifier
         let first_char = self.chars[self.start];
-        let has_quote_ahead = self.peek() == '"' || (self.peek() == '"' && self.peek_at(1) == '"' && self.peek_at(2) == '"');
-        
+        let has_quote_ahead = self.peek() == '"'
+            || (self.peek() == '"' && self.peek_at(1) == '"' && self.peek_at(2) == '"');
+
         // Check for f-strings, raw strings, byte strings
-        if (first_char == 'f' || first_char == 'F' || 
-            first_char == 'r' || first_char == 'R' ||
-            first_char == 'b' || first_char == 'B') && has_quote_ahead {
+        if (first_char == 'f'
+            || first_char == 'F'
+            || first_char == 'r'
+            || first_char == 'R'
+            || first_char == 'b'
+            || first_char == 'B')
+            && has_quote_ahead
+        {
             // Handle string prefix
             return self.prefixed_string(first_char);
         }
-        
+
         while self.is_alpha_numeric(self.peek()) {
             self.advance();
         }
@@ -656,14 +677,16 @@ impl Scanner {
             let saved_current = self.current;
             if self.peek() == '.' {
                 self.advance(); // consume '.'
-                // Check if next word is an identifier
+                                // Check if next word is an identifier
                 if self.is_alpha(self.peek()) {
                     let start_of_identifier = self.current;
                     while self.is_alpha_numeric(self.peek()) {
                         self.advance();
                     }
-                    let identifier: String = self.chars[start_of_identifier..self.current].iter().collect();
-                    
+                    let identifier: String = self.chars[start_of_identifier..self.current]
+                        .iter()
+                        .collect();
+
                     if identifier == "return" {
                         // This is "system.return" - special case
                         self.add_token(TokenType::SystemReturn);
@@ -738,7 +761,7 @@ impl Scanner {
         self.add_token_sync_start(TokenType::ForwardSlash);
     }
 
-    fn block_keyword(&mut self, first_char:char) -> bool {
+    fn block_keyword(&mut self, first_char: char) -> bool {
         // TODO: handle this:
         // #M1
         //     -in-
@@ -758,7 +781,6 @@ impl Scanner {
         // TODO: this is **horribly** inefficient.
 
         for (block_name, token_type) in block_sections.iter() {
-
             for (i, c) in block_name.chars().enumerate() {
                 if i == 0 {
                     if !block_name.starts_with(first_char) {
@@ -799,7 +821,9 @@ impl Scanner {
     }
 
     fn add_token_literal(&mut self, tok_type: TokenType, literal: TokenLiteral) {
-        let lex = self.chars[self.start..self.current].iter().collect::<String>();
+        let lex = self.chars[self.start..self.current]
+            .iter()
+            .collect::<String>();
         let len = self.current - self.start;
         self.tokens.push(Token::new(
             tok_type, lex, literal, self.line, self.start, len,
@@ -807,19 +831,28 @@ impl Scanner {
     }
 
     fn add_string_token_literal(&mut self, tok_type: TokenType, literal: TokenLiteral) {
-        let lex = self.chars[self.start + 1..self.current - 1].iter().collect::<String>();
+        let lex = self.chars[self.start + 1..self.current - 1]
+            .iter()
+            .collect::<String>();
         let len = self.current - self.start;
         self.tokens.push(Token::new(
             tok_type, lex, literal, self.line, self.start, len,
         ));
     }
-    
+
     fn add_prefixed_string_token(&mut self, tok_type: TokenType) {
         // For prefixed strings, we want to preserve the entire lexeme including prefix and quotes
-        let lex = self.chars[self.start..self.current].iter().collect::<String>();
+        let lex = self.chars[self.start..self.current]
+            .iter()
+            .collect::<String>();
         let len = self.current - self.start;
         self.tokens.push(Token::new(
-            tok_type, lex, TokenLiteral::None, self.line, self.start, len,
+            tok_type,
+            lex,
+            TokenLiteral::None,
+            self.line,
+            self.start,
+            len,
         ));
     }
 
@@ -837,7 +870,7 @@ impl Scanner {
             self.advance(); // consume third quote
             return self.triple_quoted_string();
         }
-        
+
         while !self.is_at_end() {
             let c = self.peek();
             if c == '\\' {
@@ -863,20 +896,20 @@ impl Scanner {
 
         self.add_string_token_literal(TokenType::String, TokenLiteral::None);
     }
-    
+
     fn prefixed_string(&mut self, prefix: char) {
         // Already consumed the prefix letter, now consume the quote(s)
         if self.peek() == '"' {
             self.advance(); // consume first quote
-            
+
             // Check for triple-quoted string
             if self.peek() == '"' && self.peek_at(1) == '"' {
                 self.advance(); // consume second quote
                 self.advance(); // consume third quote
-                
+
                 // Handle triple-quoted prefixed string
                 self.scan_triple_quoted_content();
-                
+
                 match prefix {
                     'f' | 'F' => self.add_prefixed_string_token(TokenType::FString),
                     'r' | 'R' => self.add_prefixed_string_token(TokenType::RawString),
@@ -886,7 +919,7 @@ impl Scanner {
             } else {
                 // Regular prefixed string
                 self.scan_regular_string_content(prefix == 'r' || prefix == 'R');
-                
+
                 match prefix {
                     'f' | 'F' => self.add_prefixed_string_token(TokenType::FString),
                     'r' | 'R' => self.add_prefixed_string_token(TokenType::RawString),
@@ -896,12 +929,12 @@ impl Scanner {
             }
         }
     }
-    
+
     fn triple_quoted_string(&mut self) {
         self.scan_triple_quoted_content();
         self.add_prefixed_string_token(TokenType::TripleQuotedString);
     }
-    
+
     fn scan_triple_quoted_content(&mut self) {
         // Scan until we find three quotes in a row
         while !self.is_at_end() {
@@ -916,11 +949,11 @@ impl Scanner {
             }
             self.advance();
         }
-        
+
         // Unterminated triple-quoted string
         self.error(self.line, "Missing closing triple quotes (\"\"\")");
     }
-    
+
     fn scan_regular_string_content(&mut self, is_raw: bool) {
         while !self.is_at_end() {
             let c = self.peek();
@@ -936,13 +969,13 @@ impl Scanner {
             }
             self.advance();
         }
-        
+
         // Unterminated string
         if self.is_at_end() {
             self.error(self.line, "Missing closing quote for string");
             return;
         }
-        
+
         self.advance(); // consume closing quote
     }
 
@@ -973,8 +1006,8 @@ pub enum TokenType {
     Percent,      // %
     // LTx2,                         // <<
     // LTx3,                         // <<<
-    Ampersand,                    // &
-    Pipe,                         // |
+    Ampersand, // &
+    Pipe,      // |
     // REMOVED: Caret (^) - use 'return' keyword
     // REMOVED: ReturnAssign (^=) - use 'return = value'
     LogicalAnd,                   // &&
@@ -983,8 +1016,8 @@ pub enum TokenType {
     SystemMethodCall,             // 'system.methodName' for calling interface methods
     Self_,                        // self
     Return_,                      // return
-    EnterStateMsg,                   // $>
-    ExitStateMsg,                    // <$
+    EnterStateMsg,                // $>
+    ExitStateMsg,                 // <$
     OuterAttributeOrDomainParams, // #[
     InnerAttribute,               // #![
     InterfaceBlock,               // interface:
@@ -998,51 +1031,51 @@ pub enum TokenType {
     RBracket,                     // ]
     Transition,                   // ->
     //    ChangeState,                  // ->>
-    String,      // "foo"
-    FString,     // f"foo {bar}" - formatted string literal (v0.40)
-    RawString,   // r"foo\bar" - raw string literal (v0.40)
-    ByteString,  // b"foo" - byte string literal (v0.40)
+    String,             // "foo"
+    FString,            // f"foo {bar}" - formatted string literal (v0.40)
+    RawString,          // r"foo\bar" - raw string literal (v0.40)
+    ByteString,         // b"foo" - byte string literal (v0.40)
     TripleQuotedString, // """foo""" - multi-line string (v0.40)
     // REMOVED: ThreeTicks (```) - not used
-    Number,                 // 1, 1.01
-    ComplexNumber,          // 3+4j, 2.5j - complex numbers (v0.56)
-    Var,                    // var keyword
-    Const,                  // const keyword
+    Number,        // 1, 1.01
+    ComplexNumber, // 3+4j, 2.5j - complex numbers (v0.56)
+    Var,           // var keyword
+    Const,         // const keyword
     //    New,              // new keyword
-    Loop,                   // loop keyword
-    For,                    // for keyword
-    While,                  // while keyword
-    If,                     // if keyword
-    Elif,                   // elif keyword
-    Else,                   // else keyword
-    Continue, // continue keyword
-    Break,    // break keyword
-    Del,      // 'del' keyword (v0.50)
-    In,       // 'in' keyword
-    Enum,     // 'enum' keyword
-    Function, // 'fn' keyword
-    Import,   // 'import' keyword
-    From,     // 'from' keyword
-    As,       // 'as' keyword
-    Module,   // 'module' keyword
-    Async,    // 'async' keyword
-    Await,    // 'await' keyword
-    Lambda,   // 'lambda' keyword
-    Try,      // 'try' keyword
-    Except,   // 'except' keyword
-    Finally,  // 'finally' keyword
-    Raise,    // 'raise' keyword
-    With,     // 'with' keyword
-    And,      // 'and' keyword (Python logical AND)
-    Or,       // 'or' keyword (Python logical OR)
-    Not,      // 'not' keyword (Python logical NOT)
-    Yield,    // 'yield' keyword (v0.42)
-    YieldFrom, // 'yield from' (handled as two tokens) (v0.42)
-    Match,    // 'match' keyword (v0.44)
-    Case,     // 'case' keyword (v0.44)
-    PythonComment, // # Python-style comment
+    Loop,             // loop keyword
+    For,              // for keyword
+    While,            // while keyword
+    If,               // if keyword
+    Elif,             // elif keyword
+    Else,             // else keyword
+    Continue,         // continue keyword
+    Break,            // break keyword
+    Del,              // 'del' keyword (v0.50)
+    In,               // 'in' keyword
+    Enum,             // 'enum' keyword
+    Function,         // 'fn' keyword
+    Import,           // 'import' keyword
+    From,             // 'from' keyword
+    As,               // 'as' keyword
+    Module,           // 'module' keyword
+    Async,            // 'async' keyword
+    Await,            // 'await' keyword
+    Lambda,           // 'lambda' keyword
+    Try,              // 'try' keyword
+    Except,           // 'except' keyword
+    Finally,          // 'finally' keyword
+    Raise,            // 'raise' keyword
+    With,             // 'with' keyword
+    And,              // 'and' keyword (Python logical AND)
+    Or,               // 'or' keyword (Python logical OR)
+    Not,              // 'not' keyword (Python logical NOT)
+    Yield,            // 'yield' keyword (v0.42)
+    YieldFrom,        // 'yield from' (handled as two tokens) (v0.42)
+    Match,            // 'match' keyword (v0.44)
+    Case,             // 'case' keyword (v0.44)
+    PythonComment,    // # Python-style comment
     MultiLineComment, // {-- Frame documentation comments --}
-    FloorDivide, // // floor division operator
+    FloorDivide,      // // floor division operator
     OpenBrace,        // {
     CloseBrace,       // }
     True,             // true
@@ -1054,13 +1087,13 @@ pub enum TokenType {
     Dispatch,         // =>
     Equals,           // =
     Walrus,           // := (assignment expression operator)
-    ForwardSlash,            // /
-    MatchString,             // '/<any characters>/' - contains <string>
-    MatchEmptyString,        // '~//'
-    MatchNull,               // '!//'
+    ForwardSlash,     // /
+    MatchString,      // '/<any characters>/' - contains <string>
+    MatchEmptyString, // '~//'
+    MatchNull,        // '!//'
     // REMOVED: Pattern matching tokens
     // REMOVED: StringMatchStart ('~/') - string patterns removed
-    // REMOVED: NumberMatchStart ('#/') - number patterns removed  
+    // REMOVED: NumberMatchStart ('#/') - number patterns removed
     // REMOVED: EnumMatchStart (':/') - enum patterns removed
     // REMOVED: ColonBar (:|) - test terminator removed
     StateStackOperationPush, // $$[+]
@@ -1076,40 +1109,40 @@ pub enum TokenType {
     PipePipeDot,             // ||.
     PipePipeLBracket,        // ||[
     // REMOVED: Hash (#) - old system syntax removed
-    
+
     // Compound assignment operators (v0.39)
-    PlusEqual,               // +=
-    DashEqual,               // -=
-    StarEqual,               // *=
-    SlashEqual,              // /=
-    FloorDivideEqual,        // //=
-    PercentEqual,            // %=
-    StarStarEqual,           // **=
-    AmpersandEqual,          // &=
-    PipeEqual,               // |=
-    LeftShiftEqual,          // <<=
-    RightShiftEqual,         // >>=
-    CaretEqual,              // ^= (bitwise XOR assignment, v0.40)
-    
+    PlusEqual,        // +=
+    DashEqual,        // -=
+    StarEqual,        // *=
+    SlashEqual,       // /=
+    FloorDivideEqual, // //=
+    PercentEqual,     // %=
+    StarStarEqual,    // **=
+    AmpersandEqual,   // &=
+    PipeEqual,        // |=
+    LeftShiftEqual,   // <<=
+    RightShiftEqual,  // >>=
+    CaretEqual,       // ^= (bitwise XOR assignment, v0.40)
+
     // Bitwise operators (v0.39/v0.40)
-    Tilde,                   // ~ (bitwise NOT)
-    LeftShift,               // <<
-    RightShift,              // >>
-    Caret,                   // ^ (bitwise XOR, v0.40)
-    
+    Tilde,      // ~ (bitwise NOT)
+    LeftShift,  // <<
+    RightShift, // >>
+    Caret,      // ^ (bitwise XOR, v0.40)
+
     // Identity operators (v0.39)
-    Is,                      // 'is' keyword
-    IsNot,                   // 'is not' (handled as two tokens)
-    Class,                   // 'class' keyword
-    Assert,                  // 'assert' keyword
-    Super,                   // 'super' keyword for parent class access
-    Cls,                     // 'cls' keyword for class methods
-    Property,                // 'property' keyword/decorator
-    ClassMethod,             // 'classmethod' keyword/decorator
-    Setter,                  // 'setter' keyword for property setters
-    Deleter,                 // 'deleter' keyword for property deleters
-    Type,                    // 'type' keyword for type aliases (Python 3.12+)
-    
+    Is,          // 'is' keyword
+    IsNot,       // 'is not' (handled as two tokens)
+    Class,       // 'class' keyword
+    Assert,      // 'assert' keyword
+    Super,       // 'super' keyword for parent class access
+    Cls,         // 'cls' keyword for class methods
+    Property,    // 'property' keyword/decorator
+    ClassMethod, // 'classmethod' keyword/decorator
+    Setter,      // 'setter' keyword for property setters
+    Deleter,     // 'deleter' keyword for property deleters
+    Type,        // 'type' keyword for type aliases (Python 3.12+)
+
     Error,
 }
 

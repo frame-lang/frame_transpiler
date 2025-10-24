@@ -1,4 +1,4 @@
-#![allow(dead_code)]  // Symbol table methods are part of the API even if not currently used
+#![allow(dead_code)] // Symbol table methods are part of the API even if not currently used
 
 use super::ast::*;
 use crate::compiler::Exe;
@@ -240,7 +240,7 @@ impl SymbolType {
             } => {
                 let variable_symbol = state_variable_symbol_rcref.borrow_mut();
                 let mut var_decl_node = variable_symbol.ast_node_rcref.borrow_mut();
-                
+
                 // CRITICAL FIX v0.82: Do not allow assignment to overwrite literal initializers
                 // State variable declarations with literal values should not be semantically resolved
                 // Only allow assignment if the original initializer was NOT a literal
@@ -253,7 +253,7 @@ impl SymbolType {
                                     variable_symbol.name);
                         }
                         Ok(())
-                    },
+                    }
                     _ => {
                         // This is a state variable with a non-literal initializer
                         // Allow normal assignment/semantic resolution
@@ -673,7 +673,10 @@ impl ScopeSymbol for SymbolType {
                     let symbol_type = symbol_type_rcref.borrow();
                     Rc::clone(&symbol_type.get_symbol_table_for_symbol(symbol_name))
                 } else {
-                    panic!("Fatal error - could not find symbol {} in module scope.", symbol_name);
+                    panic!(
+                        "Fatal error - could not find symbol {} in module scope.",
+                        symbol_name
+                    );
                 }
             }
             SymbolType::MachineBlockScope {
@@ -1211,7 +1214,7 @@ pub enum ScopeContext {
     System(String),   // Inside a specific system
 }
 
-// LEGB Lookup Results  
+// LEGB Lookup Results
 pub enum LegbLookupResult {
     Function(Rc<RefCell<FunctionScopeSymbol>>),
     Action(Rc<RefCell<ActionScopeSymbol>>),
@@ -1222,10 +1225,10 @@ pub enum LegbLookupResult {
 pub struct Arcanum {
     pub current_symtab: Rc<RefCell<SymbolTable>>,
     // LEGB Scope Stack (properly ordered)
-    pub builtin_symtab: Rc<RefCell<SymbolTable>>,  // Built-in functions (print, etc.)
-    pub global_symtab: Rc<RefCell<SymbolTable>>,   // Cross-module global scope
-    pub module_symtab: Rc<RefCell<SymbolTable>>,   // Module-level (file) scope
-    pub scope_context: ScopeContext,               // Current parsing context
+    pub builtin_symtab: Rc<RefCell<SymbolTable>>, // Built-in functions (print, etc.)
+    pub global_symtab: Rc<RefCell<SymbolTable>>,  // Cross-module global scope
+    pub module_symtab: Rc<RefCell<SymbolTable>>,  // Module-level (file) scope
+    pub scope_context: ScopeContext,              // Current parsing context
     // Legacy single-system support (maintained for backward compatibility)
     pub system_symbol_opt: Option<Rc<RefCell<SystemSymbol>>>,
     // v0.30: Multi-entity collections
@@ -1248,9 +1251,9 @@ impl Arcanum {
 
         Arcanum {
             current_symtab: Rc::clone(&empty_symbtab_rc),
-            builtin_symtab: Rc::clone(&empty_symbtab_rc),  // Will be set by parser
-            global_symtab: Rc::clone(&empty_symbtab_rc),   // Will be set by parser
-            module_symtab: Rc::clone(&empty_symbtab_rc),   // Will be set by parser
+            builtin_symtab: Rc::clone(&empty_symbtab_rc), // Will be set by parser
+            global_symtab: Rc::clone(&empty_symbtab_rc),  // Will be set by parser
+            module_symtab: Rc::clone(&empty_symbtab_rc),  // Will be set by parser
             scope_context: ScopeContext::Global,
             system_symbol_opt: None,
             function_symbols: Vec::new(),
@@ -1259,13 +1262,13 @@ impl Arcanum {
             serializable: false,
         }
     }
-    
+
     /// Initialize the scope stack - called by parser at start
     pub fn initialize_scope_stack(&mut self) {
         // 1. Create and enter built-in scope
         let builtin_st = SymbolTable::new(
             String::from("builtins"),
-            None,  // No parent - this is the bottom
+            None, // No parent - this is the bottom
             IdentifierDeclScope::UnknownScope,
             false,
         );
@@ -1273,11 +1276,11 @@ impl Arcanum {
         Self::add_builtin_functions(&builtin_symbtab_rc);
         self.builtin_symtab = Rc::clone(&builtin_symbtab_rc);
         self.current_symtab = builtin_symbtab_rc;
-        
+
         // 2. Push global scope (exists but should remain empty until we implement 'global' keyword)
         self.enter_scope(ParseScopeType::Global);
-        
-        // 3. Push module scope  
+
+        // 3. Push module scope
         self.enter_scope(ParseScopeType::Module);
     }
 
@@ -1287,9 +1290,14 @@ impl Arcanum {
         // For now, we'll create a simple function symbol
         // TODO: Create proper BuiltinFunctionSymbol type if needed
         let print_symbol = SymbolType::FunctionScope {
-            function_symbol_ref: Rc::new(RefCell::new(FunctionScopeSymbol::new("print".to_string()))),
+            function_symbol_ref: Rc::new(RefCell::new(FunctionScopeSymbol::new(
+                "print".to_string(),
+            ))),
         };
-        builtin_symtab.borrow_mut().symbols.insert("print".to_string(), Rc::new(RefCell::new(print_symbol)));
+        builtin_symtab
+            .borrow_mut()
+            .symbols
+            .insert("print".to_string(), Rc::new(RefCell::new(print_symbol)));
     }
 
     /// Push a symbol to the global scope - for 'global' variable declarations
@@ -1343,8 +1351,11 @@ impl Arcanum {
     pub fn get_current_system_symbol(&self) -> Option<&Rc<RefCell<SystemSymbol>>> {
         self.system_symbol_opt.as_ref()
     }
-    
-    pub fn set_current_system_symbol(&mut self, system_symbol_opt: Option<Rc<RefCell<SystemSymbol>>>) {
+
+    pub fn set_current_system_symbol(
+        &mut self,
+        system_symbol_opt: Option<Rc<RefCell<SystemSymbol>>>,
+    ) {
         self.system_symbol_opt = system_symbol_opt;
     }
 
@@ -1352,12 +1363,12 @@ impl Arcanum {
         self.current_symtab = symtab;
     }
 
-    pub fn get_system_symbol(&self, name: &str) -> Result<SystemSymbolType,String> {
+    pub fn get_system_symbol(&self, name: &str) -> Result<SystemSymbolType, String> {
         if let Some(domain_scope_symbol_rcref) =
             self.lookup(name, &IdentifierDeclScope::DomainBlockScope)
         {
             Ok(DomainSymbol {
-                domain_scope_symbol_rcref
+                domain_scope_symbol_rcref,
             })
         } else if let Some(action_scope_symbol_rcref) = self.lookup_action(name) {
             Ok(ActionSymbol {
@@ -1491,19 +1502,19 @@ impl Arcanum {
     /* --------------------------------------------------------------------- */
     // LEGB Scoping Methods
     /* --------------------------------------------------------------------- */
-    
+
     /// Set the current scope context (Function vs System)
     pub fn set_scope_context(&mut self, context: ScopeContext) {
         self.scope_context = context;
     }
-    
+
     /// Get the current scope context
     pub fn get_scope_context(&self) -> &ScopeContext {
         &self.scope_context
     }
 
     /* --------------------------------------------------------------------- */
-    
+
     // Debug Methods
     pub fn debug_dump_arcanum(&self) {
         if std::env::var("FRAME_DEBUG").is_ok() {
@@ -1515,11 +1526,11 @@ impl Arcanum {
             eprintln!("=== END ARCANUM DUMP ===\n");
         }
     }
-    
+
     fn debug_dump_scope_context(&self) {
         eprintln!("LEGB Scope Context: {:?}", self.scope_context);
     }
-    
+
     fn debug_dump_system_context(&self) {
         match &self.system_symbol_opt {
             Some(system_symbol) => {
@@ -1529,21 +1540,25 @@ impl Arcanum {
             None => eprintln!("Current System Context: None"),
         }
     }
-    
+
     fn debug_dump_symbol_tables(&self) {
         eprintln!("--- Symbol Tables ---");
         eprintln!("Global SymTab: '{}'", self.global_symtab.borrow().name);
         eprintln!("Module SymTab: '{}'", self.module_symtab.borrow().name);
         eprintln!("Current SymTab: '{}'", self.current_symtab.borrow().name);
-        eprintln!("Builtin SymTab: '{}' ({} symbols)", 
-                  self.builtin_symtab.borrow().name,
-                  self.builtin_symtab.borrow().symbols.len());
-        
+        eprintln!(
+            "Builtin SymTab: '{}' ({} symbols)",
+            self.builtin_symtab.borrow().name,
+            self.builtin_symtab.borrow().symbols.len()
+        );
+
         // Dump current symbol table contents
         let current_symbols = &self.current_symtab.borrow().symbols;
-        eprintln!("Current SymTab '{}' contains {} symbols:", 
-                  self.current_symtab.borrow().name,
-                  current_symbols.len());
+        eprintln!(
+            "Current SymTab '{}' contains {} symbols:",
+            self.current_symtab.borrow().name,
+            current_symbols.len()
+        );
         for (name, symbol_ref) in current_symbols {
             let symbol = symbol_ref.borrow();
             let symbol_type = match &*symbol {
@@ -1564,20 +1579,20 @@ impl Arcanum {
             eprintln!("  '{}': {}", name, symbol_type);
         }
     }
-    
+
     fn debug_dump_entity_collections(&self) {
         eprintln!("--- Entity Collections ---");
         eprintln!("Functions ({} total):", self.function_symbols.len());
         for (i, func_symbol) in self.function_symbols.iter().enumerate() {
             eprintln!("  [{}] '{}'", i, func_symbol.borrow().name);
         }
-        
+
         eprintln!("Systems ({} total):", self.system_symbols.len());
         for (i, system_symbol) in self.system_symbols.iter().enumerate() {
             eprintln!("  [{}] '{}'", i, system_symbol.borrow().name);
         }
     }
-    
+
     /// LEGB-aware symbol lookup that respects scope context
     /// L - Local (current function/system parameters, local vars)
     /// E - Enclosing (module-level functions, but NOT system internals unless in system context)
@@ -1586,8 +1601,8 @@ impl Arcanum {
     pub fn legb_lookup_call(&self, name: &str) -> Option<LegbLookupResult> {
         // L - Local scope (handled by current_symtab in parser)
         // This is handled by the parser's local symbol table
-        
-        // E - Enclosing (module) scope  
+
+        // E - Enclosing (module) scope
         // Different behavior based on scope context
         match &self.scope_context {
             ScopeContext::Function(_) => {
@@ -1616,23 +1631,26 @@ impl Arcanum {
                 }
             }
         }
-        
+
         // G - Global scope (not implemented yet)
         // TODO: Add support for imported modules and global variables
-        
-        // B - Built-ins  
+
+        // B - Built-ins
         if let Some(builtin_symbol) = self.lookup_builtin(name) {
             return Some(LegbLookupResult::Builtin(builtin_symbol));
         }
-        
+
         None
     }
-    
+
     /// Lookup built-in functions
     pub fn lookup_builtin(&self, name: &str) -> Option<Rc<RefCell<FunctionScopeSymbol>>> {
         if let Some(symbol_rcref) = self.builtin_symtab.borrow().symbols.get(name) {
             let symbol = symbol_rcref.borrow();
-            if let SymbolType::FunctionScope { function_symbol_ref } = &*symbol {
+            if let SymbolType::FunctionScope {
+                function_symbol_ref,
+            } = &*symbol
+            {
                 return Some(Rc::clone(function_symbol_ref));
             }
         }
@@ -1655,7 +1673,8 @@ impl Arcanum {
 
     /// Get function by name (v0.30 multi-entity support)
     pub fn get_function_by_name(&self, name: &str) -> Option<Rc<RefCell<FunctionScopeSymbol>>> {
-        self.function_symbols.iter()
+        self.function_symbols
+            .iter()
             .find(|func| func.borrow().name == name)
             .cloned()
     }
@@ -1663,17 +1682,28 @@ impl Arcanum {
     /// Get system by name (v0.30 multi-entity support)  
     pub fn get_system_by_name(&self, name: &str) -> Option<Rc<RefCell<SystemSymbol>>> {
         // v0.30 FIX: Prefer systems with blocks over empty systems (handles duplicate system bug)
-        self.system_symbols.iter()
+        self.system_symbols
+            .iter()
             .filter(|sys| sys.borrow().name == name)
             .max_by_key(|sys| {
                 let s = sys.borrow();
                 // Priority: systems with more blocks are preferred
                 let mut priority = 0;
-                if s.operations_block_symbol_opt.is_some() { priority += 1; }
-                if s.actions_block_symbol_opt.is_some() { priority += 1; }
-                if s.machine_block_symbol_opt.is_some() { priority += 1; }
-                if s.interface_block_symbol_opt.is_some() { priority += 1; }
-                if s.domain_block_symbol_opt.is_some() { priority += 1; }
+                if s.operations_block_symbol_opt.is_some() {
+                    priority += 1;
+                }
+                if s.actions_block_symbol_opt.is_some() {
+                    priority += 1;
+                }
+                if s.machine_block_symbol_opt.is_some() {
+                    priority += 1;
+                }
+                if s.interface_block_symbol_opt.is_some() {
+                    priority += 1;
+                }
+                if s.domain_block_symbol_opt.is_some() {
+                    priority += 1;
+                }
                 priority
             })
             .cloned()
@@ -1695,21 +1725,32 @@ impl Arcanum {
     }
 
     // v0.30: Multi-entity symbol lookup methods
-    
+
     /// Search for an interface method across all systems in the module
     pub fn lookup_interface_method_in_all_systems(
         &self,
         name: &str,
-    ) -> Option<(Rc<RefCell<InterfaceMethodSymbol>>, Rc<RefCell<SystemSymbol>>)> {
+    ) -> Option<(
+        Rc<RefCell<InterfaceMethodSymbol>>,
+        Rc<RefCell<SystemSymbol>>,
+    )> {
         for system_symbol_rcref in &self.system_symbols {
             match &system_symbol_rcref.borrow().interface_block_symbol_opt {
                 Some(interface_block_symbol_rcref) => {
                     let interface_block_symbol = interface_block_symbol_rcref.borrow();
                     let symbol_table = &interface_block_symbol.symtab_rcref.borrow();
-                    if let Some(symbol_t_rcref) = symbol_table.lookup(name, &IdentifierDeclScope::InterfaceBlockScope) {
+                    if let Some(symbol_t_rcref) =
+                        symbol_table.lookup(name, &IdentifierDeclScope::InterfaceBlockScope)
+                    {
                         let symbol_t = symbol_t_rcref.borrow();
-                        if let SymbolType::InterfaceMethod { interface_method_symbol_rcref } = &*symbol_t {
-                            return Some((Rc::clone(interface_method_symbol_rcref), Rc::clone(system_symbol_rcref)));
+                        if let SymbolType::InterfaceMethod {
+                            interface_method_symbol_rcref,
+                        } = &*symbol_t
+                        {
+                            return Some((
+                                Rc::clone(interface_method_symbol_rcref),
+                                Rc::clone(system_symbol_rcref),
+                            ));
                         }
                     }
                 }
@@ -1729,10 +1770,18 @@ impl Arcanum {
                 Some(actions_block_symbol_rcref) => {
                     let actions_block_symbol = actions_block_symbol_rcref.borrow();
                     let symbol_table = &actions_block_symbol.symtab_rcref.borrow();
-                    if let Some(symbol_t_rcref) = symbol_table.lookup(name, &IdentifierDeclScope::ActionsBlockScope) {
+                    if let Some(symbol_t_rcref) =
+                        symbol_table.lookup(name, &IdentifierDeclScope::ActionsBlockScope)
+                    {
                         let symbol_t = symbol_t_rcref.borrow();
-                        if let SymbolType::ActionScope { action_scope_symbol_rcref } = &*symbol_t {
-                            return Some((Rc::clone(action_scope_symbol_rcref), Rc::clone(system_symbol_rcref)));
+                        if let SymbolType::ActionScope {
+                            action_scope_symbol_rcref,
+                        } = &*symbol_t
+                        {
+                            return Some((
+                                Rc::clone(action_scope_symbol_rcref),
+                                Rc::clone(system_symbol_rcref),
+                            ));
                         }
                     }
                 }
@@ -1752,10 +1801,18 @@ impl Arcanum {
                 Some(operations_block_symbol_rcref) => {
                     let operations_block_symbol = operations_block_symbol_rcref.borrow();
                     let symbol_table = &operations_block_symbol.symtab_rcref.borrow();
-                    if let Some(symbol_t_rcref) = symbol_table.lookup(name, &IdentifierDeclScope::OperationsBlockScope) {
+                    if let Some(symbol_t_rcref) =
+                        symbol_table.lookup(name, &IdentifierDeclScope::OperationsBlockScope)
+                    {
                         let symbol_t = symbol_t_rcref.borrow();
-                        if let SymbolType::OperationScope { operation_scope_symbol_rcref } = &*symbol_t {
-                            return Some((Rc::clone(operation_scope_symbol_rcref), Rc::clone(system_symbol_rcref)));
+                        if let SymbolType::OperationScope {
+                            operation_scope_symbol_rcref,
+                        } = &*symbol_t
+                        {
+                            return Some((
+                                Rc::clone(operation_scope_symbol_rcref),
+                                Rc::clone(system_symbol_rcref),
+                            ));
                         }
                     }
                 }
@@ -1775,10 +1832,15 @@ impl Arcanum {
                 Some(machine_block_symbol_rcref) => {
                     let machine_block_symbol = machine_block_symbol_rcref.borrow();
                     let symbol_table = &machine_block_symbol.symtab_rcref.borrow();
-                    if let Some(symbol_t_rcref) = symbol_table.lookup(name, &IdentifierDeclScope::UnknownScope) {
+                    if let Some(symbol_t_rcref) =
+                        symbol_table.lookup(name, &IdentifierDeclScope::UnknownScope)
+                    {
                         let symbol_t = symbol_t_rcref.borrow();
                         if let SymbolType::State { state_symbol_ref } = &*symbol_t {
-                            return Some((Rc::clone(state_symbol_ref), Rc::clone(system_symbol_rcref)));
+                            return Some((
+                                Rc::clone(state_symbol_ref),
+                                Rc::clone(system_symbol_rcref),
+                            ));
                         }
                     }
                 }
@@ -1797,7 +1859,7 @@ impl Arcanum {
                 // Create builtin scope - this is the foundation
                 let builtin_st = SymbolTable::new(
                     String::from("builtins"),
-                    None,  // No parent - this is the bottom
+                    None, // No parent - this is the bottom
                     IdentifierDeclScope::UnknownScope,
                     false,
                 );
@@ -1805,7 +1867,7 @@ impl Arcanum {
                 Self::add_builtin_functions(&builtin_symtab_rc);
                 self.builtin_symtab = Rc::clone(&builtin_symtab_rc);
                 self.current_symtab = builtin_symtab_rc;
-                
+
                 if std::env::var("FRAME_DEBUG").is_ok() {
                     eprintln!(">>> ENTERED BUILTIN SCOPE");
                     self.debug_dump_arcanum();
@@ -1815,14 +1877,14 @@ impl Arcanum {
                 // Create global scope with builtin as parent
                 let global_st = SymbolTable::new(
                     String::from("global"),
-                    Some(Rc::clone(&self.current_symtab)),  // Parent is builtin
+                    Some(Rc::clone(&self.current_symtab)), // Parent is builtin
                     IdentifierDeclScope::UnknownScope,
                     false,
                 );
                 let global_symtab_rc = Rc::new(RefCell::new(global_st));
                 self.global_symtab = Rc::clone(&global_symtab_rc);
                 self.current_symtab = global_symtab_rc;
-                
+
                 if std::env::var("FRAME_DEBUG").is_ok() {
                     eprintln!(">>> ENTERED GLOBAL SCOPE");
                     self.debug_dump_arcanum();
@@ -1832,15 +1894,15 @@ impl Arcanum {
                 // Create module scope with global as parent
                 let module_st = SymbolTable::new(
                     String::from("module"),
-                    Some(Rc::clone(&self.current_symtab)),  // Parent is global
+                    Some(Rc::clone(&self.current_symtab)), // Parent is global
                     IdentifierDeclScope::UnknownScope,
                     false,
                 );
                 let module_symtab_rc = Rc::new(RefCell::new(module_st));
                 self.module_symtab = Rc::clone(&module_symtab_rc);
                 self.current_symtab = module_symtab_rc;
-                self.scope_context = ScopeContext::Global;  // Module level is "global" context
-                
+                self.scope_context = ScopeContext::Global; // Module level is "global" context
+
                 if std::env::var("FRAME_DEBUG").is_ok() {
                     eprintln!(">>> ENTERED MODULE SCOPE");
                     self.debug_dump_arcanum();
@@ -1850,16 +1912,17 @@ impl Arcanum {
                 // v0.34: Create named module scope
                 let module_st = SymbolTable::new(
                     module_name.clone(),
-                    Some(Rc::clone(&self.current_symtab)),  // Parent is current scope
+                    Some(Rc::clone(&self.current_symtab)), // Parent is current scope
                     IdentifierDeclScope::ModuleScope,
                     false,
                 );
                 let module_symtab_rc = Rc::new(RefCell::new(module_st));
-                
+
                 // Create the module symbol
-                let module_symbol = ModuleSymbol::new(module_name.clone(), Rc::clone(&module_symtab_rc));
+                let module_symbol =
+                    ModuleSymbol::new(module_name.clone(), Rc::clone(&module_symtab_rc));
                 let module_symbol_rcref = Rc::new(RefCell::new(module_symbol));
-                
+
                 // Insert the module symbol into the parent symbol table so it can be found later
                 let module_symbol_type = SymbolType::Module {
                     module_symbol_rcref: module_symbol_rcref,
@@ -1868,10 +1931,10 @@ impl Arcanum {
                     module_name.clone(),
                     Rc::new(RefCell::new(module_symbol_type)),
                 );
-                
+
                 // Update current symbol table to the new module's symbol table
                 self.current_symtab = module_symtab_rc;
-                
+
                 if std::env::var("FRAME_DEBUG").is_ok() {
                     eprintln!(">>> ENTERED NAMED MODULE SCOPE: {}", module_name);
                     self.debug_dump_arcanum();
@@ -1883,11 +1946,11 @@ impl Arcanum {
                 // LEGB: Set function scope context
                 let function_name = function_scope_symbol_rcref.borrow().name.clone();
                 self.scope_context = ScopeContext::Function(function_name.clone());
-                
+
                 // CRITICAL FIX: Clear system context when entering function scope
                 // Functions should NOT have access to system internals (actions, operations)
                 self.system_symbol_opt = None;
-                
+
                 // set parent symbol table
                 let current_symbtab_rcref = Rc::clone(&self.current_symtab);
                 function_scope_symbol_rcref
@@ -1895,7 +1958,8 @@ impl Arcanum {
                     .set_parent_symtab(&current_symbtab_rcref);
 
                 // v0.30: Add to multi-entity function collection
-                self.function_symbols.push(Rc::clone(function_scope_symbol_rcref));
+                self.function_symbols
+                    .push(Rc::clone(function_scope_symbol_rcref));
 
                 // add new scope symbol to previous symbol table
                 let function_scope_symbol_rcref_clone = Rc::clone(function_scope_symbol_rcref);
@@ -1907,7 +1971,7 @@ impl Arcanum {
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
                 // Update current symbol table to the function's symbol table
                 self.current_symtab = Rc::clone(&function_symbol_symtab_rcref);
-                
+
                 // Debug dump AFTER updating current_symtab
                 if std::env::var("FRAME_DEBUG").is_ok() {
                     eprintln!(">>> ENTERED FUNCTION SCOPE: {}", function_name);
@@ -1920,7 +1984,7 @@ impl Arcanum {
                 // LEGB: Set system scope context
                 let system_name = system_symbol_rcref.borrow().name.clone();
                 self.scope_context = ScopeContext::System(system_name.clone());
-                
+
                 // set parent symbol table
                 let current_symbtab_rcref = Rc::clone(&self.current_symtab);
                 system_symbol_rcref
@@ -1929,10 +1993,10 @@ impl Arcanum {
 
                 // cache the system symbol (legacy compatibility)
                 self.system_symbol_opt = Some(Rc::clone(system_symbol_rcref));
-                
+
                 // v0.30: Add to multi-entity system collection
                 self.system_symbols.push(Rc::clone(system_symbol_rcref));
-                
+
                 // add new scope symbol to previous symbol table
                 let system_symbol_rcref_clone = Rc::clone(system_symbol_rcref);
                 // clone the Rc for the symbol table
@@ -1943,7 +2007,7 @@ impl Arcanum {
                 self.current_symtab.borrow_mut().insert_parse_scope(scope_t);
                 // Update current symbol table to the system's symbol table
                 self.current_symtab = Rc::clone(&system_symbol_symtab_rcref);
-                
+
                 // Debug dump AFTER updating current_symtab
                 if std::env::var("FRAME_DEBUG").is_ok() {
                     eprintln!(">>> ENTERED SYSTEM SCOPE: {}", system_name);
@@ -2304,21 +2368,22 @@ impl Arcanum {
                     false,
                 );
                 let class_symtab_rc = Rc::new(RefCell::new(class_st));
-                
+
                 // Create a class symbol (similar to module symbol)
                 // For now, we'll reuse ModuleSymbol since it has the same structure
-                let class_symbol = ModuleSymbol::new(class_name.clone(), Rc::clone(&class_symtab_rc));
+                let class_symbol =
+                    ModuleSymbol::new(class_name.clone(), Rc::clone(&class_symtab_rc));
                 let class_symbol_rcref = Rc::new(RefCell::new(class_symbol));
-                
+
                 // Insert the class symbol into the parent symbol table so it can be found later
                 let class_symbol_type = SymbolType::Module {
                     module_symbol_rcref: class_symbol_rcref,
                 };
-                self.current_symtab.borrow_mut().symbols.insert(
-                    class_name.clone(),
-                    Rc::new(RefCell::new(class_symbol_type)),
-                );
-                
+                self.current_symtab
+                    .borrow_mut()
+                    .symbols
+                    .insert(class_name.clone(), Rc::new(RefCell::new(class_symbol_type)));
+
                 // Update current symbol table to the new class's symbol table
                 self.current_symtab = class_symtab_rc;
             }
@@ -2336,15 +2401,19 @@ impl Arcanum {
     // This is used in the semantic pass to set the previously built scope from the symbol table.
     pub fn set_parse_scope(&mut self, scope_name: &str) -> Result<(), String> {
         Exe::debug_print(&format!("Setting parse scope = |{}|.", scope_name));
-        
+
         match self.get_next_symbol_table(scope_name, &self.current_symtab) {
             Ok(symtab) => {
                 self.current_symtab = symtab;
                 Ok(())
             }
             Err(err_msg) => {
-                let context = format!("Failed to set parse scope '{}': {}\nCurrent symtab: '{}'", 
-                                      scope_name, err_msg, self.current_symtab.borrow().name);
+                let context = format!(
+                    "Failed to set parse scope '{}': {}\nCurrent symtab: '{}'",
+                    scope_name,
+                    err_msg,
+                    self.current_symtab.borrow().name
+                );
                 Err(context)
             }
         }
@@ -2354,52 +2423,63 @@ impl Arcanum {
 
     pub fn exit_scope(&mut self) {
         let current_scope_name = self.current_symtab.borrow().name.clone();
-        
+
         let symbol_table_rcref = match self.current_symtab.borrow_mut().get_parent_symtab() {
             Some(symtab_ref) => symtab_ref,
             None => {
                 // This shouldn't happen, but provide helpful error instead of panic
-                eprintln!("ERROR: Could not find parent symtab when exiting scope '{}'", current_scope_name);
-                eprintln!("This usually indicates a mismatch between enter_scope and exit_scope calls");
-                panic!("Fatal error - could not find parent symtab for scope '{}'", current_scope_name);
+                eprintln!(
+                    "ERROR: Could not find parent symtab when exiting scope '{}'",
+                    current_scope_name
+                );
+                eprintln!(
+                    "This usually indicates a mismatch between enter_scope and exit_scope calls"
+                );
+                panic!(
+                    "Fatal error - could not find parent symtab for scope '{}'",
+                    current_scope_name
+                );
             }
         };
 
-        Exe::debug_print(&format!(
-            "Exit scope |{}|",
-            current_scope_name
-        ));
+        Exe::debug_print(&format!("Exit scope |{}|", current_scope_name));
 
         self.current_symtab = symbol_table_rcref;
-        
+
         // LEGB: Update scope context based on where we returned to
         if Rc::ptr_eq(&self.current_symtab, &self.module_symtab) {
             // Back at module level
             self.scope_context = ScopeContext::Global;
-            
+
             // Clear any lingering system context when back at module level
             self.system_symbol_opt = None;
         }
         // Otherwise we're still inside a function/system/block
-        
+
         // Debug dump after exiting scope
         if std::env::var("FRAME_DEBUG").is_ok() {
             let current_name = self.current_symtab.borrow().name.clone();
             let module_name = self.module_symtab.borrow().name.clone();
-            eprintln!(">>> EXITED SCOPE - Current: '{}', Module: '{}'", current_name, module_name);
-            eprintln!("    Ptr equality check: {}", Rc::ptr_eq(&self.current_symtab, &self.module_symtab));
-            
+            eprintln!(
+                ">>> EXITED SCOPE - Current: '{}', Module: '{}'",
+                current_name, module_name
+            );
+            eprintln!(
+                "    Ptr equality check: {}",
+                Rc::ptr_eq(&self.current_symtab, &self.module_symtab)
+            );
+
             let scope_name = if Rc::ptr_eq(&self.current_symtab, &self.module_symtab) {
                 "Module"
             } else if Rc::ptr_eq(&self.current_symtab, &self.global_symtab) {
-                "Global"  
+                "Global"
             } else {
                 &self.current_symtab.borrow().name
             };
             eprintln!(">>> Scope name resolved to: {}", scope_name);
             self.debug_dump_arcanum();
         }
-        
+
         Exe::debug_print(&format!(
             "Returned to scope |{}|",
             self.current_symtab.borrow().name
@@ -2412,13 +2492,17 @@ impl Arcanum {
     /// This is the core symbol resolution method that respects scope boundaries
     pub fn legb_lookup(&self, name: &str) -> Option<Rc<RefCell<SymbolType>>> {
         Exe::debug_print(&format!("LEGB lookup for: {}", name));
-        
+
         // 1. Local scope (current)
         if let Some(symbol) = self.current_symtab.borrow().symbols.get(name) {
-            Exe::debug_print(&format!("Found '{}' in LOCAL scope: {}", name, self.current_symtab.borrow().name));
+            Exe::debug_print(&format!(
+                "Found '{}' in LOCAL scope: {}",
+                name,
+                self.current_symtab.borrow().name
+            ));
             return Some(Rc::clone(symbol));
         }
-        
+
         // 2. Enclosing scopes (walk up to module, respecting boundaries)
         let mut current_ref = Rc::clone(&self.current_symtab);
         loop {
@@ -2428,51 +2512,56 @@ impl Arcanum {
                     None => break,
                 }
             };
-            
+
             // Stop at module boundary to respect scope isolation
             if Rc::ptr_eq(&parent_ref, &self.module_symtab) {
                 break;
             }
-            
+
             if let Some(symbol) = parent_ref.borrow().symbols.get(name) {
-                Exe::debug_print(&format!("Found '{}' in ENCLOSING scope: {}", name, parent_ref.borrow().name));
+                Exe::debug_print(&format!(
+                    "Found '{}' in ENCLOSING scope: {}",
+                    name,
+                    parent_ref.borrow().name
+                ));
                 return Some(Rc::clone(symbol));
             }
             current_ref = parent_ref;
         }
-        
+
         // 3. Module scope (Global in Frame terms)
         if let Some(symbol) = self.module_symtab.borrow().symbols.get(name) {
             Exe::debug_print(&format!("Found '{}' in MODULE scope", name));
             return Some(Rc::clone(symbol));
         }
-        
+
         // 4. Global scope (should be empty until we implement 'global' keyword)
         if let Some(symbol) = self.global_symtab.borrow().symbols.get(name) {
             Exe::debug_print(&format!("Found '{}' in GLOBAL scope", name));
             return Some(Rc::clone(symbol));
         }
-        
+
         // 5. Built-in scope
         if let Some(symbol) = self.builtin_symtab.borrow().symbols.get(name) {
             Exe::debug_print(&format!("Found '{}' in BUILTIN scope", name));
             return Some(Rc::clone(symbol));
         }
-        
+
         Exe::debug_print(&format!("Symbol '{}' not found in any LEGB scope", name));
         None
     }
-    
+
     /// Check if symbol is visible in current scope context
     /// This enforces scope isolation rules (functions can't see system internals)
     pub fn is_symbol_accessible(&self, symbol_type: &SymbolType) -> bool {
         match &self.scope_context {
             ScopeContext::Function(_) => {
                 // Functions cannot see system internals
-                !matches!(symbol_type, 
-                    SymbolType::ActionScope { .. } | 
-                    SymbolType::OperationScope { .. } |
-                    SymbolType::DomainVariable { .. }
+                !matches!(
+                    symbol_type,
+                    SymbolType::ActionScope { .. }
+                        | SymbolType::OperationScope { .. }
+                        | SymbolType::DomainVariable { .. }
                 )
             }
             ScopeContext::System(_sys_name) => {
@@ -2486,14 +2575,14 @@ impl Arcanum {
                         // TODO: Add system name checking when we have access to it
                         true
                     }
-                    _ => true // Module symbols, functions, etc. are accessible
+                    _ => true, // Module symbols, functions, etc. are accessible
                 }
             }
             ScopeContext::Global => {
                 // Module level can see functions and systems but not internals
-                !matches!(symbol_type, 
-                    SymbolType::ActionScope { .. } | 
-                    SymbolType::OperationScope { .. }
+                !matches!(
+                    symbol_type,
+                    SymbolType::ActionScope { .. } | SymbolType::OperationScope { .. }
                 )
             }
         }
@@ -2510,45 +2599,50 @@ impl Arcanum {
         // LEGB Scope Resolution: Look in current scope first, then walk up parent chain
         let mut current_scope = Rc::clone(symtab_rcref);
         let mut searched_scopes = Vec::new();
-        
+
         loop {
             let (scope_name_for_debug, _available_symbols, found_symbol, parent_opt) = {
                 let symbol_table = current_scope.borrow();
                 let scope_name_for_debug = symbol_table.name.clone();
                 let symbols_map = &symbol_table.symbols;
                 let available_symbols: Vec<String> = symbols_map.keys().cloned().collect();
-                
-                // eprintln!("DEBUG: Looking for symbol '{}' in scope '{}'. Available symbols: {:?}", 
+
+                // eprintln!("DEBUG: Looking for symbol '{}' in scope '{}'. Available symbols: {:?}",
                 //           scope_name, scope_name_for_debug, available_symbols);
-                          
+
                 let found_symbol = symbols_map.get(scope_name).map(|symbol_t_rcref| {
                     let symbol_t = symbol_t_rcref.borrow();
                     symbol_t.get_symbol_table()
                 });
-                
+
                 let parent_opt = symbol_table.parent_symtab_rcref_opt.as_ref().map(Rc::clone);
-                
-                (scope_name_for_debug, available_symbols, found_symbol, parent_opt)
+
+                (
+                    scope_name_for_debug,
+                    available_symbols,
+                    found_symbol,
+                    parent_opt,
+                )
             };
-            
+
             searched_scopes.push(scope_name_for_debug.clone());
-            
+
             if let Some(symbol_table_rcref) = found_symbol {
                 // eprintln!("DEBUG: Found symbol '{}' in scope '{}'", scope_name, scope_name_for_debug);
                 return Ok(Rc::clone(&symbol_table_rcref));
             }
-            
+
             // Symbol not found in current scope, try parent scope
             if let Some(parent_symtab) = parent_opt {
                 current_scope = parent_symtab;
-                // eprintln!("DEBUG: Symbol '{}' not found in '{}', checking parent scope...", 
+                // eprintln!("DEBUG: Symbol '{}' not found in '{}', checking parent scope...",
                 //           scope_name, scope_name_for_debug);
             } else {
                 // No parent scope - we've reached the top (builtin scope)
                 break;
             }
         }
-        
+
         // Symbol not found in any scope in the chain
         Err(format!(
             "Fatal error - could not get next symbol table for '{}'. Searched scopes: {:?}",
@@ -2762,10 +2856,7 @@ pub struct ModuleSymbol {
 
 impl ModuleSymbol {
     pub fn new(name: String, symtab_rcref: Rc<RefCell<SymbolTable>>) -> ModuleSymbol {
-        ModuleSymbol {
-            name,
-            symtab_rcref,
-        }
+        ModuleSymbol { name, symtab_rcref }
     }
 }
 

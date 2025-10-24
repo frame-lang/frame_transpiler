@@ -1268,10 +1268,10 @@ impl AstVisitor for TypeScriptVisitor {
 
                         // Generate variable declaration
                         self.builder
-                            .writeln(&format!("let {} = {};", var_name, init_str));
+                            .writeln(&format!("var {} = {};", var_name, init_str));
                     } else {
                         self.builder
-                            .writeln(&format!("let {}: any = null;", var_name));
+                            .writeln(&format!("var {}: any = null;", var_name));
                     }
                 }
             }
@@ -1352,10 +1352,10 @@ impl AstVisitor for TypeScriptVisitor {
                         let value_expr = var_decl.get_initializer_value_rc();
                         self.visit_expr_node_to_string(&*value_expr, &mut init_str);
                         self.builder
-                            .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            .writeln(&format!("var {} = {};", var_decl.name, init_str));
                     } else {
                         self.builder
-                            .writeln(&format!("let {}: any;", var_decl.name));
+                            .writeln(&format!("var {}: any;", var_decl.name));
                     }
                 }
             }
@@ -1447,10 +1447,10 @@ impl AstVisitor for TypeScriptVisitor {
                         let value_expr = var_decl.get_initializer_value_rc();
                         self.visit_expr_node_to_string(&*value_expr, &mut init_str);
                         self.builder
-                            .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            .writeln(&format!("var {} = {};", var_decl.name, init_str));
                     } else {
                         self.builder
-                            .writeln(&format!("let {}: any = null;", var_decl.name));
+                            .writeln(&format!("var {}: any = null;", var_decl.name));
                     }
                 }
             }
@@ -1760,7 +1760,7 @@ impl TypeScriptVisitor {
                             output.push_str("{}");
                             return; // Early return to avoid adding arguments
                         } else {
-                            output.push_str("Object.fromEntries(");
+                            output.push_str("FrameDict.fromEntries(");
                         }
                     }
                     "set" => {
@@ -1892,12 +1892,12 @@ impl TypeScriptVisitor {
                             output.push_str("Array.from(");
                         }
                     } else if func_name == "dict" {
-                        // Python dict() function - use Object.fromEntries() or {}
+                        // Python dict() function - use FrameDict helper
                         if node.call_expr_list.exprs_t.is_empty() {
                             output.push_str("{}");
                             return; // Early return to avoid adding arguments
                         } else {
-                            output.push_str("Object.fromEntries(");
+                            output.push_str("FrameDict.fromEntries(");
                         }
                     } else if func_name == "set" {
                         // Python set() function - use new Set()
@@ -2059,19 +2059,19 @@ impl TypeScriptVisitor {
                 output.push(')');
             }
         } else if func_name == "dict" {
-            // Convert dict([...]) to Object.fromEntries([...]) for proper dict construction
-            // Find the position where "Object(" was added
-            if let Some(obj_pos) = output.rfind("Object(") {
-                let start_pos = obj_pos + "Object(".len();
+            // Convert dict([...]) to FrameDict.fromEntries([...]) for proper dict construction
+            // Find the position where "FrameDict(" was added
+            if let Some(dict_pos) = output.rfind("FrameDict(") {
+                let start_pos = dict_pos + "FrameDict(".len();
 
                 // Extract the arguments (everything after "Object(")
                 let args_part = output[start_pos..].to_string();
 
                 // Remove everything from "Object(" onwards
-                output.truncate(obj_pos);
+                output.truncate(dict_pos);
 
-                // Rebuild as Object.fromEntries(arguments)
-                output.push_str("Object.fromEntries(");
+                // Rebuild as FrameDict.fromEntries(arguments)
+                output.push_str("FrameDict.fromEntries(");
                 output.push_str(&args_part);
                 output.push(')');
             } else {
@@ -2435,36 +2435,35 @@ impl TypeScriptVisitor {
             ExprType::DictComprehensionExprT {
                 dict_comprehension_node,
             } => {
-                // Convert Frame dict comprehensions to TypeScript object comprehensions
-                // {key_expr: value_expr for var in iterable if condition_opt}
-                // becomes: Object.fromEntries(iterable.filter(var => condition).map(var => [key_expr, value_expr]))
+                // Convert Frame dict comprehensions to TypeScript using FrameDict.fromEntries
+                let (binding, locals) =
+                    TypeScriptVisitor::comprehension_binding_parts(&dict_comprehension_node.target);
 
-                let var_name = &dict_comprehension_node.target;
+                for local in &locals {
+                    if !local.is_empty() {
+                        self.current_local_vars.insert(local.clone());
+                    }
+                }
 
-                // Add the loop variable to current_local_vars temporarily
-                self.current_local_vars.insert(var_name.to_string());
-
-                output.push_str("Object.fromEntries(");
-
-                // Generate the iterable expression
+                output.push_str("FrameDict.fromEntries(FrameRuntime.iterable(");
                 self.visit_expr_node_to_string(&dict_comprehension_node.iter, output);
+                output.push(')');
 
-                // Add filter if condition exists
                 if let Some(ref condition) = dict_comprehension_node.condition {
-                    output.push_str(&format!(".filter({} => ", var_name));
+                    output.push_str(&format!(".filter({} => ", binding));
                     self.visit_expr_node_to_string(condition, output);
                     output.push(')');
                 }
 
-                // Add map to create key-value pairs
-                output.push_str(&format!(".map({} => [", var_name));
+                output.push_str(&format!(".map({} => [", binding));
                 self.visit_expr_node_to_string(&dict_comprehension_node.key_expr, output);
                 output.push_str(", ");
                 self.visit_expr_node_to_string(&dict_comprehension_node.value_expr, output);
                 output.push_str("]))");
 
-                // Remove the loop variable from current_local_vars
-                self.current_local_vars.remove(var_name);
+                for local in locals {
+                    self.current_local_vars.remove(&local);
+                }
             }
             ExprType::DictUnpackExprT {
                 dict_unpack_expr_node,
@@ -2498,58 +2497,66 @@ impl TypeScriptVisitor {
             } => {
                 // Convert Frame list comprehensions to TypeScript
                 // [expr for var in iterable if condition] -> iterable.filter(var => condition).map(var => expr)
-                let var_name = &list_comprehension_node.target;
+                let (binding, locals) =
+                    TypeScriptVisitor::comprehension_binding_parts(&list_comprehension_node.target);
 
-                // Add the loop variable to current_local_vars temporarily
-                self.current_local_vars.insert(var_name.to_string());
+                for local in &locals {
+                    if !local.is_empty() {
+                        self.current_local_vars.insert(local.clone());
+                    }
+                }
 
-                // Generate the iterable expression
+                output.push_str("FrameRuntime.iterable(");
                 self.visit_expr_node_to_string(&list_comprehension_node.iter, output);
+                output.push(')');
 
-                // Add filter if condition exists
                 if let Some(ref condition) = list_comprehension_node.condition {
-                    output.push_str(&format!(".filter({} => ", var_name));
+                    output.push_str(&format!(".filter({} => ", binding));
                     self.visit_expr_node_to_string(condition, output);
                     output.push(')');
                 }
 
                 // Add map to transform elements
-                output.push_str(&format!(".map({} => ", var_name));
+                output.push_str(&format!(".map({} => ", binding));
                 self.visit_expr_node_to_string(&list_comprehension_node.expr, output);
                 output.push(')');
 
-                // Remove the loop variable from current_local_vars
-                self.current_local_vars.remove(var_name);
+                for local in locals {
+                    self.current_local_vars.remove(&local);
+                }
             }
             ExprType::SetComprehensionExprT {
                 set_comprehension_node,
             } => {
                 // Convert Frame set comprehensions to TypeScript
                 // {expr for var in iterable if condition} -> new Set(iterable.filter(var => condition).map(var => expr))
-                let var_name = &set_comprehension_node.target;
+                let (binding, locals) =
+                    TypeScriptVisitor::comprehension_binding_parts(&set_comprehension_node.target);
 
-                // Add the loop variable to current_local_vars temporarily
-                self.current_local_vars.insert(var_name.to_string());
+                for local in &locals {
+                    if !local.is_empty() {
+                        self.current_local_vars.insert(local.clone());
+                    }
+                }
 
-                output.push_str("new Set(");
-
-                // Generate the iterable expression
+                output.push_str("new Set(FrameRuntime.iterable(");
                 self.visit_expr_node_to_string(&set_comprehension_node.iter, output);
+                output.push(')');
 
-                // Add filter if condition exists
                 if let Some(ref condition) = set_comprehension_node.condition {
-                    output.push_str(&format!(".filter({} => ", var_name));
+                    output.push_str(&format!(".filter({} => ", binding));
                     self.visit_expr_node_to_string(condition, output);
                     output.push(')');
                 }
 
                 // Add map to transform elements
-                output.push_str(&format!(".map({} => ", var_name));
+                output.push_str(&format!(".map({} => ", binding));
                 self.visit_expr_node_to_string(&set_comprehension_node.expr, output);
                 output.push_str("))");
 
-                // Remove the loop variable from current_local_vars
-                self.current_local_vars.remove(var_name);
+                for local in locals {
+                    self.current_local_vars.remove(&local);
+                }
             }
             _ => {
                 // Debug output to see what expression types are missing
@@ -2563,6 +2570,18 @@ impl TypeScriptVisitor {
     }
 
     fn visit_binary_expr_node_to_string(&mut self, node: &BinaryExprNode, output: &mut String) {
+        if matches!(&node.operator, OperatorType::BitwiseOr) {
+            let mut left_str = String::new();
+            let mut right_str = String::new();
+            self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
+            self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
+            output.push_str(&format!(
+                "FrameDict.unionDynamic({}, {})",
+                left_str, right_str
+            ));
+            return;
+        }
+
         // Special handling for percent formatting - check if it's string formatting vs modulo
         if matches!(&node.operator, OperatorType::Percent) {
             // Check if left operand is a string literal containing format specifiers
@@ -2871,7 +2890,20 @@ impl TypeScriptVisitor {
                     && !self.current_handler_params.contains(&var_name)
                     && !self.current_exception_vars.contains(&var_name)
                 {
-                    self.current_local_vars.insert(var_name.clone());
+                    let is_new = self.current_local_vars.insert(var_name.clone());
+
+                    let mut lhs = String::new();
+                    self.visit_expr_node_to_string(
+                        &node.assignment_expr_node.l_value_box,
+                        &mut lhs,
+                    );
+
+                    if is_new {
+                        self.builder.writeln(&format!("var {} = {};", lhs, rhs));
+                    } else {
+                        self.builder.writeln(&format!("{} = {};", lhs, rhs));
+                    }
+                    return;
                 }
 
                 let mut lhs = String::new();
@@ -2984,10 +3016,10 @@ impl TypeScriptVisitor {
                             let value_expr = var_decl.get_initializer_value_rc();
                             self.visit_expr_node_to_string(&*value_expr, &mut init_str);
                             self.builder
-                                .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                .writeln(&format!("var {} = {};", var_decl.name, init_str));
                         } else {
                             self.builder
-                                .writeln(&format!("let {}: any = null;", var_decl.name));
+                                .writeln(&format!("var {}: any = null;", var_decl.name));
                         }
                     }
                     DeclOrStmtType::StmtT { stmt_t } => {
@@ -3025,10 +3057,10 @@ impl TypeScriptVisitor {
                         let value_expr = var_decl.get_initializer_value_rc();
                         self.visit_expr_node_to_string(&*value_expr, &mut init_str);
                         self.builder
-                            .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            .writeln(&format!("var {} = {};", var_decl.name, init_str));
                     } else {
                         self.builder
-                            .writeln(&format!("let {}: any = null;", var_decl.name));
+                            .writeln(&format!("var {}: any = null;", var_decl.name));
                     }
                 }
             }
@@ -3052,7 +3084,7 @@ impl TypeScriptVisitor {
                     DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                         let var_decl = var_decl_t_rcref.borrow();
                         self.builder
-                            .writeln(&format!("let {}: any; // TODO: Initialize", var_decl.name));
+                            .writeln(&format!("var {}: any; // TODO: Initialize", var_decl.name));
                     }
                 }
             }
@@ -3073,7 +3105,7 @@ impl TypeScriptVisitor {
                     DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
                         let var_decl = var_decl_t_rcref.borrow();
                         self.builder
-                            .writeln(&format!("let {}: any; // TODO: Initialize", var_decl.name));
+                            .writeln(&format!("var {}: any; // TODO: Initialize", var_decl.name));
                     }
                 }
             }
@@ -3223,6 +3255,51 @@ impl TypeScriptVisitor {
                     }
                     return;
                 }
+
+                if first_var.id_node.name.lexeme == "json" {
+                    let method = &call_node.identifier.name.lexeme;
+                    if method == "loads" {
+                        output.push_str("FrameRuntime.jsonLoads(");
+                        if call_node.call_expr_list.exprs_t.len() > 0 {
+                            let mut args_str = String::new();
+                            self.visit_expr_list_node_to_string(
+                                &call_node.call_expr_list.exprs_t,
+                                &mut args_str,
+                            );
+                            output.push_str(&args_str);
+                        }
+                        output.push(')');
+                        return;
+                    } else if method == "dumps" {
+                        output.push_str("FrameRuntime.jsonDumps(");
+                        if call_node.call_expr_list.exprs_t.len() > 0 {
+                            let mut args_str = String::new();
+                            self.visit_expr_list_node_to_string(
+                                &call_node.call_expr_list.exprs_t,
+                                &mut args_str,
+                            );
+                            output.push_str(&args_str);
+                        }
+                        output.push(')');
+                        return;
+                    }
+                }
+
+                if first_var.id_node.name.lexeme == "ast"
+                    && call_node.identifier.name.lexeme == "literal_eval"
+                {
+                    output.push_str("FrameRuntime.literalEval(");
+                    if call_node.call_expr_list.exprs_t.len() > 0 {
+                        let mut args_str = String::new();
+                        self.visit_expr_list_node_to_string(
+                            &call_node.call_expr_list.exprs_t,
+                            &mut args_str,
+                        );
+                        output.push_str(&args_str);
+                    }
+                    output.push(')');
+                    return;
+                }
             }
 
             // Bug #54, #55, #56 Fix: Check for API mapping patterns in call chains
@@ -3274,100 +3351,42 @@ impl TypeScriptVisitor {
                     }
                     output.push(')');
                     return;
-                }
-            }
-
-            // Additional check for dict.fromkeys with UndeclaredIdentifierNodeT pattern
-            if let (
-                CallChainNodeType::UndeclaredIdentifierNodeT { id_node },
-                CallChainNodeType::UndeclaredCallT { call_node },
-            ) = (&node.call_chain[0], &node.call_chain[1])
-            {
-                let var_name = &id_node.name.lexeme;
-                let method_name = &call_node.identifier.name.lexeme;
-
-                // Handle dict.fromkeys() static method
-                if var_name == "dict" && method_name == "fromkeys" {
-                    let args = &call_node.call_expr_list.exprs_t;
-
-                    if args.len() >= 1 {
-                        // dict.fromkeys(keys, value) -> Object.fromEntries(keys.map(k => [k, value]))
-                        output.push_str("Object.fromEntries(");
-                        self.visit_expr_node_to_string(&args[0], output);
-                        output.push_str(".map(__k => [__k, ");
-
-                        if args.len() >= 2 {
-                            // Use provided value
-                            self.visit_expr_node_to_string(&args[1], output);
-                        } else {
-                            // Use null as default (equivalent to Python's None)
-                            output.push_str("null");
-                        }
-                        output.push_str("]))");
-                        return;
+                } else if full_call == "json.loads" {
+                    output.push_str("FrameRuntime.jsonLoads(");
+                    if call_node.call_expr_list.exprs_t.len() > 0 {
+                        let mut args_str = String::new();
+                        self.visit_expr_list_node_to_string(
+                            &call_node.call_expr_list.exprs_t,
+                            &mut args_str,
+                        );
+                        output.push_str(&args_str);
                     }
-                }
-            }
-
-            // Static method fixes for dict.fromkeys and similar
-
-            if let (
-                CallChainNodeType::VariableNodeT { var_node },
-                CallChainNodeType::UndeclaredCallT { call_node },
-            ) = (&node.call_chain[0], &node.call_chain[1])
-            {
-                let var_name = &var_node.id_node.name.lexeme;
-                let method_name = &call_node.identifier.name.lexeme;
-
-                // Handle dict.fromkeys() static method
-                if var_name == "dict" && method_name == "fromkeys" {
-                    let args = &call_node.call_expr_list.exprs_t;
-
-                    if args.len() >= 1 {
-                        // dict.fromkeys(keys, value) -> Object.fromEntries(keys.map(k => [k, value]))
-                        output.push_str("Object.fromEntries(");
-                        self.visit_expr_node_to_string(&args[0], output);
-                        output.push_str(".map(__k => [__k, ");
-
-                        if args.len() >= 2 {
-                            // Use provided value
-                            self.visit_expr_node_to_string(&args[1], output);
-                        } else {
-                            // Use null as default (equivalent to Python's None)
-                            output.push_str("null");
-                        }
-                        output.push_str("]))");
-                        return;
+                    output.push(')');
+                    return;
+                } else if full_call == "json.dumps" {
+                    output.push_str("FrameRuntime.jsonDumps(");
+                    if call_node.call_expr_list.exprs_t.len() > 0 {
+                        let mut args_str = String::new();
+                        self.visit_expr_list_node_to_string(
+                            &call_node.call_expr_list.exprs_t,
+                            &mut args_str,
+                        );
+                        output.push_str(&args_str);
                     }
-                }
-
-                // Dictionary .get() method fix: Convert obj.get(key, default) to (obj[key] || default)
-                if call_node.identifier.name.lexeme == "get" {
-                    let var_name = &var_node.id_node.name.lexeme;
-                    let args = &call_node.call_expr_list.exprs_t;
-
-                    if args.len() >= 1 {
-                        // Generate (obj[key] || default) pattern
-                        output.push('(');
-                        output.push_str(var_name);
-                        output.push('[');
-                        let mut key_str = String::new();
-                        self.visit_expr_node_to_string(&args[0], &mut key_str);
-                        output.push_str(&key_str);
-                        output.push_str("] || ");
-
-                        if args.len() >= 2 {
-                            // Use provided default
-                            let mut default_str = String::new();
-                            self.visit_expr_node_to_string(&args[1], &mut default_str);
-                            output.push_str(&default_str);
-                        } else {
-                            // Use undefined as default
-                            output.push_str("undefined");
-                        }
-                        output.push(')');
-                        return;
+                    output.push(')');
+                    return;
+                } else if full_call == "ast.literal_eval" {
+                    output.push_str("FrameRuntime.literalEval(");
+                    if call_node.call_expr_list.exprs_t.len() > 0 {
+                        let mut args_str = String::new();
+                        self.visit_expr_list_node_to_string(
+                            &call_node.call_expr_list.exprs_t,
+                            &mut args_str,
+                        );
+                        output.push_str(&args_str);
                     }
+                    output.push(')');
+                    return;
                 }
             }
         }
@@ -3442,7 +3461,12 @@ impl TypeScriptVisitor {
         }
 
         let mut is_first = true;
-        for call_chain_node in &node.call_chain {
+        for (index, call_chain_node) in node.call_chain.iter().enumerate() {
+            let prev_node = if index > 0 {
+                Some(&node.call_chain[index - 1])
+            } else {
+                None
+            };
             match call_chain_node {
                 CallChainNodeType::UndeclaredCallT { call_node } => {
                     // DEBUG: Print what we're processing
@@ -3472,101 +3496,104 @@ impl TypeScriptVisitor {
                         return; // Don't process further
                     }
 
-                    // Special handling for dictionary methods
+                    // Special handling for dictionary helpers using FrameDict runtime
+                    if method_name == "fromkeys" {
+                        let is_dict_static_call = prev_node.map_or(false, |prev| match prev {
+                            CallChainNodeType::VariableNodeT { var_node } => {
+                                var_node.id_node.name.lexeme == "dict"
+                            }
+                            CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                                id_node.name.lexeme == "dict"
+                            }
+                            _ => false,
+                        });
 
-                    if method_name == "get" {
-                        // Convert .get(key, default) to [key] || default
-                        if !is_first {
-                            // No dot needed for bracket notation
+                        if is_dict_static_call {
+                            output.clear();
+                            output.push_str("FrameDict.fromKeys(");
+                            if let Some(keys_arg) = call_node.call_expr_list.exprs_t.get(0) {
+                                self.visit_expr_node_to_string(keys_arg, output);
+                            } else {
+                                output.push_str("[]");
+                            }
+                            if let Some(value_arg) = call_node.call_expr_list.exprs_t.get(1) {
+                                output.push_str(", ");
+                                self.visit_expr_node_to_string(value_arg, output);
+                            }
+                            output.push(')');
+                            continue;
                         }
-
-                        // Get the arguments for the .get() call
-                        let mut key_str = String::new();
-                        let mut default_str = String::new();
-
-                        if call_node.call_expr_list.exprs_t.len() >= 1 {
-                            self.visit_expr_node_to_string(
-                                &call_node.call_expr_list.exprs_t[0],
-                                &mut key_str,
-                            );
-                        }
-                        if call_node.call_expr_list.exprs_t.len() >= 2 {
-                            self.visit_expr_node_to_string(
-                                &call_node.call_expr_list.exprs_t[1],
-                                &mut default_str,
-                            );
-                        } else {
-                            default_str = "undefined".to_string();
-                        }
-
-                        // Output: ([previous][key] || default) for proper precedence
-                        output.push('[');
-                        output.push_str(&key_str);
-                        output.push_str("] || ");
-                        output.push_str(&default_str);
-                    } else if method_name == "update" && !is_first {
-                        // Convert dict.update(other) to Object.assign(dict, other)
-                        // We need to wrap the entire expression
-                        let dict_str = output.clone();
-                        output.clear();
-                        output.push_str("Object.assign(");
-                        output.push_str(&dict_str);
-                        output.push_str(", ");
-
-                        // Add the argument
-                        if call_node.call_expr_list.exprs_t.len() >= 1 {
-                            self.visit_expr_node_to_string(
-                                &call_node.call_expr_list.exprs_t[0],
-                                output,
-                            );
-                        }
-                        output.push(')');
-                    } else if method_name == "setdefault" && !is_first {
-                        // Convert dict.setdefault(key, default) to (dict[key] ?? (dict[key] = default))
-                        // This returns existing value or sets and returns the default
-                        let mut key_str = String::new();
-                        let mut default_str = String::new();
-
-                        if call_node.call_expr_list.exprs_t.len() >= 1 {
-                            self.visit_expr_node_to_string(
-                                &call_node.call_expr_list.exprs_t[0],
-                                &mut key_str,
-                            );
-                        }
-                        if call_node.call_expr_list.exprs_t.len() >= 2 {
-                            self.visit_expr_node_to_string(
-                                &call_node.call_expr_list.exprs_t[1],
-                                &mut default_str,
-                            );
-                        } else {
-                            default_str = "undefined".to_string();
-                        }
-
-                        // Save the dict part (everything before .setdefault)
-                        let dict_str = output.clone();
-
-                        // Add the setdefault logic: dict[key] ?? (dict[key] = default)
-                        output.push('[');
-                        output.push_str(&key_str);
-                        output.push_str("] ?? (");
-                        output.push_str(&dict_str);
-                        output.push('[');
-                        output.push_str(&key_str);
-                        output.push_str("] = ");
-                        output.push_str(&default_str);
-                        output.push(')');
-                    } else {
-                        // Regular method call handling
-                        if !is_first {
-                            output.push('.');
-                        } else if call_node.identifier.name.lexeme != "print" {
-                            // For first call in chain that's not print, check if it needs 'this.'
-                            // This handles method calls on self
-                        }
-                        self.visit_call_expr_node_to_string_with_context(
-                            call_node, output, is_first,
-                        );
                     }
+
+                    if !is_first {
+                        let dict_expr = output.clone();
+                        match method_name.as_str() {
+                            "get" => {
+                                output.clear();
+                                output.push_str("FrameDict.get(");
+                                output.push_str(&dict_expr);
+                                if let Some(key_arg) = call_node.call_expr_list.exprs_t.get(0) {
+                                    output.push_str(", ");
+                                    self.visit_expr_node_to_string(key_arg, output);
+                                    if let Some(default_arg) =
+                                        call_node.call_expr_list.exprs_t.get(1)
+                                    {
+                                        output.push_str(", ");
+                                        self.visit_expr_node_to_string(default_arg, output);
+                                    }
+                                } else {
+                                    output.push_str(", undefined");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "setdefault" => {
+                                output.clear();
+                                output.push_str("FrameDict.setdefault(");
+                                output.push_str(&dict_expr);
+                                if let Some(key_arg) = call_node.call_expr_list.exprs_t.get(0) {
+                                    output.push_str(", ");
+                                    self.visit_expr_node_to_string(key_arg, output);
+                                    if let Some(default_arg) =
+                                        call_node.call_expr_list.exprs_t.get(1)
+                                    {
+                                        output.push_str(", ");
+                                        self.visit_expr_node_to_string(default_arg, output);
+                                    }
+                                } else {
+                                    output.push_str(", undefined");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "update" => {
+                                output.clear();
+                                output.push_str("FrameDict.update(");
+                                output.push_str(&dict_expr);
+                                if !call_node.call_expr_list.exprs_t.is_empty() {
+                                    output.push_str(", ");
+                                    let mut args_str = String::new();
+                                    self.visit_expr_list_node_to_string(
+                                        &call_node.call_expr_list.exprs_t,
+                                        &mut args_str,
+                                    );
+                                    output.push_str(&args_str);
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Regular method call handling
+                    if !is_first {
+                        output.push('.');
+                    } else if call_node.identifier.name.lexeme != "print" {
+                        // For first call in chain that's not print, check if it needs 'this.'
+                        // This handles method calls on self
+                    }
+                    self.visit_call_expr_node_to_string_with_context(call_node, output, is_first);
                 }
                 CallChainNodeType::InterfaceMethodCallT {
                     interface_method_call_expr_node,
@@ -3763,7 +3790,6 @@ impl TypeScriptVisitor {
                             if var_name == "math" {
                                 output.push_str("FrameMath");
                                 self.pending_frame_math_property = true;
-                                return;
                             } else if var_name == "round" {
                                 output.push_str("FrameMath.round");
                                 return;
@@ -3980,45 +4006,6 @@ impl TypeScriptVisitor {
             is_first = false;
         }
 
-        // Post-processing: Fix .get() method chaining syntax
-        // Convert patterns like "obj.["key"]" to "obj["key"]"
-        *output = output.replace(".[\"", "[\"");
-
-        // Fix operator precedence for chained .get() calls
-        // Convert: a["x"] || {}["y"] || {}["z"] || "default"
-        // To: ((a["x"] || {})["y"] || {})["z"] || "default"
-
-        let mut fixed = output.clone();
-
-        // Look for the pattern: || {} followed by [
-        while let Some(pos) = fixed.find(" || {}[") {
-            // Find where this sub-expression starts (after = or at the beginning)
-            let mut start = 0;
-            for (i, chunk) in fixed[..pos].split_whitespace().enumerate() {
-                if chunk.ends_with('=') {
-                    // Find the position after the = sign
-                    if let Some(eq_pos) = fixed[..pos].rfind('=') {
-                        start = eq_pos + 1;
-                        while start < fixed.len() && fixed.chars().nth(start) == Some(' ') {
-                            start += 1;
-                        }
-                    }
-                    break;
-                }
-            }
-
-            // Find the end of the || {} part
-            let or_end = pos + " || {}".len();
-
-            // Insert parentheses: (expr || {})
-            let before = &fixed[..start];
-            let middle = &fixed[start..or_end];
-            let after = &fixed[or_end..];
-
-            fixed = format!("{}({}){}", before, middle, after);
-        }
-
-        *output = fixed;
         self.pending_frame_math_property = false;
     }
 
@@ -4068,10 +4055,10 @@ impl TypeScriptVisitor {
                         let value_expr = var_decl.get_initializer_value_rc();
                         self.visit_expr_node_to_string(&*value_expr, &mut init_str);
                         self.builder
-                            .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                            .writeln(&format!("var {} = {};", var_decl.name, init_str));
                     } else {
                         self.builder
-                            .writeln(&format!("let {}: any = null;", var_decl.name));
+                            .writeln(&format!("var {}: any = null;", var_decl.name));
                     }
                 }
             }
@@ -4199,6 +4186,43 @@ impl TypeScriptVisitor {
             );
         }
         var_name.to_string()
+    }
+
+    fn comprehension_binding_parts(target: &str) -> (String, Vec<String>) {
+        let trimmed = target.trim();
+        let inner = if trimmed.starts_with('(') && trimmed.ends_with(')') && trimmed.len() > 1 {
+            trimmed[1..trimmed.len() - 1].trim()
+        } else {
+            trimmed
+        };
+
+        let parts: Vec<String> = inner
+            .split(',')
+            .map(|part| part.trim())
+            .filter(|part| !part.is_empty())
+            .map(|part| part.to_string())
+            .collect();
+
+        if parts.len() > 1 {
+            let destructured = format!("[{}]", parts.join(", "));
+            (format!("({})", destructured), parts)
+        } else {
+            let single = parts
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| inner.to_string());
+            (single.clone(), vec![single])
+        }
+    }
+
+    fn is_simple_dict_key(&self, key: &ExprType) -> bool {
+        match key {
+            ExprType::LiteralExprT { literal_expr_node } => match literal_expr_node.token_t {
+                TokenType::String | TokenType::Number => true,
+                _ => false,
+            },
+            _ => false,
+        }
     }
 
     // Helper method to convert Python f-strings to TypeScript template literals
@@ -4370,22 +4394,12 @@ impl TypeScriptVisitor {
                 self.visit_expr_node_to_string(key, output);
             } else {
                 // Regular key-value pair
-                // Check if key needs computed property syntax for complex expressions
-                let needs_computed = match key {
-                    ExprType::ListT { .. }
-                    | ExprType::DictLiteralT { .. }
-                    | ExprType::CallExprT { .. }
-                    | ExprType::BinaryExprT { .. } => true,
-                    _ => false,
-                };
-
-                if needs_computed {
-                    // Use computed property syntax with string conversion for complex keys
+                if !self.is_simple_dict_key(key) {
+                    // Use computed property syntax with FrameDict key normalization
                     output.push('[');
-                    output.push_str("((x) => typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x))(");
+                    output.push_str("FrameDict.normalizeKey(");
                     self.visit_expr_node_to_string(key, output);
-                    output.push(')');
-                    output.push(']');
+                    output.push_str(")]");
                 } else {
                     // Simple key - output directly
                     self.visit_expr_node_to_string(key, output);
@@ -4476,7 +4490,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                    .writeln(&format!("var {} = {};", var_decl.name, init_str));
                             } else {
                                 self.builder
                                     .writeln(&format!("{} = {};", var_decl.name, init_str));
@@ -4485,7 +4499,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {}: any = null;", var_decl.name));
+                                    .writeln(&format!("var {}: any = null;", var_decl.name));
                             }
                         }
                     }
@@ -4514,10 +4528,10 @@ impl TypeScriptVisitor {
                                 let value_expr = var_decl.get_initializer_value_rc();
                                 self.visit_expr_node_to_string(&*value_expr, &mut init_str);
                                 self.builder
-                                    .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                    .writeln(&format!("var {} = {};", var_decl.name, init_str));
                             } else {
                                 self.builder
-                                    .writeln(&format!("let {}: any = null;", var_decl.name));
+                                    .writeln(&format!("var {}: any = null;", var_decl.name));
                             }
                         }
                     }
@@ -4563,7 +4577,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                    .writeln(&format!("var {} = {};", var_decl.name, init_str));
                             } else {
                                 self.builder
                                     .writeln(&format!("{} = {};", var_decl.name, init_str));
@@ -4572,7 +4586,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {}: any = null;", var_decl.name));
+                                    .writeln(&format!("var {}: any = null;", var_decl.name));
                             }
                         }
                     }
@@ -4601,10 +4615,10 @@ impl TypeScriptVisitor {
                                 let value_expr = var_decl.get_initializer_value_rc();
                                 self.visit_expr_node_to_string(&*value_expr, &mut init_str);
                                 self.builder
-                                    .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                    .writeln(&format!("var {} = {};", var_decl.name, init_str));
                             } else {
                                 self.builder
-                                    .writeln(&format!("let {}: any = null;", var_decl.name));
+                                    .writeln(&format!("var {}: any = null;", var_decl.name));
                             }
                         }
                     }
@@ -4642,7 +4656,7 @@ impl TypeScriptVisitor {
                         if !self.current_local_vars.contains(&var_decl.name) {
                             self.current_local_vars.insert(var_decl.name.clone());
                             self.builder
-                                .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                .writeln(&format!("var {} = {};", var_decl.name, init_str));
                         } else {
                             self.builder
                                 .writeln(&format!("{} = {};", var_decl.name, init_str));
@@ -4651,7 +4665,7 @@ impl TypeScriptVisitor {
                         if !self.current_local_vars.contains(&var_decl.name) {
                             self.current_local_vars.insert(var_decl.name.clone());
                             self.builder
-                                .writeln(&format!("let {}: any = null;", var_decl.name));
+                                .writeln(&format!("var {}: any = null;", var_decl.name));
                         }
                     }
                 }
@@ -4681,10 +4695,10 @@ impl TypeScriptVisitor {
                             let value_expr = var_decl.get_initializer_value_rc();
                             self.visit_expr_node_to_string(&*value_expr, &mut init_str);
                             self.builder
-                                .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                .writeln(&format!("var {} = {};", var_decl.name, init_str));
                         } else {
                             self.builder
-                                .writeln(&format!("let {}: any = null;", var_decl.name));
+                                .writeln(&format!("var {}: any = null;", var_decl.name));
                         }
                     }
                     DeclOrStmtType::StmtT { stmt_t } => {
@@ -4719,7 +4733,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                    .writeln(&format!("var {} = {};", var_decl.name, init_str));
                             } else {
                                 self.builder
                                     .writeln(&format!("{} = {};", var_decl.name, init_str));
@@ -4728,7 +4742,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {}: any = null;", var_decl.name));
+                                    .writeln(&format!("var {}: any = null;", var_decl.name));
                             }
                         }
                     }
@@ -4788,7 +4802,7 @@ impl TypeScriptVisitor {
                     } else {
                         if !self.current_local_vars.contains(var_name) {
                             self.current_local_vars.insert(var_name.clone());
-                            self.builder.writeln(&format!("let {} = e;", var_name));
+                            self.builder.writeln(&format!("var {} = e;", var_name));
                         } else {
                             self.builder.writeln(&format!("{} = e;", var_name));
                         }
@@ -4808,7 +4822,7 @@ impl TypeScriptVisitor {
                                 if !self.current_local_vars.contains(&var_decl.name) {
                                     self.current_local_vars.insert(var_decl.name.clone());
                                     self.builder
-                                        .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                        .writeln(&format!("var {} = {};", var_decl.name, init_str));
                                 } else {
                                     self.builder
                                         .writeln(&format!("{} = {};", var_decl.name, init_str));
@@ -4817,7 +4831,7 @@ impl TypeScriptVisitor {
                                 if !self.current_local_vars.contains(&var_decl.name) {
                                     self.current_local_vars.insert(var_decl.name.clone());
                                     self.builder
-                                        .writeln(&format!("let {}: any = null;", var_decl.name));
+                                        .writeln(&format!("var {}: any = null;", var_decl.name));
                                 }
                             }
                         }
@@ -4860,7 +4874,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                    .writeln(&format!("var {} = {};", var_decl.name, init_str));
                             } else {
                                 self.builder
                                     .writeln(&format!("{} = {};", var_decl.name, init_str));
@@ -4869,7 +4883,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {}: any = null;", var_decl.name));
+                                    .writeln(&format!("var {}: any = null;", var_decl.name));
                             }
                         }
                     }
@@ -4908,7 +4922,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {} = {};", var_decl.name, init_str));
+                                    .writeln(&format!("var {} = {};", var_decl.name, init_str));
                             } else {
                                 self.builder
                                     .writeln(&format!("{} = {};", var_decl.name, init_str));
@@ -4917,7 +4931,7 @@ impl TypeScriptVisitor {
                             if !self.current_local_vars.contains(&var_decl.name) {
                                 self.current_local_vars.insert(var_decl.name.clone());
                                 self.builder
-                                    .writeln(&format!("let {}: any = null;", var_decl.name));
+                                    .writeln(&format!("var {}: any = null;", var_decl.name));
                             }
                         }
                     }
@@ -5024,7 +5038,7 @@ impl TypeScriptVisitor {
             // Generate destructuring assignment for TypeScript
             // let [a, b, c]: any[] = function_that_returns_array()
             self.builder.writeln(&format!(
-                "let [{}]: any[] = {};",
+                "var [{}]: any[] = {};",
                 var_names.join(", "),
                 init_str
             ));
@@ -5032,7 +5046,7 @@ impl TypeScriptVisitor {
             // Single variable declaration
             self.current_local_vars.insert(var_decl.name.clone());
             self.builder
-                .writeln(&format!("let {}: any = {};", var_decl.name, init_str));
+                .writeln(&format!("var {}: any = {};", var_decl.name, init_str));
         }
     }
 
