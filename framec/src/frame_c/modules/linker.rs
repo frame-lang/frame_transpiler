@@ -370,13 +370,12 @@ impl ModuleLinker {
                 output.push_str("        self.state_args = state_args or {}\n");
             }
             TargetLanguage::TypeScript => {
-                // Generate Frame runtime classes once for multifile TypeScript
                 output.push_str("// Frame runtime classes (embedded for standalone compilation)\n");
                 output.push_str("interface FrameEventParameters { [key: string]: any; }\n");
-                output.push_str("class FrameEvent {\n");
+                output.push_str("export class FrameEvent {\n");
                 output.push_str("    constructor(public message: string, public parameters: FrameEventParameters | null) {}\n");
                 output.push_str("}\n\n");
-                output.push_str("class FrameCompartment {\n");
+                output.push_str("export class FrameCompartment {\n");
                 output.push_str("    constructor(\n");
                 output.push_str("        public state: string,\n");
                 output.push_str("        public enterArgs?: any,\n");
@@ -398,7 +397,11 @@ impl ModuleLinker {
                 output.push_str("declare var Promise: PromiseConstructor;\n");
                 output.push_str("declare function createAsyncServer(handler: (socket: any) => void): Promise<any>;\n");
                 output.push_str("declare class NetworkServer { }\n");
-                output.push_str("declare class JsonParser { static parse(data: any): any; }\n");
+                output.push_str("declare class JsonParser { static parse(data: any): any; }\n\n");
+
+                let runtime_code = include_str!("../visitors/runtime/typescript/frame_runtime.ts");
+                output.push_str(runtime_code);
+                output.push('\n');
             }
             _ => {
                 output.push_str("// Frame runtime classes\n");

@@ -130,7 +130,7 @@ class FrameTestRunner:
             for lang in self.config.languages:
                 lang_dir = self.language_specific_dir / lang
                 if lang_dir.exists():
-                    lang_tests = list(lang_dir.glob("*.frm"))
+                    lang_tests = list(lang_dir.rglob("*.frm"))
                     if lang_tests:
                         tests[f"language_specific_{lang}"] = lang_tests
         else:
@@ -140,7 +140,7 @@ class FrameTestRunner:
                 if category_name in self.config.categories:
                     lang_dir = self.language_specific_dir / lang
                     if lang_dir.exists():
-                        lang_tests = list(lang_dir.glob("*.frm"))
+                        lang_tests = list(lang_dir.rglob("*.frm"))
                         if lang_tests:
                             tests[category_name] = lang_tests
                     

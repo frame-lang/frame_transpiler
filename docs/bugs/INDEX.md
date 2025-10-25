@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 50
-- **Open**: 4
+- **Total Bugs**: 52
+- **Open**: 6
 - **Resolved**: 45
 - **Won't Fix**: 1
-- **Next Bug Number**: 051
+- **Next Bug Number**: 053
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -21,6 +21,8 @@
 | [#039](open/bug_039_missing_frame_semantic_metadata.md) | Missing Frame Semantic Metadata for Debugger | Medium | Tooling | Open | - |
 | [#049](open/bug_049_typescript_transpilation_rate_low.md) | TypeScript Transpilation Rate Lower Than Python | Medium | CodeGen | Open | Claude |
 | [#050](open/bug_050_test_runner_language_filtering.md) | Language-Specific Tests Running for All Languages | Low | Tooling | Open | - |
+| [#051](open/bug_051_typescript_duplicate_imports.md) | TypeScript Generator Produces Duplicate Imports | High | CodeGen | Open | - |
+| [#052](open/bug_052_typescript_actions_generate_stubs.md) | TypeScript Actions Generate Stubs Despite Proper Imports | Critical | CodeGen | Open | - |
 
 ## Recently Resolved
 

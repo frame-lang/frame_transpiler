@@ -10,6 +10,7 @@ use crate::frame_c::scanner::TokenType;
 use crate::frame_c::symbol_table::{Arcanum, SymbolConfig};
 use regex;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 pub struct TypeScriptVisitor {
     pub builder: CodeBuilder,
@@ -35,12 +36,21 @@ pub struct TypeScriptVisitor {
     declared_enums: HashSet<String>,     // Track declared enum names to avoid duplicates
     is_in_action: bool, // Track if we're currently processing an action (vs event handler)
     current_event_handler_default_return_value: Option<String>, // Track event handler default return value
+    node_module_imports: HashSet<String>, // Track required Node.js module imports
 
     // Control flags for multifile compilation
     generate_runtime_classes: bool, // Whether to generate Frame runtime classes (false for multifile modules)
     in_module_function: bool,       // Flag to track when generating module functions
     state_var_initializers: HashMap<String, String>, // Cached state variable initializers per state
     pending_frame_math_property: bool,
+    unpack_temp_counter: usize,
+}
+
+struct NodeApiActionMapping {
+    return_type: &'static str,
+    force_async: Option<bool>,
+    statements: Vec<String>,
+    return_expression: Option<String>,
 }
 
 impl TypeScriptVisitor {
@@ -64,10 +74,12 @@ impl TypeScriptVisitor {
             declared_enums: HashSet::new(),
             is_in_action: false,
             current_event_handler_default_return_value: None,
+            node_module_imports: HashSet::new(),
             generate_runtime_classes: true, // Default: generate runtime classes for standalone compilation
             in_module_function: false,      // Default: not in module function
             state_var_initializers: HashMap::new(),
             pending_frame_math_property: false,
+            unpack_temp_counter: 0,
         }
     }
 
@@ -387,6 +399,280 @@ impl TypeScriptVisitor {
         }
     }
 
+    fn action_has_any_return(&self, action: &ActionNode) -> bool {
+        for stmt_or_decl in &action.statements {
+            if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                if self.statement_has_any_return(stmt_t) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn statement_has_any_return(&self, stmt: &StatementType) -> bool {
+        match stmt {
+            StatementType::IfStmt { if_stmt_node } => {
+                for stmt_or_decl in &if_stmt_node.if_block.statements {
+                    if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                        if self.statement_has_any_return(stmt_t) {
+                            return true;
+                        }
+                    }
+                }
+                for elif_branch in &if_stmt_node.elif_clauses {
+                    for stmt_or_decl in &elif_branch.block.statements {
+                        if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                            if self.statement_has_any_return(stmt_t) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                if let Some(else_branch) = &if_stmt_node.else_block {
+                    for stmt_or_decl in &else_branch.statements {
+                        if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                            if self.statement_has_any_return(stmt_t) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                false
+            }
+            StatementType::BlockStmt { block_stmt_node } => {
+                for stmt_or_decl in &block_stmt_node.statements {
+                    if let DeclOrStmtType::StmtT { stmt_t } = stmt_or_decl {
+                        if self.statement_has_any_return(stmt_t) {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+            StatementType::ReturnStmt { .. } => true,
+            _ => false,
+        }
+    }
+
+    fn format_function_ref(&self, name: &str) -> String {
+        let parts: Vec<&str> = name.split('.').collect();
+        if parts.is_empty() {
+            return String::new();
+        }
+
+        let mut result = String::new();
+        for (index, part) in parts.iter().enumerate() {
+            if index > 0 {
+                result.push('.');
+            }
+
+            match *part {
+                "self" | "system" => {
+                    if index == 0 {
+                        result.push_str("this");
+                    } else {
+                        result.push_str("this");
+                    }
+                }
+                _ => result.push_str(part),
+            }
+        }
+
+        result
+    }
+
+    fn require_node_module(&mut self, module: &str) {
+        self.node_module_imports.insert(module.to_string());
+    }
+
+    fn sanitize_identifier(identifier: &str) -> String {
+        if identifier.is_empty() {
+            return "_imported".to_string();
+        }
+
+        let mut result = identifier
+            .chars()
+            .map(|ch| {
+                if ch.is_alphanumeric() || ch == '_' {
+                    ch
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>();
+
+        if result
+            .chars()
+            .next()
+            .map(|ch| ch.is_ascii_digit())
+            .unwrap_or(false)
+        {
+            result.insert(0, '_');
+        }
+
+        if result.is_empty() {
+            "_imported".to_string()
+        } else {
+            result
+        }
+    }
+
+    fn frame_path_to_typescript_module(file_path: &str) -> String {
+        let path = Path::new(file_path);
+        let without_ext = path.with_extension("");
+        let mut module_path = without_ext.to_string_lossy().replace('\\', "/");
+
+        if module_path.is_empty() {
+            return ".".to_string();
+        }
+
+        if !module_path.starts_with('.') && !module_path.starts_with('/') {
+            module_path = format!("./{}", module_path);
+        }
+
+        module_path
+    }
+
+    fn dict_key_identifier(&self, key: &ExprType) -> Option<String> {
+        match key {
+            ExprType::CallChainExprT {
+                call_chain_expr_node,
+            } => {
+                if call_chain_expr_node.call_chain.len() == 1 {
+                    match &call_chain_expr_node.call_chain[0] {
+                        CallChainNodeType::VariableNodeT { var_node } => {
+                            Some(var_node.id_node.name.lexeme.clone())
+                        }
+                        CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                            Some(id_node.name.lexeme.clone())
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn get_node_api_action_mapping(&mut self, action: &ActionNode) -> Option<NodeApiActionMapping> {
+        if self.action_has_any_return(action) {
+            return None;
+        }
+
+        let param_names: Vec<String> = action
+            .params
+            .as_ref()
+            .map(|params| params.iter().map(|p| p.param_name.clone()).collect())
+            .unwrap_or_default();
+
+        match action.name.as_str() {
+            "spawn" => {
+                if param_names.is_empty() {
+                    return None;
+                }
+
+                let command_expr = param_names[0].clone();
+                let args_expr = if param_names.len() > 1 {
+                    param_names[1].clone()
+                } else {
+                    "[]".to_string()
+                };
+                let extra_args = if param_names.len() > 2 {
+                    format!(", {}", param_names[2..].join(", "))
+                } else {
+                    String::new()
+                };
+
+                let return_expr = format!(
+                    "child_process.spawn({}, {}{})",
+                    command_expr, args_expr, extra_args
+                );
+
+                self.require_node_module("child_process");
+
+                Some(NodeApiActionMapping {
+                    return_type: "any",
+                    force_async: None,
+                    statements: Vec::new(),
+                    return_expression: Some(return_expr),
+                })
+            }
+            "createTcpServer" => {
+                let mut create_args: Vec<String> = Vec::new();
+                let mut listen_args: Vec<String> = Vec::new();
+
+                for name in &param_names {
+                    let lowered = name.to_lowercase();
+                    if lowered.contains("port")
+                        || lowered.contains("host")
+                        || lowered.contains("path")
+                        || lowered.contains("backlog")
+                    {
+                        listen_args.push(name.clone());
+                    } else {
+                        create_args.push(name.clone());
+                    }
+                }
+
+                let create_call = if create_args.is_empty() {
+                    "net.createServer()".to_string()
+                } else {
+                    format!("net.createServer({})", create_args.join(", "))
+                };
+
+                self.require_node_module("net");
+
+                if listen_args.is_empty() {
+                    Some(NodeApiActionMapping {
+                        return_type: "any",
+                        force_async: None,
+                        statements: Vec::new(),
+                        return_expression: Some(create_call),
+                    })
+                } else {
+                    let listen_call = listen_args.join(", ");
+                    let mut statements = Vec::new();
+                    statements.push(format!("const server = {};", create_call));
+                    statements.push(format!("server.listen({});", listen_call));
+                    self.require_node_module("net");
+                    Some(NodeApiActionMapping {
+                        return_type: "any",
+                        force_async: None,
+                        statements,
+                        return_expression: Some("server".to_string()),
+                    })
+                }
+            }
+            "readFile" => {
+                if param_names.is_empty() {
+                    return None;
+                }
+
+                let path_expr = param_names[0].clone();
+                let extra_args = if param_names.len() > 1 {
+                    param_names[1..].join(", ")
+                } else {
+                    "'utf8'".to_string()
+                };
+
+                let return_expr = format!("fs.readFileSync({}, {})", path_expr, extra_args);
+
+                self.require_node_module("fs");
+
+                Some(NodeApiActionMapping {
+                    return_type: "any",
+                    force_async: None,
+                    statements: Vec::new(),
+                    return_expression: Some(return_expr),
+                })
+            }
+            _ => None,
+        }
+    }
+
     pub fn run(mut self, frame_module: &FrameModule) -> String {
         // Add header
         self.builder.writeln(&format!(
@@ -403,6 +689,9 @@ impl TypeScriptVisitor {
         self.visit_frame_module(frame_module);
 
         let (mut code, _mappings) = self.builder.build();
+
+        // Insert any required Node.js module imports detected during visitation
+        code = Self::insert_node_module_imports(code, &self.node_module_imports);
 
         // Post-process to fix patterns that weren't caught by AST visitors
         code = Self::post_process_typescript_output(code);
@@ -439,6 +728,12 @@ impl TypeScriptVisitor {
         result = result.replace("\nTrue", "\ntrue");
         result = result.replace("\nFalse", "\nfalse");
 
+        // Fix stray '.this._action_' and '.this._operation_' sequences generated by call chain resolution
+        result = result.replace(".this._action_", "._action_");
+        result = result.replace(".this._operation_", "._operation_");
+
+        result = Self::dedup_imports(result);
+
         result
     }
 
@@ -450,71 +745,149 @@ impl TypeScriptVisitor {
             .writeln("/// <reference lib=\"es2015.promise\" />");
         self.builder.newline();
 
-        // Only generate Frame runtime classes for standalone compilation
         if self.generate_runtime_classes {
-            // Frame runtime classes (embedded for standalone compilation)
-            self.builder
-                .writeln("// Frame runtime classes (embedded for standalone compilation)");
-            self.builder
-                .writeln("interface FrameEventParameters { [key: string]: any; }");
-            self.builder.writeln("class FrameEvent {");
-            self.builder.indent();
-            self.builder.writeln("constructor(public message: string, public parameters: FrameEventParameters | null) {}");
-            self.builder.dedent();
-            self.builder.writeln("}");
+            self.embed_frame_runtime();
             self.builder.newline();
-            self.builder.writeln("class FrameCompartment {");
-            self.builder.indent();
-            self.builder.writeln("constructor(");
-            self.builder.indent();
-            self.builder.writeln("public state: string,");
-            self.builder.writeln("public enterArgs?: any,");
-            self.builder.writeln("public exitArgs?: any,");
-            self.builder.writeln("public stateArgs?: any,");
-            self.builder.writeln("public stateVars?: any,");
-            self.builder.writeln("public enterArgsCollection?: any,");
-            self.builder.writeln("public exitArgsCollection?: any,");
-            self.builder
-                .writeln("public forwardEvent?: FrameEvent | null");
-            self.builder.dedent();
-            self.builder.writeln(") {");
-            self.builder.indent();
-            self.builder
-                .writeln("this.forwardEvent = forwardEvent || null;");
-            self.builder.writeln("this.stateArgs = stateArgs || {};");
-            self.builder.writeln("this.stateVars = stateVars || {};");
-            self.builder.dedent();
-            self.builder.writeln("}");
-            self.builder.dedent();
-            self.builder.writeln("}");
+            self.emit_runtime_scaffolding();
+        }
+    }
+
+    fn emit_runtime_scaffolding(&mut self) {
+        // Frame runtime classes (embedded for standalone compilation)
+        self.builder
+            .writeln("// Frame runtime classes (embedded for standalone compilation)");
+        self.builder
+            .writeln("interface FrameEventParameters { [key: string]: any; }");
+        self.builder.writeln("class FrameEvent {");
+        self.builder.indent();
+        self.builder.writeln("constructor(public message: string, public parameters: FrameEventParameters | null) {}");
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+        self.builder.writeln("class FrameCompartment {");
+        self.builder.indent();
+        self.builder.writeln("constructor(");
+        self.builder.indent();
+        self.builder.writeln("public state: string,");
+        self.builder.writeln("public enterArgs?: any,");
+        self.builder.writeln("public exitArgs?: any,");
+        self.builder.writeln("public stateArgs?: any,");
+        self.builder.writeln("public stateVars?: any,");
+        self.builder.writeln("public enterArgsCollection?: any,");
+        self.builder.writeln("public exitArgsCollection?: any,");
+        self.builder
+            .writeln("public forwardEvent?: FrameEvent | null");
+        self.builder.dedent();
+        self.builder.writeln(") {");
+        self.builder.indent();
+        self.builder
+            .writeln("this.forwardEvent = forwardEvent || null;");
+        self.builder.writeln("this.stateArgs = stateArgs || {};");
+        self.builder.writeln("this.stateVars = stateVars || {};");
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+
+        // External function declarations (provided by runtime environment)
+        self.builder
+            .writeln("// External function declarations (provided by runtime environment)");
+        self.builder
+            .writeln("declare var Promise: PromiseConstructor;");
+        self.builder.writeln(
+            "declare function createAsyncServer(handler: (socket: any) => void): Promise<any>;",
+        );
+        self.builder.writeln("declare class NetworkServer { }");
+        self.builder
+            .writeln("declare class JsonParser { static parse(data: any): any; }");
+        self.builder.newline();
+    }
+
+    fn insert_node_module_imports(code: String, node_modules: &HashSet<String>) -> String {
+        if node_modules.is_empty() {
+            return code;
         }
 
-        // Only generate external function declarations with runtime classes
-        if self.generate_runtime_classes {
-            self.builder.newline();
-
-            // External function declarations (provided by runtime environment)
-            self.builder
-                .writeln("// External function declarations (provided by runtime environment)");
-            self.builder
-                .writeln("declare var Promise: PromiseConstructor;");
-            self.builder.writeln(
-                "declare function createAsyncServer(handler: (socket: any) => void): Promise<any>;",
-            );
-            self.builder.writeln("declare class NetworkServer { }");
-            self.builder
-                .writeln("declare class JsonParser { static parse(data: any): any; }");
-            self.builder.newline();
-
-            // Node.js module imports for API mapping fixes (Bugs #54, #55, #56)
-            self.builder
-                .writeln("// Node.js module imports for API mapping");
-            self.builder
-                .writeln("import * as child_process from 'child_process';");
-            self.builder.writeln("import * as net from 'net';");
-            self.builder.writeln("import * as fs from 'fs'");
-            self.builder.newline();
+        let mut existing_imports: HashSet<String> = HashSet::new();
+        for line in code.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("import ") {
+                existing_imports.insert(trimmed.to_string());
+            }
         }
+
+        let mut modules: Vec<String> = node_modules.iter().cloned().collect();
+        modules.sort();
+
+        let mut new_imports: Vec<String> = Vec::new();
+        for module in modules {
+            let alias = module.replace(|c: char| !(c.is_alphanumeric() || c == '_'), "_");
+            let import_line = format!("import * as {} from '{}';", alias, module);
+            if !existing_imports.contains(&import_line) {
+                existing_imports.insert(import_line.clone());
+                new_imports.push(import_line);
+            }
+        }
+
+        if new_imports.is_empty() {
+            return code;
+        }
+
+        let mut lines: Vec<String> = code.lines().map(|s| s.to_string()).collect();
+        let mut in_block_comment = false;
+        let mut last_import_index: Option<usize> = None;
+        let mut insertion_index: usize = 0;
+
+        for (idx, line) in lines.iter().enumerate() {
+            let trimmed = line.trim_start();
+
+            if in_block_comment {
+                if trimmed.contains("*/") {
+                    in_block_comment = false;
+                }
+                continue;
+            }
+
+            if trimmed.starts_with("/*") {
+                in_block_comment = !trimmed.contains("*/");
+                continue;
+            }
+
+            if trimmed.starts_with("import ") {
+                last_import_index = Some(idx);
+                insertion_index = idx + 1;
+                continue;
+            }
+
+            if trimmed.starts_with("///") || trimmed.starts_with("//") || trimmed.is_empty() {
+                continue;
+            }
+
+            // Found first non-import, non-comment code line
+            if last_import_index.is_none() {
+                insertion_index = idx;
+            }
+            break;
+        }
+
+        if let Some(last_index) = last_import_index {
+            insertion_index = last_index + 1;
+        }
+
+        if insertion_index > lines.len() {
+            insertion_index = lines.len();
+        }
+
+        for (offset, import_line) in new_imports.iter().enumerate() {
+            lines.insert(insertion_index + offset, import_line.to_string());
+        }
+
+        let mut new_code = lines.join("\n");
+        if code.ends_with('\n') {
+            new_code.push('\n');
+        }
+        new_code
     }
 
     fn generate_enum(&mut self, enum_node: &EnumDeclNode) {
@@ -531,6 +904,9 @@ impl TypeScriptVisitor {
             .writeln(&format!("class {} {{", enum_node.name));
         self.builder.indent();
 
+        let mut enumerator_names: Vec<String> = Vec::new();
+        let mut next_auto_value: i32 = 0;
+
         // Generate static members for each enum value
         for enumerator in &enum_node.enums {
             let value = match &enumerator.value {
@@ -541,23 +917,66 @@ impl TypeScriptVisitor {
                         // Auto-generate string value from name
                         format!("\"{}\"", enumerator.name)
                     } else {
-                        // Auto-generate numeric value (we'll use sequential numbers)
-                        enumerator.name.clone() // placeholder for now
+                        let value_str = next_auto_value.to_string();
+                        next_auto_value += 1;
+                        value_str
                     }
                 }
             };
 
+            if let EnumValue::Integer(i) = &enumerator.value {
+                next_auto_value = i + 1;
+            } else if !matches!(enum_node.enum_type, EnumType::String)
+                && !matches!(enumerator.value, EnumValue::Auto)
+            {
+                // For explicit numeric/string values that aren't integers, reset auto counter
+                next_auto_value = 0;
+            }
+
+            enumerator_names.push(enumerator.name.clone());
+
             self.builder.writeln(&format!(
-                "static {} = new {}({});",
-                enumerator.name, enum_node.name, value
+                "static {} = new {}(\"{}\", {});",
+                enumerator.name, enum_node.name, enumerator.name, value
             ));
         }
 
         self.builder.newline();
 
         // Constructor and value property
+        self.builder.writeln(
+            "private constructor(public readonly name: string, public readonly value: any) {}",
+        );
+
+        // values() helper
         self.builder
-            .writeln("constructor(public readonly value: any) {}");
+            .writeln(&format!("static values(): {}[] {{", enum_node.name));
+        self.builder.indent();
+        let values_list = enumerator_names
+            .iter()
+            .map(|name| format!("{}.{}", enum_node.name, name))
+            .collect::<Vec<_>>()
+            .join(", ");
+        self.builder.writeln(&format!("return [{}];", values_list));
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+
+        // Iterator support
+        self.builder.writeln(&format!(
+            "static [Symbol.iterator](): IterableIterator<{}> {{",
+            enum_node.name
+        ));
+        self.builder.indent();
+        self.builder
+            .writeln("return this.values()[Symbol.iterator]();");
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+
+        // toString helper
+        self.builder
+            .writeln("toString(): string { return this.name; }");
 
         self.builder.dedent();
         self.builder.writeln("}");
@@ -575,11 +994,6 @@ impl TypeScriptVisitor {
 
 impl AstVisitor for TypeScriptVisitor {
     fn visit_frame_module(&mut self, frame_module: &FrameModule) {
-        // Embed Frame TypeScript runtime at the beginning of the file when generating standalone output
-        if self.generate_runtime_classes {
-            self.embed_frame_runtime();
-        }
-
         // Process imports first (they should be at the top)
         for import_node in &frame_module.imports {
             self.visit_import_node(import_node);
@@ -595,17 +1009,22 @@ impl AstVisitor for TypeScriptVisitor {
             self.visit_module_node(&module_node.borrow());
         }
 
-        // Process top-level variables
-        for var_decl in &frame_module.variables {
-            let var = var_decl.borrow();
-            self.visit_variable_decl_node(&var);
-            self.builder.newline();
-        }
-
         // Process classes
         for class_node in &frame_module.classes {
             let class = class_node.borrow();
             self.visit_class_node(&class);
+            self.builder.newline();
+        }
+
+        // Visit systems before top-level variables so declarations can reference them safely
+        for system_node in &frame_module.systems {
+            self.visit_system_node(system_node);
+        }
+
+        // Process top-level variables (after systems/classes to avoid TDZ issues)
+        for var_decl in &frame_module.variables {
+            let var = var_decl.borrow();
+            self.visit_variable_decl_node(&var);
             self.builder.newline();
         }
 
@@ -614,11 +1033,6 @@ impl AstVisitor for TypeScriptVisitor {
             let func = function_node.borrow();
             self.visit_function_node(&func);
             self.builder.newline();
-        }
-
-        // Visit systems
-        for system_node in &frame_module.systems {
-            self.visit_system_node(system_node);
         }
 
         // Process top-level statements
@@ -670,6 +1084,54 @@ impl AstVisitor for TypeScriptVisitor {
                 self.builder.writeln("main();");
             }
         }
+    }
+
+    fn visit_import_node(&mut self, import_node: &ImportNode) {
+        self.builder.map_next(import_node.line);
+
+        let import_stmt = match &import_node.import_type {
+            ImportType::Simple { module } => {
+                let alias = Self::sanitize_identifier(module);
+                format!("import * as {} from '{}';", alias, module)
+            }
+            ImportType::Aliased { module, alias } => {
+                let sanitized_alias = Self::sanitize_identifier(alias);
+                format!("import * as {} from '{}';", sanitized_alias, module)
+            }
+            ImportType::FromImport { module, items } => {
+                let imports = items.join(", ");
+                format!("import {{ {} }} from '{}';", imports, module)
+            }
+            ImportType::FromImportAll { module } => {
+                let alias = Self::sanitize_identifier(module);
+                format!("import * as {} from '{}';", alias, module)
+            }
+            ImportType::FrameModule {
+                module_name,
+                file_path,
+            } => {
+                let ts_module = Self::frame_path_to_typescript_module(file_path);
+                format!("import {{ {} }} from '{}';", module_name, ts_module)
+            }
+            ImportType::FrameModuleAliased {
+                module_name,
+                file_path,
+                alias,
+            } => {
+                let ts_module = Self::frame_path_to_typescript_module(file_path);
+                format!(
+                    "import {{ {} as {} }} from '{}';",
+                    module_name, alias, ts_module
+                )
+            }
+            ImportType::FrameSelective { items, file_path } => {
+                let ts_module = Self::frame_path_to_typescript_module(file_path);
+                let items_str = items.join(", ");
+                format!("import {{ {} }} from '{}';", items_str, ts_module)
+            }
+        };
+
+        self.builder.writeln(&import_stmt);
     }
 
     fn visit_module_node(&mut self, module_node: &ModuleNode) {
@@ -1037,6 +1499,26 @@ impl AstVisitor for TypeScriptVisitor {
             }
         }
 
+        // Public state methods
+        if let Some(machine) = &system_node.machine_block_node_opt {
+            self.builder.writeln("// Public state methods");
+            for state_rcref in &machine.states {
+                let state_node = state_rcref.borrow();
+                let method_name = format!("_s{}", state_node.name.trim_start_matches('$'));
+                let dispatcher_name = self.format_state_name(&state_node.name);
+                self.builder
+                    .writeln(&format!("public {}(__e: FrameEvent): void {{", method_name));
+                self.builder.indent();
+                self.builder.writeln(&format!(
+                    "this.{}(__e, this._compartment);",
+                    dispatcher_name
+                ));
+                self.builder.dedent();
+                self.builder.writeln("}");
+                self.builder.newline();
+            }
+        }
+
         // Operations
         if let Some(operations) = &system_node.operations_block_node_opt {
             self.builder.writeln("// Operations");
@@ -1313,13 +1795,21 @@ impl AstVisitor for TypeScriptVisitor {
 
         // Build parameter list and track parameters
         let mut params = Vec::new();
+        let mut param_names = Vec::new();
         if let Some(param_nodes) = &operation.params {
             for param in param_nodes {
                 params.push(format!("{}: any", param.param_name));
+                param_names.push(param.param_name.clone());
                 // Track operation parameters as local variables
                 self.current_local_vars.insert(param.param_name.clone());
             }
         }
+        let params_str = params.join(", ");
+        let call_args = if param_names.is_empty() {
+            String::new()
+        } else {
+            param_names.join(", ")
+        };
 
         // Build return type
         let return_type = if operation.type_opt.is_some() {
@@ -1328,12 +1818,71 @@ impl AstVisitor for TypeScriptVisitor {
             "void"
         };
 
+        let is_static = operation.is_static();
+
+        if is_static {
+            self.builder.writeln(&format!(
+                "public static {}({}): {} {{",
+                operation.name, params_str, return_type
+            ));
+        } else {
+            self.builder.writeln(&format!(
+                "public {}({}): {} {{",
+                operation.name, params_str, return_type
+            ));
+        }
+        self.builder.indent();
+
+        let (caller_prefix, receiver) = if is_static {
+            (
+                format!("const sys = new {}();", self.system_name),
+                "sys".to_string(),
+            )
+        } else {
+            (
+                "this.returnStack.push(null);".to_string(),
+                "this".to_string(),
+            )
+        };
+
+        if is_static {
+            self.builder.writeln(&caller_prefix);
+            self.builder.writeln("sys.returnStack.push(null);");
+        } else {
+            self.builder.writeln(&caller_prefix);
+        }
+
+        let call_stmt = if call_args.is_empty() {
+            format!("{}.{}();", receiver, operation_name)
+        } else {
+            format!("{}.{}({});", receiver, operation_name, call_args)
+        };
+        self.builder.writeln(&call_stmt);
+
+        if return_type == "void" {
+            if is_static {
+                self.builder.writeln("sys.returnStack.pop();");
+            } else {
+                self.builder.writeln("this.returnStack.pop();");
+            }
+        } else if is_static {
+            self.builder
+                .writeln("const result = sys.returnStack.pop();");
+            self.builder.writeln("return result;");
+        } else {
+            self.builder
+                .writeln("const result = this.returnStack.pop();");
+            self.builder.writeln("return result;");
+        }
+
+        self.builder.dedent();
+        self.builder.writeln("}");
+        self.builder.newline();
+
         // Generate method signature
         self.builder.writeln(&format!(
             "private {}({}): {} {{",
-            operation_name,
-            params.join(", "),
-            return_type
+            operation_name, params_str, return_type
         ));
         self.builder.indent();
 
@@ -1370,6 +1919,7 @@ impl AstVisitor for TypeScriptVisitor {
 
     fn visit_action_node(&mut self, action: &ActionNode) {
         let action_name = format!("_action_{}", action.name);
+        let mapping_opt = self.get_node_api_action_mapping(action);
 
         // Track this action name for call resolution
         self.action_names.insert(action.name.clone());
@@ -1393,7 +1943,12 @@ impl AstVisitor for TypeScriptVisitor {
         let params_str = params.join(", ");
 
         // Check if action is async
-        let is_async = self.action_is_async(action);
+        let mut is_async = self.action_is_async(action);
+        if let Some(mapping) = &mapping_opt {
+            if let Some(force_async) = mapping.force_async {
+                is_async = force_async;
+            }
+        }
 
         // Determine return type - infer from body if not explicitly declared
         let return_type = if let Some(type_node) = &action.type_opt {
@@ -1410,7 +1965,11 @@ impl AstVisitor for TypeScriptVisitor {
             }
         } else {
             // Infer return type from action body
-            let base_type = self.infer_action_return_type(action);
+            let base_type = if let Some(mapping) = &mapping_opt {
+                mapping.return_type
+            } else {
+                self.infer_action_return_type(action)
+            };
             if is_async {
                 format!("Promise<{}>", base_type)
             } else {
@@ -1469,16 +2028,29 @@ impl AstVisitor for TypeScriptVisitor {
         }
 
         // Add default return for actions that don't have explicit returns but need them
-        if !self.action_has_return_with_value(action) && return_type.contains("boolean") {
-            self.builder
-                .writeln("return true; // Default success return for Frame action");
-        } else if !self.action_has_return_with_value(action)
-            && return_type.contains("Promise")
-            && !return_type.contains("void")
-        {
-            // Async actions with return types need a default return
-            self.builder
-                .writeln("return null; // Default return for async action");
+        let mut mapping_applied = false;
+        if let Some(mapping) = &mapping_opt {
+            for stmt in &mapping.statements {
+                self.builder.writeln(stmt);
+            }
+            if let Some(return_expr) = &mapping.return_expression {
+                self.builder.writeln(&format!("return {};", return_expr));
+            }
+            mapping_applied = true;
+        }
+
+        if !mapping_applied {
+            if !self.action_has_return_with_value(action) && return_type.contains("boolean") {
+                self.builder
+                    .writeln("return true; // Default success return for Frame action");
+            } else if !self.action_has_return_with_value(action)
+                && return_type.contains("Promise")
+                && !return_type.contains("void")
+            {
+                // Async actions with return types need a default return
+                self.builder
+                    .writeln("return null; // Default return for async action");
+            }
         }
 
         // Reset action context
@@ -1885,8 +2457,12 @@ impl TypeScriptVisitor {
                 } else {
                     // Check if we're in a Frame class context and this could be a class method call
                     if let Some(_class_name) = &self.current_class_name_opt {
-                        // We're in a Frame class - assume unresolved calls are method calls on this class
-                        output.push_str(&format!("this.{}(", func_name));
+                        // We're in a Frame class - treat unresolved calls on the current instance when this is the chain root
+                        if is_first_in_chain {
+                            output.push_str(&format!("this.{}(", func_name));
+                        } else {
+                            output.push_str(&format!("{}(", func_name));
+                        }
                     } else if self.action_names.contains(func_name) {
                         // It's a defined action - prefix with this._action_
                         output.push_str(&format!("this._action_{}(", func_name));
@@ -2591,6 +3167,37 @@ impl TypeScriptVisitor {
                 for local in locals {
                     self.current_local_vars.remove(&local);
                 }
+            }
+            ExprType::FunctionRefT { name } => {
+                let ref_expr = self.format_function_ref(name);
+                output.push_str(&ref_expr);
+            }
+            ExprType::AssignmentExprT {
+                assignment_expr_node,
+            } => {
+                let mut rhs = String::new();
+                self.visit_expr_node_to_string(&assignment_expr_node.r_value_rc, &mut rhs);
+                output.push_str(&rhs);
+            }
+            ExprType::WalrusExprT {
+                assignment_expr_node,
+            } => {
+                let mut lhs = String::new();
+                self.visit_expr_node_to_string(&assignment_expr_node.l_value_box, &mut lhs);
+
+                let mut rhs = String::new();
+                self.visit_expr_node_to_string(&assignment_expr_node.r_value_rc, &mut rhs);
+
+                if let ExprType::VariableExprT { var_node } = &*assignment_expr_node.l_value_box {
+                    self.current_local_vars
+                        .insert(var_node.id_node.name.lexeme.clone());
+                }
+
+                output.push('(');
+                output.push_str(&lhs);
+                output.push_str(" = ");
+                output.push_str(&rhs);
+                output.push(')');
             }
             _ => {
                 // Debug output to see what expression types are missing
@@ -3444,6 +4051,39 @@ impl TypeScriptVisitor {
             }
         }
 
+        if node.call_chain.len() == 3 {
+            if let (
+                CallChainNodeType::UndeclaredIdentifierNodeT {
+                    id_node: module_node,
+                },
+                CallChainNodeType::UndeclaredIdentifierNodeT {
+                    id_node: submodule_node,
+                },
+                CallChainNodeType::UndeclaredCallT { call_node },
+            ) = (
+                &node.call_chain[0],
+                &node.call_chain[1],
+                &node.call_chain[2],
+            ) {
+                if module_node.name.lexeme == "os"
+                    && submodule_node.name.lexeme == "path"
+                    && call_node.identifier.name.lexeme == "join"
+                {
+                    output.push_str("pathLib.join(");
+                    if !call_node.call_expr_list.exprs_t.is_empty() {
+                        let mut args_str = String::new();
+                        self.visit_expr_list_node_to_string(
+                            &call_node.call_expr_list.exprs_t,
+                            &mut args_str,
+                        );
+                        output.push_str(&args_str);
+                    }
+                    output.push(')');
+                    return;
+                }
+            }
+        }
+
         // Handle regular call chains
         let debug_enabled = std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1";
 
@@ -3534,6 +4174,27 @@ impl TypeScriptVisitor {
 
                     let method_name = &call_node.identifier.name.lexeme;
                     let method_base = method_name.split('.').last().unwrap_or(method_name);
+
+                    if self.action_names.contains(method_name) {
+                        if is_first {
+                            output.push_str(&format!("this._action_{}(", method_name));
+                        } else {
+                            if !output.trim_end().ends_with('.') {
+                                output.push('.');
+                            }
+                            output.push_str(&format!("_action_{}(", method_name));
+                        }
+                        if !call_node.call_expr_list.exprs_t.is_empty() {
+                            let mut args_str = String::new();
+                            self.visit_expr_list_node_to_string(
+                                &call_node.call_expr_list.exprs_t,
+                                &mut args_str,
+                            );
+                            output.push_str(&args_str);
+                        }
+                        output.push(')');
+                        continue;
+                    }
 
                     // Check for special @indexed_call node
                     if method_name == "@indexed_call" {
@@ -3997,12 +4658,23 @@ impl TypeScriptVisitor {
                     } else {
                         // Check if this is a real action call or an external API call
                         // If it's not the first in the chain, it's likely an external API method
-                        if is_first {
-                            // This is a real action - use action prefix
-                            output.push_str(&format!("this._action_{}(", method_name));
+                        if self.action_names.contains(method_name) {
+                            if is_first {
+                                // This is a real action - use action prefix on current instance
+                                output.push_str(&format!("this._action_{}(", method_name));
+                            } else {
+                                // Action invoked on explicit target - add dot and action prefix
+                                if !output.trim_end().ends_with('.') {
+                                    output.push('.');
+                                }
+                                output.push_str(&format!("_action_{}(", method_name));
+                            }
                         } else {
                             // This is an external API method call (e.g., child_process.spawn)
-                            // Don't add the action prefix
+                            // Don't add the action prefix but ensure proper property access
+                            if !output.trim_end().ends_with('.') {
+                                output.push('.');
+                            }
                             output.push_str(&format!("{}(", method_name));
                         }
                         if action_call_expr_node.call_expr_list.exprs_t.len() > 0 {
@@ -4167,8 +4839,6 @@ impl TypeScriptVisitor {
                 CallChainNodeType::SelfT { .. } => {
                     if is_first {
                         output.push_str("this");
-                    } else {
-                        output.push_str(".this"); // This shouldn't normally happen
                     }
                 }
                 CallChainNodeType::CallChainLiteralExprT {
@@ -4711,6 +5381,30 @@ impl TypeScriptVisitor {
         result
     }
 
+    fn dedup_imports(code: String) -> String {
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut deduped_lines: Vec<String> = Vec::new();
+
+        for line in code.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("import ") {
+                if seen.insert(trimmed.to_string()) {
+                    deduped_lines.push(line.to_string());
+                } else {
+                    continue;
+                }
+            } else {
+                deduped_lines.push(line.to_string());
+            }
+        }
+
+        let mut deduped_code = deduped_lines.join("\n");
+        if code.ends_with('\n') {
+            deduped_code.push('\n');
+        }
+        deduped_code
+    }
+
     fn visit_dict_literal_node_to_string(&mut self, node: &DictLiteralNode, output: &mut String) {
         output.push('{');
         let mut first = true;
@@ -4725,6 +5419,15 @@ impl TypeScriptVisitor {
                 // This is a dict unpacking, just output the spread key (not value)
                 self.visit_expr_node_to_string(key, output);
             } else {
+                if let Some(identifier_key) = self.dict_key_identifier(key) {
+                    output.push('\'');
+                    output.push_str(&identifier_key);
+                    output.push('\'');
+                    output.push_str(": ");
+                    self.visit_expr_node_to_string(value, output);
+                    continue;
+                }
+
                 // Regular key-value pair
                 if !self.is_simple_dict_key(key) {
                     // Use computed property syntax with FrameDict key normalization
@@ -5351,11 +6054,10 @@ impl TypeScriptVisitor {
         self.builder.writeln("}");
     }
 
-    fn visit_variable_decl_node(&mut self, var_decl: &VariableDeclNode) {
-        // Use get_initializer_value_rc() like Python visitor, not direct value_rc access
-        let value_expr = var_decl.get_initializer_value_rc();
+    fn build_variable_decl_lines(&mut self, var_decl: &VariableDeclNode) -> Vec<String> {
+        let mut lines = Vec::new();
 
-        // Generate the initializer value (same as Python visitor)
+        let value_expr = var_decl.get_initializer_value_rc();
         let mut init_str = String::new();
         self.visit_expr_node_to_string(&*value_expr, &mut init_str);
 
@@ -5371,32 +6073,111 @@ impl TypeScriptVisitor {
             self.counter_variables.insert(var_decl.name.clone());
         }
 
-        // Handle multiple variable declarations (tuple unpacking)
+        if var_decl.name.trim_start().starts_with('[')
+            && var_decl.name.trim_end().ends_with(']')
+            && var_decl.name.contains('*')
+        {
+            lines.extend(self.render_star_unpack(&var_decl.name, &init_str));
+            return lines;
+        }
+
         if var_decl.name.starts_with("__multi_var__:") {
-            // Extract variable names from the __multi_var__:a,b,c format
             let names = var_decl
                 .name
                 .strip_prefix("__multi_var__:")
                 .unwrap_or(&var_decl.name);
             let var_names: Vec<&str> = names.split(',').collect();
 
-            // Track all variables as local
             for name in &var_names {
                 self.current_local_vars.insert(name.to_string());
             }
 
-            // Generate destructuring assignment for TypeScript
-            // let [a, b, c]: any[] = function_that_returns_array()
-            self.builder.writeln(&format!(
+            lines.push(format!(
                 "var [{}]: any[] = {};",
                 var_names.join(", "),
                 init_str
             ));
         } else {
-            // Single variable declaration
             self.current_local_vars.insert(var_decl.name.clone());
-            self.builder
-                .writeln(&format!("var {}: any = {};", var_decl.name, init_str));
+            lines.push(format!("var {}: any = {};", var_decl.name, init_str));
+        }
+
+        lines
+    }
+
+    fn render_star_unpack(&mut self, pattern: &str, initializer: &str) -> Vec<String> {
+        let pattern = pattern.trim();
+        let inner = pattern.trim_start_matches('[').trim_end_matches(']').trim();
+
+        let parts: Vec<String> = inner
+            .split(',')
+            .map(|p| p.trim().to_string())
+            .filter(|p| !p.is_empty())
+            .collect();
+
+        if parts.is_empty() {
+            return vec![format!("const _ignored = Array.from({});", initializer)];
+        }
+
+        for part in &parts {
+            let clean = part.trim_start_matches('*').trim();
+            if !clean.is_empty() && clean != "_" {
+                self.current_local_vars.insert(clean.to_string());
+            }
+        }
+
+        let star_index = parts.iter().position(|p| p.starts_with('*'));
+        if let Some(star_idx) = star_index {
+            if star_idx == parts.len() - 1 {
+                let destructured = parts
+                    .iter()
+                    .map(|part| {
+                        if part.starts_with('*') {
+                            format!("...{}", part.trim_start_matches('*'))
+                        } else {
+                            part.to_string()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return vec![format!(
+                    "const [{}] = Array.from({});",
+                    destructured, initializer
+                )];
+            }
+
+            self.unpack_temp_counter += 1;
+            let temp_name = format!("__unpack{}_tmp", self.unpack_temp_counter);
+            let mut lines = Vec::new();
+            lines.push(format!(
+                "const {} = Array.from({});",
+                temp_name, initializer
+            ));
+
+            for part in &parts[..star_idx] {
+                if !part.is_empty() && part != "_" {
+                    lines.push(format!("const {} = {}.shift();", part, temp_name));
+                }
+            }
+
+            for part in parts[(star_idx + 1)..].iter().rev() {
+                if !part.is_empty() && part != "_" {
+                    lines.push(format!("const {} = {}.pop();", part, temp_name));
+                }
+            }
+
+            let star_name = parts[star_idx].trim_start_matches('*').trim();
+            lines.push(format!("const {} = {};", star_name, temp_name));
+            return lines;
+        }
+
+        vec![format!("const {} = Array.from({});", pattern, initializer)]
+    }
+
+    fn visit_variable_decl_node(&mut self, var_decl: &VariableDeclNode) {
+        let lines = self.build_variable_decl_lines(var_decl);
+        for line in lines {
+            self.builder.writeln(&line);
         }
     }
 
