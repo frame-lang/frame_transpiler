@@ -29,6 +29,7 @@ pub struct TypeScriptVisitor {
     // TODO: Remove current_local_vars once arcanum-based resolution is implemented
     current_local_vars: HashSet<String>, // Track local variables in current handler
     current_exception_vars: HashSet<String>, // Track exception variables in current try-catch block
+    counter_variables: HashSet<String>,  // Track variables referencing Counter instances
     action_names: HashSet<String>,       // Track action names for proper call resolution
     operation_names: HashSet<String>,    // Track operation names for proper call resolution
     declared_enums: HashSet<String>,     // Track declared enum names to avoid duplicates
@@ -57,6 +58,7 @@ impl TypeScriptVisitor {
             current_state_vars: HashSet::new(),
             current_local_vars: HashSet::new(),
             current_exception_vars: HashSet::new(),
+            counter_variables: HashSet::new(),
             action_names: HashSet::new(),
             operation_names: HashSet::new(),
             declared_enums: HashSet::new(),
@@ -1733,11 +1735,31 @@ impl TypeScriptVisitor {
             } else {
                 output.push_str(&format!("{}(", func_name));
             }
+        } else if func_name == "defaultdict" {
+            let factory_str = if let Some(factory_expr) = node.call_expr_list.exprs_t.get(0) {
+                self.render_defaultdict_factory(factory_expr)
+            } else {
+                "() => undefined".to_string()
+            };
+            output.push_str("FrameCollections.defaultdict(");
+            output.push_str(&factory_str);
+            output.push(')');
+            return;
         } else {
             // Check if it's a known built-in function
             let is_builtin = matches!(
                 func_name.as_str(),
-                "int" | "float" | "bool" | "list" | "dict" | "set" | "tuple"
+                "int"
+                    | "float"
+                    | "bool"
+                    | "list"
+                    | "dict"
+                    | "set"
+                    | "tuple"
+                    | "sum"
+                    | "any"
+                    | "all"
+                    | "rfind"
             );
             if is_builtin {
                 // Built-in functions - use appropriate TypeScript equivalent
@@ -1745,6 +1767,10 @@ impl TypeScriptVisitor {
                     "int" => output.push_str("parseInt("),
                     "float" => output.push_str("parseFloat("),
                     "bool" => output.push_str("Boolean("),
+                    "sum" => output.push_str("FrameRuntime.sum("),
+                    "any" => output.push_str("FrameRuntime.any("),
+                    "all" => output.push_str("FrameRuntime.all("),
+                    "rfind" => output.push_str("FrameString.rfind("),
                     "list" => {
                         // Check if arguments are provided
                         if node.call_expr_list.exprs_t.is_empty() {
@@ -1787,7 +1813,15 @@ impl TypeScriptVisitor {
                 // Check if this is a native array/list method
                 let is_native_method = matches!(
                     func_name.as_str(),
-                    "append" | "pop" | "remove" | "index" | "count" | "clear" | "extend" | "insert"
+                    "append"
+                        | "pop"
+                        | "remove"
+                        | "index"
+                        | "count"
+                        | "clear"
+                        | "extend"
+                        | "insert"
+                        | "copy"
                 );
 
                 // Check if this is a native string method
@@ -2611,6 +2645,18 @@ impl TypeScriptVisitor {
             // If not string formatting, fall through to normal % (modulo) handling
         }
 
+        if matches!(&node.operator, OperatorType::Plus) {
+            let mut left_str = String::new();
+            let mut right_str = String::new();
+            self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
+            self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
+
+            if self.is_counter_reference(&left_str) || self.is_counter_reference(&right_str) {
+                output.push_str(&format!("Counter.add({}, {})", left_str, right_str));
+                return;
+            }
+        }
+
         // Special handling for string multiplication - check before adding parenthesis
         if matches!(&node.operator, OperatorType::Multiply) {
             // Check if this is string multiplication
@@ -2909,6 +2955,13 @@ impl TypeScriptVisitor {
                 let mut lhs = String::new();
                 self.visit_expr_node_to_string(&node.assignment_expr_node.l_value_box, &mut lhs);
                 self.builder.writeln(&format!("{} = {};", lhs, rhs));
+
+                let rhs_trimmed = rhs.trim_start();
+                if rhs_trimmed.starts_with("new Counter(")
+                    || rhs_trimmed.starts_with("Counter.add(")
+                {
+                    self.counter_variables.insert(var_name.clone());
+                }
                 return;
             }
         }
@@ -3470,7 +3523,9 @@ impl TypeScriptVisitor {
             match call_chain_node {
                 CallChainNodeType::UndeclaredCallT { call_node } => {
                     // DEBUG: Print what we're processing
-                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                    let debug_env =
+                        std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1";
+                    if debug_env {
                         eprintln!(
                             "DEBUG TS: Processing UndeclaredCallT method: {}, is_first: {}",
                             call_node.identifier.name.lexeme, is_first
@@ -3478,6 +3533,7 @@ impl TypeScriptVisitor {
                     }
 
                     let method_name = &call_node.identifier.name.lexeme;
+                    let method_base = method_name.split('.').last().unwrap_or(method_name);
 
                     // Check for special @indexed_call node
                     if method_name == "@indexed_call" {
@@ -3526,7 +3582,188 @@ impl TypeScriptVisitor {
                     }
 
                     if !is_first {
-                        let dict_expr = output.clone();
+                        let target_expr = output.clone();
+                        if debug_env && method_name.contains("rfind") {
+                            eprintln!("DEBUG TS: target_expr: {}", target_expr);
+                            eprintln!("DEBUG TS: method_name raw: {}", method_name);
+                            eprintln!("DEBUG TS: method_base: {}", method_base);
+                        }
+                        let target_trimmed = target_expr.trim().to_string();
+                        let args = &call_node.call_expr_list.exprs_t;
+
+                        let is_string_method = matches!(
+                            method_base,
+                            "upper"
+                                | "lower"
+                                | "strip"
+                                | "lstrip"
+                                | "rstrip"
+                                | "replace"
+                                | "split"
+                                | "splitlines"
+                                | "join"
+                                | "startswith"
+                                | "endswith"
+                                | "find"
+                                | "rfind"
+                                | "rindex"
+                                | "partition"
+                                | "rpartition"
+                                | "rsplit"
+                                | "center"
+                                | "ljust"
+                                | "rjust"
+                                | "zfill"
+                                | "format"
+                                | "format_map"
+                                | "encode"
+                                | "expandtabs"
+                        );
+
+                        if is_string_method {
+                            output.clear();
+                            output.push_str(&target_expr);
+                            output.push('.');
+                            output.push_str(method_base);
+                            output.push('(');
+                            for (idx, arg) in args.iter().enumerate() {
+                                if idx > 0 {
+                                    output.push_str(", ");
+                                }
+                                self.visit_expr_node_to_string(arg, output);
+                            }
+                            output.push(')');
+                            continue;
+                        }
+
+                        if self.is_counter_reference(&target_trimmed) {
+                            match method_base {
+                                "update" => {
+                                    output.clear();
+                                    output.push_str("Counter.update(");
+                                    output.push_str(&target_expr);
+                                    if let Some(arg) = args.get(0) {
+                                        output.push_str(", ");
+                                        self.visit_expr_node_to_string(arg, output);
+                                    } else {
+                                        output.push_str(", []");
+                                    }
+                                    output.push(')');
+                                    continue;
+                                }
+                                "most_common" => {
+                                    output.clear();
+                                    output.push_str("Counter.mostCommon(");
+                                    output.push_str(&target_expr);
+                                    if let Some(arg) = args.get(0) {
+                                        output.push_str(", ");
+                                        self.visit_expr_node_to_string(arg, output);
+                                    }
+                                    output.push(')');
+                                    continue;
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        match method_base {
+                            "append" => {
+                                output.clear();
+                                output.push_str(&target_expr);
+                                output.push_str(".push(");
+                                if let Some(arg) = args.get(0) {
+                                    self.visit_expr_node_to_string(arg, output);
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "extend" => {
+                                output.clear();
+                                output.push_str("FrameCollections.listExtend(");
+                                output.push_str(&target_expr);
+                                output.push_str(", ");
+                                if let Some(arg) = args.get(0) {
+                                    self.visit_expr_node_to_string(arg, output);
+                                } else {
+                                    output.push_str("[]");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "insert" => {
+                                output.clear();
+                                output.push_str("FrameCollections.listInsert(");
+                                output.push_str(&target_expr);
+                                output.push_str(", ");
+                                if let Some(index_arg) = args.get(0) {
+                                    self.visit_expr_node_to_string(index_arg, output);
+                                } else {
+                                    output.push_str("0");
+                                }
+                                output.push_str(", ");
+                                if let Some(value_arg) = args.get(1) {
+                                    self.visit_expr_node_to_string(value_arg, output);
+                                } else {
+                                    output.push_str("undefined");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "remove" => {
+                                output.clear();
+                                output.push_str("FrameCollections.listRemove(");
+                                output.push_str(&target_expr);
+                                output.push_str(", ");
+                                if let Some(value_arg) = args.get(0) {
+                                    self.visit_expr_node_to_string(value_arg, output);
+                                } else {
+                                    output.push_str("undefined");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "clear" => {
+                                output.clear();
+                                output.push_str("(FrameCollections.listClear(");
+                                output.push_str(&target_expr);
+                                output.push_str("), undefined)");
+                                continue;
+                            }
+                            "pop" => {
+                                output.clear();
+                                output.push_str("FrameCollections.listPop(");
+                                output.push_str(&target_expr);
+                                if let Some(index_arg) = args.get(0) {
+                                    output.push_str(", ");
+                                    self.visit_expr_node_to_string(index_arg, output);
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "count" => {
+                                output.clear();
+                                output.push_str("FrameCollections.listCount(");
+                                output.push_str(&target_expr);
+                                output.push_str(", ");
+                                if let Some(value_arg) = args.get(0) {
+                                    self.visit_expr_node_to_string(value_arg, output);
+                                } else {
+                                    output.push_str("undefined");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "copy" => {
+                                output.clear();
+                                output.push_str("FrameCollections.listCopy(");
+                                output.push_str(&target_expr);
+                                output.push(')');
+                                continue;
+                            }
+                            _ => {}
+                        }
+
+                        let dict_expr = target_expr.clone();
                         match method_name.as_str() {
                             "get" => {
                                 output.clear();
@@ -3640,17 +3877,112 @@ impl TypeScriptVisitor {
                     // Check if this is a native array/list method that should be mapped
                     let mapped_method = match method_name.as_str() {
                         "append" => "push",   // Python append() -> JavaScript push()
-                        "pop" => "pop",       // Python pop() -> JavaScript pop() (same name)
-                        "remove" => "splice", // Python remove() -> JavaScript splice() (needs special handling)
+                        "pop" => "pop",       // handled separately for index support
+                        "remove" => "splice", // handled via runtime helper
                         "index" => "indexOf", // Python index() -> JavaScript indexOf()
-                        "count" => "filter",  // Python count() needs custom implementation
-                        "clear" => "splice", // Python clear() -> JavaScript splice(0) (needs special handling)
-                        "extend" => "push", // Python extend() -> JavaScript push(...items) (needs special handling)
-                        "insert" => "splice", // Python insert() -> JavaScript splice() (needs special handling)
+                        "count" => "filter",  // handled via runtime helper
+                        "clear" => "splice",  // handled via runtime helper
+                        "extend" => "push",   // handled via runtime helper
+                        "insert" => "splice", // handled via runtime helper
                         _ => method_name,     // Use original method name for other cases
                     };
 
                     if mapped_method != method_name {
+                        let args = &action_call_expr_node.call_expr_list.exprs_t;
+                        match method_name.as_str() {
+                            "remove" => {
+                                let list_expr = output.clone();
+                                output.clear();
+                                output.push_str("FrameCollections.listRemove(");
+                                output.push_str(&list_expr);
+                                output.push_str(", ");
+                                if let Some(arg) = args.get(0) {
+                                    self.visit_expr_node_to_string(arg, output);
+                                } else {
+                                    output.push_str("undefined");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "copy" => {
+                                let list_expr = output.clone();
+                                output.clear();
+                                output.push_str("FrameCollections.listCopy(");
+                                output.push_str(&list_expr);
+                                output.push(')');
+                                continue;
+                            }
+                            "extend" => {
+                                let list_expr = output.clone();
+                                output.clear();
+                                output.push_str("FrameCollections.listExtend(");
+                                output.push_str(&list_expr);
+                                output.push_str(", ");
+                                if let Some(arg) = args.get(0) {
+                                    self.visit_expr_node_to_string(arg, output);
+                                } else {
+                                    output.push_str("[]");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "insert" => {
+                                let list_expr = output.clone();
+                                output.clear();
+                                output.push_str("FrameCollections.listInsert(");
+                                output.push_str(&list_expr);
+                                output.push_str(", ");
+                                if let Some(index_arg) = args.get(0) {
+                                    self.visit_expr_node_to_string(index_arg, output);
+                                } else {
+                                    output.push_str("0");
+                                }
+                                output.push_str(", ");
+                                if let Some(value_arg) = args.get(1) {
+                                    self.visit_expr_node_to_string(value_arg, output);
+                                } else {
+                                    output.push_str("undefined");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "count" => {
+                                let list_expr = output.clone();
+                                output.clear();
+                                output.push_str("FrameCollections.listCount(");
+                                output.push_str(&list_expr);
+                                output.push_str(", ");
+                                if let Some(arg) = args.get(0) {
+                                    self.visit_expr_node_to_string(arg, output);
+                                } else {
+                                    output.push_str("undefined");
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            "clear" => {
+                                let list_expr = output.clone();
+                                output.clear();
+                                output.push_str("(FrameCollections.listClear(");
+                                output.push_str(&list_expr);
+                                output.push_str("), undefined)");
+                                continue;
+                            }
+                            "pop" => {
+                                let list_expr = output.clone();
+                                output.clear();
+                                output.push_str("FrameCollections.listPop(");
+                                output.push_str(&list_expr);
+                                if let Some(arg) = args.get(0) {
+                                    output.push_str(", ");
+                                    self.visit_expr_node_to_string(arg, output);
+                                }
+                                output.push(')');
+                                continue;
+                            }
+                            _ => {}
+                        }
+
                         // This is a native method - use the mapped name without action prefix
                         output.push_str(&format!("{}(", mapped_method));
                         if action_call_expr_node.call_expr_list.exprs_t.len() > 0 {
@@ -4972,6 +5304,16 @@ impl TypeScriptVisitor {
 
         self.builder.newline();
 
+        let saved_locals = self.current_local_vars.clone();
+        let saved_counters = self.counter_variables.clone();
+        self.current_local_vars.clear();
+        self.counter_variables.clear();
+        if let Some(params) = &function_node.params {
+            for param in params {
+                self.current_local_vars.insert(param.param_name.clone());
+            }
+        }
+
         // Generate TypeScript function with proper async support
         if function_node.is_async {
             self.builder.writeln(&format!(
@@ -5002,6 +5344,9 @@ impl TypeScriptVisitor {
         // Restore previous flag state
         self.in_module_function = old_flag;
 
+        self.current_local_vars = saved_locals;
+        self.counter_variables = saved_counters;
+
         self.builder.dedent();
         self.builder.writeln("}");
     }
@@ -5019,6 +5364,11 @@ impl TypeScriptVisitor {
                 "DEBUG: Variable {} has expression: '{}'",
                 var_decl.name, init_str
             );
+        }
+
+        let init_trimmed = init_str.trim_start();
+        if init_trimmed.starts_with("new Counter(") {
+            self.counter_variables.insert(var_decl.name.clone());
         }
 
         // Handle multiple variable declarations (tuple unpacking)
@@ -5297,5 +5647,32 @@ impl TypeScriptVisitor {
                 self.visit_stmt_node(&stmt_t);
             }
         }
+    }
+
+    fn render_defaultdict_factory(&mut self, expr: &ExprType) -> String {
+        let mut expr_str = String::new();
+        self.visit_expr_node_to_string(expr, &mut expr_str);
+
+        match expr_str.as_str() {
+            "int" | "float" => "() => 0".to_string(),
+            "list" => "() => []".to_string(),
+            "dict" => "() => ({})".to_string(),
+            "set" => "() => new Set()".to_string(),
+            _ => {
+                if expr_str.is_empty() {
+                    "(() => undefined)".to_string()
+                } else {
+                    format!(
+                        "(() => (typeof {0} === 'function' ? {0}() : {0}))",
+                        expr_str
+                    )
+                }
+            }
+        }
+    }
+
+    fn is_counter_reference(&self, expr: &str) -> bool {
+        let trimmed = expr.trim();
+        self.counter_variables.contains(trimmed)
     }
 }
