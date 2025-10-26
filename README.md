@@ -2,23 +2,35 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.86.18  
-**Test Framework**: Unified multi-language testing (887 total tests)  
-**Python Tests**: 100% execution (458/458)  
-**TypeScript Tests**: 100% transpilation (429/429) · 85.8% execution (368/429)  
+**Current Version**: v0.86.21  
+**Test Framework**: Unified multi-language testing (895 total tests)  
+**Python Tests**: 100% execution (462/462)  
+**TypeScript Tests**: 100% execution (433/433)  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-10-22
+**Last Updated**: 2025-10-26
 
-## Current Focus (v0.86.18) 🛠️ Debugger Controller Enablement
-- Stabilized multifile output: the TypeScript runtime is now emitted once per bundle, eliminating duplicate `FrameRuntime` declarations.
-- State machine parity: state variables now stay in `compartment.stateVars`, lifting control-flow execution to 98% and keeping counters stable for debugger scenarios.
-- TypeScript execution success is up to 85.8% (368/429), with remaining gaps concentrated in capability shims (math/dict helpers) slated for the next tranche.
-- Documentation, roadmap, and status guides remain aligned on debugger-controller readiness milestones.
+## Runtime & Standard Library
 
-## Recent Improvements (v0.86.12 – v0.86.14)
-- **Embedded TypeScript Runtime Library (v0.86.14):** Introduced deterministic helpers (`equals`, `range`, `len`, `getType`) with 80.5% execution success (66/82) across `data_types` and `operators`.
-- **Deep Equality & Literal Fixes (v0.86.13):** Implemented computed dictionary keys, Set/array deep comparisons, and lambda fixes, bringing execution success to 75.8% in the data types category.
-- **Perfect Transpilation (v0.86.12):** Achieved 100% TypeScript transpilation (429/429) by addressing complex literals, template interpolation, and `dict.fromkeys()` generation.
+Frame programs run atop two generated layers:
+
+| Layer | Purpose |
+| --- | --- |
+| **FrameRuntime** | Implements language semantics (state machine scheduling, Frame collections, truthiness helpers). Emitted automatically per target; user code should never reference it directly. |
+| **Frame Standard Library (FSL)** | Target-agnostic capability modules (networking, filesystem, process control, timers, etc.). Developers import FSL modules in Frame source; each backend provides its implementation. |
+
+Keep capability work in the FSL so Frame specs stay portable while the runtime focuses purely on language behavior.
+
+## Current Focus (v0.86.21) 🛠️ Cross-Language Runtime Parity
+- Async-aware TypeScript runtime: `_frame_kernel`, `_frame_router`, state dispatchers, and public interface methods now emit `async` variants automatically when a system requires awaitable handlers.
+- Python parity sweep completed: language-specific specs call the generated action wrappers (`testNetworkOperations`, `testProcessControl`), keeping Python and TypeScript fixture behaviour aligned.
+- Added regression guardrail: `test_nested_function_disallowed.frm` enforces the no-nested-function rule at the parser level.
+- Both backends execute their entire suites (895 specs) with zero failures; remaining roadmap work shifts to capability expansion and additional targets.
+
+## Recent Improvements (v0.86.18 – v0.86.21)
+- **Async Runtime Parity (v0.86.21):** Automatic detection of async systems now upgrades generated TypeScript dispatchers, interface methods, and kernel loops to `async`/`await`, matching Python semantics for mixed sync/async event handlers.
+- **External API Alignment (v0.86.21):** Python network/process specs now call the emitted action helpers instead of direct method names, eliminating runtime attribute errors while retaining the original behaviour.
+- **Negative Suite Expansion (v0.86.21):** Added a dedicated nested-function regression test to guarantee the parser rejects unsupported inner function declarations.
+- **All-Green Test Runs (v0.86.21):** Python (462) and TypeScript (433) suites now execute cleanly, including language-specific external API fixtures.
 
 ## Previous Features (v0.85.4) ✅ BUG #50 PARSER ERROR HANDLING COMPLETE!
 

@@ -19,14 +19,14 @@ This document captures every process, tool, and workflow used in the Frame Trans
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.0 and migrating from v0.11 to v0.20 syntax.
+Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.21 and migrating from v0.11 to v0.20 syntax.
 
 ### Current Status
-- **Version**: v0.86.18
+- **Version**: v0.86.21
 - **Branch**: `dev`
-- **Test Success Rate**: 85.8% TypeScript overall execution success (887 total tests: 458 Python 100% + 429 TypeScript 85.8%)
+- **Test Success Rate**: 100% execution across both targets (895 total tests: 462 Python + 433 TypeScript)
 - **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz
-- **Recent Achievement**: Multifile runtime deduplication and state-variable initialization fixes powering debugger controller scenarios
+- **Recent Achievement**: Async-aware TypeScript runtime, Python external API parity, and nested-function negative coverage
 
 ## Architecture
 
@@ -575,10 +575,17 @@ export namespace AsyncCapabilities {
 ```
 
 ### Runtime Architecture
-- **Embedded Runtime**: No external dependencies
-- **Type Safety**: Full TypeScript annotations
-- **Cross-Language Template**: Ready for Rust, C#, Java
-- **Semantic Consistency**: Identical behavior across targets
+- **FrameRuntime (Language Semantics)**
+  - Generated automatically for every target.
+  - Owns state-machine scheduling, Frame collections, truthiness helpers, and other core language mechanics.
+  - Users should not call `FrameRuntime` directly; the visitors insert these helpers as needed.
+- **Frame Standard Library (FSL)**
+  - Collection of capability modules (networking, filesystem, process control, timers, etc.).
+  - Imported from Frame source just like any other module.
+  - Each target ships its own FSL implementation backed by native APIs while preserving a consistent Frame-facing API.
+- **Separation of Concerns**
+  - Keep language behavior in the runtime and capability behavior in the FSL.
+  - When adding a new feature, define the portable API in the FSL and have each backend map it to the local platform.
 
 ## Error Patterns and Solutions
 
@@ -613,8 +620,8 @@ export namespace AsyncCapabilities {
 
 ---
 
-**Last Updated**: 2025-10-23  
-**Version**: v0.86.18  
-**Status**: Python execution 100% (458/458) · TypeScript execution 85.8% (368/429) — control-flow tranche green, capability shims in progress
+**Last Updated**: 2025-10-26  
+**Version**: v0.86.21  
+**Status**: Python execution 100% (462/462) · TypeScript execution 100% (433/433) — async runtime parity and capability fixtures verified
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.

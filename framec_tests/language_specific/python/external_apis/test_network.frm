@@ -18,21 +18,14 @@ system NetworkTest {
             
             try {
                 server_socket.bind(("127.0.0.1", 0))  # Let OS choose port
-                var port = server_socket.getsockname()[1]
+                var server_address = server_socket.getsockname()
+                var port = server_address[1]
                 server_socket.listen(1)
                 print("Server created: true")
                 print(f"Server listening on port: {port}")
                 
                 # Simulate client connection in separate thread
-                def client_thread():
-                    time.sleep(0.1)  # Give server time to start
-                    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    client_socket.connect(("127.0.0.1", port))
-                    client_socket.send(b"GET /test HTTP/1.1\r\n\r\n")
-                    response = client_socket.recv(1024)
-                    client_socket.close()
-                
-                var client_thread_obj = threading.Thread(target=client_thread)
+                var client_thread_obj = threading.Thread(target=client_thread, args=(port,))
                 client_thread_obj.start()
                 
                 # Accept connection
@@ -58,7 +51,16 @@ system NetworkTest {
 }
 
 fn main() {
-    var tester = NetworkTest()
-    tester.testNetworkOperations()
+    testNetworkOperations()
+    return
+}
+
+fn client_thread(port) {
+    time.sleep(0.1)  # Give server time to start
+    var client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect(("127.0.0.1", port))
+    client_socket.send(b"GET /test HTTP/1.1\r\n\r\n")
+    var response = client_socket.recv(1024)
+    client_socket.close()
     return
 }

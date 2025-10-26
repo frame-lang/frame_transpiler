@@ -3880,7 +3880,6 @@ impl<'a> Parser<'a> {
 
             // Check for decorators
             if self.check(TokenType::At) {
-                eprintln!("DEBUG: Found @ token");
                 let saved_pos = self.current;
                 self.advance(); // consume @
                 eprintln!("DEBUG: After @, next token: {:?}", self.peek());

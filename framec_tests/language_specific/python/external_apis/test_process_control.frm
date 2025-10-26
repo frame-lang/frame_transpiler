@@ -29,7 +29,6 @@ system ProcessTest {
 }
 
 fn main() {
-    var tester = ProcessTest()
-    tester.testProcessControl()
+    testProcessControl()
     return
 }

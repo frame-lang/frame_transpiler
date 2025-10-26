@@ -1,54 +1,55 @@
 # AI Planning and Communication Document
 
-**Last Updated**: October 24, 2025  
-**Current Version**: v0.86.20  
+**Last Updated**: October 26, 2025  
+**Current Version**: v0.86.21  
 **Purpose**: Communication channel between AI sessions working on the Frame transpiler
 
 ## Current Status
 
 ### Test Statistics
-- **Python Execution**: 100.0% (458/458 tests passing) 🎉
-- **TypeScript Execution (overall)**: 82.5% (354/429 passing; full regression sweep still pending post-runtime overhaul)
-- **TypeScript data_types suite**: Transpile 100% (66/66) • Execution 100% (66/66) after runtime + visitor shims
-- **Known TS Failures**: Remaining gaps now outside the data_types suite (multifile orchestration, debugger-oriented scenarios, legacy edge cases)
-- **Total Runtime Failures**: 0 (Python) • 71 (TypeScript execution gaps tracked across suites)
+- **Python Execution**: 100.0% (462/462 tests passing) 🎉
+- **TypeScript Execution**: 100.0% (433/433 tests passing) 🎉
+- **Negative Suite**: 14/14 (includes new nested-function regression guard)
+- **Aggregate**: 895 specs (common + language-specific) compiled and executed successfully across both targets
 
-### Recent Achievements (v0.86.x)
-- ✅ Unified FrameDict runtime usage across dict comprehensions, union, and constructor paths (v0.86.19)
-- ✅ Added comprehensive TypeScript string/list/dict runtime shims (format/count/rfind/OrderedDict/defaultdict/etc.), bringing `data_types` execution to 100% (v0.86.20)
-- ✅ Unified async/await behavior via embedded TypeScript runtime support
-- ✅ Maintained 100% Python execution coverage while expanding async capabilities
-- ✅ Stabilized multi-target compilation pipeline post TypeScript visitor fixes
+### Recent Achievements (v0.86.21)
+- ✅ Auto-detected async systems now generate TypeScript `async` interface methods, dispatchers, and `_frame_kernel`, matching Python event-handler semantics.
+- ✅ Language-specific Python fixtures (`test_network`, `test_process_control`) now call the generated action helpers, keeping runtime parity with the TypeScript visitor.
+- ✅ Added `test_nested_function_disallowed.frm` to lock down the unsupported nested-function syntax path.
+- ✅ Full Python + TypeScript regression sweep executed with zero failures, validating capability modules and external API shims.
 
 ## Known Issues
 
-### TypeScript Execution Gap
-**Status**: Open — 82.5% TypeScript execution success (354/429)
-**Focus**: Address remaining multifile orchestration and capability-driven scenarios needed for debugger controller support
-**Quality**: Python production ready; TypeScript execution approaching debugger-ready but still needs targeted fixes
+### Frame Standard Library Cohesion
+**Status**: Open — capability modules exist for networking/process/timers, but we still need a documented, language-agnostic FSL surface (import paths, naming, optional facilities) to keep future targets consistent.
+**Focus**: Finalize module naming, document required behaviours per capability, and ensure both Python/TypeScript visitors emit deterministic imports.
 
-### Recent Resolutions (v0.85.x)
-- **Legacy Interface Callbacks**: Updated tests to use `system.interfaceMethod()` syntax
-- **Source Mapping Classification (Bug #35)**: AST-based mapping types now stable
-- **Method Resolution Validation**: Prefix semantics enforced with conflict detection
+### Advanced Syntax Backlog
+**Status**: Deferred — walrus operator lowering, generator expressions (`yield`, `yield from`), richer exception propagation, and extended dunder coverage remain unimplemented even though current specs avoid them.
+**Focus**: Stage implementation plans so we can enable the remaining v0.56 syntax without regressing existing parity.
+
+### Roadmap Documentation Drift
+**Status**: Monitoring — with the execution gap closed, roadmap milestones must be re-scoped around FSL expansion, new targets (C++/Rust), and debugger tooling rather than “get TypeScript to 90%”.
 
 ## Active Development Areas
 
-### 1. TypeScript Execution Stabilization (Priority: HIGH)
-Target the remaining ~70 TypeScript execution failures (multifile orchestration + capability APIs). Track uplift toward ≥90% execution success while preserving Python parity and debugger readiness.
+### 1. Frame Standard Library Alignment (Priority: HIGH)
+- Define the Frame Standard Library (FSL) API surface (network/process/filesystem/timers).
+- Implement or stub FSL modules per target while keeping the FrameRuntime focused on language semantics.
+- Migrate language-specific tests to consume FSL modules instead of raw platform APIs.
+- Document contribution guidance so new capabilities land in the FSL rather than ad-hoc visitor/runtime code.
 
-### 2. Source Mapping (Status: COMPLETE)
-Source mapping is functionally complete with ~50-70% coverage of user code. All critical constructs are mapped.
+### 2. Advanced Syntax Enablement
+- Walrus operator lowering into assignment + conditionals for TypeScript visitor.
+- Generator (`yield`, `yield from`) semantics and runtime helpers across targets.
+- Raise/exception pipeline: emit proper `throw` expressions for `raise error` and preserve exception values.
+- Remaining dunder coverage: in-place ops (`__iadd__`, …), ordering comparisons, `__getitem__/__setitem__`, hashing.
+- Complex numbers, numeric underscore literals, and rich numeric formatting parity across targets (Python already supports; TypeScript runtime groundwork partially landed).
 
-### 3. Multi-File Support (Status: STABLE)
-Multi-file module system is working correctly with proper import/export mechanisms.
-
-### 4. Interface Method Calls (Status: COMPLETE v0.81.2)
-System interface method calls now fully supported with `system.interfaceMethod()` syntax:
-- Scanner tokenizes `system.methodName` patterns
-- Parser validates interface method existence (in second pass)
-- Visitor generates correct Python code (`self.methodName`)
-- Comprehensive error messages for invalid usage patterns
+### 3. Debugger & Tooling Roadmap
+- Update debugger-controller requirements now that both runtimes execute cleanly.
+- Ensure source-map validation tooling stays compatible with new async output.
+- Coordinate documentation updates (HOW_TO, roadmap, capability guides) each time we touch runtime semantics.
 
 ## Architecture Notes
 
@@ -84,7 +85,7 @@ python3 framec_tests/runner/frame_test_runner.py --all --verbose --framec ./targ
 ```
 
 ### Test Categories
-- **Positive Tests**: All Python execution suites green; TypeScript positives continue to surface async/multifile gaps
+- **Positive Tests**: Python and TypeScript execution suites both green (895/895)
 - **Negative Tests**: Validation suites passing (expected errors consistently caught)
 - **Build Exclusions**: Legacy backtick specs, legacy negative suites, and known long-tail parser edge cases
 
@@ -96,11 +97,11 @@ python3 framec_tests/runner/frame_test_runner.py --all --verbose --framec ./targ
 3. Test with minimal reproduction: system followed by function
 
 ### If Adding New Features:
-1. Update grammar.md first
-2. Add AST nodes if needed
-3. Implement in PythonVisitorV2
-4. Add comprehensive tests
-5. Update AI documentation
+1. Define the portable API in the Frame Standard Library (FSL) and update documentation.
+2. Implement the feature in each target's FSL module (even if some start as TODOs).
+3. Update grammar.md only if the language surface changes.
+4. Add visitor/runtime glue as needed, keeping FrameRuntime focused on semantics.
+5. Add comprehensive tests and update documentation.
 
 ### If Fixing Bugs:
 1. Check open_bugs.md for known issues
@@ -148,31 +149,32 @@ if (quality.classification === 'EXCELLENT') {
 
 ## Version Management
 
-Current: v0.86.16 - **AUTOMATED SYSTEM**
+Current: v0.86.21 - **AUTOMATED SYSTEM**
 - Major.Minor.Patch
 - Patch: Bug fixes only
 - Minor: New features, improvements
 - Major: Breaking changes (only project owner decides)
 
-**NEW**: Single source of truth system:
+**Reminder**: Single source of truth system:
 1. Update `[workspace.package].version` in the root `Cargo.toml`.
 2. Run `./scripts/sync-versions.sh` to refresh `version.toml`.
 3. Version strings in the compiler and emitted code come from `CARGO_PKG_VERSION` automatically.
 4. Keep changelog entries and this document aligned with the new version.
 
-## v0.86.16 Update Snapshot (October 22, 2025)
+## v0.86.21 Update Snapshot (October 26, 2025)
 
 ### Highlights
-- **Python**: 458/458 execution tests passing (100% sustained)
-- **TypeScript**: 82.5% execution success (354/429) with emphasis on multifile orchestration and capability coverage
-- **Roadmap Alignment**: Testing architecture roadmap extended to support debugger controller validation
+- **Python**: 462/462 execution tests passing (language-specific fixtures align with action helpers)
+- **TypeScript**: 433/433 execution tests passing (async runtime parity + capability shims in place)
+- **Negative Coverage**: Added nested-function regression guard to enforce parser constraints
+- **Roadmap Alignment**: Documentation/roadmap refocused on FSL definition, advanced syntax enablement, and debugger tooling
 
 ### Key Technical Themes
-1. **Debugger Controller Readiness**: Establish runtime and testing requirements for TypeScript debugger integration
-2. **Regression Guardrails**: Maintain 100% Python coverage while scaling TypeScript execution scenarios
-3. **Targeted Capability Work**: Focus on process spawning, networking, and async workflows needed by the controller
+1. **Cross-Language Runtime Parity**: Async detection + kernel updates keep Python and TypeScript output structurally aligned.
+2. **Capability Standardization**: Move network/process/timer helpers into documented FSL modules for future targets.
+3. **Forward-Looking Syntax Work**: Walrus, generators, and richer dunder support remain staged as next feature tranche.
 
 ### Next Priorities
-- Close remaining 75 TypeScript execution failures and raise success rate >90%
-- Implement missing capability APIs required by debugger workflows (spawn, TCP, filesystem)
-- Preserve deterministic test runner behavior as controller-focused suites expand
+- Publish a draft FSL spec outlining required modules and behaviors per target
+- Prototype walrus lowering and generator support without regressing existing suites
+- Keep roadmap/docs synchronized whenever runtime semantics evolve
