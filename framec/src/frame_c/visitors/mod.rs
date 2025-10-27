@@ -10,6 +10,7 @@ pub enum TargetLanguage {
     Graphviz,
     Rust,
     C,
+    LLVM,
 }
 
 impl TargetLanguage {
@@ -20,6 +21,7 @@ impl TargetLanguage {
             TargetLanguage::Graphviz => "graphviz",
             TargetLanguage::Rust => "rs",
             TargetLanguage::C => "c",
+            TargetLanguage::LLVM => "ll",
         }
     }
 }
@@ -37,8 +39,10 @@ impl TryFrom<&str> for TargetLanguage {
             Ok(TargetLanguage::Rust)
         } else if value == "c" {
             Ok(TargetLanguage::C)
+        } else if value == "llvm" {
+            Ok(TargetLanguage::LLVM)
         } else {
-            Err(format!("Unrecognized target language: {}. Supported languages are: python_3, typescript, graphviz, rust, c", value))
+            Err(format!("Unrecognized target language: {}. Supported languages are: python_3, typescript, graphviz, rust, c, llvm", value))
         }
     }
 }
@@ -52,6 +56,7 @@ impl TryFrom<String> for TargetLanguage {
 
 pub mod c_visitor;
 pub mod graphviz_visitor;
+pub mod llvm;
 pub mod python_visitor;
 pub mod python_visitor_v2; // v0.75: Complete implementation using CodeBuilder
 pub mod rust_visitor; // v0.87: Rust implementation with working Frame semantics

@@ -73,14 +73,15 @@ impl Cli {
                     .value_name("LANG")
                     .long("language")
                     .short('l')
-                    .help("Target language (python_3, typescript, graphviz, rust, c)")
+                    .help("Target language (python_3, typescript, graphviz, rust, c, llvm)")
                     .long_help(
                         "Target language for code generation:\n  \
                                - python_3:       Python 3 with Frame runtime\n  \
                                - typescript:     TypeScript with state machine classes\n  \
                                - graphviz:       DOT format for state diagrams\n  \
                                - rust:           Type-safe Rust with generated visitor\n  \
-                               - c:              C99 with Frame state machines",
+                               - c:              C99 with Frame state machines\n  \
+                               - llvm:           LLVM IR output for native code generation",
                     )
                     .num_args(1),
             )
@@ -458,6 +459,7 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
         VisitorTargetLanguage::Graphviz => crate::frame_c::validation::TargetLanguage::Python, // Default to Python for graphviz
         VisitorTargetLanguage::Rust => crate::frame_c::validation::TargetLanguage::Python, // TODO: Rust target not yet implemented
         VisitorTargetLanguage::C => crate::frame_c::validation::TargetLanguage::Python, // TODO: C target not yet implemented
+        VisitorTargetLanguage::LLVM => crate::frame_c::validation::TargetLanguage::Python, // Placeholder validation mapping
     });
 
     // Create validation configuration

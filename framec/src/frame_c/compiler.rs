@@ -467,6 +467,12 @@ impl Exe {
                     let visitor = TypeScriptVisitor::new(arcanum_vec, SymbolConfig::new());
                     output = visitor.run(&frame_module);
                 }
+                TargetLanguage::LLVM => {
+                    use crate::frame_c::visitors::llvm::LLVMVisitor;
+
+                    let visitor = LLVMVisitor::new();
+                    output = visitor.run(&frame_module);
+                }
                 TargetLanguage::Python3 => {
                     // V2 is now the default, use USE_PYTHON_V1 to fallback to old visitor
                     if std::env::var("USE_PYTHON_V1").is_ok() {
@@ -717,6 +723,12 @@ impl Exe {
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
                     let visitor = TypeScriptVisitor::new(arcanum_vec, SymbolConfig::new());
+                    output = visitor.run(&frame_module);
+                }
+                TargetLanguage::LLVM => {
+                    use crate::frame_c::visitors::llvm::LLVMVisitor;
+
+                    let visitor = LLVMVisitor::new();
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::Python3 => {

@@ -11,6 +11,7 @@ target
 # Node.js dependencies
 node_modules/
 framec_tests/javascript/node_modules
+framec_tests/llvm/Makefile
 
 # Planning docs (internal use only)
 docs/plans/

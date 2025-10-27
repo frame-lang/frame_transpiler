@@ -2,7 +2,7 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.86.21  
+**Current Version**: v0.86.22  
 **Test Framework**: Unified multi-language testing (895 total tests)  
 **Python Tests**: 100% execution (462/462)  
 **TypeScript Tests**: 100% execution (433/433)  
@@ -20,17 +20,19 @@ Frame programs run atop two generated layers:
 
 Keep capability work in the FSL so Frame specs stay portable while the runtime focuses purely on language behavior.
 
-## Current Focus (v0.86.21) 🛠️ Cross-Language Runtime Parity
+## Current Focus (v0.86.22) 🛠️ Cross-Language Runtime Parity
 - Async-aware TypeScript runtime: `_frame_kernel`, `_frame_router`, state dispatchers, and public interface methods now emit `async` variants automatically when a system requires awaitable handlers.
 - Python parity sweep completed: language-specific specs call the generated action wrappers (`testNetworkOperations`, `testProcessControl`), keeping Python and TypeScript fixture behaviour aligned.
 - Added regression guardrail: `test_nested_function_disallowed.frm` enforces the no-nested-function rule at the parser level.
 - Both backends execute their entire suites (895 specs) with zero failures; remaining roadmap work shifts to capability expansion and additional targets.
 
-## Recent Improvements (v0.86.18 – v0.86.21)
+## Recent Improvements (v0.86.18 – v0.86.22)
+- **LLVM Domain Actions (v0.86.22):** The experimental LLVM backend now lowers actions, expands domain assignments, and supports string/bool initialisers so smoke tests cover real state mutations.
 - **Async Runtime Parity (v0.86.21):** Automatic detection of async systems now upgrades generated TypeScript dispatchers, interface methods, and kernel loops to `async`/`await`, matching Python semantics for mixed sync/async event handlers.
 - **External API Alignment (v0.86.21):** Python network/process specs now call the emitted action helpers instead of direct method names, eliminating runtime attribute errors while retaining the original behaviour.
 - **Negative Suite Expansion (v0.86.21):** Added a dedicated nested-function regression test to guarantee the parser rejects unsupported inner function declarations.
 - **All-Green Test Runs (v0.86.21):** Python (462) and TypeScript (433) suites now execute cleanly, including language-specific external API fixtures.
+- **LLVM Backend (Phase 1 preview):** `framec -l llvm` emits LLVM IR with system structs, event dispatch, print lowering, and state transitions, providing a foundation for the native backend roadmap.
 
 ## Previous Features (v0.85.4) ✅ BUG #50 PARSER ERROR HANDLING COMPLETE!
 
@@ -61,7 +63,7 @@ Keep capability work in the FSL so Frame specs stay portable while the runtime f
 
 ### CLI Improvements (NEW in v0.82.1)
 - **Enhanced Help Output**: Target languages clearly listed in CLI help
-- **Language Options**: Shows `python_3`, `typescript`, `graphviz` with descriptions
+- **Language Options**: Shows `python_3`, `typescript`, `graphviz`, `llvm` with descriptions
 - **Better UX**: Improved documentation directly in command-line interface
 
 ## Previous Features (v0.82.0) ✅ NEW

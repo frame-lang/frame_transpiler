@@ -9,7 +9,7 @@ patch = 21
 
 # Full version string (generated from components above)
 # Used for CLI --version, generated code comments, etc.
-full = "0.86.21"
+full = "0.86.22"
 
 # Release metadata (optional)
 [metadata]
