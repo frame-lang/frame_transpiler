@@ -52,3 +52,4 @@ negative/edge-case fixtures as the backend matures.
 - `basic/test_actions.frm` – actions block wiring plus domain mutation (bool/string assignments)
 - `basic/test_multi_state.frm` – multi-state dispatch and transition handling
 - `basic/test_kernel_interop.frm` – guarantees the runtime kernel is allocated and callable
+- `basic/test_parent_forward.frm` – verifies parent forwarding (`=> $^`) queues events and re-dispatches through the runtime kernel
