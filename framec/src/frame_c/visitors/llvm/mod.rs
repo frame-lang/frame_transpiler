@@ -551,6 +551,19 @@ impl LLVMModuleBuilder {
             runtime_kernel, kernel_field_ptr
         ));
 
+        let compartment_field_ptr = self.next_temp();
+        self.push_line(&format!(
+            "{} = getelementptr inbounds {}, {}* %self, i32 0, i32 {}",
+            compartment_field_ptr,
+            ctx.struct_name,
+            ctx.struct_name,
+            ctx.compartment_field_index()
+        ));
+        self.push_line(&format!(
+            "store ptr {}, ptr {}",
+            runtime_compartment, compartment_field_ptr
+        ));
+
         self.push_line("ret void");
 
         self.indent -= 1;
@@ -582,6 +595,15 @@ impl LLVMModuleBuilder {
         self.push_line(&format!(
             "{} = load ptr, ptr {}",
             kernel_ptr, kernel_field_ptr
+        ));
+
+        let compartment_field_ptr = self.next_temp();
+        self.push_line(&format!(
+            "{} = getelementptr inbounds {}, {}* %self, i32 0, i32 {}",
+            compartment_field_ptr,
+            ctx.struct_name,
+            ctx.struct_name,
+            ctx.compartment_field_index()
         ));
         let has_kernel = self.next_temp();
         self.push_line(&format!(
@@ -1137,6 +1159,42 @@ impl LLVMModuleBuilder {
                                 self.push_line(&format!(
                                     "call void @frame_runtime_kernel_set_state(ptr {}, ptr {})",
                                     kernel_ptr, literal_ptr
+                                ));
+
+                                let current_compartment_ptr = self.next_temp();
+                                self.push_line(&format!(
+                                    "{} = load ptr, ptr {}",
+                                    current_compartment_ptr, compartment_field_ptr
+                                ));
+
+                                let new_state_cstr = self.next_temp();
+                                self.push_line(&format!(
+                                    "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+                                    new_state_cstr,
+                                    state_literal.len,
+                                    state_literal.len,
+                                    state_literal.name
+                                ));
+                                let next_compartment = self.next_temp();
+                                self.push_line(&format!(
+                                    "{} = call ptr @frame_runtime_compartment_new(ptr {})",
+                                    next_compartment, new_state_cstr
+                                ));
+                                self.push_line(&format!(
+                                    "call void @frame_runtime_compartment_set_parent(ptr {}, ptr {})",
+                                    next_compartment, current_compartment_ptr
+                                ));
+                                self.push_line(&format!(
+                                    "call void @frame_runtime_compartment_set_enter_event(ptr {}, ptr null)",
+                                    next_compartment
+                                ));
+                                self.push_line(&format!(
+                                    "call void @frame_runtime_compartment_set_exit_event(ptr {}, ptr null)",
+                                    next_compartment
+                                ));
+                                self.push_line(&format!(
+                                    "store ptr {}, ptr {}",
+                                    next_compartment, compartment_field_ptr
                                 ));
                             }
                         } else {
@@ -2277,12 +2335,13 @@ impl SystemEmitContext {
     }
 
     fn struct_fields(&self) -> Vec<String> {
-        let mut fields = Vec::with_capacity(2 + self.domain_fields.len());
+        let mut fields = Vec::with_capacity(3 + self.domain_fields.len());
         fields.push("i32".to_string());
         for field in &self.domain_fields {
             fields.push(field.field_type.llvm_type().to_string());
         }
-        fields.push("ptr".to_string());
+        fields.push("ptr".to_string()); // runtime kernel
+        fields.push("ptr".to_string()); // current compartment
         fields
     }
 
@@ -2308,6 +2367,10 @@ impl SystemEmitContext {
 
     fn runtime_field_index(&self) -> usize {
         1 + self.domain_fields.len()
+    }
+
+    fn compartment_field_index(&self) -> usize {
+        2 + self.domain_fields.len()
     }
 
     fn init_fn_name(&self) -> String {
