@@ -24,9 +24,9 @@ Frame is a state machine language that transpiles to multiple target languages (
 ### Current Status
 - **Version**: v0.86.22
 - **Branch**: `dev`
-- **Test Success Rate**: 100% execution across both targets (895 total tests: 462 Python + 433 TypeScript)
-- **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz
-- **Recent Achievement**: Async-aware TypeScript runtime, Python external API parity, and nested-function negative coverage
+- **Test Success Rate**: 100% execution (900 total specs: 462 Python + 433 TypeScript + 5 LLVM smoke tests)
+- **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz, experimental LLVM IR emitter
+- **Recent Achievement**: Async-aware TypeScript runtime, Python external API parity, nested-function negative coverage, and LLVM runtime smoke validation
 
 ## Architecture
 
@@ -85,8 +85,9 @@ framec_tests/
 ├── language_specific/      # Language-specific tests and external API tests
 │   ├── python/            # Python-specific Frame tests
 │   │   └── external_apis/ # Python external API integration tests
-│   └── typescript/        # TypeScript-specific Frame tests
-│       └── external_apis/ # TypeScript external API integration tests
+│   ├── typescript/        # TypeScript-specific Frame tests
+│   │   └── external_apis/ # TypeScript external API integration tests
+│   └── llvm/              # LLVM smoke tests + manual harness
 ├── generated/python/       # Generated Python code
 ├── generated/typescript/   # Generated TypeScript code
 ├── runner/                 # Test runner framework (frame_test_runner.py)
@@ -105,6 +106,13 @@ python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./t
 
 # All TypeScript tests (including TypeScript-specific external API tests)
 python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec
+
+# LLVM smoke tests (links against runtime/llvm)
+python3 framec_tests/runner/frame_test_runner.py --languages llvm --categories language_specific_llvm --framec ./target/release/framec
+
+> **Note:** LLVM validation requires `clang` in `PATH` and the `frame_runtime_llvm` crate. The test runner will build the runtime automatically if the shared library is missing.
+
+> **CI**: GitHub Actions installs `clang` (Ubuntu runners) and runs the LLVM smoke suite in addition to Python/TypeScript categories to guard native backend regressions.
 
 # Specific categories (common tests only)
 python3 framec_tests/runner/frame_test_runner.py --languages python --categories regression --framec ./target/release/framec
@@ -146,6 +154,7 @@ python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec
 **Language-Specific Tests:**
 - **language_specific_python**: Python-specific features and external APIs
 - **language_specific_typescript**: TypeScript-specific features and external APIs
+- **language_specific_llvm**: LLVM backend smoke tests (runtime wiring, struct layout, basic dispatch)
 
 **External API Test Structure:**
 - Language-specific external API tests demonstrate proper Frame integration with:

@@ -261,6 +261,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "frame_runtime_llvm"
+version = "0.86.22"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "framec"
 version = "0.86.22"
 dependencies = [

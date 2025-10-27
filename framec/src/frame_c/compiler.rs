@@ -1,4 +1,3 @@
-use crate::frame_c::ast::NodeElement;
 use crate::frame_c::ast_serialize::{
     ast_summary, generate_line_map, save_ast_to_file, serialize_ast_to_json,
 };

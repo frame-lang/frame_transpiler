@@ -324,7 +324,6 @@ impl CVisitor {
     // Generate module initialization function
     fn generate_module_init(&mut self) {
         let init_func = &self.c_config.code.init_function_name.clone();
-        let state_name = &self.c_config.code.module_state_name.clone();
 
         // Private initialization function
         self.builder

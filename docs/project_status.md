@@ -3,18 +3,20 @@
 ## Current State
 
 **Branch**: `dev`  
-**Version**: `v0.86.18`  
-**Status**: ✅ Python 458/458 passing (100%) · ⚠️ TypeScript execution 85.8% (368/429)  
-**Achievement**: Multifile runtime deduplicated; state variable initialization restored for debugger scenarios  
-**Latest Snapshot (2025-10-23)**: Overall TypeScript execution success 85.8% across 887 total tests  
+**Version**: `v0.86.22`  
+**Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 5/5  
+**Achievement**: Unified runner executes Python, TypeScript, and LLVM suites end-to-end; LLVM backend actions/domain dispatch aligned with runtime scaffolding  
+**Latest Snapshot (2025-10-28)**: 900 specs (common + language-specific + LLVM smoke) compiled and executed successfully across all active targets  
 **Rust Version**: 1.89.0 (Latest Stable)
 
-## Latest Updates (October 23, 2025)
+## Latest Updates (October 28, 2025)
 
-### 🛠️ Frame v0.86.18 - Multifile Runtime Stabilization
-- **Control Flow**: Execution uplift to 98.0% after fixing compartment state variable updates
-- **Runtime Deduplication**: Shared TypeScript runtime emitted once per multifile bundle, eliminating `FrameRuntime` redeclaration crashes
-- **Next Focus**: Implement math/dict capability shims (`round`, `dict` helpers) to address remaining systems/data_types regressions
+### 🛠️ Frame v0.86.22 - LLVM Smoke Automation
+- **Unified Runner**: `framec_tests/runner/frame_test_runner.py` now drives the LLVM smoke suite (`--languages llvm --categories language_specific_llvm`) and links against `frame_runtime_llvm` automatically using opaque-pointer mode.
+- **Runtime Ownership**: LLVM systems allocate/free kernel handles in `__init`/`__deinit`; runtime crate owns `FrameCompartment` to prevent leaks.
+- **Fixture Relocation**: Smoke specs moved under `framec_tests/language_specific/llvm/basic/`, sharing documentation and a Makefile harness for manual runs.
+- **Docs & Roadmap**: HOW_TO, README, planning, and roadmap docs updated to reflect 900-spec coverage and LLVM backend expansion milestones.
+- **Next Focus**: Extend LLVM runtime dispatch (enter/exit, event queue) and integrate the smoke suite into CI once stable.
 
 ### ✅ Previous Updates (October 19, 2025)
 
@@ -103,8 +105,8 @@
 
 ### Test Runner
 - **Location**: `framec_tests/runner/frame_test_runner.py`
-- **Test Files**: `framec_tests/python/src/test_*.frm`
-- **Total Tests**: 341
+- **Coverage**: Python systems (462), TypeScript systems (433), LLVM smoke fixtures (5), Negative suite (14)
+- **Command**: `python3 framec_tests/runner/frame_test_runner.py --languages python typescript llvm --framec ./target/release/framec`
 - **Success Rate**: 100%
 
 ### Reports

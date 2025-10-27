@@ -11,7 +11,10 @@ target
 # Node.js dependencies
 node_modules/
 framec_tests/javascript/node_modules
-framec_tests/llvm/Makefile
+
+# Manual LLVM smoke artifacts
+framec_tests/language_specific/llvm/simple
+framec_tests/language_specific/llvm/simple.ll
 
 # Planning docs (internal use only)
 docs/plans/

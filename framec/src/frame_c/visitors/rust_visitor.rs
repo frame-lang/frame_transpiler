@@ -1102,9 +1102,7 @@ impl RustVisitor {
                                     );
 
                                     // Initialize variables if present
-                                    if let Some(init_expr) =
-                                        &loop_for_stmt_node.loop_init_expr_rcref_opt
-                                    {
+                                    if loop_for_stmt_node.loop_init_expr_rcref_opt.is_some() {
                                         // TODO: Process initialization expression
                                         code.push_str("        // TODO: Process init expression\n");
                                     }

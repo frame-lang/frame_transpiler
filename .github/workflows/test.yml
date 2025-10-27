@@ -62,6 +62,18 @@ jobs:
       run: |
         cd framec_tests
         python runner/frame_test_runner.py --all --verbose --framec ../target/release/framec
+
+    - name: Install Clang (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get update && sudo apt-get install -y clang
+
+    - name: Run LLVM smoke tests
+      run: |
+        python3 framec_tests/runner/frame_test_runner.py \
+          --languages llvm \
+          --categories language_specific_llvm \
+          --framec ./target/release/framec \
+          --timeout 30
     
     # Upload test results
     - name: Upload test results

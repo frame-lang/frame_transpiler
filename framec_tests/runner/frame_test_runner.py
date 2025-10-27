@@ -4,16 +4,17 @@ Frame Test Runner - Unified test runner for all target languages.
 Supports running common Frame tests against multiple language targets.
 """
 
-import os
+import argparse
 import json
+import os
+import shutil
 import subprocess
 import sys
 import time
-import argparse
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 @dataclass
 class TestResult:
@@ -57,6 +58,8 @@ class FrameTestRunner:
         self.language_specific_dir = self.base_dir / "language_specific"
         self.generated_dir = self.base_dir / "generated"
         self.results: List[TestResult] = []
+        self._llvm_runtime_ready: bool = False
+        self._llvm_runtime_dir: Optional[Path] = None
         
     def is_negative_test(self, test_file: Path) -> bool:
         """
@@ -157,7 +160,8 @@ class FrameTestRunner:
             "typescript": "typescript",
             "rust": "rust",
             "golang": "golang",
-            "javascript": "javascript"
+            "javascript": "javascript",
+            "llvm": "llvm",
         }.get(language, language)
         
         # Determine output extension
@@ -166,7 +170,8 @@ class FrameTestRunner:
             "typescript": ".ts", 
             "rust": ".rs",
             "golang": ".go",
-            "javascript": ".js"
+            "javascript": ".js",
+            "llvm": ".ll",
         }.get(language, ".txt")
         
         # Create output directory
@@ -527,13 +532,151 @@ class FrameTestRunner:
                 return False, output
                 
             return True, output
-            
+
         except subprocess.TimeoutExpired:
             return False, "Rust execution timeout"
         except FileNotFoundError:
             return False, "rustc not found - please install Rust (https://rustup.rs/)"
         except Exception as e:
             return False, str(e)
+
+    def _ensure_llvm_runtime(self) -> Tuple[bool, str]:
+        """Make sure the LLVM runtime library is built and discoverable."""
+        if self._llvm_runtime_ready and self._llvm_runtime_dir:
+            return True, str(self._llvm_runtime_dir)
+
+        runtime_dir = self.base_dir.parent / "target" / "release"
+        lib_candidates = [
+            "libframe_runtime_llvm.dylib",
+            "libframe_runtime_llvm.so",
+            "libframe_runtime_llvm.dll",
+            "libframe_runtime_llvm.a",
+        ]
+
+        def _has_runtime() -> bool:
+            return any((runtime_dir / name).exists() for name in lib_candidates)
+
+        if not _has_runtime():
+            try:
+                build_timeout = max(self.config.timeout * 12, 120)
+                result = subprocess.run(
+                    ["cargo", "build", "--release", "-p", "frame_runtime_llvm"],
+                    capture_output=True,
+                    text=True,
+                    timeout=build_timeout,
+                    cwd=self.base_dir.parent,
+                )
+                if result.returncode != 0:
+                    return False, (
+                        "Failed to build frame_runtime_llvm:\n"
+                        f"{result.stderr or result.stdout}"
+                    )
+            except subprocess.TimeoutExpired:
+                return False, "Timed out while building frame_runtime_llvm"
+            except FileNotFoundError:
+                return False, "cargo not found - please install Rust toolchain"
+            except Exception as exc:
+                return False, f"Error while building frame_runtime_llvm: {exc}"
+
+        if not _has_runtime():
+            return False, (
+                "frame_runtime_llvm build completed but no library was found in "
+                f"{runtime_dir}"
+            )
+
+        self._llvm_runtime_ready = True
+        self._llvm_runtime_dir = runtime_dir
+        return True, str(runtime_dir)
+
+    def execute_llvm(self, ll_file: str) -> Tuple[bool, str]:
+        """Compile LLVM IR to a binary, execute it, and return status/output."""
+        runtime_ready, runtime_info = self._ensure_llvm_runtime()
+        if not runtime_ready:
+            return False, runtime_info
+
+        runtime_dir = Path(runtime_info)
+        clang = shutil.which("clang")
+        if not clang:
+            return False, "clang not found - please install LLVM toolchain"
+
+        ll_path = Path(ll_file)
+        binary_path = ll_path.with_suffix("")  # Drop .ll extension
+
+        compile_cmd = [
+            clang,
+            str(ll_path),
+            f"-L{runtime_dir}",
+            "-lframe_runtime_llvm",
+            f"-Wl,-rpath,{runtime_dir}",
+            "-mllvm",
+            "-opaque-pointers",
+            "-o",
+            str(binary_path),
+        ]
+
+        try:
+            compile_result = subprocess.run(
+                compile_cmd,
+                capture_output=True,
+                text=True,
+                timeout=max(self.config.timeout * 2, 30),
+            )
+        except subprocess.TimeoutExpired:
+            return False, "LLVM binary compilation timeout"
+        except Exception as exc:
+            return False, f"Failed to invoke clang: {exc}"
+
+        if compile_result.returncode != 0:
+            return False, (
+                "Clang failed while compiling LLVM output:\n"
+                f"{compile_result.stderr or compile_result.stdout}"
+            )
+
+        env = os.environ.copy()
+        if sys.platform == "win32":
+            path_var = "PATH"
+            separator = ";"
+        elif sys.platform == "darwin":
+            path_var = "DYLD_LIBRARY_PATH"
+            separator = ":"
+        else:
+            path_var = "LD_LIBRARY_PATH"
+            separator = ":"
+
+        existing = env.get(path_var, "")
+        env[path_var] = (
+            str(runtime_dir)
+            if not existing
+            else separator.join([str(runtime_dir), existing])
+        )
+
+        try:
+            result = subprocess.run(
+                [str(binary_path)],
+                capture_output=True,
+                text=True,
+                timeout=max(self.config.timeout * 2, 30),
+                cwd=str(binary_path.parent),
+                env=env,
+            )
+        except subprocess.TimeoutExpired:
+            return False, "LLVM executable timeout"
+        except Exception as exc:
+            return False, f"Failed to run LLVM executable: {exc}"
+        finally:
+            try:
+                if binary_path.exists():
+                    binary_path.unlink()
+            except OSError:
+                pass
+
+        output = result.stdout + result.stderr
+        if result.returncode != 0:
+            return False, output
+        if "FAIL" in output:
+            return False, output
+
+        return True, output
     
     def run_test(self, test_file: Path, category: str, language: str) -> TestResult:
         """Run a single test for a specific language."""
@@ -602,6 +745,8 @@ class FrameTestRunner:
                         else:
                             # Keep the compilation error
                             output = compile_output
+                elif language == "llvm":
+                    exec_success, output = self.execute_llvm(output_file)
                 else:
                     exec_success = False
                     output = f"Execution not implemented for {language}"
@@ -760,7 +905,7 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description='Frame Test Runner')
     parser.add_argument('--languages', '-l', nargs='+', default=['python', 'typescript'],
-                       choices=['python', 'typescript', 'rust', 'golang', 'javascript'],
+                       choices=['python', 'typescript', 'rust', 'golang', 'javascript', 'llvm'],
                        help='Languages to test')
     parser.add_argument('--categories', '-c', nargs='+', default=['all'],
                        help='Test categories to run')

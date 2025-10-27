@@ -1,4 +1,4 @@
-# Actions support smoke test for LLVM backend
+# Actions support smoke test for the LLVM backend
 
 system ActionExample {
     interface:
@@ -7,16 +7,16 @@ system ActionExample {
     machine:
         $Start {
             trigger() {
-                announce()
+                announce("Action complete")
             }
         }
 
     actions:
-        announce() {
+        announce(new_message: string) {
             print("Action invoked")
             flag = false
-            message = "Action complete"
-            print(message)
+            message = new_message
+            print(new_message)
         }
 
     domain:

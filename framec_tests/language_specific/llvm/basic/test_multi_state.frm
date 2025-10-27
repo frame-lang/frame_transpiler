@@ -1,4 +1,4 @@
-# Multi-state dispatch smoke test for LLVM backend
+# Multi-state dispatch smoke test for the LLVM backend
 
 system MultiStateDemo {
     interface:

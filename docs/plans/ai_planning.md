@@ -1,7 +1,7 @@
 # AI Planning and Communication Document
 
-**Last Updated**: October 26, 2025  
-**Current Version**: v0.86.21  
+**Last Updated**: October 28, 2025  
+**Current Version**: v0.86.22  
 **Purpose**: Communication channel between AI sessions working on the Frame transpiler
 
 ## Current Status
@@ -9,14 +9,16 @@
 ### Test Statistics
 - **Python Execution**: 100.0% (462/462 tests passing) 🎉
 - **TypeScript Execution**: 100.0% (433/433 tests passing) 🎉
+- **LLVM Smoke Suite**: 5/5 (`language_specific_llvm`) ✅
 - **Negative Suite**: 14/14 (includes new nested-function regression guard)
-- **Aggregate**: 895 specs (common + language-specific) compiled and executed successfully across both targets
+- **Aggregate**: 900 specs (common + language-specific + LLVM smoke) executed successfully across all active targets
 
-### Recent Achievements (v0.86.21)
+### Recent Achievements (v0.86.22)
 - ✅ Auto-detected async systems now generate TypeScript `async` interface methods, dispatchers, and `_frame_kernel`, matching Python event-handler semantics.
 - ✅ Language-specific Python fixtures (`test_network`, `test_process_control`) now call the generated action helpers, keeping runtime parity with the TypeScript visitor.
 - ✅ Added `test_nested_function_disallowed.frm` to lock down the unsupported nested-function syntax path.
 - ✅ Full Python + TypeScript regression sweep executed with zero failures, validating capability modules and external API shims.
+- ✅ LLVM smoke fixtures (actions, domain variables, multi-state, kernel interop, simple system) relocated into `language_specific/llvm/basic`, with the unified runner invoking `clang` + `frame_runtime_llvm` automatically (opaque-pointer flag included).
 
 ## Known Issues
 
@@ -29,7 +31,7 @@
 **Focus**: Stage implementation plans so we can enable the remaining v0.56 syntax without regressing existing parity.
 
 ### Roadmap Documentation Drift
-**Status**: Monitoring — with the execution gap closed, roadmap milestones must be re-scoped around FSL expansion, new targets (C++/Rust), and debugger tooling rather than “get TypeScript to 90%”.
+**Status**: Monitoring — with Python/TypeScript execution gaps closed and LLVM smoke now automated, roadmap milestones must be re-scoped around FSL expansion, new targets (C++/Rust), and debugger tooling rather than “get TypeScript to 90%”.
 
 ## Active Development Areas
 
@@ -50,6 +52,11 @@
 - Update debugger-controller requirements now that both runtimes execute cleanly.
 - Ensure source-map validation tooling stays compatible with new async output.
 - Coordinate documentation updates (HOW_TO, roadmap, capability guides) each time we touch runtime semantics.
+
+### 4. LLVM Backend Expansion
+- Event queue now surfaces in generated dispatcher (LLVM visitor consumes `frame_runtime_kernel_next_event` and re-dispatches forwarded events).
+- Add automated coverage for domain mutations, transitions, and action locals beyond the initial basic suite.
+- Monitor GitHub Actions LLVM smoke job (now integrated) and extend the suite as runtime features land.
 
 ## Architecture Notes
 
@@ -85,7 +92,7 @@ python3 framec_tests/runner/frame_test_runner.py --all --verbose --framec ./targ
 ```
 
 ### Test Categories
-- **Positive Tests**: Python and TypeScript execution suites both green (895/895)
+- **Positive Tests**: Python, TypeScript, and LLVM smoke suites all green (900 total specs)
 - **Negative Tests**: Validation suites passing (expected errors consistently caught)
 - **Build Exclusions**: Legacy backtick specs, legacy negative suites, and known long-tail parser edge cases
 
@@ -105,7 +112,7 @@ python3 framec_tests/runner/frame_test_runner.py --all --verbose --framec ./targ
 
 ### If Fixing Bugs:
 1. Check open_bugs.md for known issues
-2. Use test runner to verify fixes
+2. Use test runner to verify fixes (include `--languages llvm --categories language_specific_llvm` when touching the native backend)
 3. Update CHANGELOG.md
 4. Bump version appropriately (patch for fixes)
 
@@ -149,7 +156,7 @@ if (quality.classification === 'EXCELLENT') {
 
 ## Version Management
 
-Current: v0.86.21 - **AUTOMATED SYSTEM**
+Current: v0.86.22 - **AUTOMATED SYSTEM**
 - Major.Minor.Patch
 - Patch: Bug fixes only
 - Minor: New features, improvements
@@ -161,11 +168,12 @@ Current: v0.86.21 - **AUTOMATED SYSTEM**
 3. Version strings in the compiler and emitted code come from `CARGO_PKG_VERSION` automatically.
 4. Keep changelog entries and this document aligned with the new version.
 
-## v0.86.21 Update Snapshot (October 26, 2025)
+## v0.86.22 Update Snapshot (October 28, 2025)
 
 ### Highlights
 - **Python**: 462/462 execution tests passing (language-specific fixtures align with action helpers)
 - **TypeScript**: 433/433 execution tests passing (async runtime parity + capability shims in place)
+- **LLVM Smoke**: 5/5 (unified runner compiles/links `language_specific/llvm` fixtures against `frame_runtime_llvm`)
 - **Negative Coverage**: Added nested-function regression guard to enforce parser constraints
 - **Roadmap Alignment**: Documentation/roadmap refocused on FSL definition, advanced syntax enablement, and debugger tooling
 
@@ -173,8 +181,10 @@ Current: v0.86.21 - **AUTOMATED SYSTEM**
 1. **Cross-Language Runtime Parity**: Async detection + kernel updates keep Python and TypeScript output structurally aligned.
 2. **Capability Standardization**: Move network/process/timer helpers into documented FSL modules for future targets.
 3. **Forward-Looking Syntax Work**: Walrus, generators, and richer dunder support remain staged as next feature tranche.
+4. **Native Backend Validation**: LLVM backend executes smoke fixtures end-to-end via shared runtime crate and automated linking.
 
 ### Next Priorities
 - Publish a draft FSL spec outlining required modules and behaviors per target
 - Prototype walrus lowering and generator support without regressing existing suites
 - Keep roadmap/docs synchronized whenever runtime semantics evolve
+- Expand LLVM coverage (enter/exit handlers, richer dispatch) once runtime kernel dispatch matures; integrate suite into CI when stable

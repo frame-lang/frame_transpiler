@@ -3,11 +3,12 @@
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
 **Current Version**: v0.86.22  
-**Test Framework**: Unified multi-language testing (895 total tests)  
+**Test Framework**: Unified multi-language testing (900 total tests, enforced in CI)  
 **Python Tests**: 100% execution (462/462)  
 **TypeScript Tests**: 100% execution (433/433)  
+**LLVM Smoke Tests**: 100% execution (5/5)  
 **Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-10-26
+**Last Updated**: 2025-10-28
 
 ## Runtime & Standard Library
 
@@ -24,7 +25,8 @@ Keep capability work in the FSL so Frame specs stay portable while the runtime f
 - Async-aware TypeScript runtime: `_frame_kernel`, `_frame_router`, state dispatchers, and public interface methods now emit `async` variants automatically when a system requires awaitable handlers.
 - Python parity sweep completed: language-specific specs call the generated action wrappers (`testNetworkOperations`, `testProcessControl`), keeping Python and TypeScript fixture behaviour aligned.
 - Added regression guardrail: `test_nested_function_disallowed.frm` enforces the no-nested-function rule at the parser level.
-- Both backends execute their entire suites (895 specs) with zero failures; remaining roadmap work shifts to capability expansion and additional targets.
+- Both backends execute their entire suites (900 specs including LLVM smoke tests) with zero failures; remaining roadmap work shifts to capability expansion and additional targets.
+- GitHub Actions now installs clang and runs the LLVM smoke suite alongside Python/TypeScript regressions to catch native backend regressions early.
 
 ## Recent Improvements (v0.86.18 – v0.86.22)
 - **LLVM Domain Actions (v0.86.22):** The experimental LLVM backend now lowers actions, expands domain assignments, and supports string/bool initialisers so smoke tests cover real state mutations.
@@ -33,6 +35,7 @@ Keep capability work in the FSL so Frame specs stay portable while the runtime f
 - **Negative Suite Expansion (v0.86.21):** Added a dedicated nested-function regression test to guarantee the parser rejects unsupported inner function declarations.
 - **All-Green Test Runs (v0.86.21):** Python (462) and TypeScript (433) suites now execute cleanly, including language-specific external API fixtures.
 - **LLVM Backend (Phase 1 preview):** `framec -l llvm` emits LLVM IR with system structs, event dispatch, print lowering, and state transitions, providing a foundation for the native backend roadmap.
+- **LLVM Runtime (Week 8 scaffold):** `runtime/llvm` now ships the minimal FrameRuntime ABI (`frame_runtime_llvm`) so the backend can link against shared event/compartment helpers while the kernel evolves.
 
 ## Previous Features (v0.85.4) ✅ BUG #50 PARSER ERROR HANDLING COMPLETE!
 

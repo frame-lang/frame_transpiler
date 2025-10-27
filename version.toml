@@ -5,7 +5,7 @@
 # Semantic version (major.minor.patch)
 major = 0
 minor = 86
-patch = 21
+patch = 22
 
 # Full version string (generated from components above)
 # Used for CLI --version, generated code comments, etc.
