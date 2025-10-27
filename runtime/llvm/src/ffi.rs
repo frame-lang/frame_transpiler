@@ -97,3 +97,16 @@ pub extern "C" fn frame_runtime_kernel_next_event(kernel: *mut FrameKernel) -> *
             .unwrap_or(ptr::null_mut())
     }
 }
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_event_is_message(
+    event: *const FrameEvent,
+    message: *const c_char,
+) -> bool {
+    if event.is_null() || message.is_null() {
+        return false;
+    }
+    let event_ref = unsafe { &*event };
+    let message_str = cstr_to_string(message);
+    event_ref.message() == message_str
+}

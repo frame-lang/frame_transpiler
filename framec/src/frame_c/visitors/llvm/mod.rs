@@ -1144,10 +1144,16 @@ impl LLVMModuleBuilder {
         let _ = current_state_index; // reserved for future use
         let queue_loop_label = format!("{}_queue_loop_{}", ctx.sanitized_name, current_state_index);
         let queue_exit_label = format!("{}_queue_exit_{}", ctx.sanitized_name, current_state_index);
-        let queue_handle_label = format!(
-            "{}_queue_handle_{}",
+        let queue_default_label = format!(
+            "{}_queue_default_{}",
             ctx.sanitized_name, current_state_index
         );
+        let queue_check_label = if ctx.interface_methods().is_empty() {
+            queue_default_label.clone()
+        } else {
+            format!("{}_queue_check_{}", ctx.sanitized_name, current_state_index)
+        };
+
         self.push_line(&format!("br label %{}", queue_loop_label));
         self.push_line(&format!("{}:", queue_loop_label));
         self.indent += 1;
@@ -1163,20 +1169,85 @@ impl LLVMModuleBuilder {
         ));
         self.push_line(&format!(
             "br i1 {}, label %{}, label %{}",
-            queue_has_event, queue_handle_label, queue_exit_label
+            queue_has_event, queue_check_label, queue_exit_label
         ));
-        self.push_line(&format!("{}:", queue_handle_label));
+        self.indent -= 1;
+
+        if !ctx.interface_methods().is_empty() {
+            let mut check_labels = Vec::new();
+            for (idx, _) in ctx.interface_methods().iter().enumerate() {
+                if idx == 0 {
+                    check_labels.push(queue_check_label.clone());
+                } else {
+                    check_labels.push(format!(
+                        "{}_queue_check_next_{}_{}",
+                        ctx.sanitized_name, current_state_index, idx
+                    ));
+                }
+            }
+
+            for (idx, method) in ctx.interface_methods().iter().enumerate() {
+                let check_label = check_labels[idx].clone();
+                if idx == 0 {
+                    self.push_line(&format!("{}:", check_label));
+                } else {
+                    self.push_line(&format!("{}:", check_label));
+                }
+                self.indent += 1;
+
+                let literal = self.intern_string(&method.message, false);
+                let literal_ptr = self.next_temp();
+                self.push_line(&format!(
+                    "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+                    literal_ptr, literal.len, literal.len, literal.name
+                ));
+                let matches_ptr = self.next_temp();
+                self.push_line(&format!(
+                    "{} = call i1 @frame_runtime_event_is_message(ptr {}, ptr {})",
+                    matches_ptr, queue_event_ptr, literal_ptr
+                ));
+
+                let match_label = format!(
+                    "{}_queue_match_{}_{}",
+                    ctx.sanitized_name, current_state_index, idx
+                );
+                let next_label = if idx + 1 < check_labels.len() {
+                    check_labels[idx + 1].clone()
+                } else {
+                    queue_default_label.clone()
+                };
+
+                self.push_line(&format!(
+                    "br i1 {}, label %{}, label %{}",
+                    matches_ptr, match_label, next_label
+                ));
+                self.indent -= 1;
+
+                self.push_line(&format!("{}:", match_label));
+                self.indent += 1;
+                self.push_line(&format!(
+                    "call void {}({}* %self)",
+                    method.fn_name, ctx.struct_name
+                ));
+                self.push_line(&format!(
+                    "call void @frame_runtime_event_free(ptr {})",
+                    queue_event_ptr
+                ));
+                self.push_line(&format!("br label %{}", queue_loop_label));
+                self.indent -= 1;
+            }
+        }
+
+        self.push_line(&format!("{}:", queue_default_label));
         self.indent += 1;
-        self.push_line(&format!(
-            "call i32 @frame_runtime_kernel_dispatch(ptr {}, ptr {})",
-            kernel_ptr, queue_event_ptr
-        ));
+        self.push_comment("no matching interface method for queued event");
         self.push_line(&format!(
             "call void @frame_runtime_event_free(ptr {})",
             queue_event_ptr
         ));
         self.push_line(&format!("br label %{}", queue_loop_label));
         self.indent -= 1;
+
         self.push_line(&format!("{}:", queue_exit_label));
         self.indent += 1;
         self.push_line(&format!("br label %{}", end_label));
@@ -1936,6 +2007,7 @@ impl LLVMModuleBuilder {
             output.push('\n');
             output.push_str("declare ptr @frame_runtime_event_new(ptr)\n");
             output.push_str("declare void @frame_runtime_event_free(ptr)\n");
+            output.push_str("declare i1 @frame_runtime_event_is_message(ptr, ptr)\n");
         }
 
         if !self.body.trim().is_empty() {
@@ -1958,6 +2030,7 @@ struct SystemEmitContext {
     domain_fields: Vec<DomainField>,
     actions: Vec<ActionEntry>,
     action_lookup: HashMap<String, usize>,
+    interface_methods: Vec<InterfaceMethodInfo>,
 }
 
 struct MethodNames {
@@ -2038,6 +2111,12 @@ struct ActionEntry {
 struct ActionParam {
     name: String,
     kind: ValueKind,
+}
+
+#[derive(Clone)]
+struct InterfaceMethodInfo {
+    message: String,
+    fn_name: String,
 }
 
 impl SystemEmitContext {
@@ -2126,6 +2205,21 @@ impl SystemEmitContext {
             }
         }
 
+        let mut interface_methods = Vec::new();
+        if let Some(interface_block) = &system.interface_block_node_opt {
+            for method_rc in &interface_block.interface_methods {
+                let method = method_rc.borrow();
+                let method_ident = sanitize_identifier(&method.name);
+                let fn_name = format!("@{}__{}", sanitized, method_ident);
+                let message = method
+                    .alias
+                    .as_ref()
+                    .map(|msg| msg.name.clone())
+                    .unwrap_or_else(|| method.name.clone());
+                interface_methods.push(InterfaceMethodInfo { message, fn_name });
+            }
+        }
+
         Some(SystemEmitContext {
             system_name: system.name.clone(),
             sanitized_name: sanitized,
@@ -2137,6 +2231,7 @@ impl SystemEmitContext {
             domain_fields,
             actions,
             action_lookup,
+            interface_methods,
         })
     }
 
@@ -2236,6 +2331,10 @@ impl SystemEmitContext {
             }
             TargetStateContextType::StateStackPop {} => None,
         }
+    }
+
+    fn interface_methods(&self) -> &[InterfaceMethodInfo] {
+        &self.interface_methods
     }
 }
 
