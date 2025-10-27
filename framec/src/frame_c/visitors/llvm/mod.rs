@@ -521,6 +521,18 @@ impl LLVMModuleBuilder {
             "{} = call ptr @frame_runtime_compartment_new(ptr {})",
             runtime_compartment, start_state_ptr
         ));
+        self.push_line(&format!(
+            "call void @frame_runtime_compartment_set_parent(ptr {}, ptr null)",
+            runtime_compartment
+        ));
+        self.push_line(&format!(
+            "call void @frame_runtime_compartment_set_enter_event(ptr {}, ptr null)",
+            runtime_compartment
+        ));
+        self.push_line(&format!(
+            "call void @frame_runtime_compartment_set_exit_event(ptr {}, ptr null)",
+            runtime_compartment
+        ));
         let runtime_kernel = self.next_temp();
         self.push_line(&format!(
             "{} = call ptr @frame_runtime_kernel_new(ptr {})",
@@ -2000,6 +2012,12 @@ impl LLVMModuleBuilder {
             output.push_str("declare void @frame_runtime_kernel_free(ptr)\n");
             output.push_str("declare i32 @frame_runtime_kernel_dispatch(ptr, ptr)\n");
             output.push_str("declare void @frame_runtime_kernel_set_state(ptr, ptr)\n");
+            output.push_str("declare void @frame_runtime_compartment_set_parent(ptr, ptr)\n");
+            output.push_str("declare ptr @frame_runtime_compartment_get_parent(ptr)\n");
+            output.push_str("declare void @frame_runtime_compartment_set_enter_event(ptr, ptr)\n");
+            output.push_str("declare ptr @frame_runtime_compartment_take_enter_event(ptr)\n");
+            output.push_str("declare void @frame_runtime_compartment_set_exit_event(ptr, ptr)\n");
+            output.push_str("declare ptr @frame_runtime_compartment_take_exit_event(ptr)\n");
             output.push_str("declare ptr @frame_runtime_kernel_next_event(ptr)\n");
         }
 

@@ -110,3 +110,96 @@ pub extern "C" fn frame_runtime_event_is_message(
     let message_str = cstr_to_string(message);
     event_ref.message() == message_str
 }
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_compartment_set_parent(
+    compartment: *mut FrameCompartment,
+    parent: *mut FrameCompartment,
+) {
+    if compartment.is_null() {
+        return;
+    }
+    unsafe {
+        (*compartment).set_parent(parent);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_compartment_get_parent(
+    compartment: *mut FrameCompartment,
+) -> *mut FrameCompartment {
+    if compartment.is_null() {
+        return ptr::null_mut();
+    }
+    unsafe { (*compartment).parent().unwrap_or(ptr::null_mut()) }
+}
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_compartment_set_enter_event(
+    compartment: *mut FrameCompartment,
+    event: *mut FrameEvent,
+) {
+    if compartment.is_null() {
+        return;
+    }
+
+    let event_opt = if event.is_null() {
+        None
+    } else {
+        Some(*unsafe { Box::from_raw(event) })
+    };
+
+    unsafe {
+        (*compartment).set_enter_event(event_opt);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_compartment_take_enter_event(
+    compartment: *mut FrameCompartment,
+) -> *mut FrameEvent {
+    if compartment.is_null() {
+        return ptr::null_mut();
+    }
+    unsafe {
+        (*compartment)
+            .take_enter_event()
+            .map(|event| Box::into_raw(Box::new(event)))
+            .unwrap_or(ptr::null_mut())
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_compartment_set_exit_event(
+    compartment: *mut FrameCompartment,
+    event: *mut FrameEvent,
+) {
+    if compartment.is_null() {
+        return;
+    }
+
+    let event_opt = if event.is_null() {
+        None
+    } else {
+        Some(*unsafe { Box::from_raw(event) })
+    };
+
+    unsafe {
+        (*compartment).set_exit_event(event_opt);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_compartment_take_exit_event(
+    compartment: *mut FrameCompartment,
+) -> *mut FrameEvent {
+    if compartment.is_null() {
+        return ptr::null_mut();
+    }
+    unsafe {
+        (*compartment)
+            .take_exit_event()
+            .map(|event| Box::into_raw(Box::new(event)))
+            .unwrap_or(ptr::null_mut())
+    }
+}
