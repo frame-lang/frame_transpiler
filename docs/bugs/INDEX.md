@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 53
+- **Total Bugs**: 54
 - **Open**: 6
-- **Resolved**: 46
+- **Resolved**: 47
 - **Won't Fix**: 1
-- **Next Bug Number**: 054
+- **Next Bug Number**: 055
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -28,6 +28,7 @@
 
 | Bug # | Title | Priority | Category | Status | Fixed Version |
 |-------|-------|----------|----------|--------|---------------|
+| [#054](closed/bug_054_typescript_boolean_literals_in_python_strings.md) | TypeScript Boolean Literals in Python Strings | Medium | CodeGen | Resolved | v0.86.24 |
 | [#053](closed/bug_053_typescript_missing_property_declarations.md) | TypeScript Missing Property Declarations and Runtime Imports | High | CodeGen | Resolved | v0.86.23 |
 | [#048](closed/bug_048_unreachable_return_after_transition.md) | Unreachable Return After Transition Statements | High | Semantic | Won't Fix | N/A |
 | [#047](closed/bug_047_typescript_complex_expression_support.md) | TypeScript Complex Expression Support | High | CodeGen | Resolved | v0.82.2 |
@@ -84,5 +85,5 @@
 - 2025-10-13: Initial bug tracking system created, all bugs migrated
 
 ---
-*Index Last Updated: 2025-10-13*  
+*Index Last Updated: 2025-10-28*  
 *Policy Version: 1.0*
