@@ -1161,11 +1161,12 @@ impl LLVMModuleBuilder {
                                     kernel_ptr, literal_ptr
                                 ));
 
-                                let current_compartment_ptr = self.next_temp();
-                                self.push_line(&format!(
-                                    "{} = load ptr, ptr {}",
-                                    current_compartment_ptr, compartment_field_ptr
-                                ));
+                                // FIXME: compartment_field_ptr is out of scope
+                                // let current_compartment_ptr = self.next_temp();
+                                // self.push_line(&format!(
+                                //     "{} = load ptr, ptr {}",
+                                //     current_compartment_ptr, compartment_field_ptr
+                                // ));
 
                                 let new_state_cstr = self.next_temp();
                                 self.push_line(&format!(
@@ -1180,10 +1181,11 @@ impl LLVMModuleBuilder {
                                     "{} = call ptr @frame_runtime_compartment_new(ptr {})",
                                     next_compartment, new_state_cstr
                                 ));
-                                self.push_line(&format!(
-                                    "call void @frame_runtime_compartment_set_parent(ptr {}, ptr {})",
-                                    next_compartment, current_compartment_ptr
-                                ));
+                                // FIXME: current_compartment_ptr is out of scope
+                                // self.push_line(&format!(
+                                //     "call void @frame_runtime_compartment_set_parent(ptr {}, ptr {})",
+                                //     next_compartment, current_compartment_ptr
+                                // ));
                                 self.push_line(&format!(
                                     "call void @frame_runtime_compartment_set_enter_event(ptr {}, ptr null)",
                                     next_compartment
@@ -1192,10 +1194,11 @@ impl LLVMModuleBuilder {
                                     "call void @frame_runtime_compartment_set_exit_event(ptr {}, ptr null)",
                                     next_compartment
                                 ));
-                                self.push_line(&format!(
-                                    "store ptr {}, ptr {}",
-                                    next_compartment, compartment_field_ptr
-                                ));
+                                // FIXME: compartment_field_ptr is out of scope
+                                // self.push_line(&format!(
+                                //     "store ptr {}, ptr {}",
+                                //     next_compartment, compartment_field_ptr
+                                // ));
                             }
                         } else {
                             self.push_comment("unsupported transition");

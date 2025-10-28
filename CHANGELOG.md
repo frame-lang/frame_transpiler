@@ -2,6 +2,16 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.86.23] - 2025-10-28
+
+### Fixed
+- **Bug 53**: TypeScript property declarations and runtime function declarations now auto-generated
+  - Fixed missing property declarations for `self.propertyName` assignments
+  - Fixed missing runtime function declarations for `frameRuntime*` calls
+  - Resolves TypeScript compilation errors: "Property 'X' does not exist" and "Cannot find name 'frameRuntimeY'"
+  - Added comprehensive pre-analysis to detect dynamic properties and external function calls
+  - Generated declarations include proper TypeScript type annotations
+
 ## [v0.86.18] - 2025-10-23
 
 ### Fixed

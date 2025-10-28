@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 52
+- **Total Bugs**: 53
 - **Open**: 6
-- **Resolved**: 45
+- **Resolved**: 46
 - **Won't Fix**: 1
-- **Next Bug Number**: 053
+- **Next Bug Number**: 054
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -28,6 +28,7 @@
 
 | Bug # | Title | Priority | Category | Status | Fixed Version |
 |-------|-------|----------|----------|--------|---------------|
+| [#053](closed/bug_053_typescript_missing_property_declarations.md) | TypeScript Missing Property Declarations and Runtime Imports | High | CodeGen | Resolved | v0.86.23 |
 | [#048](closed/bug_048_unreachable_return_after_transition.md) | Unreachable Return After Transition Statements | High | Semantic | Won't Fix | N/A |
 | [#047](closed/bug_047_typescript_complex_expression_support.md) | TypeScript Complex Expression Support | High | CodeGen | Resolved | v0.82.2 |
 | [#046](closed/bug_046_python_import_support.md) | Python Import Support | Low | Documentation | Won't Fix | - |
