@@ -112,29 +112,6 @@ pub extern "C" fn frame_runtime_event_is_message(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_set_parent(
-    compartment: *mut FrameCompartment,
-    parent: *mut FrameCompartment,
-) {
-    if compartment.is_null() {
-        return;
-    }
-    unsafe {
-        (*compartment).set_parent(parent);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn frame_runtime_compartment_get_parent(
-    compartment: *mut FrameCompartment,
-) -> *mut FrameCompartment {
-    if compartment.is_null() {
-        return ptr::null_mut();
-    }
-    unsafe { (*compartment).parent().unwrap_or(ptr::null_mut()) }
-}
-
-#[no_mangle]
 pub extern "C" fn frame_runtime_compartment_set_enter_event(
     compartment: *mut FrameCompartment,
     event: *mut FrameEvent,
@@ -202,4 +179,45 @@ pub extern "C" fn frame_runtime_compartment_take_exit_event(
             .map(|event| Box::into_raw(Box::new(event)))
             .unwrap_or(ptr::null_mut())
     }
+}
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_compartment_set_forward_event(
+    compartment: *mut FrameCompartment,
+    event: *mut FrameEvent,
+) {
+    if compartment.is_null() {
+        return;
+    }
+
+    let event_opt = if event.is_null() {
+        None
+    } else {
+        Some(*unsafe { Box::from_raw(event) })
+    };
+
+    unsafe {
+        (*compartment).set_forward_event(event_opt);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_kernel_push_compartment(
+    kernel: *mut FrameKernel,
+    compartment: *mut FrameCompartment,
+) -> *mut FrameCompartment {
+    if kernel.is_null() || compartment.is_null() {
+        return ptr::null_mut();
+    }
+    unsafe { (*kernel).push_compartment(Box::from_raw(compartment)) }
+}
+
+#[no_mangle]
+pub extern "C" fn frame_runtime_compartment_get_parent(
+    compartment: *mut FrameCompartment,
+) -> *mut FrameCompartment {
+    if compartment.is_null() {
+        return ptr::null_mut();
+    }
+    unsafe { (*compartment).parent_ptr().unwrap_or(ptr::null_mut()) }
 }

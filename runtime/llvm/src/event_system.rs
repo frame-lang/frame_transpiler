@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ptr::NonNull;
 
 /// Simple event structure used by the LLVM backend.
 #[derive(Clone, Debug)]
@@ -39,7 +38,7 @@ pub struct FrameCompartment {
     pub forward_event: Option<FrameEvent>,
     enter_event: Option<FrameEvent>,
     exit_event: Option<FrameEvent>,
-    parent: Option<NonNull<FrameCompartment>>,
+    parent: Option<Box<FrameCompartment>>,
     state_args: HashMap<String, FrameEvent>,
 }
 
@@ -55,12 +54,18 @@ impl FrameCompartment {
         }
     }
 
-    pub fn set_parent(&mut self, parent: *mut FrameCompartment) {
-        self.parent = NonNull::new(parent);
+    pub fn set_parent_box(&mut self, parent: Box<FrameCompartment>) {
+        self.parent = Some(parent);
     }
 
-    pub fn parent(&self) -> Option<*mut FrameCompartment> {
-        self.parent.map(|ptr| ptr.as_ptr())
+    pub fn take_parent(&mut self) -> Option<Box<FrameCompartment>> {
+        self.parent.take()
+    }
+
+    pub fn parent_ptr(&self) -> Option<*mut FrameCompartment> {
+        self.parent
+            .as_ref()
+            .map(|boxed| boxed.as_ref() as *const FrameCompartment as *mut FrameCompartment)
     }
 
     pub fn set_enter_event(&mut self, event: Option<FrameEvent>) {
@@ -81,6 +86,10 @@ impl FrameCompartment {
 
     pub fn forward_event_mut(&mut self) -> &mut Option<FrameEvent> {
         &mut self.forward_event
+    }
+
+    pub fn set_forward_event(&mut self, event: Option<FrameEvent>) {
+        self.forward_event = event;
     }
 
     pub fn state_args(&self) -> &HashMap<String, FrameEvent> {

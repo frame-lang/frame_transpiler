@@ -3,20 +3,20 @@
 ## Current State
 
 **Branch**: `dev`  
-**Version**: `v0.86.22`  
-**Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 5/5  
-**Achievement**: Unified runner executes Python, TypeScript, and LLVM suites end-to-end; LLVM backend actions/domain dispatch aligned with runtime scaffolding  
-**Latest Snapshot (2025-10-28)**: 900 specs (common + language-specific + LLVM smoke) compiled and executed successfully across all active targets  
+**Version**: `v0.86.25`  
+**Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 9/9  
+**Achievement**: LLVM runtime gains forward-event hooks and action-local coverage; unified runner now validates mixed typed/untyped domain mutations on the native backend.  
+**Latest Snapshot (2025-10-28)**: 904 specs (common + language-specific + LLVM smoke) compiled and executed successfully across all active targets  
 **Rust Version**: 1.89.0 (Latest Stable)
 
 ## Latest Updates (October 28, 2025)
 
-### 🛠️ Frame v0.86.22 - LLVM Smoke Automation
-- **Unified Runner**: `framec_tests/runner/frame_test_runner.py` now drives the LLVM smoke suite (`--languages llvm --categories language_specific_llvm`) and links against `frame_runtime_llvm` automatically using opaque-pointer mode.
-- **Runtime Ownership**: LLVM systems allocate/free kernel handles in `__init`/`__deinit`; runtime crate owns `FrameCompartment` to prevent leaks.
-- **Fixture Relocation**: Smoke specs moved under `framec_tests/language_specific/llvm/basic/`, sharing documentation and a Makefile harness for manual runs.
-- **Docs & Roadmap**: HOW_TO, README, planning, and roadmap docs updated to reflect 900-spec coverage and LLVM backend expansion milestones.
-- **Next Focus**: Extend LLVM runtime dispatch (enter/exit, event queue) and integrate the smoke suite into CI once stable.
+### 🛠️ Frame v0.86.25 - LLVM Queue Plumbing Prep
+- **Forward Event Setter**: `frame_runtime_compartment_set_forward_event` exposes queue wiring so parent dispatch can enqueue messages instead of short-circuiting.
+- **Active Compartment Reuse**: LLVM builder now hoists the compartment pointer once per handler, ensuring transitions store the kernel-managed compartment and paving the path for queued events.
+- **Action Locals Fixture**: `test_action_locals.frm` exercises typed (`int`) and inferred (`string`) domain fields mutated inside actions, confirming runtime consistency ahead of queue work.
+- **Docs & Planning**: README, HOW_TO, and AI planning docs reflect the v0.86.25 focus on macOS-native backend readiness.
+- **Next Focus**: Emit queued parent forwards from the visitor and add dedicated queue-drain smoke tests before promoting LLVM beyond experimental status.
 
 ### ✅ Previous Updates (October 19, 2025)
 

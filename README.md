@@ -2,11 +2,11 @@
 
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
-**Current Version**: v0.86.22  
-**Test Framework**: Unified multi-language testing (900 total tests, enforced in CI)  
+**Current Version**: v0.86.25  
+**Test Framework**: Unified multi-language testing (904 total tests, enforced in CI)  
 **Python Tests**: 100% execution (462/462)  
 **TypeScript Tests**: 100% execution (433/433)  
-**LLVM Smoke Tests**: 100% execution (5/5)  
+**LLVM Smoke Tests**: 100% execution (9/9)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-28
 
@@ -21,14 +21,15 @@ Frame programs run atop two generated layers:
 
 Keep capability work in the FSL so Frame specs stay portable while the runtime focuses purely on language behavior.
 
-## Current Focus (v0.86.22) 🛠️ Cross-Language Runtime Parity
-- Async-aware TypeScript runtime: `_frame_kernel`, `_frame_router`, state dispatchers, and public interface methods now emit `async` variants automatically when a system requires awaitable handlers.
-- Python parity sweep completed: language-specific specs call the generated action wrappers (`testNetworkOperations`, `testProcessControl`), keeping Python and TypeScript fixture behaviour aligned.
-- Added regression guardrail: `test_nested_function_disallowed.frm` enforces the no-nested-function rule at the parser level.
-- Both backends execute their entire suites (900 specs including LLVM smoke tests) with zero failures; remaining roadmap work shifts to capability expansion and additional targets.
-- GitHub Actions now installs clang and runs the LLVM smoke suite alongside Python/TypeScript regressions to catch native backend regressions early.
+## Current Focus (v0.86.25) 🛠️ Native Backend Readiness
+- LLVM runtime grows queue plumbing: compartments now expose `frame_runtime_compartment_set_forward_event`, and transitions reuse the active compartment pointer so forwarded events can route through the kernel.
+- New LLVM smoke coverage (`test_action_locals.frm`) exercises action locals mutating typed (`int`) and inferred (`string`) domain fields to ensure native code handles mixed typing.
+- MacOS packaging remains the priority for LLVM; new docs capture the updated helper APIs so future targets can reuse them.
+- Python and TypeScript suites remain green (900 specs total) while the LLVM backend edges toward full parent-forward semantics.
+- GitHub Actions continues to run LLVM smoke tests alongside Python/TypeScript regressions to guard the native backend.
 
-## Recent Improvements (v0.86.18 – v0.86.22)
+## Recent Improvements (v0.86.18 – v0.86.25)
+- **LLVM Queue Prep (v0.86.25):** Runtime compartments add a forward-event setter, the builder reuses active compartment pointers, and new action-local smoke tests lock in typed/untyped domain mutations ahead of queue forwarding.
 - **LLVM Domain Actions (v0.86.22):** The experimental LLVM backend now lowers actions, expands domain assignments, and supports string/bool initialisers so smoke tests cover real state mutations.
 - **Async Runtime Parity (v0.86.21):** Automatic detection of async systems now upgrades generated TypeScript dispatchers, interface methods, and kernel loops to `async`/`await`, matching Python semantics for mixed sync/async event handlers.
 - **External API Alignment (v0.86.21):** Python network/process specs now call the emitted action helpers instead of direct method names, eliminating runtime attribute errors while retaining the original behaviour.

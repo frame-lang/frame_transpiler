@@ -419,16 +419,19 @@ impl TypeScriptVisitor {
         // Reset collections
         self.dynamic_properties.clear();
         self.runtime_function_calls.clear();
-        
+
         if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
-            eprintln!("Bug 53: Analyzing system '{}' for dynamic members", system_node.name);
+            eprintln!(
+                "Bug 53: Analyzing system '{}' for dynamic members",
+                system_node.name
+            );
         }
 
         // Analyze machine block for property assignments and function calls
         if let Some(machine_block) = &system_node.machine_block_node_opt {
             for state_rcref in &machine_block.states {
                 let state = state_rcref.borrow();
-                
+
                 // Analyze event handlers
                 for handler_rcref in &state.evt_handlers_rcref {
                     let handler = handler_rcref.borrow();
@@ -460,28 +463,47 @@ impl TypeScriptVisitor {
                             eprintln!("Bug 53: Analyzing ExpressionStmt");
                         }
                         match expr_stmt_t {
-                            ExprStmtType::AssignmentStmtT { assignment_stmt_node } => {
-                                if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
+                            ExprStmtType::AssignmentStmtT {
+                                assignment_stmt_node,
+                            } => {
+                                if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default()
+                                    == "1"
+                                {
                                     eprintln!("Bug 53: Found AssignmentStmtT");
                                 }
                                 // Check for self.property assignments
-                                self.analyze_assignment_for_properties(&assignment_stmt_node.assignment_expr_node);
+                                self.analyze_assignment_for_properties(
+                                    &assignment_stmt_node.assignment_expr_node,
+                                );
                                 // Check for frameRuntime calls in RHS
-                                self.analyze_expression_for_runtime_calls(&assignment_stmt_node.assignment_expr_node.r_value_rc);
+                                self.analyze_expression_for_runtime_calls(
+                                    &assignment_stmt_node.assignment_expr_node.r_value_rc,
+                                );
                             }
                             ExprStmtType::CallStmtT { call_stmt_node } => {
                                 // Check if it's a frameRuntime function call
-                                let method_name = &call_stmt_node.call_expr_node.identifier.name.lexeme;
+                                let method_name =
+                                    &call_stmt_node.call_expr_node.identifier.name.lexeme;
                                 if method_name.starts_with("frameRuntime") {
-                                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
-                                        eprintln!("Bug 53: Found frameRuntime function call: {}", method_name);
+                                    if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default()
+                                        == "1"
+                                    {
+                                        eprintln!(
+                                            "Bug 53: Found frameRuntime function call: {}",
+                                            method_name
+                                        );
                                     }
                                     self.runtime_function_calls.insert(method_name.clone());
                                 }
                             }
                             _ => {
-                                if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
-                                    eprintln!("Bug 53: Found other expr_stmt_t type: {:?}", std::mem::discriminant(expr_stmt_t));
+                                if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default()
+                                    == "1"
+                                {
+                                    eprintln!(
+                                        "Bug 53: Found other expr_stmt_t type: {:?}",
+                                        std::mem::discriminant(expr_stmt_t)
+                                    );
                                 }
                                 // For other expression statement types
                             }
@@ -503,9 +525,15 @@ impl TypeScriptVisitor {
         if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
             eprintln!("Bug 53: Analyzing assignment l_value");
         }
-        if let ExprType::CallChainExprT { call_chain_expr_node } = &*assignment_expr.l_value_box {
+        if let ExprType::CallChainExprT {
+            call_chain_expr_node,
+        } = &*assignment_expr.l_value_box
+        {
             if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
-                eprintln!("Bug 53: Found CallChainExprT with {} nodes", call_chain_expr_node.call_chain.len());
+                eprintln!(
+                    "Bug 53: Found CallChainExprT with {} nodes",
+                    call_chain_expr_node.call_chain.len()
+                );
             }
             if call_chain_expr_node.call_chain.len() == 2 {
                 if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
@@ -521,19 +549,28 @@ impl TypeScriptVisitor {
                     }
                     CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
                         if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
-                            eprintln!("Bug 53: Found UndeclaredIdentifierNodeT: {}", id_node.name.lexeme);
+                            eprintln!(
+                                "Bug 53: Found UndeclaredIdentifierNodeT: {}",
+                                id_node.name.lexeme
+                            );
                         }
                         id_node.name.lexeme == "self"
                     }
                     CallChainNodeType::VariableNodeT { var_node } => {
                         if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
-                            eprintln!("Bug 53: Found VariableNodeT: {}", var_node.id_node.name.lexeme);
+                            eprintln!(
+                                "Bug 53: Found VariableNodeT: {}",
+                                var_node.id_node.name.lexeme
+                            );
                         }
                         var_node.id_node.name.lexeme == "self"
                     }
                     _ => {
                         if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
-                            eprintln!("Bug 53: First node is not self-related: {:?}", std::mem::discriminant(&call_chain_expr_node.call_chain[0]));
+                            eprintln!(
+                                "Bug 53: First node is not self-related: {:?}",
+                                std::mem::discriminant(&call_chain_expr_node.call_chain[0])
+                            );
                         }
                         false
                     }
@@ -548,12 +585,15 @@ impl TypeScriptVisitor {
                         CallChainNodeType::VariableNodeT { var_node } => {
                             Some(var_node.id_node.name.lexeme.clone())
                         }
-                        _ => None
+                        _ => None,
                     };
 
                     if let Some(prop_name) = property_name {
                         if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
-                            eprintln!("Bug 53: Found dynamic property assignment: self.{}", prop_name);
+                            eprintln!(
+                                "Bug 53: Found dynamic property assignment: self.{}",
+                                prop_name
+                            );
                         }
                         self.dynamic_properties.insert(prop_name);
                     }
@@ -561,7 +601,10 @@ impl TypeScriptVisitor {
             }
         } else {
             if std::env::var("FRAME_TRANSPILER_DEBUG").unwrap_or_default() == "1" {
-                eprintln!("Bug 53: l_value is not CallChainExprT, it's: {:?}", std::mem::discriminant(&*assignment_expr.l_value_box));
+                eprintln!(
+                    "Bug 53: l_value is not CallChainExprT, it's: {:?}",
+                    std::mem::discriminant(&*assignment_expr.l_value_box)
+                );
             }
         }
     }
@@ -579,7 +622,9 @@ impl TypeScriptVisitor {
                     self.analyze_expression_for_runtime_calls(arg);
                 }
             }
-            ExprType::CallChainExprT { call_chain_expr_node } => {
+            ExprType::CallChainExprT {
+                call_chain_expr_node,
+            } => {
                 for call_chain_node in &call_chain_expr_node.call_chain {
                     if let CallChainNodeType::UndeclaredCallT { call_node } = call_chain_node {
                         let method_name = &call_node.identifier.name.lexeme;
@@ -1436,8 +1481,7 @@ impl TypeScriptVisitor {
         self.builder.writeln("declare class NetworkServer { }");
         self.builder
             .writeln("declare class JsonParser { static parse(data: any): any; }");
-        
-        
+
         self.builder.newline();
     }
 
@@ -1445,9 +1489,13 @@ impl TypeScriptVisitor {
         // Bug 53 fix: Generate runtime function declarations after analysis
         if !self.runtime_function_calls.is_empty() {
             self.builder.writeln("");
-            self.builder.writeln("// Dynamic runtime function declarations (auto-generated)");
+            self.builder
+                .writeln("// Dynamic runtime function declarations (auto-generated)");
             for func_name in &self.runtime_function_calls {
-                self.builder.writeln(&format!("declare function {}(...args: any[]): any;", func_name));
+                self.builder.writeln(&format!(
+                    "declare function {}(...args: any[]): any;",
+                    func_name
+                ));
             }
             self.builder.writeln("");
         }
@@ -1961,7 +2009,8 @@ impl AstVisitor for TypeScriptVisitor {
 
         // Bug 53 fix: Generate dynamic property declarations
         if !self.dynamic_properties.is_empty() {
-            self.builder.writeln("// Dynamic properties (assigned with self.propertyName)");
+            self.builder
+                .writeln("// Dynamic properties (assigned with self.propertyName)");
             for property in &self.dynamic_properties {
                 self.builder.writeln(&format!("private {}: any;", property));
             }
@@ -4180,7 +4229,7 @@ impl TypeScriptVisitor {
             let mut right_str = String::new();
             self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
             self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
-            
+
             // Bug 54 fix: Use simple + for concatenation instead of unnecessary FrameRuntime.add()
             output.push_str(&format!("({} + {})", left_str, right_str));
             return;
@@ -5297,7 +5346,7 @@ impl TypeScriptVisitor {
 
                     let method_name = &call_node.identifier.name.lexeme;
                     let method_base = method_name.split('.').last().unwrap_or(method_name);
-                    
+
                     // Bug 53 fix: Track frameRuntime* function calls
                     if method_name.starts_with("frameRuntime") {
                         self.runtime_function_calls.insert(method_name.clone());
@@ -6008,7 +6057,7 @@ impl TypeScriptVisitor {
                             output.push('.');
                             let resolved_name = self.resolve_domain_variable_name(property_name);
                             output.push_str(&resolved_name);
-                            
+
                             // Bug 53 fix: Track dynamic property assignments for this.propertyName patterns
                             // Check if we're in an assignment context and the output so far ends with "this"
                             if output.ends_with(&format!("this.{}", resolved_name)) {
@@ -8019,5 +8068,4 @@ impl TypeScriptVisitor {
         let trimmed = expr.trim();
         self.counter_variables.contains(trimmed)
     }
-
 }

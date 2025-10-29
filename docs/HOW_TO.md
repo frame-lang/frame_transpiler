@@ -19,12 +19,12 @@ This document captures every process, tool, and workflow used in the Frame Trans
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.22 and migrating from v0.11 to v0.20 syntax.
+Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.25 and migrating from v0.11 to v0.20 syntax.
 
 ### Current Status
-- **Version**: v0.86.22
+- **Version**: v0.86.25
 - **Branch**: `dev`
-- **Test Success Rate**: 100% execution (900 total specs: 462 Python + 433 TypeScript + 5 LLVM smoke tests)
+- **Test Success Rate**: 100% execution (904 total specs: 462 Python + 433 TypeScript + 9 LLVM smoke tests)
 - **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz, experimental LLVM IR emitter
 - **Recent Achievement**: Async-aware TypeScript runtime, Python external API parity, nested-function negative coverage, and LLVM runtime smoke validation
 
@@ -630,7 +630,7 @@ export namespace AsyncCapabilities {
 ---
 
 **Last Updated**: 2025-10-26  
-**Version**: v0.86.22  
+**Version**: v0.86.25  
 **Status**: Python execution 100% (462/462) · TypeScript execution 100% (433/433) — async runtime parity and capability fixtures verified
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.

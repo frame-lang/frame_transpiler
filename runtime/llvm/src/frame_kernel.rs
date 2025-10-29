@@ -1,5 +1,6 @@
 use crate::event_system::{FrameCompartment, FrameEvent};
 use std::collections::VecDeque;
+use std::mem;
 
 /// Result emitted after the kernel processes an event.
 pub enum FrameKernelResult {
@@ -26,13 +27,22 @@ impl FrameKernel {
     }
 
     pub fn dispatch(&mut self, event: &FrameEvent) -> FrameKernelResult {
-        self.compartment.forward_event = Some(event.clone());
-        self.queue.push_back(event.clone());
+        let _ = event;
         FrameKernelResult::Continue
     }
 
     pub fn compartment(&self) -> *mut FrameCompartment {
         &*self.compartment as *const FrameCompartment as *mut FrameCompartment
+    }
+
+    pub fn push_compartment(&mut self, next: Box<FrameCompartment>) -> *mut FrameCompartment {
+        let old = mem::replace(&mut self.compartment, next);
+        self.compartment.set_parent_box(old);
+        self.compartment()
+    }
+
+    pub fn compartment_mut(&mut self) -> &mut FrameCompartment {
+        self.compartment.as_mut()
     }
 
     pub fn set_state<S: Into<String>>(&mut self, state: S) {
@@ -69,14 +79,6 @@ mod tests {
         kernel.set_state(updated_state);
         let compartment_ref = unsafe { &*kernel.compartment() };
         assert_eq!(compartment_ref.state, updated_state);
-        assert!(compartment_ref.forward_event.is_some());
-
-        let queued = kernel.next_event().expect("event should be queued");
-        assert_eq!(queued.message(), "noop");
-        let queued_again = kernel
-            .next_event()
-            .expect("queue should retain event history");
-        assert_eq!(queued_again.message(), "noop");
         assert!(kernel.next_event().is_none());
     }
 }

@@ -1,7 +1,7 @@
 # AI Planning and Communication Document
 
 **Last Updated**: October 28, 2025  
-**Current Version**: v0.86.22  
+**Current Version**: v0.86.25  
 **Purpose**: Communication channel between AI sessions working on the Frame transpiler
 
 ## Current Status
@@ -9,16 +9,15 @@
 ### Test Statistics
 - **Python Execution**: 100.0% (462/462 tests passing) 🎉
 - **TypeScript Execution**: 100.0% (433/433 tests passing) 🎉
-- **LLVM Smoke Suite**: 5/5 (`language_specific_llvm`) ✅
+- **LLVM Smoke Suite**: 9/9 (`language_specific_llvm`) ✅
 - **Negative Suite**: 14/14 (includes new nested-function regression guard)
-- **Aggregate**: 900 specs (common + language-specific + LLVM smoke) executed successfully across all active targets
+- **Aggregate**: 904 specs (common + language-specific + LLVM smoke) executed successfully across all active targets
 
-### Recent Achievements (v0.86.22)
-- ✅ Auto-detected async systems now generate TypeScript `async` interface methods, dispatchers, and `_frame_kernel`, matching Python event-handler semantics.
-- ✅ Language-specific Python fixtures (`test_network`, `test_process_control`) now call the generated action helpers, keeping runtime parity with the TypeScript visitor.
-- ✅ Added `test_nested_function_disallowed.frm` to lock down the unsupported nested-function syntax path.
-- ✅ Full Python + TypeScript regression sweep executed with zero failures, validating capability modules and external API shims.
-- ✅ LLVM smoke fixtures (actions, domain variables, multi-state, kernel interop, simple system) relocated into `language_specific/llvm/basic`, with the unified runner invoking `clang` + `frame_runtime_llvm` automatically (opaque-pointer flag included).
+### Recent Achievements (v0.86.25)
+- ✅ LLVM runtime exposes `frame_runtime_compartment_set_forward_event`, enabling queued parent/enter/exit forwarding work.
+- ✅ Builder refactor hoists compartment pointers so transitions reuse kernel-controlled handles, eliminating stale pointers before queue wiring lands.
+- ✅ Added `basic/test_action_locals.frm` to stretch action locals, typed counters, and inferred strings in the LLVM suite; smoke coverage now spans nine fixtures.
+- ✅ Documentation (README, HOW_TO, project status, planning) updated for v0.86.25, highlighting the native backend focus and Mac-first rollout expectations.
 
 ## Known Issues
 
@@ -54,9 +53,25 @@
 - Coordinate documentation updates (HOW_TO, roadmap, capability guides) each time we touch runtime semantics.
 
 ### 4. LLVM Backend Expansion
-- Event queue now surfaces in generated dispatcher (LLVM visitor consumes `frame_runtime_kernel_next_event` and re-dispatches forwarded events).
+- Parent dispatch now re-invokes parent handlers via direct branching; forwarded-event/enter-exit wiring for the queue remains TODO (current kernel short-circuits after handler execution).
+- Core LLVM backend split into `builder.rs`, `context.rs`, `utils.rs`, `value.rs`, and `visitor.rs` so new targets can share infrastructure without bloated modules.
+- Domain value helpers now live in `value.rs` with dead variants removed; keep an eye on coercion paths before widening type coverage.
 - Add automated coverage for domain mutations, transitions, and action locals beyond the initial basic suite.
 - Monitor GitHub Actions LLVM smoke job (now integrated) and extend the suite as runtime features land.
+
+#### LLVM Backend Status
+| Area | Status | Notes |
+| --- | --- | --- |
+| Module decomposition (`builder/context/utils/value/visitor`) | ✅ Complete | `framec/src/frame_c/llvm/mod.rs` now exposes the visitor directly and compiler call sites use it; the legacy visitors shim is gone. |
+| Domain value helpers cleanup | ✅ Complete | `DomainFieldInit::None`, `coerce_value_for_field`, and redundant init helpers removed; warning noise eliminated ahead of new typing work. |
+| Runtime enter/exit queue semantics | 🔄 In progress | Kernel stacks compartments via `frame_runtime_kernel_push_compartment`; compartments expose `frame_runtime_compartment_set_forward_event` so visitor queue wiring can land next. |
+| LLVM coverage for hierarchy + mutations | 🔄 In progress | `basic/test_parent_hierarchy.frm` exercises multi-level parents; `basic/test_action_locals.frm` now pokes typed/untyped domain mutations via action locals. Still need queue-forward stress once runtime wiring lands. |
+
+## Type System Direction
+- Frame stays **gradually typed**: typed declarations enforce static guarantees while untyped declarations remain dynamic for rapid prototyping.
+- Mixed typed/untyped domain variables are supported; typed slots must receive compatible literals or expressions, while untyped slots accept any runtime value (mirrors TypeScript's `any` mixed with explicit types).
+- This approach is common in gradually typed ecosystems, but we must add backend safeguards (LLVM defaults to `CString` today) so strongly typed targets reject mismatched assignments instead of silently coercing.
+- Next steps: extend `ValueKind` beyond the current four primitives, design a runtime-agnostic coercion story, and document MacOS-specific interoperability expectations before widening target support.
 
 ## Architecture Notes
 

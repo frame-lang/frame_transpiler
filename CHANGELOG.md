@@ -2,6 +2,15 @@
 
 All notable changes to the Frame Language Transpiler project are documented here.
 
+## [v0.86.25] - 2025-10-28
+
+### Added
+- **LLVM Runtime Forwarding Hook**: Introduced `frame_runtime_compartment_set_forward_event` so the native backend can enqueue parent/enter/exit forwards ahead of full queue wiring.
+- **LLVM Smoke Fixture**: Added `basic/test_action_locals.frm` to verify action-local temporaries mutate both typed (`int`) and inferred (`string`) domain fields without diverging across backends.
+
+### Changed
+- **Compartment Management**: LLVM builder hoists the compartment pointer once per handler, storing the kernel-managed compartment after transitions to prevent stale references as queue semantics expand.
+
 ## [v0.86.23] - 2025-10-28
 
 ### Fixed

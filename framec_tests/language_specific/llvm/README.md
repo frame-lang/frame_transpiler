@@ -2,7 +2,9 @@
 
 These fixtures exercise the experimental LLVM backend added in v0.86.22. The
 suite is intentionally small – it mirrors the Phase 1 capabilities (system
-struct generation, interface dispatch, print lowering, and state transitions).
+struct generation, interface dispatch, print lowering, state transitions, and
+the new runtime queue plumbing that landed with the `builder/context` refactor
+in v0.86.24).
 
 ## Running with the unified test runner
 
@@ -19,6 +21,10 @@ python3 framec_tests/runner/frame_test_runner.py \
 
 The runner will compile each `.ll`, link it against `libframe_runtime_llvm`,
 execute the binary, and report aggregated results alongside the other targets.
+
+> **macOS tip**: The runner exports `DYLD_LIBRARY_PATH` automatically. When
+running the smoke tests manually outside the harness, export the same path so
+`clang` can locate `libframe_runtime_llvm.dylib`.
 
 ## Manual compilation steps
 
@@ -50,6 +56,10 @@ negative/edge-case fixtures as the backend matures.
 - `basic/test_simple_system.frm` – minimal system instantiation and interface dispatch
 - `basic/test_domain_variables.frm` – domain struct layout with default initialization and string access
 - `basic/test_actions.frm` – actions block wiring plus domain mutation (bool/string assignments)
+- `basic/test_action_locals.frm` – action locals mutate typed/untyped domain fields and log intermediate values
+- `basic/test_action_returns.frm` – verifies action return values are emitted and consumable
 - `basic/test_multi_state.frm` – multi-state dispatch and transition handling
 - `basic/test_kernel_interop.frm` – guarantees the runtime kernel is allocated and callable
-- `basic/test_parent_forward.frm` – verifies parent forwarding (`=> $^`) queues events and re-dispatches through the runtime kernel
+- `basic/test_parent_forward.frm` – verifies parent forwarding (`=> $^`) re-enters the parent handler (current runtime short-circuits without enqueuing forwarded events)
+- `basic/test_parent_hierarchy.frm` – exercises multi-level parent dispatch, typed counters, and inferred domain fields
+- *(Coming soon)* `basic/test_enter_exit.frm` & friends to cover enter/exit handler execution once Phase 2 completes

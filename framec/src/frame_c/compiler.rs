@@ -467,7 +467,7 @@ impl Exe {
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::LLVM => {
-                    use crate::frame_c::visitors::llvm::LLVMVisitor;
+                    use crate::frame_c::llvm::LLVMVisitor;
 
                     let visitor = LLVMVisitor::new();
                     output = visitor.run(&frame_module);
@@ -725,7 +725,7 @@ impl Exe {
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::LLVM => {
-                    use crate::frame_c::visitors::llvm::LLVMVisitor;
+                    use crate::frame_c::llvm::LLVMVisitor;
 
                     let visitor = LLVMVisitor::new();
                     output = visitor.run(&frame_module);

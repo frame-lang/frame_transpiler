@@ -56,7 +56,6 @@ impl TryFrom<String> for TargetLanguage {
 
 pub mod c_visitor;
 pub mod graphviz_visitor;
-pub mod llvm;
 pub mod python_visitor;
 pub mod python_visitor_v2; // v0.75: Complete implementation using CodeBuilder
 pub mod rust_visitor; // v0.87: Rust implementation with working Frame semantics
