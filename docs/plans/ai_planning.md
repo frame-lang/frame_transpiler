@@ -9,15 +9,15 @@
 ### Test Statistics
 - **Python Execution**: 100.0% (462/462 tests passing) 🎉
 - **TypeScript Execution**: 100.0% (433/433 tests passing) 🎉
-- **LLVM Smoke Suite**: 10/10 (`language_specific_llvm`) ✅
+- **LLVM Smoke Suite**: 18/18 ✅ (`language_specific_llvm`)
 - **Negative Suite**: 14/14 (includes new nested-function regression guard)
-- **Aggregate**: 905 specs (common + language-specific + LLVM smoke) executed successfully across all active targets
+- **Aggregate**: 913 specs currently passing across Python, TypeScript, and LLVM smoke categories
 
 ### Recent Achievements (v0.86.25)
-- ✅ LLVM runtime exposes `frame_runtime_compartment_set_forward_event`, enabling queued parent/enter/exit forwarding work.
-- ✅ Builder refactor hoists compartment pointers so transitions reuse kernel-controlled handles, eliminating stale pointers before queue wiring lands.
-- ✅ Added `basic/test_action_locals.frm` to stretch action locals, typed counters, and inferred strings in the LLVM suite; smoke coverage now spans nine fixtures.
-- ✅ Documentation (README, HOW_TO, project status, planning) updated for v0.86.25, highlighting the native backend focus and Mac-first rollout expectations.
+- ✅ LLVM events now carry typed payloads end-to-end (interface dispatch, queued replay, parent forwards) via new runtime push/get helpers.
+- ✅ Builder supports interface arguments in `main`, including domain field references and literal expressions, matching interface signatures automatically.
+- ✅ Added LLVM fixtures for state parameters, enter args, parent-forward enter args, interface parameters, and stack multi-pop behaviour (18/18 suite green).
+- ✅ Documentation (README, HOW_TO, project status, planning) refreshed to capture the expanded LLVM coverage and updated test counts.
 
 ## Known Issues
 
@@ -53,11 +53,11 @@
 - Coordinate documentation updates (HOW_TO, roadmap, capability guides) each time we touch runtime semantics.
 
 ### 4. LLVM Backend Expansion
-- Parent dispatch now re-invokes parent handlers via direct branching; forwarded-event/enter-exit wiring for the queue remains TODO (current kernel short-circuits after handler execution).
-- Core LLVM backend split into `builder.rs`, `context.rs`, `utils.rs`, `value.rs`, and `visitor.rs` so new targets can share infrastructure without bloated modules.
-- Domain value helpers now live in `value.rs` with dead variants removed; keep an eye on coercion paths before widening type coverage.
-- Add automated coverage for domain mutations, transitions, and action locals beyond the initial basic suite.
-- Monitor GitHub Actions LLVM smoke job (now integrated) and extend the suite as runtime features land.
+- Parent dispatch re-enqueues events with typed payloads; queue draining now restores argument lists before invoking handlers.
+- Core LLVM backend remains modular (`builder/context/utils/value/visitor`) to share infrastructure with future native targets.
+- Domain value helpers and main-call coercion handle interface expectations without duplicate logic.
+- Smoke suite expanded to 18 tests covering actions, state params, enter args, parent forwards, event parameters, and stack multi-pop flows.
+- CI continues to run LLVM smoke alongside Python/TypeScript; next focus is hierarchy/async queue scenarios.
 
 #### LLVM Backend Status
 | Area | Status | Notes |

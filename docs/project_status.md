@@ -4,19 +4,19 @@
 
 **Branch**: `dev`  
 **Version**: `v0.86.25`  
-**Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 10/10  
-**Achievement**: LLVM runtime gains forward-event hooks, queued parent forwarding, and action-local coverage; unified runner now validates mixed typed/untyped domain mutations on the native backend.  
-**Latest Snapshot (2025-10-28)**: 905 specs (common + language-specific + LLVM smoke) compiled and executed successfully across all active targets  
+**Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 18/18  
+**Achievement**: LLVM backend now propagates typed interface arguments through queued dispatch and parent forwards; stack multi-pop semantics validated end-to-end.  
+**Latest Snapshot (2025-10-28)**: 913 specs passing (common + language-specific + LLVM smoke) with the LLVM suite covering enter/exit, parent forwarding, event parameters, and multi-pop pops.  
 **Rust Version**: 1.89.0 (Latest Stable)
 
 ## Latest Updates (October 28, 2025)
 
-### 🛠️ Frame v0.86.25 - LLVM Queue Plumbing Prep
-- **Forward Event Setter**: `frame_runtime_compartment_set_forward_event` exposes queue wiring so parent dispatch can enqueue messages instead of short-circuiting.
-- **Active Compartment Reuse**: LLVM builder now hoists the compartment pointer once per handler, ensuring transitions store the kernel-managed compartment and paving the path for queued events.
-- **Queue Smoke Fixtures**: `test_action_locals.frm` and `test_parent_forward_queue.frm` exercise typed/inferred domain mutations and queued parent forwarding to confirm runtime consistency ahead of enter/exit wiring.
-- **Docs & Planning**: README, HOW_TO, and AI planning docs reflect the v0.86.25 focus on macOS-native backend readiness.
-- **Next Focus**: Extend queue plumbing to enter/exit forwarding and add dedicated drain tests before promoting LLVM beyond experimental status.
+### 🛠️ Frame v0.86.25 - LLVM Queue Semantics & Typed Events
+- **Typed Event Payloads**: `FrameEvent` now stores `StateValue`s with FFI push/get helpers so interface parameters travel through queued dispatch, parent forwarding, and re-entrancy without loss.
+- **Builder Updates**: Interface dispatch signatures include parameter metadata; queued handlers pull arguments back via runtime getters, and parent forwards preserve payloads before re-enqueuing.
+- **Main Function Support**: LLVM backend evaluates interface arguments in `main`, including domain reads and literal expressions, matching interface arity/type expectations.
+- **Expanded Smoke Suite**: Added `test_event_parameters.frm` and `test_state_stack_multi_pop.frm` alongside earlier fixtures; LLVM category now passes 18/18 tests covering state params, enter args, parent forwards, and stack pops.
+- **Docs & Planning**: README, HOW_TO, and planning docs updated with the new test counts and backend capabilities.
 
 ### ✅ Previous Updates (October 19, 2025)
 
@@ -105,7 +105,7 @@
 
 ### Test Runner
 - **Location**: `framec_tests/runner/frame_test_runner.py`
-- **Coverage**: Python systems (462), TypeScript systems (433), LLVM smoke fixtures (5), Negative suite (14)
+- **Coverage**: Python systems (462), TypeScript systems (433), LLVM smoke fixtures (18), Negative suite (14)
 - **Command**: `python3 framec_tests/runner/frame_test_runner.py --languages python typescript llvm --framec ./target/release/framec`
 - **Success Rate**: 100%
 

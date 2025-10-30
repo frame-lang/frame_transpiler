@@ -18,6 +18,7 @@ pub(super) struct SystemEmitContext {
     pub(super) actions: Vec<ActionEntry>,
     pub(super) action_lookup: HashMap<String, usize>,
     pub(super) interface_methods: Vec<InterfaceMethodInfo>,
+    interface_message_lookup: HashMap<String, usize>,
 }
 
 pub(super) struct MethodNames {
@@ -31,6 +32,9 @@ pub(super) struct SystemSummary {
     pub(super) sanitized_name: String,
     pub(super) struct_name: String,
     pub(super) align: usize,
+    pub(super) domain_fields: Vec<DomainField>,
+    domain_field_lookup: HashMap<String, usize>,
+    interface_param_lookup: HashMap<String, Vec<ValueKind>>,
 }
 
 impl SystemSummary {
@@ -44,6 +48,18 @@ impl SystemSummary {
 
     pub(super) fn method_fn(&self, method: &str) -> String {
         format!("@{}__{}", self.sanitized_name, sanitize_identifier(method))
+    }
+
+    pub(super) fn domain_field(&self, name: &str) -> Option<&DomainField> {
+        self.domain_field_lookup
+            .get(name)
+            .and_then(|index| self.domain_fields.get(*index))
+    }
+
+    pub(super) fn interface_params(&self, name: &str) -> Option<&[ValueKind]> {
+        self.interface_param_lookup
+            .get(name)
+            .map(|params| params.as_slice())
     }
 }
 
@@ -87,6 +103,8 @@ pub(super) struct StateEntry {
     pub(super) parent_state_name: Option<String>,
     pub(super) enter_handler: Option<Rc<RefCell<EventHandlerNode>>>,
     pub(super) exit_handler: Option<Rc<RefCell<EventHandlerNode>>>,
+    pub(super) state_params: Vec<StateParam>,
+    pub(super) enter_params: Vec<StateParam>,
 }
 
 #[derive(Clone)]
@@ -104,9 +122,17 @@ pub(super) struct ActionParam {
 }
 
 #[derive(Clone)]
+pub(super) struct StateParam {
+    pub(super) name: String,
+    pub(super) kind: ValueKind,
+}
+
+#[derive(Clone)]
 pub(super) struct InterfaceMethodInfo {
+    pub(super) name: String,
     pub(super) message: String,
     pub(super) fn_name: String,
+    pub(super) params: Vec<StateParam>,
 }
 
 impl SystemEmitContext {
@@ -140,12 +166,50 @@ impl SystemEmitContext {
                 .map(|dispatch| dispatch.target_state_ref.name.clone());
 
             state_map.insert(state.name.clone(), idx as i32);
+            let state_params = state
+                .params_opt
+                .as_ref()
+                .map(|params| {
+                    params
+                        .iter()
+                        .map(|param| StateParam {
+                            name: param.param_name.clone(),
+                            kind: infer_value_kind_from_type(param.param_type_opt.as_ref()),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            let enter_params = state
+                .enter_event_handler_opt
+                .as_ref()
+                .map(|handler_rc| {
+                    let handler = handler_rc.borrow();
+                    let symbol = handler.event_symbol_rcref.borrow();
+                    symbol
+                        .event_symbol_params_opt
+                        .as_ref()
+                        .map(|params| {
+                            params
+                                .iter()
+                                .map(|param| StateParam {
+                                    name: param.name.clone(),
+                                    kind: infer_value_kind_from_type(param.param_type_opt.as_ref()),
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                })
+                .unwrap_or_default();
+
             states.push(StateEntry {
                 name: state.name.clone(),
                 handlers,
                 parent_state_name,
                 enter_handler: state.enter_event_handler_opt.clone(),
                 exit_handler: state.exit_event_handler_opt.clone(),
+                state_params,
+                enter_params,
             });
         }
 
@@ -204,6 +268,7 @@ impl SystemEmitContext {
         }
 
         let mut interface_methods = Vec::new();
+        let mut interface_message_lookup = HashMap::new();
         if let Some(interface_block) = &system.interface_block_node_opt {
             for method_rc in &interface_block.interface_methods {
                 let method = method_rc.borrow();
@@ -214,7 +279,27 @@ impl SystemEmitContext {
                     .as_ref()
                     .map(|msg| msg.name.clone())
                     .unwrap_or_else(|| method.name.clone());
-                interface_methods.push(InterfaceMethodInfo { message, fn_name });
+                let params = method
+                    .params
+                    .as_ref()
+                    .map(|params| {
+                        params
+                            .iter()
+                            .map(|param| StateParam {
+                                name: param.param_name.clone(),
+                                kind: infer_value_kind_from_type(param.param_type_opt.as_ref()),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let index = interface_methods.len();
+                interface_message_lookup.insert(message.clone(), index);
+                interface_methods.push(InterfaceMethodInfo {
+                    name: method.name.clone(),
+                    message,
+                    fn_name,
+                    params,
+                });
             }
         }
 
@@ -230,15 +315,33 @@ impl SystemEmitContext {
             actions,
             action_lookup,
             interface_methods,
+            interface_message_lookup,
         })
     }
 
     pub(super) fn summary(&self) -> SystemSummary {
+        let domain_fields = self.domain_fields.clone();
+        let mut domain_field_lookup = HashMap::new();
+        for (idx, field) in domain_fields.iter().enumerate() {
+            domain_field_lookup.insert(field.name.clone(), idx);
+        }
+        let mut interface_param_lookup = HashMap::new();
+        for method in &self.interface_methods {
+            let kinds = method
+                .params
+                .iter()
+                .map(|param| param.kind)
+                .collect::<Vec<_>>();
+            interface_param_lookup.insert(method.name.clone(), kinds);
+        }
         SystemSummary {
             raw_name: self.system_name.clone(),
             sanitized_name: self.sanitized_name.clone(),
             struct_name: self.struct_name.clone(),
             align: self.struct_alignment(),
+            domain_fields,
+            domain_field_lookup,
+            interface_param_lookup,
         }
     }
 
@@ -350,19 +453,26 @@ impl SystemEmitContext {
         self.state_map.get(name).copied()
     }
 
-    pub(super) fn transition_target_name(
-        &self,
-        transition: &TransitionStatementNode,
-    ) -> Option<String> {
-        match &transition.transition_expr_node.target_state_context_t {
-            TargetStateContextType::StateRef { state_context_node } => {
-                Some(state_context_node.state_ref_node.name.clone())
-            }
-            TargetStateContextType::StateStackPop {} => None,
-        }
-    }
-
     pub(super) fn interface_methods(&self) -> &[InterfaceMethodInfo] {
         &self.interface_methods
+    }
+
+    pub(super) fn interface_method_by_message(
+        &self,
+        message: &str,
+    ) -> Option<&InterfaceMethodInfo> {
+        self.interface_message_lookup
+            .get(message)
+            .and_then(|index| self.interface_methods.get(*index))
+    }
+}
+
+impl StateEntry {
+    pub(super) fn state_param(&self, name: &str) -> Option<&StateParam> {
+        self.state_params.iter().find(|param| param.name == name)
+    }
+
+    pub(super) fn enter_param(&self, name: &str) -> Option<&StateParam> {
+        self.enter_params.iter().find(|param| param.name == name)
     }
 }

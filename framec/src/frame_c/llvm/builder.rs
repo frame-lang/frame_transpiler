@@ -4,15 +4,16 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Write as _;
 
 use super::context::{
-    ActionEntry, ActionParam, MainLocal, MainScope, MethodNames, StateEntry, SystemEmitContext,
-    SystemSummary,
+    ActionEntry, ActionParam, MainLocal, MainScope, MethodNames, StateEntry, StateParam,
+    SystemEmitContext, SystemSummary,
 };
 use super::utils::{
     call_chain_node_kind, encode_c_string, expr_kind, extract_string_literal, format_f64,
     sanitize_identifier, sanitize_numeric_literal,
 };
 use super::value::{
-    DomainField, DomainFieldInit, DomainFieldType, LocalBinding, ValueKind, ValueRef,
+    infer_value_kind_from_type, DomainField, DomainFieldInit, DomainFieldType, LocalBinding,
+    ValueKind, ValueRef,
 };
 
 pub(super) struct LLVMModuleBuilder {
@@ -42,6 +43,32 @@ struct StringLiteral {
 struct StringRef {
     name: String,
     len: usize,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HandlerKind {
+    Event,
+    Enter,
+    Exit,
+}
+
+#[derive(Clone)]
+struct HandlerParam {
+    name: String,
+    kind: ValueKind,
+}
+
+#[derive(Clone, Copy)]
+struct HandlerScope<'a> {
+    state: &'a StateEntry,
+    kind: HandlerKind,
+    event_params: &'a [HandlerParam],
+}
+
+impl<'a> HandlerScope<'a> {
+    fn event_param(&self, name: &str) -> Option<&'a HandlerParam> {
+        self.event_params.iter().find(|param| param.name == name)
+    }
 }
 
 impl LLVMModuleBuilder {
@@ -321,10 +348,28 @@ impl LLVMModuleBuilder {
         );
         let end_label = format!("{}_{}_dispatch_end", ctx.sanitized_name, names.method_ident);
 
+        let mut signature_parts = Vec::new();
+        signature_parts.push(format!("{}* %self", ctx.struct_name));
+        let mut param_bindings: Vec<(String, ValueKind, String)> = Vec::new();
+        if let Some(params) = &method.params {
+            for (idx, param) in params.iter().enumerate() {
+                let kind = infer_value_kind_from_type(param.param_type_opt.as_ref());
+                let llvm_ty = Self::llvm_type_for_kind(kind);
+                let ir_name = format!("%{}_arg{}", sanitize_identifier(&param.param_name), idx);
+                signature_parts.push(format!("{} {}", llvm_ty, ir_name));
+                param_bindings.push((param.param_name.clone(), kind, ir_name));
+            }
+        }
+        let param_specs: Vec<(String, ValueKind)> = param_bindings
+            .iter()
+            .map(|(name, kind, _)| (name.clone(), *kind))
+            .collect();
+
         writeln!(
             &mut self.body,
-            "define void {}({}* %self) {{",
-            names.fn_name, ctx.struct_name
+            "define void {}({}) {{",
+            names.fn_name,
+            signature_parts.join(", ")
         )
         .unwrap();
         self.indent += 1;
@@ -344,6 +389,25 @@ impl LLVMModuleBuilder {
             "{} = load ptr, ptr {}",
             kernel_ptr, kernel_field_ptr
         ));
+
+        let mut locals: HashMap<String, LocalBinding> = HashMap::new();
+        for (name, kind, ir_name) in &param_bindings {
+            let ptr = self.alloca_for_kind(*kind);
+            self.push_line(&format!(
+                "store {} {}, {}* {}",
+                Self::llvm_type_for_kind(*kind),
+                ir_name,
+                Self::llvm_type_for_kind(*kind),
+                ptr
+            ));
+            locals.insert(
+                name.clone(),
+                LocalBinding {
+                    ptr: ptr.clone(),
+                    kind: *kind,
+                },
+            );
+        }
 
         let state_ptr = self.next_temp();
         self.push_line(&format!(
@@ -392,6 +456,9 @@ impl LLVMModuleBuilder {
                     "{} = call ptr @frame_runtime_event_new(ptr {})",
                     event_handle, message_ptr
                 ));
+                if !param_specs.is_empty() {
+                    self.push_event_params_from_locals(&event_handle, &param_specs, &locals);
+                }
                 self.push_line(&format!(
                     "call i32 @frame_runtime_kernel_dispatch(ptr {}, ptr {})",
                     kernel_ptr, event_handle
@@ -410,6 +477,7 @@ impl LLVMModuleBuilder {
                     &names.method_ident,
                     &event_name,
                     state.parent_state_name.as_deref(),
+                    Some(&locals),
                 );
             } else {
                 self.push_comment("no handler for event in this state");
@@ -504,6 +572,7 @@ impl LLVMModuleBuilder {
                                 "%self",
                                 expr_stmt_t,
                                 Some(&locals),
+                                None,
                             );
                         }
                         StatementType::ReturnStmt { .. } => {
@@ -521,6 +590,7 @@ impl LLVMModuleBuilder {
                             "%self",
                             Some(&locals),
                             &*init_expr,
+                            None,
                         ) {
                             Some(value) => value,
                             None => {
@@ -624,7 +694,7 @@ impl LLVMModuleBuilder {
     fn emit_main_expression(&mut self, expr_stmt: &ExprStmtType, locals: &MainScope) {
         match expr_stmt {
             ExprStmtType::CallStmtT { call_stmt_node } => {
-                if self.handle_call_expr(None, None, None, &call_stmt_node.call_expr_node) {
+                if self.handle_call_expr(None, None, None, &call_stmt_node.call_expr_node, None) {
                     return;
                 }
                 self.push_comment("unsupported call in main");
@@ -643,16 +713,62 @@ impl LLVMModuleBuilder {
                     ) => {
                         let var_name = var_node.get_name();
                         if let Some(local) = locals.get(var_name) {
-                            if call_node.call_expr_list.exprs_t.is_empty() {
-                                let method_name = call_node.identifier.name.lexeme.as_str();
-                                let fn_name = local.system.method_fn(method_name);
-                                self.push_line(&format!(
-                                    "call void {}({}* {})",
-                                    fn_name, local.system.struct_name, local.ptr
-                                ));
-                                return;
+                            let method_name = call_node.identifier.name.lexeme.as_str();
+                            let fn_name = local.system.method_fn(method_name);
+                            let mut call_parts = Vec::new();
+                            call_parts.push(format!("{}* {}", local.system.struct_name, local.ptr));
+                            let mut arg_values = Vec::new();
+                            for expr in &call_node.call_expr_list.exprs_t {
+                                match self.emit_main_value_with_system(
+                                    &local.system,
+                                    &local.ptr,
+                                    expr,
+                                ) {
+                                    Some(value) => arg_values.push(value),
+                                    None => {
+                                        self.push_comment(
+                                            "unsupported argument expression in main call",
+                                        );
+                                        return;
+                                    }
+                                }
                             }
-                            self.push_comment("method arguments not yet supported in main");
+                            if let Some(expected) = local.system.interface_params(method_name) {
+                                if expected.len() != arg_values.len() {
+                                    self.push_comment("interface argument count mismatch in main");
+                                    return;
+                                }
+                                let mut adjusted = Vec::with_capacity(arg_values.len());
+                                for (value, expected_kind) in
+                                    arg_values.into_iter().zip(expected.iter())
+                                {
+                                    if value.kind == *expected_kind {
+                                        adjusted.push(value);
+                                    } else if let Some(coerced) =
+                                        self.coerce_value_for_kind(value, *expected_kind)
+                                    {
+                                        adjusted.push(coerced);
+                                    } else {
+                                        self.push_comment(
+                                            "type mismatch in main interface call argument",
+                                        );
+                                        return;
+                                    }
+                                }
+                                arg_values = adjusted;
+                            }
+                            for value in arg_values {
+                                call_parts.push(format!(
+                                    "{} {}",
+                                    Self::llvm_type_for_kind(value.kind),
+                                    value.value
+                                ));
+                            }
+                            self.push_line(&format!(
+                                "call void {}({})",
+                                fn_name,
+                                call_parts.join(", ")
+                            ));
                             return;
                         }
                         self.push_comment("unknown variable used in main call");
@@ -665,23 +781,67 @@ impl LLVMModuleBuilder {
                     ) => {
                         let var_name = var_node.get_name();
                         if let Some(local) = locals.get(var_name) {
-                            if interface_method_call_expr_node
-                                .call_expr_list
-                                .exprs_t
-                                .is_empty()
-                            {
-                                let method_name = interface_method_call_expr_node
-                                    .identifier
-                                    .name
-                                    .lexeme
-                                    .as_str();
-                                let fn_name = local.system.method_fn(method_name);
-                                self.push_line(&format!(
-                                    "call void {}({}* {})",
-                                    fn_name, local.system.struct_name, local.ptr
-                                ));
-                                return;
+                            let method_name = interface_method_call_expr_node
+                                .identifier
+                                .name
+                                .lexeme
+                                .as_str();
+                            let fn_name = local.system.method_fn(method_name);
+                            let mut call_parts = Vec::new();
+                            call_parts.push(format!("{}* {}", local.system.struct_name, local.ptr));
+                            let mut arg_values = Vec::new();
+                            for expr in &interface_method_call_expr_node.call_expr_list.exprs_t {
+                                match self.emit_main_value_with_system(
+                                    &local.system,
+                                    &local.ptr,
+                                    expr,
+                                ) {
+                                    Some(value) => arg_values.push(value),
+                                    None => {
+                                        self.push_comment(
+                                            "unsupported argument expression in main call",
+                                        );
+                                        return;
+                                    }
+                                }
                             }
+                            if let Some(expected) = local.system.interface_params(method_name) {
+                                if expected.len() != arg_values.len() {
+                                    self.push_comment("interface argument count mismatch in main");
+                                    return;
+                                }
+                                let mut adjusted = Vec::with_capacity(arg_values.len());
+                                for (value, expected_kind) in
+                                    arg_values.into_iter().zip(expected.iter())
+                                {
+                                    if value.kind == *expected_kind {
+                                        adjusted.push(value);
+                                    } else if let Some(coerced) =
+                                        self.coerce_value_for_kind(value, *expected_kind)
+                                    {
+                                        adjusted.push(coerced);
+                                    } else {
+                                        self.push_comment(
+                                            "type mismatch in main interface call argument",
+                                        );
+                                        return;
+                                    }
+                                }
+                                arg_values = adjusted;
+                            }
+                            for value in arg_values {
+                                call_parts.push(format!(
+                                    "{} {}",
+                                    Self::llvm_type_for_kind(value.kind),
+                                    value.value
+                                ));
+                            }
+                            self.push_line(&format!(
+                                "call void {}({})",
+                                fn_name,
+                                call_parts.join(", ")
+                            ));
+                            return;
                         } else {
                             self.push_comment("unknown variable used in main call");
                         }
@@ -805,6 +965,7 @@ impl LLVMModuleBuilder {
         method_ident: &str,
         event_name: &str,
         parent_state_name: Option<&str>,
+        locals: Option<&HashMap<String, LocalBinding>>,
     ) {
         let compartment_field_ptr = self.next_temp();
         self.push_line(&format!(
@@ -814,6 +975,30 @@ impl LLVMModuleBuilder {
             ctx.struct_name,
             ctx.compartment_field_index()
         ));
+
+        self.require_runtime_api();
+        let current_state_entry = ctx.state(current_state_index as usize);
+        let event_params: Vec<HandlerParam> = {
+            let symbol = handler.event_symbol_rcref.borrow();
+            symbol
+                .event_symbol_params_opt
+                .as_ref()
+                .map(|params| {
+                    params
+                        .iter()
+                        .map(|param| HandlerParam {
+                            name: param.name.clone(),
+                            kind: infer_value_kind_from_type(param.param_type_opt.as_ref()),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        let handler_scope = HandlerScope {
+            state: current_state_entry,
+            kind: HandlerKind::Event,
+            event_params: &event_params,
+        };
 
         let queue_loop_label = format!("{}_queue_loop_{}", ctx.sanitized_name, current_state_index);
         let queue_exit_label = format!("{}_queue_exit_{}", ctx.sanitized_name, current_state_index);
@@ -842,7 +1027,13 @@ impl LLVMModuleBuilder {
             if let DeclOrStmtType::StmtT { stmt_t } = stmt {
                 match stmt_t {
                     StatementType::ExpressionStmt { expr_stmt_t } => {
-                        self.emit_expression_statement(ctx, "%self", expr_stmt_t, None);
+                        self.emit_expression_statement(
+                            ctx,
+                            "%self",
+                            expr_stmt_t,
+                            locals,
+                            Some(handler_scope),
+                        );
                     }
                     StatementType::TransitionStmt {
                         transition_statement_node,
@@ -865,7 +1056,7 @@ impl LLVMModuleBuilder {
                         if let Some(target_index) =
                             ctx.transition_target_index(transition_statement_node)
                         {
-                            let current_state = ctx.state(current_state_index as usize);
+                            let current_state = handler_scope.state;
                             if current_state.exit_handler.is_some() {
                                 let exit_fn = ctx.state_exit_fn(&current_state.name);
                                 self.push_line(&format!(
@@ -877,10 +1068,46 @@ impl LLVMModuleBuilder {
                                 "store i32 {}, i32* {}",
                                 target_index, state_ptr
                             ));
-                            if let Some(target_name) =
-                                ctx.transition_target_name(transition_statement_node)
+
+                            if let TargetStateContextType::StateRef { state_context_node } =
+                                &transition_statement_node
+                                    .transition_expr_node
+                                    .target_state_context_t
                             {
-                                let state_literal = self.intern_string(&target_name, false);
+                                let target_state = ctx.state(target_index as usize);
+                                let pending_state_args = state_context_node
+                                    .state_ref_args_opt
+                                    .as_ref()
+                                    .map(|exprs| {
+                                        self.collect_pending_args(
+                                            ctx,
+                                            "%self",
+                                            exprs,
+                                            &target_state.state_params,
+                                            locals,
+                                            Some(handler_scope),
+                                            "state",
+                                        )
+                                    })
+                                    .unwrap_or_default();
+                                let pending_enter_args = state_context_node
+                                    .enter_args_opt
+                                    .as_ref()
+                                    .map(|exprs| {
+                                        self.collect_pending_args(
+                                            ctx,
+                                            "%self",
+                                            exprs,
+                                            &target_state.enter_params,
+                                            locals,
+                                            Some(handler_scope),
+                                            "enter",
+                                        )
+                                    })
+                                    .unwrap_or_default();
+
+                                let state_literal = self
+                                    .intern_string(&state_context_node.state_ref_node.name, false);
                                 let literal_ptr = self.next_temp();
                                 self.push_line(&format!(
                                     "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
@@ -894,13 +1121,15 @@ impl LLVMModuleBuilder {
                                     kernel_ptr, literal_ptr
                                 ));
 
+                                let state_literal_again = self
+                                    .intern_string(&state_context_node.state_ref_node.name, false);
                                 let new_state_cstr = self.next_temp();
                                 self.push_line(&format!(
                                     "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
                                     new_state_cstr,
-                                    state_literal.len,
-                                    state_literal.len,
-                                    state_literal.name
+                                    state_literal_again.len,
+                                    state_literal_again.len,
+                                    state_literal_again.name
                                 ));
                                 let next_compartment = self.next_temp();
                                 self.push_line(&format!(
@@ -915,6 +1144,91 @@ impl LLVMModuleBuilder {
                                     "call void @frame_runtime_compartment_set_exit_event(ptr {}, ptr null)",
                                     next_compartment
                                 ));
+
+                                for (literal, value) in pending_state_args {
+                                    let StringRef {
+                                        name: key_name,
+                                        len: key_len,
+                                    } = literal;
+                                    let ValueRef {
+                                        kind,
+                                        value: value_reg,
+                                    } = value;
+                                    let key_ptr = self.next_temp();
+                                    self.push_line(&format!(
+                                        "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+                                        key_ptr, key_len, key_len, key_name
+                                    ));
+                                    match kind {
+                                        ValueKind::I32 => {
+                                            self.push_line(&format!(
+                                                "call void @frame_runtime_compartment_state_arg_set_i32(ptr {}, ptr {}, i32 {})",
+                                                next_compartment, key_ptr, value_reg
+                                            ));
+                                        }
+                                        ValueKind::Double => {
+                                            self.push_line(&format!(
+                                                "call void @frame_runtime_compartment_state_arg_set_double(ptr {}, ptr {}, double {})",
+                                                next_compartment, key_ptr, value_reg
+                                            ));
+                                        }
+                                        ValueKind::Bool => {
+                                            self.push_line(&format!(
+                                                "call void @frame_runtime_compartment_state_arg_set_bool(ptr {}, ptr {}, i1 {})",
+                                                next_compartment, key_ptr, value_reg
+                                            ));
+                                        }
+                                        ValueKind::CString => {
+                                            self.push_line(&format!(
+                                                "call void @frame_runtime_compartment_state_arg_set_cstring(ptr {}, ptr {}, ptr {})",
+                                                next_compartment, key_ptr, value_reg
+                                            ));
+                                        }
+                                    }
+                                }
+
+                                for (literal, value) in pending_enter_args {
+                                    let StringRef {
+                                        name: key_name,
+                                        len: key_len,
+                                    } = literal;
+                                    let ValueRef {
+                                        kind,
+                                        value: value_reg,
+                                    } = value;
+                                    let key_ptr = self.next_temp();
+                                    self.push_line(&format!(
+                                        "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+                                        key_ptr, key_len, key_len, key_name
+                                    ));
+                                    match kind {
+                                        ValueKind::I32 => {
+                                            self.push_line(&format!(
+                                                "call void @frame_runtime_compartment_enter_arg_set_i32(ptr {}, ptr {}, i32 {})",
+                                                next_compartment, key_ptr, value_reg
+                                            ));
+                                        }
+                                        ValueKind::Double => {
+                                            self.push_line(&format!(
+                                                "call void @frame_runtime_compartment_enter_arg_set_double(ptr {}, ptr {}, double {})",
+                                                next_compartment, key_ptr, value_reg
+                                            ));
+                                        }
+                                        ValueKind::Bool => {
+                                            self.push_line(&format!(
+                                                "call void @frame_runtime_compartment_enter_arg_set_bool(ptr {}, ptr {}, i1 {})",
+                                                next_compartment, key_ptr, value_reg
+                                            ));
+                                        }
+                                        ValueKind::CString => {
+                                            self.push_line(&format!(
+                                                "call void @frame_runtime_compartment_enter_arg_set_cstring(ptr {}, ptr {}, ptr {})",
+                                                next_compartment, key_ptr, value_reg
+                                            ));
+                                        }
+                                    }
+                                }
+
                                 let active_compartment = self.next_temp();
                                 self.push_line(&format!(
                                     "{} = call ptr @frame_runtime_kernel_push_compartment(ptr {}, ptr {})",
@@ -924,7 +1238,7 @@ impl LLVMModuleBuilder {
                                     "store ptr {}, ptr {}",
                                     active_compartment, compartment_field_ptr
                                 ));
-                                let target_state = ctx.state(target_index as usize);
+
                                 if target_state.enter_handler.is_some() {
                                     let enter_fn = ctx.state_enter_fn(&target_state.name);
                                     self.push_line(&format!(
@@ -932,6 +1246,8 @@ impl LLVMModuleBuilder {
                                         enter_fn, ctx.struct_name
                                     ));
                                 }
+                            } else {
+                                self.push_comment("unsupported transition target");
                             }
                         } else {
                             self.push_comment("unsupported transition");
@@ -1016,6 +1332,24 @@ impl LLVMModuleBuilder {
                                 "{} = call ptr @frame_runtime_event_new(ptr {})",
                                 forwarded_event, parent_literal_ptr
                             ));
+                            if let Some(locals_map) = locals {
+                                if !handler_scope.event_params.is_empty() {
+                                    let param_specs: Vec<(String, ValueKind)> = handler_scope
+                                        .event_params
+                                        .iter()
+                                        .map(|param| (param.name.clone(), param.kind))
+                                        .collect();
+                                    self.push_event_params_from_locals(
+                                        &forwarded_event,
+                                        &param_specs,
+                                        locals_map,
+                                    );
+                                }
+                            } else if !handler_scope.event_params.is_empty() {
+                                self.push_comment(
+                                    "event parameters unavailable for parent dispatch forward",
+                                );
+                            }
                             self.push_line(&format!(
                                 "call void @frame_runtime_compartment_set_forward_event(ptr {}, ptr {})",
                                 parent_compartment, forwarded_event
@@ -1126,9 +1460,28 @@ impl LLVMModuleBuilder {
 
                 self.push_line(&format!("{}:", match_label));
                 self.indent += 1;
+                let mut call_args = Vec::new();
+                call_args.push(format!("{}* %self", ctx.struct_name));
+                if let Some(method_info) = ctx.interface_method_by_message(&method.message) {
+                    for (param_index, param) in method_info.params.iter().enumerate() {
+                        let value = self.load_event_param_value(
+                            queue_event_ptr.as_str(),
+                            param_index,
+                            param.kind,
+                        );
+                        call_args.push(format!(
+                            "{} {}",
+                            Self::llvm_type_for_kind(param.kind),
+                            value.value
+                        ));
+                    }
+                } else {
+                    self.push_comment("interface method metadata missing for queued event");
+                }
                 self.push_line(&format!(
-                    "call void {}({}* %self)",
-                    method.fn_name, ctx.struct_name
+                    "call void {}({})",
+                    method.fn_name,
+                    call_args.join(", ")
                 ));
                 let restored_ptr = self.next_temp();
                 self.push_line(&format!(
@@ -1184,6 +1537,7 @@ impl LLVMModuleBuilder {
         self_ptr: &str,
         expr_stmt: &ExprStmtType,
         locals: Option<&HashMap<String, LocalBinding>>,
+        scope: Option<HandlerScope>,
     ) {
         match expr_stmt {
             ExprStmtType::CallStmtT { call_stmt_node } => {
@@ -1192,6 +1546,7 @@ impl LLVMModuleBuilder {
                     Some(self_ptr),
                     locals,
                     &call_stmt_node.call_expr_node,
+                    scope,
                 ) {
                     return;
                 }
@@ -1203,7 +1558,13 @@ impl LLVMModuleBuilder {
                 let call_chain = &call_chain_literal_stmt_node.call_chain_literal_expr_node;
                 if let Some(node) = call_chain.call_chain.front() {
                     if let CallChainNodeType::UndeclaredCallT { call_node } = node {
-                        if self.handle_call_expr(Some(ctx), Some(self_ptr), locals, call_node) {
+                        if self.handle_call_expr(
+                            Some(ctx),
+                            Some(self_ptr),
+                            locals,
+                            call_node,
+                            scope,
+                        ) {
                             return;
                         }
                     }
@@ -1212,7 +1573,7 @@ impl LLVMModuleBuilder {
             }
             ExprStmtType::AssignmentStmtT {
                 assignment_stmt_node,
-            } => self.emit_assignment_statement(ctx, self_ptr, locals, assignment_stmt_node),
+            } => self.emit_assignment_statement(ctx, self_ptr, locals, assignment_stmt_node, scope),
             _ => {
                 self.push_comment("unsupported expression statement");
             }
@@ -1225,6 +1586,7 @@ impl LLVMModuleBuilder {
         self_ptr: &str,
         locals: Option<&HashMap<String, LocalBinding>>,
         stmt: &AssignmentStmtNode,
+        scope: Option<HandlerScope>,
     ) {
         let expr = &stmt.assignment_expr_node;
 
@@ -1285,13 +1647,14 @@ impl LLVMModuleBuilder {
             }
         }
 
-        let value = match self.emit_expression_value(ctx, self_ptr, locals, &*expr.r_value_rc) {
-            Some(value) => value,
-            None => {
-                self.push_comment("unsupported assignment expression in LLVM backend");
-                return;
-            }
-        };
+        let value =
+            match self.emit_expression_value(ctx, self_ptr, locals, &*expr.r_value_rc, scope) {
+                Some(value) => value,
+                None => {
+                    self.push_comment("unsupported assignment expression in LLVM backend");
+                    return;
+                }
+            };
 
         if let Some(binding) = target_local {
             let coerced = match self.coerce_value_for_kind(value, binding.kind) {
@@ -1329,12 +1692,13 @@ impl LLVMModuleBuilder {
         ctx: &SystemEmitContext,
         self_ptr: &str,
         handler: &EventHandlerNode,
+        scope: Option<HandlerScope>,
     ) {
         for stmt in &handler.statements {
             match stmt {
                 DeclOrStmtType::StmtT { stmt_t } => match stmt_t {
                     StatementType::ExpressionStmt { expr_stmt_t } => {
-                        self.emit_expression_statement(ctx, self_ptr, expr_stmt_t, None);
+                        self.emit_expression_statement(ctx, self_ptr, expr_stmt_t, None, scope);
                     }
                     StatementType::ReturnStmt { .. } | StatementType::NoStmt => {
                         // Exit/enter handlers commonly end with return; nothing to emit.
@@ -1480,6 +1844,7 @@ impl LLVMModuleBuilder {
         self_ptr: Option<&str>,
         locals: Option<&HashMap<String, LocalBinding>>,
         call: &CallExprNode,
+        scope: Option<HandlerScope>,
     ) -> bool {
         let func_name = call.get_name();
         if func_name == "print" {
@@ -1491,7 +1856,7 @@ impl LLVMModuleBuilder {
 
             if let (Some(ctx_eval), Some(self_ptr_eval)) = (ctx, self_ptr) {
                 if let Some(value) =
-                    self.emit_expression_value(ctx_eval, self_ptr_eval, locals, arg)
+                    self.emit_expression_value(ctx_eval, self_ptr_eval, locals, arg, scope)
                 {
                     match value.kind {
                         ValueKind::I32 => {
@@ -1636,13 +2001,14 @@ impl LLVMModuleBuilder {
                 let mut arg_strings = Vec::new();
 
                 for (param, expr) in action.params.iter().zip(call.call_expr_list.exprs_t.iter()) {
-                    let value = match self.emit_expression_value(ctx, self_ptr, locals_map, expr) {
-                        Some(value) => value,
-                        None => {
-                            self.push_comment("unsupported action argument expression");
-                            return true;
-                        }
-                    };
+                    let value =
+                        match self.emit_expression_value(ctx, self_ptr, locals_map, expr, scope) {
+                            Some(value) => value,
+                            None => {
+                                self.push_comment("unsupported action argument expression");
+                                return true;
+                            }
+                        };
 
                     let coerced = match self.coerce_value_for_kind(value, param.kind) {
                         Some(value) => value,
@@ -1680,6 +2046,7 @@ impl LLVMModuleBuilder {
         self_ptr: &str,
         locals: Option<&HashMap<String, LocalBinding>>,
         expr: &ExprType,
+        scope: Option<HandlerScope>,
     ) -> Option<ValueRef> {
         match expr {
             ExprType::LiteralExprT { literal_expr_node } => match literal_expr_node.token_t.clone()
@@ -1712,6 +2079,13 @@ impl LLVMModuleBuilder {
                 if let Some(locals_map) = locals {
                     if let Some(binding) = locals_map.get(var_node.get_name()) {
                         return Some(self.load_local_value(binding));
+                    }
+                }
+                if let Some(scope_ctx) = scope {
+                    if let Some(value) =
+                        self.load_scoped_variable(ctx, self_ptr, scope_ctx, var_node.get_name())
+                    {
+                        return Some(value);
                     }
                 }
                 if let Some(field) = ctx.domain_field(var_node.get_name()) {
@@ -1785,10 +2159,11 @@ impl LLVMModuleBuilder {
             }
             ExprType::BinaryExprT { binary_expr_node } => {
                 let left_ref = binary_expr_node.left_rcref.borrow();
-                let left = self.emit_expression_value(ctx, self_ptr, locals, &*left_ref)?;
+                let left = self.emit_expression_value(ctx, self_ptr, locals, &*left_ref, scope)?;
                 drop(left_ref);
                 let right_ref = binary_expr_node.right_rcref.borrow();
-                let right = self.emit_expression_value(ctx, self_ptr, locals, &*right_ref)?;
+                let right =
+                    self.emit_expression_value(ctx, self_ptr, locals, &*right_ref, scope)?;
                 drop(right_ref);
                 match (binary_expr_node.operator.clone(), left.kind, right.kind) {
                     (OperatorType::Plus, ValueKind::I32, ValueKind::I32) => {
@@ -1853,6 +2228,308 @@ impl LLVMModuleBuilder {
             ValueKind::CString => {
                 self.push_line(&format!("{} = load i8*, i8** {}", loaded, binding.ptr));
                 ValueRef::new(ValueKind::CString, loaded)
+            }
+        }
+    }
+
+    fn load_compartment_ptr(&mut self, ctx: &SystemEmitContext, self_ptr: &str) -> String {
+        let field_ptr = self.next_temp();
+        self.push_line(&format!(
+            "{} = getelementptr inbounds {}, {}* {}, i32 0, i32 {}",
+            field_ptr,
+            ctx.struct_name,
+            ctx.struct_name,
+            self_ptr,
+            ctx.compartment_field_index()
+        ));
+        let compartment_ptr = self.next_temp();
+        self.push_line(&format!(
+            "{} = load ptr, ptr {}",
+            compartment_ptr, field_ptr
+        ));
+        compartment_ptr
+    }
+
+    fn load_state_arg(
+        &mut self,
+        ctx: &SystemEmitContext,
+        self_ptr: &str,
+        name: &str,
+        kind: ValueKind,
+    ) -> ValueRef {
+        self.require_runtime_api();
+        let literal = self.intern_string(name, false);
+        let StringRef {
+            name: literal_name,
+            len: literal_len,
+        } = literal;
+        let key_ptr = self.next_temp();
+        self.push_line(&format!(
+            "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+            key_ptr, literal_len, literal_len, literal_name
+        ));
+        let compartment_ptr = self.load_compartment_ptr(ctx, self_ptr);
+        let value_reg = self.next_temp();
+        match kind {
+            ValueKind::I32 => {
+                self.push_line(&format!(
+                    "{} = call i32 @frame_runtime_compartment_state_arg_get_i32(ptr {}, ptr {})",
+                    value_reg, compartment_ptr, key_ptr
+                ));
+                ValueRef::new(ValueKind::I32, value_reg)
+            }
+            ValueKind::Double => {
+                self.push_line(&format!(
+                    "{} = call double @frame_runtime_compartment_state_arg_get_double(ptr {}, ptr {})",
+                    value_reg, compartment_ptr, key_ptr
+                ));
+                ValueRef::new(ValueKind::Double, value_reg)
+            }
+            ValueKind::Bool => {
+                self.push_line(&format!(
+                    "{} = call i1 @frame_runtime_compartment_state_arg_get_bool(ptr {}, ptr {})",
+                    value_reg, compartment_ptr, key_ptr
+                ));
+                ValueRef::new(ValueKind::Bool, value_reg)
+            }
+            ValueKind::CString => {
+                self.push_line(&format!(
+                    "{} = call ptr @frame_runtime_compartment_state_arg_get_cstring(ptr {}, ptr {})",
+                    value_reg, compartment_ptr, key_ptr
+                ));
+                ValueRef::new(ValueKind::CString, value_reg)
+            }
+        }
+    }
+
+    fn load_enter_arg(
+        &mut self,
+        ctx: &SystemEmitContext,
+        self_ptr: &str,
+        name: &str,
+        kind: ValueKind,
+    ) -> ValueRef {
+        self.require_runtime_api();
+        let literal = self.intern_string(name, false);
+        let StringRef {
+            name: literal_name,
+            len: literal_len,
+        } = literal;
+        let key_ptr = self.next_temp();
+        self.push_line(&format!(
+            "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+            key_ptr, literal_len, literal_len, literal_name
+        ));
+        let compartment_ptr = self.load_compartment_ptr(ctx, self_ptr);
+        let value_reg = self.next_temp();
+        match kind {
+            ValueKind::I32 => {
+                self.push_line(&format!(
+                    "{} = call i32 @frame_runtime_compartment_enter_arg_get_i32(ptr {}, ptr {})",
+                    value_reg, compartment_ptr, key_ptr
+                ));
+                ValueRef::new(ValueKind::I32, value_reg)
+            }
+            ValueKind::Double => {
+                self.push_line(&format!(
+                    "{} = call double @frame_runtime_compartment_enter_arg_get_double(ptr {}, ptr {})",
+                    value_reg, compartment_ptr, key_ptr
+                ));
+                ValueRef::new(ValueKind::Double, value_reg)
+            }
+            ValueKind::Bool => {
+                self.push_line(&format!(
+                    "{} = call i1 @frame_runtime_compartment_enter_arg_get_bool(ptr {}, ptr {})",
+                    value_reg, compartment_ptr, key_ptr
+                ));
+                ValueRef::new(ValueKind::Bool, value_reg)
+            }
+            ValueKind::CString => {
+                self.push_line(&format!(
+                    "{} = call ptr @frame_runtime_compartment_enter_arg_get_cstring(ptr {}, ptr {})",
+                    value_reg, compartment_ptr, key_ptr
+                ));
+                ValueRef::new(ValueKind::CString, value_reg)
+            }
+        }
+    }
+
+    fn load_scoped_variable(
+        &mut self,
+        ctx: &SystemEmitContext,
+        self_ptr: &str,
+        scope: HandlerScope,
+        name: &str,
+    ) -> Option<ValueRef> {
+        if scope.kind == HandlerKind::Enter {
+            if let Some(param) = scope.state.enter_param(name) {
+                return Some(self.load_enter_arg(ctx, self_ptr, &param.name, param.kind));
+            }
+        }
+        if let Some(param) = scope.state.state_param(name) {
+            return Some(self.load_state_arg(ctx, self_ptr, &param.name, param.kind));
+        }
+        if scope.kind == HandlerKind::Event {
+            let _ = scope.event_param(name);
+        }
+        None
+    }
+
+    fn collect_pending_args(
+        &mut self,
+        ctx: &SystemEmitContext,
+        self_ptr: &str,
+        exprs: &ExprListNode,
+        params: &[StateParam],
+        locals: Option<&HashMap<String, LocalBinding>>,
+        scope: Option<HandlerScope>,
+        description: &str,
+    ) -> Vec<(StringRef, ValueRef)> {
+        if exprs.exprs_t.len() != params.len() {
+            self.push_comment(&format!("{} argument count mismatch", description));
+            return Vec::new();
+        }
+
+        let mut pending = Vec::new();
+        for (param, expr) in params.iter().zip(exprs.exprs_t.iter()) {
+            let value = match self.emit_expression_value(ctx, self_ptr, locals, expr, scope) {
+                Some(value) => value,
+                None => {
+                    self.push_comment(&format!(
+                        "unsupported {} expression for parameter '{}'",
+                        description, param.name
+                    ));
+                    continue;
+                }
+            };
+
+            let coerced = match self.coerce_value_for_kind(value, param.kind) {
+                Some(value) => value,
+                None => {
+                    self.push_comment(&format!(
+                        "type mismatch for {} parameter '{}'",
+                        description, param.name
+                    ));
+                    continue;
+                }
+            };
+
+            let literal = self.intern_string(&param.name, false);
+            pending.push((literal, coerced));
+        }
+
+        pending
+    }
+
+    fn push_event_params_from_locals(
+        &mut self,
+        event_ptr: &str,
+        params: &[(String, ValueKind)],
+        locals: &HashMap<String, LocalBinding>,
+    ) {
+        if params.is_empty() {
+            return;
+        }
+        self.require_runtime_event();
+        for (name, kind) in params {
+            match locals.get(name) {
+                Some(binding) => {
+                    self.push_event_param_from_binding(event_ptr, binding, *kind);
+                }
+                None => {
+                    self.push_comment(&format!(
+                        "event parameter '{}' not found in local bindings",
+                        name
+                    ));
+                }
+            }
+        }
+    }
+
+    fn push_event_param_from_binding(
+        &mut self,
+        event_ptr: &str,
+        binding: &LocalBinding,
+        expected: ValueKind,
+    ) {
+        let mut value = self.load_local_value(binding);
+        if binding.kind != expected {
+            if let Some(coerced) = self.coerce_value_for_kind(value, expected) {
+                value = coerced;
+            } else {
+                self.push_comment("event parameter type mismatch in binding");
+                return;
+            }
+        }
+        self.push_event_param_value(event_ptr, expected, value);
+    }
+
+    fn push_event_param_value(&mut self, event_ptr: &str, kind: ValueKind, value: ValueRef) {
+        self.require_runtime_event();
+        match kind {
+            ValueKind::I32 => {
+                self.push_line(&format!(
+                    "call void @frame_runtime_event_push_param_i32(ptr {}, i32 {})",
+                    event_ptr, value.value
+                ));
+            }
+            ValueKind::Double => {
+                self.push_line(&format!(
+                    "call void @frame_runtime_event_push_param_double(ptr {}, double {})",
+                    event_ptr, value.value
+                ));
+            }
+            ValueKind::Bool => {
+                self.push_line(&format!(
+                    "call void @frame_runtime_event_push_param_bool(ptr {}, i1 {})",
+                    event_ptr, value.value
+                ));
+            }
+            ValueKind::CString => {
+                self.push_line(&format!(
+                    "call void @frame_runtime_event_push_param_cstring(ptr {}, ptr {})",
+                    event_ptr, value.value
+                ));
+            }
+        }
+    }
+
+    fn load_event_param_value(
+        &mut self,
+        event_ptr: &str,
+        index: usize,
+        kind: ValueKind,
+    ) -> ValueRef {
+        self.require_runtime_event();
+        let reg = self.next_temp();
+        match kind {
+            ValueKind::I32 => {
+                self.push_line(&format!(
+                    "{} = call i32 @frame_runtime_event_get_param_i32(ptr {}, i32 {})",
+                    reg, event_ptr, index
+                ));
+                ValueRef::new(ValueKind::I32, reg)
+            }
+            ValueKind::Double => {
+                self.push_line(&format!(
+                    "{} = call double @frame_runtime_event_get_param_double(ptr {}, i32 {})",
+                    reg, event_ptr, index
+                ));
+                ValueRef::new(ValueKind::Double, reg)
+            }
+            ValueKind::Bool => {
+                self.push_line(&format!(
+                    "{} = call i1 @frame_runtime_event_get_param_bool(ptr {}, i32 {})",
+                    reg, event_ptr, index
+                ));
+                ValueRef::new(ValueKind::Bool, reg)
+            }
+            ValueKind::CString => {
+                self.push_line(&format!(
+                    "{} = call ptr @frame_runtime_event_get_param_cstring(ptr {}, i32 {})",
+                    reg, event_ptr, index
+                ));
+                ValueRef::new(ValueKind::CString, reg)
             }
         }
     }
@@ -2075,8 +2752,20 @@ impl LLVMModuleBuilder {
         self.indent += 1;
         if let Some(handler_rc) = &state.enter_handler {
             let handler = handler_rc.borrow();
-            self.emit_basic_handler(ctx, "%self", &handler);
+            let empty_params: &[HandlerParam] = &[];
+            let handler_scope = HandlerScope {
+                state,
+                kind: HandlerKind::Enter,
+                event_params: empty_params,
+            };
+            self.emit_basic_handler(ctx, "%self", &handler, Some(handler_scope));
         }
+        self.require_runtime_api();
+        let compartment_ptr = self.load_compartment_ptr(ctx, "%self");
+        self.push_line(&format!(
+            "call void @frame_runtime_compartment_enter_args_clear(ptr {})",
+            compartment_ptr
+        ));
         self.push_line("ret void");
         self.indent -= 1;
         self.push_line("}");
@@ -2101,7 +2790,13 @@ impl LLVMModuleBuilder {
         self.indent += 1;
         if let Some(handler_rc) = &state.exit_handler {
             let handler = handler_rc.borrow();
-            self.emit_basic_handler(ctx, "%self", &handler);
+            let empty_params: &[HandlerParam] = &[];
+            let handler_scope = HandlerScope {
+                state,
+                kind: HandlerKind::Exit,
+                event_params: empty_params,
+            };
+            self.emit_basic_handler(ctx, "%self", &handler, Some(handler_scope));
         }
         self.push_line("ret void");
         self.indent -= 1;
@@ -2135,6 +2830,166 @@ impl LLVMModuleBuilder {
         let tmp = self.next_temp();
         self.push_line(&format!("{} = icmp ne i32 {}, 0", tmp, value.value));
         ValueRef::new(ValueKind::Bool, tmp)
+    }
+
+    fn emit_main_value(&mut self, expr: &ExprType) -> Option<ValueRef> {
+        match expr {
+            ExprType::LiteralExprT { literal_expr_node } => match literal_expr_node.token_t.clone()
+            {
+                TokenType::Number => {
+                    let sanitized = sanitize_numeric_literal(&literal_expr_node.value);
+                    if literal_expr_node.value.contains('.')
+                        || literal_expr_node.value.contains('e')
+                        || literal_expr_node.value.contains('E')
+                    {
+                        Some(ValueRef::new(ValueKind::Double, sanitized))
+                    } else {
+                        Some(ValueRef::new(ValueKind::I32, sanitized))
+                    }
+                }
+                TokenType::True => Some(ValueRef::new(ValueKind::Bool, "1")),
+                TokenType::False => Some(ValueRef::new(ValueKind::Bool, "0")),
+                TokenType::String => {
+                    let literal = self.intern_string(&literal_expr_node.value, false);
+                    let ptr = self.next_temp();
+                    self.push_line(&format!(
+                        "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+                        ptr, literal.len, literal.len, literal.name
+                    ));
+                    Some(ValueRef::new(ValueKind::CString, ptr))
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn emit_main_value_with_system(
+        &mut self,
+        summary: &SystemSummary,
+        self_ptr: &str,
+        expr: &ExprType,
+    ) -> Option<ValueRef> {
+        match expr {
+            ExprType::LiteralExprT { .. } => self.emit_main_value(expr),
+            ExprType::CallChainExprT {
+                call_chain_expr_node,
+            } => {
+                if let Some(field) = self
+                    .main_domain_field_from_call_chain(summary, &call_chain_expr_node.call_chain)
+                {
+                    let field_ptr = self.main_domain_field_ptr(summary, self_ptr, field);
+                    let loaded = self.next_temp();
+                    match field.field_type {
+                        DomainFieldType::I32 => {
+                            self.push_line(&format!("{} = load i32, i32* {}", loaded, field_ptr));
+                            Some(ValueRef::new(ValueKind::I32, loaded))
+                        }
+                        DomainFieldType::F64 => {
+                            self.push_line(&format!(
+                                "{} = load double, double* {}",
+                                loaded, field_ptr
+                            ));
+                            Some(ValueRef::new(ValueKind::Double, loaded))
+                        }
+                        DomainFieldType::Bool => {
+                            self.push_line(&format!("{} = load i1, i1* {}", loaded, field_ptr));
+                            Some(ValueRef::new(ValueKind::Bool, loaded))
+                        }
+                        DomainFieldType::CString => {
+                            self.push_line(&format!("{} = load i8*, i8** {}", loaded, field_ptr));
+                            Some(ValueRef::new(ValueKind::CString, loaded))
+                        }
+                    }
+                } else {
+                    None
+                }
+            }
+            ExprType::BinaryExprT { binary_expr_node } => {
+                let left_ref = binary_expr_node.left_rcref.borrow();
+                let left = self.emit_main_value_with_system(summary, self_ptr, &*left_ref)?;
+                drop(left_ref);
+                let right_ref = binary_expr_node.right_rcref.borrow();
+                let right = self.emit_main_value_with_system(summary, self_ptr, &*right_ref)?;
+                drop(right_ref);
+                match (binary_expr_node.operator.clone(), left.kind, right.kind) {
+                    (OperatorType::Plus, ValueKind::I32, ValueKind::I32) => {
+                        let result = self.next_temp();
+                        self.push_line(&format!(
+                            "{} = add i32 {}, {}",
+                            result, left.value, right.value
+                        ));
+                        Some(ValueRef::new(ValueKind::I32, result))
+                    }
+                    (OperatorType::Plus, ValueKind::Double, ValueKind::Double) => {
+                        let result = self.next_temp();
+                        self.push_line(&format!(
+                            "{} = fadd double {}, {}",
+                            result, left.value, right.value
+                        ));
+                        Some(ValueRef::new(ValueKind::Double, result))
+                    }
+                    (OperatorType::Plus, ValueKind::I32, ValueKind::Double) => {
+                        let left_conv = self.convert_i32_to_double(left);
+                        let result = self.next_temp();
+                        self.push_line(&format!(
+                            "{} = fadd double {}, {}",
+                            result, left_conv.value, right.value
+                        ));
+                        Some(ValueRef::new(ValueKind::Double, result))
+                    }
+                    (OperatorType::Plus, ValueKind::Double, ValueKind::I32) => {
+                        let right_conv = self.convert_i32_to_double(right);
+                        let result = self.next_temp();
+                        self.push_line(&format!(
+                            "{} = fadd double {}, {}",
+                            result, left.value, right_conv.value
+                        ));
+                        Some(ValueRef::new(ValueKind::Double, result))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn main_domain_field_from_call_chain<'a>(
+        &self,
+        summary: &'a SystemSummary,
+        call_chain: &VecDeque<CallChainNodeType>,
+    ) -> Option<&'a DomainField> {
+        let mut iter = call_chain.iter();
+        match (iter.next(), iter.next(), iter.next()) {
+            (Some(CallChainNodeType::VariableNodeT { .. }), Some(second), None)
+            | (Some(CallChainNodeType::SelfT { .. }), Some(second), None) => match second {
+                CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                    summary.domain_field(id_node.name.lexeme.as_str())
+                }
+                CallChainNodeType::VariableNodeT { var_node } => {
+                    summary.domain_field(var_node.get_name())
+                }
+                _ => None,
+            },
+            (Some(CallChainNodeType::UndeclaredIdentifierNodeT { id_node }), None, None) => {
+                summary.domain_field(id_node.name.lexeme.as_str())
+            }
+            _ => None,
+        }
+    }
+
+    fn main_domain_field_ptr(
+        &mut self,
+        summary: &SystemSummary,
+        self_ptr: &str,
+        field: &DomainField,
+    ) -> String {
+        let ptr = self.next_temp();
+        self.push_line(&format!(
+            "{} = getelementptr inbounds {}, {}* {}, i32 0, i32 {}",
+            ptr, summary.struct_name, summary.struct_name, self_ptr, field.struct_index
+        ));
+        ptr
     }
 
     fn begin_function(&mut self) {
@@ -2268,6 +3123,47 @@ impl LLVMModuleBuilder {
             output
                 .push_str("declare void @frame_runtime_compartment_set_forward_event(ptr, ptr)\n");
             output.push_str("declare ptr @frame_runtime_kernel_next_event(ptr)\n");
+            output.push_str(
+                "declare void @frame_runtime_compartment_state_arg_set_i32(ptr, ptr, i32)\n",
+            );
+            output.push_str(
+                "declare void @frame_runtime_compartment_state_arg_set_double(ptr, ptr, double)\n",
+            );
+            output.push_str(
+                "declare void @frame_runtime_compartment_state_arg_set_bool(ptr, ptr, i1)\n",
+            );
+            output.push_str(
+                "declare void @frame_runtime_compartment_state_arg_set_cstring(ptr, ptr, ptr)\n",
+            );
+            output.push_str("declare i32 @frame_runtime_compartment_state_arg_get_i32(ptr, ptr)\n");
+            output.push_str(
+                "declare double @frame_runtime_compartment_state_arg_get_double(ptr, ptr)\n",
+            );
+            output.push_str("declare i1 @frame_runtime_compartment_state_arg_get_bool(ptr, ptr)\n");
+            output.push_str(
+                "declare ptr @frame_runtime_compartment_state_arg_get_cstring(ptr, ptr)\n",
+            );
+            output.push_str(
+                "declare void @frame_runtime_compartment_enter_arg_set_i32(ptr, ptr, i32)\n",
+            );
+            output.push_str(
+                "declare void @frame_runtime_compartment_enter_arg_set_double(ptr, ptr, double)\n",
+            );
+            output.push_str(
+                "declare void @frame_runtime_compartment_enter_arg_set_bool(ptr, ptr, i1)\n",
+            );
+            output.push_str(
+                "declare void @frame_runtime_compartment_enter_arg_set_cstring(ptr, ptr, ptr)\n",
+            );
+            output.push_str("declare i32 @frame_runtime_compartment_enter_arg_get_i32(ptr, ptr)\n");
+            output.push_str(
+                "declare double @frame_runtime_compartment_enter_arg_get_double(ptr, ptr)\n",
+            );
+            output.push_str("declare i1 @frame_runtime_compartment_enter_arg_get_bool(ptr, ptr)\n");
+            output.push_str(
+                "declare ptr @frame_runtime_compartment_enter_arg_get_cstring(ptr, ptr)\n",
+            );
+            output.push_str("declare void @frame_runtime_compartment_enter_args_clear(ptr)\n");
         }
 
         if self.needs_runtime_event {
@@ -2275,6 +3171,14 @@ impl LLVMModuleBuilder {
             output.push_str("declare ptr @frame_runtime_event_new(ptr)\n");
             output.push_str("declare void @frame_runtime_event_free(ptr)\n");
             output.push_str("declare i1 @frame_runtime_event_is_message(ptr, ptr)\n");
+            output.push_str("declare void @frame_runtime_event_push_param_i32(ptr, i32)\n");
+            output.push_str("declare void @frame_runtime_event_push_param_double(ptr, double)\n");
+            output.push_str("declare void @frame_runtime_event_push_param_bool(ptr, i1)\n");
+            output.push_str("declare void @frame_runtime_event_push_param_cstring(ptr, ptr)\n");
+            output.push_str("declare i32 @frame_runtime_event_get_param_i32(ptr, i32)\n");
+            output.push_str("declare double @frame_runtime_event_get_param_double(ptr, i32)\n");
+            output.push_str("declare i1 @frame_runtime_event_get_param_bool(ptr, i32)\n");
+            output.push_str("declare ptr @frame_runtime_event_get_param_cstring(ptr, i32)\n");
         }
 
         if !self.body.trim().is_empty() {

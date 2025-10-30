@@ -3,10 +3,10 @@
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
 **Current Version**: v0.86.25  
-**Test Framework**: Unified multi-language testing (905 total tests, enforced in CI)  
+**Test Framework**: Unified multi-language testing (913 total tests, enforced in CI)  
 **Python Tests**: 100% execution (462/462)  
 **TypeScript Tests**: 100% execution (433/433)  
-**LLVM Smoke Tests**: 100% execution (10/10)  
+**LLVM Smoke Tests**: 100% execution (18/18)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-28
 
@@ -22,14 +22,14 @@ Frame programs run atop two generated layers:
 Keep capability work in the FSL so Frame specs stay portable while the runtime focuses purely on language behavior.
 
 ## Current Focus (v0.86.25) 🛠️ Native Backend Readiness
-- LLVM runtime grows queue plumbing: compartments now expose `frame_runtime_compartment_set_forward_event`, and transitions reuse the active compartment pointer so forwarded events can route through the kernel.
-- New LLVM smoke coverage (`test_action_locals.frm`) exercises action locals mutating typed (`int`) and inferred (`string`) domain fields to ensure native code handles mixed typing.
-- MacOS packaging remains the priority for LLVM; new docs capture the updated helper APIs so future targets can reuse them.
-- Python and TypeScript suites remain green (900 specs total) while the LLVM backend edges toward full parent-forward semantics.
-- GitHub Actions continues to run LLVM smoke tests alongside Python/TypeScript regressions to guard the native backend.
+- LLVM runtime stores event payloads as typed `StateValue`s so queue replay, parent forwarding, and enter hooks preserve interface arguments.
+- Builder surfaces interface metadata to `SystemSummary`, enabling both handler generation and main-function calls to coerce arguments correctly.
+- LLVM smoke suite expanded to 18 fixtures covering state/enter args, parent forwarding, event parameters, and multi-pop stack semantics.
+- Python and TypeScript suites remain green (895 specs) while native backend work stays Mac-first and fully integrated into CI.
 
-## Recent Improvements (v0.86.18 – v0.86.25)
-- **LLVM Queue Prep (v0.86.25):** Runtime compartments add a forward-event setter, the builder reuses active compartment pointers, and new smoke tests (`test_action_locals.frm`, `test_parent_forward_queue.frm`) lock in typed/untyped mutations plus queued parent forwarding ahead of full enter/exit wiring.
+- **LLVM Typed Events (v0.86.25):** Runtime/FFI expose push/get helpers so interface parameters survive queued dispatch, parent forwards, and re-entry.
+- **Main Call Support (v0.86.25):** LLVM interface invocations in `main` accept literal expressions and domain field references, automatically coercing to declared parameter kinds.
+- **Smoke Coverage (v0.86.25):** Added `test_state_parameters_basic.frm`, `test_enter_args.frm`, `test_parent_forward_enter_args.frm`, `test_event_parameters.frm`, and `test_state_stack_multi_pop.frm`; suite now passes 18/18.
 - **LLVM Domain Actions (v0.86.22):** The experimental LLVM backend now lowers actions, expands domain assignments, and supports string/bool initialisers so smoke tests cover real state mutations.
 - **Async Runtime Parity (v0.86.21):** Automatic detection of async systems now upgrades generated TypeScript dispatchers, interface methods, and kernel loops to `async`/`await`, matching Python semantics for mixed sync/async event handlers.
 - **External API Alignment (v0.86.21):** Python network/process specs now call the emitted action helpers instead of direct method names, eliminating runtime attribute errors while retaining the original behaviour.
