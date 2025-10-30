@@ -32,7 +32,7 @@ impl FrameEvent {
 }
 
 /// Compartment data mirrors the runtime structs generated for Python/TypeScript.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FrameCompartment {
     pub state: String,
     pub forward_event: Option<FrameEvent>,

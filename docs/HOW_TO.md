@@ -24,7 +24,7 @@ Frame is a state machine language that transpiles to multiple target languages (
 ### Current Status
 - **Version**: v0.86.25
 - **Branch**: `dev`
-- **Test Success Rate**: 100% execution (904 total specs: 462 Python + 433 TypeScript + 9 LLVM smoke tests)
+- **Test Success Rate**: 100% execution (905 total specs: 462 Python + 433 TypeScript + 10 LLVM smoke tests)
 - **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz, experimental LLVM IR emitter
 - **Recent Achievement**: Async-aware TypeScript runtime, Python external API parity, nested-function negative coverage, and LLVM runtime smoke validation
 

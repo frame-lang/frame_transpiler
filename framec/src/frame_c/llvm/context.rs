@@ -85,6 +85,8 @@ pub(super) struct StateEntry {
     pub(super) name: String,
     pub(super) handlers: HashMap<String, Rc<RefCell<EventHandlerNode>>>,
     pub(super) parent_state_name: Option<String>,
+    pub(super) enter_handler: Option<Rc<RefCell<EventHandlerNode>>>,
+    pub(super) exit_handler: Option<Rc<RefCell<EventHandlerNode>>>,
 }
 
 #[derive(Clone)]
@@ -142,6 +144,8 @@ impl SystemEmitContext {
                 name: state.name.clone(),
                 handlers,
                 parent_state_name,
+                enter_handler: state.enter_event_handler_opt.clone(),
+                exit_handler: state.exit_event_handler_opt.clone(),
             });
         }
 
@@ -309,6 +313,26 @@ impl SystemEmitContext {
         )
     }
 
+    pub(super) fn state(&self, index: usize) -> &StateEntry {
+        &self.states[index]
+    }
+
+    pub(super) fn state_enter_fn(&self, state_name: &str) -> String {
+        format!(
+            "@{}__state_{}_enter",
+            self.sanitized_name,
+            sanitize_identifier(state_name)
+        )
+    }
+
+    pub(super) fn state_exit_fn(&self, state_name: &str) -> String {
+        format!(
+            "@{}__state_{}_exit",
+            self.sanitized_name,
+            sanitize_identifier(state_name)
+        )
+    }
+
     pub(super) fn transition_target_index(
         &self,
         transition: &TransitionStatementNode,
@@ -320,6 +344,10 @@ impl SystemEmitContext {
                 .copied(),
             TargetStateContextType::StateStackPop {} => None,
         }
+    }
+
+    pub(super) fn state_index(&self, name: &str) -> Option<i32> {
+        self.state_map.get(name).copied()
     }
 
     pub(super) fn transition_target_name(

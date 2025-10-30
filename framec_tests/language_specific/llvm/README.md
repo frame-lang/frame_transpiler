@@ -60,6 +60,9 @@ negative/edge-case fixtures as the backend matures.
 - `basic/test_action_returns.frm` – verifies action return values are emitted and consumable
 - `basic/test_multi_state.frm` – multi-state dispatch and transition handling
 - `basic/test_kernel_interop.frm` – guarantees the runtime kernel is allocated and callable
-- `basic/test_parent_forward.frm` – verifies parent forwarding (`=> $^`) re-enters the parent handler (current runtime short-circuits without enqueuing forwarded events)
+- `basic/test_parent_forward.frm` – ensures parent forwarding (`=> $^`) re-invokes the parent handler
+- `basic/test_parent_forward_queue.frm` – validates queued parent forwarding updates domain state exactly once before returning
 - `basic/test_parent_hierarchy.frm` – exercises multi-level parent dispatch, typed counters, and inferred domain fields
-- *(Coming soon)* `basic/test_enter_exit.frm` & friends to cover enter/exit handler execution once Phase 2 completes
+- `basic/test_transition_queue_enter.frm` – queued transition executes ready-state exit before activating the successor enter handler
+- `basic/test_transition_queue_exit.frm` – chained transitions trigger exit/enter ordering across multiple compartments
+- `basic/test_state_stack_pop.frm` – exercises `$$[+]` / `-> $$[-]` stack semantics, ensuring saved states resume with enter/exit ordering intact

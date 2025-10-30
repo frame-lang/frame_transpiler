@@ -4,7 +4,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Write as _;
 
 use super::context::{
-    ActionEntry, ActionParam, MainLocal, MainScope, MethodNames, SystemEmitContext, SystemSummary,
+    ActionEntry, ActionParam, MainLocal, MainScope, MethodNames, StateEntry, SystemEmitContext,
+    SystemSummary,
 };
 use super::utils::{
     call_chain_node_kind, encode_c_string, expr_kind, extract_string_literal, format_f64,
@@ -21,8 +22,13 @@ pub(super) struct LLVMModuleBuilder {
     string_map: HashMap<String, usize>,
     defined_structs: HashSet<String>,
     needs_puts: bool,
+    needs_print_int: bool,
+    needs_print_double: bool,
+    needs_print_bool: bool,
     needs_runtime_api: bool,
     needs_runtime_event: bool,
+    generated_enter_handlers: HashSet<String>,
+    generated_exit_handlers: HashSet<String>,
     indent: usize,
     temp_counter: usize,
 }
@@ -53,6 +59,11 @@ impl LLVMModuleBuilder {
             needs_puts: false,
             needs_runtime_api: false,
             needs_runtime_event: false,
+            needs_print_int: false,
+            needs_print_double: false,
+            needs_print_bool: false,
+            generated_enter_handlers: HashSet::new(),
+            generated_exit_handlers: HashSet::new(),
             indent: 0,
             temp_counter: 0,
         }
@@ -215,6 +226,7 @@ impl LLVMModuleBuilder {
             ctx.struct_name,
             ctx.compartment_field_index()
         ));
+
         self.push_line(&format!(
             "store ptr {}, ptr {}",
             runtime_compartment, compartment_field_ptr
@@ -298,6 +310,10 @@ impl LLVMModuleBuilder {
         names: &MethodNames,
         method: &InterfaceMethodNode,
     ) {
+        for state in &ctx.states {
+            self.emit_state_enter_function(ctx, state);
+            self.emit_state_exit_function(ctx, state);
+        }
         self.begin_function();
         let default_label = format!(
             "{}_{}_dispatch_default",
@@ -392,6 +408,7 @@ impl LLVMModuleBuilder {
                     &handler,
                     idx as i32,
                     &names.method_ident,
+                    &event_name,
                     state.parent_state_name.as_deref(),
                 );
             } else {
@@ -786,6 +803,7 @@ impl LLVMModuleBuilder {
         handler: &EventHandlerNode,
         current_state_index: i32,
         method_ident: &str,
+        event_name: &str,
         parent_state_name: Option<&str>,
     ) {
         let compartment_field_ptr = self.next_temp();
@@ -797,7 +815,30 @@ impl LLVMModuleBuilder {
             ctx.compartment_field_index()
         ));
 
-        for stmt in &handler.statements {
+        let queue_loop_label = format!("{}_queue_loop_{}", ctx.sanitized_name, current_state_index);
+        let queue_exit_label = format!("{}_queue_exit_{}", ctx.sanitized_name, current_state_index);
+        let queue_default_label = format!(
+            "{}_queue_default_{}",
+            ctx.sanitized_name, current_state_index
+        );
+        let queue_check_label = if ctx.interface_methods().is_empty() {
+            queue_default_label.clone()
+        } else {
+            format!("{}_queue_check_{}", ctx.sanitized_name, current_state_index)
+        };
+
+        let child_state_backup = self.next_temp();
+        self.push_line(&format!(
+            "{} = load i32, i32* {}",
+            child_state_backup, state_ptr
+        ));
+        let child_comp_backup = self.next_temp();
+        self.push_line(&format!(
+            "{} = load ptr, ptr {}",
+            child_comp_backup, compartment_field_ptr
+        ));
+
+        'stmt_loop: for stmt in &handler.statements {
             if let DeclOrStmtType::StmtT { stmt_t } = stmt {
                 match stmt_t {
                     StatementType::ExpressionStmt { expr_stmt_t } => {
@@ -806,9 +847,32 @@ impl LLVMModuleBuilder {
                     StatementType::TransitionStmt {
                         transition_statement_node,
                     } => {
+                        if let TargetStateContextType::StateStackPop {} = transition_statement_node
+                            .transition_expr_node
+                            .target_state_context_t
+                        {
+                            self.emit_state_stack_pop(
+                                ctx,
+                                kernel_ptr,
+                                state_ptr,
+                                compartment_field_ptr.as_str(),
+                                queue_loop_label.as_str(),
+                                current_state_index,
+                                method_ident,
+                            );
+                            continue 'stmt_loop;
+                        }
                         if let Some(target_index) =
                             ctx.transition_target_index(transition_statement_node)
                         {
+                            let current_state = ctx.state(current_state_index as usize);
+                            if current_state.exit_handler.is_some() {
+                                let exit_fn = ctx.state_exit_fn(&current_state.name);
+                                self.push_line(&format!(
+                                    "call void {}({}* %self)",
+                                    exit_fn, ctx.struct_name
+                                ));
+                            }
                             self.push_line(&format!(
                                 "store i32 {}, i32* {}",
                                 target_index, state_ptr
@@ -860,16 +924,121 @@ impl LLVMModuleBuilder {
                                     "store ptr {}, ptr {}",
                                     active_compartment, compartment_field_ptr
                                 ));
+                                let target_state = ctx.state(target_index as usize);
+                                if target_state.enter_handler.is_some() {
+                                    let enter_fn = ctx.state_enter_fn(&target_state.name);
+                                    self.push_line(&format!(
+                                        "call void {}({}* %self)",
+                                        enter_fn, ctx.struct_name
+                                    ));
+                                }
                             }
                         } else {
                             self.push_comment("unsupported transition");
                         }
                     }
+                    StatementType::StateStackStmt {
+                        state_stack_operation_statement_node,
+                    } => {
+                        match state_stack_operation_statement_node
+                            .state_stack_operation_node
+                            .operation_t
+                        {
+                            StateStackOperationType::Push => {
+                                self.require_runtime_api();
+                                let current_state_val = self.next_temp();
+                                self.push_line(&format!(
+                                    "{} = load i32, i32* {}",
+                                    current_state_val, state_ptr
+                                ));
+                                self.push_line(&format!(
+                                    "call void @frame_runtime_kernel_state_stack_push(ptr {}, i32 {})",
+                                    kernel_ptr, current_state_val
+                                ));
+                            }
+                            StateStackOperationType::Pop => {
+                                self.emit_state_stack_pop(
+                                    ctx,
+                                    kernel_ptr,
+                                    state_ptr,
+                                    compartment_field_ptr.as_str(),
+                                    queue_loop_label.as_str(),
+                                    current_state_index,
+                                    method_ident,
+                                );
+                                continue 'stmt_loop;
+                            }
+                        }
+                    }
                     StatementType::ParentDispatchStmt { .. } => {
                         if let Some(parent_name) = parent_state_name {
-                            let parent_label = ctx.state_label(method_ident, parent_name);
-                            self.push_line(&format!("br label %{}", parent_label));
-                            return;
+                            let current_compartment = self.next_temp();
+                            self.push_line(&format!(
+                                "{} = load ptr, ptr {}",
+                                current_compartment, compartment_field_ptr
+                            ));
+                            let parent_compartment = self.next_temp();
+                            self.push_line(&format!(
+                                "{} = call ptr @frame_runtime_compartment_get_parent(ptr {})",
+                                parent_compartment, current_compartment
+                            ));
+                            let has_parent = self.next_temp();
+                            self.push_line(&format!(
+                                "{} = icmp ne ptr {}, null",
+                                has_parent, parent_compartment
+                            ));
+                            let enqueue_label = format!(
+                                "{}_{}_parent_dispatch_enqueue_{}",
+                                ctx.sanitized_name, method_ident, current_state_index
+                            );
+                            let missing_label = format!(
+                                "{}_{}_parent_dispatch_missing_{}",
+                                ctx.sanitized_name, method_ident, current_state_index
+                            );
+                            self.push_line(&format!(
+                                "br i1 {}, label %{}, label %{}",
+                                has_parent, enqueue_label, missing_label
+                            ));
+
+                            self.push_line(&format!("{}:", enqueue_label));
+                            self.indent += 1;
+                            let parent_literal = self.intern_string(event_name, false);
+                            let parent_literal_ptr = self.next_temp();
+                            self.push_line(&format!(
+                                "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+                                parent_literal_ptr,
+                                parent_literal.len,
+                                parent_literal.len,
+                                parent_literal.name
+                            ));
+                            let forwarded_event = self.next_temp();
+                            self.push_line(&format!(
+                                "{} = call ptr @frame_runtime_event_new(ptr {})",
+                                forwarded_event, parent_literal_ptr
+                            ));
+                            self.push_line(&format!(
+                                "call void @frame_runtime_compartment_set_forward_event(ptr {}, ptr {})",
+                                parent_compartment, forwarded_event
+                            ));
+                            if let Some(parent_index) = ctx.state_index(parent_name) {
+                                self.push_line(&format!(
+                                    "store i32 {}, i32* {}",
+                                    parent_index, state_ptr
+                                ));
+                            }
+                            self.push_line(&format!(
+                                "store ptr {}, ptr {}",
+                                parent_compartment, compartment_field_ptr
+                            ));
+                            self.push_line(&format!("br label %{}", queue_loop_label));
+                            self.indent -= 1;
+
+                            self.push_line(&format!("{}:", missing_label));
+                            self.indent += 1;
+                            self.push_comment("parent dispatch ignored: state has no parent");
+                            self.push_line(&format!("br label %{}", queue_loop_label));
+                            self.indent -= 1;
+                            continue 'stmt_loop;
                         } else {
                             self.push_comment("parent dispatch ignored: state has no parent");
                         }
@@ -885,17 +1054,6 @@ impl LLVMModuleBuilder {
 
         // If no transitions occurred, state remains — ensure explicit branch to end
         let _ = current_state_index; // reserved for future use
-        let queue_loop_label = format!("{}_queue_loop_{}", ctx.sanitized_name, current_state_index);
-        let queue_exit_label = format!("{}_queue_exit_{}", ctx.sanitized_name, current_state_index);
-        let queue_default_label = format!(
-            "{}_queue_default_{}",
-            ctx.sanitized_name, current_state_index
-        );
-        let queue_check_label = if ctx.interface_methods().is_empty() {
-            queue_default_label.clone()
-        } else {
-            format!("{}_queue_check_{}", ctx.sanitized_name, current_state_index)
-        };
 
         self.push_line(&format!("br label %{}", queue_loop_label));
         self.push_line(&format!("{}:", queue_loop_label));
@@ -971,6 +1129,29 @@ impl LLVMModuleBuilder {
                 self.push_line(&format!(
                     "call void {}({}* %self)",
                     method.fn_name, ctx.struct_name
+                ));
+                let restored_ptr = self.next_temp();
+                self.push_line(&format!(
+                    "{} = call ptr @frame_runtime_kernel_pop_compartment(ptr {})",
+                    restored_ptr, kernel_ptr
+                ));
+                let has_restored = self.next_temp();
+                self.push_line(&format!(
+                    "{} = icmp ne ptr {}, null",
+                    has_restored, restored_ptr
+                ));
+                let restored_or_backup = self.next_temp();
+                self.push_line(&format!(
+                    "{} = select i1 {}, ptr {}, ptr {}",
+                    restored_or_backup, has_restored, restored_ptr, child_comp_backup
+                ));
+                self.push_line(&format!(
+                    "store ptr {}, ptr {}",
+                    restored_or_backup, compartment_field_ptr
+                ));
+                self.push_line(&format!(
+                    "store i32 {}, i32* {}",
+                    child_state_backup, state_ptr
                 ));
                 self.push_line(&format!(
                     "call void @frame_runtime_event_free(ptr {})",
@@ -1085,16 +1266,19 @@ impl LLVMModuleBuilder {
             }
             ExprType::CallChainExprT {
                 call_chain_expr_node,
-            } => match self.domain_field_from_call_chain(ctx, &call_chain_expr_node.call_chain) {
-                Some(field) => target_field = Some(field),
-                None => {
+            } => {
+                if let Some(field) =
+                    self.domain_field_from_call_chain(ctx, &call_chain_expr_node.call_chain)
+                {
+                    target_field = Some(field);
+                } else {
                     self.push_comment(&format!(
                         "unsupported call chain assignment target in LLVM backend: {}",
                         self.describe_call_chain(&call_chain_expr_node.call_chain)
                     ));
                     return;
                 }
-            },
+            }
             _ => {
                 self.push_comment("unsupported assignment target in LLVM backend");
                 return;
@@ -1140,6 +1324,156 @@ impl LLVMModuleBuilder {
         self.store_domain_field(ctx, self_ptr, field, coerced);
     }
 
+    fn emit_basic_handler(
+        &mut self,
+        ctx: &SystemEmitContext,
+        self_ptr: &str,
+        handler: &EventHandlerNode,
+    ) {
+        for stmt in &handler.statements {
+            match stmt {
+                DeclOrStmtType::StmtT { stmt_t } => match stmt_t {
+                    StatementType::ExpressionStmt { expr_stmt_t } => {
+                        self.emit_expression_statement(ctx, self_ptr, expr_stmt_t, None);
+                    }
+                    StatementType::ReturnStmt { .. } | StatementType::NoStmt => {
+                        // Exit/enter handlers commonly end with return; nothing to emit.
+                    }
+                    _ => {
+                        self.push_comment("unsupported statement in enter/exit handler");
+                    }
+                },
+                DeclOrStmtType::VarDeclT { .. } => {
+                    self.push_comment("local variables unsupported in enter/exit handler");
+                }
+            }
+        }
+    }
+
+    fn emit_state_stack_pop(
+        &mut self,
+        ctx: &SystemEmitContext,
+        kernel_ptr: &str,
+        state_ptr: &str,
+        compartment_field_ptr: &str,
+        queue_loop_label: &str,
+        current_state_index: i32,
+        method_ident: &str,
+    ) {
+        self.require_runtime_api();
+        let popped_compartment = self.next_temp();
+        self.push_line(&format!(
+            "{} = call ptr @frame_runtime_kernel_state_stack_pop(ptr {}, i32* {})",
+            popped_compartment, kernel_ptr, state_ptr
+        ));
+        let has_popped = self.next_temp();
+        self.push_line(&format!(
+            "{} = icmp ne ptr {}, null",
+            has_popped, popped_compartment
+        ));
+        let pop_success_label = format!(
+            "{}_{}_stack_pop_success_{}",
+            ctx.sanitized_name, method_ident, current_state_index
+        );
+        let pop_empty_label = format!(
+            "{}_{}_stack_pop_empty_{}",
+            ctx.sanitized_name, method_ident, current_state_index
+        );
+        let pop_resume_label = format!(
+            "{}_{}_stack_pop_resume_{}",
+            ctx.sanitized_name, method_ident, current_state_index
+        );
+        self.push_line(&format!(
+            "br i1 {}, label %{}, label %{}",
+            has_popped, pop_success_label, pop_empty_label
+        ));
+        self.push_blank_line();
+
+        self.push_line(&format!("{}:", pop_success_label));
+        self.indent += 1;
+        let current_state = ctx.state(current_state_index as usize);
+        if current_state.exit_handler.is_some() {
+            let exit_fn = ctx.state_exit_fn(&current_state.name);
+            self.push_line(&format!(
+                "call void {}({}* %self)",
+                exit_fn, ctx.struct_name
+            ));
+        }
+        self.push_line(&format!(
+            "store ptr {}, ptr {}",
+            popped_compartment, compartment_field_ptr
+        ));
+        let popped_state_val = self.next_temp();
+        self.push_line(&format!(
+            "{} = load i32, i32* {}",
+            popped_state_val, state_ptr
+        ));
+        self.push_line(&format!(
+            "switch i32 {}, label %{} [",
+            popped_state_val, pop_resume_label
+        ));
+        self.indent += 1;
+        for (idx, state_entry) in ctx.states.iter().enumerate() {
+            let state_case_label = format!(
+                "{}_{}_stack_pop_state_{}_{}_{}",
+                ctx.sanitized_name,
+                method_ident,
+                current_state_index,
+                idx,
+                sanitize_identifier(&state_entry.name)
+            );
+            self.push_line(&format!("i32 {}, label %{}", idx, state_case_label));
+        }
+        self.indent -= 1;
+        self.push_line("]");
+        self.push_blank_line();
+
+        for (idx, state_entry) in ctx.states.iter().enumerate() {
+            let state_case_label = format!(
+                "{}_{}_stack_pop_state_{}_{}_{}",
+                ctx.sanitized_name,
+                method_ident,
+                current_state_index,
+                idx,
+                sanitize_identifier(&state_entry.name)
+            );
+            self.push_line(&format!("{}:", state_case_label));
+            self.indent += 1;
+            let state_literal = self.intern_string(&state_entry.name, false);
+            let literal_ptr = self.next_temp();
+            self.push_line(&format!(
+                "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+                literal_ptr, state_literal.len, state_literal.len, state_literal.name
+            ));
+            self.push_line(&format!(
+                "call void @frame_runtime_kernel_set_state(ptr {}, ptr {})",
+                kernel_ptr, literal_ptr
+            ));
+            if state_entry.enter_handler.is_some() {
+                let enter_fn = ctx.state_enter_fn(&state_entry.name);
+                self.push_line(&format!(
+                    "call void {}({}* %self)",
+                    enter_fn, ctx.struct_name
+                ));
+            }
+            self.push_line(&format!("br label %{}", pop_resume_label));
+            self.indent -= 1;
+        }
+
+        self.push_line(&format!("{}:", pop_resume_label));
+        self.indent += 1;
+        self.push_line(&format!("br label %{}", queue_loop_label));
+        self.indent -= 1;
+        self.push_blank_line();
+
+        self.push_line(&format!("{}:", pop_empty_label));
+        self.indent += 1;
+        self.push_comment("state stack pop ignored: stack empty");
+        self.push_line(&format!("br label %{}", queue_loop_label));
+        self.indent -= 1;
+        self.push_blank_line();
+    }
+
     fn handle_call_expr(
         &mut self,
         ctx: Option<&SystemEmitContext>,
@@ -1149,81 +1483,144 @@ impl LLVMModuleBuilder {
     ) -> bool {
         let func_name = call.get_name();
         if func_name == "print" {
-            if let Some(arg) = call.call_expr_list.exprs_t.first() {
-                if let Some(binding) = match arg {
-                    ExprType::VariableExprT { var_node } => {
-                        locals.and_then(|map| map.get(var_node.get_name()))
-                    }
-                    ExprType::CallChainExprT {
-                        call_chain_expr_node,
-                    } => {
-                        self.local_binding_from_call_chain(locals, &call_chain_expr_node.call_chain)
-                    }
-                    _ => None,
-                } {
-                    if binding.kind == ValueKind::CString {
-                        let loaded = self.load_local_value(binding);
-                        self.require_puts();
-                        self.push_line(&format!("call i32 @puts(i8* {})", loaded.value));
-                        return true;
-                    } else {
-                        self.push_comment("print currently supports only string locals");
-                        return true;
-                    }
-                }
-                if let Some(text) = extract_string_literal(arg) {
-                    let literal = self.intern_string(&text, false);
-                    let tmp = self.next_temp();
-                    self.push_line(&format!(
-                        "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
-                        tmp, literal.len, literal.len, literal.name
-                    ));
-                    self.require_puts();
-                    self.push_line(&format!("call i32 @puts(i8* {})", tmp));
-                    return true;
-                }
-                if let (Some(ctx), Some(self_ptr)) = (ctx, self_ptr) {
-                    if let Some(field) = match arg {
-                        ExprType::VariableExprT { var_node } => {
-                            ctx.domain_field(var_node.get_name())
+            if call.call_expr_list.exprs_t.len() != 1 {
+                self.push_comment("print expects a single argument");
+                return true;
+            }
+            let arg = &call.call_expr_list.exprs_t[0];
+
+            if let (Some(ctx_eval), Some(self_ptr_eval)) = (ctx, self_ptr) {
+                if let Some(value) =
+                    self.emit_expression_value(ctx_eval, self_ptr_eval, locals, arg)
+                {
+                    match value.kind {
+                        ValueKind::I32 => {
+                            self.require_print_int();
+                            self.push_line(&format!(
+                                "call void @frame_runtime_print_int(i32 {})",
+                                value.value
+                            ));
+                            return true;
                         }
-                        ExprType::CallChainExprT {
-                            call_chain_expr_node,
-                        } => {
-                            self.domain_field_from_call_chain(ctx, &call_chain_expr_node.call_chain)
+                        ValueKind::Double => {
+                            self.require_print_double();
+                            self.push_line(&format!(
+                                "call void @frame_runtime_print_double(double {})",
+                                value.value
+                            ));
+                            return true;
                         }
-                        _ => None,
-                    } {
-                        match field.field_type {
-                            DomainFieldType::CString => {
-                                let field_ptr = self.next_temp();
-                                self.push_line(&format!(
-                                    "{} = getelementptr inbounds {}, {}* {}, i32 0, i32 {}",
-                                    field_ptr,
-                                    ctx.struct_name,
-                                    ctx.struct_name,
-                                    self_ptr,
-                                    field.struct_index
-                                ));
-                                let loaded = self.next_temp();
-                                self.push_line(&format!(
-                                    "{} = load i8*, i8** {}",
-                                    loaded, field_ptr
-                                ));
-                                self.require_puts();
-                                self.push_line(&format!("call i32 @puts(i8* {})", loaded));
-                                return true;
-                            }
-                            _ => {
-                                self.push_comment(
-                                    "print currently supports only string domain variables",
-                                );
-                                return true;
-                            }
+                        ValueKind::Bool => {
+                            self.require_print_bool();
+                            self.push_line(&format!(
+                                "call void @frame_runtime_print_bool(i1 {})",
+                                value.value
+                            ));
+                            return true;
+                        }
+                        ValueKind::CString => {
+                            self.require_puts();
+                            self.push_line(&format!("call i32 @puts(i8* {})", value.value));
+                            return true;
                         }
                     }
                 }
             }
+
+            if let Some(binding) = match arg {
+                ExprType::VariableExprT { var_node } => {
+                    locals.and_then(|map| map.get(var_node.get_name()))
+                }
+                ExprType::CallChainExprT {
+                    call_chain_expr_node,
+                } => self.local_binding_from_call_chain(locals, &call_chain_expr_node.call_chain),
+                _ => None,
+            } {
+                if binding.kind == ValueKind::CString {
+                    let loaded = self.load_local_value(binding);
+                    self.require_puts();
+                    self.push_line(&format!("call i32 @puts(i8* {})", loaded.value));
+                    return true;
+                }
+            }
+
+            if let Some(text) = extract_string_literal(arg) {
+                let literal = self.intern_string(&text, false);
+                let tmp = self.next_temp();
+                self.push_line(&format!(
+                    "{} = getelementptr inbounds [{} x i8], [{} x i8]* {}, i64 0, i64 0",
+                    tmp, literal.len, literal.len, literal.name
+                ));
+                self.require_puts();
+                self.push_line(&format!("call i32 @puts(i8* {})", tmp));
+                return true;
+            }
+
+            if let (Some(ctx_domain), Some(self_ptr_domain)) = (ctx, self_ptr) {
+                if let Some(field) = match arg {
+                    ExprType::VariableExprT { var_node } => {
+                        ctx_domain.domain_field(var_node.get_name())
+                    }
+                    ExprType::CallChainExprT {
+                        call_chain_expr_node,
+                    } => self
+                        .domain_field_from_call_chain(ctx_domain, &call_chain_expr_node.call_chain),
+                    _ => None,
+                } {
+                    let field_ptr = self.next_temp();
+                    self.push_line(&format!(
+                        "{} = getelementptr inbounds {}, {}* {}, i32 0, i32 {}",
+                        field_ptr,
+                        ctx_domain.struct_name,
+                        ctx_domain.struct_name,
+                        self_ptr_domain,
+                        field.struct_index
+                    ));
+                    match field.field_type {
+                        DomainFieldType::I32 => {
+                            let loaded = self.next_temp();
+                            self.push_line(&format!("{} = load i32, i32* {}", loaded, field_ptr));
+                            self.require_print_int();
+                            self.push_line(&format!(
+                                "call void @frame_runtime_print_int(i32 {})",
+                                loaded
+                            ));
+                            return true;
+                        }
+                        DomainFieldType::F64 => {
+                            let loaded = self.next_temp();
+                            self.push_line(&format!(
+                                "{} = load double, double* {}",
+                                loaded, field_ptr
+                            ));
+                            self.require_print_double();
+                            self.push_line(&format!(
+                                "call void @frame_runtime_print_double(double {})",
+                                loaded
+                            ));
+                            return true;
+                        }
+                        DomainFieldType::Bool => {
+                            let loaded = self.next_temp();
+                            self.push_line(&format!("{} = load i1, i1* {}", loaded, field_ptr));
+                            self.require_print_bool();
+                            self.push_line(&format!(
+                                "call void @frame_runtime_print_bool(i1 {})",
+                                loaded
+                            ));
+                            return true;
+                        }
+                        DomainFieldType::CString => {
+                            let loaded = self.next_temp();
+                            self.push_line(&format!("{} = load i8*, i8** {}", loaded, field_ptr));
+                            self.require_puts();
+                            self.push_line(&format!("call i32 @puts(i8* {})", loaded));
+                            return true;
+                        }
+                    }
+                }
+            }
+
             self.push_comment("unsupported print arguments");
             return true;
         }
@@ -1385,6 +1782,51 @@ impl LLVMModuleBuilder {
                             }
                         }
                     })
+            }
+            ExprType::BinaryExprT { binary_expr_node } => {
+                let left_ref = binary_expr_node.left_rcref.borrow();
+                let left = self.emit_expression_value(ctx, self_ptr, locals, &*left_ref)?;
+                drop(left_ref);
+                let right_ref = binary_expr_node.right_rcref.borrow();
+                let right = self.emit_expression_value(ctx, self_ptr, locals, &*right_ref)?;
+                drop(right_ref);
+                match (binary_expr_node.operator.clone(), left.kind, right.kind) {
+                    (OperatorType::Plus, ValueKind::I32, ValueKind::I32) => {
+                        let result = self.next_temp();
+                        self.push_line(&format!(
+                            "{} = add i32 {}, {}",
+                            result, left.value, right.value
+                        ));
+                        Some(ValueRef::new(ValueKind::I32, result))
+                    }
+                    (OperatorType::Plus, ValueKind::Double, ValueKind::Double) => {
+                        let result = self.next_temp();
+                        self.push_line(&format!(
+                            "{} = fadd double {}, {}",
+                            result, left.value, right.value
+                        ));
+                        Some(ValueRef::new(ValueKind::Double, result))
+                    }
+                    (OperatorType::Plus, ValueKind::I32, ValueKind::Double) => {
+                        let left_conv = self.convert_i32_to_double(left);
+                        let result = self.next_temp();
+                        self.push_line(&format!(
+                            "{} = fadd double {}, {}",
+                            result, left_conv.value, right.value
+                        ));
+                        Some(ValueRef::new(ValueKind::Double, result))
+                    }
+                    (OperatorType::Plus, ValueKind::Double, ValueKind::I32) => {
+                        let right_conv = self.convert_i32_to_double(right);
+                        let result = self.next_temp();
+                        self.push_line(&format!(
+                            "{} = fadd double {}, {}",
+                            result, left.value, right_conv.value
+                        ));
+                        Some(ValueRef::new(ValueKind::Double, result))
+                    }
+                    _ => None,
+                }
             }
             _ => None,
         }
@@ -1615,6 +2057,58 @@ impl LLVMModuleBuilder {
         parts.join(" -> ")
     }
 
+    fn emit_state_enter_function(&mut self, ctx: &SystemEmitContext, state: &StateEntry) {
+        if state.enter_handler.is_none() {
+            return;
+        }
+        let fn_name = ctx.state_enter_fn(&state.name);
+        if !self.generated_enter_handlers.insert(fn_name.clone()) {
+            return;
+        }
+        self.begin_function();
+        writeln!(
+            &mut self.body,
+            "define void {}({}* %self) {{",
+            fn_name, ctx.struct_name
+        )
+        .unwrap();
+        self.indent += 1;
+        if let Some(handler_rc) = &state.enter_handler {
+            let handler = handler_rc.borrow();
+            self.emit_basic_handler(ctx, "%self", &handler);
+        }
+        self.push_line("ret void");
+        self.indent -= 1;
+        self.push_line("}");
+        self.push_blank_line();
+    }
+
+    fn emit_state_exit_function(&mut self, ctx: &SystemEmitContext, state: &StateEntry) {
+        if state.exit_handler.is_none() {
+            return;
+        }
+        let fn_name = ctx.state_exit_fn(&state.name);
+        if !self.generated_exit_handlers.insert(fn_name.clone()) {
+            return;
+        }
+        self.begin_function();
+        writeln!(
+            &mut self.body,
+            "define void {}({}* %self) {{",
+            fn_name, ctx.struct_name
+        )
+        .unwrap();
+        self.indent += 1;
+        if let Some(handler_rc) = &state.exit_handler {
+            let handler = handler_rc.borrow();
+            self.emit_basic_handler(ctx, "%self", &handler);
+        }
+        self.push_line("ret void");
+        self.indent -= 1;
+        self.push_line("}");
+        self.push_blank_line();
+    }
+
     fn convert_bool_to_i32(&mut self, value: ValueRef) -> ValueRef {
         debug_assert_eq!(value.kind, ValueKind::Bool);
         let tmp = self.next_temp();
@@ -1700,6 +2194,18 @@ impl LLVMModuleBuilder {
         self.needs_puts = true;
     }
 
+    fn require_print_int(&mut self) {
+        self.needs_print_int = true;
+    }
+
+    fn require_print_double(&mut self) {
+        self.needs_print_double = true;
+    }
+
+    fn require_print_bool(&mut self) {
+        self.needs_print_bool = true;
+    }
+
     fn require_runtime_api(&mut self) {
         self.needs_runtime_api = true;
     }
@@ -1728,6 +2234,21 @@ impl LLVMModuleBuilder {
             output.push_str("declare i32 @puts(i8*)\n");
         }
 
+        if self.needs_print_int {
+            output.push('\n');
+            output.push_str("declare void @frame_runtime_print_int(i32)\n");
+        }
+
+        if self.needs_print_double {
+            output.push('\n');
+            output.push_str("declare void @frame_runtime_print_double(double)\n");
+        }
+
+        if self.needs_print_bool {
+            output.push('\n');
+            output.push_str("declare void @frame_runtime_print_bool(i1)\n");
+        }
+
         if self.needs_runtime_api {
             output.push('\n');
             output.push_str("declare ptr @frame_runtime_compartment_new(ptr)\n");
@@ -1736,6 +2257,9 @@ impl LLVMModuleBuilder {
             output.push_str("declare i32 @frame_runtime_kernel_dispatch(ptr, ptr)\n");
             output.push_str("declare void @frame_runtime_kernel_set_state(ptr, ptr)\n");
             output.push_str("declare ptr @frame_runtime_kernel_push_compartment(ptr, ptr)\n");
+            output.push_str("declare ptr @frame_runtime_kernel_pop_compartment(ptr)\n");
+            output.push_str("declare void @frame_runtime_kernel_state_stack_push(ptr, i32)\n");
+            output.push_str("declare ptr @frame_runtime_kernel_state_stack_pop(ptr, i32*)\n");
             output.push_str("declare ptr @frame_runtime_compartment_get_parent(ptr)\n");
             output.push_str("declare void @frame_runtime_compartment_set_enter_event(ptr, ptr)\n");
             output.push_str("declare ptr @frame_runtime_compartment_take_enter_event(ptr)\n");

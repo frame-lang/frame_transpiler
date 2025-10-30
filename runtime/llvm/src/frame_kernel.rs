@@ -2,6 +2,12 @@ use crate::event_system::{FrameCompartment, FrameEvent};
 use std::collections::VecDeque;
 use std::mem;
 
+#[derive(Clone)]
+struct StateStackEntry {
+    compartment: Box<FrameCompartment>,
+    state_index: i32,
+}
+
 /// Result emitted after the kernel processes an event.
 pub enum FrameKernelResult {
     Continue,
@@ -12,6 +18,7 @@ pub enum FrameKernelResult {
 pub struct FrameKernel {
     compartment: Box<FrameCompartment>,
     queue: VecDeque<FrameEvent>,
+    state_stack: Vec<StateStackEntry>,
 }
 
 impl FrameKernel {
@@ -23,6 +30,7 @@ impl FrameKernel {
         Some(FrameKernel {
             compartment,
             queue: VecDeque::new(),
+            state_stack: Vec::new(),
         })
     }
 
@@ -41,12 +49,32 @@ impl FrameKernel {
         self.compartment()
     }
 
+    pub fn pop_compartment(&mut self) -> Option<*mut FrameCompartment> {
+        let previous = self.compartment.take_parent()?;
+        self.compartment = previous;
+        Some(self.compartment())
+    }
+
     pub fn compartment_mut(&mut self) -> &mut FrameCompartment {
         self.compartment.as_mut()
     }
 
     pub fn set_state<S: Into<String>>(&mut self, state: S) {
         self.compartment.state = state.into();
+    }
+
+    pub fn push_state_snapshot(&mut self, state_index: i32) {
+        let snapshot = self.compartment.clone();
+        self.state_stack.push(StateStackEntry {
+            compartment: snapshot,
+            state_index,
+        });
+    }
+
+    pub fn restore_state_snapshot(&mut self) -> Option<(*mut FrameCompartment, i32)> {
+        let entry = self.state_stack.pop()?;
+        self.compartment = entry.compartment;
+        Some((self.compartment(), entry.state_index))
     }
 
     pub fn next_event(&mut self) -> Option<FrameEvent> {

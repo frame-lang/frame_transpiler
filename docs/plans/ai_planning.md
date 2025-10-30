@@ -9,9 +9,9 @@
 ### Test Statistics
 - **Python Execution**: 100.0% (462/462 tests passing) 🎉
 - **TypeScript Execution**: 100.0% (433/433 tests passing) 🎉
-- **LLVM Smoke Suite**: 9/9 (`language_specific_llvm`) ✅
+- **LLVM Smoke Suite**: 10/10 (`language_specific_llvm`) ✅
 - **Negative Suite**: 14/14 (includes new nested-function regression guard)
-- **Aggregate**: 904 specs (common + language-specific + LLVM smoke) executed successfully across all active targets
+- **Aggregate**: 905 specs (common + language-specific + LLVM smoke) executed successfully across all active targets
 
 ### Recent Achievements (v0.86.25)
 - ✅ LLVM runtime exposes `frame_runtime_compartment_set_forward_event`, enabling queued parent/enter/exit forwarding work.
@@ -64,7 +64,7 @@
 | --- | --- | --- |
 | Module decomposition (`builder/context/utils/value/visitor`) | ✅ Complete | `framec/src/frame_c/llvm/mod.rs` now exposes the visitor directly and compiler call sites use it; the legacy visitors shim is gone. |
 | Domain value helpers cleanup | ✅ Complete | `DomainFieldInit::None`, `coerce_value_for_field`, and redundant init helpers removed; warning noise eliminated ahead of new typing work. |
-| Runtime enter/exit queue semantics | 🔄 In progress | Kernel stacks compartments via `frame_runtime_kernel_push_compartment`; compartments expose `frame_runtime_compartment_set_forward_event` so visitor queue wiring can land next. |
+| Runtime enter/exit queue semantics | 🔄 In progress | Parent dispatch now enqueues the current message via `frame_runtime_compartment_set_forward_event` and routes through the kernel queue; enter/exit forwarding remains pending. |
 | LLVM coverage for hierarchy + mutations | 🔄 In progress | `basic/test_parent_hierarchy.frm` exercises multi-level parents; `basic/test_action_locals.frm` now pokes typed/untyped domain mutations via action locals. Still need queue-forward stress once runtime wiring lands. |
 
 ## Type System Direction

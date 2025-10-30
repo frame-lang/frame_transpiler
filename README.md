@@ -3,10 +3,10 @@
 This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
 
 **Current Version**: v0.86.25  
-**Test Framework**: Unified multi-language testing (904 total tests, enforced in CI)  
+**Test Framework**: Unified multi-language testing (905 total tests, enforced in CI)  
 **Python Tests**: 100% execution (462/462)  
 **TypeScript Tests**: 100% execution (433/433)  
-**LLVM Smoke Tests**: 100% execution (9/9)  
+**LLVM Smoke Tests**: 100% execution (10/10)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-28
 
@@ -29,7 +29,7 @@ Keep capability work in the FSL so Frame specs stay portable while the runtime f
 - GitHub Actions continues to run LLVM smoke tests alongside Python/TypeScript regressions to guard the native backend.
 
 ## Recent Improvements (v0.86.18 – v0.86.25)
-- **LLVM Queue Prep (v0.86.25):** Runtime compartments add a forward-event setter, the builder reuses active compartment pointers, and new action-local smoke tests lock in typed/untyped domain mutations ahead of queue forwarding.
+- **LLVM Queue Prep (v0.86.25):** Runtime compartments add a forward-event setter, the builder reuses active compartment pointers, and new smoke tests (`test_action_locals.frm`, `test_parent_forward_queue.frm`) lock in typed/untyped mutations plus queued parent forwarding ahead of full enter/exit wiring.
 - **LLVM Domain Actions (v0.86.22):** The experimental LLVM backend now lowers actions, expands domain assignments, and supports string/bool initialisers so smoke tests cover real state mutations.
 - **Async Runtime Parity (v0.86.21):** Automatic detection of async systems now upgrades generated TypeScript dispatchers, interface methods, and kernel loops to `async`/`await`, matching Python semantics for mixed sync/async event handlers.
 - **External API Alignment (v0.86.21):** Python network/process specs now call the emitted action helpers instead of direct method names, eliminating runtime attribute errors while retaining the original behaviour.

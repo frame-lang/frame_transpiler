@@ -4,9 +4,9 @@
 
 **Branch**: `dev`  
 **Version**: `v0.86.25`  
-**Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 9/9  
-**Achievement**: LLVM runtime gains forward-event hooks and action-local coverage; unified runner now validates mixed typed/untyped domain mutations on the native backend.  
-**Latest Snapshot (2025-10-28)**: 904 specs (common + language-specific + LLVM smoke) compiled and executed successfully across all active targets  
+**Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 10/10  
+**Achievement**: LLVM runtime gains forward-event hooks, queued parent forwarding, and action-local coverage; unified runner now validates mixed typed/untyped domain mutations on the native backend.  
+**Latest Snapshot (2025-10-28)**: 905 specs (common + language-specific + LLVM smoke) compiled and executed successfully across all active targets  
 **Rust Version**: 1.89.0 (Latest Stable)
 
 ## Latest Updates (October 28, 2025)
@@ -14,9 +14,9 @@
 ### 🛠️ Frame v0.86.25 - LLVM Queue Plumbing Prep
 - **Forward Event Setter**: `frame_runtime_compartment_set_forward_event` exposes queue wiring so parent dispatch can enqueue messages instead of short-circuiting.
 - **Active Compartment Reuse**: LLVM builder now hoists the compartment pointer once per handler, ensuring transitions store the kernel-managed compartment and paving the path for queued events.
-- **Action Locals Fixture**: `test_action_locals.frm` exercises typed (`int`) and inferred (`string`) domain fields mutated inside actions, confirming runtime consistency ahead of queue work.
+- **Queue Smoke Fixtures**: `test_action_locals.frm` and `test_parent_forward_queue.frm` exercise typed/inferred domain mutations and queued parent forwarding to confirm runtime consistency ahead of enter/exit wiring.
 - **Docs & Planning**: README, HOW_TO, and AI planning docs reflect the v0.86.25 focus on macOS-native backend readiness.
-- **Next Focus**: Emit queued parent forwards from the visitor and add dedicated queue-drain smoke tests before promoting LLVM beyond experimental status.
+- **Next Focus**: Extend queue plumbing to enter/exit forwarding and add dedicated drain tests before promoting LLVM beyond experimental status.
 
 ### ✅ Previous Updates (October 19, 2025)
 
