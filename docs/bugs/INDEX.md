@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 54
-- **Open**: 6
+- **Total Bugs**: 55
+- **Open**: 7
 - **Resolved**: 47
 - **Won't Fix**: 1
-- **Next Bug Number**: 055
+- **Next Bug Number**: 056
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -23,6 +23,7 @@
 | [#050](open/bug_050_test_runner_language_filtering.md) | Language-Specific Tests Running for All Languages | Low | Tooling | Open | - |
 | [#051](open/bug_051_typescript_duplicate_imports.md) | TypeScript Generator Produces Duplicate Imports | High | CodeGen | Open | - |
 | [#052](open/bug_052_typescript_actions_generate_stubs.md) | TypeScript Actions Generate Stubs Despite Proper Imports | Critical | CodeGen | Open | - |
+| [#055](open/bug_055_async_typescript_socket_runtime.md) | TypeScript async runtime lacks socket helpers for Frame debugger | High | CodeGen | Open | - |
 
 ## Recently Resolved
 
@@ -47,7 +48,8 @@
 - Bug #016: Circular Import Detection
 - Bug #030: Spurious Unreachable Return Statements
 
-### Code Generation (25)
+### Code Generation (26)
+- Bug #055: TypeScript async runtime lacks socket helpers for Frame debugger
 - Bug #047: TypeScript Complex Expression Support
 - Bug #049: TypeScript Transpilation Rate
 - Bug #037: State Diagram Conditional Transitions
@@ -85,5 +87,5 @@
 - 2025-10-13: Initial bug tracking system created, all bugs migrated
 
 ---
-*Index Last Updated: 2025-10-28*  
+*Index Last Updated: 2025-10-30*  
 *Policy Version: 1.0*
