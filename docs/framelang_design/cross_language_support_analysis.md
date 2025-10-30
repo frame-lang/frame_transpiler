@@ -456,6 +456,11 @@ impl Scanner {
 
 ## 🔧 Implementation Strategy
 
+### Runtime & FSL Direction
+- Treat the existing per-target runtimes (`frame_runtime_py`, `frame_runtime_ts`, `runtime/llvm`) as the canonical home for Frame semantics (kernel loop, state stack, forwarded events). No behavioural change required—just keep them lean and target-native.
+- Define a target-neutral Frame Standard Library surface (FSL) and provide per-target implementations instead of mirroring Python helper modules. Pragmas/native blocks should call into these FSL shims rather than re-implementing platform APIs inline.
+- Document capability matrices per target (async, try/catch, state stack, etc.) so visitors can reject unsupported constructs during code generation.
+
 ### Phase 1: Target Declaration Parsing (Week 1)
 1. Extend scanner to recognize target declaration tokens (`@`, `target`)
 2. Add target discovery pass to parser
@@ -689,11 +694,230 @@ For Bug #055 specifically, this approach provides an immediate solution without 
 
 ---
 
+## 🔍 Frame Semantics Analysis
+
+### Core Frame Universal Semantics
+
+Based on analysis of the Python grammar specification, these constructs form the **universal Frame language** that should be identical across all target languages:
+
+#### **System Architecture (Universal)**
+```bnf
+system ::= "system" identifier system_params? "{" system_blocks "}"
+system_blocks ::= interface_block? machine_block? actions_block? operations_block? domain_block?
+interface_block ::= "interface:" interface_method*
+machine_block ::= "machine:" state*
+actions_block ::= "actions:" action*
+operations_block ::= "operations:" operation*
+domain_block ::= "domain:" domain_var*
+```
+
+#### **State Machine Semantics (Universal)**
+```bnf
+state ::= "$" identifier state_params? "{" event_handler* state_var* "}"
+event_handler ::= identifier "(" parameter_list? ")" "{" statements* terminator? "}"
+transition ::= "->" "$" identifier ("(" expr_list ")")?
+parent_dispatch ::= "=>" "$^"
+```
+
+#### **Frame Control Flow (Universal)**
+```bnf
+frame_statement ::= assignment | transition | parent_dispatch | domain_access | action_call
+assignment ::= identifier "=" expr
+domain_access ::= "self." identifier
+action_call ::= identifier "(" expr_list? ")"
+```
+
+### Python-Specific Semantics
+
+These constructs are **Python-specific** and would need target-language alternatives:
+
+#### **Python Import System**
+```bnf
+python_import ::= "import" dotted_name ("as" identifier)?
+                | "from" dotted_name "import" (identifier | "*")
+dotted_name ::= identifier ("." identifier)*
+```
+
+#### **Python Expression Syntax**
+```bnf
+python_expressions ::= list_comprehension | dict_comprehension | set_comprehension
+                     | slice_notation | string_formatting | unpacking_operator
+list_comprehension ::= "[" expr "for" identifier "in" expr ("if" expr)? "]"
+slice_notation ::= expr "[" slice_start? ":" slice_end? (":" slice_step)? "]"
+unpacking_operator ::= "*" expr | "**" expr
+```
+
+#### **Python Native Function Calls**
+```bnf
+python_builtins ::= "print" | "len" | "str" | "int" | "max" | "min" | "range"
+python_methods ::= string_methods | list_methods | dict_methods
+string_methods ::= ".find" | ".split" | ".join" | ".strip" | ".replace"
+list_methods ::= ".append" | ".extend" | ".pop" | ".sort" | ".reverse"
+```
+
+#### **Python Data Types**
+```bnf
+python_literals ::= list_literal | dict_literal | set_literal | tuple_literal
+list_literal ::= "[" expr_list? "]"
+dict_literal ::= "{" (expr ":" expr)* "}"
+set_literal ::= "{" expr_list "}"
+tuple_literal ::= "(" expr ("," expr)* ")"
+```
+
+#### **Python Control Structures**
+```bnf
+python_control ::= for_loop | while_loop | if_statement | with_statement
+for_loop ::= "for" identifier "in" expr ":" statements
+if_statement ::= "if" expr ":" statements ("elif" expr ":" statements)* ("else" ":" statements)?
+with_statement ::= "with" expr "as" identifier ":" statements
+```
+
+### AST Architecture Implications
+
+#### **Universal Frame AST Nodes**
+```rust
+// These nodes should be identical across all targets
+enum FrameUniversalNode {
+    System(SystemNode),
+    State(StateNode),
+    EventHandler(EventHandlerNode),
+    Transition(TransitionNode),
+    ActionCall(ActionCallNode),
+    DomainAccess(DomainAccessNode),
+    InterfaceMethod(InterfaceMethodNode),
+}
+
+struct SystemNode {
+    name: String,
+    interface: Option<InterfaceBlock>,
+    machine: Option<MachineBlock>,
+    actions: Option<ActionsBlock>,
+    operations: Option<OperationsBlock>,
+    domain: Option<DomainBlock>,
+}
+
+struct StateNode {
+    name: String,
+    parameters: Option<ParameterList>,
+    event_handlers: Vec<EventHandlerNode>,
+    state_variables: Vec<StateVarNode>,
+}
+```
+
+#### **Target-Specific AST Nodes**
+```rust
+// These nodes vary by target language
+enum TargetSpecificNode {
+    Python(PythonNode),
+    TypeScript(TypeScriptNode),
+    Llvm(LlvmNode),
+}
+
+enum PythonNode {
+    ImportStatement(PythonImportNode),
+    ListComprehension(ListCompNode),
+    StringMethod(StringMethodNode),
+    WithStatement(WithStmtNode),
+    ForLoop(ForLoopNode),
+    DictLiteral(DictLiteralNode),
+}
+
+enum TypeScriptNode {
+    ImportStatement(TsImportNode),        // import * as name from 'module'
+    ArrayMethod(ArrayMethodNode),         // .push(), .slice()
+    ObjectLiteral(ObjectLiteralNode),     // { key: value }
+    AsyncAwait(AsyncAwaitNode),           // Promise-based async
+    TypeAnnotation(TypeAnnotationNode),   // : Type syntax
+}
+```
+
+### Parsing Architecture Implications
+
+#### **Two-Phase Parsing Strategy**
+```rust
+// Phase 1: Parse Frame Universal Constructs
+struct FrameParser {
+    fn parse_system(&mut self) -> SystemNode;
+    fn parse_state(&mut self) -> StateNode;
+    fn parse_transition(&mut self) -> TransitionNode;
+    fn parse_action_signature(&mut self) -> ActionSignature;
+}
+
+// Phase 2: Parse Target-Specific Content
+trait TargetParser {
+    fn parse_import_block(&mut self, tokens: &[Token]) -> ImportNode;
+    fn parse_action_body(&mut self, tokens: &[Token]) -> Vec<StatementNode>;
+    fn parse_expression(&mut self, tokens: &[Token]) -> ExpressionNode;
+}
+
+struct PythonParser;
+impl TargetParser for PythonParser {
+    fn parse_action_body(&mut self, tokens: &[Token]) -> Vec<StatementNode> {
+        // Parse Python-specific syntax: list comprehensions, for loops, etc.
+    }
+}
+
+struct TypeScriptParser;
+impl TargetParser for TypeScriptParser {
+    fn parse_action_body(&mut self, tokens: &[Token]) -> Vec<StatementNode> {
+        // Parse TypeScript-specific syntax: arrow functions, type annotations, etc.
+    }
+}
+```
+
+### Scanner Architecture Implications
+
+#### **Mode-Based Scanning**
+```rust
+enum ScanningContext {
+    FrameUniversal,    // System, state, transition syntax
+    TargetSpecific {   // Import statements, action bodies
+        target: TargetLanguage,
+        nesting_depth: usize,
+    },
+}
+
+impl Scanner {
+    fn scan_in_context(&mut self, context: ScanningContext) -> Vec<Token> {
+        match context {
+            ScanningContext::FrameUniversal => {
+                // Tokenize Frame keywords: system, machine, actions, ->, =>, $State
+            }
+            ScanningContext::TargetSpecific { target, .. } => {
+                // Capture raw tokens until Frame boundary detected
+                self.capture_until_frame_boundary()
+            }
+        }
+    }
+}
+```
+
+### Key Insights for Implementation
+
+1. **Clear Separation**: ~70% of Frame syntax is universal (system architecture), ~30% is target-specific (expressions, imports, control flow)
+
+2. **Action Bodies are the Primary Target-Specific Region**: Most Python-specific syntax appears in action implementations, not system structure
+
+3. **Import Statements Need Target Translation**: 
+   - Python: `import math` / `from collections import defaultdict`
+   - TypeScript: `import * as math from 'math'` / `import { defaultdict } from 'collections'`
+
+4. **Expression Complexity Varies by Target**:
+   - Python: List comprehensions, slice notation, unpacking
+   - TypeScript: Type annotations, object destructuring, Promise chains
+
+5. **Control Flow Syntax Differences**:
+   - Python: `for x in list:` / `if condition:`
+   - TypeScript: `for (const x of list)` / `if (condition)`
+
+This analysis confirms that the **@target approach is viable** - Frame's core state machine semantics remain universal while allowing target-specific implementations for imports, expressions, and control flow within action bodies.
+
 ## 📚 Related Documents
 
 - **Implementation Plan**: [Cross-Language Support Plan](../plans/cross_language_support_plan.md) - Structured implementation plan based on this analysis
 - **Bug Report**: [Bug #055](../bugs/open/bug_055_async_typescript_socket_runtime.md) - Original issue driving this analysis
 - **Frame Runtime**: [Frame Runtime Specification](frame_runtime.md) - Abstract runtime requirements
+- **Python Grammar**: [Python Grammar Specification](target_language_specifications/python/python_grammar.md) - Source for this analysis
 
 ---
 
