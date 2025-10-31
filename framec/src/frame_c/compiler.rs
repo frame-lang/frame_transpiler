@@ -4,14 +4,14 @@ use crate::frame_c::ast_serialize::{
 use crate::frame_c::config::FrameConfig;
 use crate::frame_c::modules::MultiFileCompiler;
 use crate::frame_c::parser::*;
-use crate::frame_c::scanner::*;
+use crate::frame_c::scanner::{Scanner, Token, TokenType};
 use crate::frame_c::source_map::SourceMapBuilder;
 use crate::frame_c::symbol_table::*;
 use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
-use crate::frame_c::visitors::python_visitor::PythonVisitor;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use exitcode::USAGE;
 use sha2::{Digest, Sha256};
@@ -118,8 +118,29 @@ impl Exe {
         target_language: Option<TargetLanguage>,
         output_dir: Option<PathBuf>,
     ) -> Result<String, RunError> {
+        let mut resolved_target = target_language;
+
+        if resolved_target.is_none() {
+            if let Ok(content) = fs::read_to_string(entry_path) {
+                if let Some(declared) = detect_declared_target(&content) {
+                    resolved_target = Some(declared);
+                }
+            }
+        } else if let Some(content) = fs::read_to_string(entry_path).ok() {
+            if let Some(declared) = detect_declared_target(&content) {
+                if resolved_target != Some(declared) {
+                    let msg = format!(
+                        "Target language mismatch: CLI requested {:?} but entry file declares {:?}",
+                        resolved_target.unwrap(),
+                        declared
+                    );
+                    return Err(RunError::new(USAGE, &msg));
+                }
+            }
+        }
+
         // Support Python and TypeScript targets for multi-file
-        let lang = target_language.unwrap_or(TargetLanguage::Python3);
+        let lang = resolved_target.unwrap_or(TargetLanguage::Python3);
         if !matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript) {
             let error_msg = "Multi-file compilation is only supported for Python and TypeScript target languages";
             return Err(RunError::new(exitcode::USAGE, error_msg));
@@ -208,14 +229,30 @@ impl Exe {
         let mut output;
         //        let mut output= String::new(); ^^^^ See above! ^^^^
 
+        let header_target = detect_header_target_annotation(&content);
+        if let Some(cli_target) = target_language {
+            if let Some(header) = header_target {
+                if cli_target != header {
+                    let msg = format!(
+                        "Target language mismatch: CLI requested {:?} but header declares {:?}",
+                        cli_target, header
+                    );
+                    return Err(RunError::new(USAGE, &msg));
+                }
+            }
+        } else if let Some(header) = header_target {
+            target_language = Some(header);
+        }
+
         let scanner = Scanner::new(content);
 
-        let (has_errors, errors, tokens) = scanner.scan_tokens();
+        let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
         if has_errors {
             let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);
             return Err(run_error);
         }
 
+        let target_regions = Arc::new(target_regions_vec);
         for token in &tokens {
             Exe::debug_print(&format!("{:?}", token));
         }
@@ -227,7 +264,13 @@ impl Exe {
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                 eprintln!("DEBUG: Starting first pass - building symbol table");
             }
-            let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
+            let mut syntactic_parser = Parser::new(
+                &tokens,
+                &mut comments,
+                true,
+                arcanum,
+                Arc::clone(&target_regions),
+            );
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                 eprintln!("DEBUG: Created syntactic parser with is_building_symbol_table=true");
             }
@@ -275,7 +318,7 @@ impl Exe {
                         errors.push_str(&syntactic_parser.get_errors());
                     } else {
                         // Fallback to ParseError if no accumulated errors
-                        errors.push_str(&parse_error.error);
+                        errors.push_str(&parse_error.to_display_string());
                     }
 
                     errors.push_str("\n\nPlease check your Frame syntax for missing braces, semicolons, or malformed blocks.");
@@ -299,14 +342,20 @@ impl Exe {
             );
         }
         drop(module_table);
-        let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
+        let mut semantic_parser = Parser::new(
+            &tokens,
+            &mut comments2,
+            false,
+            arcanum,
+            Arc::clone(&target_regions),
+        );
 
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
         }
 
         // Parse with proper error handling - no more fallback architecture
-        let frame_module = match semantic_parser.parse() {
+        let mut frame_module = match semantic_parser.parse() {
             Ok(module) => module,
             Err(parse_error) => {
                 // Check if we have accumulated errors with line numbers first
@@ -318,7 +367,7 @@ impl Exe {
                 } else {
                     // Fall back to ParseError message if no accumulated errors
                     let mut errors = "Parse error:\n".to_string();
-                    errors.push_str(&parse_error.error);
+                    errors.push_str(&parse_error.to_display_string());
                     errors.push_str(
                         "\n\nParsing failed. Please check your Frame syntax and try again.",
                     );
@@ -383,27 +432,46 @@ impl Exe {
         let generate_change_state = semantic_parser.generate_change_state;
         let generate_transition_state = semantic_parser.generate_transition_state;
 
+        if frame_module.target_language.is_none() {
+            if let Some(header) = header_target {
+                frame_module.target_language = Some(header);
+            }
+        }
+
+        if let Some(module_target) = frame_module.target_language {
+            match target_language {
+                Some(cli_target) if cli_target != module_target => {
+                    let err_msg = format!(
+                        "Target language mismatch: CLI requested {:?} but file declares {:?}",
+                        cli_target, module_target
+                    );
+                    let run_error = RunError::new(USAGE, &err_msg);
+                    return Err(run_error);
+                }
+                None => {
+                    target_language = Some(module_target);
+                }
+                _ => {}
+            }
+        }
+
         // load configuration - always use defaults
         let config = FrameConfig::default();
 
         // check for language attribute override in spec specifying target language
         // v0.30: Check all systems for language attribute
-        for system in &frame_module.systems {
-            match &system.system_attributes_opt {
-                Some(attributes) => {
+        if target_language.is_none() {
+            for system in &frame_module.systems {
+                if let Some(attributes) = &system.system_attributes_opt {
                     if let Some(attr_node) = attributes.get("language") {
-                        match attr_node {
-                            AttributeNode::MetaNameValueStr { attr } => {
-                                if let Ok(result) = TargetLanguage::try_from(attr.value.as_str()) {
-                                    target_language = Some(result);
-                                    break; // Use first language attribute found
-                                }
+                        if let AttributeNode::MetaNameValueStr { attr } = attr_node {
+                            if let Ok(result) = TargetLanguage::try_from(attr.value.as_str()) {
+                                target_language = Some(result);
+                                break; // Use first language attribute found
                             }
-                            _ => {}
                         }
                     }
                 }
-                None => {}
             }
         }
 
@@ -473,63 +541,17 @@ impl Exe {
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::Python3 => {
-                    // V2 is now the default, use USE_PYTHON_V1 to fallback to old visitor
-                    if std::env::var("USE_PYTHON_V1").is_ok() {
-                        // Use old visitor for backward compatibility testing
-                        let mut visitor = PythonVisitor::new(
-                            semantic_parser.get_arcanum(),
-                            // generate_exit_args,
-                            // generate_enter_args || generate_state_context,
-                            generate_state_stack,
-                            generate_change_state,
-                            // generate_transition_state,
-                            FRAMEC_VERSION,
-                            comments,
-                            config,
-                        );
-                        visitor.run_v2(&frame_module);
-                        output = visitor.get_code();
-                    } else {
-                        // Use new V2 visitor with CodeBuilder architecture
-                        use crate::frame_c::symbol_table::SymbolConfig;
-                        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
-
-                        let arcanum = semantic_parser.get_arcanum();
-                        let arcanum_vec = vec![arcanum];
-                        let mut visitor = PythonVisitorV2::new(
-                            arcanum_vec,
-                            SymbolConfig::new(),
-                            config.clone(),
-                            comments,
-                        );
-                        output = visitor.run(&frame_module);
-                    }
-                }
-                TargetLanguage::Rust => {
-                    // Use standard Rust visitor with working Frame semantics
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
+                    use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
 
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let visitor = RustVisitor::new(
+                    let mut visitor = PythonVisitorV2::new(
                         arcanum_vec,
                         SymbolConfig::new(),
                         config.clone(),
                         comments,
                     );
-
-                    output = visitor.run(&frame_module);
-                }
-                TargetLanguage::C => {
-                    use crate::frame_c::symbol_table::SymbolConfig;
-                    use crate::frame_c::visitors::c_visitor::CVisitor;
-
-                    let arcanum = semantic_parser.get_arcanum();
-                    let arcanum_vec = vec![arcanum];
-                    let visitor =
-                        CVisitor::new(arcanum_vec, SymbolConfig::new(), config.clone(), comments);
-
                     output = visitor.run(&frame_module);
                 }
             },
@@ -546,7 +568,7 @@ impl Exe {
         mut target_language: Option<TargetLanguage>,
         source_map_builder: Rc<RefCell<SourceMapBuilder>>,
     ) -> Result<String, RunError> {
-        // This is mostly the same as run(), but passes source_map_builder to PythonVisitor
+        // This is mostly the same as run(), but passes source_map_builder to PythonVisitorV2
 
         let mut hasher = Sha256::new();
         hasher.update(&content);
@@ -555,12 +577,13 @@ impl Exe {
 
         let scanner = Scanner::new(content);
 
-        let (has_errors, errors, tokens) = scanner.scan_tokens();
+        let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
         if has_errors {
             let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);
             return Err(run_error);
         }
 
+        let target_regions = Arc::new(target_regions_vec);
         for token in &tokens {
             Exe::debug_print(&format!("{:?}", token));
         }
@@ -572,7 +595,13 @@ impl Exe {
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                 eprintln!("DEBUG: Starting first pass - building symbol table");
             }
-            let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
+            let mut syntactic_parser = Parser::new(
+                &tokens,
+                &mut comments,
+                true,
+                arcanum,
+                Arc::clone(&target_regions),
+            );
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                 eprintln!("DEBUG: Created syntactic parser with is_building_symbol_table=true");
             }
@@ -620,7 +649,7 @@ impl Exe {
                         errors.push_str(&syntactic_parser.get_errors());
                     } else {
                         // Fallback to ParseError if no accumulated errors
-                        errors.push_str(&parse_error.error);
+                        errors.push_str(&parse_error.to_display_string());
                     }
 
                     errors.push_str("\n\nPlease check your Frame syntax for missing braces, semicolons, or malformed blocks.");
@@ -644,7 +673,13 @@ impl Exe {
             );
         }
         drop(module_table);
-        let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
+        let mut semantic_parser = Parser::new(
+            &tokens,
+            &mut comments2,
+            false,
+            arcanum,
+            Arc::clone(&target_regions),
+        );
 
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
@@ -663,7 +698,7 @@ impl Exe {
                 } else {
                     // Fall back to ParseError message if no accumulated errors
                     let mut errors = "Parse error:\n".to_string();
-                    errors.push_str(&parse_error.error);
+                    errors.push_str(&parse_error.to_display_string());
                     errors.push_str(
                         "\n\nParsing failed. Please check your Frame syntax and try again.",
                     );
@@ -681,8 +716,8 @@ impl Exe {
         }
 
         let _generate_state_context = semantic_parser.generate_state_context;
-        let generate_state_stack = semantic_parser.generate_state_stack;
-        let generate_change_state = semantic_parser.generate_change_state;
+        let _generate_state_stack = semantic_parser.generate_state_stack;
+        let _generate_change_state = semantic_parser.generate_change_state;
         let _generate_transition_state = semantic_parser.generate_transition_state;
 
         // load configuration - always use defaults
@@ -731,73 +766,24 @@ impl Exe {
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::Python3 => {
-                    // V2 is now the default with proper CodeBuilder source mapping
-                    if std::env::var("USE_PYTHON_V1").is_ok() {
-                        // Use old visitor if explicitly requested
-                        let mut visitor = PythonVisitor::new(
-                            semantic_parser.get_arcanum(),
-                            generate_state_stack,
-                            generate_change_state,
-                            FRAMEC_VERSION,
-                            comments,
-                            config,
-                        );
-                        // Set the source map builder
-                        visitor.set_source_map_builder(source_map_builder);
-                        visitor.run_v2(&frame_module);
-                        output = visitor.get_code();
-                    } else {
-                        // Use new V2 visitor with built-in CodeBuilder source mapping
-                        use crate::frame_c::symbol_table::SymbolConfig;
-                        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
-
-                        let arcanum = semantic_parser.get_arcanum();
-                        let arcanum_vec = vec![arcanum];
-                        let mut visitor = PythonVisitorV2::new(
-                            arcanum_vec,
-                            SymbolConfig::new(),
-                            config.clone(),
-                            comments,
-                        );
-                        // Set the external source map builder for --debug-output integration
-                        visitor.set_source_map_builder(source_map_builder);
-                        output = visitor.run(&frame_module);
-                        // V2 has integrated source mapping via CodeBuilder
-                    }
-                }
-                TargetLanguage::Rust => {
-                    // Use standard Rust visitor with working Frame semantics
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    use crate::frame_c::visitors::rust_visitor::RustVisitor;
+                    use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
 
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let visitor = RustVisitor::new(
+                    let mut visitor = PythonVisitorV2::new(
                         arcanum_vec,
                         SymbolConfig::new(),
                         config.clone(),
                         comments,
                     );
-                    // Note: Standard Rust visitor doesn't use external source maps yet
-
-                    output = visitor.run(&frame_module);
-                }
-                TargetLanguage::C => {
-                    use crate::frame_c::symbol_table::SymbolConfig;
-                    use crate::frame_c::visitors::c_visitor::CVisitor;
-
-                    let arcanum = semantic_parser.get_arcanum();
-                    let arcanum_vec = vec![arcanum];
-                    let visitor =
-                        CVisitor::new(arcanum_vec, SymbolConfig::new(), config.clone(), comments);
-                    // Note: C visitor doesn't use external source maps yet, but may in future
-
+                    visitor.set_source_map_builder(source_map_builder);
                     output = visitor.run(&frame_module);
                 }
                 _ => {
                     let run_error = RunError::new(
                         USAGE,
-                        "Source maps only supported for Python, Rust, and C targets.",
+                        "Source maps are only supported for the Python target.",
                     );
                     return Err(run_error);
                 }
@@ -816,13 +802,10 @@ impl Exe {
     ) -> Result<String, RunError> {
         use crate::frame_c::source_map::DebugOutput;
 
-        // For now, only support Python and Rust for source maps
-        if !matches!(
-            target_language,
-            Some(TargetLanguage::Python3) | Some(TargetLanguage::Rust) | None
-        ) {
+        // For now, only support Python for source maps
+        if !matches!(target_language, Some(TargetLanguage::Python3) | None) {
             let error_msg =
-                "Source map generation is only supported for Python and Rust target languages";
+                "Source map generation is only supported for the Python target language";
             return Err(RunError::new(exitcode::USAGE, error_msg));
         }
 
@@ -835,10 +818,7 @@ impl Exe {
             .and_then(|n| n.to_str())
             .unwrap_or("unknown.frm")
             .to_string();
-        let target_file = match target_language {
-            Some(TargetLanguage::Rust) => source_file.replace(".frm", ".rs"),
-            _ => source_file.replace(".frm", ".py"), // Default to Python
-        };
+        let target_file = source_file.replace(".frm", ".py");
         let source_map_builder = Rc::new(RefCell::new(SourceMapBuilder::new(
             source_file,
             target_file,
@@ -869,8 +849,77 @@ impl Exe {
     }
 }
 
+fn detect_declared_target(content: &str) -> Option<TargetLanguage> {
+    if let Some(header_target) = detect_header_target_annotation(content) {
+        return Some(header_target);
+    }
+    let scanner = Scanner::new(content.to_string());
+    let (has_errors, _errors, tokens, _target_regions) = scanner.scan_tokens();
+    if has_errors {
+        return None;
+    }
+
+    find_declared_target(&tokens)
+}
+
+fn find_declared_target(tokens: &[Token]) -> Option<TargetLanguage> {
+    let mut iter = tokens.iter();
+    while let Some(token) = iter.next() {
+        if token.token_type == TokenType::TargetAnnotation {
+            if let Some(next_token) = iter.next() {
+                if next_token.token_type == TokenType::Identifier {
+                    if let Ok(language) = TargetLanguage::try_from(next_token.lexeme.as_str()) {
+                        return Some(language);
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    None
+}
+
 impl Default for Exe {
     fn default() -> Self {
         Exe::new()
     }
+}
+
+pub fn detect_header_target_annotation(content: &str) -> Option<TargetLanguage> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("//") {
+            continue;
+        }
+
+        if let Some(language) = parse_target_attribute(trimmed) {
+            return Some(language);
+        }
+
+        if trimmed.starts_with('#') {
+            // Other attribute or comment-style line; continue scanning header comments.
+            continue;
+        }
+
+        break;
+    }
+
+    None
+}
+
+fn parse_target_attribute(line: &str) -> Option<TargetLanguage> {
+    let inner = line.strip_prefix("#[")?.trim();
+    let (body, _rest) = inner.split_once(']')?;
+    let body = body.trim();
+    let body = body.strip_prefix("target")?;
+    let body = body.trim_start_matches(|c: char| c == ':' || c == '=' || c.is_whitespace());
+    if body.is_empty() {
+        return None;
+    }
+    let language_token = body.split_whitespace().next()?.trim();
+    if language_token.is_empty() {
+        return None;
+    }
+    TargetLanguage::try_from(language_token).ok()
 }

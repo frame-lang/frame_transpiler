@@ -18,23 +18,105 @@ use super::semantic_analyzer::SemanticCallAnalyzer;
 use super::symbol_table::*;
 use crate::frame_c::ast::CallContextType;
 use crate::frame_c::ast::ModuleElement;
+use crate::frame_c::target_discovery::TargetDiscoveryPass;
+use crate::frame_c::target_parsers::{parse_target_region, ParsedTargetBlock, TargetParseError};
 use crate::frame_c::utils::SystemHierarchy;
+use crate::frame_c::visitors::TargetLanguage;
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::convert::TryFrom;
 use std::fmt;
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct ParseError {
-    // TODO:
     pub error: String,
+    pub frame_line: Option<usize>,
+    pub frame_column: Option<usize>,
+    pub target_language: Option<TargetLanguage>,
+    pub target_line: Option<usize>,
+    pub target_column: Option<usize>,
+    pub target_snippet: Option<String>,
 }
 
 impl ParseError {
     fn new(msg: &str) -> ParseError {
         ParseError {
             error: String::from(msg),
+            frame_line: None,
+            frame_column: None,
+            target_language: None,
+            target_line: None,
+            target_column: None,
+            target_snippet: None,
         }
+    }
+
+    pub fn with_frame_line(mut self, line: usize) -> Self {
+        self.frame_line = Some(line);
+        self
+    }
+
+    pub fn with_frame_position(mut self, line: usize, column: Option<usize>) -> Self {
+        self.frame_line = Some(line);
+        self.frame_column = column;
+        self
+    }
+
+    pub fn with_target_context(
+        mut self,
+        language: TargetLanguage,
+        line: usize,
+        column: Option<usize>,
+        snippet: Option<String>,
+    ) -> Self {
+        self.target_language = Some(language);
+        self.target_line = Some(line);
+        self.target_column = column;
+        self.target_snippet = snippet;
+        self
+    }
+
+    pub fn new_with_frame_line(msg: &str, line: usize) -> ParseError {
+        ParseError::new(msg).with_frame_line(line)
+    }
+
+    pub fn from_token(token: &Token, msg: &str) -> ParseError {
+        ParseError::new_with_frame_line(msg, token.line)
+    }
+
+    pub fn to_display_string(&self) -> String {
+        let mut message = self.error.clone();
+
+        if let Some(line) = self.frame_line {
+            let column_suffix = self
+                .frame_column
+                .map(|column| format!(", column {}", column))
+                .unwrap_or_default();
+            message.push_str(&format!("\n    frame> line {}{}", line, column_suffix));
+        }
+
+        if let Some(language) = self.target_language {
+            if let Some(target_line) = self.target_line {
+                let formatted_language = format!("{:?}", language).to_lowercase();
+                let column_suffix = self
+                    .target_column
+                    .map(|column| format!(", column {}", column))
+                    .unwrap_or_default();
+                message.push_str(&format!(
+                    "\n    target> {} line {}{}",
+                    formatted_language, target_line, column_suffix
+                ));
+            }
+        }
+
+        if let Some(snippet) = &self.target_snippet {
+            if !snippet.trim().is_empty() {
+                message.push_str(&format!("\n      code> {}", snippet.trim()));
+            }
+        }
+
+        message
     }
 }
 
@@ -62,11 +144,7 @@ impl StateEventHandlers {
 impl fmt::Display for ParseError {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Write strictly the first element into the supplied output
-        // stream: `f`. Returns `fmt::Result` which indicates whether the
-        // operation succeeded or failed. Note that `write!` uses syntax which
-        // is very similar to `println!`.
-        write!(f, "ParseError")
+        write!(f, "{}", self.to_display_string())
     }
 }
 
@@ -152,6 +230,9 @@ pub struct Parser<'a> {
     pub generate_transition_state: bool,
     pub sync_tokens_from_error_context: Vec<TokenType>,
     debug_mode: bool,
+    pub target_language: Option<TargetLanguage>,
+    target_regions: Arc<Vec<TargetRegion>>,
+    target_discovery: TargetDiscoveryPass,
 }
 
 // Helper enum for call type classification
@@ -169,6 +250,7 @@ impl<'a> Parser<'a> {
         comments: &'a mut Vec<Token>,
         is_building_symbol_table: bool,
         mut arcanum: Arcanum,
+        target_regions: Arc<Vec<TargetRegion>>,
     ) -> Parser<'a> {
         let debug_mode = std::env::var("FRAME_TRANSPILER_DEBUG").is_ok();
         // Initialize foundational scopes ONLY for first pass (symbol table building)
@@ -179,6 +261,8 @@ impl<'a> Parser<'a> {
             // Second pass: Set current scope to module scope to start semantic analysis
             arcanum.current_symtab = Rc::clone(&arcanum.module_symtab);
         }
+
+        let target_discovery = TargetDiscoveryPass::new(Arc::clone(&target_regions));
 
         Parser {
             tokens,
@@ -220,6 +304,9 @@ impl<'a> Parser<'a> {
             interface_method_called: false,
             sync_tokens_from_error_context: Vec::new(),
             debug_mode,
+            target_language: None,
+            target_regions,
+            target_discovery,
         }
     }
 
@@ -265,7 +352,8 @@ impl<'a> Parser<'a> {
             let err_msg =
                 "Empty module - Frame files must contain at least one function or system.";
             self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
+            let line = self.previous().line;
+            return Err(ParseError::new_with_frame_line(err_msg, line));
         }
 
         let mut module_elements_opt = self.header()?;
@@ -348,7 +436,7 @@ impl<'a> Parser<'a> {
                     // We parsed decorators but no class follows
                     let err_msg = "Expected 'class' declaration after decorators";
                     self.error_at_current(err_msg);
-                    return Err(ParseError::new(err_msg));
+                    return Err(ParseError::from_token(self.peek(), err_msg));
                 } else {
                     // No decorators parsed, backtrack completely
                     self.current = saved_pos;
@@ -424,7 +512,10 @@ impl<'a> Parser<'a> {
                 // Check if next token is 'fn' for async function
                 if self.match_token(&[TokenType::Function]) {
                     if entity_attributes_opt.is_some() {
-                        return Err(ParseError::new("Functions do not support attributes. Remove attributes or change to system."));
+                        let err_msg =
+                            "Functions do not support attributes. Remove attributes or change to system.";
+                        self.error_at_current(err_msg);
+                        return Err(self.parse_error_current(err_msg));
                     }
                     // Add error boundary for async function parsing
                     match self.function_scope_async(true) {
@@ -438,14 +529,14 @@ impl<'a> Parser<'a> {
                 } else {
                     let err_msg = "Expected function declaration after 'async' keyword";
                     self.error_at_current(err_msg);
-                    return Err(ParseError::new(err_msg));
+                    return Err(self.parse_error_current(err_msg));
                 }
             } else if self.match_token(&[TokenType::Function]) {
                 // Functions shouldn't have system attributes, but warn if present
                 if entity_attributes_opt.is_some() {
                     let err_msg = "Functions do not support attributes. Remove attributes or change to system.";
                     self.error_at_current(err_msg);
-                    return Err(ParseError::new(err_msg));
+                    return Err(self.parse_error_current(err_msg));
                 }
                 if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                     eprintln!("DEBUG: Parsing function at token index {}", self.current);
@@ -479,7 +570,7 @@ impl<'a> Parser<'a> {
                 if entity_attributes_opt.is_some() {
                     let err_msg = "Modules do not support attributes.";
                     self.error_at_current(err_msg);
-                    return Err(ParseError::new(err_msg));
+                    return Err(self.parse_error_current(err_msg));
                 }
                 // Add error boundary for module parsing
                 match self.module_declaration() {
@@ -496,7 +587,7 @@ impl<'a> Parser<'a> {
                     let err_msg =
                         "Classes do not support attributes in the current implementation.";
                     self.error_at_current(err_msg);
-                    return Err(ParseError::new(err_msg));
+                    return Err(self.parse_error_current(err_msg));
                 }
                 // Add error boundary for class parsing
                 match self.class_decl() {
@@ -512,7 +603,7 @@ impl<'a> Parser<'a> {
                 let err_msg =
                     "Expected 'system' after attributes. Functions do not support attributes.";
                 self.error_at_current(err_msg);
-                return Err(ParseError::new(err_msg));
+                return Err(self.parse_error_current(err_msg));
             } else if self.check(TokenType::Identifier) {
                 // Frame does not allow module-level statements (like C)
                 // Check if this looks like a function call or system instantiation
@@ -535,21 +626,21 @@ impl<'a> Parser<'a> {
                         .map_or(false, |c| c.is_uppercase());
 
                     if is_system || is_class || starts_with_uppercase {
-                        let err_msg = &format!(
+                        let err_msg = format!(
                             "Module-level instantiation is not allowed. '{}' cannot be instantiated at module scope. \
                             Classes and systems must be instantiated inside functions.",
                             identifier_name
                         );
-                        self.error_at_current(err_msg);
-                        return Err(ParseError::new(err_msg));
+                        self.error_at_current(&err_msg);
+                        return Err(self.parse_error_current(&err_msg));
                     } else {
-                        let err_msg = &format!(
+                        let err_msg = format!(
                             "Module-level function calls are not allowed. Function '{}' cannot be called at module scope. \
                             Frame automatically calls main() if it exists.",
                             identifier_name
                         );
-                        self.error_at_current(err_msg);
-                        return Err(ParseError::new(err_msg));
+                        self.error_at_current(&err_msg);
+                        return Err(self.parse_error_current(&err_msg));
                     }
                 } else {
                     // Reset and try to parse as something else
@@ -614,21 +705,21 @@ impl<'a> Parser<'a> {
                         .map_or(false, |c| c.is_uppercase());
 
                     if is_system || is_class || starts_with_uppercase {
-                        let err_msg = &format!(
+                        let err_msg = format!(
                             "Module-level instantiation is not allowed. '{}' cannot be instantiated at module scope. \
                             Classes and systems must be instantiated inside functions.",
                             identifier_name
                         );
-                        self.error_at_current(err_msg);
-                        return Err(ParseError::new(err_msg));
+                        self.error_at_current(&err_msg);
+                        return Err(self.parse_error_current(&err_msg));
                     } else {
-                        let err_msg = &format!(
+                        let err_msg = format!(
                             "Module-level function calls are not allowed. Function '{}' cannot be called at module scope. \
                             Frame automatically calls main() if it exists.",
                             identifier_name
                         );
-                        self.error_at_current(err_msg);
-                        return Err(ParseError::new(err_msg));
+                        self.error_at_current(&err_msg);
+                        return Err(self.parse_error_current(&err_msg));
                     }
                 }
 
@@ -659,6 +750,8 @@ impl<'a> Parser<'a> {
         // Module-level statements not allowed - pass empty vector
         Ok(FrameModule::new(
             final_module,
+            self.target_language,
+            Arc::clone(&self.target_regions),
             imports,
             functions,
             systems,
@@ -676,6 +769,40 @@ impl<'a> Parser<'a> {
         let mut module_elements = Vec::new();
 
         loop {
+            if self.match_token(&[TokenType::TargetAnnotation]) {
+                if self.target_language.is_some() {
+                    let err_msg = "Multiple @target annotations are not allowed";
+                    self.error_at_current(err_msg);
+                    return Err(self.parse_error_current(err_msg));
+                }
+
+                if !self.match_token(&[TokenType::Identifier]) {
+                    let err_msg = "Expected target language after @target";
+                    self.error_at_current(err_msg);
+                    return Err(self.parse_error_current(err_msg));
+                }
+
+                let target_tok = self.previous().clone();
+                let lang_result = TargetLanguage::try_from(target_tok.lexeme.as_str());
+                match lang_result {
+                    Ok(language) => {
+                        self.target_language = Some(language);
+                        module_elements
+                            .push(crate::frame_c::ast::ModuleElement::Target { language });
+                    }
+                    Err(_) => {
+                        let message = format!(
+                            "Unknown target language '{}' in @target annotation",
+                            target_tok.lexeme
+                        );
+                        self.error_at_previous(&message);
+                        return Err(self.parse_error_previous(&message));
+                    }
+                }
+
+                continue;
+            }
+
             // #![module_attribute]
             if self.match_token(&[TokenType::InnerAttribute]) {
                 match self.attribute(AttributeAffinity::Inner) {
@@ -2000,12 +2127,13 @@ impl<'a> Parser<'a> {
         }
 
         // foo(...) : type {
-        if let Err(parse_error) = self.consume(
-            TokenType::OpenBrace,
-            &format!("Expected '{{' - found '{}'", self.current_token),
-        ) {
-            return Err(parse_error);
-        }
+        let body_start_line = {
+            let token = self.consume(
+                TokenType::OpenBrace,
+                &format!("Expected '{{' - found '{}'", self.current_token),
+            )?;
+            token.line
+        };
 
         let mut terminator_expr = TerminatorExpr::new(Return, None, self.previous().line);
         let is_implemented = true;
@@ -2044,14 +2172,19 @@ impl<'a> Parser<'a> {
         }
 
         // foo(...) : type { ... return True }
-        if let Err(parse_error) = self.consume(
-            TokenType::CloseBrace,
-            &format!("Expected '}}' - found '{}'", self.current_token),
-        ) {
-            return Err(parse_error);
-        }
+        let body_end_line = {
+            let token = self.consume(
+                TokenType::CloseBrace,
+                &format!("Expected '}}' - found '{}'", self.current_token),
+            )?;
+            token.line
+        };
 
-        let function_node = FunctionNode::new(
+        let target_specific_regions =
+            self.collect_target_specific_regions(body_start_line, body_end_line);
+        let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
+
+        let mut function_node = FunctionNode::new(
             function_name.clone(),
             params,
             is_implemented,
@@ -2062,9 +2195,18 @@ impl<'a> Parser<'a> {
             line,
         );
 
-        let x = RefCell::new(function_node);
-        let y = Rc::new(x);
-        Ok(y)
+        function_node.target_specific_regions = target_specific_regions;
+        function_node.parsed_target_blocks = parsed_target_blocks;
+        function_node.body = self.classify_action_body(
+            &function_node.statements,
+            &function_node.target_specific_regions,
+        );
+        function_node.unrecognized_statements = self.build_unrecognized_statements(
+            &function_node.target_specific_regions,
+            &function_node.parsed_target_blocks,
+        );
+
+        Ok(Rc::new(RefCell::new(function_node)))
     }
 
     /* --------------------------------------------------------------------- */
@@ -3176,12 +3318,13 @@ impl<'a> Parser<'a> {
         let mut terminator_node = TerminatorExpr::new(Return, None, self.previous().line);
 
         // foo(...) : type {
-        if let Err(parse_error) = self.consume(
-            TokenType::OpenBrace,
-            &format!("Expected '{{' - found '{}'", self.current_token),
-        ) {
-            return Err(parse_error);
-        }
+        let body_start_line = {
+            let token = self.consume(
+                TokenType::OpenBrace,
+                &format!("Expected '{{' - found '{}'", self.current_token),
+            )?;
+            token.line
+        };
 
         let is_implemented = true;
         // TODO - figure out how this needs to be added to statements
@@ -3207,12 +3350,17 @@ impl<'a> Parser<'a> {
         }
 
         // foo(...) : type { ... return True }
-        if let Err(parse_error) = self.consume(
-            TokenType::CloseBrace,
-            &format!("Expected '}}' - found '{}'", self.current_token),
-        ) {
-            return Err(parse_error);
-        }
+        let body_end_line = {
+            let token = self.consume(
+                TokenType::CloseBrace,
+                &format!("Expected '}}' - found '{}'", self.current_token),
+            )?;
+            token.line
+        };
+
+        let target_specific_regions =
+            self.collect_target_specific_regions(body_start_line, body_end_line);
+        let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
 
         //
         // if self.match_token(&[TokenType::RParen]) {
@@ -3296,6 +3444,18 @@ impl<'a> Parser<'a> {
 
         let action_node_ref = RefCell::new(action_node);
         let action_node_rcref = Rc::new(action_node_ref);
+        {
+            let mut action_mut = action_node_rcref.borrow_mut();
+            action_mut.target_specific_regions = target_specific_regions;
+            action_mut.parsed_target_blocks = parsed_target_blocks;
+            action_mut.body = self
+                .classify_action_body(&action_mut.statements, &action_mut.target_specific_regions);
+            action_mut.unrecognized_statements = self.build_unrecognized_statements(
+                &action_mut.target_specific_regions,
+                &action_mut.parsed_target_blocks,
+            );
+        }
+
         Ok(action_node_rcref)
     }
 
@@ -3519,12 +3679,13 @@ impl<'a> Parser<'a> {
         let mut terminator_node = TerminatorExpr::new(Return, None, self.previous().line);
 
         // foo(...) : type {
-        if let Err(parse_error) = self.consume(
-            TokenType::OpenBrace,
-            &format!("Expected '{{' - found '{}'", self.current_token),
-        ) {
-            return Err(parse_error);
-        }
+        let body_start_line = {
+            let token = self.consume(
+                TokenType::OpenBrace,
+                &format!("Expected '{{' - found '{}'", self.current_token),
+            )?;
+            token.line
+        };
 
         let is_implemented = true;
         // TODO - figure out how this needs to be added to statements
@@ -3552,14 +3713,19 @@ impl<'a> Parser<'a> {
         }
 
         // foo(...) : type { ... return True }
-        if let Err(parse_error) = self.consume(
-            TokenType::CloseBrace,
-            &format!("Expected '}}' - found '{}'", self.current_token),
-        ) {
-            return Err(parse_error);
-        }
+        let body_end_line = {
+            let token = self.consume(
+                TokenType::CloseBrace,
+                &format!("Expected '}}' - found '{}'", self.current_token),
+            )?;
+            token.line
+        };
 
-        let operation_node = OperationNode::new(
+        let target_specific_regions =
+            self.collect_target_specific_regions(body_start_line, body_end_line);
+        let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
+
+        let mut operation_node = OperationNode::new(
             operation_name.clone(),
             params,
             attributes_opt,
@@ -3572,9 +3738,18 @@ impl<'a> Parser<'a> {
             operation_line, // v0.78.2: source map support for operations
         );
 
-        let operation_node_ref = RefCell::new(operation_node);
-        let operation_node_rcref = Rc::new(operation_node_ref);
-        Ok(operation_node_rcref)
+        operation_node.target_specific_regions = target_specific_regions;
+        operation_node.parsed_target_blocks = parsed_target_blocks;
+        operation_node.body = self.classify_action_body(
+            &operation_node.statements,
+            &operation_node.target_specific_regions,
+        );
+        operation_node.unrecognized_statements = self.build_unrecognized_statements(
+            &operation_node.target_specific_regions,
+            &operation_node.parsed_target_blocks,
+        );
+
+        Ok(Rc::new(RefCell::new(operation_node)))
     }
 
     /* --------------------------------------------------------------------- */
@@ -5860,7 +6035,10 @@ impl<'a> Parser<'a> {
         // Parse default return value for event handler: = value
         let event_handler_return_init_expr_opt = self.parse_event_handler_return_init()?;
 
-        let _ = self.consume(TokenType::OpenBrace, "Expected '{'");
+        let body_start_line = {
+            let token = self.consume(TokenType::OpenBrace, "Expected '{'")?;
+            token.line
+        };
 
         // Set up local scope and parse body
         self.enter_event_handler_local_scope()?;
@@ -5894,7 +6072,14 @@ impl<'a> Parser<'a> {
         // Parse optional terminator
         let terminator_node_opt = self.parse_event_handler_terminator()?;
 
-        let _ = self.consume(TokenType::CloseBrace, "Expected '}'");
+        let body_end_line = {
+            let token = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+            token.line
+        };
+
+        let target_specific_regions =
+            self.collect_target_specific_regions(body_start_line, body_end_line);
+        let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
 
         // The state name must be set in an enclosing context. Otherwise fail
         // with extreme prejudice.
@@ -5944,7 +6129,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        Ok(Some(EventHandlerNode::new(
+        let mut event_handler = EventHandlerNode::new(
             st_name,
             message_type,
             statements,
@@ -5954,7 +6139,19 @@ impl<'a> Parser<'a> {
             line_number,
             event_handler_return_init_expr_opt,
             is_async,
-        )))
+        );
+        event_handler.target_specific_regions = target_specific_regions;
+        event_handler.parsed_target_blocks = parsed_target_blocks;
+        event_handler.body = self.classify_action_body(
+            &event_handler.statements,
+            &event_handler.target_specific_regions,
+        );
+        event_handler.unrecognized_statements = self.build_unrecognized_statements(
+            &event_handler.target_specific_regions,
+            &event_handler.parsed_target_blocks,
+        );
+
+        Ok(Some(event_handler))
     }
 
     /* --------------------------------------------------------------------- */
@@ -6177,6 +6374,145 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn collect_target_specific_regions(
+        &self,
+        body_start_line: usize,
+        body_end_line: usize,
+    ) -> Vec<TargetSpecificRegionRef> {
+        self.target_discovery
+            .target_regions_in_range(body_start_line, body_end_line)
+            .into_iter()
+            .map(|(region_index, region)| {
+                let frame_start_line = region.source_map.frame_start_line;
+                let line_count = region.raw_content.lines().count();
+                let frame_end_line = if line_count == 0 {
+                    frame_start_line
+                } else {
+                    frame_start_line + line_count - 1
+                };
+
+                TargetSpecificRegionRef {
+                    target: region.target,
+                    region_index,
+                    frame_start_line,
+                    frame_end_line,
+                }
+            })
+            .collect()
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn resolve_target_specific_blocks(
+        &self,
+        region_refs: &[TargetSpecificRegionRef],
+    ) -> Result<Vec<ParsedTargetBlock>, ParseError> {
+        let mut blocks = Vec::new();
+        for region_ref in region_refs {
+            let Some(region) = self
+                .target_discovery
+                .region_by_index(region_ref.region_index)
+            else {
+                continue;
+            };
+
+            match parse_target_region(region_ref.target, region) {
+                Ok(ast) => {
+                    blocks.push(ParsedTargetBlock {
+                        region_index: region_ref.region_index,
+                        frame_start_line: region_ref.frame_start_line,
+                        frame_end_line: region_ref.frame_end_line,
+                        ast,
+                    });
+                }
+                Err(TargetParseError::Unsupported(target)) => {
+                    let _ = target;
+                    // Skip unsupported targets; visitors can handle raw regions.
+                    continue;
+                }
+                Err(TargetParseError::Parse {
+                    target_language,
+                    message,
+                    target_line,
+                    column,
+                }) => {
+                    let frame_line = region_ref.frame_start_line + target_line.saturating_sub(1);
+                    let raw_lines: Vec<&str> = region.raw_content.lines().collect();
+                    let snippet_opt = if target_line > 0 && target_line <= raw_lines.len() {
+                        let snippet = raw_lines[target_line - 1].trim().to_string();
+                        if snippet.is_empty() {
+                            None
+                        } else {
+                            Some(snippet)
+                        }
+                    } else {
+                        None
+                    };
+
+                    let formatted_message =
+                        format!("{:?} target parse error: {}", target_language, message);
+                    let parse_error = ParseError::new(&formatted_message)
+                        .with_frame_line(frame_line)
+                        .with_target_context(
+                            target_language,
+                            target_line,
+                            Some(column),
+                            snippet_opt,
+                        );
+                    return Err(parse_error);
+                }
+            }
+        }
+
+        Ok(blocks)
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn classify_action_body(
+        &self,
+        statements: &[DeclOrStmtType],
+        region_refs: &[TargetSpecificRegionRef],
+    ) -> ActionBody {
+        let has_frame = statements.iter().any(|decl_or_stmt| match decl_or_stmt {
+            DeclOrStmtType::VarDeclT { .. } => true,
+            DeclOrStmtType::StmtT { stmt_t } => !matches!(stmt_t, StatementType::NoStmt),
+        });
+        let has_target = !region_refs.is_empty();
+
+        match (has_frame, has_target) {
+            (false, false) => ActionBody::Empty,
+            (true, false) => ActionBody::Frame,
+            (false, true) => ActionBody::TargetSpecific,
+            (true, true) => ActionBody::Mixed,
+        }
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn build_unrecognized_statements(
+        &self,
+        region_refs: &[TargetSpecificRegionRef],
+        parsed_blocks: &[ParsedTargetBlock],
+    ) -> Vec<UnrecognizedStatementNode> {
+        let parsed_indices: HashSet<usize> = parsed_blocks
+            .iter()
+            .map(|block| block.region_index)
+            .collect();
+
+        region_refs
+            .iter()
+            .filter(|region_ref| !parsed_indices.contains(&region_ref.region_index))
+            .map(|region_ref| UnrecognizedStatementNode {
+                frame_line: region_ref.frame_start_line,
+                target: region_ref.target,
+                region_index: region_ref.region_index,
+            })
+            .collect()
     }
 
     /* --------------------------------------------------------------------- */
@@ -8542,7 +8878,7 @@ impl<'a> Parser<'a> {
                 Err(parse_error) => {
                     self.error_at_current(&format!(
                         "Error parsing arguments: {}",
-                        parse_error.error
+                        parse_error.to_display_string()
                     ));
                     None
                 }
@@ -14089,7 +14425,7 @@ impl<'a> Parser<'a> {
         }
 
         self.error_at_current(message);
-        Err(ParseError::new(message))
+        Err(ParseError::from_token(self.peek(), message))
     }
 
     /* --------------------------------------------------------------------- */
@@ -14132,6 +14468,16 @@ impl<'a> Parser<'a> {
         //        println!("{} : {}", error_msg, message);
         // TODO:?
         //       ParseError::new( /* error_msg */ )
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn parse_error_current(&self, message: &str) -> ParseError {
+        ParseError::from_token(self.peek(), message)
+    }
+
+    fn parse_error_previous(&self, message: &str) -> ParseError {
+        ParseError::from_token(self.previous(), message)
     }
 
     /* --------------------------------------------------------------------- */
@@ -16169,4 +16515,78 @@ enum BracketExpressionType {
         end: Option<Box<ExprType>>,
         step: Option<Box<ExprType>>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::frame_c::scanner::Scanner;
+    use crate::frame_c::symbol_table::Arcanum;
+    use std::sync::Arc;
+
+    #[test]
+    fn target_parse_error_includes_native_snippet() {
+        let source = r#"
+system TargetDiag {
+    machine:
+        $Init {
+            start() {
+                #[target: python]
+                if True
+                    print("oops")
+                return
+            }
+        }
+}
+"#;
+
+        let scanner = Scanner::new(source.to_string());
+        let (has_errors, scan_errors, tokens, target_regions) = scanner.scan_tokens();
+        assert!(!has_errors, "scanner reported errors: {}", scan_errors);
+
+        let target_regions = Arc::new(target_regions);
+        let mut parser_comments = Vec::new();
+        let parser = Parser::new(
+            &tokens,
+            &mut parser_comments,
+            true,
+            Arcanum::new(),
+            Arc::clone(&target_regions),
+        );
+
+        let region = parser
+            .target_discovery
+            .region_by_index(0)
+            .expect("expected target region");
+        let line_count = region.raw_content.lines().count();
+        let frame_start_line = region.source_map.frame_start_line;
+        let frame_end_line = if line_count == 0 {
+            frame_start_line
+        } else {
+            frame_start_line + line_count - 1
+        };
+        let region_ref = TargetSpecificRegionRef {
+            target: region.target,
+            region_index: 0,
+            frame_start_line,
+            frame_end_line,
+        };
+
+        let result = parser.resolve_target_specific_blocks(&[region_ref]);
+        assert!(
+            result.is_err(),
+            "expected parse error but parsing succeeded"
+        );
+        let err = result.err().unwrap();
+        assert_eq!(err.target_language, Some(TargetLanguage::Python3));
+        assert_eq!(err.target_line, Some(2));
+        assert!(
+            err.target_snippet
+                .as_deref()
+                .map(|snippet| snippet.contains("if True"))
+                .unwrap_or(false),
+            "expected target snippet containing 'if True', got {:?}",
+            err.target_snippet
+        );
+    }
 }

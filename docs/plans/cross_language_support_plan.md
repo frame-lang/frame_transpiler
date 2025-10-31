@@ -7,7 +7,7 @@
 **Related Issues**: Bug #055 - TypeScript async runtime lacks socket helpers
 
 ## Executive Summary
-
+``
 This plan implements target-specific syntax support in Frame using `@target` declarations, enabling native language constructs while preserving Frame's universal state machine patterns. The approach solves Bug #055 immediately and provides a scalable architecture for future cross-language challenges.
 
 **Key Outcome**: Frame evolves from "universal syntax" to "universal state machine patterns with target-specific implementation."
@@ -39,24 +39,30 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 **Goal**: Add `@target` syntax support and define toolchain ownership
 
 **Tasks**:
-- [ ] **LLVM Toolchain Decision**: Prototype both Rust FFI shims and raw LLVM IR approaches
-- [ ] **Document toolchain ownership**: Define which tools compile artifacts for each target
-- [ ] Add `AtSymbol` and `TargetKeyword` token types to `TokenType` enum
-- [ ] Implement `scan_target_declaration()` method in scanner
-- [ ] Add `ScanningMode` enum with `TargetDiscovery`, `FrameCommon`, `TargetSpecific` variants
-- [ ] Extend `Scanner` struct with target-aware fields and brace depth tracking
-- [ ] Add `switch_scanning_mode()` method with robust boundary detection
+- [x] **LLVM Toolchain Decision**: Prototype both runtime FFI shims and raw LLVM IR approaches *(resolved: ship FFI shim first, then migrate to pure IR after feature parity)*
+- [x] **Document toolchain ownership**: Define which tools compile artifacts for each target *(FFI runtime owned by Rust crate; LLVM codegen emits shim calls until IR replacement phase)*
+- [x] Add dedicated `TargetAnnotation` token and keyword handling to `TokenType`
+- [x] Implement `scan_target_declaration()` method in scanner *(handled inline during header sweep)*
+- [x] Add `ScanningMode` enum with `TargetDiscovery`, `FrameCommon`, `TargetSpecific` variants
+- [x] Extend `Scanner` struct with target-aware fields (target language, mode scaffolding)
+- [x] Add `switch_scanning_mode()` method with robust boundary detection
+
+*Status Update (2025-10-30)*:
+- Scanner now transitions between discovery/common/target modes and records raw target blocks as `TargetRegion` entries, giving us per-language slices for follow-on parsing.
+- Single-file, CLI validation, and multi-file compilers share the captured regions via `Arc`, allowing both passes to access the same metadata.
+- ✅ All Week 1 tasks completed: toolchain decision documented (FFI-first), ownership noted, boundary detection validated.
 
 **Deliverables**:
-- **Toolchain strategy document** defining compilation artifacts ownership
-- **LLVM approach prototype** (Rust FFI vs raw IR) with recommendation
+- **Toolchain strategy document** defining compilation artifacts ownership (FFI-first; migrate to pure IR after feature parity)
+- **LLVM approach prototype** (FFI shim vs raw IR) with recommendation – **resolved: ship FFI shim first, plan staged IR migration**
 - Modified `scanner.rs` with target declaration support
+- CLI / build tooling source `@target` declarations and reject conflicting overrides
 - **Boundary detection test suite** covering nested braces, strings, comments
 - Unit tests for `@target typescript` parsing
 - Integration tests with existing Frame scanner
 
 **Validation Criteria**:
-- LLVM toolchain strategy decided and documented
+- LLVM toolchain strategy decided and documented (FFI-first path recorded)
 - Scanner recognizes `@target typescript` at file start
 - Boundary detection handles complex nested constructs correctly
 - Backward compatibility: files without `@target` work unchanged
@@ -66,13 +72,23 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 **Goal**: Extend parser to handle target-specific syntax regions with first-class diagnostics
 
 **Tasks**:
-- [ ] **Diagnostics integration**: Wire dual line number reporting through existing diagnostic pipeline
-- [ ] Add `TargetDiscoveryPass` struct and implementation
-- [ ] Extend `ActionBody` enum with `TargetSpecific` variant
-- [ ] Implement `TargetRegion` and `TargetSourceMap` for diagnostics
-- [ ] Add boundary detection logic (`detect_frame_boundary()`)
-- [ ] Create `UnrecognizedStatement` AST node type
-- [ ] **Enhanced error reporting**: Implement Frame + target line number display
+- [x] **Diagnostics integration**: Wire dual line number reporting through existing diagnostic pipeline
+- [x] Add `TargetDiscoveryPass` struct and implementation
+- [x] Extend `ActionBody` enum with `TargetSpecific` variant
+- [x] Implement `TargetRegion` and `TargetSourceMap` for diagnostics
+- [x] Add boundary detection logic (`detect_frame_boundary()`)
+- [x] Create `UnrecognizedStatement` AST node type
+- [x] **Enhanced error reporting**: Implement Frame + target line number display
+
+*Status Update (2025-10-30)*:
+- `TargetRegion` snapshots and source-map scaffolding land in the AST; parser now preserves them for diagnostics work in Week 2.
+- Dedicated `TargetDiscoveryPass` maps Frame vs native spans and feeds both compilation passes; diagnostic wiring + native AST integration remain.
+- Event handlers retain target block metadata (`target_specific_regions`) so future native parsers/codegen can recover raw source slices without inflating the existing statement pipeline.
+- Python visitor now consumes stored `target_specific_regions`, allowing native Python snippets to be emitted once scanner captures the regions.
+- Body classification now flows through the AST (`ActionBody`), and nodes capture unsupported target regions as `UnrecognizedStatementNode`s for downstream diagnostics.
+- Python visitor centralizes native emission through the new body metadata, producing deterministic ignore notes when other targets are present.
+- Parse errors now surface both frame and target locations (with snippets) throughout CLI and module compiler flows, giving users consistent dual-line diagnostics.
+- CLI and build tooling respect module-level `@target` / `#[target: ...]` directives, so inline declarations no longer trigger “No target language specified.”
 
 **Deliverables**:
 - **Integrated diagnostics system** with dual line number support
@@ -80,6 +96,8 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - `TargetRegion` implementation with source mapping
 - **Comprehensive error message examples** showing Frame + target locations
 - Parser tests for target-specific action bodies
+- Validation pass covering source-map emission + AST dumps to confirm diagnostics stay aligned after Week 4 visitor integration
+- Post-visitor regression pass verifying CLI `--debug-output` source maps and AST dump tooling for native block scenarios
 
 **Validation Criteria**:
 - **Diagnostics show both Frame and target line numbers** in error messages
@@ -101,6 +119,24 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [ ] Add `resolve_target_statements()` parser method
 - [ ] Implement dual-language error reporting
 
+**Python Target Workstream (active)**
+- [x] Design Python target parser: review target-region plumbing and outline required AST/data structures
+- [x] Implement Python parser module and `TargetAst` integration; update shared parser to invoke it for `#[target: python]` blocks
+- [x] Update Python visitor/tests to consume the new native AST and document plan progress
+
+**Design Outline (Python)**
+- Introduce `framec/src/frame_c/target_parsers/` with a shared `TargetAst` trait (`target_language()`, `to_source()`, `diagnostics()`).
+- Add `PythonTargetParser` that dedents region content, parses it with `rustpython_parser`, and returns a `PythonTargetAst` (captures `Suite`, normalized source text, and per-node offsets). **Status**: landed with basic suite parsing plus error propagation tests.
+- Extend `EventHandlerNode` with `parsed_target_blocks: Vec<ParsedTargetBlock>` holding `(region_ref, Arc<dyn TargetAst>>)` so both raw-region references and parsed AST are available for diagnostics and generation. **Status**: parser now attaches typed blocks while preserving raw references for other targets.
+- Extend `ActionNode` in the same fashion so actions honor target-specific code paths before falling back to Frame statements. **Status**: implemented; Python visitor consumes parsed blocks for actions and emits notes for skipped targets.
+- Extend `FunctionNode` and `OperationNode` with the same metadata so helper functions and operations dispatch through native target blocks before Frame fallbacks. **Status**: parser + Python visitor updated; helper fixture now exercises inline Python in a global function.
+- Wire `Parser::resolve_target_specific_blocks` to call the registry, translate `TargetParseError` into Frame `ParseError`, and attach diagnostics (Frame line + target line). **Status**: implemented for Python (unsupported targets skipped); errors now echo both the offending target line (with snippet) and the frame line.
+
+**Latest Progress (2025-10-30)**
+- `target_parsers/python.rs` integrates `rustpython_parser` (with location support) + unit coverage for both happy/errant snippets, verifying target-line diagnostics.
+- Event handlers/functions/actions/operations all carry `parsed_target_blocks`, and `python_visitor_v2` emits annotated comments (`[target … -> frame …]`) ahead of native blocks while noting ignored targets deterministically.
+- Release build succeeds (`cargo build --release`), and `cargo test -p framec target_parsers::python python_visitor_v2::tests` validates the parser + visitor pipeline.
+
 **Deliverables**:
 - Target-specific parser modules
 - AST nodes for native language constructs
@@ -117,7 +153,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 **Tasks**:
 - [ ] Modify TypeScript visitor to output target-specific blocks directly
 - [ ] Modify Python visitor to output target-specific blocks directly
-- [ ] **Implement LLVM visitor** using chosen toolchain strategy (Rust FFI or raw IR)
+- [ ] **Implement LLVM visitor** using chosen toolchain strategy (FFI shim or raw IR)
 - [ ] Implement `TargetAst::to_code()` methods
 - [ ] Validate that generated code delegates kernel/state semantics to runtime/FSL helpers
 - [ ] Update visitor tests for target-specific syntax
@@ -308,7 +344,7 @@ impl TargetSourceMap {
 - Implement target usage quotas per system/module
 
 **If LLVM toolchain proves too complex**:
-- Start with Rust FFI approach as simpler implementation
+- Start with FFI shim approach as simpler implementation
 - Defer raw LLVM IR until performance requirements demand it
 - Document toolchain complexity trade-offs
 
@@ -361,7 +397,7 @@ impl TargetSourceMap {
 ## 🔄 Future Extensions
 
 ### Additional Target Languages
-- **Rust**: High-performance systems programming
+- **Rust**: High-performance systems programming *(future consideration; legacy visitor removed)*
 - **Go**: Cloud-native applications  
 - **Java**: Enterprise applications
 - **C#**: .NET ecosystem integration

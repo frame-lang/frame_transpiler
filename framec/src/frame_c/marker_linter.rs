@@ -132,9 +132,11 @@ impl MarkerLinter {
             let python_line = line_num + 1; // Convert to 1-based
 
             // Look for markers in comments: # __MARKER_123__
-            if let Some(marker_start) = line.find("# __MARKER_") {
-                if let Some(marker_end) = line[marker_start..].find("__") {
-                    let marker_id = line[marker_start + 11..marker_start + marker_end].to_string();
+            const MARKER_PREFIX: &str = "# __MARKER_";
+            if let Some(marker_start) = line.find(MARKER_PREFIX) {
+                let rest = &line[marker_start + MARKER_PREFIX.len()..];
+                if let Some(marker_end) = rest.find("__") {
+                    let marker_id = rest[..marker_end].to_string();
 
                     // Check for duplicate markers
                     if let Some(existing) = self.markers.get(&marker_id) {

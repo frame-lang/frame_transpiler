@@ -1,8 +1,9 @@
-use crate::frame_c::compiler::{Exe, TargetLanguage};
+use crate::frame_c::compiler::{detect_header_target_annotation, Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
 use clap::{Arg, Command};
 use std::convert::TryFrom;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Command line arguments to the `framec` executable.
 //#[derive(StructOpt)]
@@ -73,14 +74,12 @@ impl Cli {
                     .value_name("LANG")
                     .long("language")
                     .short('l')
-                    .help("Target language (python_3, typescript, graphviz, rust, c, llvm)")
+                    .help("Target language (python_3, typescript, graphviz, llvm)")
                     .long_help(
                         "Target language for code generation:\n  \
                                - python_3:       Python 3 with Frame runtime\n  \
                                - typescript:     TypeScript with state machine classes\n  \
                                - graphviz:       DOT format for state diagrams\n  \
-                               - rust:           Type-safe Rust with generated visitor\n  \
-                               - c:              C99 with Frame state machines\n  \
                                - llvm:           LLVM IR output for native code generation",
                     )
                     .num_args(1),
@@ -423,6 +422,22 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
         }
     };
 
+    let header_target = detect_header_target_annotation(&source_code);
+    let mut effective_target = target_language;
+    if let Some(cli_target) = effective_target {
+        if let Some(header) = header_target {
+            if cli_target != header {
+                eprintln!(
+                    "Target language mismatch: CLI requested {:?} but header declares {:?}",
+                    cli_target, header
+                );
+                return false;
+            }
+        }
+    } else if let Some(header) = header_target {
+        effective_target = Some(header);
+    }
+
     // Parse validation level
     let validation_level = match args.validation_level.as_deref() {
         Some("basic") => ValidationLevel::Basic,
@@ -453,12 +468,10 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
 
     // Convert target language
     use crate::frame_c::visitors::TargetLanguage as VisitorTargetLanguage;
-    let target_lang = target_language.map(|tl| match tl {
+    let target_lang = effective_target.map(|tl| match tl {
         VisitorTargetLanguage::Python3 => crate::frame_c::validation::TargetLanguage::Python,
         VisitorTargetLanguage::TypeScript => crate::frame_c::validation::TargetLanguage::Python, // TODO: Add TypeScript validation
         VisitorTargetLanguage::Graphviz => crate::frame_c::validation::TargetLanguage::Python, // Default to Python for graphviz
-        VisitorTargetLanguage::Rust => crate::frame_c::validation::TargetLanguage::Python, // TODO: Rust target not yet implemented
-        VisitorTargetLanguage::C => crate::frame_c::validation::TargetLanguage::Python, // TODO: C target not yet implemented
         VisitorTargetLanguage::LLVM => crate::frame_c::validation::TargetLanguage::Python, // Placeholder validation mapping
     });
 
@@ -496,18 +509,25 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
 
     // Parse the Frame file to get the actual AST using two-pass approach
     let scanner = Scanner::new(source_code.clone());
-    let (has_errors, errors, tokens) = scanner.scan_tokens();
+    let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
 
     if has_errors {
         eprintln!("Scanning errors: {}", errors);
         return false;
     }
 
+    let target_regions = Arc::new(target_regions_vec);
     // First pass: symbol table building
     let mut arcanum = Arcanum::new();
     let mut comments = Vec::new();
     {
-        let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
+        let mut syntactic_parser = Parser::new(
+            &tokens,
+            &mut comments,
+            true,
+            arcanum,
+            Arc::clone(&target_regions),
+        );
         match syntactic_parser.parse() {
             Ok(_) => {
                 if syntactic_parser.had_error() {
@@ -519,7 +539,10 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
                 arcanum = syntactic_parser.get_arcanum();
             }
             Err(parse_error) => {
-                eprintln!("First pass validation parse error: {}", parse_error.error);
+                eprintln!(
+                    "First pass validation parse error: {}",
+                    parse_error.to_display_string()
+                );
                 return false;
             }
         }
@@ -527,12 +550,21 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
 
     // Second pass: semantic analysis
     let mut comments2 = comments.clone();
-    let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
+    let mut semantic_parser = Parser::new(
+        &tokens,
+        &mut comments2,
+        false,
+        arcanum,
+        Arc::clone(&target_regions),
+    );
 
     let ast = match semantic_parser.parse() {
         Ok(frame_module) => frame_module,
         Err(parse_error) => {
-            eprintln!("Parse error during validation: {}", parse_error.error);
+            eprintln!(
+                "Parse error during validation: {}",
+                parse_error.to_display_string()
+            );
             return false;
         }
     };

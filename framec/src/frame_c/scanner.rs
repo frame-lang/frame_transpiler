@@ -1,7 +1,9 @@
 #![allow(dead_code)] // Scanner tokens and methods are part of the language API
 
 use crate::compiler::Exe;
+use crate::frame_c::visitors::TargetLanguage;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::fmt;
 use std::fmt::Display;
 
@@ -16,6 +18,11 @@ pub(crate) struct Scanner {
     pub errors: String,
     line: usize,
     keywords: HashMap<String, TokenType>,
+    pub target_language: Option<TargetLanguage>,
+    pub scanning_mode: ScanningMode,
+    pub target_regions: Vec<TargetRegion>,
+    pending_target_annotation: bool,
+    active_target_region: Option<ActiveTargetRegion>,
     //    match_type:MatchType,
 }
 
@@ -93,14 +100,61 @@ impl Scanner {
             errors: String::new(),
             line: 1,
             keywords,
+            target_language: None,
+            scanning_mode: ScanningMode::TargetDiscovery,
+            target_regions: Vec::new(),
+            pending_target_annotation: false,
+            active_target_region: None,
             //     match_type:MatchType::None,
+        }
+    }
+
+    fn handle_target_language_declaration(&mut self) {
+        self.pending_target_annotation = false;
+
+        let Some(last_token) = self.tokens.last() else {
+            self.error(self.line, "Expected target language after @target");
+            return;
+        };
+
+        if last_token.token_type != TokenType::Identifier {
+            self.error(
+                last_token.line,
+                "Expected target language identifier after @target",
+            );
+            return;
+        }
+
+        let language_lexeme = last_token.lexeme.clone();
+        match TargetLanguage::try_from(language_lexeme.as_str()) {
+            Ok(language) => {
+                if let Some(existing) = self.target_language {
+                    if existing != language {
+                        self.error(
+                            last_token.line,
+                            "Multiple @target annotations with different languages are not allowed",
+                        );
+                        return;
+                    }
+                } else {
+                    self.target_language = Some(language);
+                    self.switch_scanning_mode(ScanningMode::TargetSpecific(language));
+                }
+            }
+            Err(_) => {
+                let message = format!(
+                    "Unknown target language '{}' in @target annotation",
+                    language_lexeme
+                );
+                self.error(last_token.line, &message);
+            }
         }
     }
 
     // NOTE! The self param is NOT &self. That is how
     // the member variable token can move ownership to the
     // caller.
-    pub fn scan_tokens(mut self) -> (bool, String, Vec<Token>) {
+    pub fn scan_tokens(mut self) -> (bool, String, Vec<Token>, Vec<TargetRegion>) {
         // Scan header
         while self.is_whitespace() {
             self.advance();
@@ -125,7 +179,32 @@ impl Scanner {
 
         while !self.is_at_end() {
             self.sync_start();
-            self.scan_token();
+
+            match self.scanning_mode {
+                ScanningMode::TargetDiscovery => {
+                    if self.is_whitespace() {
+                        self.advance();
+                        continue;
+                    }
+
+                    self.scan_token();
+
+                    if !self.pending_target_annotation
+                        && !matches!(
+                            self.tokens.last().map(|t| t.token_type),
+                            Some(TokenType::TargetAnnotation)
+                        )
+                    {
+                        self.switch_scanning_mode(ScanningMode::FrameCommon);
+                    }
+                }
+                ScanningMode::TargetSpecific(target) => {
+                    self.consume_target_specific_region(target);
+                }
+                ScanningMode::FrameCommon => {
+                    self.scan_token();
+                }
+            }
         }
 
         // todo: the literal needs to be an optional type of generic object
@@ -138,7 +217,12 @@ impl Scanner {
             self.start,
             len,
         ));
-        (self.has_errors, self.errors.clone(), self.tokens)
+        (
+            self.has_errors,
+            self.errors.clone(),
+            self.tokens,
+            self.target_regions,
+        )
     }
 
     fn is_whitespace(&self) -> bool {
@@ -348,7 +432,10 @@ impl Scanner {
                 }
             }
             '@' => {
-                if self.peek() == '=' {
+                if self.match_keyword("target") {
+                    self.pending_target_annotation = true;
+                    self.add_token(TokenType::TargetAnnotation);
+                } else if self.peek() == '=' {
                     self.advance(); // consume '='
                     self.add_token(TokenType::AtEqual);
                 } else if self.peek() == '@' {
@@ -414,6 +501,12 @@ impl Scanner {
             '"' => self.string(),
             // Backtick support removed - no longer needed in Frame
             '#' => {
+                if self.peek() == '['
+                    && self.is_next_target_directive()
+                    && self.consume_target_directive()
+                {
+                    return;
+                }
                 // Python-style single-line comment
                 self.python_comment();
             }
@@ -460,6 +553,9 @@ impl Scanner {
                         self.number(true);
                     } else if self.is_alpha(c) {
                         self.identifier();
+                        if self.pending_target_annotation {
+                            self.handle_target_language_declaration();
+                        }
                     } else {
                         // Provide helpful error messages for common Unicode quote characters
                         match c {
@@ -480,6 +576,195 @@ impl Scanner {
         }
     }
 
+    fn switch_scanning_mode(&mut self, new_mode: ScanningMode) {
+        if self.scanning_mode == new_mode {
+            return;
+        }
+
+        match (&self.scanning_mode, &new_mode) {
+            (ScanningMode::FrameCommon, ScanningMode::TargetSpecific(target))
+            | (ScanningMode::TargetDiscovery, ScanningMode::TargetSpecific(target)) => {
+                self.start_target_region(*target);
+            }
+            (ScanningMode::TargetSpecific(_), ScanningMode::FrameCommon) => {
+                self.end_target_region();
+            }
+            _ => {}
+        }
+
+        self.scanning_mode = new_mode;
+    }
+
+    fn start_target_region(&mut self, target: TargetLanguage) {
+        if self.active_target_region.is_some() {
+            return;
+        }
+
+        self.active_target_region = Some(ActiveTargetRegion {
+            start_position: self.current,
+            start_line: self.line,
+            target,
+        });
+    }
+
+    fn end_target_region(&mut self) {
+        let Some(active) = self.active_target_region.take() else {
+            return;
+        };
+
+        if active.start_position >= self.current {
+            return;
+        }
+
+        let raw_content: String = self.chars[active.start_position..self.current]
+            .iter()
+            .collect();
+
+        if raw_content.trim().is_empty() {
+            return;
+        }
+
+        let source_map = Self::build_target_source_map(active.start_line, &raw_content);
+
+        self.target_regions.push(TargetRegion {
+            start_position: active.start_position,
+            end_position: Some(self.current),
+            raw_content,
+            target: active.target,
+            source_map,
+        });
+    }
+
+    fn consume_target_specific_region(&mut self, target: TargetLanguage) {
+        if self.active_target_region.is_none() {
+            self.start_target_region(target);
+        }
+
+        while !self.is_at_end() {
+            if self.detect_frame_boundary() {
+                break;
+            }
+            self.advance();
+        }
+
+        self.switch_scanning_mode(ScanningMode::FrameCommon);
+    }
+
+    fn detect_frame_boundary(&self) -> bool {
+        if self.current >= self.chars.len() {
+            return true;
+        }
+
+        let mut idx = self.current;
+        let mut seen_line_start = idx == 0;
+
+        if !seen_line_start && idx > 0 {
+            let mut back = idx;
+            while back > 0 {
+                let ch = self.chars[back - 1];
+                if ch == '\n' {
+                    seen_line_start = true;
+                    break;
+                } else if ch == ' ' || ch == '\t' || ch == '\r' {
+                    back -= 1;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        if !seen_line_start {
+            return false;
+        }
+
+        while idx < self.chars.len() {
+            match self.chars[idx] {
+                ' ' | '\t' | '\r' | '\n' => idx += 1,
+                _ => break,
+            }
+        }
+
+        if idx >= self.chars.len() {
+            return true;
+        }
+
+        match self.chars[idx] {
+            '}' => return true,
+            '#' => {
+                if idx + 1 < self.chars.len() && self.chars[idx + 1] == '[' {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+
+        const FRAME_BOUNDARY_KEYWORDS: [&str; 14] = [
+            "system",
+            "module",
+            "enum",
+            "class",
+            "fn",
+            "function",
+            "interface",
+            "machine",
+            "domain",
+            "domain:",
+            "actions",
+            "actions:",
+            "operations",
+            "operations:",
+        ];
+
+        for keyword in FRAME_BOUNDARY_KEYWORDS.iter() {
+            if self.matches_keyword_from(idx, keyword) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn matches_keyword_from(&self, idx: usize, keyword: &str) -> bool {
+        let keyword_chars: Vec<char> = keyword.chars().collect();
+        if idx + keyword_chars.len() > self.chars.len() {
+            return false;
+        }
+
+        for (offset, expected) in keyword_chars.iter().enumerate() {
+            if self.chars[idx + offset] != *expected {
+                return false;
+            }
+        }
+
+        let after = idx + keyword_chars.len();
+        if after < self.chars.len() {
+            let boundary = self.chars[after];
+            if self.is_alpha_numeric_char(boundary) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn is_alpha_numeric_char(&self, c: char) -> bool {
+        matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_')
+    }
+
+    fn build_target_source_map(frame_start_line: usize, raw_content: &str) -> TargetSourceMap {
+        let line_count = raw_content.lines().count();
+        let offsets: Vec<usize> = if line_count == 0 {
+            Vec::new()
+        } else {
+            (0..line_count).collect()
+        };
+
+        TargetSourceMap {
+            frame_start_line,
+            target_line_offsets: offsets,
+        }
+    }
+
     fn match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() {
             return false;
@@ -494,6 +779,31 @@ impl Scanner {
         self.current += 1;
         self.token_str = self.chars[self.start..self.current].iter().collect();
 
+        true
+    }
+
+    fn match_keyword(&mut self, keyword: &str) -> bool {
+        let mut temp_index = self.current;
+        for expected in keyword.chars() {
+            if temp_index >= self.chars.len() {
+                return false;
+            }
+            let actual = self.chars[temp_index];
+            if actual != expected {
+                return false;
+            }
+            temp_index += 1;
+        }
+
+        if temp_index < self.chars.len() {
+            let boundary = self.chars[temp_index];
+            if self.is_alpha_numeric(boundary) {
+                return false;
+            }
+        }
+
+        self.current = temp_index;
+        self.token_str = self.chars[self.start..self.current].iter().collect();
         true
     }
 
@@ -718,6 +1028,75 @@ impl Scanner {
             self.advance();
         }
         self.add_token(TokenType::PythonComment);
+    }
+
+    fn consume_target_directive(&mut self) -> bool {
+        if self.peek() != '[' {
+            return false;
+        }
+
+        // Enter attribute parsing
+        self.advance(); // consume '['
+        let mut directive = String::new();
+        while !self.is_at_end() {
+            let c = self.advance();
+            if c == ']' {
+                break;
+            }
+            directive.push(c);
+        }
+
+        let trimmed = directive.trim();
+
+        if let Some(rest) = trimmed.strip_prefix("target") {
+            let lang_part = rest.trim_start_matches(|c: char| c == ':' || c.is_whitespace());
+            let lang_name = lang_part.trim().to_ascii_lowercase();
+
+            let language = match lang_name.as_str() {
+                "python" | "python3" => Some(TargetLanguage::Python3),
+                "typescript" => Some(TargetLanguage::TypeScript),
+                "graphviz" => Some(TargetLanguage::Graphviz),
+                "llvm" => Some(TargetLanguage::LLVM),
+                _ => None,
+            };
+
+            if let Some(language) = language {
+                self.switch_scanning_mode(ScanningMode::TargetSpecific(language));
+            }
+        }
+
+        // Skip rest of the line after directive
+        while !self.is_at_end() && self.peek() != '\n' {
+            self.advance();
+        }
+        if !self.is_at_end() && self.peek() == '\n' {
+            self.advance();
+        }
+
+        true
+    }
+
+    fn is_next_target_directive(&self) -> bool {
+        if self.peek() != '[' {
+            return false;
+        }
+
+        let mut idx = self.current + 1; // position after '['
+        while idx < self.chars.len() && self.chars[idx].is_whitespace() {
+            idx += 1;
+        }
+
+        let mut keyword = String::new();
+        while idx < self.chars.len() {
+            let ch = self.chars[idx];
+            if ch == ':' || ch == ']' || ch.is_whitespace() {
+                break;
+            }
+            keyword.push(ch);
+            idx += 1;
+        }
+
+        keyword.eq_ignore_ascii_case("target")
     }
 
     // TODO: handle EOF w/ error
@@ -1086,6 +1465,7 @@ pub enum TokenType {
     Semicolon,        // ;
     Comma,            // ,
     Dispatch,         // =>
+    TargetAnnotation, // @target declaration
     Equals,           // =
     Walrus,           // := (assignment expression operator)
     ForwardSlash,     // /
@@ -1158,6 +1538,35 @@ impl Display for TokenType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScanningMode {
+    TargetDiscovery,
+    FrameCommon,
+    TargetSpecific(TargetLanguage),
+}
+
+#[derive(Debug, Clone)]
+pub struct TargetRegion {
+    pub start_position: usize,
+    pub end_position: Option<usize>,
+    pub raw_content: String,
+    pub target: TargetLanguage,
+    pub source_map: TargetSourceMap,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TargetSourceMap {
+    pub frame_start_line: usize,
+    pub target_line_offsets: Vec<usize>,
+}
+
+#[derive(Debug, Clone)]
+struct ActiveTargetRegion {
+    start_position: usize,
+    start_line: usize,
+    target: TargetLanguage,
+}
+
 #[derive(Debug, Clone)]
 pub enum TokenLiteral {
     Integer(i32),
@@ -1207,5 +1616,26 @@ impl Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} {} {}", self.token_type, self.lexeme, self.literal)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn at_target_emits_target_annotation_token() {
+        let source = "@target python_3\nsystem Example {}\n";
+        let scanner = Scanner::new(source.to_string());
+        let (has_errors, errors, tokens, _regions) = scanner.scan_tokens();
+        assert!(!has_errors, "scanner reported errors: {}", errors);
+        assert!(
+            tokens.len() >= 2,
+            "expected annotation tokens, got {:?}",
+            tokens
+        );
+        assert_eq!(tokens[0].token_type, TokenType::TargetAnnotation);
+        assert_eq!(tokens[1].token_type, TokenType::Identifier);
+        assert_eq!(tokens[1].lexeme, "python_3");
     }
 }

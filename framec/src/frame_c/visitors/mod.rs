@@ -8,8 +8,6 @@ pub enum TargetLanguage {
     Python3,
     TypeScript,
     Graphviz,
-    Rust,
-    C,
     LLVM,
 }
 
@@ -19,8 +17,6 @@ impl TargetLanguage {
             TargetLanguage::Python3 => "py",
             TargetLanguage::TypeScript => "ts",
             TargetLanguage::Graphviz => "graphviz",
-            TargetLanguage::Rust => "rs",
-            TargetLanguage::C => "c",
             TargetLanguage::LLVM => "ll",
         }
     }
@@ -29,20 +25,20 @@ impl TargetLanguage {
 impl TryFrom<&str> for TargetLanguage {
     type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value == "python_3" {
+        let normalized = value.to_ascii_lowercase();
+        if normalized == "python_3" || normalized == "python" {
             Ok(TargetLanguage::Python3)
-        } else if value == "typescript" {
+        } else if normalized == "typescript" || normalized == "ts" {
             Ok(TargetLanguage::TypeScript)
-        } else if value == "graphviz" {
+        } else if normalized == "graphviz" {
             Ok(TargetLanguage::Graphviz)
-        } else if value == "rust" {
-            Ok(TargetLanguage::Rust)
-        } else if value == "c" {
-            Ok(TargetLanguage::C)
-        } else if value == "llvm" {
+        } else if normalized == "llvm" {
             Ok(TargetLanguage::LLVM)
         } else {
-            Err(format!("Unrecognized target language: {}. Supported languages are: python_3, typescript, graphviz, rust, c, llvm", value))
+            Err(format!(
+                "Unrecognized target language: {}. Supported languages are: python_3 (python), typescript (ts), graphviz, llvm",
+                normalized
+            ))
         }
     }
 }
@@ -54,12 +50,9 @@ impl TryFrom<String> for TargetLanguage {
     }
 }
 
-pub mod c_visitor;
 pub mod graphviz_visitor;
-pub mod python_visitor;
 pub mod python_visitor_v2; // v0.75: Complete implementation using CodeBuilder
-pub mod rust_visitor; // v0.87: Rust implementation with working Frame semantics
-pub mod typescript_visitor; // v0.82: TypeScript support // v0.87: C99 implementation with module scope support
+pub mod typescript_visitor; // v0.82: TypeScript support
 
 use super::ast::*;
 

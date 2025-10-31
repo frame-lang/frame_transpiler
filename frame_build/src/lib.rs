@@ -86,7 +86,9 @@
 //! ```
 
 use anyhow::{Error, Result};
-use framec::frame_c::compiler::Exe;
+use framec::frame_c::compiler::{detect_header_target_annotation, Exe};
+use framec::frame_c::runtime_assets;
+use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 use walkdir::WalkDir;
@@ -235,6 +237,8 @@ impl FrameBuild {
             .min_depth(self.min_depth)
             .follow_links(self.follow_links);
 
+        let mut emitted_python_runtime = false;
+
         for entry in walk_dir {
             let entry = entry?;
             let input_path = entry.path();
@@ -248,18 +252,39 @@ impl FrameBuild {
                 let output_path = self.output_dir.join(local_path);
                 fs::create_dir_all(output_path.parent().unwrap())?;
 
-                for target in &self.targets {
+                let file_content = fs::read_to_string(input_path).map_err(|e| {
+                    Error::msg(format!(
+                        "Failed to read Frame file {}: {}",
+                        input_path.display(),
+                        e
+                    ))
+                })?;
+
+                let declared_target = detect_declared_target(&file_content);
+                let targets_to_use: Vec<TargetLanguage> = declared_target
+                    .map(|lang| vec![lang])
+                    .unwrap_or_else(|| self.targets.clone());
+
+                let input_path_str = input_path.to_str().map(|s| s.to_string());
+
+                for target in targets_to_use.into_iter() {
                     let mut target_output_path = output_path.clone();
                     target_output_path.set_extension(target.file_extension());
 
+                    let content_clone = file_content.clone();
+                    let path_clone = input_path_str.clone();
                     let framec_result = std::panic::catch_unwind(move || {
-                        Exe::new().run_file(input_path, Some(*target))
+                        let exe = Exe::new();
+                        exe.run(path_clone.as_deref(), content_clone, Some(target))
                     });
 
                     match framec_result {
                         Ok(Ok(output_content)) => {
                             // success, write the file
                             fs::write(&target_output_path, output_content)?;
+                            if matches!(target, TargetLanguage::Python3) {
+                                emitted_python_runtime = true;
+                            }
                             generated_files.push(target_output_path);
                         }
                         Ok(Err(err)) => {
@@ -291,6 +316,31 @@ impl FrameBuild {
             }
         }
 
+        if emitted_python_runtime {
+            runtime_assets::emit_python_runtime_package(&self.output_dir)?;
+        }
+
         Ok(generated_files)
     }
+}
+
+fn detect_declared_target(content: &str) -> Option<TargetLanguage> {
+    if let Some(header_target) = detect_header_target_annotation(content) {
+        return Some(header_target);
+    }
+
+    let mut tokens = content.split_whitespace();
+    while let Some(token) = tokens.next() {
+        if token == "@target" {
+            if let Some(lang_token) = tokens.next() {
+                let language_name = lang_token.trim_matches(|c: char| !c.is_alphanumeric());
+                if let Ok(language) = TargetLanguage::try_from(language_name) {
+                    return Some(language);
+                }
+            }
+            break;
+        }
+    }
+
+    None
 }
