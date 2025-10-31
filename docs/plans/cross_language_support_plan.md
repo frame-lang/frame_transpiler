@@ -113,9 +113,9 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 **Goal**: Add TypeScript and Python syntax parsing for target blocks
 
 **Tasks**:
-- [ ] Create `TargetAst` trait and implementations
+- [x] Create `TargetAst` trait and implementations
 - [ ] Implement `TypeScriptParser::parse_statement()` method
-- [ ] Implement `PythonParser::parse_statement()` method  
+- [x] Implement `PythonParser::parse_statement()` method  
 - [ ] Add `resolve_target_statements()` parser method
 - [ ] Implement dual-language error reporting
 

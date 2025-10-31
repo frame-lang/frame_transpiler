@@ -1398,6 +1398,30 @@ impl PythonVisitorV2 {
         }
 
         self.builder.end_function();
+
+        // Generate instance-level wrapper that forwards to _action_name so native code can call self.action()
+        self.builder.newline();
+        self.builder.map_next(action_node.line);
+        self.builder.write_function(
+            &action_node.name,
+            &full_params,
+            action_node.is_async,
+            action_node.line,
+        );
+
+        let call_expr = if params.is_empty() {
+            format!("self._action_{}()", action_node.name)
+        } else {
+            format!("self._action_{}({})", action_node.name, params)
+        };
+
+        if action_node.is_async {
+            self.builder.writeln(&format!("return await {}", call_expr));
+        } else {
+            self.builder.writeln(&format!("return {}", call_expr));
+        }
+
+        self.builder.end_function();
     }
 
     fn visit_operation_node(&mut self, operation_node: &OperationNode) {

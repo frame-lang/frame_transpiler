@@ -1,23 +1,23 @@
 # TypeScript-Specific Statement Guidance
 
 ## Purpose
-This document lists constructs the TypeScript backend emits that rely on TypeScript/Node.js features beyond the common Frame contract. Use these patterns to substitute Python-centric statements with idiomatic TypeScript code while preserving semantics.
+This document lists constructs the TypeScript backend emits that rely on TypeScript/Node.js features beyond the common Frame contract. Use these patterns to express Frame semantics in idiomatic TypeScript without leaning on Python terminology or implementation details.
 
 ## Runtime & Language Integration Points
 
 | Area | TypeScript Behaviour | Notes |
 | --- | --- | --- |
 | Event Type | `FrameEvent` class/interface | Implemented in the TypeScript runtime library |
-| Kernel Loop | `__kernel(event: FrameEvent): void` with `while (this.__next_compartment !== undefined)` | Mirrors Python transition loop |
+| Kernel Loop | `__kernel(event: FrameEvent): void` with `while (this.__next_compartment !== undefined)` | Implements the Frame transition loop semantics |
 | Dispatcher | `private __router(event: FrameEvent): void` using `switch`/lookup tables | Strong typing enforces legal states/events |
-| Async I/O | Promises with `async/await` (`net.createConnection`, `socket.on`) | Replaces Python `asyncio` operations |
+| Async I/O | Promises with `async/await` (`net.createConnection`, `socket.on`) | Built on Node.js networking primitives |
 | Domain Storage | Class fields (`this.count`) | Must align with generated type declarations |
 | Exception Model | `try { ... } catch (e) { ... }` with `unknown` cast | Keep error variables local (no `this.e`) |
-| Logging/Print | `console.log()` | Replace Python `print()` calls |
+| Logging/Print | `console.log()` | Standard Node.js logging |
 | Data Structures | Native TypeScript (`Record<string, unknown>`, arrays) | Use interfaces and generics to type payloads |
-| Task Scheduling | `Promise.resolve().then(...)`, `setImmediate(...)` | Stand-in for `asyncio.create_task` |
+| Task Scheduling | `Promise.resolve().then(...)`, `setImmediate(...)` | Schedules asynchronous work on the event loop |
 
-## Statements Replacing Python-Specific Logic
+## Core TypeScript Runtime Patterns
 
 1. **Async Socket Operations**
    ```typescript
@@ -29,14 +29,14 @@ This document lists constructs the TypeScript backend emits that rely on TypeScr
        });
    }
    ```
-   *Use with `await this.createConnection(...)` instead of `asyncio.open_connection`.*
+   *Establishes an async TCP connection using native Node.js primitives.*
 
 2. **Event Dispatch**
    ```typescript
    const event = new FrameEvent("onConnected", null);
    this.__kernel(event);
    ```
-   *Keep event construction typed; leverage interfaces for payload shape.*
+   *Construct and dispatch events using the shared Frame runtime contract.*
 
 3. **Forwarded Events**
    ```typescript
@@ -44,20 +44,20 @@ This document lists constructs the TypeScript backend emits that rely on TypeScr
        this.__router(new FrameEvent("$>", this.__compartment.enterArgs));
    }
    ```
-   *Ensure optional checks mirror the kernel contract.*
+   *Ensure optional checks mirror the kernel contract while remaining idiomatic TypeScript.*
 
 4. **State Stack Handling**
    ```typescript
    this.__stateStack.push(snapshot);
    const previous = this.__stateStack.pop();
    ```
-   *Use typed arrays (`Array<StateSnapshot>`) to mirror Python list behaviour.*
+   *`Array` operations maintain stack semantics for state snapshots.*
 
 5. **Domain Mutations**
    ```typescript
    this.count = this.count + 1;
    ```
-   *Keep numeric types explicit to avoid unintended coercions.*
+   *Explicit arithmetic keeps TypeScript's `number` operations predictable.*
 
 6. **Background Tasks**
    ```typescript
@@ -65,7 +65,7 @@ This document lists constructs the TypeScript backend emits that rely on TypeScr
        void Promise.resolve().then(() => this.__processMessages());
    }
    ```
-   *Replaces `asyncio.create_task` without blocking the kernel loop.*
+   *Schedules background work on the event loop without blocking the kernel.*
 
 7. **Error Handling**
    ```typescript
@@ -76,10 +76,9 @@ This document lists constructs the TypeScript backend emits that rely on TypeScr
        this.__kernel(new FrameEvent("onError", { error: message }));
    }
    ```
-   *Convert errors to string payloads to match Frame expectations.*
+   *Converts errors to payloads compatible with the Frame event contract.*
 
 ## Notes for Target-Specific Pragmas
 - Define TypeScript-only logic inside Frame pragmas only after satisfying the core contract.
 - Prefer runtime helper modules (`frame_runtime_ts`) for complex behaviour so other targets can mirror it.
 - Update this document whenever introducing new TypeScript-specific statements or Node.js APIs.
-
