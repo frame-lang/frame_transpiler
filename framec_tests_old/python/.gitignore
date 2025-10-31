@@ -1,7 +1,0 @@
-**/__pycache__/*.pyc
-**/__pycache__/
-venv/
-.pytest_cache
-
-src/*/*.py
-!src/tests/*.py

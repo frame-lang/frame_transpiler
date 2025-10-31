@@ -1,7 +1,0 @@
-Found 379 test files
-
-=== SUMMARY ===
-Total Tests: 379
-Passed: 349
-Failed: 30
-Success Rate: 92.1%

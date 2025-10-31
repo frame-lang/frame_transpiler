@@ -1,3 +1,0 @@
-This is a test file for the with statement test.
-It contains sample text for testing file operations.
-Frame v0.37 supports with statements!

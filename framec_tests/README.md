@@ -106,7 +106,7 @@ python3 framec_tests/runner/frame_test_runner.py --output report.json
 ## Test Runner Options
 
 ```
---languages, -l      Languages to test (python, typescript, rust, golang, javascript)
+--languages, -l      Languages to test (python, typescript)
 --categories, -c     Test categories to run (default: all)
 --framec            Path to framec executable (default: ./target/release/framec)
 --verbose, -v       Verbose output showing each test result
@@ -153,7 +153,7 @@ echo '...' > language_specific/python/test_async_context.frm
 
 ## Migration from Old Structure
 
-The migration has been completed. The old structure is backed up in `framec_tests_old/`.
+The migration has been completed. The former `framec_tests_old/` backup was removed on 2025-10-30; consult git history if you need legacy layouts.
 
 ## Benefits of New Structure
 

@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "framec",
     "frame_build", 
-    "frame_runtime",
     "runtime/llvm",
 ]
 exclude = ["framec_tests"]

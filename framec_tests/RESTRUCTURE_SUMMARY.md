@@ -11,7 +11,6 @@ framec_tests/
 ├── python/src/           # 461 Python-specific tests scattered
 ├── golang/               # 17 separate Go tests
 ├── javascript/           # 17 separate JS tests
-├── rust/                 # Rust-specific tests
 └── typescript/           # 2 TypeScript tests
 ```
 
@@ -126,10 +125,10 @@ python3 runner/frame_test_runner.py --output results.json
 To replace the old structure with the new one:
 
 ```bash
-# Backup old tests
+# Backup old tests (historical; backup directory removed in 2025-10-30 cleanup)
 mv framec_tests framec_tests_old
 
-# Rename new structure
+# Rename new structure (now the canonical layout)
 mv framec_tests_new framec_tests
 
 # Update any scripts that reference old paths

@@ -1,8 +1,0 @@
-{
-    "name": "NumPy Matrix Multiplication Tests",
-    "description": "Tests requiring NumPy for matrix multiplication operator (@)",
-    "requirements": ["numpy"],
-    "files": [
-        "test_matmul_with_numpy.frm"
-    ]
-}

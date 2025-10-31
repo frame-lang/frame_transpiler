@@ -60,8 +60,6 @@ framec_tests/
 ├── generated/           # Generated code (gitignored)
 ├── runner/              # Test infrastructure
 └── reports/             # Test results
-
-Old structure backed up in: framec_tests_old/
 ```
 
 ## Usage Examples
@@ -121,7 +119,7 @@ python3 framec_tests/runner/frame_test_runner.py \
 3. Install TypeScript dependencies for full TS testing
 
 ### Future Enhancements
-1. Add more languages (Rust, Go, Java)
+1. Add more languages (Go, Java) once new visitors land
 2. Performance benchmarking
 3. Test coverage metrics
 4. Visual test matrix dashboard
@@ -139,8 +137,8 @@ python3 framec_tests/runner/frame_test_runner.py \
 - `.github/workflows/test_frame.yml` - CI/CD workflow
 
 ### Structure Changes
-- `framec_tests/` - New unified structure (was framec_tests_new)
-- `framec_tests_old/` - Backup of old structure
+- `framec_tests/` - Unified structure (formerly `framec_tests_new`)
+- `framec_tests_old/` - Historical backup removed in 2025-10-30 cleanup; see repo history if needed
 
 ## Validation
 

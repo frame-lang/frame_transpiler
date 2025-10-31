@@ -1,4 +1,0 @@
-Input file for Frame testing.
-This file contains test data.
-Used for with statement validation.
-Data processing complete.
