@@ -77,20 +77,23 @@ domain:
     ...
 ```
 
-## Statement Forms
+## Statement Concepts (Language-Neutral)
 
-- **Expression statement**: `expression`
-- **Assignment**: `target = expression`
-- **Transition**: `-> $State` or `-> $$[+]` / `-> $$[-]`
-- **Forward**: `=> $^`
-- **Return**: `return [expression]`
-- **If / Else**: `if condition { ... } [else { ... }]`
-- **While**: `while condition { ... }`
-- **For-in**: `for var in iterable { ... }`
-- **Try/Catch**: `try { ... } catch (Identifier) { ... }`
-- **Raise**: `raise expression`
-- **Async/Await**: `await expression`
-- **Call**: `Callable(arguments)`
+The parser recognises the following concepts across targets. Each backend maps them to its native syntax while preserving semantics.
+
+| Concept | Description | Notes |
+| --- | --- | --- |
+| Expression statement | Evaluate an expression for side effects | Target determines exact statement form |
+| Assignment | Bind a value to a variable/domain field | Simple `=` semantics in AST |
+| Transition | Change state (`->`) including stack push/pop (`$$[+]`, `$$[-]`) | Must invoke kernel hooks |
+| Forward | Queue event for parent/next cycle (`=> $^`) | Uses kernel-forward APIs |
+| Return | Exit handler/action optionally with value | AST carries optional expression |
+| Conditional | If/else branching | Target chooses native conditional syntax |
+| Loop | While/for constructs over iterables | AST captures loop condition/body |
+| Exception handling | Try/catch/finally semantics | AST records handlers and error identifiers |
+| Error signal | Raise/throw semantics | Propagates through kernel loop |
+| Async/await | Awaiting asynchronous operations | AST marks awaited expression |
+| Call | Invoke callable with arguments | Target emits native call syntax |
 
 ## Expressions (Non-Exhaustive)
 

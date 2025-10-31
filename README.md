@@ -1,6 +1,6 @@
 # Frame Language Transpiler
 
-This project contains the code for building the Frame Language Transpiler - the **Framepiler**.  The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, and GraphViz as well as UML Statechart diagrams.
+This project contains the code for building the Frame Language Transpiler - the **Framepiler**. The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, Graphviz (DOT), and LLVM IR (native backend scaffolding).
 
 **Current Version**: v0.86.25  
 **Test Framework**: Unified multi-language testing (913 total tests, enforced in CI)  

@@ -17,7 +17,7 @@ Phase 1 establishes the baseline for parallel language implementation across all
 |------------|---------------|-----------|---------|
 | Python     | ✅ Success    | ✅ Success | **READY** |
 | TypeScript | ✅ Success    | ⏸️ Pending | **READY** |
-| Rust       | ❌ No Visitor | ❌ N/A    | **BLOCKED** |
+| Rust (legacy) | ❌ Removed | ❌ N/A    | Archived |
 | C          | ❌ No Visitor | ❌ N/A    | **BLOCKED** |
 | C++        | ❌ No Visitor | ❌ N/A    | **BLOCKED** |
 | C#         | ❌ No Visitor | ❌ N/A    | **BLOCKED** |
@@ -62,7 +62,7 @@ All 4 Phase 1 tests successfully transpile:
 
 ### Priority 1: Complete Phase 1 (100% Success Required)
 1. Create TypeScript execution validation
-2. Implement Rust visitor for Phase 1 tests
+2. (Archived) Rust visitor effort deferred until re-scoped
 3. Implement C visitor for Phase 1 tests  
 4. Implement C++ visitor for Phase 1 tests
 5. Implement C# visitor for Phase 1 tests

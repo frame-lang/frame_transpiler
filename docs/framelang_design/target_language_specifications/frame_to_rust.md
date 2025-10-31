@@ -1,18 +1,20 @@
 # Frame to Rust Translation Guide
 
+> ⚠️ **Legacy Reference**: The `rust_visitor` backend was removed from the codebase on 2025-10-30. This document is retained for historical design notes only.
+
 ## Overview
 
-This guide describes the standard Frame to Rust transpiler implementation. The Frame transpiler's RustVisitor generates working Rust code following the same semantic patterns as the Python transpiler, serving as the canonical reference for Frame semantics.
+This guide describes the former Frame to Rust transpiler implementation. The Frame transpiler's RustVisitor generated working Rust code following the same semantic patterns as the Python transpiler, serving as the canonical reference for Frame semantics.
 
 ## Current Implementation Status
 
-**✅ PRODUCTION READY**: The standard RustVisitor is fully implemented and tested.
+**❌ Deprecated**: The standard RustVisitor has been removed; no current Rust backend ships with Frame.
 
-- **Location**: `framec/src/frame_c/visitors/rust_visitor.rs`
+- **Location**: (retired) `framec/src/frame_c/visitors/rust_visitor.rs`
 - **Integration**: Standard visitor pattern like other language visitors
-- **Test Results**: 98.8% transpilation success (429/433 tests), 71% execution success for core tests
-- **Method Pattern**: Generates separate event handler methods following Python pattern
-- **Test Support**: Automatic main function generation for testing via `FRAME_RUST_GENERATE_MAIN`
+- **Historical Results**: 98.8% transpilation success (429/433 tests), 71% execution success for core tests (final recorded run)
+- **Method Pattern**: Generated separate event handler methods following Python pattern
+- **Test Support**: Automatic main function generation via `FRAME_RUST_GENERATE_MAIN`
 
 **Removed Experimental Code**: All experimental approaches (visitor2, handcrafted variants) have been removed in favor of the standard implementation.
 
@@ -624,7 +626,7 @@ The RustVisitor supports test main function generation via environment variable:
 ```bash
 # Enable main function generation for testing
 export FRAME_RUST_GENERATE_MAIN=1
-framec -l rust test_system.frm
+> Legacy command (no longer supported): `framec -l rust test_system.frm`
 ```
 
 When enabled, the transpiler generates a `main()` function that:

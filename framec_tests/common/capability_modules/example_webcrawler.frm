@@ -1,6 +1,6 @@
 # Example Frame System Using Capability Modules
 # This demonstrates the Python-syntax-based universal approach
-# Same Frame source will generate Python, TypeScript, C#, Java, Go, Rust, C
+# Same Frame source currently targets Python, TypeScript, and Graphviz (additional languages future work)
 
 import AsyncSupport from "./async.frm"
 import Collections from "./collections.frm"

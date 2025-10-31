@@ -608,7 +608,7 @@ regex = "1.0"       # For text processing
 Update help text in `main.rs`:
 
 ```rust
-.help("Target language: python_3, typescript, yourlang, graphviz")
+.help("Target language: python_3, typescript, yourlang, graphviz, llvm")
 ```
 
 ### Documentation

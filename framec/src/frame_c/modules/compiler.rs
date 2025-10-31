@@ -2,20 +2,21 @@
 // Orchestrates compilation of Frame projects with multiple files
 
 use super::cache::ModuleCache;
-use super::errors::{ModuleError, ModuleErrorKind, ModuleResult};
+use super::errors::{ModuleError, ModuleErrorKind, ModuleResult, SourceLocation};
 use super::graph::DependencyGraph;
 use super::linker::{LinkingStrategy, ModuleLinker};
 use super::resolver::ModuleResolver;
 use crate::frame_c::ast::{FrameModule, ImportNode, ImportType};
 use crate::frame_c::config::FrameConfig;
 use crate::frame_c::parser::Parser;
-use crate::frame_c::scanner::Scanner;
+use crate::frame_c::scanner::{Scanner, Token, TokenType};
 use crate::frame_c::symbol_table::Arcanum;
 use crate::frame_c::visitors::TargetLanguage;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
-use std::fs;
+use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Multi-file compiler that handles Frame projects
 pub struct MultiFileCompiler {
@@ -33,6 +34,9 @@ pub struct MultiFileCompiler {
 
     /// Target language for code generation
     target_language: TargetLanguage,
+
+    /// Optional override from CLI for entry module validation
+    target_language_override: Option<TargetLanguage>,
 
     /// Configuration
     _config: FrameConfig,
@@ -181,6 +185,24 @@ impl ModuleExports {
     }
 }
 
+fn find_declared_target_in_tokens(tokens: &[Token]) -> Option<TargetLanguage> {
+    let mut iter = tokens.iter();
+    while let Some(token) = iter.next() {
+        if token.token_type == TokenType::TargetAnnotation {
+            if let Some(next_token) = iter.next() {
+                if next_token.token_type == TokenType::Identifier {
+                    if let Ok(language) = TargetLanguage::try_from(next_token.lexeme.as_str()) {
+                        return Some(language);
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    None
+}
+
 impl MultiFileCompiler {
     /// Create a new multi-file compiler
     pub fn new(config: FrameConfig, target_language: TargetLanguage) -> ModuleResult<Self> {
@@ -196,6 +218,7 @@ impl MultiFileCompiler {
             module_cache,
             linker,
             target_language,
+            target_language_override: Some(target_language),
             _config: config,
             parsed_modules: HashMap::new(),
         })
@@ -219,6 +242,7 @@ impl MultiFileCompiler {
             module_cache,
             linker,
             target_language,
+            target_language_override: Some(target_language),
             _config: config,
             parsed_modules: HashMap::new(),
         })
@@ -308,7 +332,7 @@ impl MultiFileCompiler {
     /// Parse a single Frame module file
     fn parse_module(&mut self, file_path: &Path) -> ModuleResult<CompiledModule> {
         // Check cache first
-        let content = fs::read_to_string(file_path).map_err(|e| {
+        let content = std::fs::read_to_string(file_path).map_err(|e| {
             ModuleError::new(
                 ModuleErrorKind::IOError {
                     path: file_path.to_path_buf(),
@@ -323,14 +347,32 @@ impl MultiFileCompiler {
         hasher.update(&content);
         let content_hash = format!("{:x}", hasher.finalize());
 
+        let mut entry_override = self.target_language_override.take();
+
         // Check if cached version is up to date
         if let Some(cached) = self.module_cache.get(file_path, &content_hash)? {
+            if let Some(entry_target) = entry_override.take() {
+                if let Some(declared) = cached.ast.target_language {
+                    if declared != entry_target {
+                        return Err(ModuleError::new(
+                            ModuleErrorKind::ParseError {
+                                error: format!(
+                                    "Target language mismatch: entry file declares {:?} but CLI requested {:?}",
+                                    declared, entry_target
+                                ),
+                            },
+                            file_path.display().to_string(),
+                        ));
+                    }
+                }
+            }
+            self.target_language_override = entry_override;
             return Ok(cached);
         }
 
         // Parse the module
         let scanner = Scanner::new(content);
-        let (has_errors, errors, tokens) = scanner.scan_tokens();
+        let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
 
         if has_errors {
             return Err(ModuleError::new(
@@ -339,13 +381,38 @@ impl MultiFileCompiler {
             ));
         }
 
+        if let Some(entry_target) = entry_override {
+            if let Some(declared) = find_declared_target_in_tokens(&tokens) {
+                if declared != entry_target {
+                    return Err(ModuleError::new(
+                        ModuleErrorKind::ParseError {
+                            error: format!(
+                                "Target language mismatch: entry file declares {:?} but CLI requested {:?}",
+                                declared, entry_target
+                            ),
+                        },
+                        file_path.display().to_string(),
+                    ));
+                }
+            }
+        }
+        self.target_language_override = None;
+
+        let target_regions = Arc::new(target_regions_vec);
+
         // Two-pass parsing for symbol table construction
         let mut arcanum = Arcanum::new();
         let mut comments = Vec::new();
 
         // First pass: build symbol table
         {
-            let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
+            let mut syntactic_parser = Parser::new(
+                &tokens,
+                &mut comments,
+                true,
+                arcanum,
+                Arc::clone(&target_regions),
+            );
             match syntactic_parser.parse() {
                 Ok(_) => {
                     if syntactic_parser.had_error() {
@@ -359,10 +426,20 @@ impl MultiFileCompiler {
                     arcanum = syntactic_parser.get_arcanum();
                 }
                 Err(e) => {
-                    return Err(ModuleError::new(
-                        ModuleErrorKind::ParseError { error: e.error },
+                    let mut module_error = ModuleError::new(
+                        ModuleErrorKind::ParseError {
+                            error: e.to_display_string(),
+                        },
                         file_path.display().to_string(),
-                    ));
+                    );
+                    if let Some(line) = e.frame_line {
+                        module_error = module_error.with_location(SourceLocation {
+                            file: file_path.to_path_buf(),
+                            line,
+                            column: e.frame_column.unwrap_or(1),
+                        });
+                    }
+                    return Err(module_error);
                 }
             }
         }
@@ -372,15 +449,31 @@ impl MultiFileCompiler {
 
         // Second pass: semantic analysis
         let mut comments2 = comments.clone();
-        let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum_for_semantic);
+        let mut semantic_parser = Parser::new(
+            &tokens,
+            &mut comments2,
+            false,
+            arcanum_for_semantic,
+            Arc::clone(&target_regions),
+        );
 
         let ast = match semantic_parser.parse() {
             Ok(module) => module,
             Err(e) => {
-                return Err(ModuleError::new(
-                    ModuleErrorKind::ParseError { error: e.error },
+                let mut module_error = ModuleError::new(
+                    ModuleErrorKind::ParseError {
+                        error: e.to_display_string(),
+                    },
                     file_path.display().to_string(),
-                ));
+                );
+                if let Some(line) = e.frame_line {
+                    module_error = module_error.with_location(SourceLocation {
+                        file: file_path.to_path_buf(),
+                        line,
+                        column: e.frame_column.unwrap_or(1),
+                    });
+                }
+                return Err(module_error);
             }
         };
 
@@ -632,8 +725,6 @@ impl MultiFileCompiler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use tempfile::tempdir;
 
     #[test]
     fn test_module_exports_extraction() {

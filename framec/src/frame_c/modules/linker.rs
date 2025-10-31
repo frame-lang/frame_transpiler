@@ -3,6 +3,7 @@
 
 use super::compiler::CompiledModule;
 use super::errors::{ModuleError, ModuleErrorKind, ModuleResult};
+use crate::frame_c::runtime_assets;
 use crate::frame_c::visitors::TargetLanguage;
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -126,7 +127,6 @@ impl ModuleLinker {
 
         // Generate code for each module using language-specific visitor
         let config = FrameConfig::default();
-        let framec_version = "Emitted from framec_v0.83.3";
 
         // Collect all generated code first
         let mut module_codes = Vec::new();
@@ -135,20 +135,21 @@ impl ModuleLinker {
         // We need to move modules out to get ownership of Arcanum
         let modules = std::mem::take(&mut self.modules);
         for module in modules {
+            self.validate_module_target(&module)?;
             // Generate code based on target language
             let module_code = match self.target_language {
                 TargetLanguage::Python3 => {
-                    use crate::frame_c::visitors::python_visitor::PythonVisitor;
-                    let mut visitor = PythonVisitor::new(
-                        module.symbols, // Move the Arcanum
-                        false,          // generate_state_stack
-                        false,          // generate_change_state
-                        framec_version,
-                        Vec::new(), // comments
+                    use crate::frame_c::symbol_table::SymbolConfig;
+                    use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
+
+                    let arcanum_vec = vec![module.symbols];
+                    let mut visitor = PythonVisitorV2::new(
+                        arcanum_vec,
+                        SymbolConfig::new(),
                         config.clone(),
+                        Vec::new(),
                     );
-                    visitor.run_v2(&module.ast);
-                    visitor.get_code()
+                    visitor.run(&module.ast)
                 }
                 TargetLanguage::TypeScript => {
                     use crate::frame_c::symbol_table::SymbolConfig;
@@ -297,6 +298,9 @@ impl ModuleLinker {
             match self.target_language {
                 TargetLanguage::Python3 => {
                     if trimmed.starts_with("import ") || trimmed.starts_with("from ") {
+                        if trimmed.contains("frame_runtime_py") {
+                            continue;
+                        }
                         // Skip Frame import comments
                         if !trimmed.starts_with("# Frame import:") {
                             imports.insert(trimmed.to_string());
@@ -353,21 +357,24 @@ impl ModuleLinker {
 
         match self.target_language {
             TargetLanguage::Python3 => {
-                output.push_str("# Frame runtime classes\n");
-                output.push_str("class FrameEvent:\n");
-                output.push_str("    def __init__(self, message, parameters):\n");
-                output.push_str("        self._message = message\n");
-                output.push_str("        self._parameters = parameters\n");
+                output.push_str("# Frame runtime import with fallback definitions\n");
+                output.push_str("try:\n");
+                output.push_str("    from frame_runtime_py import FrameEvent, FrameCompartment\n");
+                output.push_str("except ImportError:\n");
+                output.push_str("    class FrameEvent:\n");
+                output.push_str("        def __init__(self, message, parameters):\n");
+                output.push_str("            self._message = message\n");
+                output.push_str("            self._parameters = parameters\n");
                 output.push_str("\n");
-                output.push_str("class FrameCompartment:\n");
-                output.push_str("    def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):\n");
-                output.push_str("        self.state = state\n");
-                output.push_str("        self.forward_event = forward_event\n");
-                output.push_str("        self.exit_args = exit_args\n");
-                output.push_str("        self.enter_args = enter_args\n");
-                output.push_str("        self.parent_compartment = parent_compartment\n");
-                output.push_str("        self.state_vars = state_vars or {}\n");
-                output.push_str("        self.state_args = state_args or {}\n");
+                output.push_str("    class FrameCompartment:\n");
+                output.push_str("        def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):\n");
+                output.push_str("            self.state = state\n");
+                output.push_str("            self.forward_event = forward_event\n");
+                output.push_str("            self.exit_args = exit_args\n");
+                output.push_str("            self.enter_args = enter_args\n");
+                output.push_str("            self.parent_compartment = parent_compartment\n");
+                output.push_str("            self.state_vars = state_vars or {}\n");
+                output.push_str("            self.state_args = state_args or {}\n");
             }
             TargetLanguage::TypeScript => {
                 output.push_str("// Frame runtime classes (embedded for standalone compilation)\n");
@@ -418,6 +425,7 @@ impl ModuleLinker {
         let mut in_frame_event = false;
         let mut in_frame_compartment = false;
         let mut skip_next_blank = false;
+        let mut in_ts_runtime_block = false;
 
         for line in code.lines() {
             let trimmed = line.trim();
@@ -466,6 +474,43 @@ impl ModuleLinker {
             };
 
             if should_skip_import {
+                skip_next_blank = true;
+                continue;
+            }
+
+            if self.target_language == TargetLanguage::TypeScript
+                && trimmed == "// Frame runtime classes (embedded for standalone compilation)"
+            {
+                in_ts_runtime_block = true;
+                skip_next_blank = true;
+                continue;
+            }
+
+            if in_ts_runtime_block {
+                if trimmed.starts_with("export ") {
+                    in_ts_runtime_block = false;
+                    // allow export line to process normally
+                } else {
+                    skip_next_blank = true;
+                    continue;
+                }
+            }
+
+            if self.target_language == TargetLanguage::Python3 && trimmed == "try:" {
+                skip_next_blank = true;
+                continue;
+            }
+
+            if self.target_language == TargetLanguage::Python3
+                && trimmed.starts_with("from frame_runtime_py")
+            {
+                skip_next_blank = true;
+                continue;
+            }
+
+            if self.target_language == TargetLanguage::Python3
+                && trimmed.starts_with("except ImportError")
+            {
                 skip_next_blank = true;
                 continue;
             }
@@ -562,7 +607,8 @@ impl ModuleLinker {
         create_package: bool,
     ) -> ModuleResult<String> {
         use crate::frame_c::config::FrameConfig;
-        use crate::frame_c::visitors::python_visitor::PythonVisitor;
+        use crate::frame_c::symbol_table::SymbolConfig;
+        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
 
         // Create output directory if it doesn't exist
         fs::create_dir_all(output_dir).map_err(|e| {
@@ -579,7 +625,6 @@ impl ModuleLinker {
         })?;
 
         let config = FrameConfig::default();
-        let framec_version = "Emitted from framec_v0.76.1";
 
         // Process each module and generate its Python file
         let modules = std::mem::take(&mut self.modules);
@@ -587,23 +632,18 @@ impl ModuleLinker {
         let mut module_map = HashMap::new(); // Map Frame paths to Python module names
 
         for module in modules {
+            self.validate_module_target(&module)?;
             // Generate Python module name from Frame file path
             let py_module_name = self.frame_path_to_python_module(&module.file_path);
             module_map.insert(module.file_path.clone(), py_module_name.clone());
 
             // Create a visitor for this module
-            let mut visitor = PythonVisitor::new(
-                module.symbols,
-                false, // generate_state_stack
-                false, // generate_change_state
-                framec_version,
-                Vec::new(), // comments
-                config.clone(),
-            );
+            let arcanum_vec = vec![module.symbols];
+            let mut visitor =
+                PythonVisitorV2::new(arcanum_vec, SymbolConfig::new(), config.clone(), Vec::new());
 
             // Generate code for this module
-            visitor.run_v2(&module.ast);
-            let mut module_code = visitor.get_code();
+            let mut module_code = visitor.run(&module.ast);
 
             // Add Python imports for Frame imports
             let python_imports =
@@ -673,6 +713,25 @@ impl ModuleLinker {
             generated_files.push(init_path);
         }
 
+        let runtime_pkg = if self.target_language == TargetLanguage::Python3 {
+            Some(
+                runtime_assets::emit_python_runtime_package(output_dir).map_err(|e| {
+                    ModuleError::new(
+                        ModuleErrorKind::IOError {
+                            path: output_dir.to_path_buf(),
+                            error: e.to_string(),
+                        },
+                        format!(
+                            "Failed to write Frame runtime package in {}",
+                            output_dir.display()
+                        ),
+                    )
+                })?,
+            )
+        } else {
+            None
+        };
+
         // Return a summary of what was generated
         let mut summary = String::new();
         summary.push_str(&format!(
@@ -682,6 +741,12 @@ impl ModuleLinker {
         ));
         for file in &generated_files {
             summary.push_str(&format!("# - {}\n", file.display()));
+        }
+        if let Some(runtime_dir) = runtime_pkg {
+            summary.push_str(&format!(
+                "# - {}/__init__.py (Frame runtime)\n",
+                runtime_dir.display()
+            ));
         }
 
         Ok(summary)
@@ -916,6 +981,24 @@ class FrameCompartment:
     /// Check if linker has any modules
     pub fn is_empty(&self) -> bool {
         self.modules.is_empty()
+    }
+
+    fn validate_module_target(&self, module: &CompiledModule) -> ModuleResult<()> {
+        if let Some(lang) = module.ast.target_language {
+            if lang != self.target_language {
+                return Err(ModuleError::new(
+                    ModuleErrorKind::ImportError {
+                        import: module.file_path.display().to_string(),
+                        reason: format!(
+                            "Module declares @target {:?} but compilation is running for {:?}",
+                            lang, self.target_language
+                        ),
+                    },
+                    module.file_path.display().to_string(),
+                ));
+            }
+        }
+        Ok(())
     }
 }
 

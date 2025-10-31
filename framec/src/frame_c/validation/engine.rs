@@ -150,8 +150,6 @@ impl ValidationEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::frame_c::ast::*;
-    use std::path::PathBuf;
 
     #[test]
     fn test_validation_engine_creation() {

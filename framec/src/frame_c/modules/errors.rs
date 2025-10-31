@@ -237,7 +237,7 @@ impl fmt::Display for ModuleErrorKind {
                 write!(f, "I/O error for '{}': {}", path.display(), error)
             }
             ModuleErrorKind::ParseError { error } => {
-                write!(f, "Parse error: {}", error)
+                write!(f, "{}", error)
             }
             ModuleErrorKind::ImportError { import, reason } => {
                 write!(f, "Import error for '{}': {}", import, reason)

@@ -8,11 +8,14 @@ pub mod llvm;
 pub mod marker_linter; // Marker file linting for validation (v0.74)
 pub mod modules; // Multi-file module system (v0.57)
 mod parser;
+pub mod runtime_assets; // Shared runtime helpers (v0.87)
 mod scanner;
 pub mod semantic_analyzer; // Semantic analysis for call resolution (v0.62)
 pub mod source_map; // Source map generation for debugging (v0.59)
 pub mod source_mapping; // Marker-based source mapping system (v0.73)
 mod symbol_table;
+mod target_discovery;
+mod target_parsers;
 pub mod tools; // CLI tools and utilities
 pub mod utils;
 pub mod validation; // Comprehensive validation system (v0.80.5)

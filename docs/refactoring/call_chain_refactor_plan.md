@@ -68,7 +68,7 @@ fn visit_call_expression_node(&mut self, method_call: &CallExprNode) {
 ## Implementation Steps
 
 ### Phase 1: Add the Refactored Module
-✅ Created `/framec/src/frame_c/visitors/call_chain_refactor.rs`
+✅ (Historical) Created `/framec/src/frame_c/visitors/call_chain_refactor.rs` — removed in 2025-10-30 cleanup after PythonVisitorV2 fully absorbed the refactor.
 
 ### Phase 2: Integrate Into PythonVisitor
 

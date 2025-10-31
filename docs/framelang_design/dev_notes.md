@@ -1678,7 +1678,7 @@ var evens = [x for x in numbers if x % 2 == 0]
 
 #### C Runtime Library Design
 
-Create `frame_runtime/lists.h`:
+Create `frame_runtime/lists.h` _(legacy path — rename to `runtime/c/lists.h` when the C runtime work resumes)_:
 
 ```c
 typedef struct {

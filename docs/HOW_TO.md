@@ -167,7 +167,7 @@ python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec
 
 ### Single Source of Truth
 - Root `Cargo.toml` contains `[workspace.package]` and is the authoritative version.
-- Member crates (`framec`, `frame_build`, `frame_runtime`) inherit that value via `version.workspace = true`; no per-crate edits are required.
+- Member crates (`framec`, `frame_build`, `runtime/llvm`) inherit that value via `version.workspace = true`; no per-crate edits are required.
 - Build-time constants use `env!("FRAME_VERSION")`, which the build script maps directly to `CARGO_PKG_VERSION`.
 
 ### Semantic Versioning Rules
@@ -286,7 +286,7 @@ framec/src/frame_c/
 ```
 
 **Important CLI Options:**
-- `-l, --language <LANG>`: Specify target language (python_3, typescript, graphviz, rust, c)
+- `-l, --language <LANG>`: Specify target language (python_3, typescript, graphviz, llvm). When a Frame file includes an `@target <lang>` declaration, the CLI uses that value automatically and will error if `-l` requests a different target.
 - `-m, --multifile`: Enable multi-file project compilation
 - `--debug-output`: Generate JSON with transpiled code and source map
 - `--validate-syntax`: Enable comprehensive syntax validation

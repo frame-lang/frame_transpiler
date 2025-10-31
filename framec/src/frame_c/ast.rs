@@ -2,16 +2,18 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)] // Many AST nodes are part of the API even if not currently used
 
-use super::scanner::{Token, TokenLiteral, TokenType};
+use super::scanner::{TargetRegion, Token, TokenLiteral, TokenType};
 use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 
 // Removed unused OperatorType imports
 use crate::frame_c::symbol_table::{InterfaceMethodSymbol, OperationScopeSymbol, ParameterSymbol};
+use crate::frame_c::target_parsers::ParsedTargetBlock;
 use crate::frame_c::visitors::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt;
 use std::rc::Rc;
+use std::sync::Arc;
 use wasm_bindgen::__rt::std::collections::HashMap;
 
 pub trait NodeElement {
@@ -58,6 +60,8 @@ pub struct Module {
 // v0.57: Added imports for multi-file module system
 pub struct FrameModule {
     pub module: Module,
+    pub target_language: Option<TargetLanguage>,
+    pub target_regions: Arc<Vec<TargetRegion>>,
     pub imports: Vec<ImportNode>, // v0.57: Track imports for multi-file system
     pub functions: Vec<Rc<RefCell<FunctionNode>>>,
     pub systems: Vec<SystemNode>,
@@ -71,6 +75,8 @@ pub struct FrameModule {
 impl FrameModule {
     pub fn new(
         module: Module,
+        target_language: Option<TargetLanguage>,
+        target_regions: Arc<Vec<TargetRegion>>,
         imports: Vec<ImportNode>, // v0.57: Added imports parameter
         functions: Vec<Rc<RefCell<FunctionNode>>>,
         systems: Vec<SystemNode>,
@@ -82,6 +88,8 @@ impl FrameModule {
     ) -> FrameModule {
         FrameModule {
             module,
+            target_language,
+            target_regions,
             imports,
             functions,
             systems,
@@ -159,6 +167,9 @@ impl NodeElement for Module {
 pub enum ModuleElement {
     CodeBlock {
         code_block: String,
+    },
+    Target {
+        language: TargetLanguage,
     },
     ModuleAttribute {
         attribute_node: AttributeNode,
@@ -273,6 +284,21 @@ impl CallChainNodeType {
             _ => {}
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActionBody {
+    Empty,
+    Frame,
+    TargetSpecific,
+    Mixed,
+}
+
+#[derive(Debug, Clone)]
+pub struct UnrecognizedStatementNode {
+    pub frame_line: usize,
+    pub target: TargetLanguage,
+    pub region_index: usize,
 }
 
 //-----------------------------------------------------//
@@ -956,6 +982,10 @@ pub struct FunctionNode {
     pub terminator_expr: TerminatorExpr,
     pub type_opt: Option<TypeNode>,
     pub is_async: bool, // v0.35: async function support
+    pub target_specific_regions: Vec<TargetSpecificRegionRef>,
+    pub parsed_target_blocks: Vec<ParsedTargetBlock>,
+    pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
+    pub body: ActionBody,
 }
 
 impl FunctionNode {
@@ -978,6 +1008,10 @@ impl FunctionNode {
             type_opt,
             is_async,
             line,
+            target_specific_regions: Vec::new(),
+            parsed_target_blocks: Vec::new(),
+            unrecognized_statements: Vec::new(),
+            body: ActionBody::Empty,
         }
     }
 }
@@ -1007,6 +1041,10 @@ pub struct ActionNode {
     pub type_opt: Option<TypeNode>,
     pub is_async: bool,           // v0.37: async action support
     pub code_opt: Option<String>, // TODO - remove
+    pub target_specific_regions: Vec<TargetSpecificRegionRef>,
+    pub parsed_target_blocks: Vec<ParsedTargetBlock>,
+    pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
+    pub body: ActionBody,
 }
 
 impl ActionNode {
@@ -1031,6 +1069,10 @@ impl ActionNode {
             type_opt,
             is_async,
             code_opt,
+            target_specific_regions: Vec::new(),
+            parsed_target_blocks: Vec::new(),
+            unrecognized_statements: Vec::new(),
+            body: ActionBody::Empty,
         }
     }
 }
@@ -1063,6 +1105,10 @@ pub struct OperationNode {
     pub is_async: bool,           // v0.35: async operation support
     pub code_opt: Option<String>, // TODO - remove
     pub line: usize,              // v0.78.2: source map support for operations
+    pub target_specific_regions: Vec<TargetSpecificRegionRef>,
+    pub parsed_target_blocks: Vec<ParsedTargetBlock>,
+    pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
+    pub body: ActionBody,
 }
 
 impl OperationNode {
@@ -1089,6 +1135,10 @@ impl OperationNode {
             is_async,
             code_opt,
             line,
+            target_specific_regions: Vec::new(),
+            parsed_target_blocks: Vec::new(),
+            unrecognized_statements: Vec::new(),
+            body: ActionBody::Empty,
         }
     }
 
@@ -1614,6 +1664,10 @@ pub struct EventHandlerNode {
     pub line: usize,
     pub return_init_expr_opt: Option<ExprType>, // Default return value for event handler
     pub is_async: bool,                         // v0.37: async event handler support
+    pub target_specific_regions: Vec<TargetSpecificRegionRef>,
+    pub parsed_target_blocks: Vec<ParsedTargetBlock>,
+    pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
+    pub body: ActionBody,
 }
 
 impl EventHandlerNode {
@@ -1640,6 +1694,10 @@ impl EventHandlerNode {
             line,
             return_init_expr_opt,
             is_async,
+            target_specific_regions: Vec::new(),
+            parsed_target_blocks: Vec::new(),
+            unrecognized_statements: Vec::new(),
+            body: ActionBody::Empty,
         }
     }
 
@@ -1655,6 +1713,16 @@ impl NodeElement for EventHandlerNode {
     fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
         ast_visitor.visit_event_handler_node(self);
     }
+}
+
+//-----------------------------------------------------//
+
+#[derive(Debug, Clone)]
+pub struct TargetSpecificRegionRef {
+    pub target: TargetLanguage,
+    pub region_index: usize,
+    pub frame_start_line: usize,
+    pub frame_end_line: usize,
 }
 
 //-----------------------------------------------------//

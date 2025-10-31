@@ -305,8 +305,6 @@ impl ValidationRule for MalformedHandlerRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::frame_c::ast::*;
-    use std::path::PathBuf;
 
     #[test]
     fn test_malformed_handler_rule_creation() {
@@ -317,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_missing_braces_detection() {
-        let rule = MalformedHandlerRule::new();
+        let _rule = MalformedHandlerRule::new();
 
         // Simulate handler text with missing brace (like Bug #29/#31)
         let handler_text = r#"

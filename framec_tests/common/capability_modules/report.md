@@ -248,8 +248,7 @@ Enhance visitor to generate proper RAII equivalents:
 | C#         | `using` statements, IDisposable |
 | Java       | try-with-resources, AutoCloseable |
 | Go         | `defer` statements |
-| Rust       | Native Drop trait |
-| C          | Explicit cleanup with error codes |
+| (future)   | Additional targets may map to native RAII concepts |
 
 ### 3. Testing Improvements
 

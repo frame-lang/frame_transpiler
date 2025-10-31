@@ -18,6 +18,8 @@
 - ✅ Builder supports interface arguments in `main`, including domain field references and literal expressions, matching interface signatures automatically.
 - ✅ Added LLVM fixtures for state parameters, enter args, parent-forward enter args, interface parameters, and stack multi-pop behaviour (18/18 suite green).
 - ✅ Documentation (README, HOW_TO, project status, planning) refreshed to capture the expanded LLVM coverage and updated test counts.
+- ✅ Python visitor now imports the shared `frame_runtime_py` package with a fallback stub and the CLI/multi-file toolchain auto-emits the package (`framec --multifile`, `frame_build`).
+- ✅ CLI and build tooling honor file-scoped `@target <lang>` declarations and reject mismatched `-l/--language` overrides.
 
 ## Known Issues
 
@@ -30,7 +32,7 @@
 **Focus**: Stage implementation plans so we can enable the remaining v0.56 syntax without regressing existing parity.
 
 ### Roadmap Documentation Drift
-**Status**: Monitoring — with Python/TypeScript execution gaps closed and LLVM smoke now automated, roadmap milestones must be re-scoped around FSL expansion, new targets (C++/Rust), and debugger tooling rather than “get TypeScript to 90%”.
+**Status**: Monitoring — with Python/TypeScript execution gaps closed and LLVM smoke now automated, roadmap milestones must be re-scoped around FSL expansion, future targets (e.g., C++/Rust reintroduction), and debugger tooling rather than “get TypeScript to 90%”.
 
 ## Active Development Areas
 
@@ -72,6 +74,18 @@
 - Mixed typed/untyped domain variables are supported; typed slots must receive compatible literals or expressions, while untyped slots accept any runtime value (mirrors TypeScript's `any` mixed with explicit types).
 - This approach is common in gradually typed ecosystems, but we must add backend safeguards (LLVM defaults to `CString` today) so strongly typed targets reject mismatched assignments instead of silently coercing.
 - Next steps: extend `ValueKind` beyond the current four primitives, design a runtime-agnostic coercion story, and document MacOS-specific interoperability expectations before widening target support.
+
+## Legacy Visitor Cleanup Inventory
+
+| Artifact | Location | Current Usage | Blockers / Notes | Recommended Action |
+| --- | --- | --- | --- | --- |
+| `PythonVisitor` (V1) | `framec/src/frame_c/visitors/python_visitor.rs` | **Removed** (2025-10-30) | Replaced everywhere with PythonVisitorV2 | n/a |
+| V1 refactor stub | `framec/src/frame_c/visitors/python_visitor_refactored.rs` | **Removed** (2025-10-30) | Replaced everywhere with PythonVisitorV2 | n/a |
+| Call-chain helper stubs | `framec/src/frame_c/visitors/call_chain_refactor.rs` | **Removed** (2025-10-30) | Historical refactor plan now lives only in docs | n/a |
+| Legacy runtime crate | `frame_runtime/` | **Removed** (2025-10-30) | Workspace now ships `frame_runtime_py` and `runtime/llvm` only | n/a |
+| Legacy tests | `framec_tests_old/` | Out of the main runner; exercised only manually | Some files reference removed Rust artifacts | Move any still-relevant fixtures into `framec_tests/`; delete rest. |
+| Rust visitor | (removed) | Target no longer selectable; historical docs retained | Legacy runtime crate deleted | ✅ Decommissioned; reintroduce only with new architecture |
+| C visitor | `framec/src/frame_c/visitors/c_visitor.rs` | Compiler exposes C target, but CLI validation maps C to Python | Needs audit to confirm viability before refactors touch it | Either recommit to C target (tests + runtime) or mark as experimental and move out of default build. |
 
 ## Architecture Notes
 

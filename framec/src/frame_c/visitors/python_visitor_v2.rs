@@ -6,14 +6,17 @@
 use crate::frame_c::ast::*;
 use crate::frame_c::code_builder::CodeBuilder;
 use crate::frame_c::config::FrameConfig;
+use crate::frame_c::scanner::TargetRegion;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::source_map::{MappingType, SourceMapBuilder};
 use crate::frame_c::symbol_table::{Arcanum, SymbolConfig, SymbolTable, SymbolType};
-use crate::frame_c::visitors::AstVisitor;
+use crate::frame_c::target_parsers::ParsedTargetBlock;
+use crate::frame_c::visitors::{AstVisitor, TargetLanguage};
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct PythonVisitorV2 {
     // Core configuration
@@ -64,6 +67,9 @@ pub struct PythonVisitorV2 {
 
     // Comments (for future use)
     _comments: Vec<Token>,
+
+    // Target-specific regions captured during scanning
+    target_regions: Arc<Vec<TargetRegion>>,
 }
 
 impl PythonVisitorV2 {
@@ -103,12 +109,18 @@ impl PythonVisitorV2 {
             is_generating_interface_method_handler: false,
             current_event_handler_default_return_value: None,
             _comments: comments,
+            target_regions: Arc::new(Vec::new()),
         }
     }
 
     /// Set an external source map builder for --debug-output integration
     pub fn set_source_map_builder(&mut self, builder: Rc<RefCell<SourceMapBuilder>>) {
         self.external_source_map_builder = Some(builder);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn into_output(self) -> (String, Vec<crate::frame_c::code_builder::SourceMapping>) {
+        self.builder.build()
     }
 
     // Helper method to generate enum with a specific name
@@ -176,14 +188,49 @@ impl PythonVisitorV2 {
     }
 
     pub fn run(&mut self, frame_module: &FrameModule) -> String {
+        self.target_regions = Arc::clone(&frame_module.target_regions);
+
         // Add header
         self.builder
             .write_comment(&format!("Emitted from framec_v{}", env!("FRAME_VERSION")));
         self.builder.newline();
         self.builder.newline();
 
-        // Generate Frame runtime classes
-        self.generate_frame_runtime();
+        // Use shared Python runtime module, with inline fallback for standalone runs
+        self.builder.writeln("try:");
+        self.builder.indent();
+        self.builder
+            .writeln("from frame_runtime_py import FrameEvent, FrameCompartment");
+        self.builder.dedent();
+        self.builder
+            .writeln("except ImportError:  # Fallback for standalone execution");
+        self.builder.indent();
+        self.builder.writeln("class FrameEvent:");
+        self.builder.indent();
+        self.builder
+            .writeln("def __init__(self, message, parameters):");
+        self.builder.indent();
+        self.builder.writeln("self._message = message");
+        self.builder.writeln("self._parameters = parameters");
+        self.builder.dedent();
+        self.builder.dedent();
+        self.builder.newline();
+        self.builder.writeln("class FrameCompartment:");
+        self.builder.indent();
+        self.builder.writeln("def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):");
+        self.builder.indent();
+        self.builder.writeln("self.state = state");
+        self.builder.writeln("self.forward_event = forward_event");
+        self.builder.writeln("self.exit_args = exit_args");
+        self.builder.writeln("self.enter_args = enter_args");
+        self.builder
+            .writeln("self.parent_compartment = parent_compartment");
+        self.builder.writeln("self.state_vars = state_vars or {}");
+        self.builder.writeln("self.state_args = state_args or {}");
+        self.builder.dedent();
+        self.builder.dedent();
+        self.builder.dedent();
+        self.builder.newline();
 
         // Visit the module
         self.visit_frame_module(frame_module);
@@ -286,37 +333,64 @@ impl PythonVisitorV2 {
         json_code
     }
 
-    fn generate_frame_runtime(&mut self) {
-        self.builder.writeln("class FrameEvent:");
-        self.builder.indent();
-        self.builder
-            .writeln("def __init__(self, message, parameters):");
-        self.builder.indent();
-        self.builder.writeln("self._message = message");
-        self.builder.writeln("self._parameters = parameters");
-        self.builder.dedent();
-        self.builder.dedent();
-
-        self.builder.newline();
-        self.builder.writeln("class FrameCompartment:");
-        self.builder.indent();
-        self.builder.writeln("def __init__(self, state, forward_event=None, exit_args=None, enter_args=None, parent_compartment=None, state_vars=None, state_args=None):");
-        self.builder.indent();
-        self.builder.writeln("self.state = state");
-        self.builder.writeln("self.forward_event = forward_event");
-        self.builder.writeln("self.exit_args = exit_args");
-        self.builder.writeln("self.enter_args = enter_args");
-        self.builder
-            .writeln("self.parent_compartment = parent_compartment");
-        self.builder.writeln("self.state_vars = state_vars or {}");
-        self.builder.writeln("self.state_args = state_args or {}");
-        self.builder.dedent();
-        self.builder.dedent();
-        self.builder.newline();
-    }
-
     fn format_state_name(&self, state_name: &str) -> String {
         format!("__{}_state_{}", self.system_name.to_lowercase(), state_name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn baseline_visitor() -> PythonVisitorV2 {
+        PythonVisitorV2::new(
+            Vec::new(),
+            SymbolConfig::default(),
+            FrameConfig::default(),
+            Vec::new(),
+        )
+    }
+
+    #[test]
+    fn emits_single_line_target_annotation_with_mapping() {
+        let mut visitor = baseline_visitor();
+        visitor.emit_target_source_with_metadata("print('hi')\n", 42, 42, TargetLanguage::Python3);
+
+        let (code, mappings) = visitor.into_output();
+
+        assert!(
+            code.contains("[target Python3 line 1 -> frame line 42]"),
+            "expected annotation comment in generated code, got:\n{}",
+            code
+        );
+        assert!(code.contains("print('hi')"));
+        assert_eq!(mappings.len(), 1);
+        assert_eq!(mappings[0].frame_line, 42);
+        assert_eq!(mappings[0].python_line, 2); // comment occupies line 1
+    }
+
+    #[test]
+    fn emits_multi_line_target_annotation_with_mapping_range() {
+        let mut visitor = baseline_visitor();
+        visitor.emit_target_source_with_metadata(
+            "print('a')\nprint('b')\n",
+            10,
+            11,
+            TargetLanguage::Python3,
+        );
+
+        let (code, mappings) = visitor.into_output();
+
+        assert!(
+            code.contains("[target Python3 lines 1-2 -> frame lines 10-11]"),
+            "expected multi-line annotation comment in generated code, got:\n{}",
+            code
+        );
+        assert!(code.contains("print('a')"));
+        assert!(code.contains("print('b')"));
+        assert_eq!(mappings.len(), 2);
+        assert_eq!(mappings[0].frame_line, 10);
+        assert_eq!(mappings[1].frame_line, 11);
     }
 }
 
@@ -542,24 +616,49 @@ impl AstVisitor for PythonVisitorV2 {
             function_node.line,
         );
 
-        // Add global declarations if needed
-        let mut needs_globals = Vec::new();
-        for stmt in &function_node.statements {
-            self.collect_global_vars_in_stmt(stmt, &mut needs_globals);
+        let (generated_target_specific, ignored_targets) = self.emit_target_specific_body(
+            function_node.body,
+            &function_node.parsed_target_blocks,
+            &function_node.target_specific_regions,
+            &function_node.unrecognized_statements,
+        );
+
+        if generated_target_specific
+            && matches!(function_node.body, ActionBody::Mixed)
+            && !function_node.statements.is_empty()
+        {
+            self.builder.writeln(
+                "# NOTE: Frame statements ignored because native Python block was provided",
+            );
         }
 
-        if !needs_globals.is_empty() {
-            let globals = needs_globals.join(", ");
-            self.builder.writeln(&format!("global {}", globals));
-        }
-
-        // Generate function body
-        if function_node.statements.is_empty() {
-            self.builder.writeln("pass");
-        } else {
+        if !generated_target_specific {
+            // Add global declarations if needed
+            let mut needs_globals = Vec::new();
             for stmt in &function_node.statements {
-                self.visit_decl_or_stmt(stmt);
+                self.collect_global_vars_in_stmt(stmt, &mut needs_globals);
             }
+
+            if !needs_globals.is_empty() {
+                let globals = needs_globals.join(", ");
+                self.builder.writeln(&format!("global {}", globals));
+            }
+
+            if function_node.statements.is_empty() {
+                self.builder.writeln("pass");
+            } else {
+                for stmt in &function_node.statements {
+                    self.visit_decl_or_stmt(stmt);
+                }
+            }
+        }
+
+        if !ignored_targets.is_empty() {
+            let ignored_list: Vec<String> = ignored_targets.into_iter().collect();
+            self.builder.writeln(&format!(
+                "# NOTE: target-specific block(s) for {:?} ignored by Python backend",
+                ignored_list
+            ));
         }
 
         self.builder.end_function();
@@ -1255,20 +1354,47 @@ impl PythonVisitorV2 {
             action_node.line, // v0.78.7: now has line field for source mapping
         );
 
-        // Generate the action body
+        let (mut generated_target_specific, ignored_targets) = self.emit_target_specific_body(
+            action_node.body,
+            &action_node.parsed_target_blocks,
+            &action_node.target_specific_regions,
+            &action_node.unrecognized_statements,
+        );
+
         if let Some(code) = &action_node.code_opt {
-            // If there's code_opt, use it
-            self.builder
-                .writeln(&format!("# TODO: Python code opt not implemented"));
-            self.builder.writeln(&code);
-        } else if !action_node.statements.is_empty() {
-            // Otherwise generate from statements
-            let statements = &action_node.statements;
-            for stmt in statements {
-                self.visit_decl_or_stmt(stmt);
+            if !generated_target_specific {
+                self.builder
+                    .writeln(&format!("# TODO: Python code opt not implemented"));
+                self.builder.writeln(code);
+                generated_target_specific = true;
             }
-        } else {
-            self.builder.writeln("pass");
+        }
+
+        if generated_target_specific
+            && matches!(action_node.body, ActionBody::Mixed)
+            && !action_node.statements.is_empty()
+        {
+            self.builder.writeln(
+                "# NOTE: Frame statements ignored because native Python block was provided",
+            );
+        }
+
+        if !generated_target_specific {
+            if !action_node.statements.is_empty() {
+                for stmt in &action_node.statements {
+                    self.visit_decl_or_stmt(stmt);
+                }
+            } else {
+                self.builder.writeln("pass");
+            }
+        }
+
+        if !ignored_targets.is_empty() {
+            let ignored_list: Vec<String> = ignored_targets.into_iter().collect();
+            self.builder.writeln(&format!(
+                "# NOTE: target-specific block(s) for {:?} ignored by Python backend",
+                ignored_list
+            ));
         }
 
         self.builder.end_function();
@@ -1317,13 +1443,38 @@ impl PythonVisitorV2 {
             operation_node.line, // v0.78.2: Use actual line from Frame source
         );
 
-        if !operation_node.statements.is_empty() {
-            let statements = &operation_node.statements;
-            for stmt in statements {
-                self.visit_decl_or_stmt(stmt);
+        let (generated_target_specific, ignored_targets) = self.emit_target_specific_body(
+            operation_node.body,
+            &operation_node.parsed_target_blocks,
+            &operation_node.target_specific_regions,
+            &operation_node.unrecognized_statements,
+        );
+
+        if generated_target_specific
+            && matches!(operation_node.body, ActionBody::Mixed)
+            && !operation_node.statements.is_empty()
+        {
+            self.builder.writeln(
+                "# NOTE: Frame statements ignored because native Python block was provided",
+            );
+        }
+
+        if !generated_target_specific {
+            if !operation_node.statements.is_empty() {
+                for stmt in &operation_node.statements {
+                    self.visit_decl_or_stmt(stmt);
+                }
+            } else {
+                self.builder.writeln("pass");
             }
-        } else {
-            self.builder.writeln("pass");
+        }
+
+        if !ignored_targets.is_empty() {
+            let ignored_list: Vec<String> = ignored_targets.into_iter().collect();
+            self.builder.writeln(&format!(
+                "# NOTE: target-specific block(s) for {:?} ignored by Python backend",
+                ignored_list
+            ));
         }
 
         self.builder.end_function();
@@ -2038,6 +2189,196 @@ impl PythonVisitorV2 {
         modified_vars
     }
 
+    fn emit_target_specific_handler(&mut self, evt_handler: &EventHandlerNode) -> bool {
+        let (generated, ignored_targets) = self.emit_target_specific_body(
+            evt_handler.body,
+            &evt_handler.parsed_target_blocks,
+            &evt_handler.target_specific_regions,
+            &evt_handler.unrecognized_statements,
+        );
+
+        if generated
+            && matches!(evt_handler.body, ActionBody::Mixed)
+            && !evt_handler.statements.is_empty()
+        {
+            self.builder.writeln(
+                "# NOTE: Frame statements ignored because native Python block was provided",
+            );
+        }
+
+        if !ignored_targets.is_empty() {
+            let ignored_list: Vec<String> = ignored_targets.into_iter().collect();
+            self.builder.writeln(&format!(
+                "# NOTE: target-specific block(s) for {:?} ignored by Python backend",
+                ignored_list
+            ));
+        }
+
+        generated
+    }
+
+    fn emit_target_region_lines(&mut self, region: &TargetRegion) {
+        if region.raw_content.trim().is_empty() {
+            return;
+        }
+
+        let lines: Vec<&str> = region.raw_content.lines().collect();
+        let mut min_indent = usize::MAX;
+
+        for line in &lines {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let indent = line.chars().take_while(|c| *c == ' ' || *c == '\t').count();
+            if indent < min_indent {
+                min_indent = indent;
+            }
+        }
+
+        if min_indent == usize::MAX {
+            min_indent = 0;
+        }
+
+        let mut dedented_lines: Vec<String> = Vec::new();
+        for line in &lines {
+            if line.trim().is_empty() {
+                dedented_lines.push(String::new());
+            } else if line.len() > min_indent {
+                dedented_lines.push(line[min_indent..].to_string());
+            } else {
+                dedented_lines.push(line.to_string());
+            }
+        }
+
+        let mut dedented_source = dedented_lines.join("\n");
+        if region.raw_content.ends_with('\n') && !dedented_source.ends_with('\n') {
+            dedented_source.push('\n');
+        }
+
+        let frame_end_line = if dedented_lines.is_empty() {
+            region.source_map.frame_start_line
+        } else {
+            region.source_map.frame_start_line + dedented_lines.len().saturating_sub(1)
+        };
+
+        self.emit_target_source_with_metadata(
+            &dedented_source,
+            region.source_map.frame_start_line,
+            frame_end_line,
+            region.target,
+        );
+    }
+
+    fn emit_python_target_block(&mut self, block: &ParsedTargetBlock) -> bool {
+        if block.ast.target_language() != TargetLanguage::Python3 {
+            return false;
+        }
+
+        let source = block.ast.to_source();
+        self.emit_target_source_with_metadata(
+            source,
+            block.frame_start_line,
+            block.frame_end_line,
+            TargetLanguage::Python3,
+        );
+        true
+    }
+
+    fn emit_target_specific_body(
+        &mut self,
+        body_kind: ActionBody,
+        parsed_blocks: &[ParsedTargetBlock],
+        region_refs: &[TargetSpecificRegionRef],
+        unrecognized: &[UnrecognizedStatementNode],
+    ) -> (bool, BTreeSet<String>) {
+        let mut generated = false;
+        let mut ignored: BTreeSet<String> = unrecognized
+            .iter()
+            .map(|entry| format!("{:?}", entry.target))
+            .collect();
+
+        if !matches!(body_kind, ActionBody::TargetSpecific | ActionBody::Mixed) {
+            return (generated, ignored);
+        }
+
+        for block in parsed_blocks {
+            if self.emit_python_target_block(block) {
+                generated = true;
+            } else {
+                ignored.insert(format!("{:?}", block.ast.target_language()));
+            }
+        }
+
+        if !generated {
+            for region_ref in region_refs {
+                if region_ref.target == TargetLanguage::Python3 {
+                    if let Some(region) = self.target_regions.get(region_ref.region_index).cloned()
+                    {
+                        self.emit_target_region_lines(&region);
+                        generated = true;
+                    }
+                } else {
+                    ignored.insert(format!("{:?}", region_ref.target));
+                }
+            }
+        } else {
+            for region_ref in region_refs {
+                if region_ref.target != TargetLanguage::Python3 {
+                    ignored.insert(format!("{:?}", region_ref.target));
+                }
+            }
+        }
+
+        (generated, ignored)
+    }
+
+    fn emit_target_source_with_metadata(
+        &mut self,
+        source: &str,
+        frame_start_line: usize,
+        frame_end_line: usize,
+        target_language: TargetLanguage,
+    ) {
+        let lines: Vec<&str> = if source.is_empty() {
+            Vec::new()
+        } else {
+            source.lines().collect()
+        };
+
+        let line_count = lines.len();
+
+        if line_count == 0 {
+            self.builder.write_comment(&format!(
+                "[target {:?} block | frame line {}]",
+                target_language, frame_start_line
+            ));
+            return;
+        }
+
+        let comment = if line_count == 1 {
+            format!(
+                "[target {:?} line 1 -> frame line {}]",
+                target_language, frame_start_line
+            )
+        } else {
+            format!(
+                "[target {:?} lines 1-{} -> frame lines {}-{}]",
+                target_language, line_count, frame_start_line, frame_end_line
+            )
+        };
+        self.builder.write_comment(&comment);
+
+        for (offset, line) in lines.iter().enumerate() {
+            let mapping_line = frame_start_line + offset;
+            if line.trim().is_empty() {
+                self.builder.newline();
+            } else {
+                self.builder.writeln_mapped(line, mapping_line);
+            }
+        }
+    }
+
     fn generate_event_handler(&mut self, state_name: &str, evt_handler: &EventHandlerNode) {
         // eprintln!("DEBUG generate_event_handler: state={}", state_name);
         let handler_name = self.format_handler_name(state_name, &evt_handler.msg_t);
@@ -2116,41 +2457,56 @@ impl PythonVisitorV2 {
             }
         }
 
-        // Generate statements
-        for stmt in &evt_handler.statements {
-            self.visit_decl_or_stmt(stmt);
+        let mut generated_target_specific = false;
+        if matches!(
+            evt_handler.body,
+            ActionBody::TargetSpecific | ActionBody::Mixed
+        ) {
+            generated_target_specific = self.emit_target_specific_handler(evt_handler);
+        }
+
+        if !generated_target_specific {
+            for stmt in &evt_handler.statements {
+                self.visit_decl_or_stmt(stmt);
+            }
         }
 
         // Check if the last statement was a return or if all code paths lead to returns
-        let last_is_return = evt_handler.statements.last().map_or(false, |stmt| {
-            match stmt {
-                DeclOrStmtType::StmtT { stmt_t } => {
-                    match stmt_t {
-                        StatementType::ReturnStmt { .. } => true,
-                        StatementType::IfStmt { if_stmt_node } => {
-                            // Check if if-elif-else has all branches ending with returns
-                            self.check_if_all_paths_return(if_stmt_node)
+        let last_is_return = if generated_target_specific {
+            true
+        } else {
+            evt_handler.statements.last().map_or(false, |stmt| {
+                match stmt {
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        match stmt_t {
+                            StatementType::ReturnStmt { .. } => true,
+                            StatementType::IfStmt { if_stmt_node } => {
+                                // Check if if-elif-else has all branches ending with returns
+                                self.check_if_all_paths_return(if_stmt_node)
+                            }
+                            _ => false,
                         }
-                        _ => false,
                     }
+                    _ => false,
                 }
-                _ => false,
-            }
-        });
+            })
+        };
 
         // Handle terminator (only if last statement wasn't already a return)
-        if let Some(terminator) = &evt_handler.terminator_node {
-            if !last_is_return {
-                self.visit_event_handler_terminator_node(&terminator);
+        if !generated_target_specific {
+            if let Some(terminator) = &evt_handler.terminator_node {
+                if !last_is_return {
+                    self.visit_event_handler_terminator_node(&terminator);
+                }
+            } else if !last_is_return {
+                // Add implicit return only if there wasn't already one
+                // Check if there's a handler default value for implicit returns too
+                if let Some(handler_default) = &self.current_event_handler_default_return_value {
+                    self.builder
+                        .writeln(&format!("self.return_stack[-1] = {}", handler_default));
+                }
+                self.builder.writeln("return");
             }
-        } else if !last_is_return {
-            // Add implicit return only if there wasn't already one
-            // Check if there's a handler default value for implicit returns too
-            if let Some(handler_default) = &self.current_event_handler_default_return_value {
-                self.builder
-                    .writeln(&format!("self.return_stack[-1] = {}", handler_default));
-            }
-            self.builder.writeln("return");
         }
 
         self.builder.dedent();

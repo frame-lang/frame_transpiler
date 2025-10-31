@@ -4230,8 +4230,7 @@ impl TypeScriptVisitor {
             self.visit_expr_node_to_string(&*node.left_rcref.borrow(), &mut left_str);
             self.visit_expr_node_to_string(&*node.right_rcref.borrow(), &mut right_str);
 
-            // Bug 54 fix: Use simple + for concatenation instead of unnecessary FrameRuntime.add()
-            output.push_str(&format!("({} + {})", left_str, right_str));
+            output.push_str(&format!("FrameRuntime.add({}, {})", left_str, right_str));
             return;
         }
 

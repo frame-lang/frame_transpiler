@@ -146,13 +146,14 @@ python3 runner/frame_test_runner.py --all --framec ../target/release/framec
 - **Python 3**: Complete visitor with all features (341/341 tests passing)
 - **TypeScript**: Complete visitor with all features (423/423 tests passing)
 
-### 2nd Class (Design Guides)
-- C/C++, JavaScript, C#, Java, Go, Rust
+### 2nd Class (Design Guides / Archived)
+- C/C++, JavaScript, C#, Java, Go (reference-only)
+- Rust (legacy visitor removed; retained for historical planning)
 
 ### Target Options
 - `python_3`: Python code generation
 - `typescript`: TypeScript code generation
-- `plantuml`: UML state diagram generation
+- `graphviz`: DOT-based state diagram generation
 
 ## Project Metrics
 
@@ -166,8 +167,8 @@ python3 runner/frame_test_runner.py --all --framec ../target/release/framec
 
 ## Next Steps
 
-1. **Rust Target**: Implementation of Rust code generation
-2. **Multi-File Support**: Import Frame modules from other .frm files
+1. **LLVM Enhancements**: Native codegen improvements via LLVM backend
+2. **Cross-Language Architecture**: Expand `@target` diagnostics and native block support
 3. **Build System**: Package management and dependency resolution
 4. **Performance**: Optimization of transpiler performance
 5. **IDE Support**: Enhanced VSCode extension features

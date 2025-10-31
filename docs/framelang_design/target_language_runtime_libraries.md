@@ -51,24 +51,22 @@ TypeScript Target: Runtime for semantic gaps
 
 ```
 docs/framelang_design/runtime_libraries/
+├── python/
+│   └── frame_runtime_py/__init__.py   # Shared FrameEvent/FrameCompartment helpers (auto-emitted by framec CLI & frame_build)
 ├── typescript/
-│   ├── frame_runtime.ts          # Core runtime functions
-│   ├── frame_collections.ts      # Collection operations
-│   ├── frame_strings.ts          # String operations
-│   └── frame_async.ts            # Async/await patterns
-├── rust/
-│   ├── frame_runtime.rs
-│   ├── frame_collections.rs
-│   └── frame_strings.rs
-├── java/
-│   ├── FrameRuntime.java
-│   ├── FrameCollections.java
-│   └── FrameStrings.java
+│   ├── frame_runtime.ts               # Core runtime functions
+│   ├── frame_collections.ts           # Collection operations
+│   ├── frame_strings.ts               # String operations
+│   └── frame_async.ts                 # Async/await patterns
+├── llvm/
+│   └── runtime/llvm/src               # Native kernel + FFI surface
 └── design/
-    ├── api_specification.md      # Cross-language API contract
-    ├── semantic_requirements.md  # Frame behavior definitions
-    └── testing_strategy.md       # Validation approach
+    ├── api_specification.md           # Cross-language API contract
+    ├── semantic_requirements.md       # Frame behavior definitions
+    └── testing_strategy.md            # Validation approach
 ```
+
+> **Note**: The legacy Rust runtime crate (`frame_runtime/`) was removed on 2025-10-30 during the dead-code sweep. Reintroducing a Rust target will track its runtime under a new crate (e.g., `runtime/rust/`) once we commit to the feature again.
 
 ## 🔧 Implementation Strategy
 
@@ -225,8 +223,8 @@ fn test_set_operations() {
 
 ### Success Rate Targets
 - **TypeScript**: 85%+ execution success (from current 75.8%)
-- **Rust**: 70%+ execution success (establish baseline)
-- **Java**: 70%+ execution success (establish baseline)
+- **Python**: Maintain 95%+ execution success
+- **Future targets**: Establish baseline as new visitors land
 
 ## 🔄 Migration Strategy
 
@@ -242,11 +240,11 @@ fn test_set_operations() {
 3. Fix failing tests using runtime improvements
 4. Target: Achieve 85%+ success rate
 
-### Step 3: Rust Runtime (Week 5-6)
-1. Implement Rust runtime based on validated TypeScript patterns
-2. Create or update Rust visitor for runtime usage
-3. Establish Rust baseline success rate
-4. Target: 70%+ Rust execution success
+### Step 3: Future Runtime Expansions (Week 5-6)
+1. Identify next target language runtime once new visitor work begins
+2. Leverage historical notes (e.g., legacy Rust runtime) for design guidance
+3. Establish baseline success rate for the new target
+4. Target: Achieve parity with language-specific expectations
 
 ### Step 4: Documentation and Optimization (Week 7-8)
 1. Complete API documentation for all runtimes

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides comprehensive guidance for implementing Frame language features across all target languages. Based on analysis of historical implementations from the main branch (especially the type-safe Rust visitor) and current Python/TypeScript visitors, this guide ensures functional equivalence and type safety across all target languages.
+This document provides comprehensive guidance for implementing Frame language features across all target languages. Historical notes draw on the retired type-safe Rust visitor as well as the current Python/TypeScript visitors to keep behavior aligned if new backends are added.
 
 ## Target Languages
 
@@ -334,7 +334,7 @@ fn state_container_type(&self) -> String {
 
 ## Code Generation Patterns
 
-### Template Structure (from Rust visitor analysis)
+### Template Structure (legacy Rust visitor reference)
 
 All visitors should follow this structure:
 

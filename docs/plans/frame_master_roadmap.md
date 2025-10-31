@@ -62,7 +62,7 @@ This roadmap outlines Frame's evolution from a Python-focused transpiler into a 
 ┌─────────────────────▼───────────────────────────────────────┐
 │                 TARGET LANGUAGES                            │
 │                                                             │
-│  Python │ TypeScript │ C# │ Java │ Go │ Rust │ C          │
+│  Python │ TypeScript │ Graphviz │ LLVM │ (Future: C#, Java, Go, Rust, C) │
 │                                                             │
 │     Same Frame Source → Different Implementations          │
 └─────────────────────────────────────────────────────────────┘
@@ -81,17 +81,19 @@ This roadmap outlines Frame's evolution from a Python-focused transpiler into a 
 
 This section documents fundamental incompatibilities between languages that Frame must address with explicit design decisions.
 
+> Note: The following compatibility matrix includes prospective targets (C#, Java, Go, Rust, C) to guide future design; only Python, TypeScript, Graphviz, and LLVM are currently implemented.
+
 ### Async/Concurrency Models
 
 | Language | Async Model | Frame Strategy |
 |----------|-------------|----------------|
 | **Python** | `async`/`await` with asyncio | Native async/await support |
 | **TypeScript** | Promises with `async`/`await` | Direct mapping to Promise<T> |
-| **C#** | Task-based with `async`/`await` | Map to Task<T> and async methods |
-| **Java** | CompletableFuture, Virtual Threads (21+) | Use CompletableFuture<T> pattern |
-| **Go** | Goroutines + channels | Use goroutines for async state machines |
-| **Rust** | Future trait + async/await | Map to Future/Pin patterns |
-| **C** | Callbacks, thread pools | Generate callback-based state machines |
+| **C#** | Task-based with `async`/`await` | *(Future)* Map to Task<T> and async methods |
+| **Java** | CompletableFuture, Virtual Threads (21+) | *(Future)* Use CompletableFuture<T> pattern |
+| **Go** | Goroutines + channels | *(Future)* Use goroutines for async state machines |
+| **Rust** | Future trait + async/await | *(Future)* Map to Future/Pin patterns |
+| **C** | Callbacks, thread pools | *(Future)* Generate callback-based state machines |
 
 **Frame Decision**: Provide unified `async` keyword that maps appropriately:
 ```frame
@@ -104,11 +106,8 @@ async fn processData(url: string): string {
 // Generated per language:
 // Python: async def processData(url: str) -> str
 // TypeScript: async processData(url: string): Promise<string>
-// C#: async Task<string> ProcessData(string url)
-// Java: CompletableFuture<String> processData(String url)
-// Go: func processData(url string) <-chan string
-// Rust: async fn process_data(url: String) -> String
-// C: void process_data(const char* url, void (*callback)(const char*))
+// Graphviz/LLVM: (not applicable)
+// Future targets should map according to the table above
 ```
 
 ### Memory Management Models
@@ -181,7 +180,9 @@ match divide(10, 2) {
 
 ### Type System Compatibility
 
-| Feature | Python | TypeScript | C# | Java | Go | Rust | C |
+> Columns labelled *(Future)* capture design intent for potential targets; only Python and TypeScript are shipping today.
+
+| Feature | Python | TypeScript | (Future) C# | (Future) Java | (Future) Go | (Future) Rust | (Future) C |
 |---------|--------|------------|----|----- |----|------|---|
 | **Static Typing** | Optional | Yes | Yes | Yes | Yes | Yes | Yes |
 | **Generics** | Yes | Yes | Yes | Yes | Yes | Yes | No |
@@ -203,9 +204,9 @@ var items: list<string> = []
 
 | Frame Type | Python | TypeScript | C# | Java | Go | Rust | C |
 |------------|--------|------------|----|----- |----|------|---|
-| `list<T>` | `List[T]` | `Array<T>` | `List<T>` | `List<T>` | `[]T` | `Vec<T>` | `frame_list_t*` |
-| `map<K,V>` | `Dict[K,V]` | `Map<K,V>` | `Dictionary<K,V>` | `Map<K,V>` | `map[K]V` | `HashMap<K,V>` | `frame_map_t*` |
-| `set<T>` | `Set[T]` | `Set<T>` | `HashSet<T>` | `Set<T>` | `map[T]bool` | `HashSet<T>` | `frame_set_t*` |
+| `list<T>` | `List[T]` | `Array<T>` | *(Future)* `List<T>` | *(Future)* `List<T>` | *(Future)* `[]T` | *(Future)* `Vec<T>` | *(Future)* `frame_list_t*` |
+| `map<K,V>` | `Dict[K,V]` | `Map<K,V>` | *(Future)* `Dictionary<K,V>` | *(Future)* `Map<K,V>` | *(Future)* `map[K]V` | *(Future)* `HashMap<K,V>` | *(Future)* `frame_map_t*` |
+| `set<T>` | `Set[T]` | `Set<T>` | *(Future)* `HashSet<T>` | *(Future)* `Set<T>` | *(Future)* `map[T]bool` | *(Future)* `HashSet<T>` | *(Future)* `frame_set_t*` |
 
 ### Object-Oriented vs Procedural
 
@@ -213,11 +214,11 @@ var items: list<string> = []
 |----------|-------------|----------------|
 | **Python** | Full OOP | Generate classes |
 | **TypeScript** | Full OOP | Generate classes |
-| **C#** | Full OOP | Generate classes |
-| **Java** | Full OOP | Generate classes |
-| **Go** | Struct + methods | Generate structs with methods |
-| **Rust** | Struct + impl | Generate structs with impl blocks |
-| **C** | None | Generate structs + function pointers |
+| **C#** | Full OOP | *(Future)* Generate classes |
+| **Java** | Full OOP | *(Future)* Generate classes |
+| **Go** | Struct + methods | *(Future)* Generate structs with methods |
+| **Rust** | Struct + impl | *(Future)* Generate structs with impl blocks |
+| **C** | None | *(Future)* Generate structs + function pointers |
 
 **Frame Decision**: Systems become language-appropriate constructs:
 ```frame
@@ -478,8 +479,8 @@ import { Collections } from './frame/collections';
 - `frame/errors.go` - Multiple return values (value, error) pattern
 - `frame/filesystem.go` - os and io/ioutil package abstractions
 
-### 3.4 Rust Implementation (Month 9-10)
-**Goal**: Systems programming with memory safety
+### 3.4 Rust Implementation *(Deferred)*
+**Goal**: Systems programming with memory safety (future phase)
 
 **Capability Module Implementation**:
 - `frame/async.rs` - Future trait and async/await patterns
@@ -488,8 +489,8 @@ import { Collections } from './frame/collections';
 - `frame/errors.rs` - Native Result<T,E> type integration
 - `frame/filesystem.rs` - std::fs module abstractions
 
-### 3.5 C Implementation (Month 11-12)
-**Goal**: Universal backend for embedded and performance-critical systems
+### 3.5 C Implementation *(Deferred)*
+**Goal**: Universal backend for embedded and performance-critical systems (future phase)
 
 **Capability Module Implementation**:
 - `frame/async.c` - Thread pools or callback-based async

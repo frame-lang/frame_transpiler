@@ -83,6 +83,7 @@ Comprehensive test suite including:
 **Goal**: Generate basic LLVM IR for simple Frame systems
 
 #### **Week 1: Infrastructure Setup**
+**Decision**: Ship the MVP with an FFI runtime shim (reuse the Rust runtime and call into it from generated IR). Once LLVM is feature-complete, progressively replace shim calls with native IR implementations so the final backend becomes self-contained.
 **Target Test**: `test_simple_system.frm`
 
 **Deliverables:**
