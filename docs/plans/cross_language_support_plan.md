@@ -204,12 +204,28 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 
 **Goal**: Provide an opt-in tool that converts target-specific signature sources (e.g., `.d.ts`, Python stubs) into Frame `native module` declarations, so teams are not forced to hand-maintain the contracts.
 
-**Tasks**:
-- [ ] CLI subcommand (e.g., `framec decl import`) that reads supported metadata formats and emits `.frame_decl` files.
-- [ ] Parsers for at least TypeScript `.d.ts` (SWC-backed) and Python `.pyi`/runtime introspection; design extensible adapter API for additional languages.
-- [ ] Validation pipeline ensuring generated declarations align with existing Phase 2.5 runtime exports before writing files.
-- [ ] Documentation updates: developer workflow, safety guidelines (pinning versions, review process), and integration into Phase 3 refactors.
-- [ ] Integration tests covering generation from sample metadata and subsequent successful compilation of specs using the emitted declarations.
+#### Week 6a: Generator Scaffolding & CLI
+- [ ] Add `framec decl import` subcommand (alias `framec declarations import`) with discoverable help text.
+- [ ] Define generator config (`.frame_declgen.json`) describing source metadata files, target languages, and output path.
+- [ ] Build plugin-style adapter registry (initial adapters: TypeScript `.d.ts`, Python `.pyi` stub imports); adapters live under `framec/src/frame_c/declaration_importers/`.
+- [ ] Reuse the existing `FrameModule` writer to emit `native module` declarations into `framec_tests/fixtures/native_decl_generation/`.
+- [ ] Implement logging/reporting that surfaces skipped symbols, conflicts, and existing-file overwrites (requires `--force` to clobber).
+
+#### Week 6b: TypeScript Adapter (TypeDoc-backed)
+- [ ] Integrate TypeDoc as a transient dependency (CLI shells out via `npx typedoc`) to produce JSON reflection.
+- [ ] Translate TypeDoc JSON into `NativeModuleDeclNode` structures (functions, async, optional params, alias types).
+- [ ] Provide mapping rules for Node core modules used in `frame_runtime_ts` (e.g., `net.Socket`, `fs.promises`).
+- [ ] Add fixtures:
+  - `docs/plans/assets/decl_input/ts/frame_runtime_ts.d.ts`
+  - Generated output under `framec_tests/fixtures/native_decl_generation/typescript/*.frame_decl`
+- [ ] Add focused regression spec that consumes the generated declaration and compiles a sample Frame test without inline `[target: typescript]` blocks.
+
+#### Week 6c: Python Adapter & Validation Pipeline
+- [ ] Prototype Python importer using `inspect` + `typing.get_type_hints` to read runtime modules (initial scope: `frame_runtime_py.socket`).
+- [ ] Implement runtime coverage validator shared by both adapters (compares declared modules to runtime exports, warns on gaps).
+- [ ] Hook the validator into the CLI (fails if declarations reference missing runtime members unless `--allow-missing` is set).
+- [ ] Update HOW_TO + CLI docs with generator workflow, safety guidance (pinning metadata versions, review process).
+- [ ] Extend test runner to optionally regenerate declarations during CI dry runs (guarded by `FRAME_DECL_GEN=check`).
 
 **Deliverables**:
 - Declarative CLI workflow documentation and example conversion scripts per supported metadata format.
