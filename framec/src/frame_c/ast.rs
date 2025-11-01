@@ -69,6 +69,7 @@ pub struct FrameModule {
     pub variables: Vec<Rc<RefCell<VariableDeclNode>>>,
     pub enums: Vec<Rc<RefCell<EnumDeclNode>>>,
     pub modules: Vec<Rc<RefCell<ModuleNode>>>, // v0.34: Nested modules
+    pub native_modules: Vec<Rc<RefCell<NativeModuleDeclNode>>>, // v0.90: Native runtime declarations
     pub statements: Vec<DeclOrStmtType>,
 }
 
@@ -84,6 +85,7 @@ impl FrameModule {
         variables: Vec<Rc<RefCell<VariableDeclNode>>>,
         enums: Vec<Rc<RefCell<EnumDeclNode>>>,
         modules: Vec<Rc<RefCell<ModuleNode>>>,
+        native_modules: Vec<Rc<RefCell<NativeModuleDeclNode>>>,
         statements: Vec<DeclOrStmtType>,
     ) -> FrameModule {
         FrameModule {
@@ -97,6 +99,7 @@ impl FrameModule {
             variables,
             enums,
             modules,
+            native_modules,
             statements,
         }
     }
@@ -200,10 +203,129 @@ pub enum ModuleElement {
     Module {
         module_node: Rc<RefCell<ModuleNode>>,
     },
+    // v0.90: Native module declarations
+    NativeModule {
+        native_module_node: Rc<RefCell<NativeModuleDeclNode>>,
+    },
     // v0.56: Type aliases
     TypeAlias {
         type_alias_node: TypeAliasNode,
     },
+}
+
+//-----------------------------------------------------//
+// v0.90: Native declaration support
+
+#[derive(Clone, Debug)]
+pub struct NativeModuleDeclNode {
+    pub qualified_name: Vec<String>,
+    pub line: usize,
+    pub column: usize,
+    pub items: Vec<NativeModuleItem>,
+}
+
+impl NativeModuleDeclNode {
+    pub fn new(
+        qualified_name: Vec<String>,
+        line: usize,
+        column: usize,
+        items: Vec<NativeModuleItem>,
+    ) -> NativeModuleDeclNode {
+        NativeModuleDeclNode {
+            qualified_name,
+            line,
+            column,
+            items,
+        }
+    }
+
+    pub fn path(&self) -> String {
+        self.qualified_name.join("/")
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        self.qualified_name.last().map(|s| s.as_str())
+    }
+}
+
+impl NodeElement for NativeModuleDeclNode {
+    fn accept(&self, ast_visitor: &mut dyn AstVisitor) {
+        ast_visitor.visit_native_module_decl_node(self);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum NativeModuleItem {
+    Type(NativeTypeDeclNode),
+    Function(NativeFunctionDeclNode),
+}
+
+#[derive(Clone, Debug)]
+pub struct NativeTypeDeclNode {
+    pub name: String,
+    pub aliased_type: Option<String>,
+    pub line: usize,
+    pub column: usize,
+}
+
+impl NativeTypeDeclNode {
+    pub fn new(name: String, aliased_type: Option<String>, line: usize, column: usize) -> Self {
+        NativeTypeDeclNode {
+            name,
+            aliased_type,
+            line,
+            column,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NativeFunctionDeclNode {
+    pub name: String,
+    pub parameters: Vec<NativeFunctionParameterNode>,
+    pub return_type: Option<String>,
+    pub is_async: bool,
+    pub line: usize,
+    pub column: usize,
+}
+
+impl NativeFunctionDeclNode {
+    pub fn new(
+        name: String,
+        parameters: Vec<NativeFunctionParameterNode>,
+        return_type: Option<String>,
+        is_async: bool,
+        line: usize,
+        column: usize,
+    ) -> Self {
+        NativeFunctionDeclNode {
+            name,
+            parameters,
+            return_type,
+            is_async,
+            line,
+            column,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NativeFunctionParameterNode {
+    pub name: String,
+    pub type_annotation: Option<String>,
+    pub line: usize,
+    pub column: usize,
+}
+
+impl NativeFunctionParameterNode {
+    pub fn new(name: String, type_annotation: Option<String>, line: usize, column: usize) -> Self {
+        NativeFunctionParameterNode {
+            name,
+            type_annotation,
+            line,
+            column,
+        }
+    }
 }
 
 // TODO: is this a good name for Identifier and Call expressions?

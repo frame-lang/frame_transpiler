@@ -375,7 +375,8 @@ impl<'a> Parser<'a> {
         let mut variables = Vec::new();
         let mut enums = Vec::new();
         let mut modules = Vec::new(); // v0.34: Nested modules
-                                      // Note: statements are not allowed at module level (like C)
+        let mut native_modules = Vec::new(); // v0.90: Native runtime declarations
+                                             // Note: statements are not allowed at module level (like C)
 
         // Parse all entities in sequence
         loop {
@@ -463,6 +464,28 @@ impl<'a> Parser<'a> {
                         if let Some(ref mut elements) = module_elements_opt {
                             elements.push(crate::frame_c::ast::ModuleElement::Variable {
                                 var_decl_node: var_decl,
+                            });
+                        }
+                    }
+                    Err(e) => return Err(e),
+                }
+                continue;
+            }
+
+            // Native runtime module declarations
+            if self.match_token(&[TokenType::Native]) {
+                if !self.match_token(&[TokenType::Module]) {
+                    let err_msg = "Expected 'module' after 'native'";
+                    self.error_at_current(err_msg);
+                    return Err(self.parse_error_current(err_msg));
+                }
+
+                match self.native_module_decl() {
+                    Ok(native_module_decl) => {
+                        native_modules.push(Rc::clone(&native_module_decl));
+                        if let Some(ref mut elements) = module_elements_opt {
+                            elements.push(crate::frame_c::ast::ModuleElement::NativeModule {
+                                native_module_node: native_module_decl,
                             });
                         }
                     }
@@ -759,6 +782,7 @@ impl<'a> Parser<'a> {
             variables,
             enums,
             modules,
+            native_modules,
             Vec::new(),
         ))
     }
@@ -15967,6 +15991,308 @@ impl<'a> Parser<'a> {
         Ok(TypeAliasNode::new(alias_name, type_expr, line))
     }
 
+    fn native_module_decl(&mut self) -> Result<Rc<RefCell<NativeModuleDeclNode>>, ParseError> {
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected module name after 'native module'";
+            self.error_at_current(err_msg);
+            return Err(self.parse_error_current(err_msg));
+        }
+
+        let first_ident = self.previous().clone();
+        let mut qualified_name = vec![first_ident.lexeme.clone()];
+
+        while self.match_token(&[TokenType::ForwardSlash, TokenType::ColonColon]) {
+            if !self.match_token(&[TokenType::Identifier]) {
+                let err_msg = "Expected identifier after module separator in native module path";
+                self.error_at_current(err_msg);
+                return Err(self.parse_error_current(err_msg));
+            }
+            qualified_name.push(self.previous().lexeme.clone());
+        }
+
+        self.consume(
+            TokenType::OpenBrace,
+            "Expected '{' to start native module declaration",
+        )?;
+
+        let mut items = Vec::new();
+
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            self.skip_native_module_trivia();
+
+            if self.check(TokenType::CloseBrace) || self.is_at_end() {
+                break;
+            }
+
+            if self.match_token(&[TokenType::Type]) {
+                let type_decl = self.parse_native_type_decl()?;
+                items.push(NativeModuleItem::Type(type_decl));
+            } else {
+                let func_decl = self.parse_native_function_decl()?;
+                items.push(NativeModuleItem::Function(func_decl));
+            }
+        }
+
+        self.consume(
+            TokenType::CloseBrace,
+            "Expected '}' to close native module declaration",
+        )?;
+
+        let module_path = qualified_name.clone();
+        let module_decl = Rc::new(RefCell::new(NativeModuleDeclNode::new(
+            qualified_name,
+            first_ident.line,
+            first_ident.start.saturating_add(1),
+            items,
+        )));
+
+        if self.is_building_symbol_table {
+            let native_symbol = Rc::new(RefCell::new(NativeModuleSymbol::new(
+                module_path,
+                Rc::clone(&module_decl),
+            )));
+            self.arcanum.register_native_module(native_symbol);
+        }
+
+        Ok(module_decl)
+    }
+
+    fn skip_native_module_trivia(&mut self) {
+        loop {
+            if self.match_token(&[TokenType::Semicolon]) {
+                continue;
+            }
+            if self.check(TokenType::PythonComment) {
+                self.advance();
+                continue;
+            }
+            if self.check(TokenType::Eof) {
+                break;
+            }
+            break;
+        }
+    }
+
+    fn parse_native_type_decl(&mut self) -> Result<NativeTypeDeclNode, ParseError> {
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = "Expected type name in native module type declaration";
+            self.error_at_current(err_msg);
+            return Err(self.parse_error_current(err_msg));
+        }
+
+        let name_token = self.previous().clone();
+        let mut aliased_type = None;
+
+        if self.match_token(&[TokenType::Equals]) {
+            let expr = self.collect_inline_type_expression(
+                self.peek().line,
+                &[
+                    TokenType::Type,
+                    TokenType::Async,
+                    TokenType::Identifier,
+                    TokenType::CloseBrace,
+                ],
+            );
+            if expr.is_empty() {
+                let err_msg = "Expected type expression after '=' in native type declaration";
+                self.error_at_current(err_msg);
+                return Err(self.parse_error_current(err_msg));
+            }
+            aliased_type = Some(expr);
+        }
+
+        Ok(NativeTypeDeclNode::new(
+            name_token.lexeme,
+            aliased_type,
+            name_token.line,
+            name_token.start.saturating_add(1),
+        ))
+    }
+
+    fn parse_native_function_decl(&mut self) -> Result<NativeFunctionDeclNode, ParseError> {
+        let is_async = self.match_token(&[TokenType::Async]);
+
+        if !self.match_token(&[TokenType::Identifier]) {
+            let err_msg = if is_async {
+                "Expected function name after 'async' in native module"
+            } else {
+                "Expected function name in native module declaration"
+            };
+            self.error_at_current(err_msg);
+            return Err(self.parse_error_current(err_msg));
+        }
+
+        let name_token = self.previous().clone();
+
+        self.consume(TokenType::LParen, "Expected '(' after native function name")?;
+
+        let mut parameters = Vec::new();
+        if !self.check(TokenType::RParen) {
+            loop {
+                if !self.match_token(&[TokenType::Identifier]) {
+                    let err_msg = "Expected parameter name in native function declaration";
+                    self.error_at_current(err_msg);
+                    return Err(self.parse_error_current(err_msg));
+                }
+
+                let param_token = self.previous().clone();
+                let mut type_annotation = None;
+                if self.match_token(&[TokenType::Colon]) {
+                    let annotation = self.collect_param_type_expression();
+                    if annotation.is_empty() {
+                        let err_msg =
+                            "Expected type annotation after ':' in native function parameter";
+                        self.error_at_current(err_msg);
+                        return Err(self.parse_error_current(err_msg));
+                    }
+                    type_annotation = Some(annotation);
+                }
+
+                parameters.push(NativeFunctionParameterNode::new(
+                    param_token.lexeme,
+                    type_annotation,
+                    param_token.line,
+                    param_token.start.saturating_add(1),
+                ));
+
+                if self.match_token(&[TokenType::Comma]) {
+                    continue;
+                }
+                break;
+            }
+        }
+
+        self.consume(
+            TokenType::RParen,
+            "Expected ')' after native function parameters",
+        )?;
+
+        let mut return_type = None;
+        if self.match_token(&[TokenType::Transition]) {
+            let expr = self.collect_inline_type_expression(
+                self.peek().line,
+                &[
+                    TokenType::Type,
+                    TokenType::Async,
+                    TokenType::Identifier,
+                    TokenType::CloseBrace,
+                ],
+            );
+            if expr.is_empty() {
+                let err_msg = "Expected return type after '->' in native function declaration";
+                self.error_at_current(err_msg);
+                return Err(self.parse_error_current(err_msg));
+            }
+            return_type = Some(expr);
+        }
+
+        Ok(NativeFunctionDeclNode::new(
+            name_token.lexeme,
+            parameters,
+            return_type,
+            is_async,
+            name_token.line,
+            name_token.start.saturating_add(1),
+        ))
+    }
+
+    fn collect_param_type_expression(&mut self) -> String {
+        let mut expr = String::new();
+        let mut bracket_depth = 0;
+        let mut base_line = None;
+
+        while !self.is_at_end() {
+            let token = self.peek();
+            if base_line.is_none() {
+                base_line = Some(token.line);
+            }
+            let start_line = base_line.unwrap_or(token.line);
+
+            if bracket_depth == 0 {
+                if matches!(token.token_type, TokenType::Comma | TokenType::RParen) {
+                    break;
+                }
+                if token.line > start_line {
+                    break;
+                }
+            }
+
+            Self::append_type_fragment(&mut expr, token);
+            match token.token_type {
+                TokenType::LParen | TokenType::LBracket => bracket_depth += 1,
+                TokenType::RParen | TokenType::RBracket => {
+                    if bracket_depth > 0 {
+                        bracket_depth -= 1;
+                    }
+                }
+                _ => {}
+            }
+            self.advance();
+        }
+
+        expr.trim().to_string()
+    }
+
+    fn collect_inline_type_expression(
+        &mut self,
+        start_line: usize,
+        break_tokens: &[TokenType],
+    ) -> String {
+        let mut expr = String::new();
+        let mut bracket_depth = 0;
+
+        while !self.is_at_end() {
+            let token = self.peek();
+
+            if token.token_type == TokenType::PythonComment {
+                break;
+            }
+
+            if bracket_depth == 0 {
+                if break_tokens.contains(&token.token_type) && token.line != start_line {
+                    break;
+                }
+                if token.token_type == TokenType::CloseBrace {
+                    break;
+                }
+                if token.line > start_line {
+                    break;
+                }
+            }
+
+            Self::append_type_fragment(&mut expr, token);
+            match token.token_type {
+                TokenType::LParen | TokenType::LBracket => bracket_depth += 1,
+                TokenType::RParen | TokenType::RBracket => {
+                    if bracket_depth > 0 {
+                        bracket_depth -= 1;
+                    }
+                }
+                _ => {}
+            }
+            self.advance();
+        }
+
+        expr.trim().to_string()
+    }
+
+    fn append_type_fragment(buffer: &mut String, token: &Token) {
+        let lexeme = token.lexeme.as_str();
+        if !buffer.is_empty()
+            && !buffer.ends_with('[')
+            && !buffer.ends_with('(')
+            && !matches!(lexeme, ")" | "]" | "," | "." | "::")
+        {
+            buffer.push(' ');
+        }
+
+        buffer.push_str(lexeme);
+
+        if lexeme == "," {
+            buffer.push(' ');
+        }
+    }
+
     // v0.37: Analyze system runtime async requirements
     fn analyze_system_runtime_info(&mut self, system: &mut SystemNode) -> Result<(), ParseError> {
         // Create new runtime info
@@ -16719,5 +17045,84 @@ system TargetDiag {
             "display string missing target context: {}",
             display
         );
+    }
+
+    #[test]
+    fn parses_native_module_declaration() {
+        let source = r#"
+native module runtime/socket {
+    type SocketHandle
+    async connect(host: string, port: int) -> SocketHandle
+    close(handle: SocketHandle)
+}
+
+system Host {
+    machine:
+        $Init {
+            start() {
+                return
+            }
+        }
+}
+"#;
+
+        let scanner = Scanner::new(source.to_string());
+        let (has_errors, scan_errors, tokens, target_regions) = scanner.scan_tokens();
+        assert!(!has_errors, "scanner reported errors: {}", scan_errors);
+
+        let target_regions = Arc::new(target_regions);
+        let mut parser_comments = Vec::new();
+        let arcanum = Arcanum::new();
+        let mut parser = Parser::new(
+            &tokens,
+            &mut parser_comments,
+            true,
+            arcanum,
+            Arc::clone(&target_regions),
+        );
+        let module = parser.parse().expect("parser should succeed");
+
+        assert_eq!(module.native_modules.len(), 1);
+        let native_module = module.native_modules[0].borrow();
+        assert_eq!(
+            native_module.qualified_name,
+            vec!["runtime".to_string(), "socket".to_string()]
+        );
+        assert_eq!(native_module.items.len(), 3);
+
+        match &native_module.items[0] {
+            NativeModuleItem::Type(type_decl) => {
+                assert_eq!(type_decl.name, "SocketHandle");
+                assert!(type_decl.aliased_type.is_none());
+            }
+            other => panic!("expected type declaration, found {:?}", other),
+        }
+
+        match &native_module.items[1] {
+            NativeModuleItem::Function(func_decl) => {
+                assert_eq!(func_decl.name, "connect");
+                assert!(func_decl.is_async);
+                assert_eq!(func_decl.parameters.len(), 2);
+                assert_eq!(func_decl.return_type.as_deref(), Some("SocketHandle"));
+            }
+            other => panic!("expected function declaration, found {:?}", other),
+        }
+
+        match &native_module.items[2] {
+            NativeModuleItem::Function(func_decl) => {
+                assert_eq!(func_decl.name, "close");
+                assert!(!func_decl.is_async);
+                assert_eq!(func_decl.parameters.len(), 1);
+            }
+            other => panic!("expected function declaration, found {:?}", other),
+        }
+
+        let symbol = parser
+            .arcanum
+            .lookup_native_module("runtime/socket")
+            .expect("native module symbol registered");
+        let symbol_ref = symbol.borrow();
+        assert!(symbol_ref.get_function("connect").is_some());
+        assert!(symbol_ref.get_type("SocketHandle").is_some());
     }
 }

@@ -198,6 +198,28 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [ ] Visitor wiring for Python/TypeScript (emit imports instead of `[target: ...]` blocks); design LLVM mapping.
 - [ ] Runtime exports aligned with declarations (`frame_runtime_py.runtime.socket`, `frame_runtime_ts.runtime.socket`, etc.).
 - [ ] Compiler diagnostics when a declaration is used but no implementation exists for the active target.
+
+### **Phase 2.6: Declaration Generator Tooling (Week 6)**
+*Automate creation of native module contracts from existing language metadata*
+
+**Goal**: Provide an opt-in tool that converts target-specific signature sources (e.g., `.d.ts`, Python stubs) into Frame `native module` declarations, so teams are not forced to hand-maintain the contracts.
+
+**Tasks**:
+- [ ] CLI subcommand (e.g., `framec decl import`) that reads supported metadata formats and emits `.frame_decl` files.
+- [ ] Parsers for at least TypeScript `.d.ts` (SWC-backed) and Python `.pyi`/runtime introspection; design extensible adapter API for additional languages.
+- [ ] Validation pipeline ensuring generated declarations align with existing Phase 2.5 runtime exports before writing files.
+- [ ] Documentation updates: developer workflow, safety guidelines (pinning versions, review process), and integration into Phase 3 refactors.
+- [ ] Integration tests covering generation from sample metadata and subsequent successful compilation of specs using the emitted declarations.
+
+**Deliverables**:
+- Declarative CLI workflow documentation and example conversion scripts per supported metadata format.
+- Generated declaration fixture set committed under `framec_tests/fixtures/native_decl_generation/`.
+- Parser/adapter trait interface that allows additional languages to plug in without touching core codegen.
+
+**Validation Criteria**:
+- `framec decl import` can consume the TypeScript runtime protocol `.d.ts` and emit a declaration that compiles cleanly with existing specs.
+- Generated declarations round-trip through the compiler/visitors without manual edits (Python + TypeScript smoke).
+- Safety checks prevent overwriting local edits without explicit confirmation and detect runtime/export mismatches.
 - [ ] Documentation/examples (HOW_TO, README, declaration guide).
 
 **Deliverables**:
@@ -473,9 +495,10 @@ impl TargetSourceMap {
 | **Phase 1** | 2 weeks | Target declaration parsing infrastructure |
 | **Phase 2** | 2 weeks | Native language syntax integration |
 | **Phase 2.5** | 1 week | Native declaration infrastructure |
+| **Phase 2.6** | 1 week | Declaration generator tooling |
 | **Phase 3** | 1 week | Bug #055 resolution (async runtime via declarations) |
 | **Phase 4** | (Post Phase 3) | LLVM visitor integration (deferred) |
-| **Total** | **~6 weeks (+LLVM)** | **Production-ready Python/TypeScript support; LLVM follows** |
+| **Total** | **~7 weeks (+LLVM)** | **Production-ready Python/TypeScript support; LLVM follows** |
 
 ## 🔄 Future Extensions
 

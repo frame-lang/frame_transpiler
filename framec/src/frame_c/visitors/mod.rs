@@ -51,7 +51,7 @@ impl TryFrom<String> for TargetLanguage {
 }
 
 pub mod graphviz_visitor;
-pub mod python_visitor_v2; // v0.75: Complete implementation using CodeBuilder
+pub mod python_visitor; // v0.75+: Complete implementation using CodeBuilder
 pub mod typescript_visitor; // v0.82: TypeScript support
 
 use super::ast::*;
@@ -63,6 +63,9 @@ pub trait AstVisitor {
     fn visit_module_node(&mut self, _node: &ModuleNode) {}
     fn visit_import_node(&mut self, _node: &ImportNode) {}
     fn visit_type_alias_node(&mut self, _node: &TypeAliasNode) {}
+    fn visit_native_module_decl_node(&mut self, _node: &NativeModuleDeclNode) {}
+    fn visit_native_function_decl_node(&mut self, _node: &NativeFunctionDeclNode) {}
+    fn visit_native_type_decl_node(&mut self, _node: &NativeTypeDeclNode) {}
     fn visit_class_node(&mut self, _node: &ClassNode) {}
     fn visit_method_node(&mut self, _node: &MethodNode) {}
     fn visit_function_node(&mut self, _node: &FunctionNode) {}

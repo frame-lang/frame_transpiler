@@ -10,10 +10,41 @@ use crate::frame_c::scanner::{TargetRegion, TokenType};
 use crate::frame_c::symbol_table::{Arcanum, SymbolConfig};
 use crate::frame_c::target_parsers::typescript::{TypeScriptTargetAst, TypeScriptTargetElement};
 use crate::frame_c::target_parsers::ParsedTargetBlock;
+use convert_case::{Case, Casing};
 use regex;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
+
+#[derive(Clone, Debug)]
+struct TypeScriptNativeBinding {
+    identifier: String,
+    import_entry: String,
+    segments: Vec<String>,
+}
+
+const DEFAULT_RUNTIME_IMPORTS: &[&str] = &[
+    "FrameRuntime",
+    "FrameCollections",
+    "FrameCounter",
+    "FrameDict",
+    "FrameMath",
+    "FrameString",
+    "FrameEvent",
+    "FrameCompartment",
+    "OrderedDict",
+    "ChainMap",
+    "FrameSocketClient",
+    "configparser",
+    "json",
+    "numpy",
+    "os",
+    "random",
+    "signal",
+    "sys",
+    "time",
+    "open",
+];
 
 pub struct TypeScriptVisitor {
     pub builder: CodeBuilder,
@@ -64,6 +95,8 @@ pub struct TypeScriptVisitor {
 
     // Target-specific region metadata
     target_regions: Arc<Vec<TargetRegion>>,
+    native_module_bindings: HashMap<String, TypeScriptNativeBinding>,
+    runtime_imports: BTreeSet<String>,
 }
 
 struct NodeApiActionMapping {
@@ -75,6 +108,9 @@ struct NodeApiActionMapping {
 
 impl TypeScriptVisitor {
     pub fn new(arcanum: Vec<Arcanum>, symbol_config: SymbolConfig) -> Self {
+        let runtime_imports: BTreeSet<String> =
+            DEFAULT_RUNTIME_IMPORTS.iter().map(|s| s.to_string()).collect();
+
         Self {
             builder: CodeBuilder::new("    "), // 4 spaces for TypeScript indentation
             system_name: String::new(),
@@ -115,6 +151,8 @@ impl TypeScriptVisitor {
             dynamic_properties: HashSet::new(),
             runtime_function_calls: HashSet::new(),
             target_regions: Arc::new(Vec::new()),
+            native_module_bindings: HashMap::new(),
+            runtime_imports,
         }
     }
 
@@ -132,6 +170,90 @@ impl TypeScriptVisitor {
         visitor.in_module_function = false; // Initialize module function flag
         visitor.pending_super_call = false;
         visitor
+    }
+
+    fn register_native_modules(&mut self, frame_module: &FrameModule) {
+        for module_rcref in &frame_module.native_modules {
+            let module = module_rcref.borrow();
+            if module.qualified_name.is_empty() {
+                continue;
+            }
+
+            let key = module.path();
+            if self.native_module_bindings.contains_key(&key) {
+                continue;
+            }
+
+            if let Some(binding) = self.resolve_native_binding(&module.qualified_name) {
+                self.runtime_imports.insert(binding.import_entry.clone());
+                self.native_module_bindings.insert(key, binding);
+            }
+        }
+    }
+
+    fn resolve_native_binding(&self, segments: &[String]) -> Option<TypeScriptNativeBinding> {
+        if segments.is_empty() {
+            return None;
+        }
+
+        let path = segments.join("/");
+        let identifier = match path.as_str() {
+            "runtime/socket" => "FrameSocketClient".to_string(),
+            "runtime/json" => "json".to_string(),
+            "runtime/os" => "os".to_string(),
+            "runtime/random" => "random".to_string(),
+            "runtime/signal" => "signal".to_string(),
+            "runtime/sys" => "sys".to_string(),
+            "runtime/time" => "time".to_string(),
+            "runtime/configparser" => "configparser".to_string(),
+            "runtime/open" => "open".to_string(),
+            _ => segments
+                .last()
+                .map(|s| s.to_case(Case::UpperCamel))
+                .unwrap_or_else(|| "FrameRuntime".to_string()),
+        };
+
+        Some(TypeScriptNativeBinding {
+            import_entry: identifier.clone(),
+            identifier,
+            segments: segments.to_vec(),
+        })
+    }
+
+    fn match_native_module_binding(
+        &self,
+        node: &CallChainExprNode,
+        start_index: usize,
+    ) -> Option<(&TypeScriptNativeBinding, usize)> {
+        for binding in self.native_module_bindings.values() {
+            if node.call_chain.len() < start_index + binding.segments.len() {
+                continue;
+            }
+
+            let mut matches = true;
+            for (offset, segment) in binding.segments.iter().enumerate() {
+                let chain_node = &node.call_chain[start_index + offset];
+                let name = match chain_node {
+                    CallChainNodeType::UndeclaredIdentifierNodeT { id_node } => {
+                        &id_node.name.lexeme
+                    }
+                    CallChainNodeType::VariableNodeT { var_node } => &var_node.id_node.name.lexeme,
+                    _ => {
+                        matches = false;
+                        break;
+                    }
+                };
+                if name != segment {
+                    matches = false;
+                    break;
+                }
+            }
+
+            if matches {
+                return Some((binding, binding.segments.len()));
+            }
+        }
+        None
     }
 
     /// Normalize Frame event message names to valid TypeScript identifiers
@@ -1380,6 +1502,7 @@ impl TypeScriptVisitor {
 
         // Capture target-specific regions for native block emission
         self.target_regions = Arc::clone(&frame_module.target_regions);
+        self.register_native_modules(frame_module);
 
         // Generate runtime support
         self.generate_runtime_support();
@@ -5386,7 +5509,25 @@ impl TypeScriptVisitor {
 
         let mut is_first = true;
         let mut needs_any_wrap = false;
+        let mut skip_segments: usize = 0;
         for (index, call_chain_node) in node.call_chain.iter().enumerate() {
+            if skip_segments > 0 {
+                skip_segments -= 1;
+                continue;
+            }
+
+            if let Some((binding, consumed)) = self.match_native_module_binding(node, index) {
+                if !is_first {
+                    if !output.trim_end().ends_with('.') {
+                        output.push('.');
+                    }
+                }
+                output.push_str(&binding.identifier);
+                is_first = false;
+                skip_segments = consumed.saturating_sub(1);
+                continue;
+            }
+
             let prev_node = if index > 0 {
                 Some(&node.call_chain[index - 1])
             } else {

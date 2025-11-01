@@ -60,6 +60,7 @@ impl Scanner {
             ("from".to_string(), TokenType::From),
             ("as".to_string(), TokenType::As),
             ("module".to_string(), TokenType::Module),
+            ("native".to_string(), TokenType::Native),
             ("async".to_string(), TokenType::Async),
             ("await".to_string(), TokenType::Await),
             ("lambda".to_string(), TokenType::Lambda),
@@ -1438,6 +1439,7 @@ pub enum TokenType {
     From,             // 'from' keyword
     As,               // 'as' keyword
     Module,           // 'module' keyword
+    Native,           // 'native' keyword
     Async,            // 'async' keyword
     Await,            // 'await' keyword
     Lambda,           // 'lambda' keyword

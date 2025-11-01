@@ -542,11 +542,11 @@ impl Exe {
                 }
                 TargetLanguage::Python3 => {
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
+                    use crate::frame_c::visitors::python_visitor::PythonVisitor;
 
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let mut visitor = PythonVisitorV2::new(
+                    let mut visitor = PythonVisitor::new(
                         arcanum_vec,
                         SymbolConfig::new(),
                         config.clone(),
@@ -568,7 +568,7 @@ impl Exe {
         mut target_language: Option<TargetLanguage>,
         source_map_builder: Rc<RefCell<SourceMapBuilder>>,
     ) -> Result<String, RunError> {
-        // This is mostly the same as run(), but passes source_map_builder to PythonVisitorV2
+        // This is mostly the same as run(), but passes source_map_builder to PythonVisitor
 
         let mut hasher = Sha256::new();
         hasher.update(&content);
@@ -767,11 +767,11 @@ impl Exe {
                 }
                 TargetLanguage::Python3 => {
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
+                    use crate::frame_c::visitors::python_visitor::PythonVisitor;
 
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
-                    let mut visitor = PythonVisitorV2::new(
+                    let mut visitor = PythonVisitor::new(
                         arcanum_vec,
                         SymbolConfig::new(),
                         config.clone(),

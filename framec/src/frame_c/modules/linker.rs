@@ -140,10 +140,10 @@ impl ModuleLinker {
             let module_code = match self.target_language {
                 TargetLanguage::Python3 => {
                     use crate::frame_c::symbol_table::SymbolConfig;
-                    use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
+                    use crate::frame_c::visitors::python_visitor::PythonVisitor;
 
                     let arcanum_vec = vec![module.symbols];
-                    let mut visitor = PythonVisitorV2::new(
+                    let mut visitor = PythonVisitor::new(
                         arcanum_vec,
                         SymbolConfig::new(),
                         config.clone(),
@@ -577,7 +577,7 @@ impl ModuleLinker {
     ) -> ModuleResult<String> {
         use crate::frame_c::config::FrameConfig;
         use crate::frame_c::symbol_table::SymbolConfig;
-        use crate::frame_c::visitors::python_visitor_v2::PythonVisitorV2;
+        use crate::frame_c::visitors::python_visitor::PythonVisitor;
 
         // Create output directory if it doesn't exist
         fs::create_dir_all(output_dir).map_err(|e| {
@@ -609,7 +609,7 @@ impl ModuleLinker {
             // Create a visitor for this module
             let arcanum_vec = vec![module.symbols];
             let mut visitor =
-                PythonVisitorV2::new(arcanum_vec, SymbolConfig::new(), config.clone(), Vec::new());
+                PythonVisitor::new(arcanum_vec, SymbolConfig::new(), config.clone(), Vec::new());
 
             // Generate code for this module
             let mut module_code = visitor.run(&module.ast);

@@ -1236,6 +1236,7 @@ pub struct Arcanum {
     pub system_symbols: Vec<Rc<RefCell<SystemSymbol>>>,
     pub symbol_config: SymbolConfig,
     pub serializable: bool,
+    pub native_modules: HashMap<String, Rc<RefCell<NativeModuleSymbol>>>,
 }
 
 impl Arcanum {
@@ -1260,6 +1261,7 @@ impl Arcanum {
             system_symbols: Vec::new(),
             symbol_config: SymbolConfig::new(),
             serializable: false,
+            native_modules: HashMap::new(),
         }
     }
 
@@ -1338,6 +1340,39 @@ impl Arcanum {
 
     pub fn get_current_identifier_scope(&self) -> IdentifierDeclScope {
         self.current_symtab.borrow().identifier_decl_scope.clone()
+    }
+
+    pub fn register_native_module(
+        &mut self,
+        native_module_symbol: Rc<RefCell<NativeModuleSymbol>>,
+    ) {
+        let path = native_module_symbol.borrow().path();
+        self.native_modules
+            .insert(path, Rc::clone(&native_module_symbol));
+    }
+
+    pub fn lookup_native_module(&self, path: &str) -> Option<Rc<RefCell<NativeModuleSymbol>>> {
+        self.native_modules
+            .get(path)
+            .map(|module| Rc::clone(module))
+    }
+
+    pub fn lookup_native_function(
+        &self,
+        path: &str,
+        function_name: &str,
+    ) -> Option<NativeFunctionDeclNode> {
+        self.native_modules.get(path).and_then(|module| {
+            let module_ref = module.borrow();
+            module_ref.get_function(function_name).cloned()
+        })
+    }
+
+    pub fn lookup_native_type(&self, path: &str, type_name: &str) -> Option<NativeTypeDeclNode> {
+        self.native_modules.get(path).and_then(|module| {
+            let module_ref = module.borrow();
+            module_ref.get_type(type_name).cloned()
+        })
     }
 
     pub fn lookup(
@@ -2857,6 +2892,56 @@ pub struct ModuleSymbol {
 impl ModuleSymbol {
     pub fn new(name: String, symtab_rcref: Rc<RefCell<SymbolTable>>) -> ModuleSymbol {
         ModuleSymbol { name, symtab_rcref }
+    }
+}
+
+pub struct NativeModuleSymbol {
+    pub qualified_name: Vec<String>,
+    pub decl_node: Rc<RefCell<NativeModuleDeclNode>>,
+    functions: HashMap<String, NativeFunctionDeclNode>,
+    types: HashMap<String, NativeTypeDeclNode>,
+}
+
+impl NativeModuleSymbol {
+    pub fn new(
+        qualified_name: Vec<String>,
+        decl_node: Rc<RefCell<NativeModuleDeclNode>>,
+    ) -> NativeModuleSymbol {
+        let mut functions = HashMap::new();
+        let mut types = HashMap::new();
+
+        {
+            let module = decl_node.borrow();
+            for item in &module.items {
+                match item {
+                    NativeModuleItem::Function(func_decl) => {
+                        functions.insert(func_decl.name.clone(), func_decl.clone());
+                    }
+                    NativeModuleItem::Type(type_decl) => {
+                        types.insert(type_decl.name.clone(), type_decl.clone());
+                    }
+                }
+            }
+        }
+
+        NativeModuleSymbol {
+            qualified_name,
+            decl_node,
+            functions,
+            types,
+        }
+    }
+
+    pub fn path(&self) -> String {
+        self.qualified_name.join("/")
+    }
+
+    pub fn get_function(&self, name: &str) -> Option<&NativeFunctionDeclNode> {
+        self.functions.get(name)
+    }
+
+    pub fn get_type(&self, name: &str) -> Option<&NativeTypeDeclNode> {
+        self.types.get(name)
     }
 }
 

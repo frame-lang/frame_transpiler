@@ -24,7 +24,7 @@ pub trait TargetAst: Send + Sync + 'static {
     fn as_any(&self) -> &dyn Any;
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct TargetDiagnostic {
     pub message: String,
