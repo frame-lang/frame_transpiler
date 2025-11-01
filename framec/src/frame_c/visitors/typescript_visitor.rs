@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 struct TypeScriptNativeBinding {
-    identifier: String,
-    import_entry: String,
+    identifier: Option<String>,
+    import_entries: Vec<String>,
     segments: Vec<String>,
 }
 
@@ -187,7 +187,9 @@ impl TypeScriptVisitor {
             }
 
             if let Some(binding) = self.resolve_native_binding(&module.qualified_name) {
-                self.runtime_imports.insert(binding.import_entry.clone());
+                for entry in &binding.import_entries {
+                    self.runtime_imports.insert(entry.clone());
+                }
                 self.native_module_bindings.insert(key, binding);
             }
         }
@@ -199,27 +201,70 @@ impl TypeScriptVisitor {
         }
 
         let path = segments.join("/");
-        let identifier = match path.as_str() {
-            "runtime/socket" => "FrameSocketClient".to_string(),
-            "runtime/json" => "json".to_string(),
-            "runtime/os" => "os".to_string(),
-            "runtime/random" => "random".to_string(),
-            "runtime/signal" => "signal".to_string(),
-            "runtime/sys" => "sys".to_string(),
-            "runtime/time" => "time".to_string(),
-            "runtime/configparser" => "configparser".to_string(),
-            "runtime/open" => "open".to_string(),
-            _ => segments
-                .last()
-                .map(|s| s.to_case(Case::UpperCamel))
-                .unwrap_or_else(|| "FrameRuntime".to_string()),
-        };
-
-        Some(TypeScriptNativeBinding {
-            import_entry: identifier.clone(),
-            identifier,
-            segments: segments.to_vec(),
-        })
+        match path.as_str() {
+            "runtime/socket" | "runtime_socket" => Some(TypeScriptNativeBinding {
+                identifier: None,
+                import_entries: vec![
+                    "FrameSocketClient".to_string(),
+                    "frame_socket_client_connect".to_string(),
+                    "frame_socket_client_read_line".to_string(),
+                    "frame_socket_client_write_line".to_string(),
+                    "frame_socket_client_close".to_string(),
+                ],
+                segments: segments.to_vec(),
+            }),
+            "runtime/json" => Some(TypeScriptNativeBinding {
+                identifier: Some("json".to_string()),
+                import_entries: vec!["json".to_string()],
+                segments: segments.to_vec(),
+            }),
+            "runtime/os" => Some(TypeScriptNativeBinding {
+                identifier: Some("os".to_string()),
+                import_entries: vec!["os".to_string()],
+                segments: segments.to_vec(),
+            }),
+            "runtime/random" => Some(TypeScriptNativeBinding {
+                identifier: Some("random".to_string()),
+                import_entries: vec!["random".to_string()],
+                segments: segments.to_vec(),
+            }),
+            "runtime/signal" => Some(TypeScriptNativeBinding {
+                identifier: Some("signal".to_string()),
+                import_entries: vec!["signal".to_string()],
+                segments: segments.to_vec(),
+            }),
+            "runtime/sys" => Some(TypeScriptNativeBinding {
+                identifier: Some("sys".to_string()),
+                import_entries: vec!["sys".to_string()],
+                segments: segments.to_vec(),
+            }),
+            "runtime/time" => Some(TypeScriptNativeBinding {
+                identifier: Some("time".to_string()),
+                import_entries: vec!["time".to_string()],
+                segments: segments.to_vec(),
+            }),
+            "runtime/configparser" => Some(TypeScriptNativeBinding {
+                identifier: Some("configparser".to_string()),
+                import_entries: vec!["configparser".to_string()],
+                segments: segments.to_vec(),
+            }),
+            "runtime/open" => Some(TypeScriptNativeBinding {
+                identifier: Some("open".to_string()),
+                import_entries: vec!["open".to_string()],
+                segments: segments.to_vec(),
+            }),
+            _ => {
+                let identifier = segments
+                    .last()
+                    .map(|s| s.to_case(Case::UpperCamel))
+                    .unwrap_or_else(|| "FrameRuntime".to_string());
+                Some(TypeScriptNativeBinding {
+                    identifier: Some(identifier.clone()),
+                    import_entries: vec![identifier],
+                    segments: segments.to_vec(),
+                })
+            }
+        }
     }
 
     fn match_native_module_binding(
@@ -5519,13 +5564,15 @@ impl TypeScriptVisitor {
             }
 
             if let Some((binding, consumed)) = self.match_native_module_binding(node, index) {
-                if !is_first {
-                    if !output.trim_end().ends_with('.') {
-                        output.push('.');
+                if let Some(identifier) = &binding.identifier {
+                    if !is_first {
+                        if !output.trim_end().ends_with('.') {
+                            output.push('.');
+                        }
                     }
+                    output.push_str(identifier);
+                    is_first = false;
                 }
-                output.push_str(&binding.identifier);
-                is_first = false;
                 skip_segments = consumed.saturating_sub(1);
                 continue;
             }

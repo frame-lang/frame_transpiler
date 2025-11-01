@@ -3,6 +3,27 @@
 ## Purpose
 This document summarizes the syntax every target must support before introducing language-specific features. It mirrors the shared AST produced by the Frame parser so target implementers know which constructs are universal.
 
+Related specifications:
+- Multi-target design: `../../../plans/design/multi_lang_design.md`
+- Python body grammar: `../python/python_body_grammar.md`
+- TypeScript body grammar: `../typescript/typescript_body_grammar.md`
+- C body grammar: `../c/c_body_grammar.md`
+- C++ body grammar: `../cpp/cpp_body_grammar.md`
+- Java body grammar: `../java/java_body_grammar.md`
+- C# body grammar: `../csharp/csharp_body_grammar.md`
+- Rust body grammar: `../rust/rust_body_grammar.md`
+
+## Target Prolog & Modes
+
+- Every Frame file must begin with a target declaration prolog at the first non‑whitespace token:
+  - `@target <language>` where `<language>` ∈ { python, typescript, c, cpp, csharp, java, rust }
+- The compiler uses a multi‑lexer with two modes per file:
+  - Core mode: recognizes Frame automata constructs (defined below)
+  - Body mode: uses the selected target’s lexer for action/handler bodies and expression statements
+- A two‑phase composite parser is used:
+  - Core parser builds the automata skeleton and records body spans
+  - Target body subparser (per language) parses each recorded span
+
 ## High-Level Structure
 
 ```
@@ -105,6 +126,14 @@ The parser recognises the following concepts across targets. Each backend maps t
 - Collections: lists `[a, b]`, dicts `{ key: value }`
 - Function calls: `function(args)`
 - Lambda (planned): `lambda params: expression`
+
+## Core Tokenization Rules (Disambiguation)
+
+- Core constructs are recognized only at statement start (ignoring leading whitespace/comments) and never inside strings/comments.
+- Transition `->` is core only when it begins a statement and the follow matches: optional exit args, optional enter args, optional string label, then `$State` with optional state params. Otherwise, `->` belongs to the target body.
+- Parent forward is the exact statement `=> $^`.
+- State headers with `$Child => $Parent` appear only in `machine:` headers; `$` occurrences inside bodies belong to the target.
+- Enter/exit selectors `$>()` and `<$()` are parsed only in state bodies as handler selectors.
 
 ## Notes
 - Actual parser grammar lives in `docs/framelang_design/grammar.md`; this summary is a quick reference for target implementers.

@@ -212,17 +212,17 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [ ] Implement logging/reporting that surfaces skipped symbols, conflicts, and existing-file overwrites (requires `--force` to clobber).
 
 #### Week 6b: TypeScript Adapter (TypeDoc-backed)
-- [ ] Integrate TypeDoc as a transient dependency (CLI shells out via `npx typedoc`) to produce JSON reflection.
-- [ ] Translate TypeDoc JSON into `NativeModuleDeclNode` structures (functions, async, optional params, alias types).
-- [ ] Provide mapping rules for Node core modules used in `frame_runtime_ts` (e.g., `net.Socket`, `fs.promises`).
-- [ ] Add fixtures:
-  - `docs/plans/assets/decl_input/ts/frame_runtime_ts.d.ts`
-  - Generated output under `framec_tests/fixtures/native_decl_generation/typescript/*.frame_decl`
-- [ ] Add focused regression spec that consumes the generated declaration and compiles a sample Frame test without inline `[target: typescript]` blocks.
+- [x] Integrate TypeDoc as a transient dependency (CLI shells out via `npx typedoc`) to produce JSON reflection.
+- [x] Translate TypeDoc JSON into `NativeModuleDeclNode` structures (functions, async, optional params, alias types).
+ - [x] Provide mapping rules for Node core modules used in `frame_runtime_ts` (e.g., `net.Socket`, `fs.promises`).
+ - [x] Add fixtures:
+  - [x] `docs/plans/assets/decl_input/ts/frame_runtime_ts.d.ts`
+  - [x] Generated output under `framec_tests/fixtures/native_decl_generation/typescript/*.frame_decl`
+- [x] Add focused regression spec that consumes the generated declaration and compiles a sample Frame test without inline `[target: typescript]` blocks. *(Added `framec_tests/language_specific/typescript/declarations/test_runtime_socket_decl.frm`; transpile-only suite passes via `python3 framec_tests/runner/frame_test_runner.py --languages typescript --categories language_specific_typescript --transpile-only`.)*
 
 #### Week 6c: Python Adapter & Validation Pipeline
-- [ ] Prototype Python importer using `inspect` + `typing.get_type_hints` to read runtime modules (initial scope: `frame_runtime_py.socket`).
-- [ ] Implement runtime coverage validator shared by both adapters (compares declared modules to runtime exports, warns on gaps).
+- [x] Prototype Python importer using `inspect` + `typing.get_type_hints` to read runtime modules (initial scope: `frame_runtime_py.socket`).
+- [x] Implement runtime coverage validator shared by both adapters (compares declared modules to runtime exports, warns on gaps).
 - [ ] Hook the validator into the CLI (fails if declarations reference missing runtime members unless `--allow-missing` is set).
 - [ ] Update HOW_TO + CLI docs with generator workflow, safety guidance (pinning metadata versions, review process).
 - [ ] Extend test runner to optionally regenerate declarations during CI dry runs (guarded by `FRAME_DECL_GEN=check`).
@@ -236,7 +236,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - `framec decl import` can consume the TypeScript runtime protocol `.d.ts` and emit a declaration that compiles cleanly with existing specs.
 - Generated declarations round-trip through the compiler/visitors without manual edits (Python + TypeScript smoke).
 - Safety checks prevent overwriting local edits without explicit confirmation and detect runtime/export mismatches.
-- [ ] Documentation/examples (HOW_TO, README, declaration guide).
+- [x] Documentation/examples (HOW_TO, CLI help, declaration guide).
 
 **Deliverables**:
 - Declaration syntax available to Frame specs.

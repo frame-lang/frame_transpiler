@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -47,6 +48,7 @@ pub fn run_decl_import(
     force: bool,
     dry_run: bool,
     verbose: bool,
+    allow_missing: bool,
 ) -> Result<(), RunError> {
     let config_contents = fs::read_to_string(config_path).map_err(|err| {
         RunError::new(
@@ -143,6 +145,8 @@ pub fn run_decl_import(
             }
             continue;
         }
+
+        validate_coverage(&modules, &source_config, allow_missing, verbose)?;
 
         for module in modules {
             let file_name = format!("{}.frame_decl", module.path().replace('/', "_"));
@@ -242,6 +246,10 @@ fn render_native_module(module: &NativeModuleDeclNode) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+    use std::fs;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
 
     #[test]
     fn render_empty_module() {
@@ -250,4 +258,120 @@ mod tests {
         let rendered = render_native_module(&module);
         assert!(rendered.contains("native module runtime/socket"));
     }
+
+    #[test]
+    fn decl_import_dry_run_uses_json_cache() {
+        let temp = tempdir().expect("create temp dir");
+        let config_path = temp.path().join("decl.json");
+
+        let fixtures_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../framec_tests/fixtures/native_decl_generation/typescript");
+        let json_cache = fixtures_dir.join("typedoc_runtime_socket.json");
+
+        let config = json!({
+            "outputDir": "out",
+            "sources": [
+                {
+                    "adapter": "typescript",
+                    "input": "frame_runtime_ts/index.ts",
+                    "module": "runtime/socket",
+                    "options": {
+                        "jsonCache": json_cache,
+                        "include": [
+                            "framesocketclient",
+                            "frame_socket_client_connect",
+                            "frame_socket_client_read_line",
+                            "frame_socket_client_write_line",
+                            "frame_socket_client_close"
+                        ]
+                    }
+                }
+            ]
+        });
+
+        fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())
+            .expect("write config");
+
+        run_decl_import(&config_path, false, true, false, false).expect("dry run succeeds");
+
+        assert!(
+            !temp.path().join("out").exists(),
+            "dry run should not create output directory"
+        );
+    }
+}
+
+fn validate_coverage(
+    modules: &[NativeModuleDeclNode],
+    source: &DeclarationSourceConfig,
+    allow_missing: bool,
+    verbose: bool,
+) -> Result<(), RunError> {
+    let expected = expected_symbols_from_options(source);
+    if expected.is_empty() {
+        return Ok(());
+    }
+
+    let found = collect_symbol_names(modules);
+
+    let missing: Vec<String> = expected
+        .into_iter()
+        .filter(|name| !found.contains(name))
+        .collect();
+
+    if missing.is_empty() {
+        return Ok(());
+    }
+
+    if allow_missing {
+        if verbose {
+            eprintln!(
+                "[decl import] warning: {} missing symbol(s): {}",
+                source.adapter,
+                missing.join(", ")
+            );
+        }
+        return Ok(());
+    }
+
+    Err(RunError::new(
+        frame_exitcode::CONFIG_ERR,
+        &format!(
+            "Declaration importer '{}' missing expected symbol(s): {}",
+            source.adapter,
+            missing.join(", ")
+        ),
+    ))
+}
+
+fn expected_symbols_from_options(source: &DeclarationSourceConfig) -> Vec<String> {
+    source
+        .options
+        .as_ref()
+        .and_then(|opts| opts.get("include"))
+        .and_then(|value| value.as_array().cloned())
+        .map(|items| {
+            items
+                .into_iter()
+                .filter_map(|item| item.as_str().map(|s| s.to_lowercase()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn collect_symbol_names(modules: &[NativeModuleDeclNode]) -> HashSet<String> {
+    let mut names = HashSet::new();
+    for module in modules {
+        for item in &module.items {
+            match item {
+                NativeModuleItem::Type(ty) => {
+                    names.insert(ty.name.to_lowercase());
+                }
+                NativeModuleItem::Function(func) => {
+                    names.insert(func.name.to_lowercase());
+                }
+            }
+        }
+    }
+    names
 }

@@ -44,7 +44,9 @@ pub fn get_importer(adapter: &str) -> Option<Box<dyn DeclarationImporter>> {
         "typescript" | "typescript-typedoc" => {
             Some(Box::new(typescript::TypeScriptTypedocImporter))
         }
-        "python" | "python-stub" => Some(Box::new(python::PythonStubImporter)),
+        "python" | "python-runtime" | "python-stub" => {
+            Some(Box::new(python::PythonRuntimeImporter))
+        }
         _ => None,
     }
 }

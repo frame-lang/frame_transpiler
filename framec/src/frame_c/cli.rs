@@ -52,6 +52,7 @@ pub struct DeclImportArgs {
     pub force: bool,
     pub dry_run: bool,
     pub verbose: bool,
+    pub allow_missing: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -69,18 +70,7 @@ impl Cli {
             .about("Frame language transpiler")
             .subcommand_required(false)
             .arg_required_else_help(false)
-            .subcommand(
-                Command::new("build")
-                    .about("Build project using frame.toml configuration")
-                    .arg(
-                        Arg::new("config")
-                            .long("config")
-                            .short('c')
-                            .help("Path to frame.toml configuration file")
-                            .value_name("FILE")
-                            .num_args(1),
-                    ),
-            )
+            .subcommand(Command::new("build").about("Build project using frame.toml configuration"))
             .subcommand(
                 Command::new("init")
                     .about("Initialize a new Frame project with frame.toml")
@@ -93,38 +83,42 @@ impl Cli {
             )
             .subcommand(
                 Command::new("decl")
-                    .about("Declaration generation utilities")
-                    .subcommand(
-                        Command::new("import")
-                            .about("Generate native module declarations from language metadata")
-                            .arg(
-                                Arg::new("config")
-                                    .long("config")
-                                    .short('c')
-                                    .help("Path to declaration generator config JSON")
-                                    .value_name("FILE")
-                                    .required(true),
+                    .about("Generate native module declarations from language metadata")
+                    .arg(
+                        Arg::new("config")
+                            .long("config")
+                            .short('c')
+                            .help("Path to declaration generator config JSON")
+                            .value_name("FILE")
+                            .required(true),
+                    )
+                    .arg(
+                        Arg::new("force")
+                            .long("force")
+                            .short('f')
+                            .help("Overwrite existing declaration files")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("dry-run")
+                            .long("dry-run")
+                            .help("Parse config and report work without writing files")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("verbose")
+                            .long("verbose")
+                            .short('v')
+                            .help("Emit additional logging during import")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("allow-missing")
+                            .long("allow-missing")
+                            .help(
+                                "Do not fail when expected symbols are missing from imported modules"
                             )
-                            .arg(
-                                Arg::new("force")
-                                    .long("force")
-                                    .short('f')
-                                    .help("Overwrite existing declaration files")
-                                    .action(clap::ArgAction::SetTrue),
-                            )
-                            .arg(
-                                Arg::new("dry-run")
-                                    .long("dry-run")
-                                    .help("Parse config and report work without writing files")
-                                    .action(clap::ArgAction::SetTrue),
-                            )
-                            .arg(
-                                Arg::new("verbose")
-                                    .long("verbose")
-                                    .short('v')
-                                    .help("Emit additional logging during import")
-                                    .action(clap::ArgAction::SetTrue),
-                            ),
+                            .action(clap::ArgAction::SetTrue),
                     ),
             )
             .arg(
@@ -220,27 +214,23 @@ impl Cli {
                             .map(|s| PathBuf::from(s));
                         CliCommand::Build { config }
                     }
-                    "decl" => match sub_matches.subcommand() {
-                        Some(("import", import_matches)) => {
-                            let config_path = import_matches
-                                .get_one::<String>("config")
-                                .map(|s| PathBuf::from(s))
-                                .expect("config arg is required by clap");
-                            let force = import_matches.get_flag("force");
-                            let dry_run = import_matches.get_flag("dry-run");
-                            let verbose = import_matches.get_flag("verbose");
-                            CliCommand::DeclImport(DeclImportArgs {
-                                config_path,
-                                force,
-                                dry_run,
-                                verbose,
-                            })
-                        }
-                        _ => {
-                            eprintln!("The 'decl' command requires a subcommand (e.g., 'framec decl import').");
-                            std::process::exit(exitcode::USAGE);
-                        }
-                    },
+                    "decl" => {
+                        let config_path = sub_matches
+                            .get_one::<String>("config")
+                            .map(|s| PathBuf::from(s))
+                            .expect("config arg is required by clap");
+                        let force = sub_matches.get_flag("force");
+                        let dry_run = sub_matches.get_flag("dry-run");
+                        let verbose = sub_matches.get_flag("verbose");
+                        let allow_missing = sub_matches.get_flag("allow-missing");
+                        CliCommand::DeclImport(DeclImportArgs {
+                            config_path,
+                            force,
+                            dry_run,
+                            verbose,
+                            allow_missing,
+                        })
+                    }
                     other => {
                         eprintln!(
                             "Unknown command '{}'. Use 'framec --help' for available commands.",
@@ -394,7 +384,13 @@ pub fn run_with(args: Cli) {
 
 /// Handle the 'init' subcommand to create a new Frame project
 fn handle_decl_import(args: DeclImportArgs) {
-    match run_decl_import(&args.config_path, args.force, args.dry_run, args.verbose) {
+    match run_decl_import(
+        &args.config_path,
+        args.force,
+        args.dry_run,
+        args.verbose,
+        args.allow_missing,
+    ) {
         Ok(()) => {
             if args.dry_run {
                 println!("Declaration import dry run complete.");

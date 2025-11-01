@@ -2720,3 +2720,19 @@ export class FrameSocketClient {
         }
     }
 }
+
+export async function frame_socket_client_connect(host: string, port: number): Promise<FrameSocketClient> {
+    return FrameSocketClient.connect(host, port);
+}
+
+export async function frame_socket_client_read_line(client: FrameSocketClient): Promise<string> {
+    return client.readLine();
+}
+
+export async function frame_socket_client_write_line(client: FrameSocketClient, line: string): Promise<void> {
+    await client.writeLine(line);
+}
+
+export function frame_socket_client_close(client: FrameSocketClient): void {
+    client.close();
+}

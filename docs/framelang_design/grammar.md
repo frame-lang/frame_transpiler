@@ -5,6 +5,22 @@
 
 This document provides the formal grammar specification for the Frame language using BNF notation, along with examples for each language construct.
 
+## Target Prolog & Two‑Phase Parsing (v0.87 planned)
+
+- Each file must start with a target declaration: `@target <language>` where
+  `<language>` ∈ { python, typescript, c, cpp, csharp, java, rust }.
+- The compiler operates in two modes per file:
+  1) Core mode (common Frame) for automata constructs: system/blocks, state
+     headers `$State` and `$Child => $Parent`, enter `$>()` and exit `<$()`,
+     transition statements `->`, parent forwarding `=> $^`, and state‑stack `$$…`.
+  2) Body mode (target‑native) for action/handler bodies and expression
+     statements. Body grammar is defined per target under
+     `docs/framelang_design/target_language_specifications/<lang>/`.
+- Disambiguation rules:
+  - Core constructs are recognized only at statement start and must satisfy
+    target‑neutral follow patterns (e.g., transition must lead to `$State`).
+  - No core tokenization occurs inside strings or comments.
+
 ## Module Structure
 
 ```bnf

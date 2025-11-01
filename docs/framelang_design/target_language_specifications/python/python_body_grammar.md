@@ -1,0 +1,44 @@
+# Frame Target Body Grammar — Python
+
+Version: 0.1 (Draft)
+Date: 2025-11-01
+
+This document specifies the Python target body grammar used inside Frame action
+and handler bodies. Core Frame constructs (system/blocks, `$State` headers,
+`$>()`/`<$()`, `->`, `=> $^`, `$$…`) are defined in the common grammar and are
+not redefined here.
+
+## Prolog
+- File begins with `@target python`.
+- Core parser owns state headers, handler selectors, transitions, forwards.
+- Python body parser handles statements/expressions within `{ ... }` bodies.
+
+## Lexical Rules
+- Comments: `#` to end of line.
+- Strings: single, double, triple-quoted; f‑strings allowed.
+- Identifiers: Python identifier rules.
+- Numbers: int, float; underscores permitted.
+
+## Operators
+- Boolean: `and`, `or`, `not`.
+- Equality: `==`, `!=` (Python semantics); `is`/`is not` allowed.
+- Arithmetic/bitwise: as per Python.
+- Floor division: `//`.
+
+## Statements
+- if/elif/else; for/while; try/except/finally; with; return; break/continue; pass.
+- Comprehensions, slices, generator expressions allowed if visitor supports.
+
+## Disambiguation with Core
+- Transition `->` is core only at statement start followed by a `$State` pattern;
+  otherwise Python uses `->` only in type annotations of `def`, which do not
+  appear inside Frame inline bodies.
+- Parent forward is exactly `=> $^` at statement start (never a Python token).
+- `$` outside core regions is not used.
+
+## Initially Unsupported (subject to visitor capability)
+- Metaclasses and advanced reflection.
+- Dynamic `exec`/`eval`.
+
+## Source Mapping
+- Python body parser must preserve start/end offsets for dual‑origin diagnostics.

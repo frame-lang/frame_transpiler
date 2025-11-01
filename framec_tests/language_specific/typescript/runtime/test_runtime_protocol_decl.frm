@@ -1,6 +1,4 @@
-# NOTE: Development fixture for Bug #055.
-# Not wired into automated tests; serves as the TypeScript-specific
-# runtime protocol blueprint while the async Node helpers are implemented.
+@target typescript
 
 system RuntimeProtocolTs {
     interface:

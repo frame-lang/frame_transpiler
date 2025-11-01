@@ -39,4 +39,6 @@ class FrameCompartment:
             self.state_args = {}
 
 
-__all__ = ["FrameEvent", "FrameCompartment"]
+from . import socket
+
+__all__ = ["FrameEvent", "FrameCompartment", "socket"]
