@@ -108,8 +108,10 @@ struct NodeApiActionMapping {
 
 impl TypeScriptVisitor {
     pub fn new(arcanum: Vec<Arcanum>, symbol_config: SymbolConfig) -> Self {
-        let runtime_imports: BTreeSet<String> =
-            DEFAULT_RUNTIME_IMPORTS.iter().map(|s| s.to_string()).collect();
+        let runtime_imports: BTreeSet<String> = DEFAULT_RUNTIME_IMPORTS
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
 
         Self {
             builder: CodeBuilder::new("    "), // 4 spaces for TypeScript indentation

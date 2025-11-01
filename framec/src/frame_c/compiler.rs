@@ -1,3 +1,4 @@
+use crate::frame_c::ast::FrameModule;
 use crate::frame_c::ast_serialize::{
     ast_summary, generate_line_map, save_ast_to_file, serialize_ast_to_json,
 };
@@ -25,6 +26,18 @@ use std::path::{Path, PathBuf};
 use crate::frame_c::ast::AttributeNode;
 pub use crate::frame_c::visitors::TargetLanguage;
 use std::convert::TryFrom;
+
+const TYPESCRIPT_SUPPORTED_NATIVE_MODULES: &[&str] = &[
+    "runtime/socket",
+    "runtime/json",
+    "runtime/os",
+    "runtime/random",
+    "runtime/signal",
+    "runtime/sys",
+    "runtime/time",
+    "runtime/configparser",
+    "runtime/open",
+];
 
 /* --------------------------------------------------------------------- */
 
@@ -529,6 +542,10 @@ impl Exe {
                     use crate::frame_c::symbol_table::SymbolConfig;
                     use crate::frame_c::visitors::typescript_visitor::TypeScriptVisitor;
 
+                    if let Err(err) = validate_typescript_native_modules(&frame_module) {
+                        return Err(err);
+                    }
+
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
                     let visitor = TypeScriptVisitor::new(arcanum_vec, SymbolConfig::new());
@@ -846,6 +863,85 @@ impl Exe {
                 Err(RunError::new(exitcode::SOFTWARE, &error_msg))
             }
         }
+    }
+}
+
+fn validate_typescript_native_modules(frame_module: &FrameModule) -> Result<(), RunError> {
+    use std::collections::HashSet;
+
+    let supported: HashSet<&str> = TYPESCRIPT_SUPPORTED_NATIVE_MODULES
+        .iter()
+        .cloned()
+        .collect();
+    let mut missing = Vec::new();
+
+    for module_rcref in &frame_module.native_modules {
+        let module = module_rcref.borrow();
+        let path = module.path();
+        if !supported.contains(path.as_str()) {
+            missing.push(path);
+        }
+    }
+
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        let msg = format!(
+            "TypeScript runtime does not provide native implementations for: {}",
+            missing.join(", ")
+        );
+        Err(RunError::new(frame_exitcode::PARSE_ERR, &msg))
+    }
+}
+
+#[cfg(test)]
+mod native_module_tests {
+    use super::*;
+    use crate::frame_c::ast::{NativeFunctionDeclNode, NativeModuleDeclNode, NativeModuleItem};
+    use std::cell::RefCell;
+
+    fn build_native_module(path: &[&str]) -> FrameModule {
+        let module = NativeModuleDeclNode::new(
+            path.iter().map(|s| s.to_string()).collect(),
+            1,
+            1,
+            vec![NativeModuleItem::Function(NativeFunctionDeclNode::new(
+                "dummy".to_string(),
+                Vec::new(),
+                None,
+                false,
+                1,
+                1,
+            ))],
+        );
+
+        FrameModule::new(
+            crate::frame_c::ast::Module::new(Vec::new()),
+            None,
+            Arc::new(Vec::new()),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![Rc::new(RefCell::new(module))],
+            Vec::new(),
+        )
+    }
+
+    #[test]
+    fn typescript_native_modules_supported() {
+        let module = build_native_module(&["runtime", "socket"]);
+        assert!(validate_typescript_native_modules(&module).is_ok());
+    }
+
+    #[test]
+    fn typescript_native_modules_missing() {
+        let module = build_native_module(&["runtime", "unknown"]);
+        let err = validate_typescript_native_modules(&module).unwrap_err();
+        assert!(err.error.contains("runtime/unknown"));
     }
 }
 

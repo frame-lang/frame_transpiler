@@ -17080,7 +17080,10 @@ system Host {
             arcanum,
             Arc::clone(&target_regions),
         );
-        let module = parser.parse().expect("parser should succeed");
+        let module = match parser.parse() {
+            Ok(module) => module,
+            Err(err) => panic!("parser failed: {}", err.to_display_string()),
+        };
 
         assert_eq!(module.native_modules.len(), 1);
         let native_module = module.native_modules[0].borrow();
