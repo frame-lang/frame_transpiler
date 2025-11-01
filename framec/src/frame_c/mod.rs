@@ -4,6 +4,7 @@ pub mod cli;
 pub mod code_builder; // Robust line-aware code generation (v0.75)
 pub mod compiler;
 pub mod config; // Project configuration system (v0.58)
+pub mod declaration_importers;
 pub mod llvm;
 pub mod marker_linter; // Marker file linting for validation (v0.74)
 pub mod modules; // Multi-file module system (v0.57)

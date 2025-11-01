@@ -1,5 +1,6 @@
 use crate::frame_c::compiler::{detect_header_target_annotation, Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
+use crate::frame_c::tools::run_decl_import;
 use clap::{Arg, Command};
 use std::convert::TryFrom;
 use std::path::PathBuf;
@@ -41,8 +42,24 @@ pub struct Cli {
     /// Validation only mode (skip transpilation)
     validation_only: bool,
 
-    /// Subcommand (build, init, etc.)
-    command: Option<String>,
+    /// Subcommand to execute
+    command: CliCommand,
+}
+
+#[derive(Debug, Clone)]
+pub struct DeclImportArgs {
+    pub config_path: PathBuf,
+    pub force: bool,
+    pub dry_run: bool,
+    pub verbose: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum CliCommand {
+    None,
+    Init,
+    Build { config: Option<PathBuf> },
+    DeclImport(DeclImportArgs),
 }
 
 impl Cli {
@@ -52,7 +69,18 @@ impl Cli {
             .about("Frame language transpiler")
             .subcommand_required(false)
             .arg_required_else_help(false)
-            .subcommand(Command::new("build").about("Build project using frame.toml configuration"))
+            .subcommand(
+                Command::new("build")
+                    .about("Build project using frame.toml configuration")
+                    .arg(
+                        Arg::new("config")
+                            .long("config")
+                            .short('c')
+                            .help("Path to frame.toml configuration file")
+                            .value_name("FILE")
+                            .num_args(1),
+                    ),
+            )
             .subcommand(
                 Command::new("init")
                     .about("Initialize a new Frame project with frame.toml")
@@ -61,6 +89,42 @@ impl Cli {
                             .help("Project name")
                             .value_name("NAME")
                             .index(1),
+                    ),
+            )
+            .subcommand(
+                Command::new("decl")
+                    .about("Declaration generation utilities")
+                    .subcommand(
+                        Command::new("import")
+                            .about("Generate native module declarations from language metadata")
+                            .arg(
+                                Arg::new("config")
+                                    .long("config")
+                                    .short('c')
+                                    .help("Path to declaration generator config JSON")
+                                    .value_name("FILE")
+                                    .required(true),
+                            )
+                            .arg(
+                                Arg::new("force")
+                                    .long("force")
+                                    .short('f')
+                                    .help("Overwrite existing declaration files")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("dry-run")
+                                    .long("dry-run")
+                                    .help("Parse config and report work without writing files")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("verbose")
+                                    .long("verbose")
+                                    .short('v')
+                                    .help("Emit additional logging during import")
+                                    .action(clap::ArgAction::SetTrue),
+                            ),
                     ),
             )
             .arg(
@@ -144,17 +208,57 @@ impl Cli {
             .get_matches();
 
         // Check for subcommands first
+        let mut has_subcommand = false;
         let command = match matches.subcommand() {
-            Some((name, _)) => Some(name.to_string()),
-            None => None,
+            Some((name, sub_matches)) => {
+                has_subcommand = true;
+                match name {
+                    "init" => CliCommand::Init,
+                    "build" => {
+                        let config = sub_matches
+                            .get_one::<String>("config")
+                            .map(|s| PathBuf::from(s));
+                        CliCommand::Build { config }
+                    }
+                    "decl" => match sub_matches.subcommand() {
+                        Some(("import", import_matches)) => {
+                            let config_path = import_matches
+                                .get_one::<String>("config")
+                                .map(|s| PathBuf::from(s))
+                                .expect("config arg is required by clap");
+                            let force = import_matches.get_flag("force");
+                            let dry_run = import_matches.get_flag("dry-run");
+                            let verbose = import_matches.get_flag("verbose");
+                            CliCommand::DeclImport(DeclImportArgs {
+                                config_path,
+                                force,
+                                dry_run,
+                                verbose,
+                            })
+                        }
+                        _ => {
+                            eprintln!("The 'decl' command requires a subcommand (e.g., 'framec decl import').");
+                            std::process::exit(exitcode::USAGE);
+                        }
+                    },
+                    other => {
+                        eprintln!(
+                            "Unknown command '{}'. Use 'framec --help' for available commands.",
+                            other
+                        );
+                        std::process::exit(exitcode::USAGE);
+                    }
+                }
+            }
+            None => CliCommand::None,
         };
 
         let mut stdin = false;
         let mut path_opt = None;
-        if !command.is_some() && matches.contains_id("FILE-PATH") {
+        if !has_subcommand && matches.contains_id("FILE-PATH") {
             let file_path = matches.get_one::<String>("FILE-PATH");
             path_opt = file_path.map(|file_path| PathBuf::from(file_path.clone()));
-        } else if !command.is_some() {
+        } else if !has_subcommand {
             stdin = true;
         }
 
@@ -210,24 +314,21 @@ pub fn run() {
 /// Run `framec` with the given CLI options.
 pub fn run_with(args: Cli) {
     // Handle subcommands first
-    if let Some(command) = args.command {
-        match command.as_str() {
-            "init" => {
-                handle_init_command();
-                return;
-            }
-            "build" => {
-                handle_build_command(args.config);
-                return;
-            }
-            _ => {
-                eprintln!(
-                    "Unknown command '{}'. Use 'framec --help' for available commands.",
-                    command
-                );
-                std::process::exit(exitcode::USAGE);
-            }
+    match args.command.clone() {
+        CliCommand::Init => {
+            handle_init_command();
+            return;
         }
+        CliCommand::Build { config } => {
+            let config_path = config.or(args.config.clone());
+            handle_build_command(config_path);
+            return;
+        }
+        CliCommand::DeclImport(decl_args) => {
+            handle_decl_import(decl_args);
+            return;
+        }
+        CliCommand::None => {}
     }
 
     // Original transpiler behavior
@@ -292,6 +393,20 @@ pub fn run_with(args: Cli) {
 }
 
 /// Handle the 'init' subcommand to create a new Frame project
+fn handle_decl_import(args: DeclImportArgs) {
+    match run_decl_import(&args.config_path, args.force, args.dry_run, args.verbose) {
+        Ok(()) => {
+            if args.dry_run {
+                println!("Declaration import dry run complete.");
+            }
+        }
+        Err(err) => {
+            eprintln!("{}", err.error);
+            std::process::exit(err.code);
+        }
+    }
+}
+
 fn handle_init_command() {
     use std::env;
     use std::fs;
