@@ -195,9 +195,9 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 **Tasks**:
 - [ ] Finalize and implement `native module` syntax (see `docs/framelang_design/decl_syntax.md`).
 - [ ] Parser + symbol table support for declared modules, functions, and opaque handle types.
-- [ ] Visitor wiring for Python/TypeScript (emit imports instead of `[target: ...]` blocks); design LLVM mapping.
-- [ ] Runtime exports aligned with declarations (`frame_runtime_py.runtime.socket`, `frame_runtime_ts.runtime.socket`, etc.).
-- [ ] Compiler diagnostics when a declaration is used but no implementation exists for the active target.
+- [x] Visitor wiring for Python/TypeScript (emit imports instead of `[target: ...]` blocks); design LLVM mapping.
+- [x] Runtime exports aligned with declarations (`frame_runtime_py.runtime.socket`, `frame_runtime_ts.runtime.socket`, etc.).
+- [x] Compiler diagnostics when a declaration is used but no implementation exists for the active target.
 
 ### **Phase 2.6: Declaration Generator Tooling (Week 6)**
 *Automate creation of native module contracts from existing language metadata*
