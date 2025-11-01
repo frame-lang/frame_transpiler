@@ -377,38 +377,7 @@ impl ModuleLinker {
                 output.push_str("            self.state_args = state_args or {}\n");
             }
             TargetLanguage::TypeScript => {
-                output.push_str("// Frame runtime classes (embedded for standalone compilation)\n");
-                output.push_str("interface FrameEventParameters { [key: string]: any; }\n");
-                output.push_str("export class FrameEvent {\n");
-                output.push_str("    constructor(public message: string, public parameters: FrameEventParameters | null) {}\n");
-                output.push_str("}\n\n");
-                output.push_str("export class FrameCompartment {\n");
-                output.push_str("    constructor(\n");
-                output.push_str("        public state: string,\n");
-                output.push_str("        public enterArgs?: any,\n");
-                output.push_str("        public exitArgs?: any,\n");
-                output.push_str("        public stateArgs?: any,\n");
-                output.push_str("        public stateVars?: any,\n");
-                output.push_str("        public enterArgsCollection?: any,\n");
-                output.push_str("        public exitArgsCollection?: any,\n");
-                output.push_str("        public forwardEvent?: FrameEvent | null\n");
-                output.push_str("    ) {\n");
-                output.push_str("        this.forwardEvent = forwardEvent || null;\n");
-                output.push_str("        this.stateArgs = stateArgs || {};\n");
-                output.push_str("        this.stateVars = stateVars || {};\n");
-                output.push_str("    }\n");
-                output.push_str("}\n\n");
-                output.push_str(
-                    "// External function declarations (provided by runtime environment)\n",
-                );
-                output.push_str("declare var Promise: PromiseConstructor;\n");
-                output.push_str("declare function createAsyncServer(handler: (socket: any) => void): Promise<any>;\n");
-                output.push_str("declare class NetworkServer { }\n");
-                output.push_str("declare class JsonParser { static parse(data: any): any; }\n\n");
-
-                let runtime_code = include_str!("../visitors/runtime/typescript/frame_runtime.ts");
-                output.push_str(runtime_code);
-                output.push('\n');
+                output.push_str("import { FrameRuntime, FrameCollections, FrameCounter, FrameDict, FrameMath, FrameTime, FrameSys, FrameSignal, FrameNumpy, FrameString, FrameEvent, FrameCompartment, configparser, json, numpy, os, random, signal, sys, time, open } from './frame_runtime_ts';\n\n");
             }
             _ => {
                 output.push_str("// Frame runtime classes\n");
@@ -713,7 +682,7 @@ impl ModuleLinker {
             generated_files.push(init_path);
         }
 
-        let runtime_pkg = if self.target_language == TargetLanguage::Python3 {
+        let runtime_py_pkg = if self.target_language == TargetLanguage::Python3 {
             Some(
                 runtime_assets::emit_python_runtime_package(output_dir).map_err(|e| {
                     ModuleError::new(
@@ -723,6 +692,25 @@ impl ModuleLinker {
                         },
                         format!(
                             "Failed to write Frame runtime package in {}",
+                            output_dir.display()
+                        ),
+                    )
+                })?,
+            )
+        } else {
+            None
+        };
+
+        let runtime_ts_pkg = if self.target_language == TargetLanguage::TypeScript {
+            Some(
+                runtime_assets::emit_typescript_runtime_package(output_dir).map_err(|e| {
+                    ModuleError::new(
+                        ModuleErrorKind::IOError {
+                            path: output_dir.to_path_buf(),
+                            error: e.to_string(),
+                        },
+                        format!(
+                            "Failed to write Frame TypeScript runtime in {}",
                             output_dir.display()
                         ),
                     )
@@ -742,9 +730,15 @@ impl ModuleLinker {
         for file in &generated_files {
             summary.push_str(&format!("# - {}\n", file.display()));
         }
-        if let Some(runtime_dir) = runtime_pkg {
+        if let Some(runtime_dir) = runtime_py_pkg {
             summary.push_str(&format!(
                 "# - {}/__init__.py (Frame runtime)\n",
+                runtime_dir.display()
+            ));
+        }
+        if let Some(runtime_dir) = runtime_ts_pkg {
+            summary.push_str(&format!(
+                "# - {}/index.ts (Frame TypeScript runtime)\n",
                 runtime_dir.display()
             ));
         }

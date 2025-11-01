@@ -2183,6 +2183,7 @@ impl<'a> Parser<'a> {
         let target_specific_regions =
             self.collect_target_specific_regions(body_start_line, body_end_line);
         let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
+        let statements = self.resolve_target_statements(statements, &target_specific_regions);
 
         let mut function_node = FunctionNode::new(
             function_name.clone(),
@@ -3361,6 +3362,7 @@ impl<'a> Parser<'a> {
         let target_specific_regions =
             self.collect_target_specific_regions(body_start_line, body_end_line);
         let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
+        let statements = self.resolve_target_statements(statements, &target_specific_regions);
 
         //
         // if self.match_token(&[TokenType::RParen]) {
@@ -3724,6 +3726,7 @@ impl<'a> Parser<'a> {
         let target_specific_regions =
             self.collect_target_specific_regions(body_start_line, body_end_line);
         let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
+        let statements = self.resolve_target_statements(statements, &target_specific_regions);
 
         let mut operation_node = OperationNode::new(
             operation_name.clone(),
@@ -6080,6 +6083,7 @@ impl<'a> Parser<'a> {
         let target_specific_regions =
             self.collect_target_specific_regions(body_start_line, body_end_line);
         let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
+        let statements = self.resolve_target_statements(statements, &target_specific_regions);
 
         // The state name must be set in an enclosing context. Otherwise fail
         // with extreme prejudice.
@@ -6469,6 +6473,116 @@ impl<'a> Parser<'a> {
         }
 
         Ok(blocks)
+    }
+
+    /* --------------------------------------------------------------------- */
+
+    fn resolve_target_statements(
+        &self,
+        statements: Vec<DeclOrStmtType>,
+        region_refs: &[TargetSpecificRegionRef],
+    ) -> Vec<DeclOrStmtType> {
+        if region_refs.is_empty() || statements.is_empty() {
+            return statements;
+        }
+
+        let mut filtered = Vec::with_capacity(statements.len());
+
+        'outer: for decl_or_stmt in statements {
+            if let Some(line) = Self::decl_or_stmt_line(&decl_or_stmt) {
+                for region in region_refs {
+                    if line >= region.frame_start_line && line <= region.frame_end_line {
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!(
+                                "DEBUG: dropping Frame statement at line {} due to target block {}-{}",
+                                line, region.frame_start_line, region.frame_end_line
+                            );
+                        }
+                        continue 'outer;
+                    }
+                }
+            }
+            filtered.push(decl_or_stmt);
+        }
+
+        filtered
+    }
+
+    fn decl_or_stmt_line(decl_or_stmt: &DeclOrStmtType) -> Option<usize> {
+        match decl_or_stmt {
+            DeclOrStmtType::VarDeclT { var_decl_t_rcref } => Some(var_decl_t_rcref.borrow().line),
+            DeclOrStmtType::StmtT { stmt_t } => Self::statement_line(stmt_t),
+        }
+    }
+
+    fn statement_line(stmt: &StatementType) -> Option<usize> {
+        match stmt {
+            StatementType::ExpressionStmt { expr_stmt_t } => Self::expr_stmt_line(expr_stmt_t),
+            StatementType::TransitionStmt {
+                transition_statement_node,
+            } => Some(transition_statement_node.line),
+            StatementType::StateStackStmt {
+                state_stack_operation_statement_node,
+            } => Some(
+                state_stack_operation_statement_node
+                    .state_stack_operation_node
+                    .line,
+            ),
+            StatementType::IfStmt { if_stmt_node } => Some(if_stmt_node.line),
+            StatementType::ForStmt { for_stmt_node } => Some(for_stmt_node.line),
+            StatementType::WhileStmt { while_stmt_node } => Some(while_stmt_node.line),
+            StatementType::LoopStmt { loop_stmt_node } => Some(loop_stmt_node.line),
+            StatementType::ContinueStmt { continue_stmt_node } => Some(continue_stmt_node.line),
+            StatementType::BreakStmt { break_stmt_node } => Some(break_stmt_node.line),
+            StatementType::DelStmt { del_stmt_node } => Some(del_stmt_node.line),
+            StatementType::AssertStmt { assert_stmt_node } => Some(assert_stmt_node.line),
+            StatementType::TryStmt { try_stmt_node } => Some(try_stmt_node.line),
+            StatementType::RaiseStmt { raise_stmt_node } => Some(raise_stmt_node.line),
+            StatementType::WithStmt { with_stmt_node } => Some(with_stmt_node.line),
+            StatementType::MatchStmt { match_stmt_node } => Some(match_stmt_node.line),
+            StatementType::BlockStmt { block_stmt_node } => Some(block_stmt_node.line),
+            StatementType::ReturnAssignStmt {
+                return_assign_stmt_node,
+            } => Some(return_assign_stmt_node.line),
+            StatementType::ReturnStmt { return_stmt_node } => Some(return_stmt_node.line),
+            StatementType::ParentDispatchStmt {
+                parent_dispatch_stmt_node,
+            } => Some(parent_dispatch_stmt_node.line),
+            StatementType::NoStmt => None,
+        }
+    }
+
+    fn expr_stmt_line(expr_stmt: &ExprStmtType) -> Option<usize> {
+        match expr_stmt {
+            ExprStmtType::SystemInstanceStmtT {
+                system_instance_stmt_node,
+            } => Some(system_instance_stmt_node.line),
+            ExprStmtType::SystemTypeStmtT {
+                system_type_stmt_node,
+            } => Some(system_type_stmt_node.line),
+            ExprStmtType::CallStmtT { call_stmt_node } => Some(call_stmt_node.line),
+            ExprStmtType::ActionCallStmtT {
+                action_call_stmt_node,
+            } => Some(action_call_stmt_node.line),
+            ExprStmtType::CallChainStmtT {
+                call_chain_literal_stmt_node,
+            } => Some(call_chain_literal_stmt_node.line),
+            ExprStmtType::AssignmentStmtT {
+                assignment_stmt_node,
+            } => Some(assignment_stmt_node.line),
+            ExprStmtType::VariableStmtT { variable_stmt_node } => Some(variable_stmt_node.line),
+            ExprStmtType::ListStmtT { list_stmt_node } => Some(list_stmt_node.line),
+            ExprStmtType::ExprListStmtT {
+                expr_list_stmt_node,
+            } => Some(expr_list_stmt_node.line),
+            ExprStmtType::EnumeratorStmtT {
+                enumerator_stmt_node,
+            } => Some(enumerator_stmt_node.line),
+            ExprStmtType::BinaryStmtT { binary_stmt_node } => Some(binary_stmt_node.line),
+            ExprStmtType::TransitionStmtT {
+                transition_statement_node,
+            } => Some(transition_statement_node.line),
+        }
     }
 
     /* --------------------------------------------------------------------- */
@@ -16587,6 +16701,23 @@ system TargetDiag {
                 .unwrap_or(false),
             "expected target snippet containing 'if True', got {:?}",
             err.target_snippet
+        );
+        let display = err.to_display_string();
+        assert!(
+            err.frame_line.is_some(),
+            "expected frame line to be populated"
+        );
+        if let Some(frame_line) = err.frame_line {
+            assert!(
+                display.contains(&format!("frame> line {}", frame_line)),
+                "display string missing frame line: {}",
+                display
+            );
+        }
+        assert!(
+            display.contains("target> python3 line 2"),
+            "display string missing target context: {}",
+            display
         );
     }
 }

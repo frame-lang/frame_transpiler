@@ -6,11 +6,14 @@ use super::*;
 use crate::frame_c::ast::FrameEventPart;
 use crate::frame_c::ast::*;
 use crate::frame_c::code_builder::CodeBuilder;
-use crate::frame_c::scanner::TokenType;
+use crate::frame_c::scanner::{TargetRegion, TokenType};
 use crate::frame_c::symbol_table::{Arcanum, SymbolConfig};
+use crate::frame_c::target_parsers::typescript::{TypeScriptTargetAst, TypeScriptTargetElement};
+use crate::frame_c::target_parsers::ParsedTargetBlock;
 use regex;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
+use std::sync::Arc;
 
 pub struct TypeScriptVisitor {
     pub builder: CodeBuilder,
@@ -58,6 +61,9 @@ pub struct TypeScriptVisitor {
     // Bug 53 fix: Track dynamic properties and runtime function calls
     dynamic_properties: HashSet<String>, // Track properties assigned with self.propertyName
     runtime_function_calls: HashSet<String>, // Track frameRuntime* function calls
+
+    // Target-specific region metadata
+    target_regions: Arc<Vec<TargetRegion>>,
 }
 
 struct NodeApiActionMapping {
@@ -108,6 +114,7 @@ impl TypeScriptVisitor {
             // Bug 53 fix: Initialize property and function tracking
             dynamic_properties: HashSet::new(),
             runtime_function_calls: HashSet::new(),
+            target_regions: Arc::new(Vec::new()),
         }
     }
 
@@ -155,7 +162,7 @@ impl TypeScriptVisitor {
 
     /// Embed Frame TypeScript runtime library at the beginning of generated files
     fn embed_frame_runtime(&mut self) {
-        let runtime_code = include_str!("runtime/typescript/frame_runtime.ts");
+        let runtime_code = include_str!("../../../../frame_runtime_ts/index.ts");
         self.builder.writeln("// Frame TypeScript Runtime Library");
         self.builder
             .writeln("// Provides Frame-semantic implementations for consistent behavior");
@@ -164,7 +171,6 @@ impl TypeScriptVisitor {
         self.builder.newline();
         self.builder.newline();
     }
-
     fn build_state_vars_dict(&mut self, state_node: &StateNode) -> String {
         let param_names = if let Some(params) = &state_node.params_opt {
             params.iter().map(|p| p.param_name.clone()).collect()
@@ -1372,6 +1378,9 @@ impl TypeScriptVisitor {
         self.builder.newline();
         self.builder.newline();
 
+        // Capture target-specific regions for native block emission
+        self.target_regions = Arc::clone(&frame_module.target_regions);
+
         // Generate runtime support
         self.generate_runtime_support();
 
@@ -1429,47 +1438,19 @@ impl TypeScriptVisitor {
             self.embed_frame_runtime();
             self.builder.newline();
             self.emit_runtime_scaffolding();
+        } else {
+            self.emit_runtime_imports();
         }
     }
 
-    fn emit_runtime_scaffolding(&mut self) {
-        // Frame runtime classes (embedded for standalone compilation)
-        self.builder
-            .writeln("// Frame runtime classes (embedded for standalone compilation)");
-        self.builder
-            .writeln("interface FrameEventParameters { [key: string]: any; }");
-        self.builder.writeln("class FrameEvent {");
-        self.builder.indent();
-        self.builder.writeln("constructor(public message: string, public parameters: FrameEventParameters | null) {}");
-        self.builder.dedent();
-        self.builder.writeln("}");
+    fn emit_runtime_imports(&mut self) {
+        self.builder.writeln(
+            "import { FrameRuntime, FrameCollections, FrameCounter, FrameDict, FrameMath, FrameString, FrameEvent, FrameCompartment, OrderedDict, ChainMap, FrameSocketClient, configparser, json, numpy, os, random, signal, sys, time, open } from './frame_runtime_ts';",
+        );
         self.builder.newline();
-        self.builder.writeln("class FrameCompartment {");
-        self.builder.indent();
-        self.builder.writeln("constructor(");
-        self.builder.indent();
-        self.builder.writeln("public state: string,");
-        self.builder.writeln("public enterArgs?: any,");
-        self.builder.writeln("public exitArgs?: any,");
-        self.builder.writeln("public stateArgs?: any,");
-        self.builder.writeln("public stateVars?: any,");
-        self.builder.writeln("public enterArgsCollection?: any,");
-        self.builder.writeln("public exitArgsCollection?: any,");
-        self.builder
-            .writeln("public forwardEvent?: FrameEvent | null");
-        self.builder.dedent();
-        self.builder.writeln(") {");
-        self.builder.indent();
-        self.builder
-            .writeln("this.forwardEvent = forwardEvent || null;");
-        self.builder.writeln("this.stateArgs = stateArgs || {};");
-        self.builder.writeln("this.stateVars = stateVars || {};");
-        self.builder.dedent();
-        self.builder.writeln("}");
-        self.builder.dedent();
-        self.builder.writeln("}");
-        self.builder.newline();
+    }
 
+    fn emit_runtime_scaffolding(&mut self) {
         // External function declarations (provided by runtime environment)
         self.builder
             .writeln("// External function declarations (provided by runtime environment)");
@@ -2615,50 +2596,69 @@ impl AstVisitor for TypeScriptVisitor {
         }
         self.builder.indent();
 
-        // Process handler statements
-        for stmt_or_decl in &handler.statements {
-            match stmt_or_decl {
-                DeclOrStmtType::StmtT { stmt_t } => {
-                    self.visit_stmt_node(stmt_t);
-                }
-                DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
-                    // Handle variable declaration
-                    let var_decl = var_decl_t_rcref.borrow();
-                    let var_name = &var_decl.name;
+        let (generated_target_specific, ignored_targets) = self.emit_target_specific_body(
+            handler.body,
+            &handler.parsed_target_blocks,
+            &handler.target_specific_regions,
+            &handler.unrecognized_statements,
+        );
 
-                    // Track local variable
-                    self.current_local_vars.insert(var_name.clone());
+        if generated_target_specific
+            && matches!(handler.body, ActionBody::Mixed)
+            && !handler.statements.is_empty()
+        {
+            self.builder.writeln(
+                "// NOTE: Frame statements ignored because native TypeScript block was provided",
+            );
+        }
 
-                    // Use get_initializer_value_rc() like Python visitor - fixes expression sharing corruption
-                    let value_expr = var_decl.get_initializer_value_rc();
-                    if !matches!(*value_expr, ExprType::NilExprT) {
-                        let mut init_str = String::new();
-                        self.visit_expr_node_to_string(&value_expr, &mut init_str);
+        if !generated_target_specific {
+            // Process handler statements
+            for stmt_or_decl in &handler.statements {
+                match stmt_or_decl {
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(stmt_t);
+                    }
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        // Handle variable declaration
+                        let var_decl = var_decl_t_rcref.borrow();
+                        let var_name = &var_decl.name;
 
-                        // Generate variable declaration
-                        self.builder
-                            .writeln(&format!("var {} = {};", var_name, init_str));
-                    } else {
-                        self.builder
-                            .writeln(&format!("var {}: any = null;", var_name));
+                        // Track local variable
+                        self.current_local_vars.insert(var_name.clone());
+
+                        // Use get_initializer_value_rc() like Python visitor - fixes expression sharing corruption
+                        let value_expr = var_decl.get_initializer_value_rc();
+                        if !matches!(*value_expr, ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            self.visit_expr_node_to_string(&value_expr, &mut init_str);
+
+                            // Generate variable declaration
+                            self.builder
+                                .writeln(&format!("var {} = {};", var_name, init_str));
+                        } else {
+                            self.builder
+                                .writeln(&format!("var {}: any = null;", var_name));
+                        }
                     }
                 }
             }
-        }
 
-        // Handle terminator
-        if let Some(terminator) = &handler.terminator_node {
-            match &terminator.terminator_type {
-                TerminatorType::Return => {
-                    // Use handler default value if available
-                    if let Some(handler_default) = &self.current_event_handler_default_return_value
-                    {
-                        self.builder.writeln(&format!(
-                            "this.returnStack[this.returnStack.length - 1] = {};",
-                            handler_default
-                        ));
+            // Handle terminator
+            if let Some(terminator) = &handler.terminator_node {
+                match &terminator.terminator_type {
+                    TerminatorType::Return => {
+                        // Use handler default value if available
+                        if let Some(handler_default) =
+                            &self.current_event_handler_default_return_value
+                        {
+                            self.builder.writeln(&format!(
+                                "this.returnStack[this.returnStack.length - 1] = {};",
+                                handler_default
+                            ));
+                        }
+                        self.builder.writeln("return;");
                     }
-                    self.builder.writeln("return;");
                 }
             }
         }
@@ -2667,6 +2667,13 @@ impl AstVisitor for TypeScriptVisitor {
         self.current_event_handler_default_return_value = None;
 
         self.builder.dedent();
+        if !ignored_targets.is_empty() {
+            let ignored_list: Vec<String> = ignored_targets.into_iter().collect();
+            self.builder.writeln(&format!(
+                "// NOTE: target-specific block(s) for {:?} ignored by TypeScript backend",
+                ignored_list
+            ));
+        }
         self.builder.writeln("}");
         self.builder.newline();
 
@@ -2768,33 +2775,58 @@ impl AstVisitor for TypeScriptVisitor {
         ));
         self.builder.indent();
 
-        // Process operation statements
-        for stmt_or_decl in &operation.statements {
-            match stmt_or_decl {
-                DeclOrStmtType::StmtT { stmt_t } => {
-                    self.visit_stmt_node(stmt_t);
-                }
-                DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
-                    let var_decl = var_decl_t_rcref.borrow();
-                    // Track local variable
-                    self.current_local_vars.insert(var_decl.name.clone());
+        let (generated_target_specific, ignored_targets) = self.emit_target_specific_body(
+            operation.body,
+            &operation.parsed_target_blocks,
+            &operation.target_specific_regions,
+            &operation.unrecognized_statements,
+        );
 
-                    let value_expr = var_decl.get_initializer_value_rc();
-                    if !matches!(*value_expr.as_ref(), ExprType::NilExprT) {
-                        let mut init_str = String::new();
+        if generated_target_specific
+            && matches!(operation.body, ActionBody::Mixed)
+            && !operation.statements.is_empty()
+        {
+            self.builder.writeln(
+                "// NOTE: Frame statements ignored because native TypeScript block was provided",
+            );
+        }
+
+        if !generated_target_specific {
+            // Process operation statements
+            for stmt_or_decl in &operation.statements {
+                match stmt_or_decl {
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(stmt_t);
+                    }
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        // Track local variable
+                        self.current_local_vars.insert(var_decl.name.clone());
+
                         let value_expr = var_decl.get_initializer_value_rc();
-                        self.visit_expr_node_to_string(&*value_expr, &mut init_str);
-                        self.builder
-                            .writeln(&format!("var {} = {};", var_decl.name, init_str));
-                    } else {
-                        self.builder
-                            .writeln(&format!("var {}: any;", var_decl.name));
+                        if !matches!(*value_expr.as_ref(), ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            let value_expr = var_decl.get_initializer_value_rc();
+                            self.visit_expr_node_to_string(&*value_expr, &mut init_str);
+                            self.builder
+                                .writeln(&format!("var {} = {};", var_decl.name, init_str));
+                        } else {
+                            self.builder
+                                .writeln(&format!("var {}: any;", var_decl.name));
+                        }
                     }
                 }
             }
         }
 
         self.builder.dedent();
+        if !ignored_targets.is_empty() {
+            let ignored_list: Vec<String> = ignored_targets.into_iter().collect();
+            self.builder.writeln(&format!(
+                "// NOTE: target-specific block(s) for {:?} ignored by TypeScript backend",
+                ignored_list
+            ));
+        }
         self.builder.writeln("}");
         self.builder.newline();
 
@@ -2822,9 +2854,11 @@ impl AstVisitor for TypeScriptVisitor {
 
         // Build parameter list and track parameters
         let mut params = Vec::new();
+        let mut param_names = Vec::new();
         if let Some(param_nodes) = &action.params {
             for param in param_nodes {
                 params.push(format!("{}: any", param.param_name));
+                param_names.push(param.param_name.clone());
                 // Track action parameters as local variables
                 self.current_local_vars.insert(param.param_name.clone());
             }
@@ -2880,65 +2914,83 @@ impl AstVisitor for TypeScriptVisitor {
         ));
         self.builder.indent();
 
-        // Generate action body
-        for stmt_or_decl in &action.statements {
-            match stmt_or_decl {
-                DeclOrStmtType::StmtT { stmt_t } => {
-                    self.visit_stmt_node(stmt_t);
-                }
-                DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
-                    let var_decl = var_decl_t_rcref.borrow();
-                    // Track local variable
-                    self.current_local_vars.insert(var_decl.name.clone());
+        let (generated_target_specific, ignored_targets) = self.emit_target_specific_body(
+            action.body,
+            &action.parsed_target_blocks,
+            &action.target_specific_regions,
+            &action.unrecognized_statements,
+        );
 
-                    let value_expr = var_decl.get_initializer_value_rc();
-                    if !matches!(*value_expr.as_ref(), ExprType::NilExprT) {
-                        let mut init_str = String::new();
+        if generated_target_specific
+            && matches!(action.body, ActionBody::Mixed)
+            && !action.statements.is_empty()
+        {
+            self.builder.writeln(
+                "// NOTE: Frame statements ignored because native TypeScript block was provided",
+            );
+        }
+
+        if !generated_target_specific {
+            // Generate action body
+            for stmt_or_decl in &action.statements {
+                match stmt_or_decl {
+                    DeclOrStmtType::StmtT { stmt_t } => {
+                        self.visit_stmt_node(stmt_t);
+                    }
+                    DeclOrStmtType::VarDeclT { var_decl_t_rcref } => {
+                        let var_decl = var_decl_t_rcref.borrow();
+                        // Track local variable
+                        self.current_local_vars.insert(var_decl.name.clone());
+
                         let value_expr = var_decl.get_initializer_value_rc();
-                        self.visit_expr_node_to_string(&*value_expr, &mut init_str);
-                        self.builder
-                            .writeln(&format!("var {} = {};", var_decl.name, init_str));
-                    } else {
-                        self.builder
-                            .writeln(&format!("var {}: any = null;", var_decl.name));
+                        if !matches!(*value_expr.as_ref(), ExprType::NilExprT) {
+                            let mut init_str = String::new();
+                            let value_expr = var_decl.get_initializer_value_rc();
+                            self.visit_expr_node_to_string(&*value_expr, &mut init_str);
+                            self.builder
+                                .writeln(&format!("var {} = {};", var_decl.name, init_str));
+                        } else {
+                            self.builder
+                                .writeln(&format!("var {}: any = null;", var_decl.name));
+                        }
                     }
                 }
             }
-        }
 
-        // Handle terminator (return statement for actions)
-        // Note: return statements in action bodies are handled by visit_return_stmt_node
-        // Only add default return if needed for non-void functions without explicit returns
-        match action.terminator_expr.terminator_type {
-            TerminatorType::Return => {
-                // Return statements in action bodies are already handled by visit_return_stmt_node
-                // Don't duplicate the return processing here
+            // Handle terminator (return statement for actions)
+            // Note: return statements in action bodies are handled by visit_return_stmt_node
+            // Only add default return if needed for non-void functions without explicit returns
+            match action.terminator_expr.terminator_type {
+                TerminatorType::Return => {
+                    // Return statements in action bodies are already handled by visit_return_stmt_node
+                    // Don't duplicate the return processing here
+                }
             }
-        }
 
-        // Add default return for actions that don't have explicit returns but need them
-        let mut mapping_applied = false;
-        if let Some(mapping) = &mapping_opt {
-            for stmt in &mapping.statements {
-                self.builder.writeln(stmt);
+            // Add default return for actions that don't have explicit returns but need them
+            let mut mapping_applied = false;
+            if let Some(mapping) = &mapping_opt {
+                for stmt in &mapping.statements {
+                    self.builder.writeln(stmt);
+                }
+                if let Some(return_expr) = &mapping.return_expression {
+                    self.builder.writeln(&format!("return {};", return_expr));
+                }
+                mapping_applied = true;
             }
-            if let Some(return_expr) = &mapping.return_expression {
-                self.builder.writeln(&format!("return {};", return_expr));
-            }
-            mapping_applied = true;
-        }
 
-        if !mapping_applied {
-            if !self.action_has_return_with_value(action) && return_type.contains("boolean") {
-                self.builder
-                    .writeln("return true; // Default success return for Frame action");
-            } else if !self.action_has_return_with_value(action)
-                && return_type.contains("Promise")
-                && !return_type.contains("void")
-            {
-                // Async actions with return types need a default return
-                self.builder
-                    .writeln("return null; // Default return for async action");
+            if !mapping_applied {
+                if !self.action_has_return_with_value(action) && return_type.contains("boolean") {
+                    self.builder
+                        .writeln("return true; // Default success return for Frame action");
+                } else if !self.action_has_return_with_value(action)
+                    && return_type.contains("Promise")
+                    && !return_type.contains("void")
+                {
+                    // Async actions with return types need a default return
+                    self.builder
+                        .writeln("return null; // Default return for async action");
+                }
             }
         }
 
@@ -2947,6 +2999,41 @@ impl AstVisitor for TypeScriptVisitor {
         self.pending_walrus_decls = saved_pending_walrus;
         self.is_in_action = false;
 
+        self.builder.dedent();
+
+        if !ignored_targets.is_empty() {
+            let ignored_list: Vec<String> = ignored_targets.into_iter().collect();
+            self.builder.writeln(&format!(
+                "// NOTE: target-specific block(s) for {:?} ignored by TypeScript backend",
+                ignored_list
+            ));
+        }
+
+        self.builder.writeln("}");
+        self.builder.newline();
+
+        // Public wrapper for action invocation
+        let wrapper_async_keyword = if is_async { "async " } else { "" };
+        self.builder.writeln(&format!(
+            "public {}{}({}): {} {{",
+            wrapper_async_keyword, action.name, params_str, return_type
+        ));
+        self.builder.indent();
+        let call_target = format!("this.{}", action_name);
+        let call_args = if param_names.is_empty() {
+            String::new()
+        } else {
+            param_names.join(", ")
+        };
+        let needs_return = return_type != "void";
+        let return_prefix = if needs_return { "return " } else { "" };
+        if call_args.is_empty() {
+            self.builder
+                .writeln(&format!("{}{}();", return_prefix, call_target));
+        } else {
+            self.builder
+                .writeln(&format!("{}{}({});", return_prefix, call_target, call_args));
+        }
         self.builder.dedent();
         self.builder.writeln("}");
         self.builder.newline();
@@ -3010,7 +3097,7 @@ impl TypeScriptVisitor {
                         action_call_stmt_node,
                     } => {
                         self.builder.writeln(&format!(
-                            "this._action_{}();",
+                            "this.{}();",
                             action_call_stmt_node
                                 .action_call_expr_node
                                 .identifier
@@ -3237,12 +3324,16 @@ impl TypeScriptVisitor {
             output.push_str(&format!("this.{}(", method_name));
         } else if func_name.starts_with("_action_") {
             // Already has action prefix
-            output.push_str(&format!("this.{}(", func_name));
-        } else if self.action_names.contains(func_name) {
-            // Bug #54-56 Fix: Only add action prefix if this is the first in the chain
-            // If not first, it's likely an external API method (e.g., child_process.spawn)
+            let public_name = func_name.trim_start_matches("_action_");
             if is_first_in_chain {
-                output.push_str(&format!("this._action_{}(", func_name));
+                output.push_str(&format!("this.{}(", public_name));
+            } else {
+                output.push_str(&format!("{}(", public_name));
+            }
+        } else if self.action_names.contains(func_name) {
+            // Route through public action wrapper; prefix with this. only when call starts the chain
+            if is_first_in_chain {
+                output.push_str(&format!("this.{}(", func_name));
             } else {
                 output.push_str(&format!("{}(", func_name));
             }
@@ -3416,8 +3507,12 @@ impl TypeScriptVisitor {
                             output.push_str(&format!("{}(", func_name));
                         }
                     } else if self.action_names.contains(func_name) {
-                        // It's a defined action - prefix with this._action_
-                        output.push_str(&format!("this._action_{}(", func_name));
+                        // It's a defined action - route through public wrapper
+                        if is_first_in_chain {
+                            output.push_str(&format!("this.{}(", func_name));
+                        } else {
+                            output.push_str(&format!("{}(", func_name));
+                        }
                     } else if func_name == "range" {
                         // Python range() function - use Frame runtime
                         output.push_str("FrameRuntime.range(");
@@ -3956,7 +4051,7 @@ impl TypeScriptVisitor {
                 action_call_expr_node,
             } => {
                 output.push_str(&format!(
-                    "this._action_{}(",
+                    "this.{}(",
                     action_call_expr_node.identifier.name.lexeme
                 ));
                 if action_call_expr_node.call_expr_list.exprs_t.len() > 0 {
@@ -5351,14 +5446,15 @@ impl TypeScriptVisitor {
                         self.runtime_function_calls.insert(method_name.clone());
                     }
 
-                    if self.action_names.contains(method_name) {
+                    if method_name.starts_with("_action_") {
+                        let wrapper_name = method_name.trim_start_matches("_action_");
                         if is_first {
-                            output.push_str(&format!("this._action_{}(", method_name));
+                            output.push_str(&format!("this.{}(", wrapper_name));
                         } else {
                             if !output.trim_end().ends_with('.') {
                                 output.push('.');
                             }
-                            output.push_str(&format!("_action_{}(", method_name));
+                            output.push_str(&format!("{}(", wrapper_name));
                         }
                         if !call_node.call_expr_list.exprs_t.is_empty() {
                             let mut args_str = String::new();
@@ -5369,6 +5465,29 @@ impl TypeScriptVisitor {
                             output.push_str(&args_str);
                         }
                         output.push(')');
+                        needs_any_wrap = true;
+                        continue;
+                    }
+
+                    if self.action_names.contains(method_name) {
+                        if is_first {
+                            output.push_str(&format!("this.{}(", method_name));
+                        } else {
+                            if !output.trim_end().ends_with('.') {
+                                output.push('.');
+                            }
+                            output.push_str(&format!("{}(", method_name));
+                        }
+                        if !call_node.call_expr_list.exprs_t.is_empty() {
+                            let mut args_str = String::new();
+                            self.visit_expr_list_node_to_string(
+                                &call_node.call_expr_list.exprs_t,
+                                &mut args_str,
+                            );
+                            output.push_str(&args_str);
+                        }
+                        output.push(')');
+                        needs_any_wrap = true;
                         continue;
                     }
 
@@ -5837,14 +5956,14 @@ impl TypeScriptVisitor {
                         // If it's not the first in the chain, it's likely an external API method
                         if self.action_names.contains(method_name) {
                             if is_first {
-                                // This is a real action - use action prefix on current instance
-                                output.push_str(&format!("this._action_{}(", method_name));
+                                // This is a real action - call through wrapper on current instance
+                                output.push_str(&format!("this.{}(", method_name));
                             } else {
-                                // Action invoked on explicit target - add dot and action prefix
+                                // Action invoked on explicit target - ensure property access and call wrapper
                                 if !output.trim_end().ends_with('.') {
                                     output.push('.');
                                 }
-                                output.push_str(&format!("_action_{}(", method_name));
+                                output.push_str(&format!("{}(", method_name));
                             }
                         } else {
                             // This is an external API method call (e.g., child_process.spawn)
@@ -7291,14 +7410,32 @@ impl TypeScriptVisitor {
         let old_flag = self.in_module_function;
         self.in_module_function = true;
 
+        let (generated_target_specific, ignored_targets) = self.emit_target_specific_body(
+            function_node.body,
+            &function_node.parsed_target_blocks,
+            &function_node.target_specific_regions,
+            &function_node.unrecognized_statements,
+        );
+
+        if generated_target_specific
+            && matches!(function_node.body, ActionBody::Mixed)
+            && !function_node.statements.is_empty()
+        {
+            self.builder.writeln(
+                "// NOTE: Frame statements ignored because native TypeScript block was provided",
+            );
+        }
+
         // Generate function body
-        if function_node.statements.is_empty() {
-            if !is_generator {
-                self.builder.writeln("return null;");
-            }
-        } else {
-            for stmt in &function_node.statements {
-                self.visit_decl_or_stmt(stmt);
+        if !generated_target_specific {
+            if function_node.statements.is_empty() {
+                if !is_generator {
+                    self.builder.writeln("return null;");
+                }
+            } else {
+                for stmt in &function_node.statements {
+                    self.visit_decl_or_stmt(stmt);
+                }
             }
         }
 
@@ -7313,6 +7450,15 @@ impl TypeScriptVisitor {
         self.in_generator_function = prev_generator_flag;
 
         self.builder.dedent();
+
+        if !ignored_targets.is_empty() {
+            let ignored_list: Vec<String> = ignored_targets.into_iter().collect();
+            self.builder.writeln(&format!(
+                "// NOTE: target-specific block(s) for {:?} ignored by TypeScript backend",
+                ignored_list
+            ));
+        }
+
         self.builder.writeln("}");
     }
 
@@ -8043,6 +8189,223 @@ impl TypeScriptVisitor {
             }
             _ => false,
         }
+    }
+
+    fn emit_target_specific_body(
+        &mut self,
+        body_kind: ActionBody,
+        parsed_blocks: &[ParsedTargetBlock],
+        region_refs: &[TargetSpecificRegionRef],
+        unrecognized: &[UnrecognizedStatementNode],
+    ) -> (bool, BTreeSet<String>) {
+        let mut generated = false;
+        let mut ignored: BTreeSet<String> = unrecognized
+            .iter()
+            .map(|entry| format!("{:?}", entry.target))
+            .collect();
+
+        if !matches!(body_kind, ActionBody::TargetSpecific | ActionBody::Mixed) {
+            return (generated, ignored);
+        }
+
+        for block in parsed_blocks {
+            if self.emit_typescript_target_block(block) {
+                generated = true;
+            } else {
+                ignored.insert(format!("{:?}", block.ast.target_language()));
+            }
+        }
+
+        if !generated {
+            for region_ref in region_refs {
+                if region_ref.target == TargetLanguage::TypeScript {
+                    if let Some(region) = self.target_regions.get(region_ref.region_index).cloned()
+                    {
+                        self.emit_target_region_lines(&region);
+                        generated = true;
+                    }
+                } else {
+                    ignored.insert(format!("{:?}", region_ref.target));
+                }
+            }
+        } else {
+            for region_ref in region_refs {
+                if region_ref.target != TargetLanguage::TypeScript {
+                    ignored.insert(format!("{:?}", region_ref.target));
+                }
+            }
+        }
+
+        (generated, ignored)
+    }
+
+    fn emit_typescript_target_block(&mut self, block: &ParsedTargetBlock) -> bool {
+        if block.ast.target_language() != TargetLanguage::TypeScript {
+            return false;
+        }
+
+        if let Some(ast) = block.ast.as_any().downcast_ref::<TypeScriptTargetAst>() {
+            let mut emitted_any = false;
+            for element in ast.elements() {
+                if self.emit_typescript_target_element(block, element) {
+                    emitted_any = true;
+                }
+            }
+
+            if emitted_any {
+                return true;
+            }
+        }
+
+        let source = block.ast.to_code();
+        if source.trim().is_empty() {
+            return false;
+        }
+
+        self.emit_target_source_with_metadata(
+            &source,
+            block.frame_start_line,
+            block.frame_end_line,
+            TargetLanguage::TypeScript,
+        );
+        true
+    }
+
+    fn emit_typescript_target_element(
+        &mut self,
+        block: &ParsedTargetBlock,
+        element: &TypeScriptTargetElement,
+    ) -> bool {
+        let segment = match element {
+            TypeScriptTargetElement::Statement(stmt) => stmt,
+            TypeScriptTargetElement::RawSegment(stmt) => stmt,
+        };
+
+        if segment.code.trim().is_empty() {
+            let line_count = segment
+                .end_line
+                .saturating_sub(segment.start_line)
+                .saturating_add(1);
+            for _ in 0..line_count {
+                self.builder.newline();
+            }
+            return line_count > 0;
+        }
+
+        let frame_start = block
+            .frame_start_line
+            .saturating_add(segment.start_line.saturating_sub(1));
+        let frame_end = block
+            .frame_start_line
+            .saturating_add(segment.end_line.saturating_sub(1));
+
+        self.emit_target_source_with_metadata(
+            &segment.code,
+            frame_start,
+            frame_end,
+            TargetLanguage::TypeScript,
+        );
+        true
+    }
+
+    fn emit_target_source_with_metadata(
+        &mut self,
+        source: &str,
+        frame_start_line: usize,
+        frame_end_line: usize,
+        target_language: TargetLanguage,
+    ) {
+        let lines: Vec<&str> = if source.is_empty() {
+            Vec::new()
+        } else {
+            source.lines().collect()
+        };
+
+        if lines.is_empty() {
+            self.builder.writeln(&format!(
+                "// [target {:?} block | frame line {}]",
+                target_language, frame_start_line
+            ));
+            return;
+        }
+
+        let comment = if frame_start_line == frame_end_line {
+            format!(
+                "// [target {:?} line 1 -> frame line {}]",
+                target_language, frame_start_line
+            )
+        } else {
+            let line_count = lines.len();
+            format!(
+                "// [target {:?} lines 1-{} -> frame lines {}-{}]",
+                target_language, line_count, frame_start_line, frame_end_line
+            )
+        };
+        self.builder.writeln(&comment);
+
+        for line in lines {
+            if line.trim().is_empty() {
+                self.builder.newline();
+            } else {
+                self.builder.writeln(line);
+            }
+        }
+    }
+
+    fn emit_target_region_lines(&mut self, region: &TargetRegion) {
+        if region.raw_content.trim().is_empty() {
+            return;
+        }
+
+        let lines: Vec<&str> = region.raw_content.lines().collect();
+        let mut min_indent = usize::MAX;
+
+        for line in &lines {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let indent = line.chars().take_while(|c| *c == ' ' || *c == '\t').count();
+            if indent < min_indent {
+                min_indent = indent;
+            }
+        }
+
+        if min_indent == usize::MAX {
+            min_indent = 0;
+        }
+
+        let mut dedented_lines: Vec<String> = Vec::new();
+        for line in &lines {
+            if line.trim().is_empty() {
+                dedented_lines.push(String::new());
+            } else if line.len() > min_indent {
+                dedented_lines.push(line[min_indent..].to_string());
+            } else {
+                dedented_lines.push(line.to_string());
+            }
+        }
+
+        let mut dedented_source = dedented_lines.join("\n");
+        if region.raw_content.ends_with('\n') && !dedented_source.ends_with('\n') {
+            dedented_source.push('\n');
+        }
+
+        let frame_end_line = if dedented_lines.is_empty() {
+            region.source_map.frame_start_line
+        } else {
+            region
+                .source_map
+                .frame_start_line
+                .saturating_add(dedented_lines.len().saturating_sub(1))
+        };
+
+        self.emit_target_source_with_metadata(
+            &dedented_source,
+            region.source_map.frame_start_line,
+            frame_end_line,
+            region.target,
+        );
     }
 
     fn expr_stmt_contains_yield(expr_stmt: &ExprStmtType) -> bool {

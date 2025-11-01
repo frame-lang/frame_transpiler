@@ -10,6 +10,7 @@
 
 const FRAME_FS = require('fs');
 const pathLib = require('path');
+const net = require('net');
 
 const ORDERED_DICT_STORE = new WeakMap<any, { store: Record<string, any>; order: string[] }>();
 const COUNTER_STORE = new WeakMap<any, Map<string, number>>();
@@ -2544,6 +2545,29 @@ const FrameNumpy = {
     },
 };
 
+export interface FrameEventParameters { [key: string]: any }
+
+export class FrameEvent {
+    constructor(public message: string, public parameters: FrameEventParameters | null) {}
+}
+
+export class FrameCompartment {
+    constructor(
+        public state: string,
+        public enterArgs?: any,
+        public exitArgs?: any,
+        public stateArgs?: any,
+        public stateVars?: any,
+        public enterArgsCollection?: any,
+        public exitArgsCollection?: any,
+        public forwardEvent?: FrameEvent | null
+    ) {
+        this.forwardEvent = forwardEvent || null;
+        this.stateArgs = stateArgs || {};
+        this.stateVars = stateVars || {};
+    }
+}
+
 export const os = FrameRuntime.os;
 export const json = FrameRuntime.json;
 export const random = FrameRandom;
@@ -2557,4 +2581,142 @@ export const configparser = {
 };
 export function open(pathValue: any, mode: any = 'r'): FrameFile {
     return FrameRuntime.open(pathValue, mode);
+}
+
+export class FrameSocketClient {
+    private buffer: string = "";
+    private lineQueue: string[] = [];
+    private pendingReads: Array<{ resolve: (value: string) => void; reject: (reason: any) => void }> = [];
+    private closed = false;
+    private lastError: Error | null = null;
+
+    private constructor(private socket: any) {
+        this.socket.setEncoding('utf8');
+        this.socket.on('data', (chunk: string) => this.handleData(chunk));
+        this.socket.on('error', (err: Error) => this.handleError(err));
+        this.socket.on('close', () => this.handleClose());
+    }
+
+    static async connect(host: string, port: number): Promise<FrameSocketClient> {
+        return new Promise((resolve, reject) => {
+            const socket = net.createConnection({ host, port });
+
+            const onError = (err: Error) => {
+                socket.destroy();
+                reject(err);
+            };
+
+            socket.once('error', onError);
+            socket.once('connect', () => {
+                socket.removeListener('error', onError);
+                resolve(new FrameSocketClient(socket));
+            });
+        });
+    }
+
+    async readLine(): Promise<string> {
+        if (this.lineQueue.length > 0) {
+            return Promise.resolve(this.lineQueue.shift()!);
+        }
+
+        if (this.lastError) {
+            return Promise.reject(this.lastError);
+        }
+
+        if (this.closed) {
+            return Promise.reject(new Error('Socket closed'));
+        }
+
+        return new Promise((resolve, reject) => {
+            this.pendingReads.push({ resolve, reject });
+        });
+    }
+
+    async writeLine(line: string): Promise<void> {
+        if (!this.socket) {
+            return Promise.reject(new Error('Socket closed'));
+        }
+
+        const payload = line.endsWith('\n') ? line : `${line}\n`;
+
+        return new Promise((resolve, reject) => {
+            const handleError = (err: Error) => {
+                cleanup();
+                reject(err);
+            };
+
+            const cleanup = () => {
+                this.socket?.removeListener('error', handleError);
+            };
+
+            this.socket.on('error', handleError);
+            this.socket.write(payload, 'utf8', () => {
+                cleanup();
+                resolve();
+            });
+        });
+    }
+
+    close(): void {
+        if (this.socket) {
+            try {
+                this.socket.destroy();
+            } catch (_err) {
+                // ignore
+            }
+            this.socket = null;
+        }
+        this.handleClose();
+    }
+
+    private handleData(chunk: string): void {
+        this.buffer += chunk;
+
+        while (true) {
+            const newlineIndex = this.buffer.indexOf('\n');
+            if (newlineIndex === -1) {
+                break;
+            }
+
+            let line = this.buffer.slice(0, newlineIndex);
+            this.buffer = this.buffer.slice(newlineIndex + 1);
+
+            if (line.endsWith('\r')) {
+                line = line.slice(0, -1);
+            }
+
+            this.enqueueLine(line);
+        }
+    }
+
+    private handleError(err: Error): void {
+        this.lastError = err;
+        this.rejectPending(err);
+        this.lineQueue.length = 0;
+    }
+
+    private handleClose(): void {
+        if (this.closed) {
+            return;
+        }
+        this.closed = true;
+        const reason = this.lastError ?? new Error('Socket closed');
+        this.rejectPending(reason);
+    }
+
+    private enqueueLine(line: string): void {
+        if (this.pendingReads.length > 0) {
+            const { resolve } = this.pendingReads.shift()!;
+            resolve(line);
+        } else {
+            this.lineQueue.push(line);
+        }
+    }
+
+    private rejectPending(reason: Error): void {
+        while (this.pendingReads.length > 0) {
+            const { reject } = this.pendingReads.shift()!;
+            reject(reason);
+        }
+    }
 }

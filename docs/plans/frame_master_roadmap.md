@@ -26,7 +26,15 @@ This roadmap outlines Frame's evolution from a Python-focused transpiler into a 
 - **Unified Test Harness**: 895-spec regression runner covering common + language-specific suites for both primary targets
 
 ### 🔄 In Progress
-- **Frame Standard Library (FSL)**: Formalize capability modules (network/process/timers/etc.) and document the shared API surface
+- **Cross-Language Native Syntax Implementation**: Active execution of target-specific syntax support
+  - **Status**: Phase 2-4 of cross-language support plan *(see `design/ai_planning.md` for detailed progress)*
+  - **Target-Specific Parsers**: ✅ Python and TypeScript native syntax parsing implemented
+  - **Runtime Infrastructure**: ✅ `frame_runtime_py` and `frame_runtime_ts` packaging aligned
+  - **Visitor Integration**: ✅ Native block output with dual-language error reporting
+  - **Current Focus**: Native declaration infrastructure and Bug #055 async socket resolution
+- **Frame Standard Library (FSL)**: Formalize capability modules (network/process/timers/etc.) and document the shared API surface  
+  - Define declaration-only syntax in Frame for runtime contracts (header-style interfaces without bodies)  
+  - Align runtime packages around shared FSL contract based on cross-language implementation learnings
 - **Advanced Syntax Enablement**: Walrus operator lowering, generator expressions, richer exception propagation, extended dunder support
 - **Debugger Tooling**: Refresh debugger-controller plan now that both runtimes execute cleanly; align source-map validation with async output
 
@@ -323,18 +331,203 @@ concurrent system MessageProcessor {
 
 ---
 
+## Phase 0: Multi-File Infrastructure & Foundation (Weeks 1-3)
+**FOUNDATIONAL REQUIREMENT**: Multi-file module system infrastructure must be established before capability modules can be effectively distributed across language targets.
+
+**PARALLEL EXECUTION**: Cross-language native syntax implementation (detailed in `design/ai_planning.md`) proceeds in parallel, providing the foundation for target-specific capability modules.
+
+### 0.1 Multi-File Project Structure (Week 1)
+**Goal**: Establish standardized project layout and configuration system
+
+**Key Deliverables**:
+- [ ] **Project Configuration System** - TOML-based project files
+  ```toml
+  # frame.toml
+  [project]
+  name = "my-app"
+  entry = "src/main.frm"
+  
+  [build]
+  output_dir = "dist"
+  source_dirs = ["src", "lib"]
+  targets = ["python", "typescript"]
+  ```
+- [ ] **Directory Structure Standards**
+  ```
+  my_project/
+  ├── frame.toml          # Project configuration
+  ├── src/
+  │   ├── main.frm       # Entry point
+  │   └── utils/
+  │       └── math.frm   # Module
+  ├── .frame/
+  │   └── cache/         # Symbol cache
+  │       └── utils_math.frmc
+  └── dist/
+      ├── output.py      # Generated Python
+      └── output.ts      # Generated TypeScript
+  ```
+- [ ] **Enhanced Compiler Infrastructure**
+  ```bash
+  framec build              # Multi-file compilation
+  framec build --watch      # File watching
+  framec test              # Test runner
+  framec clean             # Cache cleanup
+  ```
+
+### 0.2 Module Resolution & Dependency System (Week 2)
+**Goal**: Enable Frame modules to import and depend on each other
+
+**Key Deliverables**:
+- [ ] **Import Syntax Support** - Enable module imports with clear resolution
+  ```frame
+  // Module import syntax (compatible with multi-language targets)
+  import Math from "./utils/math.frm"
+  import Database from "../shared/database.frm"
+  
+  system Calculator {
+      interface: calculate(a: number, b: number): number
+      machine:
+          $Ready {
+              calculate(a, b) {
+                  var result = Math.add(a, b)
+                  ^ return result
+              }
+          }
+  }
+  ```
+- [ ] **Module Resolution Algorithm**
+  - File path resolution with search paths
+  - Circular dependency detection
+  - Module loading and caching
+  - Dependency graph building
+- [ ] **Symbol Table Extensions**
+  - Cross-file symbol resolution
+  - Import/export tracking
+  - Module-scoped name resolution
+
+### 0.3 Multi-File Testing Framework (Week 3)
+**Goal**: Establish testing infrastructure for multi-file Frame projects
+
+**Test Structure**:
+```
+framec_tests/
+├── single_file/          # Existing single-file tests (preserved)
+│   └── python/src/
+└── multi_file/           # New multi-file project tests
+    └── projects/
+        ├── basic_import/
+        │   ├── main.frm
+        │   ├── utils.frm
+        │   └── expected/
+        │       ├── output.py
+        │       └── output.ts
+        └── circular_deps/
+            ├── a.frm
+            ├── b.frm
+            └── expected_error.txt
+```
+
+**Key Deliverables**:
+- [ ] **Multi-File Test Runner Extension**
+- [ ] **Cross-Language Project Validation**
+- [ ] **Dependency Error Testing**
+- [ ] **Performance Regression Detection**
+
+**Success Criteria**:
+- Multi-file Frame projects compile successfully
+- Generated code works across Python and TypeScript targets
+- Module imports resolve correctly
+- Circular dependency errors are clear and actionable
+
+### 0.4 Implementation Strategy for Multi-File Support
+**Goal**: Establish proven patterns for managing complex multi-file implementation
+
+**Phased Implementation Approach**:
+1. **Start with Experimental Flag**
+   ```bash
+   framec --experimental-modules build
+   ```
+   
+2. **Two-Phase Parsing Architecture**
+   ```rust
+   // Phase 1: Collect imports and build dependency graph
+   let import_graph = collect_imports(&source_files)?;
+   
+   // Phase 2: Parse with complete symbol table
+   let modules = parse_modules(import_graph)?;
+   ```
+
+3. **Simple Concatenation First**
+   ```python
+   # Generated Python (Phase 1 approach)
+   # Module: Utils::Math
+   class Utils_Math:
+       @staticmethod
+       def add(a, b):
+           return a + b
+   
+   # Module: Main
+   def main():
+       result = Utils_Math.add(3, 4)
+   ```
+
+4. **Progressive Enhancement**
+   - Start: Simple file concatenation with namespace prefixes
+   - Enhance: Proper module imports and dependency resolution
+   - Optimize: Symbol table caching and incremental compilation
+
+**Quality Assurance Strategy**:
+```
+Error: Circular dependency detected
+  main.frm → utils.frm → helpers.frm → main.frm
+                                          ↑
+  Break the cycle by restructuring your modules
+```
+
+**Success Metrics**:
+- [ ] Multi-file projects compile without manual intervention
+- [ ] Error messages provide actionable guidance
+- [ ] Build performance scales reasonably with project size
+- [ ] Migration from single-file is straightforward
+
+---
+
+## Cross-Language Implementation Integration
+
+**Active Execution Tracker**: The detailed progress of cross-language native syntax implementation is tracked in `design/ai_planning.md`. This work proceeds in parallel with foundational infrastructure and directly supports the capability module architecture.
+
+### Current Cross-Language Achievements (v0.86.25)
+- ✅ **Target-Specific Parsers**: Python and TypeScript native syntax parsing
+- ✅ **Runtime Packaging**: `frame_runtime_py` and `frame_runtime_ts` modules
+- ✅ **Visitor Integration**: Native block output with Frame + target error reporting
+- ✅ **Socket Infrastructure**: `FrameSocketClient` implementation for async operations
+- 🔄 **Declaration Syntax**: Phase 2.5 implementation for ambient type declarations
+- 🔄 **Bug #055 Resolution**: TypeScript async socket operations via declarations
+
+### Integration Points with Master Roadmap
+- **Phase 0**: Multi-file infrastructure supports cross-language project structure
+- **Phase 1**: Capability modules leverage target-specific syntax implementations
+- **Phase 2+**: TypeScript and future language targets use proven native syntax architecture
+
+---
+
 ## Phase 1: Python Capability Module Extraction (Month 1)
 
 ### 1.1 Extract Existing Functionality into Modules
 **Goal**: Create capability modules from existing Frame-Python features without breaking changes
 
+**Prerequisites**: 
+- Multi-file infrastructure (Phase 0) completed
+- Cross-language native syntax implementation provides target-specific capability patterns
+
 **Key Deliverables**:
-- [ ] `frame/async.py` - Wrap existing asyncio functionality  
-- [ ] `frame/collections.py` - Standardize list/dict/set operations
-- [ ] `frame/memory.py` - Context manager abstractions
-- [ ] `frame/errors.py` - Exception handling utilities
-- [ ] `frame/filesystem.py` - Path and file operations
-- [ ] Update Python visitor to use capability modules
+- [ ] `frame/async.py` - Wrap existing asyncio functionality leveraging native async syntax
+- [ ] `frame/collections.py` - Standardize list/dict/set operations with native syntax patterns  
+- [ ] `frame/memory.py` - Context manager abstractions using native Python resource management
+- [ ] `frame/errors.py` - Exception handling utilities with cross-language error patterns
+- [ ] `frame/filesystem.py` - Path and file operations with native file handling
+- [ ] Update Python visitor to use capability modules with native syntax integration
 - [ ] Zero regression in existing Frame-Python tests
 
 ### 1.2 Validate Module Interface Design
@@ -376,16 +569,18 @@ system Example {
 ## Phase 2: TypeScript Capability Module Implementation (Month 2)
 
 ### 2.1 TypeScript Capability Modules
-**Goal**: Implement identical interfaces for TypeScript target
+**Goal**: Implement identical interfaces for TypeScript target using proven native syntax implementation
+
+**Foundation**: Leverages completed cross-language native syntax implementation for first-class TypeScript constructs
 
 **Key Deliverables**:
-- [ ] `frame/async.ts` - Promise and fetch abstractions
-- [ ] `frame/collections.ts` - Array/Map/Set wrappers with identical semantics
-- [ ] `frame/memory.ts` - Resource management patterns (try/finally)
-- [ ] `frame/errors.ts` - Error handling utilities
-- [ ] `frame/filesystem.ts` - Node.js fs or browser File API
-- [ ] Complete TypeScript visitor implementation
-- [ ] Runtime support classes (FrameEvent, FrameCompartment)
+- [ ] `frame/async.ts` - Promise and fetch abstractions using native async/await, template literals
+- [ ] `frame/collections.ts` - Array/Map/Set wrappers with native TypeScript types and destructuring
+- [ ] `frame/memory.ts` - Resource management patterns using native try/finally and arrow functions
+- [ ] `frame/errors.ts` - Error handling utilities with native type guards and optional chaining
+- [ ] `frame/filesystem.ts` - Node.js fs or browser File API with native import syntax
+- [ ] Enhanced TypeScript visitor leveraging native syntax architecture
+- [ ] Runtime support integrated with existing `frame_runtime_ts` module
 
 ### 2.2 Universal Frame Source Validation
 **Goal**: Prove same Frame source generates both Python and TypeScript
@@ -672,6 +867,25 @@ import { Collections } from './frame/collections';
 - Focus on high-value use cases
 - Improve documentation and examples
 - Build enterprise partnerships
+
+**If Multi-File Complexity Proves Unmanageable**:
+- Use experimental flag (`--experimental-modules`) for gradual rollout
+- Implement simple concatenation strategy first, optimize later
+- Maintain single-file compatibility as fallback option
+- Provide migration tools from single-file to multi-file projects
+
+### Multi-File Specific Risk Mitigation
+
+**Technical Risks**:
+- **Parser complexity explosion**: Start with simple concatenation, add sophisticated dependency analysis later
+- **Symbol resolution conflicts**: Implement namespace isolation and clear module boundaries
+- **Circular dependency issues**: Detect early with clear error messages and suggestions
+- **Build performance degradation**: Implement incremental compilation and symbol caching
+
+**Process Risks**:
+- **Breaking existing workflows**: Maintain backward compatibility with single-file Frame programs
+- **Testing complexity**: Separate multi-file tests from existing single-file test suite
+- **Migration burden**: Provide clear migration paths and automated tools where possible
 
 ---
 

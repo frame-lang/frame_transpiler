@@ -21,6 +21,13 @@ Frame programs run atop two generated layers:
 
 Keep capability work in the FSL so Frame specs stay portable while the runtime focuses purely on language behavior.
 
+### Shared Runtime Packages
+
+| Target | Package | Notes |
+| --- | --- | --- |
+| Python | `frame_runtime_py` | Generated Python files import `from frame_runtime_py import FrameEvent, FrameCompartment`; `framec` and `frame_build` drop the package automatically next to emitted code (single-file CLI runs embed a minimal fallback). |
+| TypeScript | `frame_runtime_ts` | Multi-file TypeScript builds emit `import { … } from "./frame_runtime_ts"`; the CLI and `frame_build` copy `frame_runtime_ts/index.ts` into the output directory, while single-file generation still embeds the bundle for convenience. |
+
 ## Current Focus (v0.86.25) 🛠️ Native Backend Readiness
 - LLVM runtime stores event payloads as typed `StateValue`s so queue replay, parent forwarding, and enter hooks preserve interface arguments.
 - Builder surfaces interface metadata to `SystemSummary`, enabling both handler generation and main-function calls to coerce arguments correctly.

@@ -457,6 +457,10 @@ impl Scanner {
 ## 🔧 Implementation Strategy
 
 ### Runtime & FSL Direction
+
+### Native Declaration Syntax (Draft)
+- See `docs/framelang_design/decl_syntax.md` for the proposal covering ambient module declarations, opaque handle types, and runtime implementation guidance.
+- This integrates with the runtime/FSL approach above; Python, TypeScript, LLVM, C/C++, Rust, and Java runtimes implement the declared module contract rather than embedding target-specific logic in specs.
 - Treat the existing per-target runtimes (`frame_runtime_py`, `frame_runtime_ts`, `runtime/llvm`) as the canonical home for Frame semantics (kernel loop, state stack, forwarded events). No behavioural change required—just keep them lean and target-native.
 - Define a target-neutral Frame Standard Library surface (FSL) and provide per-target implementations instead of mirroring Python helper modules. Pragmas/native blocks should call into these FSL shims rather than re-implementing platform APIs inline.
 - Document capability matrices per target (async, try/catch, state stack, etc.) so visitors can reject unsupported constructs during code generation.

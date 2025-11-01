@@ -273,6 +273,10 @@ framec/src/frame_c/
 └── utils.rs           # Utility functions
 ```
 
+### Shared Runtime Packages
+- `frame_runtime_py/`: Python runtime primitives (`FrameEvent`, `FrameCompartment`, helpers). Generated Python files import this module; both the CLI and `frame_build` emit the package automatically alongside output artifacts (single-file builds embed a minimal fallback for convenience).
+- `frame_runtime_ts/`: TypeScript runtime bundle (`FrameRuntime`, `FrameCollections`, `FrameDict`, etc.). Multi-file TypeScript builds emit `import { … } from "./frame_runtime_ts"` statements, and the CLI/`frame_build` drop `frame_runtime_ts/index.ts` next to generated `.ts` files. Standalone runs still embed the runtime when `generate_runtime_classes` is enabled.
+
 ## Common Commands
 
 ### Command Line Help

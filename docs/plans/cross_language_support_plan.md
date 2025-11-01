@@ -8,7 +8,7 @@
 
 ## Executive Summary
 ``
-This plan implements target-specific syntax support in Frame using `@target` declarations, enabling native language constructs while preserving Frame's universal state machine patterns. The approach solves Bug #055 immediately and provides a scalable architecture for future cross-language challenges.
+This plan implements target-specific syntax support in Frame using `@target` declarations, enabling native language constructs while preserving Frame's universal state machine patterns. The approach solves Bug #055 immediately and provides a scalable architecture for future cross-language challenges. The immediate focus is on Python and TypeScript runtime parity; LLVM visitor integration resumes once those milestones land.
 
 **Key Outcome**: Frame evolves from "universal syntax" to "universal state machine patterns with target-specific implementation."
 
@@ -99,7 +99,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Validation pass covering source-map emission + AST dumps to confirm diagnostics stay aligned after Week 4 visitor integration
 - Post-visitor regression pass verifying CLI `--debug-output` source maps and AST dump tooling for native block scenarios
 
-**Validation Criteria**:
+**Validation Criteria**:``
 - **Diagnostics show both Frame and target line numbers** in error messages
 - Parser correctly identifies Frame vs target-specific regions
 - Raw target tokens stored for later processing
@@ -114,13 +114,16 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 
 **Tasks**:
 - [x] Create `TargetAst` trait and implementations
-- [ ] Implement `TypeScriptParser::parse_statement()` method
+- [x] Implement `TypeScriptParser::parse_statement()` method
 - [x] Implement `PythonParser::parse_statement()` method  
-- [ ] Add `resolve_target_statements()` parser method
-- [ ] Implement dual-language error reporting
+- [x] Add `resolve_target_statements()` parser method
+- [x] Implement dual-language error reporting
 
 **Python Target Workstream (active)**
-- [x] Design Python target parser: review target-region plumbing and outline required AST/data structures
+- [x] Design Python target parser:
+- [x] Convert Python target AST (`Suite`) into native statement nodes so visitors can emit structured code
+- [x] Replace legacy Python-specific parsing paths with target parser outputs (actions/functions/handlers)
+ review target-region plumbing and outline required AST/data structures
 - [x] Implement Python parser module and `TargetAst` integration; update shared parser to invoke it for `#[target: python]` blocks
 - [x] Update Python visitor/tests to consume the new native AST and document plan progress
 
@@ -132,10 +135,13 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Extend `FunctionNode` and `OperationNode` with the same metadata so helper functions and operations dispatch through native target blocks before Frame fallbacks. **Status**: parser + Python visitor updated; helper fixture now exercises inline Python in a global function.
 - Wire `Parser::resolve_target_specific_blocks` to call the registry, translate `TargetParseError` into Frame `ParseError`, and attach diagnostics (Frame line + target line). **Status**: implemented for Python (unsupported targets skipped); errors now echo both the offending target line (with snippet) and the frame line.
 
-**Latest Progress (2025-10-30)**
 - `target_parsers/python.rs` integrates `rustpython_parser` (with location support) + unit coverage for both happy/errant snippets, verifying target-line diagnostics.
 - Event handlers/functions/actions/operations all carry `parsed_target_blocks`, and `python_visitor_v2` emits annotated comments (`[target … -> frame …]`) ahead of native blocks while noting ignored targets deterministically.
-- Release build succeeds (`cargo build --release`), and `cargo test -p framec target_parsers::python python_visitor_v2::tests` validates the parser + visitor pipeline.
+- Target-specific Python blocks are now segmented into statement/whitespace elements with preserved frame-line mapping, and the visitor emits each segment directly instead of falling back to raw dedented strings (validated by `cargo test -p framec target_parsers::python` and full `frame_test_runner` for Python).
+- Parser now resolves Frame statements against captured target regions, filtering out overlapping statements before classification so mixed bodies don't duplicate native code; exercised via the same unit suite plus end-to-end Python runner.
+- Added a minimal TypeScript target parser that dedents segments and exposes structured elements, updated the TypeScript visitor to emit native blocks with metadata, and introduced `test_target_native_block.frm` to cover the flow (current TypeScript suite: 436/437 passing; only `test_file_io` still fails due to the existing file-I/O runtime gap).
+- Release build succeeds (`cargo build --release`), and `cargo test -p framec target_parsers::python python_visitor_v2::tests` plus `cargo test -p framec target_parsers::typescript` validate the parser + visitor pipeline.
+- Shared runtimes are now aligned: Python targets import `frame_runtime_py`, TypeScript multifile generation imports the new `frame_runtime_ts` package, and CLI/build tooling emit both packages. Remaining work is isolated to `FrameSocketClient` async helpers and debugger harness coverage.
 
 **Deliverables**:
 - Target-specific parser modules
@@ -150,13 +156,24 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 #### Week 4: Visitor Integration & Runtime Alignment
 **Goal**: Update visitors to handle target-specific AST nodes while ensuring runtimes/FSL continue to own Frame semantics
 
-**Tasks**:
-- [ ] Modify TypeScript visitor to output target-specific blocks directly
-- [ ] Modify Python visitor to output target-specific blocks directly
-- [ ] **Implement LLVM visitor** using chosen toolchain strategy (FFI shim or raw IR)
-- [ ] Implement `TargetAst::to_code()` methods
-- [ ] Validate that generated code delegates kernel/state semantics to runtime/FSL helpers
-- [ ] Update visitor tests for target-specific syntax
+- [x] Modify TypeScript visitor to output target-specific blocks directly
+- [x] Modify Python visitor to output target-specific blocks directly
+- [x] Implement `TargetAst::to_code()` methods
+- [x] Extract TypeScript runtime helpers into shared `frame_runtime_ts` module and switch visitor/linker to imports
+- [x] Package `frame_runtime_ts` with CLI/multifile builds (mirroring `frame_runtime_py`)
+- [x] Validate that generated code delegates kernel/state semantics to runtime/FSL helpers
+- [x] Update visitor tests for target-specific syntax
+
+*Status Update (2025-10-31)*:
+- TypeScript visitor now routes action invocations through the public wrappers; native block fixture `framec_tests/language_specific/typescript/test_target_native_block.frm` exercises the path and the TypeScript suite reports 5/5 passes.
+- Updated call-chain lowering strips the `_action_` prefix when present, keeping event-system bindings (which still target the private `_action_` symbols) intact.
+- Confirmed `frame_test_runner.py --languages typescript --categories language_specific_typescript` succeeds post-change; LLVM visitor work resumes after Python/TypeScript async infrastructure lands.
+- Target parsers expose `to_code()`; both Python and TypeScript visitors use it as the fallback path, and unit suites cover the new helper.
+- TypeScript output now imports the shared `frame_runtime_ts` module (CLI + `frame_build` emit `frame_runtime_ts/index.ts`; single-file generation still inlines the runtime bundle for convenience).
+  - Migration steps completed: `frame_runtime_ts/index.ts` added; visitor/linker import path switched to `./frame_runtime_ts`; build tooling drops the module next to generated artifacts.
+  - Validation: rerun `frame_test_runner.py --languages python typescript --framec ./target/release/framec`, add smoke fixture `framec_tests/language_specific/typescript/runtime/test_runtime_import.frm`, and document packaging change (CLI + HOW_TO + roadmap). ✅ (`python3 framec_tests/runner/frame_test_runner.py --languages python typescript --framec ./target/release/framec`)
+- Dual-language error reporting wired through `ParseError::to_display_string`; regression test validates frame + target line context on native parse failures.
+- Frame runtime now includes a functional `FrameSocketClient` (connect/readLine/writeLine/close). Import statements are wired for multifile builds; next step is to hook the runtime protocol spec and add the Node echo-server harness.
 
 **Deliverables**:
 - Updated visitor implementations
@@ -168,26 +185,64 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 **Validation Criteria**:
 - Generated TypeScript compiles without errors
 - Generated Python executes without errors
-- **LLVM IR generation includes embedded helpers** using chosen toolchain
 - Generated code continues to lean on runtime/FSL APIs for state management across targets
 
-### **Phase 3: Bug #055 Resolution (Week 5)**
-*Apply new architecture to solve the original async socket issue*
+### **Phase 2.5: Native Declaration Infrastructure (Week 5)**
+*Introduce ambient declarations so specs can call runtime helpers without embedding target-specific code*
 
-#### Week 5: TypeScript Async Implementation
-**Goal**: Implement TypeScript async socket operations using native syntax
+**Goal**: Deliver the declaration syntax and runtime plumbing needed before refactoring async specs.
 
 **Tasks**:
-- [ ] Create TypeScript-specific `runtime_protocol.frm`
-- [ ] Implement native Node.js async socket operations
-- [ ] Add proper import statements and TypeScript typing
+- [ ] Finalize and implement `native module` syntax (see `docs/framelang_design/decl_syntax.md`).
+- [ ] Parser + symbol table support for declared modules, functions, and opaque handle types.
+- [ ] Visitor wiring for Python/TypeScript (emit imports instead of `[target: ...]` blocks); design LLVM mapping.
+- [ ] Runtime exports aligned with declarations (`frame_runtime_py.runtime.socket`, `frame_runtime_ts.runtime.socket`, etc.).
+- [ ] Compiler diagnostics when a declaration is used but no implementation exists for the active target.
+- [ ] Documentation/examples (HOW_TO, README, declaration guide).
+
+**Deliverables**:
+- Declaration syntax available to Frame specs.
+- Runtimes exposing modules that satisfy declarations.
+- Updated docs + samples demonstrating declaration usage.
+
+**Validation Criteria**:
+- Specs compile for Python/TypeScript using declarations without inline target blocks.
+- Missing implementations surface as compile-time errors.
+- Regression tests cover both success and failure paths for declared modules.
+
+### **Phase 3: Bug #055 Resolution (Week 6)**
+*Apply declaration infrastructure to the async runtime*
+
+#### Week 6: TypeScript Async Implementation
+**Goal**: Leverage declarations to implement TypeScript async socket operations without target-specific blocks
+
+**Tasks**:
+- [x] Create TypeScript-specific `runtime_protocol.frm`
+- [ ] Refactor spec to call declared `runtime/socket` APIs (no inline `[target: typescript]`).
+- [ ] Ensure visitors bind declarations to runtime helpers (Python + TypeScript).
+- [ ] Implement native Node.js async socket operations via declarations
+  - [x] Fill in `FrameSocketClient.connect(host, port)` using `net.createConnection`
+  - [x] Buffer incoming data and expose `readLine()` Promise returning UTF-8 strings
+  - [x] Implement `writeLine(line)` with newline termination + UTF-8 encoding
+  - [ ] Wire Python/TypeScript runtime implementations behind the declared module
 - [ ] Test compilation and execution of async operations
+  - [ ] Create an integration test harness (Node-based) to exercise `runtime_protocol_ts`
+  - [ ] Add Frame spec under `framec_tests/language_specific/typescript/runtime/` that round-trips JSON via sockets through declarations
+  - [ ] Automate execution via `frame_test_runner` (Node subprocess smoke test)
 - [ ] Validate against Python equivalent functionality
+  - [ ] Compare behaviour with the existing asyncio implementation to ensure parity
+  - [ ] Document any behavioural differences (timeouts, encoding) in HOW_TO + debugger docs
+
+*Status Update (2025-10-31)*:
+- Added a TypeScript-targeted runtime protocol skeleton (`docs/plans/assets/runtime_protocol_ts.frm`) that mirrors the debugger harness semantics.
+- Native declaration proposal captured in `docs/framelang_design/decl_syntax.md`; Phase 2.5 will implement the syntax and runtime exports before refactoring async specs.
+- `FrameSocketClient.connect/readLine/writeLine/close` now implemented in `frame_runtime_ts`; visitors import the helper for multifile builds.
+- Next steps: land the declaration parsing/visitor support, refactor the runtime protocol spec to use declarations, then add the Node echo-server harness (either embedded in `frame_test_runner` or a helper script).
 
 **Deliverables**:
 - Working TypeScript async socket implementation
 - Successful compilation of `runtime_protocol.frm` to TypeScript
-- Runtime execution validation
+- Runtime execution validation (Node harness + regression fixture)
 
 **Validation Criteria**:
 - `framec -l typescript runtime_protocol.frm` compiles successfully
@@ -195,7 +250,26 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Generated TypeScript executes async socket operations correctly
 - Functionality equivalent to Python version
 
-### **Phase 4: Testing & Documentation (Week 6-7)**
+### **Phase 4: LLVM Visitor Integration (Post-Python/TypeScript)**
+*Begin after TypeScript async work stabilises*
+
+**Goal**: Revisit LLVM backend once Python/TypeScript milestones are complete
+
+**Tasks**:
+- [ ] Re-evaluate toolchain decision (FFI shim vs raw IR) with latest requirements
+- [ ] Implement LLVM visitor using chosen approach
+- [ ] Ensure CLI/multifile builds emit the correct runtime shims
+- [ ] Add smoke tests covering actions, async entry points, and queue semantics
+
+**Deliverables**:
+- LLVM visitor parity with Python/TypeScript features delivered in this plan
+- Updated documentation capturing the final LLVM strategy
+
+**Validation Criteria**:
+- LLVM IR generation includes embedded helpers using chosen toolchain
+- Smoke suite (`language_specific_llvm`) extended to cover new behaviour
+
+### Testing & Documentation (Week 6-7)
 *Comprehensive validation and documentation*
 
 #### Week 6: Testing Framework
@@ -207,6 +281,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [ ] Implement cross-language behavior validation tests
 - [ ] Create regression tests preventing target syntax fragmentation
 - [ ] Audit runtime/FSL helper parity after native block adoption
+  - [ ] Integrate TypeScript async socket harness (`test_runtime_protocol_ts`) once helpers land
 
 **Deliverables**:
 - Extended Frame test runner with target variant support
@@ -230,6 +305,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [ ] Add IDE syntax highlighting support for target blocks
 - [ ] Create migration guide from runtime helpers to target syntax
 - [ ] **Document target fragmentation limits** (e.g., max 30% target-specific per system)
+  - [x] Capture runtime packaging expectations (Python `frame_runtime_py`, TypeScript `frame_runtime_ts`) in HOW_TO + README appendix
 
 **Deliverables**:
 - Updated Frame language specification
@@ -303,6 +379,12 @@ impl TargetSourceMap {
     }
 }
 ```
+
+### TypeScript Async Runtime Plan
+- Runtime exposes `FrameSocketClient` with Promise-based `connect`, `readLine`, `writeLine`, and `close` APIs.
+- Helpers handle `net.Socket` creation, newline-buffering, UTF-8 encoding/decoding, and error propagation.
+- Visitor-generated code invokes these helpers directly (no inline Node logic). Multifile builds import from `./frame_runtime_ts`.
+- Integration harness spins up a lightweight Node TCP echo server during tests to verify cross-language parity with the existing asyncio implementation.
 
 ## 🚨 Risk Management
 
@@ -390,9 +472,10 @@ impl TargetSourceMap {
 |-------|----------|-----------------|
 | **Phase 1** | 2 weeks | Target declaration parsing infrastructure |
 | **Phase 2** | 2 weeks | Native language syntax integration |
-| **Phase 3** | 1 week | Bug #055 resolution |
-| **Phase 4** | 2 weeks | Testing, documentation, best practices |
-| **Total** | **7 weeks** | **Production-ready target-specific syntax** |
+| **Phase 2.5** | 1 week | Native declaration infrastructure |
+| **Phase 3** | 1 week | Bug #055 resolution (async runtime via declarations) |
+| **Phase 4** | (Post Phase 3) | LLVM visitor integration (deferred) |
+| **Total** | **~6 weeks (+LLVM)** | **Production-ready Python/TypeScript support; LLVM follows** |
 
 ## 🔄 Future Extensions
 
@@ -431,5 +514,5 @@ impl TargetSourceMap {
 4. Establish testing infrastructure for cross-language validation
 
 **Plan Status**: Ready for implementation  
-**Estimated Completion**: 7 weeks from start date  
+**Estimated Completion**: ~6 weeks for Python/TypeScript milestones; LLVM visitor follows as Phase 4  
 **Risk Level**: Medium (manageable with proper execution)

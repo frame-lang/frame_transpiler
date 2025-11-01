@@ -10,6 +10,7 @@ use crate::frame_c::scanner::TargetRegion;
 use crate::frame_c::scanner::{Token, TokenType};
 use crate::frame_c::source_map::{MappingType, SourceMapBuilder};
 use crate::frame_c::symbol_table::{Arcanum, SymbolConfig, SymbolTable, SymbolType};
+use crate::frame_c::target_parsers::python::{PythonTargetAst, PythonTargetElement};
 use crate::frame_c::target_parsers::ParsedTargetBlock;
 use crate::frame_c::visitors::{AstVisitor, TargetLanguage};
 
@@ -2299,11 +2300,64 @@ impl PythonVisitorV2 {
             return false;
         }
 
-        let source = block.ast.to_source();
+        if let Some(ast) = block.ast.as_any().downcast_ref::<PythonTargetAst>() {
+            let mut emitted_any = false;
+            for element in ast.elements() {
+                if self.emit_python_target_element(block, element) {
+                    emitted_any = true;
+                }
+            }
+
+            if emitted_any {
+                return true;
+            }
+        }
+
+        let source = block.ast.to_code();
+        if source.trim().is_empty() {
+            return false;
+        }
+
         self.emit_target_source_with_metadata(
-            source,
+            &source,
             block.frame_start_line,
             block.frame_end_line,
+            TargetLanguage::Python3,
+        );
+        true
+    }
+
+    fn emit_python_target_element(
+        &mut self,
+        block: &ParsedTargetBlock,
+        element: &PythonTargetElement,
+    ) -> bool {
+        let segment = match element {
+            PythonTargetElement::Statement(stmt) | PythonTargetElement::RawSegment(stmt) => stmt,
+        };
+
+        if segment.code.trim().is_empty() {
+            let line_count = segment
+                .end_line
+                .saturating_sub(segment.start_line)
+                .saturating_add(1);
+            for _ in 0..line_count {
+                self.builder.newline();
+            }
+            return line_count > 0;
+        }
+
+        let frame_start = block
+            .frame_start_line
+            .saturating_add(segment.start_line.saturating_sub(1));
+        let frame_end = block
+            .frame_start_line
+            .saturating_add(segment.end_line.saturating_sub(1));
+
+        self.emit_target_source_with_metadata(
+            &segment.code,
+            frame_start,
+            frame_end,
             TargetLanguage::Python3,
         );
         true

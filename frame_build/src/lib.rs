@@ -88,6 +88,7 @@
 use anyhow::{Error, Result};
 use framec::frame_c::compiler::{detect_header_target_annotation, Exe};
 use framec::frame_c::runtime_assets;
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
@@ -238,6 +239,7 @@ impl FrameBuild {
             .follow_links(self.follow_links);
 
         let mut emitted_python_runtime = false;
+        let mut emitted_typescript_runtime_dirs: HashSet<PathBuf> = HashSet::new();
 
         for entry in walk_dir {
             let entry = entry?;
@@ -282,8 +284,23 @@ impl FrameBuild {
                         Ok(Ok(output_content)) => {
                             // success, write the file
                             fs::write(&target_output_path, output_content)?;
-                            if matches!(target, TargetLanguage::Python3) {
-                                emitted_python_runtime = true;
+                            match target {
+                                TargetLanguage::Python3 => {
+                                    emitted_python_runtime = true;
+                                }
+                                TargetLanguage::TypeScript => {
+                                    if let Some(parent_dir) = target_output_path.parent() {
+                                        let parent_dir = parent_dir.to_path_buf();
+                                        if emitted_typescript_runtime_dirs
+                                            .insert(parent_dir.clone())
+                                        {
+                                            runtime_assets::emit_typescript_runtime_package(
+                                                &parent_dir,
+                                            )?;
+                                        }
+                                    }
+                                }
+                                _ => {}
                             }
                             generated_files.push(target_output_path);
                         }
