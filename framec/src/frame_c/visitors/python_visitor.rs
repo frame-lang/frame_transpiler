@@ -3847,6 +3847,9 @@ impl PythonVisitor {
                     output.push('.');
                     output.push_str(function);
                 }
+                ResolvedCallType::NativeFunction { function, .. } => {
+                    output.push_str(function);
+                }
                 ResolvedCallType::External(_name) => {
                     // Check if this might be a module reference
                     // When we're inside a module and reference another nested module,

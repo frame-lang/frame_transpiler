@@ -127,6 +127,13 @@ impl<'a> SemanticCallAnalyzer<'a> {
             }
         }
 
+        if let Some((module, _)) = self.arcanum.find_native_function(identifier) {
+            return ResolvedCallType::NativeFunction {
+                module,
+                function: identifier.to_string(),
+            };
+        }
+
         // Check in current class context
         if let Some(_class_name) = self.current_class {
             // In a class context, only resolve as ClassMethod if it's NOT a known built-in
@@ -318,6 +325,13 @@ impl<'a> SemanticCallAnalyzer<'a> {
             // Could be a module
             return ResolvedCallType::ModuleFunction {
                 module: qualifier.to_string(),
+                function: method.to_string(),
+            };
+        }
+
+        if let Some((module, _)) = self.arcanum.find_native_function(method) {
+            return ResolvedCallType::NativeFunction {
+                module,
                 function: method.to_string(),
             };
         }

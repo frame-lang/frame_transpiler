@@ -83,6 +83,8 @@ The new `frameSpecs` array is optional but strongly recommended. `framec decl` p
 
 At compile time the loader searches for cached `.fid` files in `.framec/cache/fid/<target>` starting from the spec’s directory and walking up the tree. Additional lookup locations can be supplied via the `FRAMEC_FID_PATH` environment variable; entries may include a `{target}` placeholder (e.g. `/opt/frame/fid/{target}`) or point directly at a target-specific directory.
 
+When a spec imports a native helper but the corresponding declaration cannot be found, the compiler now raises a targeted diagnostic (for example: “Native helper `frame_socket_client_connect` is imported for this target but no declaration was loaded. Run `framec decl` for the active target and retry.”). Regenerate the cache whenever runtime code or third-party packages change, or delete the stale directory under `.framec/cache/fid/<target>` before rerunning `framec decl`.
+
 ### Sample `.fid` (TypeScript)
 
 ```fid

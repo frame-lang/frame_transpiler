@@ -39,6 +39,76 @@ pub struct ParseError {
     pub target_snippet: Option<String>,
 }
 
+fn parse_python_import_symbols(line: &str) -> Vec<String> {
+    let trimmed = line.trim();
+    if trimmed.starts_with("from ") {
+        let remainder = trimmed.trim_start_matches("from ");
+        let mut parts = remainder.splitn(2, " import ");
+        let _module = parts.next().unwrap_or("");
+        let names_part = parts.next().unwrap_or("");
+        let names_section = names_part.split('#').next().unwrap_or("");
+        let mut symbols = Vec::new();
+        for entry in names_section.split(',') {
+            let entry = entry.trim();
+            if entry.is_empty() {
+                continue;
+            }
+            let alias = entry.split(" as ").last().unwrap_or(entry).trim();
+            if !alias.is_empty() {
+                symbols.push(alias.to_string());
+            }
+        }
+        symbols
+    } else {
+        Vec::new()
+    }
+}
+
+fn parse_typescript_import_symbols(line: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let trimmed = line.trim().trim_end_matches(';').trim();
+    if trimmed.starts_with("import {") {
+        if let Some(rest) = trimmed.strip_prefix("import {") {
+            if let Some((names_part, _)) = rest.split_once('}') {
+                for part in names_part.split(',') {
+                    let entry = part.trim();
+                    if entry.is_empty() {
+                        continue;
+                    }
+                    let alias = entry.split(" as ").last().unwrap_or(entry).trim();
+                    if !alias.is_empty() {
+                        result.push(alias.to_string());
+                    }
+                }
+            }
+        }
+
+        if let Some(brace_pos) = trimmed.find('{') {
+            let default_part = &trimmed["import ".len()..brace_pos];
+            let default_name = default_part.trim().trim_end_matches(',').trim();
+            if !default_name.is_empty() {
+                result.push(default_name.to_string());
+            }
+        }
+    } else if trimmed.starts_with("import * as ") {
+        if let Some((alias, _)) = trimmed["import * as ".len()..].split_once(" from ") {
+            let alias = alias.trim();
+            if !alias.is_empty() {
+                result.push(alias.to_string());
+            }
+        }
+    } else if trimmed.starts_with("import ") {
+        if let Some((prefix, _)) = trimmed["import ".len()..].split_once(" from ") {
+            let name = prefix.split(',').next().unwrap_or("").trim();
+            if !name.is_empty() {
+                result.push(name.to_string());
+            }
+        }
+    }
+
+    result
+}
+
 impl ParseError {
     fn new(msg: &str) -> ParseError {
         ParseError {
@@ -14450,6 +14520,20 @@ impl<'a> Parser<'a> {
         // Store the resolution in the AST node
         call_expr_node.resolved_type = Some(resolved_type);
 
+        if let Some(resolved_type) = &call_expr_node.resolved_type {
+            if let ResolvedCallType::External(name) = resolved_type {
+                if self.arcanum.has_expected_native_function(name)
+                    && !self.arcanum.has_registered_native_function(name)
+                {
+                    let message = format!(
+                        "Native helper '{}' is imported for this target but no declaration was loaded. Run `framec decl` for the active target and retry.",
+                        name
+                    );
+                    self.error_at(&call_expr_node.identifier.name, &message);
+                }
+            }
+        }
+
         if self.debug_mode {
             eprintln!(
                 "DEBUG: Resolved call {} to {:?}",
@@ -15686,20 +15770,24 @@ impl<'a> Parser<'a> {
             }
             let alias = self.previous().lexeme.clone();
 
-            Ok(ImportNode::new(
+            let node = ImportNode::new(
                 ImportType::Aliased {
                     module: module_name,
                     alias,
                 },
                 line,
-            ))
+            );
+            self.register_native_import(&node.import_type);
+            Ok(node)
         } else {
-            Ok(ImportNode::new(
+            let node = ImportNode::new(
                 ImportType::Simple {
                     module: module_name,
                 },
                 line,
-            ))
+            );
+            self.register_native_import(&node.import_type);
+            Ok(node)
         }
     }
 
@@ -15765,6 +15853,12 @@ impl<'a> Parser<'a> {
             // v0.34: Track specific FSL imports
         }
 
+        if self.target_language == Some(TargetLanguage::Python3) {
+            for item in &items {
+                self.arcanum.record_expected_native_function(item);
+            }
+        }
+
         Ok(ImportNode::new(
             ImportType::FromImport {
                 module: module_name,
@@ -15798,13 +15892,15 @@ impl<'a> Parser<'a> {
                 end_line = self.previous().line;
             }
             let raw = self.collect_lines(line, end_line);
-            return Ok(ImportNode::new(
+            let node = ImportNode::new(
                 ImportType::Native {
                     target,
                     code: raw.trim().to_string(),
                 },
                 line,
-            ));
+            );
+            self.register_native_import(&node.import_type);
+            return Ok(node);
         }
 
         // Check for optional 'as alias' syntax
@@ -15888,13 +15984,15 @@ impl<'a> Parser<'a> {
                 end_line = self.previous().line;
             }
             let raw = self.collect_lines(line, end_line);
-            return Ok(ImportNode::new(
+            let node = ImportNode::new(
                 ImportType::Native {
                     target,
                     code: raw.trim().to_string(),
                 },
                 line,
-            ));
+            );
+            self.register_native_import(&node.import_type);
+            return Ok(node);
         }
 
         let _ = self.match_token(&[TokenType::Semicolon]);
@@ -15941,6 +16039,21 @@ impl<'a> Parser<'a> {
             }
         }
         buffer
+    }
+
+    fn register_native_import(&mut self, import_type: &ImportType) {
+        if let ImportType::Native { target, code } = import_type {
+            let symbols = match target {
+                TargetLanguage::Python3 => parse_python_import_symbols(code),
+                TargetLanguage::TypeScript => parse_typescript_import_symbols(code),
+                _ => Vec::new(),
+            };
+            for symbol in symbols {
+                if !symbol.is_empty() {
+                    self.arcanum.record_expected_native_function(&symbol);
+                }
+            }
+        }
     }
 
     // v0.56: Parse type alias: type Name = type_expression
@@ -17231,5 +17344,69 @@ system Host {
             }
             other => panic!("expected native TypeScript import, found {:?}", other),
         }
+    }
+
+    #[test]
+    fn reports_missing_native_function_declaration() {
+        let source = r#"
+@target python
+
+from frame_runtime_py.socket import frame_socket_client_connect
+
+system Host {
+    machine:
+        $Init {
+            start() {
+                frame_socket_client_connect("localhost", 9000)
+                return
+            }
+        }
+}
+"#;
+
+        let scanner = Scanner::new(source.to_string());
+        let (has_errors, scan_errors, tokens, target_regions) = scanner.scan_tokens();
+        assert!(!has_errors, "scanner reported errors: {}", scan_errors);
+
+        let target_regions = Arc::new(target_regions);
+        let source_lines = Arc::new(source.lines().map(|line| line.to_string()).collect());
+        let mut comments = Vec::new();
+        let mut first_parser = Parser::new(
+            &tokens,
+            &mut comments,
+            true,
+            Arcanum::new(),
+            Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
+        );
+        assert!(first_parser.parse().is_ok(), "first pass succeeds");
+        let arcanum = first_parser.get_arcanum();
+
+        let mut comments2 = comments.clone();
+        let mut second_parser = Parser::new(
+            &tokens,
+            &mut comments2,
+            false,
+            arcanum,
+            Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
+        );
+
+        assert!(second_parser.parse().is_ok(), "second pass succeeds");
+        assert!(
+            second_parser
+                .arcanum
+                .has_expected_native_function("frame_socket_client_connect"),
+            "expected native function is tracked"
+        );
+        assert!(
+            !second_parser
+                .arcanum
+                .has_registered_native_function("frame_socket_client_connect"),
+            "no fid registered for native helper"
+        );
+        assert!(second_parser.had_error(), "expected missing fid error");
+        let errors = second_parser.get_errors();
+        assert!(errors.contains("Run `framec decl`"));
     }
 }

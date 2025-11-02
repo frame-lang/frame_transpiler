@@ -201,9 +201,9 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 
 **Still To Do**:
 - [x] Wire the declaration generator (`framec decl`) to consume captured imports: TypeScript adapter now receives identifiers scanned from configured Frame specs (default imports such as `FrameSocketClient` are auto-discovered).
-- [ ] Extend native-import forwarding to the Python importer and confirm `.fid` output covers `frame_runtime_py` helpers.
-- [ ] Load generated `.fid` metadata during compilation so specs receive symbol/type checking without hand-authored declarations.
-- [ ] Produce diagnostics when an import resolves to a missing `.fid` entry (stale cache, missing runtime implementation, etc.).
+- [x] Extend native-import forwarding to the Python importer and confirm `.fid` output covers `frame_runtime_py` helpers.
+- [x] Load generated `.fid` metadata during compilation so specs receive symbol/type checking without hand-authored declarations.
+- [x] Produce diagnostics when an import resolves to a missing `.fid` entry (stale cache, missing runtime implementation, etc.).
 - [ ] Document the `.fid` cache layout + lifecycle in HOW_TO and developer docs once the generator lands.
 
 **Validation Criteria**:

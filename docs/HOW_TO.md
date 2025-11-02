@@ -344,6 +344,14 @@ Frame ships an opt-in command for converting native modules (TypeDoc JSON, Pytho
 - `options.pythonPath`: extra entries to prepend to `PYTHONPATH` so the importer can locate third-party modules or virtual environments.
 - `options.jsonCache`: optional pre-generated TypeDoc JSON so tests can run without hitting `npx typedoc`.
 
+Generated headers are cached under `.framec/cache/fid/<target>` next to the project that executed the command (e.g. `.framec/cache/fid/python/runtime_socket.fid`). The compiler walks up the directory tree looking for those directories and also checks paths listed in `FRAMEC_FID_PATH` (use `{target}` as a placeholder to share one cache across targets). Delete a target directory or re-run `framec decl` whenever the underlying runtime changes; otherwise the compiler will surface an error such as:
+
+```
+Native helper 'frame_socket_client_connect' is imported for this target but no declaration was loaded. Run `framec decl` for the active target and retry.
+```
+
+Keep `.fid` files out of source control—they are build artefacts. Treat them like a virtualenv: regenerate after upgrading a dependency, add the cache path to `.gitignore`, and rely on the CLI to refresh it when needed.
+
 Example invocations:
 
 ```bash

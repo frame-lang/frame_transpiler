@@ -484,6 +484,10 @@ pub enum ResolvedCallType {
         module: String,
         function: String,
     },
+    NativeFunction {
+        module: String,
+        function: String,
+    },
     External(String), // True external function call
 }
 

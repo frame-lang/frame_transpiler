@@ -7,7 +7,7 @@ use crate::frame_c::symbol_table::SystemSymbolType::{
 };
 use core::fmt;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 // NOTES
@@ -1237,6 +1237,7 @@ pub struct Arcanum {
     pub symbol_config: SymbolConfig,
     pub serializable: bool,
     pub native_modules: HashMap<String, Rc<RefCell<NativeModuleSymbol>>>,
+    pub expected_native_functions: HashSet<String>,
 }
 
 impl Arcanum {
@@ -1262,6 +1263,7 @@ impl Arcanum {
             symbol_config: SymbolConfig::new(),
             serializable: false,
             native_modules: HashMap::new(),
+            expected_native_functions: HashSet::new(),
         }
     }
 
@@ -2881,6 +2883,27 @@ impl Arcanum {
             } => Rc::clone(&self.current_symtab),
             _ => panic!("TODO"),
         }
+    }
+
+    pub fn record_expected_native_function(&mut self, name: &str) {
+        self.expected_native_functions.insert(name.to_string());
+    }
+
+    pub fn has_expected_native_function(&self, name: &str) -> bool {
+        self.expected_native_functions.contains(name)
+    }
+
+    pub fn has_registered_native_function(&self, name: &str) -> bool {
+        self.find_native_function(name).is_some()
+    }
+
+    pub fn find_native_function(&self, name: &str) -> Option<(String, NativeFunctionDeclNode)> {
+        for (path, module) in &self.native_modules {
+            if let Some(function) = module.borrow().get_function(name) {
+                return Some((path.clone(), function.clone()));
+            }
+        }
+        None
     }
 }
 
