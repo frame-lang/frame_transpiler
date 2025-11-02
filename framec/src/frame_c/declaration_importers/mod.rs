@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::frame_c::ast::NativeModuleDeclNode;
+use crate::frame_c::visitors::TargetLanguage;
 
 pub mod python;
 pub mod typescript;
@@ -9,6 +10,7 @@ pub mod typescript;
 pub struct DeclarationImportContext {
     pub config_dir: PathBuf,
     pub verbose: bool,
+    pub native_imports: Vec<NativeImportRequest>,
 }
 
 #[derive(Debug, Clone)]
@@ -28,6 +30,13 @@ impl DeclarationSourceConfig {
             self.input.clone()
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct NativeImportRequest {
+    pub spec_path: PathBuf,
+    pub target: TargetLanguage,
+    pub code: String,
 }
 
 pub trait DeclarationImporter {

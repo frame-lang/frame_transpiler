@@ -1,13 +1,17 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde::Deserialize;
 
-use crate::frame_c::ast::{NativeModuleDeclNode, NativeModuleItem};
+use crate::frame_c::ast::{ImportType, NativeModuleDeclNode, NativeModuleItem};
 use crate::frame_c::declaration_importers::{
-    get_importer, DeclarationImportContext, DeclarationSourceConfig,
+    get_importer, DeclarationImportContext, DeclarationSourceConfig, NativeImportRequest,
 };
+use crate::frame_c::parser::Parser;
+use crate::frame_c::scanner::Scanner;
+use crate::frame_c::symbol_table::Arcanum;
 use crate::frame_c::utils::{frame_exitcode, RunError};
 
 #[derive(Debug, Deserialize)]
@@ -16,6 +20,8 @@ pub struct DeclarationImportConfig {
     pub output_dir: PathBuf,
     #[serde(default)]
     pub sources: Vec<RawSourceConfig>,
+    #[serde(default)]
+    pub frame_specs: Vec<PathBuf>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -104,10 +110,48 @@ pub fn run_decl_import(
         })?;
     }
 
+    let frame_spec_paths: Vec<PathBuf> = config
+        .frame_specs
+        .iter()
+        .map(|spec| {
+            if spec.is_relative() {
+                base_dir.join(spec)
+            } else {
+                spec.clone()
+            }
+        })
+        .collect();
+
+    let native_imports = if frame_spec_paths.is_empty() {
+        Vec::new()
+    } else {
+        let imports = collect_native_imports(&frame_spec_paths)?;
+        if verbose {
+            if imports.is_empty() {
+                println!("[decl import] No native imports discovered in provided Frame specs.");
+            } else {
+                println!(
+                    "[decl import] Discovered {} native import(s) across Frame specs:",
+                    imports.len()
+                );
+                for entry in &imports {
+                    println!(
+                        "  - {:?}: {} (from {})",
+                        entry.target,
+                        entry.code,
+                        entry.spec_path.display()
+                    );
+                }
+            }
+        }
+        imports
+    };
+
     let mut generated_files = Vec::new();
     let context = DeclarationImportContext {
         config_dir: base_dir.clone(),
         verbose,
+        native_imports: native_imports.clone(),
     };
 
     for raw_source in config.sources {
@@ -197,6 +241,91 @@ pub fn run_decl_import(
     Ok(())
 }
 
+fn collect_native_imports(spec_paths: &[PathBuf]) -> Result<Vec<NativeImportRequest>, RunError> {
+    let mut results = Vec::new();
+    let mut seen = HashSet::new();
+
+    for spec_path in spec_paths {
+        let source = fs::read_to_string(spec_path).map_err(|err| {
+            RunError::new(
+                frame_exitcode::CONFIG_ERR,
+                &format!(
+                    "Unable to read Frame spec '{}': {}",
+                    spec_path.display(),
+                    err
+                ),
+            )
+        })?;
+
+        let source_lines = Arc::new(
+            source
+                .lines()
+                .map(|line| line.to_string())
+                .collect::<Vec<_>>(),
+        );
+        let scanner = Scanner::new(source.clone());
+        let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
+        if has_errors {
+            return Err(RunError::new(
+                frame_exitcode::PARSE_ERR,
+                &format!(
+                    "Failed to scan Frame spec '{}': {}",
+                    spec_path.display(),
+                    errors
+                ),
+            ));
+        }
+
+        let target_regions = Arc::new(target_regions_vec);
+        let mut comments = Vec::new();
+        let mut parser = Parser::new(
+            &tokens,
+            &mut comments,
+            true,
+            Arcanum::new(),
+            Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
+        );
+
+        let module = parser.parse().map_err(|err| {
+            RunError::new(
+                frame_exitcode::PARSE_ERR,
+                &format!(
+                    "Failed to parse Frame spec '{}': {}",
+                    spec_path.display(),
+                    err.to_display_string()
+                ),
+            )
+        })?;
+
+        if parser.had_error() {
+            return Err(RunError::new(
+                frame_exitcode::PARSE_ERR,
+                &format!(
+                    "Parsing errors in Frame spec '{}': {}",
+                    spec_path.display(),
+                    parser.get_errors()
+                ),
+            ));
+        }
+
+        for import_node in &module.imports {
+            if let ImportType::Native { target, code } = &import_node.import_type {
+                let key = (*target, code.clone());
+                if seen.insert(key.clone()) {
+                    results.push(NativeImportRequest {
+                        spec_path: spec_path.clone(),
+                        target: key.0,
+                        code: key.1,
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(results)
+}
+
 fn render_native_module(module: &NativeModuleDeclNode) -> String {
     let mut output = String::new();
     output.push_str("native module ");
@@ -259,6 +388,7 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
     use tempfile::tempdir;
+    use crate::frame_c::visitors::TargetLanguage;
 
     #[test]
     fn render_empty_module() {
@@ -266,6 +396,37 @@ mod tests {
             NativeModuleDeclNode::new(vec!["runtime".into(), "socket".into()], 1, 1, vec![]);
         let rendered = render_native_module(&module);
         assert!(rendered.contains("native module runtime::socket"));
+    }
+
+    #[test]
+    fn collects_native_imports_from_spec() {
+        let temp = tempdir().expect("create temp dir");
+        let spec_path = temp.path().join("socket_runtime.frm");
+        let spec = r#"@target typescript
+
+import { Socket } from "net";
+
+system Sample {
+    machine:
+        $Init {
+            start() {
+                return
+            }
+        }
+}
+"#;
+        fs::write(&spec_path, spec).expect("write spec");
+
+        let imports = collect_native_imports(&[spec_path.clone()]).expect("collect imports");
+        assert_eq!(imports.len(), 1);
+
+        let entry = &imports[0];
+        assert_eq!(entry.target, TargetLanguage::TypeScript);
+        assert_eq!(
+            entry.code,
+            r#"import { Socket } from "net";"#
+        );
+        assert_eq!(entry.spec_path, spec_path);
     }
 
     #[test]

@@ -430,6 +430,7 @@ mod tests {
         let context = DeclarationImportContext {
             config_dir,
             verbose: false,
+            native_imports: Vec::new(),
         };
 
         let importer = PythonRuntimeImporter;

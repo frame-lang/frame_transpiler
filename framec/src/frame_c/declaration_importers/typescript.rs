@@ -787,6 +787,7 @@ mod tests {
         let context = DeclarationImportContext {
             config_dir: fixtures,
             verbose: false,
+            native_imports: Vec::new(),
         };
 
         let importer = TypeScriptTypedocImporter;
