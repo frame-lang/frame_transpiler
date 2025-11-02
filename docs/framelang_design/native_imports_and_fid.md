@@ -53,6 +53,34 @@ No `native module` blocks are authored by hand. The developer writes idiomatic c
 - Each adapter (TypeScript via TypeDoc, Python via `inspect`/type hints, etc.) reads the native module, resolves exports, and emits a `.fid` file containing Frame-readable metadata.
 - Output files live in the build cache (e.g. `.framec/cache/fid/typescript/runtime_socket.fid`) and should **not** be checked in.
 
+### Sample `framec decl` config (TypeScript)
+
+```json
+{
+  "outputDir": "../../../../../framec_tests/fixtures/native_decl_generation/typescript",
+  "frameSpecs": [
+    "../../../../../framec_tests/language_specific/typescript/runtime/test_runtime_protocol_native.frm"
+  ],
+  "sources": [
+    {
+      "adapter": "typescript",
+      "input": "../../../../../frame_runtime_ts/index.ts",
+      "module": "typescript::node::net",
+      "options": {
+        "include": [
+          "frame_socket_client_connect",
+          "frame_socket_client_read_line",
+          "frame_socket_client_write_line",
+          "frame_socket_client_close"
+        ]
+      }
+    }
+  ]
+}
+```
+
+The new `frameSpecs` array is optional but strongly recommended. `framec decl` parses those Frame files, collects every `ImportType::Native` statement for the active target, and feeds the discovered identifiers into the adapter. Default imports such as `FrameSocketClient` are therefore detected automatically, while the `options.include` list can focus on free functions that are not explicitly imported.
+
 ### Sample `.fid` (TypeScript)
 
 ```fid
@@ -91,6 +119,6 @@ When Frame compiles a spec:
 
 ## 5. Roadmap Follow-ups
 
-- Automate discovery: link scanned import paths to the declaration generator automatically (currently done via explicit configs).
+- Expand native-import harvesting to additional targets (Python adapter, future runtimes) so every generator benefits from the shared discovery path.
 - Extend adapters for additional targets (Rust, C/C++, Java) using language-appropriate reflection or metadata.
 - Track version hashes of source modules to invalidate cache entries when runtimes change.

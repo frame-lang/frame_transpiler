@@ -384,11 +384,11 @@ fn render_native_module(module: &NativeModuleDeclNode) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::frame_c::visitors::TargetLanguage;
     use serde_json::json;
     use std::fs;
     use std::path::PathBuf;
     use tempfile::tempdir;
-    use crate::frame_c::visitors::TargetLanguage;
 
     #[test]
     fn render_empty_module() {
@@ -422,10 +422,7 @@ system Sample {
 
         let entry = &imports[0];
         assert_eq!(entry.target, TargetLanguage::TypeScript);
-        assert_eq!(
-            entry.code,
-            r#"import { Socket } from "net";"#
-        );
+        assert_eq!(entry.code, r#"import { Socket } from "net";"#);
         assert_eq!(entry.spec_path, spec_path);
     }
 

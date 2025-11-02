@@ -6,11 +6,19 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Deserialize;
 use serde_json::Value;
+use swc_common::sync::Lrc;
+use swc_common::{FileName, SourceMap};
+use swc_ecma_ast::{
+    EsVersion, ImportSpecifier as SwcImportSpecifier, ModuleDecl, ModuleExportName, ModuleItem,
+};
+use swc_ecma_parser::lexer::Lexer;
+use swc_ecma_parser::{Parser as SwcParser, StringInput, Syntax, TsSyntax};
 
 use crate::frame_c::ast::{
     NativeFunctionDeclNode, NativeFunctionParameterNode, NativeModuleDeclNode, NativeModuleItem,
     NativeTypeDeclNode,
 };
+use crate::frame_c::visitors::TargetLanguage;
 
 use super::{DeclarationImportContext, DeclarationImporter, DeclarationSourceConfig};
 
@@ -31,6 +39,17 @@ impl DeclarationImporter for TypeScriptTypedocImporter {
         let mut options = TypeScriptImporterOptions::from_source(source)
             .map_err(|err| format!("Invalid TypeScript importer options: {}", err))?;
         options.resolve_paths(&context.config_dir, &input_path)?;
+
+        let discovered_symbols = collect_symbols_from_context(context);
+        if !discovered_symbols.is_empty() {
+            for symbol in discovered_symbols {
+                if !options.include.iter().any(|existing| existing == &symbol) {
+                    options.include.push(symbol);
+                }
+            }
+        }
+        options.include.sort();
+        options.include.dedup();
 
         if context.verbose {
             eprintln!("[decl import] running typedoc on {}", input_path.display());
@@ -562,6 +581,21 @@ fn resolve_module_path(source: &DeclarationSourceConfig, input_path: &Path) -> V
     vec!["typescript_runtime".to_string()]
 }
 
+fn collect_symbols_from_context(context: &DeclarationImportContext) -> Vec<String> {
+    let mut symbols = Vec::new();
+    for entry in &context.native_imports {
+        if entry.target != TargetLanguage::TypeScript {
+            continue;
+        }
+        for symbol in extract_symbols_from_import(&entry.code) {
+            if !symbols.contains(&symbol) {
+                symbols.push(symbol);
+            }
+        }
+    }
+    symbols
+}
+
 fn load_typedoc_reflection(
     input_path: &Path,
     options: &TypeScriptImporterOptions,
@@ -721,6 +755,96 @@ fn to_snake_case(name: &str) -> String {
     result.trim_matches('_').to_string()
 }
 
+fn include_key(name: &str) -> Option<String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let sanitized = sanitize_identifier(trimmed);
+    if sanitized == "symbol" && trimmed != "symbol" {
+        return None;
+    }
+    Some(sanitized.to_lowercase())
+}
+
+fn extract_symbols_from_import(code: &str) -> Vec<String> {
+    let trimmed = code.trim();
+    if !trimmed.starts_with("import") {
+        return Vec::new();
+    }
+
+    let normalized = if trimmed.ends_with(';') {
+        trimmed.to_string()
+    } else {
+        format!("{};", trimmed)
+    };
+
+    let cm: Lrc<SourceMap> = Default::default();
+    let file = cm.new_source_file(
+        FileName::Custom("<frame-native-import>".into()).into(),
+        normalized.clone(),
+    );
+
+    let lexer = Lexer::new(
+        Syntax::Typescript(TsSyntax {
+            tsx: false,
+            decorators: false,
+            dts: false,
+            no_early_errors: false,
+            disallow_ambiguous_jsx_like: false,
+        }),
+        EsVersion::Es2022,
+        StringInput::from(file.as_ref()),
+        None,
+    );
+    let mut parser = SwcParser::new_from(lexer);
+    let Ok(module) = parser.parse_module() else {
+        return Vec::new();
+    };
+
+    let mut symbols = Vec::new();
+    for item in module.body {
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) = item {
+            for specifier in import_decl.specifiers {
+                match specifier {
+                    SwcImportSpecifier::Default(default_spec) => {
+                        if let Some(symbol) = include_key(&default_spec.local.sym.to_string()) {
+                            symbols.push(symbol);
+                        }
+                    }
+                    SwcImportSpecifier::Named(named_spec) => {
+                        if import_decl.type_only || named_spec.is_type_only {
+                            continue;
+                        }
+                        if let Some(imported) = &named_spec.imported {
+                            if let Some(symbol) = match imported {
+                                ModuleExportName::Ident(ident) => {
+                                    include_key(&ident.sym.to_string())
+                                }
+                                ModuleExportName::Str(_) => None,
+                            } {
+                                symbols.push(symbol);
+                                continue;
+                            }
+                        }
+
+                        if let Some(symbol) = include_key(&named_spec.local.sym.to_string()) {
+                            symbols.push(symbol);
+                        }
+                    }
+                    SwcImportSpecifier::Namespace(_) => {
+                        // Namespace imports (import * as foo) expose no direct symbols.
+                    }
+                }
+            }
+        }
+    }
+
+    symbols.sort();
+    symbols.dedup();
+    symbols
+}
+
 struct NodeReferenceMapping {
     qualified: &'static str,
     name: Option<&'static str>,
@@ -752,6 +876,8 @@ const NODE_REFERENCE_MAPPINGS: &[NodeReferenceMapping] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::frame_c::declaration_importers::NativeImportRequest;
+    use crate::frame_c::visitors::TargetLanguage;
     use serde_json::json;
     use std::path::PathBuf;
 
@@ -795,7 +921,7 @@ mod tests {
 
         assert_eq!(modules.len(), 1);
         let module = &modules[0];
-        assert_eq!(module.path(), "runtime/socket");
+        assert_eq!(module.path(), "runtime::socket");
         let mut type_names = Vec::new();
         let mut function_names = Vec::new();
 
@@ -836,5 +962,40 @@ mod tests {
                 "frame_socket_client_write_line".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn extract_symbols_supports_default_and_named() {
+        let default_symbols =
+            extract_symbols_from_import(r#"import FrameSocketClient from "./runtime/socket""#);
+        assert_eq!(default_symbols, vec!["framesocketclient"]);
+
+        let named_symbols =
+            extract_symbols_from_import(r#"import { Socket, Server as NetServer } from "net";"#);
+        assert_eq!(named_symbols, vec!["server", "socket"]);
+    }
+
+    #[test]
+    fn collect_symbols_uses_native_import_context() {
+        let context = DeclarationImportContext {
+            config_dir: PathBuf::new(),
+            verbose: false,
+            native_imports: vec![
+                NativeImportRequest {
+                    spec_path: PathBuf::from("sample.frm"),
+                    target: TargetLanguage::TypeScript,
+                    code: r#"import FrameSocketClient from "./runtime/socket";"#.to_string(),
+                },
+                NativeImportRequest {
+                    spec_path: PathBuf::from("sample.frm"),
+                    target: TargetLanguage::TypeScript,
+                    code: r#"import { Socket } from "net";"#.to_string(),
+                },
+            ],
+        };
+
+        let symbols = collect_symbols_from_context(&context);
+        assert!(symbols.contains(&"framesocketclient".to_string()));
+        assert!(symbols.contains(&"socket".to_string()));
     }
 }
