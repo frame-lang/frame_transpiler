@@ -9,6 +9,11 @@ pub enum TargetLanguage {
     TypeScript,
     Graphviz,
     LLVM,
+    C,
+    Cpp,
+    Java,
+    CSharp,
+    Rust,
 }
 
 impl TargetLanguage {
@@ -18,6 +23,11 @@ impl TargetLanguage {
             TargetLanguage::TypeScript => "ts",
             TargetLanguage::Graphviz => "graphviz",
             TargetLanguage::LLVM => "ll",
+            TargetLanguage::C => "c",
+            TargetLanguage::Cpp => "cpp",
+            TargetLanguage::Java => "java",
+            TargetLanguage::CSharp => "cs",
+            TargetLanguage::Rust => "rs",
         }
     }
 }
@@ -34,9 +44,19 @@ impl TryFrom<&str> for TargetLanguage {
             Ok(TargetLanguage::Graphviz)
         } else if normalized == "llvm" {
             Ok(TargetLanguage::LLVM)
+        } else if normalized == "c" {
+            Ok(TargetLanguage::C)
+        } else if normalized == "c++" || normalized == "cpp" {
+            Ok(TargetLanguage::Cpp)
+        } else if normalized == "java" {
+            Ok(TargetLanguage::Java)
+        } else if normalized == "csharp" || normalized == "c#" || normalized == "cs" {
+            Ok(TargetLanguage::CSharp)
+        } else if normalized == "rust" || normalized == "rs" {
+            Ok(TargetLanguage::Rust)
         } else {
             Err(format!(
-                "Unrecognized target language: {}. Supported languages are: python_3 (python), typescript (ts), graphviz, llvm",
+                "Unrecognized target language: {}. Supported languages are: python_3 (python), typescript (ts), graphviz, llvm, c, c++, java, csharp, rust",
                 normalized
             ))
         }

@@ -641,11 +641,134 @@ impl Scanner {
             self.start_target_region(target);
         }
 
+        let mut brace_depth: usize = 0;
+        let mut string_state: Option<StringState> = None;
+        let mut block_comment: Option<BlockCommentKind> = None;
+        let mut line_comment = false;
+
         while !self.is_at_end() {
-            if self.detect_frame_boundary() {
+            if brace_depth == 0
+                && string_state.is_none()
+                && block_comment.is_none()
+                && !line_comment
+                && self.detect_frame_boundary()
+            {
                 break;
             }
-            self.advance();
+
+            let ch = self.advance();
+
+            if line_comment {
+                if ch == '\n' {
+                    line_comment = false;
+                }
+                continue;
+            }
+
+            if let Some(kind) = block_comment {
+                match kind {
+                    BlockCommentKind::SlashStar => {
+                        if ch == '*' && self.peek() == '/' {
+                            self.advance();
+                            block_comment = None;
+                        }
+                    }
+                }
+                continue;
+            }
+
+            if let Some(mut state) = string_state.take() {
+                if state.escape {
+                    state.escape = false;
+                    string_state = Some(state);
+                    continue;
+                }
+
+                if ch == '\\' {
+                    state.escape = true;
+                    string_state = Some(state);
+                    continue;
+                }
+
+                let mut string_completed = false;
+
+                if state.triple {
+                    if ch == state.delimiter
+                        && self.peek() == state.delimiter
+                        && self.peek_at(1) == state.delimiter
+                    {
+                        self.advance();
+                        self.advance();
+                        string_completed = true;
+                    }
+                } else if ch == state.delimiter {
+                    string_completed = true;
+                }
+
+                if !string_completed {
+                    string_state = Some(state);
+                }
+
+                continue;
+            }
+
+            match ch {
+                '/' if matches!(
+                    target,
+                    TargetLanguage::TypeScript
+                        | TargetLanguage::C
+                        | TargetLanguage::Cpp
+                        | TargetLanguage::Java
+                        | TargetLanguage::CSharp
+                        | TargetLanguage::Rust
+                ) =>
+                {
+                    if self.peek() == '/' {
+                        self.advance();
+                        line_comment = true;
+                        continue;
+                    }
+                    if self.peek() == '*' {
+                        self.advance();
+                        block_comment = Some(BlockCommentKind::SlashStar);
+                        continue;
+                    }
+                }
+                '#' if matches!(target, TargetLanguage::Python3) => {
+                    line_comment = true;
+                    continue;
+                }
+                '\'' | '"' => {
+                    let triple = matches!(target, TargetLanguage::Python3)
+                        && self.peek() == ch
+                        && self.peek_at(1) == ch;
+                    if triple {
+                        self.advance();
+                        self.advance();
+                    }
+                    string_state = Some(StringState {
+                        delimiter: ch,
+                        triple,
+                        escape: false,
+                    });
+                }
+                '`' if matches!(target, TargetLanguage::TypeScript) => {
+                    string_state = Some(StringState {
+                        delimiter: '`',
+                        triple: false,
+                        escape: false,
+                    });
+                }
+                '{' => {
+                    brace_depth = brace_depth.saturating_add(1);
+                }
+                '}' => {
+                    if brace_depth > 0 {
+                        brace_depth -= 1;
+                    }
+                }
+                _ => {}
+            }
         }
 
         self.switch_scanning_mode(ScanningMode::FrameCommon);
@@ -1058,6 +1181,11 @@ impl Scanner {
                 "typescript" => Some(TargetLanguage::TypeScript),
                 "graphviz" => Some(TargetLanguage::Graphviz),
                 "llvm" => Some(TargetLanguage::LLVM),
+                "c" => Some(TargetLanguage::C),
+                "c++" | "cpp" => Some(TargetLanguage::Cpp),
+                "java" => Some(TargetLanguage::Java),
+                "csharp" | "c#" | "cs" => Some(TargetLanguage::CSharp),
+                "rust" | "rs" => Some(TargetLanguage::Rust),
                 _ => None,
             };
 
@@ -1569,6 +1697,18 @@ struct ActiveTargetRegion {
     target: TargetLanguage,
 }
 
+#[derive(Clone, Copy)]
+struct StringState {
+    delimiter: char,
+    triple: bool,
+    escape: bool,
+}
+
+#[derive(Clone, Copy)]
+enum BlockCommentKind {
+    SlashStar,
+}
+
 #[derive(Debug, Clone)]
 pub enum TokenLiteral {
     Integer(i32),
@@ -1625,6 +1765,12 @@ impl fmt::Display for Token {
 mod tests {
     use super::*;
 
+    fn scan_target_regions(source: &str) -> Vec<TargetRegion> {
+        let scanner = Scanner::new(source.to_string());
+        let (_has_errors, _errors, _tokens, regions) = scanner.scan_tokens();
+        regions
+    }
+
     #[test]
     fn at_target_emits_target_annotation_token() {
         let source = "@target python_3\nsystem Example {}\n";
@@ -1639,5 +1785,70 @@ mod tests {
         assert_eq!(tokens[0].token_type, TokenType::TargetAnnotation);
         assert_eq!(tokens[1].token_type, TokenType::Identifier);
         assert_eq!(tokens[1].lexeme, "python_3");
+    }
+
+    #[test]
+    fn typescript_target_region_handles_nested_braces_and_comments() {
+        let source = r#"
+system Example {
+    actions:
+        ts_action() {
+            #[target: typescript]
+            if (true) {
+                /* block comment */
+                runtime/socket.frame_socket_client_write_line(client, "value");
+                // trailing comment
+            }
+            return;
+        }
+}
+"#;
+
+        let regions = scan_target_regions(source);
+        assert_eq!(regions.len(), 1);
+        let region = &regions[0];
+        assert_eq!(region.target, TargetLanguage::TypeScript);
+        assert!(
+            region
+                .raw_content
+                .contains("runtime/socket.frame_socket_client_write_line"),
+            "Slash-separated runtime references should stay inside the target region"
+        );
+        assert!(region.raw_content.contains("/* block comment */"));
+        assert!(region.raw_content.contains("if (true) {"));
+        assert!(
+            !region.raw_content.trim_end().ends_with("}"),
+            "Closing braces for Frame blocks should remain outside the target region"
+        );
+    }
+
+    #[test]
+    fn python_target_region_handles_triple_quotes_and_comments() {
+        let source = r#"
+fn helper() {
+    #[target: python]
+    text = '''multi-line
+text with -> and '''
+    # inline comment inside target
+    print(text)
+}
+"#;
+
+        let regions = scan_target_regions(source);
+        assert_eq!(regions.len(), 1);
+        let region = &regions[0];
+        assert_eq!(region.target, TargetLanguage::Python3);
+        assert!(
+            region.raw_content.contains("'''multi-line"),
+            "Triple-quoted string should remain inside target region"
+        );
+        assert!(
+            region.raw_content.contains("print(text)"),
+            "Target statements should be captured"
+        );
+        assert!(
+            !region.raw_content.contains("}"),
+            "Frame braces should terminate the target region"
+        );
     }
 }

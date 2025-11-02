@@ -4,6 +4,7 @@ use std::sync::Arc;
 use crate::frame_c::scanner::TargetRegion;
 use crate::frame_c::visitors::TargetLanguage;
 
+pub mod passthrough;
 pub mod python;
 pub mod typescript;
 
@@ -59,6 +60,14 @@ pub(crate) fn parse_target_region(
         }
         TargetLanguage::TypeScript => {
             let parser = typescript::TypeScriptTargetParser::default();
+            parser.parse(TargetParseContext { region })
+        }
+        TargetLanguage::C
+        | TargetLanguage::Cpp
+        | TargetLanguage::Java
+        | TargetLanguage::CSharp
+        | TargetLanguage::Rust => {
+            let parser = passthrough::PassthroughParser::new(target_language);
             parser.parse(TargetParseContext { region })
         }
         other => Err(TargetParseError::Unsupported(other)),

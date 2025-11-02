@@ -571,6 +571,19 @@ impl Exe {
                     );
                     output = visitor.run(&frame_module);
                 }
+                TargetLanguage::C
+                | TargetLanguage::Cpp
+                | TargetLanguage::Java
+                | TargetLanguage::CSharp
+                | TargetLanguage::Rust => {
+                    let message = format!(
+                        "Code generation for target language {:?} is not implemented yet. \
+                         Native blocks will be preserved for diagnostic validation only.",
+                        lang
+                    );
+                    let run_error = RunError::new(exitcode::USAGE, &message);
+                    return Err(run_error);
+                }
             },
         }
 

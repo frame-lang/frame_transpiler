@@ -578,12 +578,18 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
     };
 
     // Convert target language
+    use crate::frame_c::validation::TargetLanguage as ValidationTargetLanguage;
     use crate::frame_c::visitors::TargetLanguage as VisitorTargetLanguage;
-    let target_lang = effective_target.map(|tl| match tl {
-        VisitorTargetLanguage::Python3 => crate::frame_c::validation::TargetLanguage::Python,
-        VisitorTargetLanguage::TypeScript => crate::frame_c::validation::TargetLanguage::Python, // TODO: Add TypeScript validation
-        VisitorTargetLanguage::Graphviz => crate::frame_c::validation::TargetLanguage::Python, // Default to Python for graphviz
-        VisitorTargetLanguage::LLVM => crate::frame_c::validation::TargetLanguage::Python, // Placeholder validation mapping
+    let target_lang = effective_target.and_then(|tl| match tl {
+        VisitorTargetLanguage::Python3 => Some(ValidationTargetLanguage::Python),
+        VisitorTargetLanguage::TypeScript => Some(ValidationTargetLanguage::TypeScript),
+        VisitorTargetLanguage::Java => Some(ValidationTargetLanguage::Java),
+        VisitorTargetLanguage::CSharp => Some(ValidationTargetLanguage::CSharp),
+        VisitorTargetLanguage::Rust => Some(ValidationTargetLanguage::Rust),
+        VisitorTargetLanguage::Cpp => Some(ValidationTargetLanguage::Cpp),
+        VisitorTargetLanguage::Graphviz
+        | VisitorTargetLanguage::LLVM
+        | VisitorTargetLanguage::C => None,
     });
 
     // Create validation configuration

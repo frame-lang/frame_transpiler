@@ -251,42 +251,23 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 ### **Phase 3: Bug #055 Resolution (Week 6)**
 *Apply declaration infrastructure to the async runtime*
 
-#### Week 6: TypeScript Async Implementation
-**Goal**: Leverage declarations to implement TypeScript async socket operations without target-specific blocks
+# Phase 3: Multi-Scanner Architecture & Native Modules (Weeks 6–8)
+*Reprioritized to deliver the new parsing architecture before returning to Bug #055*
 
-**Tasks**:
-- [x] Create TypeScript-specific `runtime_protocol.frm`
-- [ ] Refactor spec to call declared `runtime/socket` APIs (no inline `[target: typescript]`).
-- [ ] Ensure visitors bind declarations to runtime helpers (Python + TypeScript).
-- [ ] Implement native Node.js async socket operations via declarations
-  - [x] Fill in `FrameSocketClient.connect(host, port)` using `net.createConnection`
-  - [x] Buffer incoming data and expose `readLine()` Promise returning UTF-8 strings
-  - [x] Implement `writeLine(line)` with newline termination + UTF-8 encoding
-  - [ ] Wire Python/TypeScript runtime implementations behind the declared module
-- [ ] Test compilation and execution of async operations
-  - [ ] Create an integration test harness (Node-based) to exercise `runtime_protocol_ts`
-  - [ ] Add Frame spec under `framec_tests/language_specific/typescript/runtime/` that round-trips JSON via sockets through declarations
-  - [ ] Automate execution via `frame_test_runner` (Node subprocess smoke test)
-- [ ] Validate against Python equivalent functionality
-  - [ ] Compare behaviour with the existing asyncio implementation to ensure parity
-  - [ ] Document any behavioural differences (timeouts, encoding) in HOW_TO + debugger docs
+## Week 6: Scanner/Parser Foundation
+- [x] Implement scanner multi-mode state machine (Frame vs target body) with proper boundary detection (nested braces, strings, comments).
+- [x] Capture target-specific regions as structured data (`TargetRegion`, `TargetSourceMap`) and persist across AST/diagnostics. *(Implemented multi-mode extraction in `scanner.rs`; regions now carry `TargetSourceMap` metadata referenced by parser + visitors.)*
+- [x] Update parser to consume target regions, emit `TargetSpecific` action bodies, and record `native module` references without falling back to string tokens. *(TypeScript target parser now relies on SWC AST instead of raw strings; Python path already wired.)*
 
-*Status Update (2025-10-31)*:
-- Added a TypeScript-targeted runtime protocol skeleton (`docs/plans/assets/runtime_protocol_ts.frm`) that mirrors the debugger harness semantics.
-- Native declaration proposal captured in `docs/framelang_design/decl_syntax.md`; Phase 2.5 will implement the syntax and runtime exports before refactoring async specs.
-- `FrameSocketClient.connect/readLine/writeLine/close` now implemented in `frame_runtime_ts`; visitors import the helper for multifile builds.
-- Next steps: land the declaration parsing/visitor support, refactor the runtime protocol spec to use declarations, then add the Node echo-server harness (either embedded in `frame_test_runner` or a helper script).
+## Week 7: Target Body Parsers & Visitor Integration
+- [x] Implement per-target body parsers (Python, TypeScript) that produce structured AST for inline code, replacing fallback strings. *(RustPython + SWC pipelines live in `target_parsers/`.)*
+- [x] Update visitors to consume the new body AST, removing legacy `[target: ...]` handling and division-token hacks. *(Python + TypeScript visitors emit parsed segments with frame-line metadata; remaining backlog targets leverage fallback paths.)*
+- [x] Add parse-only support for additional targets (C, C++, Java, C#, Rust) to validate boundary rules before their visitors arrive. *(`PassthroughParser` scaffolds the new targets so the scanner/AST capture regions while codegen still reports “not yet implemented.” See `docs/plans/assets/target_passthrough_demo.frm` for the smoke fixture.)*
 
-**Deliverables**:
-- Working TypeScript async socket implementation
-- Successful compilation of `runtime_protocol.frm` to TypeScript
-- Runtime execution validation (Node harness + regression fixture)
-
-**Validation Criteria**:
-- `framec -l typescript runtime_protocol.frm` compiles successfully
-- `npx tsc` compilation succeeds without manual edits
-- Generated TypeScript executes async socket operations correctly
-- Functionality equivalent to Python version
+## Week 8: Regression & Async Runtime Enablement
+- [x] Update runtime protocol specs/tests (`runtime_protocol_ts`, future Python variant) to exercise the new architecture. *(TypeScript fixture now consumes the generated `native module runtime/socket` declaration; transpile-only suite re-run to confirm no regressions.)*
+- [ ] Revisit Bug #055 with the new pipeline, wiring socket helpers via declarations and adding integration tests/harnesses.
+- [ ] Finalize documentation for target body grammar files and governance.
 
 ### **Phase 4: LLVM Visitor Integration (Post-Python/TypeScript)**
 *Begin after TypeScript async work stabilises*

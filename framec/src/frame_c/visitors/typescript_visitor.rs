@@ -8482,6 +8482,8 @@ impl TypeScriptVisitor {
             return line_count > 0;
         }
 
+        let rewritten_code = self.rewrite_typescript_target_source(&segment.code);
+
         let frame_start = block
             .frame_start_line
             .saturating_add(segment.start_line.saturating_sub(1));
@@ -8490,12 +8492,46 @@ impl TypeScriptVisitor {
             .saturating_add(segment.end_line.saturating_sub(1));
 
         self.emit_target_source_with_metadata(
-            &segment.code,
+            &rewritten_code,
             frame_start,
             frame_end,
             TargetLanguage::TypeScript,
         );
         true
+    }
+
+    fn rewrite_typescript_target_source(&self, source: &str) -> String {
+        if source.is_empty() {
+            return String::new();
+        }
+
+        let mut rewritten = String::with_capacity(source.len());
+        for line in source.split_inclusive('\n') {
+            let (content, suffix_newline) = if line.ends_with('\n') {
+                (&line[..line.len() - 1], true)
+            } else {
+                (line, false)
+            };
+
+            let indent_len = content
+                .chars()
+                .take_while(|c| *c == ' ' || *c == '\t')
+                .count();
+            let (indent, body) = content.split_at(indent_len);
+
+            let transformed = body
+                .replace("runtime/socket.", "")
+                .replace("runtime_socket.", "");
+
+            rewritten.push_str(indent);
+            rewritten.push_str(&transformed);
+
+            if suffix_newline {
+                rewritten.push('\n');
+            }
+        }
+
+        rewritten
     }
 
     fn emit_target_source_with_metadata(

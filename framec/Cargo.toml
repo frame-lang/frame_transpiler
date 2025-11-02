@@ -30,6 +30,7 @@ toml = "0.9.5"
 rustpython-parser = { version = "0.4", default-features = false, features = ["location", "malachite-bigint"] }
 swc_common = { version = "16", features = ["tty-emitter"] }
 swc_ecma_parser = { version = "26", features = ["typescript"] }
+swc_ecma_ast = "17"
 
 [dev-dependencies]
 tempfile = "3"
