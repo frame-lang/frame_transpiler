@@ -1,0 +1,21 @@
+{
+  "outputDir": "../../../../../framec_tests/fixtures/native_decl_generation/typescript",
+  "frameSpecs": [
+    "../../../../../framec_tests/language_specific/typescript/runtime/test_runtime_protocol_native.frm"
+  ],
+  "sources": [
+    {
+      "adapter": "typescript",
+      "input": "../../../../../frame_runtime_ts/index.ts",
+      "module": "runtime::socket",
+      "options": {
+        "include": [
+          "frame_socket_client_connect",
+          "frame_socket_client_read_line",
+          "frame_socket_client_write_line",
+          "frame_socket_client_close"
+        ]
+      }
+    }
+  ]
+}

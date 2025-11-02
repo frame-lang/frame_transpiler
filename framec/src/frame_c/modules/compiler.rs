@@ -8,6 +8,7 @@ use super::linker::{LinkingStrategy, ModuleLinker};
 use super::resolver::ModuleResolver;
 use crate::frame_c::ast::{FrameModule, ImportNode, ImportType};
 use crate::frame_c::config::FrameConfig;
+use crate::frame_c::fid_cache::load_fid_modules;
 use crate::frame_c::parser::Parser;
 use crate::frame_c::scanner::{Scanner, Token, TokenType};
 use crate::frame_c::symbol_table::Arcanum;
@@ -382,8 +383,10 @@ impl MultiFileCompiler {
             ));
         }
 
+        let declared_target = find_declared_target_in_tokens(&tokens);
+
         if let Some(entry_target) = entry_override {
-            if let Some(declared) = find_declared_target_in_tokens(&tokens) {
+            if let Some(declared) = declared_target {
                 if declared != entry_target {
                     return Err(ModuleError::new(
                         ModuleErrorKind::ParseError {
@@ -445,6 +448,16 @@ impl MultiFileCompiler {
                 }
             }
         }
+
+        let module_target = declared_target.unwrap_or(self.target_language);
+
+        let _ =
+            load_fid_modules(&mut arcanum, module_target, file_path.parent()).map_err(|err| {
+                ModuleError::new(
+                    ModuleErrorKind::ParseError { error: err },
+                    file_path.display().to_string(),
+                )
+            })?;
 
         // Create a new arcanum for the second pass (preserving the symbol tables)
         let arcanum_for_semantic = arcanum;

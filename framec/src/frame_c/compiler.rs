@@ -3,6 +3,7 @@ use crate::frame_c::ast_serialize::{
     ast_summary, generate_line_map, save_ast_to_file, serialize_ast_to_json,
 };
 use crate::frame_c::config::FrameConfig;
+use crate::frame_c::fid_cache::{load_fid_modules, FidLoadSummary};
 use crate::frame_c::modules::MultiFileCompiler;
 use crate::frame_c::parser::*;
 use crate::frame_c::scanner::{Scanner, Token, TokenType};
@@ -222,7 +223,7 @@ impl Exe {
 
     pub fn run(
         &self,
-        _input_path_str: Option<&str>,
+        input_path_str: Option<&str>,
         content: String,
         mut target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
@@ -240,6 +241,10 @@ impl Exe {
         // let sha256 = &format!("{:x}", hasher.finalize());
 
         let mut output;
+
+        let spec_dir = input_path_str
+            .and_then(|p| Path::new(p).parent())
+            .map(|p| p.to_path_buf());
         //        let mut output= String::new(); ^^^^ See above! ^^^^
 
         let header_target = detect_header_target_annotation(&content);
@@ -269,6 +274,10 @@ impl Exe {
         if has_errors {
             let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);
             return Err(run_error);
+        }
+
+        if target_language.is_none() {
+            target_language = find_declared_target(&tokens);
         }
 
         let target_regions = Arc::new(target_regions_vec);
@@ -347,6 +356,18 @@ impl Exe {
                 }
             }
         }
+
+        // Load fid cache before semantic analysis so native modules are available.
+        let _fid_summary = if let Some(language) = target_language {
+            load_fid_modules(&mut arcanum, language, spec_dir.as_deref()).map_err(|err| {
+                RunError::new(
+                    frame_exitcode::CONFIG_ERR,
+                    &format!("Failed to load fid cache: {}", err),
+                )
+            })?
+        } else {
+            FidLoadSummary::default()
+        };
 
         let mut comments2 = comments.clone();
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
@@ -601,7 +622,7 @@ impl Exe {
     /// Run the Frame compiler with source map tracking
     fn run_with_source_map(
         &self,
-        _input_path_str: Option<&str>,
+        input_path_str: Option<&str>,
         content: String,
         mut target_language: Option<TargetLanguage>,
         source_map_builder: Rc<RefCell<SourceMapBuilder>>,
@@ -612,6 +633,10 @@ impl Exe {
         hasher.update(&content);
 
         let output;
+
+        let spec_dir = input_path_str
+            .and_then(|p| Path::new(p).parent())
+            .map(|p| p.to_path_buf());
 
         let source_lines = Arc::new(
             content
@@ -625,6 +650,10 @@ impl Exe {
         if has_errors {
             let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);
             return Err(run_error);
+        }
+
+        if target_language.is_none() {
+            target_language = find_declared_target(&tokens);
         }
 
         let target_regions = Arc::new(target_regions_vec);
@@ -703,6 +732,17 @@ impl Exe {
                 }
             }
         }
+
+        let _fid_summary = if let Some(language) = target_language {
+            load_fid_modules(&mut arcanum, language, spec_dir.as_deref()).map_err(|err| {
+                RunError::new(
+                    frame_exitcode::CONFIG_ERR,
+                    &format!("Failed to load fid cache: {}", err),
+                )
+            })?
+        } else {
+            FidLoadSummary::default()
+        };
 
         let mut comments2 = comments.clone();
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
