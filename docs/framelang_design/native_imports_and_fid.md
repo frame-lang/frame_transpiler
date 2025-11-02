@@ -79,7 +79,7 @@ No `native module` blocks are authored by hand. The developer writes idiomatic c
 }
 ```
 
-The new `frameSpecs` array is optional but strongly recommended. `framec decl` parses those Frame files, collects every `ImportType::Native` statement for the active target, and feeds the discovered identifiers into the adapter. Default imports such as `FrameSocketClient` are therefore detected automatically, while the `options.include` list can focus on free functions that are not explicitly imported.
+The new `frameSpecs` array is optional but strongly recommended. `framec decl` parses those Frame files, collects every `ImportType::Native` statement for the active target, and feeds the discovered identifiers into the adapter. Default imports such as `FrameSocketClient` (Python) or `FrameSocketClient`/`frame_socket_client_connect` (TypeScript) are therefore detected automatically, while the `options.include` list can focus on helpers that are not directly imported (for example re-exported runtime functions).
 
 At compile time the loader searches for cached `.fid` files in `.framec/cache/fid/<target>` starting from the spec’s directory and walking up the tree. Additional lookup locations can be supplied via the `FRAMEC_FID_PATH` environment variable; entries may include a `{target}` placeholder (e.g. `/opt/frame/fid/{target}`) or point directly at a target-specific directory.
 

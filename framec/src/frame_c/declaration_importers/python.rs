@@ -9,6 +9,7 @@ use crate::frame_c::ast::{
     NativeFunctionDeclNode, NativeFunctionParameterNode, NativeModuleDeclNode, NativeModuleItem,
     NativeTypeDeclNode,
 };
+use crate::frame_c::visitors::TargetLanguage;
 
 use super::{DeclarationImportContext, DeclarationImporter, DeclarationSourceConfig};
 
@@ -35,6 +36,17 @@ impl DeclarationImporter for PythonRuntimeImporter {
             .ok_or_else(|| "python importer requires 'moduleName' option".to_string())?;
 
         let module_path = resolve_module_path(source, &module_name);
+
+        let discovered_symbols = collect_symbols_from_context(context, &module_name);
+        if !discovered_symbols.is_empty() {
+            for symbol in discovered_symbols {
+                if !options.include.iter().any(|existing| existing == &symbol) {
+                    options.include.push(symbol);
+                }
+            }
+            options.include.sort();
+            options.include.dedup();
+        }
 
         let mut cmd = Command::new(options.python_executable());
         cmd.arg("-c").arg(build_inspection_script(
@@ -278,11 +290,81 @@ fn resolve_module_path(source: &DeclarationSourceConfig, module_name: &str) -> V
         .collect()
 }
 
+fn collect_symbols_from_context(
+    context: &DeclarationImportContext,
+    module_name: &str,
+) -> Vec<String> {
+    let module_norm = normalize_module_name(module_name);
+    let mut symbols = HashSet::new();
+
+    for entry in &context.native_imports {
+        if entry.target != TargetLanguage::Python3 {
+            continue;
+        }
+
+        if let Some((import_module, names)) = parse_python_import(&entry.code) {
+            if import_module == module_norm {
+                for name in names {
+                    if !name.is_empty() {
+                        symbols.insert(name);
+                    }
+                }
+            }
+        }
+    }
+
+    symbols.into_iter().collect()
+}
+
 fn module_segments(path: &str) -> Vec<String> {
     path.split(|c| c == '/' || c == '.' || c == ':')
         .filter(|segment| !segment.is_empty())
         .map(|segment| sanitize_identifier(segment))
         .collect()
+}
+
+fn normalize_module_name(module: &str) -> String {
+    module.replace("::", ".").replace('/', ".").to_lowercase()
+}
+
+fn parse_python_import(code: &str) -> Option<(String, Vec<String>)> {
+    let trimmed = code.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if trimmed.starts_with("from ") {
+        let remainder = trimmed.trim_start_matches("from ");
+        let mut parts = remainder.splitn(2, " import ");
+        let module = parts.next()?.trim().to_lowercase();
+        let names_part = parts.next()?.split('#').next().unwrap_or("");
+        let names = names_part
+            .split(',')
+            .map(|name| name.trim())
+            .filter(|name| !name.is_empty())
+            .map(|name| sanitize_identifier(name.split_whitespace().next().unwrap_or("")))
+            .map(|name| name.to_lowercase())
+            .collect();
+        Some((module, names))
+    } else if trimmed.starts_with("import ") {
+        let remainder = trimmed.trim_start_matches("import ");
+        let module = remainder
+            .split(',')
+            .next()
+            .unwrap_or("")
+            .split(" as ")
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_lowercase();
+        if module.is_empty() {
+            None
+        } else {
+            Some((module, Vec::new()))
+        }
+    } else {
+        None
+    }
 }
 
 fn sanitize_identifier(name: &str) -> String {
@@ -395,6 +477,8 @@ print(json.dumps(members))
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::frame_c::declaration_importers::NativeImportRequest;
+    use crate::frame_c::visitors::TargetLanguage;
     use serde_json::json;
 
     fn fixtures_dir() -> PathBuf {
@@ -437,7 +521,7 @@ mod tests {
         let modules = importer.import(&source, &context).expect("import succeeds");
         assert_eq!(modules.len(), 1);
         let module = &modules[0];
-        assert_eq!(module.path(), "runtime/socket");
+        assert_eq!(module.path(), "runtime::socket");
 
         let mut types = Vec::new();
         let mut functions = Vec::new();
@@ -495,5 +579,21 @@ mod tests {
         ];
 
         assert_eq!(functions, expected);
+    }
+
+    #[test]
+    fn includes_symbols_from_native_imports() {
+        let context = DeclarationImportContext {
+            config_dir: PathBuf::from("."),
+            verbose: false,
+            native_imports: vec![NativeImportRequest {
+                spec_path: PathBuf::from("sample.frm"),
+                target: TargetLanguage::Python3,
+                code: "from frame_runtime_py.socket import frame_socket_client_connect".to_string(),
+            }],
+        };
+
+        let symbols = collect_symbols_from_context(&context, "frame_runtime_py.socket");
+        assert!(symbols.contains(&"frame_socket_client_connect".to_string()));
     }
 }
