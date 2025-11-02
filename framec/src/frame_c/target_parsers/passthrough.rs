@@ -89,10 +89,7 @@ mod tests {
         let ast = parser
             .parse(TargetParseContext { region: &region })
             .expect("passthrough parse");
-        let passthrough = ast
-            .as_any()
-            .downcast_ref::<PassthroughTargetAst>()
-            .unwrap();
+        let passthrough = ast.as_any().downcast_ref::<PassthroughTargetAst>().unwrap();
         assert_eq!(passthrough.elements().len(), 2);
         assert!(passthrough.diagnostics().first().is_some());
     }

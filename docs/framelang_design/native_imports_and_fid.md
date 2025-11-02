@@ -38,14 +38,9 @@ import { Socket } from 'net';
 system SocketShell {
     actions:
         async connectAndRead(host, port) {
-            const socket = new Socket();
-            const chunk = await new Promise<Buffer>((resolve, reject) => {
-                socket.once('data', resolve);
-                socket.once('error', reject);
-                socket.connect({ host, port });
-            });
-            socket.destroy();
-            return chunk.toString('utf8');
+            var endpoint = host + ":" + port
+            self.socket = endpoint
+            return endpoint
         }
 }
 ```
@@ -66,15 +61,15 @@ module typescript::node::net {
     type Socket
 
     Socket.connect(port: number, host?: string): Socket
-    Socket.once(event: string, listener: (...args: any[]) => void): Socket
+    Socket.write(data: string): bool
     Socket.destroy(): void
 }
 ```
 
 Notes:
 
-- Names follow the native casing (`connect`, `once`, etc.).
-- Member functions are qualified with their owning class (`Socket.once`).
+- Names follow the native casing (`connect`, `write`, etc.).
+- Member functions are qualified with their owning class (`Socket.write`).
 - For Python standard library modules (e.g., `asyncio`) the importer inspects runtime objects and type annotations to derive equivalent `.fid` entries.
 - Return annotations mirror the native type system. The compiler lowers them to Frame-friendly representations but keeps the original semantics.
 

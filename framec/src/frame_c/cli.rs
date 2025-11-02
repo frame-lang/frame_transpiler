@@ -625,6 +625,7 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
     }
 
     // Parse the Frame file to get the actual AST using two-pass approach
+    let source_lines = Arc::new(source_code.lines().map(|line| line.to_string()).collect());
     let scanner = Scanner::new(source_code.clone());
     let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
 
@@ -644,6 +645,7 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
             true,
             arcanum,
             Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
         );
         match syntactic_parser.parse() {
             Ok(_) => {
@@ -673,6 +675,7 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
         false,
         arcanum,
         Arc::clone(&target_regions),
+        Arc::clone(&source_lines),
     );
 
     let ast = match semantic_parser.parse() {

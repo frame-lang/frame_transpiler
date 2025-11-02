@@ -187,17 +187,28 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Generated Python executes without errors
 - Generated code continues to lean on runtime/FSL APIs for state management across targets
 
-### **Phase 2.5: Native Declaration Infrastructure (Week 5)**
-*Introduce ambient declarations so specs can call runtime helpers without embedding target-specific code*
+### **Phase 2.5: Native Import Surface & FID Pipeline (Week 5)**
+*Shift from manual declarations to automatic discovery + generated `.fid` files*
 
-**Goal**: Deliver the declaration syntax and runtime plumbing needed before refactoring async specs.
+**Goal**: Treat native import statements as first-class citizens, cache the source lines for diagnostics, and prepare the auto-generated inspection pipeline that will emit `.fid` metadata per target.
 
-**Tasks**:
-- [ ] Finalize and implement `native module` syntax (see `docs/framelang_design/decl_syntax.md`).
-- [ ] Parser + symbol table support for declared modules, functions, and opaque handle types.
-- [x] Visitor wiring for Python/TypeScript (emit imports instead of `[target: ...]` blocks); design LLVM mapping.
-- [x] Runtime exports aligned with declarations (`frame_runtime_py.runtime.socket`, `frame_runtime_ts.runtime.socket`, etc.).
-- [x] Compiler diagnostics when a declaration is used but no implementation exists for the active target.
+**Completed Work**:
+- [x] Parser records native import statements as `ImportType::Native` (see `framec/src/frame_c/parser.rs`) and captures the original source text for visitors/diagnostics.
+- [x] Compiler/CLI pass `Arc<Vec<String>>` source buffers into both parser passes so native snippets and error messages include target-line context.
+- [x] Python + TypeScript visitors replay native imports directly (non-target visitors surface a comment explaining the skip).
+- [x] TypeScript fixtures updated to rely on native imports instead of `#[target: typescript]` blocks; full transpile-only suite is green.
+- [x] Documentation rewritten (`docs/framelang_design/native_imports_and_fid.md`) describing the native-import-first workflow and the follow-on `.fid` generation.
+
+**Still To Do**:
+- [ ] Wire the declaration generator (`framec decl`) to consume captured imports: invoke adapter tooling (TypeDoc / Python `inspect`) and emit `.fid` cache entries automatically.
+- [ ] Load generated `.fid` metadata during compilation so specs receive symbol/type checking without hand-authored declarations.
+- [ ] Produce diagnostics when an import resolves to a missing `.fid` entry (stale cache, missing runtime implementation, etc.).
+- [ ] Document the `.fid` cache layout + lifecycle in HOW_TO and developer docs once the generator lands.
+
+**Validation Criteria**:
+- Frame CLI regenerates `.fid` files on demand and respects cache invalidation (timestamp/hash).
+- Parser + visitors continue to succeed with multi-line / aliased native imports.
+- Missing or incompatible runtime signatures produce actionable compiler errors tied to both Frame and target source lines.
 
 ### **Phase 2.6: Declaration Generator Tooling (Week 6)**
 *Automate creation of native module contracts from existing language metadata*

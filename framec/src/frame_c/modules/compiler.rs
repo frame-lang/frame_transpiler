@@ -371,6 +371,7 @@ impl MultiFileCompiler {
         }
 
         // Parse the module
+        let source_lines = Arc::new(content.lines().map(|line| line.to_string()).collect());
         let scanner = Scanner::new(content);
         let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
 
@@ -412,6 +413,7 @@ impl MultiFileCompiler {
                 true,
                 arcanum,
                 Arc::clone(&target_regions),
+                Arc::clone(&source_lines),
             );
             match syntactic_parser.parse() {
                 Ok(_) => {
@@ -455,6 +457,7 @@ impl MultiFileCompiler {
             false,
             arcanum_for_semantic,
             Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
         );
 
         let ast = match semantic_parser.parse() {

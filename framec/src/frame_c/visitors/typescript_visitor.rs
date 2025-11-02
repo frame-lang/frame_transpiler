@@ -2015,6 +2015,13 @@ impl AstVisitor for TypeScriptVisitor {
                 let items_str = items.join(", ");
                 format!("import {{ {} }} from '{}';", items_str, ts_module)
             }
+            ImportType::Native { target, code } => {
+                if target == &TargetLanguage::TypeScript {
+                    code.clone()
+                } else {
+                    format!("// Unsupported native import for {:?}: {}", target, code)
+                }
+            }
         };
 
         self.builder.writeln(&import_stmt);

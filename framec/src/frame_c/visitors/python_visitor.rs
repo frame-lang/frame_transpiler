@@ -1624,6 +1624,12 @@ impl PythonVisitor {
                 let items_str = items.join(", ");
                 format!("from {} import {}", py_module, items_str)
             }
+            ImportType::Native { target, code } => {
+                format!(
+                    "# Native import for {:?} ignored in Python target: {}",
+                    target, code
+                )
+            }
         };
 
         self.imports.push(import_stmt);

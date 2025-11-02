@@ -257,6 +257,12 @@ impl Exe {
             target_language = Some(header);
         }
 
+        let source_lines = Arc::new(
+            content
+                .lines()
+                .map(|line| line.to_string())
+                .collect::<Vec<_>>(),
+        );
         let scanner = Scanner::new(content);
 
         let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
@@ -283,6 +289,7 @@ impl Exe {
                 true,
                 arcanum,
                 Arc::clone(&target_regions),
+                Arc::clone(&source_lines),
             );
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                 eprintln!("DEBUG: Created syntactic parser with is_building_symbol_table=true");
@@ -361,6 +368,7 @@ impl Exe {
             false,
             arcanum,
             Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
         );
 
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
@@ -605,6 +613,12 @@ impl Exe {
 
         let output;
 
+        let source_lines = Arc::new(
+            content
+                .lines()
+                .map(|line| line.to_string())
+                .collect::<Vec<_>>(),
+        );
         let scanner = Scanner::new(content);
 
         let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
@@ -631,6 +645,7 @@ impl Exe {
                 true,
                 arcanum,
                 Arc::clone(&target_regions),
+                Arc::clone(&source_lines),
             );
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                 eprintln!("DEBUG: Created syntactic parser with is_building_symbol_table=true");
@@ -709,6 +724,7 @@ impl Exe {
             false,
             arcanum,
             Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
         );
 
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {

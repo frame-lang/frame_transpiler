@@ -233,6 +233,7 @@ pub struct Parser<'a> {
     pub target_language: Option<TargetLanguage>,
     target_regions: Arc<Vec<TargetRegion>>,
     target_discovery: TargetDiscoveryPass,
+    source_lines: Arc<Vec<String>>,
 }
 
 // Helper enum for call type classification
@@ -251,6 +252,7 @@ impl<'a> Parser<'a> {
         is_building_symbol_table: bool,
         mut arcanum: Arcanum,
         target_regions: Arc<Vec<TargetRegion>>,
+        source_lines: Arc<Vec<String>>,
     ) -> Parser<'a> {
         let debug_mode = std::env::var("FRAME_TRANSPILER_DEBUG").is_ok();
         // Initialize foundational scopes ONLY for first pass (symbol table building)
@@ -307,6 +309,7 @@ impl<'a> Parser<'a> {
             target_language: None,
             target_regions,
             target_discovery,
+            source_lines,
         }
     }
 
@@ -15789,9 +15792,19 @@ impl<'a> Parser<'a> {
 
         // Validate that this is a Frame file (.frm extension)
         if !file_path.ends_with(".frm") {
-            let err_msg = "Frame module imports must reference .frm files";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
+            let target = self.target_language.unwrap_or(TargetLanguage::TypeScript);
+            let mut end_line = self.previous().line;
+            if self.match_token(&[TokenType::Semicolon]) {
+                end_line = self.previous().line;
+            }
+            let raw = self.collect_lines(line, end_line);
+            return Ok(ImportNode::new(
+                ImportType::Native {
+                    target,
+                    code: raw.trim().to_string(),
+                },
+                line,
+            ));
         }
 
         // Check for optional 'as alias' syntax
@@ -15812,6 +15825,7 @@ impl<'a> Parser<'a> {
                 line,
             ))
         } else {
+            let _ = self.match_token(&[TokenType::Semicolon]);
             Ok(ImportNode::new(
                 ImportType::FrameModule {
                     module_name,
@@ -15868,10 +15882,22 @@ impl<'a> Parser<'a> {
 
         // Validate that this is a Frame file (.frm extension)
         if !file_path.ends_with(".frm") {
-            let err_msg = "Frame module imports must reference .frm files";
-            self.error_at_current(err_msg);
-            return Err(ParseError::new(err_msg));
+            let target = self.target_language.unwrap_or(TargetLanguage::TypeScript);
+            let mut end_line = self.previous().line;
+            if self.match_token(&[TokenType::Semicolon]) {
+                end_line = self.previous().line;
+            }
+            let raw = self.collect_lines(line, end_line);
+            return Ok(ImportNode::new(
+                ImportType::Native {
+                    target,
+                    code: raw.trim().to_string(),
+                },
+                line,
+            ));
         }
+
+        let _ = self.match_token(&[TokenType::Semicolon]);
 
         Ok(ImportNode::new(
             ImportType::FrameSelective { items, file_path },
@@ -15890,6 +15916,31 @@ impl<'a> Parser<'a> {
         } else {
             lexeme.to_string() // Return as-is if not quoted
         }
+    }
+
+    fn line_text(&self, line: usize) -> Option<&str> {
+        if line == 0 {
+            return None;
+        }
+        self.source_lines
+            .get(line.saturating_sub(1))
+            .map(|s| s.as_str())
+    }
+
+    fn collect_lines(&self, start_line: usize, end_line: usize) -> String {
+        if start_line == 0 || end_line == 0 {
+            return String::new();
+        }
+        let mut buffer = String::new();
+        for line in start_line.saturating_sub(1)..=end_line.saturating_sub(1) {
+            if let Some(content) = self.source_lines.get(line) {
+                if !buffer.is_empty() {
+                    buffer.push('\n');
+                }
+                buffer.push_str(content);
+            }
+        }
+        buffer
     }
 
     // v0.56: Parse type alias: type Name = type_expression
@@ -16985,6 +17036,7 @@ system TargetDiag {
         assert!(!has_errors, "scanner reported errors: {}", scan_errors);
 
         let target_regions = Arc::new(target_regions);
+        let source_lines = Arc::new(source.lines().map(|line| line.to_string()).collect());
         let mut parser_comments = Vec::new();
         let parser = Parser::new(
             &tokens,
@@ -16992,6 +17044,7 @@ system TargetDiag {
             true,
             Arcanum::new(),
             Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
         );
 
         let region = parser
@@ -17071,6 +17124,7 @@ system Host {
         assert!(!has_errors, "scanner reported errors: {}", scan_errors);
 
         let target_regions = Arc::new(target_regions);
+        let source_lines = Arc::new(source.lines().map(|line| line.to_string()).collect());
         let mut parser_comments = Vec::new();
         let arcanum = Arcanum::new();
         let mut parser = Parser::new(
@@ -17079,6 +17133,7 @@ system Host {
             true,
             arcanum,
             Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
         );
         let module = match parser.parse() {
             Ok(module) => module,
@@ -17127,5 +17182,54 @@ system Host {
         let symbol_ref = symbol.borrow();
         assert!(symbol_ref.get_function("connect").is_some());
         assert!(symbol_ref.get_type("SocketHandle").is_some());
+    }
+
+    #[test]
+    fn typescript_native_imports_are_classified() {
+        let source = r#"
+@target typescript
+
+import FrameSocketClient from "./runtime/socket";
+
+system Host {
+    machine:
+        $Init {
+            start() {
+                return
+            }
+        }
+}
+"#;
+
+        let scanner = Scanner::new(source.to_string());
+        let (has_errors, scan_errors, tokens, target_regions) = scanner.scan_tokens();
+        assert!(!has_errors, "scanner reported errors: {}", scan_errors);
+
+        let target_regions = Arc::new(target_regions);
+        let source_lines = Arc::new(source.lines().map(|line| line.to_string()).collect());
+        let mut parser_comments = Vec::new();
+        let arcanum = Arcanum::new();
+        let mut parser = Parser::new(
+            &tokens,
+            &mut parser_comments,
+            true,
+            arcanum,
+            Arc::clone(&target_regions),
+            Arc::clone(&source_lines),
+        );
+
+        let module = match parser.parse() {
+            Ok(module) => module,
+            Err(err) => panic!("parser failed: {}", err.to_display_string()),
+        };
+
+        assert_eq!(module.imports.len(), 1);
+        match &module.imports[0].import_type {
+            ImportType::Native { target, code } => {
+                assert_eq!(*target, TargetLanguage::TypeScript);
+                assert_eq!(code, r#"import FrameSocketClient from "./runtime/socket";"#);
+            }
+            other => panic!("expected native TypeScript import, found {:?}", other),
+        }
     }
 }

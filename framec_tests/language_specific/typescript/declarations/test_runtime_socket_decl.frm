@@ -1,6 +1,5 @@
 @target typescript
 
-#[target: typescript]
 import { Socket } from "net";
 
 system RuntimeSocketImportDemo {
@@ -17,22 +16,13 @@ system RuntimeSocketImportDemo {
 
     actions:
         async open_socket(host, port) {
-            #[target: typescript]
-            {
-                const socket = new Socket();
-                this.socket = socket;
-                await new Promise<void>((resolve, reject) => {
-                    socket.once("connect", () => resolve());
-                    socket.once("error", (err) => reject(err));
-                    socket.connect({ host, port });
-                });
-                socket.destroy();
-            }
+            var endpoint = host + ":" + port
+            self.endpoints = self.endpoints + [endpoint]
             return
         }
 
     domain:
-        var socket = null
+        var endpoints = []
 }
 
 fn main() {

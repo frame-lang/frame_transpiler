@@ -892,6 +892,10 @@ pub enum ImportType {
         items: Vec<String>,
         file_path: String,
     },
+    Native {
+        target: TargetLanguage,
+        code: String,
+    },
 }
 
 #[derive(Clone, Debug)]

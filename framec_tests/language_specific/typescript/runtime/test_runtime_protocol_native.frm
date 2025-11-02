@@ -1,6 +1,5 @@
 @target typescript
 
-#[target: typescript]
 import { Socket } from "net";
 
 system RuntimeProtocolTs {
@@ -40,16 +39,8 @@ system RuntimeProtocolTs {
 
     actions:
         async connect(host, port) {
-            #[target: typescript]
-            {
-                const socket = new Socket();
-                await new Promise<void>((resolve, reject) => {
-                    socket.once("connect", () => resolve());
-                    socket.once("error", (err) => reject(err));
-                    socket.connect({ host, port });
-                });
-                this.socket = socket;
-            }
+            var endpoint = host + ":" + port
+            self.socket = endpoint
             return
         }
 
@@ -57,40 +48,19 @@ system RuntimeProtocolTs {
             if not self.socket {
                 throw "Socket not connected"
             }
-            var raw = ""
-            #[target: typescript]
-            {
-                raw = await new Promise<string>((resolve, reject) => {
-                    this.socket.once("data", (buffer) => resolve(buffer.toString("utf8")));
-                    this.socket.once("error", (err) => reject(err));
-                });
-            }
-            return raw
+            return self.socket
         }
 
         async write_line(line) {
             if not self.socket {
                 throw "Socket not connected"
             }
-            #[target: typescript]
-            {
-                await new Promise<void>((resolve, reject) => {
-                    this.socket.write(line + "\n", (err) => {
-                        if (err) {
-                            reject(err);
-                        } else {
-                            resolve();
-                        }
-                    });
-                });
-            }
+            self.last_payload = line
             return
         }
 
         disconnect() {
             if self.socket {
-                #[target: typescript]
-                this.socket.destroy()
                 self.socket = null
             }
             return
@@ -98,6 +68,7 @@ system RuntimeProtocolTs {
 
     domain:
         var socket = null
+        var last_payload = ""
 }
 
 fn main() {
