@@ -650,7 +650,7 @@ system FileProcessor {
 2. **FID Auto-generation**: Integrate the declaration generator so discovered imports trigger updates to cached `.fid` files. Implement change detection (hashing timestamps or file digests) to avoid unnecessary regeneration.
 3. **Compiler Integration**: Load `.fid` metadata before semantic analysis so Frame actions/operations can type-check calls against the generated signatures.
 4. **Validation & Diagnostics**: Enhance diagnostics to point users at missing or mismatched native imports when `.fid` generation fails, including actionable messages (e.g., “Did you install `@types/node` before generating TypeScript FIDs?” or “Is the Python module available on PYTHONPATH?”).
-5. **Documentation & Tooling**: Update language guides with native import examples, document where `.fid` files live, and add CLI switches (e.g., `framec decl --dry-run`) to inspect generated headers. Plan IDE awareness (e.g., regeneration hooks) once the workflow stabilises.
+5. **Documentation & Tooling**: Update language guides with native import examples, document where `.fid` files live, and add CLI switches (e.g., `framec fid import --dry-run`) to inspect generated headers. Plan IDE awareness (e.g., regeneration hooks) once the workflow stabilises.
 
 ## 🎯 Conclusion
 

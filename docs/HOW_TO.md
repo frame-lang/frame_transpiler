@@ -295,9 +295,9 @@ framec/src/frame_c/
 - `--debug-output`: Generate JSON with transpiled code and source map
 - `--validate-syntax`: Enable comprehensive syntax validation
 - `-V, --version`: Print version information
-- `framec decl --config <FILE>`: Generate cached `.fid` (Frame Interface Definition) files from native modules (see below). Add `--allow-missing` if the importer should log but not fail when expected symbols are absent.
+- `framec fid import --config <FILE>`: Generate cached `.fid` (Frame Interface Definition) files from native modules (see below). Add `--allow-missing` if the importer should log but not fail when expected symbols are absent. (The legacy spelling `framec decl` still works.)
 
-#### FID Generator (`framec decl`)
+#### FID Generator (`framec fid import`)
 
 Frame ships an opt-in command for converting native modules (TypeDoc JSON, Python introspection, etc.) into `.fid` headers. Specs keep their native import statements; the generator produces the metadata the compiler consumes. A config file lists one or more sources:
 
@@ -344,22 +344,22 @@ Frame ships an opt-in command for converting native modules (TypeDoc JSON, Pytho
 - `options.pythonPath`: extra entries to prepend to `PYTHONPATH` so the importer can locate third-party modules or virtual environments.
 - `options.jsonCache`: optional pre-generated TypeDoc JSON so tests can run without hitting `npx typedoc`.
 
-Generated headers are cached under `.framec/cache/fid/<target>` next to the project that executed the command (e.g. `.framec/cache/fid/python/runtime_socket.fid`). The compiler walks up the directory tree looking for those directories and also checks paths listed in `FRAMEC_FID_PATH` (use `{target}` as a placeholder to share one cache across targets). Delete a target directory or re-run `framec decl` whenever the underlying runtime changes; otherwise the compiler will surface an error such as:
+Generated headers are cached under `.framec/cache/fid/<target>` next to the project that executed the command (e.g. `.framec/cache/fid/python/runtime_socket.fid`). The compiler walks up the directory tree looking for those directories and also checks paths listed in `FRAMEC_FID_PATH` (use `{target}` as a placeholder to share one cache across targets). Delete a target directory or re-run `framec fid import` whenever the underlying runtime changes; otherwise the compiler will surface an error such as:
 
 ```
-Native helper 'frame_socket_client_connect' is imported for this target but no declaration was loaded. Run `framec decl` for the active target and retry.
+Native helper 'frame_socket_client_connect' is imported for this target but no declaration was loaded. Run `framec fid import` for the active target and retry. (Legacy command: `framec decl`.)
 ```
 
 Keep `.fid` files out of source control—they are build artefacts. Treat them like a virtualenv: regenerate after upgrading a dependency, add the cache path to `.gitignore`, and rely on the CLI to refresh it when needed.
 
-Example invocations:
+Example invocations (`framec fid import ...` is the canonical form; `framec decl` and `framec declarations` remain aliases for backward compatibility):
 
 ```bash
 # Generate .fid headers, failing on missing symbols
-cargo run -p framec -- decl --config docs/plans/assets/decl_input/ts/typedoc_config.json --force
+cargo run -p framec -- fid import --config docs/plans/assets/decl_input/ts/typedoc_config.json --force
 
 # Allow incomplete coverage (useful during incremental runtime work)
-cargo run -p framec -- decl --config docs/plans/assets/decl_input/ts/typedoc_config.json --force --allow-missing
+cargo run -p framec -- fid import --config docs/plans/assets/decl_input/ts/typedoc_config.json --force --allow-missing
 ```
 
 CI Guidance: set `FRAME_DECL_GEN=check` (planned hook) to exercise the generator in “dry run” mode during builds and verify that cached fixtures stay current without writing files.

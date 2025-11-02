@@ -200,7 +200,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [x] Documentation rewritten (`docs/framelang_design/native_imports_and_fid.md`) describing the native-import-first workflow and the follow-on `.fid` generation.
 
 **Still To Do**:
-- [x] Wire the declaration generator (`framec decl`) to consume captured imports: TypeScript adapter now receives identifiers scanned from configured Frame specs (default imports such as `FrameSocketClient` are auto-discovered).
+- [x] Wire the declaration generator (`framec fid import`) to consume captured imports: TypeScript adapter now receives identifiers scanned from configured Frame specs (default imports such as `FrameSocketClient` are auto-discovered).
 - [x] Extend native-import forwarding to the Python importer and confirm `.fid` output covers `frame_runtime_py` helpers.
 - [x] Load generated `.fid` metadata during compilation so specs receive symbol/type checking without hand-authored declarations.
 - [x] Produce diagnostics when an import resolves to a missing `.fid` entry (stale cache, missing runtime implementation, etc.).
@@ -217,7 +217,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 **Goal**: Provide an opt-in tool that converts target-specific signature sources (e.g., `.d.ts`, Python stubs) into Frame `native module` declarations, so teams are not forced to hand-maintain the contracts.
 
 #### Week 6a: Generator Scaffolding & CLI
-- [ ] Add `framec decl import` subcommand (alias `framec declarations import`) with discoverable help text.
+- [x] Add `framec fid import` subcommand (legacy aliases: `framec decl`, `framec declarations`) with discoverable help text.
 - [ ] Define generator config (`.frame_declgen.json`) describing source metadata files, target languages, and output path.
 - [ ] Build plugin-style adapter registry (initial adapters: TypeScript `.d.ts`, Python `.pyi` stub imports); adapters live under `framec/src/frame_c/declaration_importers/`.
 - [ ] Reuse the existing `FrameModule` writer to emit `native module` declarations into `framec_tests/fixtures/native_decl_generation/`.
@@ -245,7 +245,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Parser/adapter trait interface that allows additional languages to plug in without touching core codegen.
 
 **Validation Criteria**:
-- `framec decl import` can consume the TypeScript runtime protocol `.d.ts` and emit a declaration that compiles cleanly with existing specs.
+- `framec fid import` can consume the TypeScript runtime protocol `.d.ts` and emit a declaration that compiles cleanly with existing specs.
 - Generated declarations round-trip through the compiler/visitors without manual edits (Python + TypeScript smoke).
 - Safety checks prevent overwriting local edits without explicit confirmation and detect runtime/export mismatches.
 - [x] Documentation/examples (HOW_TO, CLI help, declaration guide).

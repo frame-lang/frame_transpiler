@@ -14526,7 +14526,7 @@ impl<'a> Parser<'a> {
                     && !self.arcanum.has_registered_native_function(name)
                 {
                     let message = format!(
-                        "Native helper '{}' is imported for this target but no declaration was loaded. Run `framec decl` for the active target and retry.",
+                        "Native helper '{}' is imported for this target but no declaration was loaded. Run `framec fid import` (or the legacy `framec decl`) for the active target and retry.",
                         name
                     );
                     self.error_at(&call_expr_node.identifier.name, &message);
@@ -17407,6 +17407,6 @@ system Host {
         );
         assert!(second_parser.had_error(), "expected missing fid error");
         let errors = second_parser.get_errors();
-        assert!(errors.contains("Run `framec decl`"));
+        assert!(errors.contains("Run `framec fid import`"));
     }
 }

@@ -47,7 +47,7 @@ pub struct Cli {
 }
 
 #[derive(Debug, Clone)]
-pub struct DeclImportArgs {
+pub struct FidImportArgs {
     pub config_path: PathBuf,
     pub force: bool,
     pub dry_run: bool,
@@ -60,7 +60,7 @@ pub enum CliCommand {
     None,
     Init,
     Build { config: Option<PathBuf> },
-    DeclImport(DeclImportArgs),
+    FidImport(FidImportArgs),
 }
 
 impl Cli {
@@ -82,15 +82,16 @@ impl Cli {
                     ),
             )
             .subcommand(
-                Command::new("decl")
-                    .about("Generate native module declarations from language metadata")
+                Command::new("fid")
+                    .about("Manage Frame Interface Definition (FID) caches")
+                    .alias("decl")
+                    .visible_alias("declarations")
                     .arg(
                         Arg::new("config")
                             .long("config")
                             .short('c')
                             .help("Path to declaration generator config JSON")
-                            .value_name("FILE")
-                            .required(true),
+                            .value_name("FILE"),
                     )
                     .arg(
                         Arg::new("force")
@@ -119,6 +120,46 @@ impl Cli {
                                 "Do not fail when expected symbols are missing from imported modules"
                             )
                             .action(clap::ArgAction::SetTrue),
+                    )
+                    .subcommand(
+                        Command::new("import")
+                            .about("Import native metadata and emit .fid declarations")
+                            .arg(
+                                Arg::new("config")
+                                    .long("config")
+                                    .short('c')
+                                    .help("Path to declaration generator config JSON")
+                                    .value_name("FILE")
+                                    .required(true),
+                            )
+                            .arg(
+                                Arg::new("force")
+                                    .long("force")
+                                    .short('f')
+                                    .help("Overwrite existing declaration files")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("dry-run")
+                                    .long("dry-run")
+                                    .help("Parse config and report work without writing files")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("verbose")
+                                    .long("verbose")
+                                    .short('v')
+                                    .help("Emit additional logging during import")
+                                    .action(clap::ArgAction::SetTrue),
+                            )
+                            .arg(
+                                Arg::new("allow-missing")
+                                    .long("allow-missing")
+                                    .help(
+                                        "Do not fail when expected symbols are missing from imported modules"
+                                    )
+                                    .action(clap::ArgAction::SetTrue),
+                            ),
                     ),
             )
             .arg(
@@ -214,16 +255,37 @@ impl Cli {
                             .map(|s| PathBuf::from(s));
                         CliCommand::Build { config }
                     }
-                    "decl" => {
-                        let config_path = sub_matches
-                            .get_one::<String>("config")
-                            .map(|s| PathBuf::from(s))
-                            .expect("config arg is required by clap");
-                        let force = sub_matches.get_flag("force");
-                        let dry_run = sub_matches.get_flag("dry-run");
-                        let verbose = sub_matches.get_flag("verbose");
-                        let allow_missing = sub_matches.get_flag("allow-missing");
-                        CliCommand::DeclImport(DeclImportArgs {
+                    "fid" | "decl" | "declarations" => {
+                        let (config_path, force, dry_run, verbose, allow_missing) =
+                            if let Some(("import", nested)) = sub_matches.subcommand() {
+                                (
+                                    nested
+                                        .get_one::<String>("config")
+                                        .map(|s| PathBuf::from(s))
+                                        .expect("config arg is required by clap"),
+                                    nested.get_flag("force"),
+                                    nested.get_flag("dry-run"),
+                                    nested.get_flag("verbose"),
+                                    nested.get_flag("allow-missing"),
+                                )
+                            } else {
+                                let config = sub_matches.get_one::<String>("config").map(|s| PathBuf::from(s));
+                                let config_path = match config {
+                                    Some(path) => path,
+                                    None => {
+                                        eprintln!("error: --config <FILE> is required. Use 'framec fid import --config <FILE>' or 'framec fid --config <FILE>'.");
+                                        std::process::exit(exitcode::USAGE);
+                                    }
+                                };
+                                (
+                                    config_path,
+                                    sub_matches.get_flag("force"),
+                                    sub_matches.get_flag("dry-run"),
+                                    sub_matches.get_flag("verbose"),
+                                    sub_matches.get_flag("allow-missing"),
+                                )
+                            };
+                        CliCommand::FidImport(FidImportArgs {
                             config_path,
                             force,
                             dry_run,
@@ -314,8 +376,8 @@ pub fn run_with(args: Cli) {
             handle_build_command(config_path);
             return;
         }
-        CliCommand::DeclImport(decl_args) => {
-            handle_decl_import(decl_args);
+        CliCommand::FidImport(fid_args) => {
+            handle_fid_import(fid_args);
             return;
         }
         CliCommand::None => {}
@@ -382,8 +444,8 @@ pub fn run_with(args: Cli) {
     }
 }
 
-/// Handle the 'init' subcommand to create a new Frame project
-fn handle_decl_import(args: DeclImportArgs) {
+/// Handle the FID import subcommand
+fn handle_fid_import(args: FidImportArgs) {
     match run_decl_import(
         &args.config_path,
         args.force,

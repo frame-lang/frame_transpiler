@@ -49,11 +49,11 @@ No `native module` blocks are authored by hand. The developer writes idiomatic c
 
 ## 2. Generating `.fid` Files
 
-- `framec decl --config ...` (command name retained for continuity) runs per target.
+- `framec fid import --config ...` runs per target (the legacy `framec decl` alias still works).
 - Each adapter (TypeScript via TypeDoc, Python via `inspect`/type hints, etc.) reads the native module, resolves exports, and emits a `.fid` file containing Frame-readable metadata.
 - Output files live in the build cache (e.g. `.framec/cache/fid/typescript/runtime_socket.fid`) and should **not** be checked in.
 
-### Sample `framec decl` config (TypeScript)
+### Sample `framec fid import` config (TypeScript)
 
 ```json
 {
@@ -79,11 +79,17 @@ No `native module` blocks are authored by hand. The developer writes idiomatic c
 }
 ```
 
-The new `frameSpecs` array is optional but strongly recommended. `framec decl` parses those Frame files, collects every `ImportType::Native` statement for the active target, and feeds the discovered identifiers into the adapter. Default imports such as `FrameSocketClient` (Python) or `FrameSocketClient`/`frame_socket_client_connect` (TypeScript) are therefore detected automatically, while the `options.include` list can focus on helpers that are not directly imported (for example re-exported runtime functions).
+The new `frameSpecs` array is optional but strongly recommended. `framec fid import` parses those Frame files, collects every `ImportType::Native` statement for the active target, and feeds the discovered identifiers into the adapter. Default imports such as `FrameSocketClient` (Python) or `FrameSocketClient`/`frame_socket_client_connect` (TypeScript) are therefore detected automatically, while the `options.include` list can focus on helpers that are not directly imported (for example re-exported runtime functions).
 
 At compile time the loader searches for cached `.fid` files in `.framec/cache/fid/<target>` starting from the spec’s directory and walking up the tree. Additional lookup locations can be supplied via the `FRAMEC_FID_PATH` environment variable; entries may include a `{target}` placeholder (e.g. `/opt/frame/fid/{target}`) or point directly at a target-specific directory.
 
-When a spec imports a native helper but the corresponding declaration cannot be found, the compiler now raises a targeted diagnostic (for example: “Native helper `frame_socket_client_connect` is imported for this target but no declaration was loaded. Run `framec decl` for the active target and retry.”). Regenerate the cache whenever runtime code or third-party packages change, or delete the stale directory under `.framec/cache/fid/<target>` before rerunning `framec decl`.
+When a spec imports a native helper but the corresponding declaration cannot be found, the compiler now raises a targeted diagnostic (for example: “Native helper `frame_socket_client_connect` is imported for this target but no declaration was loaded. Run `framec fid import` for the active target and retry.”). Regenerate the cache whenever runtime code or third-party packages change, or delete the stale directory under `.framec/cache/fid/<target>` before rerunning the importer.
+
+### CLI Usage
+
+- `framec fid import --config <FILE>` is the canonical command. The legacy spellings `framec decl --config <FILE>` / `framec decl import` and `framec declarations import` remain supported for backward compatibility.
+- Pass `--force` to overwrite existing cached files, `--dry-run` to inspect work without writing, and `--allow-missing` when prototypes are still filling out runtime coverage.
+- Keep `.fid` artefacts out of version control. Add `.framec/cache/fid` to project ignore rules and regenerate as part of your build/test workflow.
 
 ### Sample `.fid` (TypeScript)
 
