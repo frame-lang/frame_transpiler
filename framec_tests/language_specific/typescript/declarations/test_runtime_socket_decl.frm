@@ -1,32 +1,41 @@
 @target typescript
 
-native module runtime/socket {
-    async frame_socket_client_connect(host: string, port: number) -> FrameSocketClient
-    async frame_socket_client_read_line(instance: FrameSocketClient) -> string
-    async frame_socket_client_write_line(instance: FrameSocketClient, line: string) -> void
-    frame_socket_client_close(instance: FrameSocketClient) -> void
-}
+#[target: typescript]
+import { Socket } from "net";
 
-system RuntimeSocketDeclarationDemo {
+system RuntimeSocketImportDemo {
     interface:
-        run()
+        async connect(host, port)
 
     machine:
         $Init {
-            run() {
-                var host = "127.0.0.1"
-                var port = 7000
-                var connect_promise = runtime_socket.frame_socket_client_connect(host, port)
-                if connect_promise {
-                    system.return = True
-                } else {
-                    system.return = False
-                }
+            async connect(host, port) {
+                await self.open_socket(host, port)
+                return
             }
         }
+
+    actions:
+        async open_socket(host, port) {
+            #[target: typescript]
+            {
+                const socket = new Socket();
+                this.socket = socket;
+                await new Promise<void>((resolve, reject) => {
+                    socket.once("connect", () => resolve());
+                    socket.once("error", (err) => reject(err));
+                    socket.connect({ host, port });
+                });
+                socket.destroy();
+            }
+            return
+        }
+
+    domain:
+        var socket = null
 }
 
 fn main() {
-    var tester = RuntimeSocketDeclarationDemo()
-    tester.run()
+    var demo = RuntimeSocketImportDemo()
+    demo.connect("127.0.0.1", 7000)
 }

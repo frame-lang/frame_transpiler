@@ -28,6 +28,12 @@ not redefined here.
 ## Statements
 - if/elif/else; for/while; try/except/finally; with; return; break/continue; pass.
 - Comprehensions, slices, generator expressions allowed if visitor supports.
+- Native imports follow standard Python syntax:
+  - `import module`
+  - `import module as alias`
+  - `from module import symbol [as alias]`
+  - `from package.module import (symbol_1, symbol_2, …)`
+- Imported symbols are scanned and forwarded to the `.fid` generator so Frame can validate subsequent usage.
 
 ## Disambiguation with Core
 - Transition `->` is core only at statement start followed by a `$State` pattern;

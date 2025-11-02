@@ -16168,7 +16168,7 @@ impl<'a> Parser<'a> {
         )?;
 
         let mut return_type = None;
-        if self.match_token(&[TokenType::Transition]) {
+        if self.match_token(&[TokenType::Colon]) || self.match_token(&[TokenType::Transition]) {
             let expr = self.collect_inline_type_expression(
                 self.peek().line,
                 &[
@@ -17050,10 +17050,10 @@ system TargetDiag {
     #[test]
     fn parses_native_module_declaration() {
         let source = r#"
-native module runtime/socket {
+native module runtime::socket {
     type SocketHandle
-    async connect(host: string, port: int) -> SocketHandle
-    close(handle: SocketHandle)
+    async connect(host: string, port: int): SocketHandle
+    close(handle: SocketHandle): None
 }
 
 system Host {
@@ -17122,7 +17122,7 @@ system Host {
 
         let symbol = parser
             .arcanum
-            .lookup_native_module("runtime/socket")
+            .lookup_native_module("runtime::socket")
             .expect("native module symbol registered");
         let symbol_ref = symbol.borrow();
         assert!(symbol_ref.get_function("connect").is_some());

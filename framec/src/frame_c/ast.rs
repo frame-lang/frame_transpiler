@@ -240,7 +240,7 @@ impl NativeModuleDeclNode {
     }
 
     pub fn path(&self) -> String {
-        self.qualified_name.join("/")
+        self.qualified_name.join("::")
     }
 
     pub fn name(&self) -> Option<&str> {

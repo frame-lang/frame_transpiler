@@ -1602,6 +1602,23 @@ system Counter {
 }
 ```
 
+## Native Module Declarations (v0.90 planned)
+
+```bnf
+native_module_decl: 'native' 'module' qualified_native_name '{' native_module_item* '}'
+qualified_native_name: IDENTIFIER ('::' IDENTIFIER)*
+native_module_item: native_type_decl | native_function_decl
+native_type_decl: 'type' IDENTIFIER ('=' type_expr)?
+native_function_decl: ['async'] IDENTIFIER '(' native_param_list? ')' (':' type_expr)?
+native_param_list: native_param (',' native_param)*
+native_param: IDENTIFIER (':' type_expr)?
+```
+
+- Module paths always use `::` separators; there is no slash / dot variant in the grammar.
+- Functions and methods reuse Frame’s colon annotation style for parameters and return types.
+- Omitted return annotation implies a `None`/`void` result for the runtime.
+- Declarations are target-neutral contracts; runtimes implement the declared API.
+
 ### Self.Variable Features (v0.31)
 
 - **Explicit Domain Access**: `self.` prefix required for all domain variable access

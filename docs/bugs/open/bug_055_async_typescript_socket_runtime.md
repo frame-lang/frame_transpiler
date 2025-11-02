@@ -1,9 +1,9 @@
-# Bug #055: TypeScript async runtime lacks socket helpers for Frame debugger
+# Bug #055: TypeScript async runtime lacks native socket integration
 
 ## Metadata
 ```yaml
 bug_number: 055
-title: "TypeScript async runtime lacks socket helpers for Frame debugger"
+title: "TypeScript async runtime lacks native socket integration"
 status: Open
 priority: High
 category: CodeGen
@@ -16,103 +16,86 @@ resolved_date:
 ```
 
 ## Description
-The new Frame rebuild harness uses an asyncio-driven runtime specification (`runtime_protocol.frm`) to own the debugger socket protocol. The Python target works correctly, but the TypeScript target fails to compile because the generated code depends on helpers (newline-delimited socket reads/writes, UTF-8 decoding, structured `try/except` translation) that the TypeScript runtime/emitter does not implement.
+Frame’s debugger harness now relies on host-native libraries. Python uses `asyncio`, and the TypeScript target should lean on Node’s `net.Socket`. The legacy approach wrapped these helpers behind `native module runtime::socket`; that abstraction no longer exists. Today the TypeScript pipeline still expects the old declaration, so Frame specs that import `net` directly cannot be parsed or emitted without falling back to embedded `#[target: typescript]` blocks.
 
 ## Reproduction Steps
-1. From the VS Code editor repository, transpile the async runtime spec to TypeScript:
+1. Run the TypeScript regression suite with the native spec:
    ```bash
-   /Users/marktruluck/projects/frame_transpiler/target/release/framec -l typescript rebuild/runtime_protocol.frm > rebuild/RuntimeProtocol.ts
+   python3 framec_tests/runner/frame_test_runner.py \
+       --languages typescript \
+       --categories language_specific_typescript --transpile-only \
+       --include test_runtime_protocol_native.frm
    ```
-2. Compile the generated file:
-   ```bash
-   npx tsc -p rebuild/tsconfig.json
-   ```
-3. Observe multiple `TS1005`/`TS1434` errors and missing helper references (e.g., `reader.readline()`, `.decode()`, `.encode()`).
+2. The transpile step fails because the compiler rejects the inline Node statements (or auto-inserts the legacy runtime helpers).
 
 ## Test Case
 ```frame
-import asyncio
-import json
-import os
-import sys
+@target typescript
 
-system RuntimeProtocol {
-    interface:
-        run()
+import { Socket } from "net";
 
-    machine:
-        $Idle {
-            async run() {
-                await self.runtimeMain()
-                -> $Terminated
-            }
+system RuntimeProtocolTs {
+    actions:
+        async connect(host, port) {
+            const socket = new Socket();
+            await new Promise<void>((resolve, reject) => {
+                socket.once("connect", () => resolve());
+                socket.once("error", (err) => reject(err));
+                socket.connect({ host, port });
+            });
+            this.socket = socket;
+            return
         }
-        # ... see rebuild/runtime_protocol.frm for full spec
 }
 ```
 
 ## Expected Behavior
-- `framec -l typescript` should emit Promise-based helpers that mirror the asyncio implementation.
-- The generated TypeScript should compile under `npx tsc -p rebuild/tsconfig.json` without manual edits.
+- Frame accepts native TypeScript imports (`import { Socket } from "net"`) without auxiliary pragmas.
+- The `.fid` generator discovers the import, produces metadata for Node’s API, and the emitter outputs idiomatic Promise-based code.
+- `tsc` compilation succeeds with no manual edits.
 
 ## Actual Behavior
-- The output references Python stream APIs verbatim (`await this.reader.readline()`, `.decode`, `.encode`) and emits malformed try/catch blocks.
-- TypeScript compilation fails with syntax errors (`TS1005`, `TS1434`) and missing helper implementations.
-
-```
-rebuild/RuntimeProtocol.ts(2731,96): error TS1005: '}' expected.
-rebuild/RuntimeProtocol.ts(2774,65): error TS1434: Unexpected keyword or identifier.
-rebuild/RuntimeProtocol.ts(2856,47): error TS1127: Invalid character.
-```
+- The parser still requires embedded `#[target: typescript]` sections to allow raw TypeScript statements, otherwise it errors out.
+- Even with pragmas, the visitor leans on the deprecated `runtime::socket` helpers; Node imports are ignored.
+- `.fid` metadata is not generated because our import discovery pipeline skips in-body imports.
 
 ## Impact
-- **Severity**: High — blocks cross-language debugger harness modernization.
-- **Scope**: Any Frame spec that relies on async socket handling for TypeScript.
-- **Workaround**: None practical; must avoid async sockets or patch generated TS manually.
+- **Severity**: High — blocks the debugger harness from running on TypeScript.
+- **Scope**: Any Frame spec that needs native Node socket access or other host APIs.
+- **Workaround**: None clean; developers must maintain the legacy `native module runtime::socket` declarations by hand.
 
 ## Technical Analysis
-- Python output succeeds because the asyncio runtime already exists.
-- TypeScript lacks equivalent runtime helpers for:
-  - Newline-delimited socket reads (`StreamReader.readline` analogue).
-  - Buffer/string encoding helpers (`decode`, `encode`).
-  - Proper translation of bare `except:` clauses into structured `try/catch`.
-- The generator inserts placeholder variables (`var output: any; // TODO`) and leaves Python idioms intact, leading to invalid TS.
+- Parser: TypeScript body grammar still enforces the legacy Frame-specific statement list and cannot consume arbitrary TypeScript without a pragma wrapper.
+- Import discovery: We only collect Frame-level `import` statements. Imports inside target bodies are ignored, so `.fid` generation never runs.
+- Visitor: Runtime helpers (`runtime_socket...`) are hardcoded; we do not emit genuine `import { Socket } from "net"` lines or map method calls to Node’s API.
 
 ### Root Cause
-Async socket support has not been implemented in the TypeScript runtime library or emitter; the transpiler copies Python semantics directly without language-specific lowering.
+The native import architecture (Week 6+) never landed for the TypeScript backend. We are still tied to the Frame runtime helpers that mimic Python semantics.
 
-### Affected Files
-- `src/typescript/codegen/runtime_writer.rs` (needs async helper support)
-- `src/typescript/codegen/action_writer.rs` (needs try/catch translation tweaks)
-- TypeScript runtime library (`frame_async.ts`) missing socket utilities
+### Affected Areas
+- `framec/src/frame_c/parser.rs` — TypeScript body parser needs native statement support.
+- `framec/src/frame_c/tools/decl_import.rs` — import discovery must harvest target-body imports and emit `.fid` files (e.g., for `@types/node`).
+- `framec/src/frame_c/visitors/typescript_visitor.rs` — visitor should request Node imports and remove references to `runtime::socket`.
 
-## Proposed Solution
-
-### Option 1: Implement async socket helpers in TypeScript runtime
-- Add a small adapter around Node's `net.Socket` that exposes `readLine`, `writeUtf8`, and Promise-based close semantics.
-- Teach the emitter to map Python calls (`reader.readline`, `.decode`) to these helpers.
-- Update try/except lowering to hyphenate bare `except:` into `catch (err)` blocks.
-- Pros: Keeps Frame spec portable; minimal changes to Frame source.
-- Cons: Requires coordinated runtime + emitter update.
-
-### Option 2: Introduce Frame-level abstractions for socket I/O
-- Add intrinsic actions (`frameRuntimeSocketReadLine`, `frameRuntimeSocketWrite`) to the FSL and call those from the spec.
-- Map the intrinsics per language (Python uses asyncio, TypeScript uses Promises).
-- Pros: Cleaner separation of transport API from Frame specs.
-- Cons: Larger change to Frame language/runtime surface area.
+## Proposed Fix
+1. **Parser upgrade**: allow TypeScript actions to contain native statements without nested pragmas.
+2. **FID auto-generation**: detect `import { Socket } from "net"` and feed it into the declaration importer (TypeDoc over `@types/node`). Cache the resulting `.fid` in `.framec/cache/fid/typescript/node_net.fid`.
+3. **Visitor update**: emit actual `import { Socket } from "net"` lines, preserve native statements, and drop the legacy runtime helper references.
+4. **Regression coverage**: keep `framec_tests/language_specific/typescript/runtime/test_runtime_protocol_native.frm` and `.../declarations/test_runtime_socket_decl.frm` to ensure we never regress.
 
 ## Test Coverage
-- [ ] Unit test added
-- [ ] Integration test added
-- [ ] Regression test added
-- [x] Manual testing completed
+- [ ] Parser unit tests for native TypeScript actions
+- [ ] Integration: regenerate `.fid` cache for `@types/node`
+- [x] Regression: `framec_tests/language_specific/typescript/runtime/test_runtime_protocol_native.frm`
+- [x] Regression: `framec_tests/language_specific/typescript/declarations/test_runtime_socket_decl.frm`
 
 ## Related Issues
-- Bug #049 — TypeScript transpilation rate lower than Python (potentially linked runtime gaps)
-- Bug #052 — TypeScript actions generate stubs despite proper imports
+- Bug #049 — Low TypeScript transpilation success rate.
+- Bug #052 — TypeScript actions generate stubs despite proper imports.
 
 ## Work Log
-- 2025-10-30: Initial report while porting rebuild debugger runtime — Codex
+- 2025-10-30: Original bug filed (legacy helper gap) — Codex
+- 2025-11-02: Native import architecture defined — Docs updated
 
 ## Resolution
 Pending.

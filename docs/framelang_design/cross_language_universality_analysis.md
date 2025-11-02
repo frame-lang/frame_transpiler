@@ -750,21 +750,7 @@ import frame.regex    # Regular expressions
 Each module maps to platform-specific implementations.
 
 ### 4. Compilation Modes
-Frame should support different compilation modes:
-
-```frame
-#[target(optimize_for = "performance")]
-# Generates: C/C++ with -O3, Rust with --release, etc.
-
-#[target(optimize_for = "readability")]
-# Generates: More verbose but clearer code
-
-#[target(gc = "manual")]
-# For C/C++: Generates explicit memory management
-
-#[target(async = "threads")]
-# For C: Uses pthreads instead of async syntax
-```
+Frame should support different compilation modes configured via build profiles (e.g., `framec build --profile release`, `--profile debug`). Avoid embedding pragma syntax in Frame source files; platform-tuning belongs in build configuration.
 
 ## Implementation Priority
 

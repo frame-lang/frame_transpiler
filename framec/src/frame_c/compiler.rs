@@ -28,15 +28,15 @@ pub use crate::frame_c::visitors::TargetLanguage;
 use std::convert::TryFrom;
 
 const TYPESCRIPT_SUPPORTED_NATIVE_MODULES: &[&str] = &[
-    "runtime/socket",
-    "runtime/json",
-    "runtime/os",
-    "runtime/random",
-    "runtime/signal",
-    "runtime/sys",
-    "runtime/time",
-    "runtime/configparser",
-    "runtime/open",
+    "runtime::socket",
+    "runtime::json",
+    "runtime::os",
+    "runtime::random",
+    "runtime::signal",
+    "runtime::sys",
+    "runtime::time",
+    "runtime::configparser",
+    "runtime::open",
 ];
 
 /* --------------------------------------------------------------------- */

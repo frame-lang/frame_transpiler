@@ -1,7 +1,0 @@
-native module runtime/socket {
-    type FrameSocketClient
-    frame_socket_client_close(instance: FrameSocketClient) -> void
-    async frame_socket_client_read_line(instance: FrameSocketClient) -> string
-    async frame_socket_client_write_line(instance: FrameSocketClient, line: string) -> void
-    async frame_socket_client_connect(host: string, port: number) -> FrameSocketClient
-}

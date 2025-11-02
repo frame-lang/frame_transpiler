@@ -80,5 +80,5 @@ This document lists constructs the TypeScript backend emits that rely on TypeScr
 
 ## Notes for Target-Specific Pragmas
 - Define TypeScript-only logic inside Frame pragmas only after satisfying the core contract.
-- Prefer runtime helper modules (`frame_runtime_ts`) for complex behaviour so other targets can mirror it.
+- Prefer Node.js built-ins or ecosystem packages (`net`, `fs/promises`, etc.) and let the `.fid` tooling mirror those APIs for other targets when needed.
 - Update this document whenever introducing new TypeScript-specific statements or Node.js APIs.

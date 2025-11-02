@@ -47,7 +47,7 @@ system IDENTIFIER {
 ### Interface Block
 ```
 interface:
-    IDENTIFIER(parameters?) [-> return_type]
+    IDENTIFIER(parameters?) [: return_type]
     ...
 ```
 Parameters and return types follow Frame’s type annotation rules (`int`, `float`, `bool`, `string`, custom types). Optional `async` modifier is allowed per language design.
@@ -96,6 +96,11 @@ operations:
 domain:
     var identifier [: type] = expression
     ...
+
+### Native Imports & FID Generation
+- Target bodies may include native import statements using the host language’s syntax (`import`, `from ... import ...`, `use`, etc.).
+- The compiler scans these imports and triggers the declaration generator to produce cached `.fid` (Frame Interface Definition) files. Each `.fid` captures the signatures discovered in the corresponding native module.
+- `.fid` files are build artefacts stored under `.framec/cache/fid/<target>/...` and are consumed automatically during compilation; they are never authored by hand.
 ```
 
 ## Statement Concepts (Language-Neutral)

@@ -2933,7 +2933,7 @@ impl NativeModuleSymbol {
     }
 
     pub fn path(&self) -> String {
-        self.qualified_name.join("/")
+        self.qualified_name.join("::")
     }
 
     pub fn get_function(&self, name: &str) -> Option<&NativeFunctionDeclNode> {

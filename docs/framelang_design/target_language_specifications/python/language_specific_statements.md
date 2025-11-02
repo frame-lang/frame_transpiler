@@ -71,5 +71,5 @@ This guide captures constructs emitted by the Python backend that rely on Python
 
 ## When Adding Python-Specific Pragmas
 - Keep state definitions in Frame; only handler bodies invoke native features.
-- Use runtime helper modules for heavy lifting (e.g., `frame_runtime_py`), so other targets can mirror behaviour.
+- Prefer the standard library (`asyncio`, `pathlib`, `json`, etc.) or well-known packages and rely on `.fid` generation to expose those APIs to the compiler.
 - Document any new Python-only statements here to keep the spec in sync.

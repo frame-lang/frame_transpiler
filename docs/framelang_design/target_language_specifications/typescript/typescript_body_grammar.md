@@ -27,6 +27,12 @@ Frame constructs (`$State`, `$Child => $Parent`, `$>()`, `<$()`, `->`, `=> $^`,
 ## Statements
 - if/else, for/while, try/catch/finally, return, break/continue, async/await.
 - Function/arrow declarations inside bodies are allowed if visitor supports.
+- Native imports follow standard ECMAScript module syntax:
+  - `import { symbol } from "module";`
+  - `import symbol from "./module";`
+  - `import * as alias from "./module";`
+  - Dynamic `await import("./module")` allowed but may be ignored by the `.fid` generator.
+- Imported bindings are surfaced to the `.fid` generator so the compiler can validate subsequent usage.
 
 ## Disambiguation with Core
 - Transition `->` is core only at statement start with `$State` follow; otherwise

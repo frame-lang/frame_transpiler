@@ -458,10 +458,10 @@ impl Scanner {
 
 ### Runtime & FSL Direction
 
-### Native Declaration Syntax (Draft)
-- See `docs/framelang_design/decl_syntax.md` for the proposal covering ambient module declarations, opaque handle types, and runtime implementation guidance.
-- This integrates with the runtime/FSL approach above; Python, TypeScript, LLVM, C/C++, Rust, and Java runtimes implement the declared module contract rather than embedding target-specific logic in specs.
-- Treat the existing per-target runtimes (`frame_runtime_py`, `frame_runtime_ts`, `runtime/llvm`) as the canonical home for Frame semantics (kernel loop, state stack, forwarded events). No behavioural change required—just keep them lean and target-native.
+### Native Import & `.fid` Generation (Draft)
+- See `docs/framelang_design/native_imports_and_fid.md` for the native-import workflow and automatic `.fid` (Frame Interface Definition) generation.
+- This integrates with the runtime/FSL approach above; Python, TypeScript, LLVM, C/C++, Rust, and Java now lean on their native libraries (asyncio streams, Node `net`, POSIX sockets, etc.) while Frame auto-generates interface contracts for validation.
+- Treat the existing per-target runtimes (`frame_runtime_py`, `frame_runtime_ts`, `runtime/llvm`) as the canonical home for core semantics (kernel loop, state stack, forwarded events), but keep them thin wrappers around native libraries rather than re-implementations.
 - Define a target-neutral Frame Standard Library surface (FSL) and provide per-target implementations instead of mirroring Python helper modules. Pragmas/native blocks should call into these FSL shims rather than re-implementing platform APIs inline.
 - Document capability matrices per target (async, try/catch, state stack, etc.) so visitors can reject unsupported constructs during code generation.
 
@@ -546,13 +546,7 @@ Establish and enforce limits on target-specific code percentage per system to pr
 Current Frame code continues to work unchanged. Pragma is optional.
 
 ### New Target-Specific Code
-```frame
-#[target: typescript]
-// TypeScript-specific implementation
-
-#[target: python]  
-// Python-specific implementation
-```
+Use plain native syntax inside the `@target` file; avoid nested `#[target: ...]` blocks.
 
 ### Shared Logic
 Frame state machine logic remains universal and shared.
@@ -571,43 +565,11 @@ Frame state machine logic remains universal and shared.
 
 ## 🔮 Future Extensions
 
-### Additional Pragma Types
-```frame
-#[target: rust]
-#[target: go]
-#[target: java]
-#[target: csharp]
-```
-
-### Advanced Syntax Regions
-```frame
-#[imports: typescript]
-import * as fs from 'fs'
-
-#[imports: python]
-import os
-import sys
-
-system FileProcessor {
-    // Shared Frame logic
-}
-```
-
-### Conditional Compilation
-```frame
-system NetworkHandler {
-    #[target: typescript]
-    actions:
-        async connect() {
-            // Node.js implementation
-        }
-    
-    #[target: python]
-    actions:
-        async connect(self):
-            # Python implementation
-}
-```
+### Additional Targets
+- Rust (`@target rust`)
+- Go (`@target go`)
+- Java (`@target java`)
+- C# (`@target csharp`)
 
 ## 📋 Best Practices for Target-Specific Syntax
 
@@ -684,11 +646,11 @@ system FileProcessor {
 
 ## 📋 Next Steps
 
-1. **Design Review**: Validate this approach with Frame maintainers
-2. **Prototype**: Implement basic pragma parsing for Bug #055
-3. **Evaluation**: Test with TypeScript async socket operations
-4. **Expansion**: Plan broader target-specific syntax support
-5. **Documentation**: Update Frame language specification
+1. **Import Discovery Prototype**: Extend the target body parsers to record native import statements (Python `import` / `from`, TypeScript `import`, etc.) and surface them to the compiler pipeline.
+2. **FID Auto-generation**: Integrate the declaration generator so discovered imports trigger updates to cached `.fid` files. Implement change detection (hashing timestamps or file digests) to avoid unnecessary regeneration.
+3. **Compiler Integration**: Load `.fid` metadata before semantic analysis so Frame actions/operations can type-check calls against the generated signatures.
+4. **Validation & Diagnostics**: Enhance diagnostics to point users at missing or mismatched native imports when `.fid` generation fails, including actionable messages (e.g., “Did you install `@types/node` before generating TypeScript FIDs?” or “Is the Python module available on PYTHONPATH?”).
+5. **Documentation & Tooling**: Update language guides with native import examples, document where `.fid` files live, and add CLI switches (e.g., `framec decl --dry-run`) to inspect generated headers. Plan IDE awareness (e.g., regeneration hooks) once the workflow stabilises.
 
 ## 🎯 Conclusion
 
@@ -922,7 +884,7 @@ This analysis confirms that the **@target approach is viable** - Frame's core st
 - **Bug Report**: [Bug #055](../bugs/open/bug_055_async_typescript_socket_runtime.md) - Original issue driving this analysis
 - **Frame Runtime**: [Frame Runtime Specification](frame_runtime.md) - Abstract runtime requirements
 - **Python Grammar**: [Python Grammar Specification](target_language_specifications/python/python_grammar.md) - Source for this analysis
-
+``
 ---
 
 **Document Status**: Draft for review  

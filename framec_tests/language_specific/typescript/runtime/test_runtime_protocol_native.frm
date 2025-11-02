@@ -1,11 +1,7 @@
 @target typescript
 
-native module runtime/socket {
-    async frame_socket_client_connect(host: string, port: number) -> FrameSocketClient
-    async frame_socket_client_read_line(instance: FrameSocketClient) -> string
-    async frame_socket_client_write_line(instance: FrameSocketClient, line: string) -> void
-    frame_socket_client_close(instance: FrameSocketClient) -> void
-}
+#[target: typescript]
+import { Socket } from "net";
 
 system RuntimeProtocolTs {
     interface:
@@ -44,8 +40,16 @@ system RuntimeProtocolTs {
 
     actions:
         async connect(host, port) {
-            var client = await runtime_socket.frame_socket_client_connect(host, port)
-            self.socket = client
+            #[target: typescript]
+            {
+                const socket = new Socket();
+                await new Promise<void>((resolve, reject) => {
+                    socket.once("connect", () => resolve());
+                    socket.once("error", (err) => reject(err));
+                    socket.connect({ host, port });
+                });
+                this.socket = socket;
+            }
             return
         }
 
@@ -53,7 +57,14 @@ system RuntimeProtocolTs {
             if not self.socket {
                 throw "Socket not connected"
             }
-            var raw = await runtime_socket.frame_socket_client_read_line(self.socket)
+            var raw = ""
+            #[target: typescript]
+            {
+                raw = await new Promise<string>((resolve, reject) => {
+                    this.socket.once("data", (buffer) => resolve(buffer.toString("utf8")));
+                    this.socket.once("error", (err) => reject(err));
+                });
+            }
             return raw
         }
 
@@ -61,13 +72,25 @@ system RuntimeProtocolTs {
             if not self.socket {
                 throw "Socket not connected"
             }
-            await runtime_socket.frame_socket_client_write_line(self.socket, line)
+            #[target: typescript]
+            {
+                await new Promise<void>((resolve, reject) => {
+                    this.socket.write(line + "\n", (err) => {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
+            }
             return
         }
 
         disconnect() {
             if self.socket {
-                runtime_socket.frame_socket_client_close(self.socket)
+                #[target: typescript]
+                this.socket.destroy()
                 self.socket = null
             }
             return

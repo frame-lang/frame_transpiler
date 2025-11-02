@@ -295,45 +295,42 @@ framec/src/frame_c/
 - `--debug-output`: Generate JSON with transpiled code and source map
 - `--validate-syntax`: Enable comprehensive syntax validation
 - `-V, --version`: Print version information
-- `framec decl --config <FILE>`: Generate `native module` declarations from runtime metadata (see below). Add `--allow-missing` if the importer should log but not fail when expected symbols are absent.
+- `framec decl --config <FILE>`: Generate cached `.fid` (Frame Interface Definition) files from native modules (see below). Add `--allow-missing` if the importer should log but not fail when expected symbols are absent.
 
-#### Declaration Generator (`framec decl`)
+#### FID Generator (`framec decl`)
 
-Frame ships an opt-in command for converting runtime metadata (TypeDoc JSON, Python modules, etc.) into Frame declarations. A config file lists one or more sources:
+Frame ships an opt-in command for converting native modules (TypeDoc JSON, Python introspection, etc.) into `.fid` headers. Specs keep their native import statements; the generator produces the metadata the compiler consumes. A config file lists one or more sources:
 
 ```json
 {
-  "outputDir": "../../framec_tests/fixtures/native_decl_generation/typescript",
+  "outputDir": "../../.framec/cache/fid/typescript",
   "sources": [
     {
       "adapter": "typescript",
-      "input": "../../frame_runtime_ts/index.ts",
-      "module": "runtime/socket",
+      "input": "../../node_modules/@types/node/index.d.ts",
+      "module": "node::net",
       "options": {
-        "jsonCache": "../../framec_tests/fixtures/native_decl_generation/typescript/typedoc_runtime_socket.json",
+        "typedocOptions": "../../typedoc.node.json",
+        "jsonCache": "../../framec_tests/fixtures/native_decl_generation/typescript/typedoc_node_net.json",
         "include": [
-          "framesocketclient",
-          "frame_socket_client_connect",
-          "frame_socket_client_read_line",
-          "frame_socket_client_write_line",
-          "frame_socket_client_close",
-          "frame_file_handle"
+          "socket",
+          "connect",
+          "once",
+          "destroy"
         ]
       }
     },
     {
       "adapter": "python",
-      "input": "../../frame_runtime_py/socket.py",
-      "module": "runtime/socket",
+      "input": "asyncio",
+      "module": "python::asyncio",
       "options": {
-        "moduleName": "frame_runtime_py.socket",
-        "pythonPath": ["../.."],
+        "moduleName": "asyncio",
+        "pythonPath": ["../../.venv/lib/python3.11/site-packages"],
         "include": [
-          "framesocketclient",
-          "frame_socket_client_connect",
-          "frame_socket_client_read_line",
-          "frame_socket_client_write_line",
-          "frame_socket_client_close"
+          "open_connection",
+          "StreamReader",
+          "StreamWriter"
         ]
       }
     }
@@ -342,15 +339,15 @@ Frame ships an opt-in command for converting runtime metadata (TypeDoc JSON, Pyt
 ```
 
 - `adapter`: currently `typescript` (TypeDoc reflection) and `python` (inspect/type hints). Old configs using `python-stub` will be treated the same as `python`.
-- `module`: declaration path to emit (`runtime/socket` becomes `runtime_socket.frame_decl`).
-- `options.include`: Lowercase symbol names that **must** be present. The command fails if any are missing unless `--allow-missing` is specified.
-- `options.pythonPath`: extra entries to prepend to `PYTHONPATH` so the importer can locate the module.
+- `module`: logical name recorded in the `.fid` path (`node::net` becomes `node_net.fid`).
+- `options.include`: Symbol names that **must** be present. The command fails if any are missing unless `--allow-missing` is specified.
+- `options.pythonPath`: extra entries to prepend to `PYTHONPATH` so the importer can locate third-party modules or virtual environments.
 - `options.jsonCache`: optional pre-generated TypeDoc JSON so tests can run without hitting `npx typedoc`.
 
 Example invocations:
 
 ```bash
-# Generate declarations, failing on missing symbols
+# Generate .fid headers, failing on missing symbols
 cargo run -p framec -- decl --config docs/plans/assets/decl_input/ts/typedoc_config.json --force
 
 # Allow incomplete coverage (useful during incremental runtime work)

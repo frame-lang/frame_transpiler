@@ -1273,7 +1273,7 @@ Without backticks, Frame currently cannot express:
 - Comments indicating where module access is needed
 
 ### Next Steps
-- Implement native module member access syntax
+- Implement native import member access syntax
 - Add dictionary literal support
 - Enhance indexing operations
 - Support method chaining natively

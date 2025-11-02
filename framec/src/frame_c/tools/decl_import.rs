@@ -149,7 +149,12 @@ pub fn run_decl_import(
         validate_coverage(&modules, &source_config, allow_missing, verbose)?;
 
         for module in modules {
-            let file_name = format!("{}.frame_decl", module.path().replace('/', "_"));
+            let file_stem = module
+                .path()
+                .replace("::", "_")
+                .replace('/', "_")
+                .replace('.', "_");
+            let file_name = format!("{}.fid", file_stem);
             let output_path = output_dir.join(file_name);
 
             if output_path.exists() && !force {
@@ -231,8 +236,12 @@ fn render_native_module(module: &NativeModuleDeclNode) -> String {
                 }
                 output.push(')');
                 if let Some(ret) = &func_decl.return_type {
-                    output.push_str(" -> ");
-                    output.push_str(ret);
+                    output.push_str(": ");
+                    if ret.eq_ignore_ascii_case("void") {
+                        output.push_str("None");
+                    } else {
+                        output.push_str(ret);
+                    }
                 }
                 output.push_str("\n");
             }
@@ -256,7 +265,7 @@ mod tests {
         let module =
             NativeModuleDeclNode::new(vec!["runtime".into(), "socket".into()], 1, 1, vec![]);
         let rendered = render_native_module(&module);
-        assert!(rendered.contains("native module runtime/socket"));
+        assert!(rendered.contains("native module runtime::socket"));
     }
 
     #[test]
@@ -274,7 +283,7 @@ mod tests {
                 {
                     "adapter": "typescript",
                     "input": "frame_runtime_ts/index.ts",
-                    "module": "runtime/socket",
+                    "module": "runtime::socket",
                     "options": {
                         "jsonCache": json_cache,
                         "include": [
