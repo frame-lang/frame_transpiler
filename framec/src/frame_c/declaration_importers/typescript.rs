@@ -620,8 +620,11 @@ fn load_typedoc_reflection(
         .clone()
         .unwrap_or_else(|| temp_json_path());
 
-    let mut cmd = Command::new("npx");
-    cmd.arg("typedoc");
+    let (program, mut program_args) = typedoc_invocation();
+    let mut cmd = Command::new(program);
+    for a in program_args.drain(..) {
+        cmd.arg(a);
+    }
 
     if let Some(typedoc_options) = &options.typedoc_options {
         cmd.arg("--options").arg(typedoc_options);
@@ -676,6 +679,25 @@ fn load_typedoc_reflection(
             err
         )
     })
+}
+
+fn typedoc_invocation() -> (String, Vec<String>) {
+    // 1) TYPEDOC_BIN env override
+    if let Ok(bin) = std::env::var("TYPEDOC_BIN") {
+        if !bin.is_empty() {
+            return (bin, vec![]);
+        }
+    }
+    // 2) Local node_modules/.bin/typedoc in CWD
+    if let Ok(cwd) = std::env::current_dir() {
+        let local = cwd.join("node_modules").join(".bin").join("typedoc");
+        if local.exists() {
+            return (local.to_string_lossy().to_string(), vec![]);
+        }
+    }
+    // 3) Prefer npm exec typedoc if npm is available; fallback to npx typedoc
+    // We cannot detect npm presence portably here; try npm exec and let OS handle failures.
+    ("npm".to_string(), vec!["exec".into(), "--".into(), "typedoc".into()])
 }
 
 fn temp_json_path() -> PathBuf {

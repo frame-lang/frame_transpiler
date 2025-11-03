@@ -301,6 +301,11 @@ framec/src/frame_c/
 
 See configuration docs: `docs/framelang_design/config/` (project `frame.toml` and FID settings), and the manifest format in `docs/framelang_design/frame_interface_definition/native_imports_and_fid.md`.
 
+Prerequisites for TypeScript targets:
+- Install Node toolchain and add devDependencies (pin versions in package.json):
+  - `npm i -D typedoc typescript @types/node`
+- The importer prefers a local binary (`npm exec typedoc`) when available. You can also override with `TYPEDOC_BIN=/path/to/typedoc`.
+
 Frame ships an opt-in command for converting native modules (TypeDoc JSON, Python introspection, etc.) into `.fid` headers. Specs keep their native import statements; the generator produces the metadata the compiler consumes. A config file lists one or more sources:
 
 ```json
