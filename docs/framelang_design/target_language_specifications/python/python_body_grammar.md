@@ -9,12 +9,12 @@ and handler bodies. Core Frame constructs (system/blocks, `$State` headers,
 not redefined here.
 
 ## Prolog
-- File begins with `@target python`.
+- File begins with `@target python` (first non‑whitespace token). Comments are not permitted before the prolog.
 - Core parser owns state headers, handler selectors, transitions, forwards.
 - Python body parser handles statements/expressions within `{ ... }` bodies.
 
 ## Lexical Rules
-- Comments: `#` to end of line.
+- Comments: `#` to end of line. After the prolog, `#` applies throughout the file (shell + bodies). Triple‑quoted strings are strings/docstrings, not comments.
 - Strings: single, double, triple-quoted; f‑strings allowed.
 - Identifiers: Python identifier rules.
 - Numbers: int, float; underscores permitted.

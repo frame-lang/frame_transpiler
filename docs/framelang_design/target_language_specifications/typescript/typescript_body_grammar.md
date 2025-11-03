@@ -8,12 +8,12 @@ Frame constructs (`$State`, `$Child => $Parent`, `$>()`, `<$()`, `->`, `=> $^`,
 `$$…`) are owned by the common grammar.
 
 ## Prolog
-- File begins with `@target typescript`.
+- File begins with `@target typescript` (first non‑whitespace token). Comments are not permitted before the prolog.
 - Core parser owns headers/selectors/transitions/forwards.
 - TS body parser handles statements/expressions inside `{ ... }`.
 
 ## Lexical Rules
-- Comments: `//` and `/* … */` (non‑nesting).
+- Comments: `//` and `/* … */` (non‑nesting). After the prolog, these comment forms apply throughout the file (shell + bodies).
 - Strings: single, double, template strings.
 - Identifiers: ES rules.
 - Numbers: int/float; bigint literal forms allowed if supported by visitor.
