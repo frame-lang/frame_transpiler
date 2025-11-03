@@ -300,6 +300,57 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - LLVM IR generation includes embedded helpers using chosen toolchain
 - Smoke suite (`language_specific_llvm`) extended to cover new behaviour
 
+### MVP: Bug #055 — TypeScript Async Socket (Fast Path)
+Goal: Deliver a minimal, production‑usable path for native Node sockets using the FID importer and `@types/node` without any runtime wrappers. Keep scope tight and avoid hacks.
+
+Why now
+- Unblocks debugger/harness work immediately
+- Validates the native imports + FID design with a real target
+- Reduces pressure to maintain legacy runtime shims
+
+Plan (tight, sequential)
+1) Pin toolchain (Node dev deps)
+   - Add/publish recommended versions: `typedoc@0.25.x`, `typescript@5.6.x`, `@types/node@20.x`
+   - Confirm local execution via `npm exec typedoc` (importer already prefers this)
+2) Generate FIDs for Node sockets
+   - Use `examples/fid/node/fid_manifest.json` (already added)
+   - Run `npm ci && npm run fid:import:node`
+   - Confirm outputs under `.frame/cache/fid/typescript/` + `fid.lock.json`
+3) Loader integration
+   - Ensure the compiler locates `.frame/cache/fid/typescript` (auto search from spec dir) or set `FRAME_FID_PATH=.frame/cache/fid/{target}` for CI
+4) Coverage validation
+   - Ensure the manifest yields `Socket.*` members used by fixtures (connect/options, once/event listener, write, destroy)
+   - If any symbols are missing, amend the manifest selectors and re‑import
+5) Tests
+   - Run `python3 framec_tests/runner/frame_test_runner.py --languages typescript --categories language_specific_typescript --transpile-only`
+   - Add a targeted check for `.../runtime/test_runtime_protocol_native.frm` if it isn’t already part of the category
+6) Documentation
+   - HOW_TO updated with `examples/fid/node` flow + `FRAME_FID_PATH`
+   - Note `.frame` cache standard and lockfile semantics in the FID docs
+
+Acceptance Criteria
+- `framec fid import` succeeds offline for runtime fixture and online for `@types/node` (with Node deps installed)
+- TypeScript transpile‑only suite passes with Node socket spec(s) using native imports
+- `.fid` files and `fid.lock.json` generated deterministically with SHA‑256 fingerprints
+
+CI Tasks
+- Add Node step: `npm ci` (from `examples/fid/node` or project root)
+- Run `npm run fid:import:node`
+- Transpile TypeScript tests with `FRAME_FID_PATH` (if needed)
+
+Risks & Mitigations
+- Network/proxy issues
+  - Prefer `npm exec typedoc` (local bin); document `TYPEDOC_BIN`
+- Drift in `@types/node`
+  - Pin versions in package.json; capture in `fid.lock.json`
+- Typedoc runtime cost
+  - Allow `jsonCache` for CI speedups (optional)
+
+Timeline (MVP)
+- Day 0–1: Toolchain pins + FID generation and verification
+- Day 1–2: Test stabilization and CI wiring
+- Day 2: Docs final polish; close #055
+
 ### Phase 3.5: Python Native Bodies — Pure Python Syntax in Target Blocks
 Goal: Align Python target bodies with native Python statement syntax (no `var`, indentation/colons, tuple unpacking). This improves ergonomics while preserving Frame semantics via `self.` for domain fields.
 
@@ -567,3 +618,32 @@ impl TargetSourceMap {
 **Plan Status**: Ready for implementation  
 **Estimated Completion**: ~6 weeks for Python/TypeScript milestones; LLVM visitor follows as Phase 4  
 **Risk Level**: Medium (manageable with proper execution)
+### TypeScript Target-Body Parser (SWC) — First‑Class
+We are making the TypeScript target-body parser first‑class so native TS inside `@target typescript` action bodies is parsed by SWC and emitted verbatim. This unlocks idiomatic patterns (arrow functions, callbacks, object literals, `!`, `?:`, typed parameters) without resorting to wrappers or constrained Frame‑style syntax in TS bodies.
+
+Tasks
+- Finish `framec/src/frame_c/target_parsers/typescript.rs` to parse action bodies with SWC and produce `ActionBody::TargetSpecific` nodes (with source maps).
+- Visitor: emit parsed TS bodies verbatim; ensure `this.` semantics for instance fields and keep dual line‑number diagnostics (Frame + TS) intact.
+- Validator: don’t reject common TS constructs in target bodies (`!`, `?:`, arrow functions).
+- Add hermetic checkpoints (compile‑only fixtures) and bring them green as the parser lands.
+
+Hermetic Checkpoints (compile‑only)
+- Promises + Arrow functions (no FIDs)
+  - `framec_tests/language_specific/typescript_swc/promises/test_promises_arrows.frm`
+- EventEmitter (events) — FIDs from `@types/node`
+  - `framec_tests/language_specific/typescript_swc/events/test_event_emitter.frm`
+- Buffer + JSON — FIDs from `@types/node`
+  - `framec_tests/language_specific/typescript_swc/core/test_buffer_json.frm`
+- fs/promises — FIDs from `@types/node`
+  - `framec_tests/language_specific/typescript_swc/fs/test_fs_promises.frm`
+- net.Socket (055 compile) — FIDs from `@types/node`
+  - `framec_tests/language_specific/typescript_swc/runtime/test_runtime_protocol_node_net.frm` (enable once the first four pass)
+
+Running the checkpoints
+- Generate FIDs with the example project: `examples/fid/node` → `npm ci && npm run fid:import:node`.
+- Then run (compile‑only):
+  - `python3 framec_tests/runner/frame_test_runner.py --languages typescript --categories language_specific_typescript_swc --transpile-only --framec ./target/release/framec`
+
+Acceptance criteria (SWC parser)
+- The first four checkpoints compile with no grammar errors and correct FID resolution.
+- The net.Socket spec compiles after the SWC body parser tolerates arrow callbacks and object literal connect options.

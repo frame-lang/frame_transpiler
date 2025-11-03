@@ -10,9 +10,32 @@
               { "module": "net", "import": ["Socket.*"] }
             ]
           }
+        },
+        {
+          "file": {
+            "uri": "node_modules/@types/node/dist/events.d.ts",
+            "modules": [
+              { "module": "events", "import": ["EventEmitter.*"] }
+            ]
+          }
+        },
+        {
+          "file": {
+            "uri": "node_modules/@types/node/dist/buffer.d.ts",
+            "modules": [
+              { "module": "buffer", "import": ["Buffer.*"] }
+            ]
+          }
+        },
+        {
+          "file": {
+            "uri": "node_modules/@types/node/dist/fs.d.ts",
+            "modules": [
+              { "module": "fs", "import": ["promises.*"] }
+            ]
+          }
         }
       ]
     }
   ]
 }
-
