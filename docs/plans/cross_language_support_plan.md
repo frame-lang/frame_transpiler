@@ -95,7 +95,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Modified `parser.rs` with 3-pass architecture
 - `TargetRegion` implementation with source mapping
 - **Comprehensive error message examples** showing Frame + target locations
-- Parser tests for target-specific action bodies
+- Parser tests for target-specific action bodies``
 - Validation pass covering source-map emission + AST dumps to confirm diagnostics stay aligned after Week 4 visitor integration
 - Post-visitor regression pass verifying CLI `--debug-output` source maps and AST dump tooling for native block scenarios
 

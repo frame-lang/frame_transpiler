@@ -24,6 +24,15 @@ Related specifications:
   - Core parser builds the automata skeleton and records body spans
   - Target body subparser (per language) parses each recorded span
 
+## Comment Policy (Native‑Everywhere)
+
+- Prolog rule: `@target <lang>` must be the first non‑whitespace token in the file. Comments are not allowed before the prolog.
+- After the prolog, the entire file uses the target language’s native comment syntax — both in the Frame shell (systems, states, transitions, signatures) and in target bodies (member code).
+  - TypeScript: `// line`, `/* block */`
+  - Python: `# line` (triple quotes `''' … '''` / `""" … """` are strings/docstrings, not comments)
+- Core tokens (e.g., `-> $State`, `=> $^`, `-> $$[+]/$$[-]`) are ignored inside comments. Frame tokens are recognized only at the top level of target bodies (never inside strings/comments or nested native constructs).
+- Rationale: consistent developer experience, idiomatic target files, and simpler per‑language parsing once the target is known.
+
 ## High-Level Structure
 
 ```
