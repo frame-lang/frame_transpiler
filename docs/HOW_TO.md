@@ -306,6 +306,25 @@ Prerequisites for TypeScript targets:
   - `npm i -D typedoc typescript @types/node`
 - The importer prefers a local binary (`npm exec typedoc`) when available. You can also override with `TYPEDOC_BIN=/path/to/typedoc`.
 
+Node toolchain snippet (recommended pins)
+
+```json
+{
+  "private": true,
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "typedoc": "^0.25.9",
+    "@types/node": "^20.12.7"
+  },
+  "scripts": {
+    "fid:import:node": "./target/release/framec fid import --config docs/plans/assets/fid/typescript/fid_manifest_node.json",
+    "fid:import:runtime": "./target/release/framec fid import --config docs/plans/assets/fid/typescript/fid_manifest.json"
+  }
+}
+```
+
+Run `npm ci` (or `npm install`) to install the pinned tools, then execute one of the scripts above depending on whether you want to import from `@types/node` (`fid:import:node`) or from the offline runtime fixture (`fid:import:runtime`).
+
 Frame ships an opt-in command for converting native modules (TypeDoc JSON, Python introspection, etc.) into `.fid` headers. Specs keep their native import statements; the generator produces the metadata the compiler consumes. A config file lists one or more sources:
 
 ```json
