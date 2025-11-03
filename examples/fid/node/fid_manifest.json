@@ -1,0 +1,18 @@
+{
+  "sources": [
+    {
+      "@target": "typescript",
+      "resources": [
+        {
+          "file": {
+            "uri": "node_modules/@types/node/dist/net.d.ts",
+            "modules": [
+              { "module": "net", "import": ["Socket.*"] }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+

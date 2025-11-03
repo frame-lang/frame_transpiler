@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "typedoc": "^0.25.9",
+    "@types/node": "^20.12.7"
+  },
+  "scripts": {
+    "fid:import:node": "../../target/release/framec fid import --config fid_manifest.json"
+  }
+}
+
