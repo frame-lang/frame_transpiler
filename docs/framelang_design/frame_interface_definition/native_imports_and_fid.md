@@ -57,7 +57,7 @@ No `native module` blocks are authored by hand. The developer writes idiomatic c
 
 - `framec fid import --config <manifest>` runs per target.
 - Each importer (TypeScript via TypeDoc, Python via `inspect`/type hints, etc.) reads the native module, resolves exports, and emits a `.fid` file containing Frame‑readable metadata.
-- Output files live in the build cache (e.g. `.framec/cache/fid/typescript/typescript__node__net.fid`) and should not be checked in.
+- Output files live in the build cache (e.g. `.frame/cache/fid/typescript/typescript__node__net.fid`) and should not be checked in.
 
 ### Sample `fid_manifest.json`
 
@@ -114,15 +114,15 @@ No `native module` blocks are authored by hand. The developer writes idiomatic c
 
 The generated `.fid` namespace is derived from `@target` and the native module string (for example, `@target=typescript` + `module=net` → `typescript::node::net`). An explicit override may be added later if needed.
 
-At compile time the loader searches for cached `.fid` files in `.framec/cache/fid/<target>` starting from the spec’s directory and walking up the tree. Additional lookup locations can be supplied via the `FRAMEC_FID_PATH` environment variable; entries may include a `{target}` placeholder (e.g. `/opt/frame/fid/{target}`) or point directly at a target‑specific directory.
+At compile time the loader searches for cached `.fid` files in `.frame/cache/fid/<target>` starting from the spec’s directory and walking up the tree. Additional lookup locations can be supplied via the `FRAME_FID_PATH` environment variable; entries may include a `{target}` placeholder (e.g. `/opt/frame/fid/{target}`) or point directly at a target‑specific directory.
 
-When a spec imports a native helper but the corresponding declaration cannot be found, the compiler raises a targeted diagnostic (for example: “Native helper `<name>` is imported for this target but no declaration was loaded. Run `framec fid import` for the active target and retry.”). Regenerate the cache whenever runtime code or third‑party packages change, or delete the stale directory under `.framec/cache/fid/<target>` before rerunning the importer.
+When a spec imports a native helper but the corresponding declaration cannot be found, the compiler raises a targeted diagnostic (for example: “Native helper `<name>` is imported for this target but no declaration was loaded. Run `framec fid import` for the active target and retry.”). Regenerate the cache whenever runtime code or third‑party packages change, or delete the stale directory under `.frame/cache/fid/<target>` before rerunning the importer.
 
 ### CLI Usage
 
 - `framec fid import --config <FILE>` is the canonical command.
 - Pass `--force` to overwrite existing cached files, `--dry-run` to inspect work without writing, and `--allow-missing` when prototypes are still filling out runtime coverage.
-- Keep `.fid` artefacts out of version control. Add `.framec/cache/fid` to project ignore rules and regenerate as part of your build/test workflow.
+- Keep `.fid` artefacts out of version control. Add `.frame/cache/fid` to project ignore rules and regenerate as part of your build/test workflow.
 
 ### Sample `.fid` (TypeScript)
 
@@ -202,7 +202,7 @@ Sample `fid.lock.json` snippet:
         }
       },
       "outputs": [
-        { "namespace": "typescript::node::net", "path": ".framec/cache/fid/typescript/typescript__node__net.fid" }
+        { "namespace": "typescript::node::net", "path": ".frame/cache/fid/typescript/typescript__node__net.fid" }
       ]
     }
   ]

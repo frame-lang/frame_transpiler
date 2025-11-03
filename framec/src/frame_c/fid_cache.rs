@@ -22,9 +22,9 @@ pub struct FidLoadSummary {
 /// Load cached `.fid` native module declarations for the given target language.
 ///
 /// Directories are discovered in the following order (duplicates are ignored):
-/// 1. Each ancestor of `spec_dir` (inclusive) joined with `.framec/cache/fid/<target>`
-/// 2. The current working directory joined with `.framec/cache/fid/<target>`
-/// 3. Directories listed in `FRAMEC_FID_PATH` (PATH-separator delimited). Entries may
+/// 1. Each ancestor of `spec_dir` (inclusive) joined with `.frame/cache/fid/<target>`
+/// 2. The current working directory joined with `.frame/cache/fid/<target>`
+/// 3. Directories listed in `FRAME_FID_PATH` (PATH-separator delimited). Entries may
 ///    either point directly at a target directory or at the cache root; when the
 ///    latter is detected the `<target>` segment is appended automatically.
 ///
@@ -126,7 +126,7 @@ fn collect_search_dirs(spec_dir: Option<&Path>, target: TargetLanguage) -> Vec<P
 
     if let Some(mut current) = spec_dir.map(|p| p.to_path_buf()) {
         loop {
-            let candidate = current.join(".framec/cache/fid").join(target_segment);
+            let candidate = current.join(".frame/cache/fid").join(target_segment);
             push_unique_dir(&mut dirs, &mut seen, candidate);
             match current.parent() {
                 Some(parent) => {
@@ -141,14 +141,10 @@ fn collect_search_dirs(spec_dir: Option<&Path>, target: TargetLanguage) -> Vec<P
     }
 
     if let Ok(cwd) = env::current_dir() {
-        push_unique_dir(
-            &mut dirs,
-            &mut seen,
-            cwd.join(".framec/cache/fid").join(target_segment),
-        );
+        push_unique_dir(&mut dirs, &mut seen, cwd.join(".frame/cache/fid").join(target_segment));
     }
 
-    if let Ok(paths_var) = env::var("FRAMEC_FID_PATH") {
+    if let Ok(paths_var) = env::var("FRAME_FID_PATH") {
         for entry in env::split_paths(&paths_var) {
             let entry_str = entry.to_string_lossy();
             let trimmed = entry_str.trim();
@@ -206,7 +202,7 @@ mod tests {
     fn loads_modules_from_ancestor_cache() {
         let temp = tempdir().expect("create temp dir");
         let project_root = temp.path();
-        let cache_dir = project_root.join(".framec/cache/fid/typescript");
+        let cache_dir = project_root.join(".frame/cache/fid/typescript");
         fs::create_dir_all(&cache_dir).expect("create cache dir");
 
         let fid_content = "native module runtime::socket {\n    connect(): None\n}\n";

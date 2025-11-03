@@ -9,7 +9,7 @@ Project-level settings for Frame Interface Definition (FID) generation and consu
 manifest = "fid_manifest.json"   # where to read sources (optional; CLI can override)
 lockfile = "fid.lock.json"       # where to write/read the lock
 lock_policy = "strict"           # strict | update | off
-cache_dir = ".framec/cache/fid" # write location for generated .fid cache
+cache_dir = ".frame/cache/fid" # write location for generated .fid cache
 vendor_dirs = ["vendor/fid/{target}"] # read-first search paths for vendored caches
 on_missing = "error"             # error | warn | ignore
 auto_generate = "on-demand"      # on-build | on-demand | never

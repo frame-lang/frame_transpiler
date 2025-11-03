@@ -335,7 +335,7 @@ Frame ships an opt-in command for converting native modules (TypeDoc JSON, Pytho
 - `@target`: which Frame backend will consume the declarations (selects the importer/tooling).
 - `resources`: list of source metadata entries. File resources list a `uri` and the native modules to include; selectors support wildcards like `Name.*`.
 
-Generated headers are cached under `.framec/cache/fid/<target>` next to the project that executed the command (e.g. `.framec/cache/fid/typescript/typescript__node__net.fid`). The compiler walks up the directory tree looking for those directories and also checks paths listed in `FRAMEC_FID_PATH` (use `{target}` as a placeholder to share one cache across targets). Delete a target directory or re-run `framec fid import` whenever the underlying runtime changes; otherwise the compiler will surface an error such as:
+Generated headers are cached under `.frame/cache/fid/<target>` next to the project that executed the command (e.g. `.frame/cache/fid/typescript/typescript__node__net.fid`). The compiler walks up the directory tree looking for those directories and also checks paths listed in `FRAME_FID_PATH` (use `{target}` as a placeholder to share one cache across targets). Delete a target directory or re-run `framec fid import` whenever the underlying runtime changes; otherwise the compiler will surface an error such as:
 
 ```
 Native helper '<name>' is imported for this target but no declaration was loaded. Run `framec fid import` for the active target and retry.

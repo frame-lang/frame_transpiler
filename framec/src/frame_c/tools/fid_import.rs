@@ -128,7 +128,7 @@ fn run_fid_manifest(
         };
 
         let output_dir = base_dir
-            .join(".framec")
+            .join(".frame")
             .join("cache")
             .join("fid")
             .join(target_subdir);
@@ -148,6 +148,10 @@ fn run_fid_manifest(
                         let mut options = serde_json::json!({ "include": mm.import_selectors });
                         if importer_name == "python-runtime" {
                             options["moduleName"] = serde_json::Value::String(mm.module.clone());
+                        }
+                        // If the URI looks like a TypeDoc JSON reflection, use it directly
+                        if importer_name == "typescript-typedoc" && file.uri.ends_with(".json") {
+                            options["jsonCache"] = serde_json::Value::String(file.uri.clone());
                         }
                         let source_config = DeclarationSourceConfig {
                             adapter: importer_name.to_string(),

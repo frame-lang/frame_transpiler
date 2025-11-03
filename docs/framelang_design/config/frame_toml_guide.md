@@ -74,7 +74,7 @@ imports = ["external"]
 manifest = "fid_manifest.json"
 lockfile = "fid.lock.json"
 lock_policy = "strict"           # strict | update | off
-cache_dir = ".framec/cache/fid"
+cache_dir = ".frame/cache/fid"
 vendor_dirs = ["vendor/fid/{target}"]
 on_missing = "error"             # error | warn | ignore
 auto_generate = "on-demand"      # on-build | on-demand | never
@@ -246,4 +246,3 @@ deploy = "./scripts/deploy.sh"
 
 ## Conclusion
 `frame.toml` provides a standardized, extensible way to manage Frame projects. It simplifies the build process, enables better tooling integration, and integrates cleanly with the native import/FID workflow.
-

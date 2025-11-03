@@ -79,7 +79,7 @@ The native import architecture (Week 6+) never landed for the TypeScript backend
 
 ## Proposed Fix
 1. **Parser upgrade**: allow TypeScript actions to contain native statements without nested pragmas.
-2. **FID auto-generation**: detect `import { Socket } from "net"` and feed it into the declaration importer (TypeDoc over `@types/node`). Cache the resulting `.fid` in `.framec/cache/fid/typescript/node_net.fid`.
+2. **FID auto-generation**: detect `import { Socket } from "net"` and feed it into the declaration importer (TypeDoc over `@types/node`). Cache the resulting `.fid` in `.frame/cache/fid/typescript/node_net.fid`.
 3. **Visitor update**: emit actual `import { Socket } from "net"` lines, preserve native statements, and drop the legacy runtime helper references.
 4. **Regression coverage**: keep `framec_tests/language_specific/typescript/runtime/test_runtime_protocol_native.frm` and `.../declarations/test_runtime_socket_decl.frm` to ensure we never regress.
 
