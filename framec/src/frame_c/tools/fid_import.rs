@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::frame_c::ast::{ImportType, NativeModuleDeclNode, NativeModuleItem};
 use crate::frame_c::declaration_importers::{
@@ -111,6 +112,7 @@ fn run_fid_manifest(
         .unwrap_or_else(|| PathBuf::from("."));
 
     let mut generated_files = Vec::new();
+    let mut lock_entries: Vec<LockEntry> = Vec::new();
     let context = DeclarationImportContext { config_dir: base_dir.clone(), verbose, native_imports: Vec::new() };
 
     for src in &manifest.sources {
@@ -163,6 +165,7 @@ fn run_fid_manifest(
                             verbose,
                             allow_missing,
                             &mut generated_files,
+                            &mut lock_entries,
                         )?;
                     }
                 }
@@ -187,6 +190,7 @@ fn run_fid_manifest(
                         verbose,
                         allow_missing,
                         &mut generated_files,
+                        &mut lock_entries,
                     )?;
                 }
             }
@@ -199,6 +203,9 @@ fn run_fid_manifest(
         } else {
             println!("Generated {} .fid file(s).", generated_files.len());
         }
+
+        // Write minimal lockfile next to the manifest
+        write_lockfile(&base_dir, lock_entries, verbose)?;
     }
 
     Ok(())
@@ -213,6 +220,7 @@ fn run_single_import(
     verbose: bool,
     allow_missing: bool,
     generated_files: &mut Vec<PathBuf>,
+    lock_entries: &mut Vec<LockEntry>,
 ) -> Result<(), RunError> {
     let adapter_name = source_config.adapter.to_lowercase();
     let importer = match get_importer(&adapter_name) {
@@ -268,16 +276,128 @@ fn run_single_import(
         if dry_run {
             println!("[fid import] Would write {}", output_path.display());
         } else {
-            fs::write(&output_path, stringified).map_err(|err| {
+            fs::write(&output_path, stringified.clone()).map_err(|err| {
                 RunError::new(
                     frame_exitcode::CONFIG_ERR,
                     &format!("Failed to write .fid '{}': {}", output_path.display(), err),
                 )
             })?;
-            generated_files.push(output_path);
+            generated_files.push(output_path.clone());
         }
+
+        // Record lock entry (minimal; fingerprints TBD)
+        lock_entries.push(LockEntry {
+            target: source_config
+                .target
+                .clone()
+                .unwrap_or_else(|| "unknown".to_string()),
+            resource: LockResource::from_source(source_config),
+            modules: vec![module.qualified_name.clone()],
+            fingerprint: Fingerprint { algorithm: "sha256".to_string(), value: String::new(), package: None },
+            outputs: vec![LockOutput { namespace: module.path(), path: output_path.to_string_lossy().to_string() }],
+        });
     }
 
+    Ok(())
+}
+
+// ---------------- Lockfile writing -----------------
+
+#[derive(Debug, Serialize)]
+struct Lockfile {
+    #[serde(rename = "$schema")]
+    schema: String,
+    lockVersion: String,
+    generatedAt: String,
+    toolchain: LockToolchain,
+    entries: Vec<LockEntry>,
+}
+
+#[derive(Debug, Serialize)]
+struct LockToolchain {
+    framec: String,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    importers: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Serialize)]
+struct LockEntry {
+    #[serde(rename = "@target")]
+    target: String,
+    resource: LockResource,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    modules: Vec<Vec<String>>, // module namespace segments
+    fingerprint: Fingerprint,
+    outputs: Vec<LockOutput>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+enum LockResource {
+    File { file: LockFile },
+    Module { module: LockModule },
+}
+
+impl LockResource {
+    fn from_source(src: &DeclarationSourceConfig) -> Self {
+        if let Some(opts) = &src.options {
+            if let Some(module_name) = opts.get("moduleName").and_then(|v| v.as_str()) {
+                return LockResource::Module { module: LockModule { name: module_name.to_string() } };
+            }
+        }
+        LockResource::File { file: LockFile { uri: src.input.to_string_lossy().to_string() } }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct LockFile { uri: String }
+
+#[derive(Debug, Serialize)]
+struct LockModule { name: String }
+
+#[derive(Debug, Serialize)]
+struct Fingerprint {
+    algorithm: String,
+    value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    package: Option<LockPackage>,
+}
+
+#[derive(Debug, Serialize)]
+struct LockPackage { manager: String, name: String, version: String, resolved: String }
+
+#[derive(Debug, Serialize)]
+struct LockOutput { namespace: String, path: String }
+
+fn write_lockfile(base_dir: &Path, entries: Vec<LockEntry>, verbose: bool) -> Result<(), RunError> {
+    // Use RFC3339 timestamp
+    let generated_at = {
+        #[allow(deprecated)]
+        {
+            // Minimal timestamp using std since chrono may not be available
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+            format!("{}", secs)
+        }
+    };
+
+    let lf = Lockfile {
+        schema: "docs/schemas/fid_lock.schema.json".to_string(),
+        lockVersion: "1".to_string(),
+        generatedAt: generated_at,
+        toolchain: LockToolchain { framec: env!("FRAME_VERSION").to_string(), importers: BTreeMap::new() },
+        entries,
+    };
+    let json = serde_json::to_string_pretty(&lf).map_err(|err| {
+        RunError::new(frame_exitcode::CONFIG_ERR, &format!("Failed to encode lockfile JSON: {}", err))
+    })?;
+    let path = base_dir.join("fid.lock.json");
+    fs::write(&path, json).map_err(|err| {
+        RunError::new(frame_exitcode::CONFIG_ERR, &format!("Failed to write lockfile '{}': {}", path.display(), err))
+    })?;
+    if verbose {
+        println!("[fid import] Wrote lockfile {}", path.display());
+    }
     Ok(())
 }
 
