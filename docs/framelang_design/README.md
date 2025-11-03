@@ -5,7 +5,7 @@ This directory collects the working design notes, grammars, and architectural pl
 ## Key References
 
 - [grammar.md](./grammar.md) – master Frame grammar (core + native-module syntax).
-- [native_imports_and_fid.md](./native_imports_and_fid.md) – native import workflow and auto-generated `.fid` (Frame Interface Definition) files.
+- [native_imports_and_fid.md](frame_interface_definition/native_imports_and_fid.md) – native import workflow and auto-generated `.fid` (Frame Interface Definition) files.
 - [target_language_specifications/](./target_language_specifications/) – per-target body grammars and runtime requirements.
 - [cross_language_support_analysis.md](./cross_language_support_analysis.md) – analysis of portability constraints and language-specific gaps.
 - [frame_runtime.md](./frame_runtime.md) – overview of shared runtime responsibilities across targets.

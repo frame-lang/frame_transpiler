@@ -97,6 +97,9 @@ The native import architecture (Week 6+) never landed for the TypeScript backend
 - 2025-10-30: Original bug filed (legacy helper gap) — Codex
 - 2025-11-02: Native import architecture defined — Docs updated
 
+## Follow-ups (Post‑055)
+- Align Python target bodies with native Python statement syntax inside `@target python` blocks (no `var`, allow tuple unpacking, emit verbatim). Track under Cross‑Language Plan Phase 3.5. This is not required to resolve 055 but will be addressed immediately after.
+
 ## Resolution
 Pending.
 

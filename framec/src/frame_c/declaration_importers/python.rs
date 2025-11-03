@@ -68,7 +68,7 @@ impl DeclarationImporter for PythonRuntimeImporter {
 
         if context.verbose {
             eprintln!(
-                "[decl import] executing python runtime importer for module {}",
+                "[fid import] executing python runtime importer for module {}",
                 module_name
             );
         }

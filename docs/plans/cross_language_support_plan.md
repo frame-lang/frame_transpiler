@@ -217,7 +217,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 **Goal**: Provide an opt-in tool that converts target-specific signature sources (e.g., `.d.ts`, Python stubs) into Frame `native module` declarations, so teams are not forced to hand-maintain the contracts.
 
 #### Week 6a: Generator Scaffolding & CLI
-- [x] Add `framec fid import` subcommand (legacy aliases: `framec decl`, `framec declarations`) with discoverable help text.
+- [x] Add `framec fid import` subcommand with discoverable help text.
 - [ ] Define generator config (`.frame_declgen.json`) describing source metadata files, target languages, and output path.
 - [ ] Build plugin-style adapter registry (initial adapters: TypeScript `.d.ts`, Python `.pyi` stub imports); adapters live under `framec/src/frame_c/declaration_importers/`.
 - [ ] Reuse the existing `FrameModule` writer to emit `native module` declarations into `framec_tests/fixtures/native_decl_generation/`.
@@ -299,6 +299,25 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 **Validation Criteria**:
 - LLVM IR generation includes embedded helpers using chosen toolchain
 - Smoke suite (`language_specific_llvm`) extended to cover new behaviour
+
+### Phase 3.5: Python Native Bodies — Pure Python Syntax in Target Blocks
+Goal: Align Python target bodies with native Python statement syntax (no `var`, indentation/colons, tuple unpacking). This improves ergonomics while preserving Frame semantics via `self.` for domain fields.
+
+Tasks
+- [ ] Parser: enable Python-native statement blocks inside `@target python` regions (use rustpython_parser). Remove insertion of `var`; accept tuple/list destructuring.
+- [ ] Scoping: clarify that local variables defined in Python blocks remain in the Python-native scope; only `self.*` affects domain fields. No implicit cross-boundary sharing with Frame statements.
+- [ ] Visitor: emit Python bodies verbatim (respect indentation), ensure `self.` access remains explicit; no transformation of local assignments.
+- [ ] Diagnostics: surface dual line numbers (Frame + Python) for errors in native blocks.
+- [ ] Tests: add fixtures covering tuple unpacking, local vs `self` assignment, try/except/finally, async/await.
+- [ ] Docs: update examples to pure Python in target bodies once parser support lands.
+
+Acceptance Criteria
+- Python fixtures compile and run without `var` in target bodies.
+- Tuple unpacking works inside Python bodies.
+- Domain writes require explicit `self.` and are observed by the runtime.
+
+Notes
+- Not required to resolve Bug #055 (TypeScript). Scheduled immediately after 055 closure to keep ergonomics consistent across targets without hacks.
 
 ### Testing & Documentation (Week 6-7)
 *Comprehensive validation and documentation*

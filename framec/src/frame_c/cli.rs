@@ -84,13 +84,11 @@ impl Cli {
             .subcommand(
                 Command::new("fid")
                     .about("Manage Frame Interface Definition (FID) caches")
-                    .alias("decl")
-                    .visible_alias("declarations")
                     .arg(
                         Arg::new("config")
                             .long("config")
                             .short('c')
-                            .help("Path to declaration generator config JSON")
+                            .help("Path to FID manifest JSON (e.g. fid_manifest.json)")
                             .value_name("FILE"),
                     )
                     .arg(
@@ -128,7 +126,7 @@ impl Cli {
                                 Arg::new("config")
                                     .long("config")
                                     .short('c')
-                                    .help("Path to declaration generator config JSON")
+                                    .help("Path to FID manifest JSON (e.g. fid_manifest.json)")
                                     .value_name("FILE")
                                     .required(true),
                             )
@@ -255,36 +253,42 @@ impl Cli {
                             .map(|s| PathBuf::from(s));
                         CliCommand::Build { config }
                     }
-                    "fid" | "decl" | "declarations" => {
-                        let (config_path, force, dry_run, verbose, allow_missing) =
-                            if let Some(("import", nested)) = sub_matches.subcommand() {
-                                (
-                                    nested
-                                        .get_one::<String>("config")
-                                        .map(|s| PathBuf::from(s))
-                                        .expect("config arg is required by clap"),
-                                    nested.get_flag("force"),
-                                    nested.get_flag("dry-run"),
-                                    nested.get_flag("verbose"),
-                                    nested.get_flag("allow-missing"),
-                                )
-                            } else {
-                                let config = sub_matches.get_one::<String>("config").map(|s| PathBuf::from(s));
-                                let config_path = match config {
-                                    Some(path) => path,
-                                    None => {
-                                        eprintln!("error: --config <FILE> is required. Use 'framec fid import --config <FILE>' or 'framec fid --config <FILE>'.");
-                                        std::process::exit(exitcode::USAGE);
-                                    }
-                                };
-                                (
-                                    config_path,
-                                    sub_matches.get_flag("force"),
-                                    sub_matches.get_flag("dry-run"),
-                                    sub_matches.get_flag("verbose"),
-                                    sub_matches.get_flag("allow-missing"),
-                                )
+                    "fid" => {
+                        let (config_path, force, dry_run, verbose, allow_missing) = if let Some((
+                            "import",
+                            nested,
+                        )) =
+                            sub_matches.subcommand()
+                        {
+                            (
+                                nested
+                                    .get_one::<String>("config")
+                                    .map(|s| PathBuf::from(s))
+                                    .expect("config arg is required by clap"),
+                                nested.get_flag("force"),
+                                nested.get_flag("dry-run"),
+                                nested.get_flag("verbose"),
+                                nested.get_flag("allow-missing"),
+                            )
+                        } else {
+                            let config = sub_matches
+                                .get_one::<String>("config")
+                                .map(|s| PathBuf::from(s));
+                            let config_path = match config {
+                                Some(path) => path,
+                                None => {
+                                    eprintln!("error: --config <FILE> is required. Use 'framec fid import --config <FILE>' or 'framec fid --config <FILE>'.");
+                                    std::process::exit(exitcode::USAGE);
+                                }
                             };
+                            (
+                                config_path,
+                                sub_matches.get_flag("force"),
+                                sub_matches.get_flag("dry-run"),
+                                sub_matches.get_flag("verbose"),
+                                sub_matches.get_flag("allow-missing"),
+                            )
+                        };
                         CliCommand::FidImport(FidImportArgs {
                             config_path,
                             force,

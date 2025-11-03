@@ -52,7 +52,7 @@ impl DeclarationImporter for TypeScriptTypedocImporter {
         options.include.dedup();
 
         if context.verbose {
-            eprintln!("[decl import] running typedoc on {}", input_path.display());
+            eprintln!("[fid import] running typedoc on {}", input_path.display());
         }
 
         let reflection = load_typedoc_reflection(&input_path, &options, context)?;
@@ -68,7 +68,7 @@ impl DeclarationImporter for TypeScriptTypedocImporter {
         if builder.items.is_empty() {
             if context.verbose {
                 eprintln!(
-                    "[decl import] no declarations discovered in {}",
+                    "[fid import] no declarations discovered in {}",
                     input_path.display()
                 );
             }

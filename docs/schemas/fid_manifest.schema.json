@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://frame-lang.org/schemas/fid_manifest.json",
+  "title": "Frame FID Manifest",
+  "type": "object",
+  "required": ["sources"],
+  "additionalProperties": false,
+  "properties": {
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["@target", "resources"],
+      "additionalProperties": false,
+      "properties": {
+        "@target": {
+          "type": "string",
+          "enum": ["python", "typescript", "rust", "java", "c", "cpp", "llvm"]
+        },
+        "resources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resource" },
+          "minItems": 1
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/$defs/fileResource" },
+        { "$ref": "#/$defs/moduleResource" }
+      ]
+    },
+    "fileResource": {
+      "type": "object",
+      "required": ["file"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "object",
+          "required": ["uri", "modules"],
+          "additionalProperties": false,
+          "properties": {
+            "uri": { "type": "string" },
+            "modules": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/moduleMap" },
+              "minItems": 1
+            }
+          }
+        }
+      }
+    },
+    "moduleResource": {
+      "type": "object",
+      "required": ["module"],
+      "additionalProperties": false,
+      "properties": {
+        "module": {
+          "type": "object",
+          "required": ["name", "import"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string" },
+            "import": { "$ref": "#/$defs/importSelectors" }
+          }
+        }
+      }
+    },
+    "moduleMap": {
+      "type": "object",
+      "required": ["module", "import"],
+      "additionalProperties": false,
+      "properties": {
+        "module": { "type": "string" },
+        "import": { "$ref": "#/$defs/importSelectors" }
+      }
+    },
+    "importSelectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^\\*|[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?\\.\\*?$"
+      },
+      "description": "Selectors: name, name.member, name.*, or *"
+    }
+  }
+}

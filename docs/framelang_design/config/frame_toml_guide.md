@@ -1,39 +1,34 @@
 # Frame Project Configuration Guide (frame.toml)
 
-**Version**: v0.58  
-**Last Updated**: September 14, 2025
+Version: v0.58
 
 ## Overview
 
-Frame v0.58 introduces a standardized project configuration system using `frame.toml` files. This system simplifies project management, standardizes build processes, and provides a foundation for future package management features.
+Frame uses a standardized project configuration file, `frame.toml`. This centralizes build settings, paths, and target‑specific toggles, and provides hooks for native import/FID generation.
 
 ## Quick Start
 
 ### Initialize a New Project
 
 ```bash
-# Create a new Frame project in the current directory
 framec init
-
-# This creates:
-# - frame.toml (project configuration)
-# - src/ directory
-# - src/main.frm (entry point)
 ```
+Creates:
+- `frame.toml` (project configuration)
+- `src/` directory
+- `src/main.frm` (entry point)
 
 ### Build a Project
 
 ```bash
-# Build using frame.toml configuration
 framec build
-
 # Or specify a custom config file
 framec build --config custom.toml
 ```
 
 ## Configuration File Format
 
-The `frame.toml` file uses the TOML format and consists of several sections:
+The `frame.toml` file uses TOML and consists of several sections.
 
 ### Complete Example
 
@@ -74,6 +69,23 @@ imports = ["external"]
 "@components" = "./src/components"
 "@models" = "./src/models"
 
+# FID generation/consumption (see fid_config.md for full details)
+[fid]
+manifest = "fid_manifest.json"
+lockfile = "fid.lock.json"
+lock_policy = "strict"           # strict | update | off
+cache_dir = ".framec/cache/fid"
+vendor_dirs = ["vendor/fid/{target}"]
+on_missing = "error"             # error | warn | ignore
+auto_generate = "on-demand"      # on-build | on-demand | never
+
+[fid.importers.typescript]
+typedoc_bin = "npx typedoc"
+
+[fid.importers.python]
+python_bin = "python3"
+introspect_site = true
+
 # Custom scripts
 [scripts]
 build = "framec build"
@@ -86,9 +98,7 @@ format = "black src/"
 
 ## Configuration Sections
 
-### [project] - Project Metadata
-
-Defines basic project information:
+### [project] — Project Metadata
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
@@ -98,40 +108,33 @@ Defines basic project information:
 | `authors` | array | List of authors | [] |
 | `description` | string | Project description | None |
 
-### [build] - Build Configuration
-
-Controls the compilation process:
+### [build] — Build Configuration
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
 | `target` | string | Target language | "python_3" |
 | `output_dir` | path | Output directory | "dist" |
 | `output_mode` | enum | "concatenated" or "separate_files" | "concatenated" |
-| `source_dirs` | array | Source directories to search | ["src"] |
+| `source_dirs` | array | Source directories | ["src"] |
 | `optimize` | bool | Enable optimizations | false |
 | `debug` | bool | Enable debug output | false |
 | `incremental` | bool | Use incremental compilation | true |
 
 #### Output Modes
+- `concatenated`: All modules combined into a single output file
+- `separate_files`: Each module generates its own file with proper imports
 
-- **concatenated**: All modules combined into a single output file
-- **separate_files**: Each module generates its own file with proper imports
-
-### [python] - Python-Specific Settings
-
-Configure Python code generation:
+### [python] — Python‑Specific Settings
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
-| `event_handlers_as_functions` | bool | Generate handlers as functions (v0.36) | true |
-| `runtime` | enum | "Standard", "AsyncIO", or "Trio" | "Standard" |
+| `event_handlers_as_functions` | bool | Generate handlers as functions | true |
+| `runtime` | enum | "Standard", "AsyncIO", "Trio" | "Standard" |
 | `min_version` | string | Minimum Python version | None |
 | `public_state_info` | bool | Make state info public | false |
 | `public_compartment` | bool | Make compartment public | false |
 
-### [paths] - Module Resolution
-
-Configure import path resolution:
+### [paths] — Module Resolution
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
@@ -140,25 +143,34 @@ Configure import path resolution:
 | `aliases` | table | Path alias mappings | {} |
 
 #### Using Path Aliases
-
-Define shortcuts for common import paths:
-
 ```toml
 [paths.aliases]
 "@utils" = "./src/utils"
 "@core" = "./src/core"
 ```
 
-Then use in Frame code:
+Then in Frame:
 ```frame
 import Utils from "@utils/helpers.frm"
 import Core from "@core/engine.frm"
 ```
 
-### [scripts] - Custom Commands
+### [fid] — FID Generation & Consumption
+High‑level toggles for the native import pipeline. See `fid_config.md` for full semantics and importer‑specific options.
 
-Define project-specific commands:
+| Field | Type | Description |
+|-------|------|-------------|
+| `manifest` | path | Path to `fid_manifest.json` describing native sources |
+| `lockfile` | path | Path to `fid.lock.json` written/read by the importer |
+| `lock_policy` | enum | `strict` (require lock), `update` (refresh on change), `off` |
+| `cache_dir` | path | Base directory for generated `.fid` cache |
+| `vendor_dirs` | array | Read‑first search paths for vendored `.fid` caches |
+| `on_missing` | enum | Compiler behavior on missing declaration: `error`/`warn`/`ignore` |
+| `auto_generate` | enum | `on-build`/`on-demand`/`never` |
 
+Importer‑specific tables live under `fid.importers.*`.
+
+### [scripts] — Custom Commands
 ```toml
 [scripts]
 build = "framec build"
@@ -167,137 +179,23 @@ clean = "rm -rf dist/"
 dev = "framec build && python dist/main.py"
 ```
 
-Run with: `framec run <script-name>` (future feature)
-
 ## File Discovery
 
 Frame searches for configuration files in this order:
-
-1. Path specified with `--config` flag
+1. Path specified with `--config`
 2. `frame.toml` in current directory
 3. `.framerc.toml` in current directory
-4. Search parent directories up to filesystem root
-
-## Project Structure Best Practices
-
-### Simple Project
-```
-my-project/
-├── frame.toml
-├── src/
-│   └── main.frm
-└── dist/
-    └── (generated files)
-```
-
-### Complex Project
-```
-my-project/
-├── frame.toml
-├── src/
-│   ├── main.frm
-│   ├── systems/
-│   │   ├── server.frm
-│   │   └── client.frm
-│   ├── utils/
-│   │   └── helpers.frm
-│   └── models/
-│       └── data.frm
-├── lib/
-│   └── external.frm
-├── tests/
-│   └── test_server.frm
-├── dist/
-│   └── (generated files)
-└── README.md
-```
-
-## Output Examples
-
-### Concatenated Mode
-
-With `output_mode = "concatenated"`:
-
-```bash
-framec build > dist/app.py
-# Generates single file containing all modules
-```
-
-### Separate Files Mode
-
-With `output_mode = "separate_files"`:
-
-```bash
-framec build
-# Generates:
-# dist/
-#   ├── __init__.py
-#   ├── main.py
-#   ├── server.py
-#   └── utils.py
-```
+4. Parents up to filesystem root
 
 ## Environment Variables
-
-Frame respects these environment variables:
-
-- `FRAME_CONFIG`: Default config file path
+- `FRAME_CONFIG`: Default config path
 - `FRAME_TARGET`: Override target language
 - `FRAME_OUTPUT`: Override output directory
 - `FRAME_TRANSPILER_DEBUG`: Enable debug output (1 to enable)
 
-## Migration from CLI Flags
-
-### Before (v0.57)
-```bash
-framec -m src/main.frm -l python_3 -o dist/
-```
-
-### After (v0.58)
-```bash
-# One-time setup
-framec init
-
-# Then just:
-framec build
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue**: "No frame.toml found"
-- **Solution**: Run `framec init` or create frame.toml manually
-
-**Issue**: "Invalid configuration"
-- **Solution**: Check TOML syntax and required fields
-
-**Issue**: Output not where expected
-- **Solution**: Check `output_dir` and `output_mode` settings
-
-### Validation
-
-Frame validates configuration on load:
-- Required fields must be present
-- Paths must be valid
-- Enums must have valid values
-
-## Future Features
-
-The configuration system is designed to support:
-
-- Package dependencies
-- Version management
-- Profile-based builds (dev/release)
-- Custom code generation options
-- Plugin system configuration
-- Watch mode settings
-- Test runner integration
-
 ## Examples
 
 ### Minimal frame.toml
-
 ```toml
 [project]
 name = "minimal"
@@ -308,11 +206,11 @@ target = "python_3"
 ```
 
 ### Library Project
-
 ```toml
 [project]
 name = "frame-utils"
 version = "1.0.0"
+
 description = "Utility functions for Frame"
 
 [build]
@@ -324,7 +222,6 @@ modules = ["src"]
 ```
 
 ### Application Project
-
 ```toml
 [project]
 name = "web-server"
@@ -348,5 +245,5 @@ deploy = "./scripts/deploy.sh"
 ```
 
 ## Conclusion
+`frame.toml` provides a standardized, extensible way to manage Frame projects. It simplifies the build process, enables better tooling integration, and integrates cleanly with the native import/FID workflow.
 
-The frame.toml configuration system provides a standardized, extensible way to manage Frame projects. It simplifies the build process, enables better tooling integration, and prepares Frame for future package management capabilities.

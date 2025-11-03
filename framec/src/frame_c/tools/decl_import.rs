@@ -128,10 +128,10 @@ pub fn run_decl_import(
         let imports = collect_native_imports(&frame_spec_paths)?;
         if verbose {
             if imports.is_empty() {
-                println!("[decl import] No native imports discovered in provided Frame specs.");
+                println!("[fid import] No native imports discovered in provided Frame specs.");
             } else {
                 println!(
-                    "[decl import] Discovered {} native import(s) across Frame specs:",
+                    "[fid import] Discovered {} native import(s) across Frame specs:",
                     imports.len()
                 );
                 for entry in &imports {
@@ -162,14 +162,14 @@ pub fn run_decl_import(
             None => {
                 return Err(RunError::new(
                     frame_exitcode::CONFIG_ERR,
-                    &format!("Unknown declaration importer '{}'.", adapter_name),
+                    &format!("Unknown FID importer '{}'.", adapter_name),
                 ));
             }
         };
 
         if verbose {
             println!(
-                "[decl import] Using adapter '{}' for {:?}",
+                "[fid import] Using importer '{}' for {:?}",
                 importer.name(),
                 source_config.input
             );
@@ -182,7 +182,7 @@ pub fn run_decl_import(
         if modules.is_empty() {
             if verbose {
                 println!(
-                    "[decl import] Adapter '{}' produced no modules for {:?}",
+                    "[fid import] Importer '{}' produced no modules for {:?}",
                     importer.name(),
                     source_config.input
                 );
@@ -213,16 +213,12 @@ pub fn run_decl_import(
 
             let stringified = render_native_module(&module);
             if dry_run {
-                println!("[decl import] Would write {}", output_path.display());
+                println!("[fid import] Would write {}", output_path.display());
             } else {
                 fs::write(&output_path, stringified).map_err(|err| {
                     RunError::new(
                         frame_exitcode::CONFIG_ERR,
-                        &format!(
-                            "Failed to write declaration '{}': {}",
-                            output_path.display(),
-                            err
-                        ),
+                        &format!("Failed to write .fid '{}': {}", output_path.display(), err),
                     )
                 })?;
                 generated_files.push(output_path);
@@ -232,9 +228,9 @@ pub fn run_decl_import(
 
     if !dry_run {
         if generated_files.is_empty() {
-            println!("No declaration files generated.");
+            println!("No .fid files generated.");
         } else {
-            println!("Generated {} declaration file(s).", generated_files.len());
+            println!("Generated {} .fid file(s).", generated_files.len());
         }
     }
 
