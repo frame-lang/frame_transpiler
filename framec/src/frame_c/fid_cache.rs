@@ -226,7 +226,7 @@ mod tests {
         fs::write(cache_dir.join("runtime_env.fid"), fid_content).expect("write fid");
 
         env::set_var(
-            "FRAMEC_FID_PATH",
+            "FRAME_FID_PATH",
             temp.path()
                 .join("custom/cache/fid")
                 .to_string_lossy()
@@ -236,7 +236,7 @@ mod tests {
         let mut arcanum = Arcanum::new();
         let summary =
             load_fid_modules(&mut arcanum, TargetLanguage::TypeScript, None).expect("load via env");
-        env::remove_var("FRAMEC_FID_PATH");
+        env::remove_var("FRAME_FID_PATH");
 
         assert!(summary.modules_loaded >= 1);
         assert!(arcanum.lookup_native_module("runtime::env").is_some());

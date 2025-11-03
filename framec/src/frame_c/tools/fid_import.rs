@@ -289,7 +289,7 @@ fn run_single_import(
             generated_files.push(output_path.clone());
         }
 
-        // Record lock entry (minimal; fingerprints TBD)
+        // Record lock entry with fingerprint of the emitted FID content
         lock_entries.push(LockEntry {
             target: source_config
                 .target
@@ -297,7 +297,7 @@ fn run_single_import(
                 .unwrap_or_else(|| "unknown".to_string()),
             resource: LockResource::from_source(source_config),
             modules: vec![module.qualified_name.clone()],
-            fingerprint: Fingerprint { algorithm: "sha256".to_string(), value: String::new(), package: None },
+            fingerprint: Fingerprint { algorithm: "sha256".to_string(), value: hex_sha256(&stringified), package: None },
             outputs: vec![LockOutput { namespace: module.path(), path: output_path.to_string_lossy().to_string() }],
         });
     }
@@ -403,6 +403,13 @@ fn write_lockfile(base_dir: &Path, entries: Vec<LockEntry>, verbose: bool) -> Re
         println!("[fid import] Wrote lockfile {}", path.display());
     }
     Ok(())
+}
+
+fn hex_sha256(content: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    format!("{:x}", hasher.finalize())
 }
 
 fn collect_native_imports(spec_paths: &[PathBuf]) -> Result<Vec<NativeImportRequest>, RunError> {
