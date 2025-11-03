@@ -1,6 +1,6 @@
 use crate::frame_c::compiler::{detect_header_target_annotation, Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
-use crate::frame_c::tools::run_decl_import;
+use crate::frame_c::tools::run_fid_import;
 use clap::{Arg, Command};
 use std::convert::TryFrom;
 use std::path::PathBuf;
@@ -450,7 +450,7 @@ pub fn run_with(args: Cli) {
 
 /// Handle the FID import subcommand
 fn handle_fid_import(args: FidImportArgs) {
-    match run_decl_import(
+    match run_fid_import(
         &args.config_path,
         args.force,
         args.dry_run,
@@ -459,7 +459,7 @@ fn handle_fid_import(args: FidImportArgs) {
     ) {
         Ok(()) => {
             if args.dry_run {
-                println!("Declaration import dry run complete.");
+                println!("FID import dry run complete.");
             }
         }
         Err(err) => {
