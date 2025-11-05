@@ -2,7 +2,7 @@
 /// - Native segments are emitted verbatim by visitors.
 /// - Directive segments represent Frame control directives recognized at top level.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DirectiveKind {
+pub enum FrameStmtKind {
     Transition,
     Forward,
     StackPush,
@@ -16,11 +16,12 @@ pub enum BodySegment {
         start_line: usize,
         end_line: usize,
     },
-    Directive {
-        kind: DirectiveKind,
+    FrameStmt {
+        kind: FrameStmtKind,
         frame_line: usize,
         line_text: String,
     },
 }
 
+pub mod python;
 pub mod typescript;

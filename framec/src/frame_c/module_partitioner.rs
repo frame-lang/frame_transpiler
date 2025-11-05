@@ -1,4 +1,3 @@
-
 /// ModulePartitioner: partitions a ModuleUnit into Blocks and Regions.
 /// Blocks are brace-delimited scopes; Regions are arbitrary contiguous spans.
 #[allow(dead_code)]
@@ -68,24 +67,27 @@ impl<'a> ModulePartitioner<'a> {
             let line_no = idx + 1;
             let line = raw_line.trim();
 
-            if line.contains('{') {
-                depth += line.matches('{').count() as i32;
-                if in_system && body_start.is_none() {
-                    body_start = Some(line_no + 1);
-                }
+            // Detect the start of a system block before mutating depth so we don't
+            // miss a header that includes an opening brace on the same line.
+            if depth == 0 && line.starts_with("system ") {
+                in_system = true;
+                parts.blocks.push(BlockInfo {
+                    kind: BlockKind::System,
+                    header_line: line_no,
+                    body_start_line: 0,
+                    body_end_line: 0,
+                });
             }
 
-            if depth == 0 {
-                if line.starts_with("system ") {
-                    in_system = true;
-                    parts.blocks.push(BlockInfo {
-                        kind: BlockKind::System,
-                        header_line: line_no,
-                        body_start_line: 0,
-                        body_end_line: 0,
-                    });
+            // Track brace depth and the beginning of the system body.
+            if line.contains('{') {
+                let open_count = line.matches('{').count() as i32;
+                // If we are at depth 0 and see an opening brace for a system header,
+                // the body starts on the next line.
+                if in_system && body_start.is_none() && depth == 0 && open_count > 0 {
+                    body_start = Some(line_no + 1);
                 }
-                continue;
+                depth += open_count;
             }
 
             if in_system && depth == 1 {
@@ -103,7 +105,11 @@ impl<'a> ModulePartitioner<'a> {
                     None
                 };
                 if let Some(kind) = region_kind {
-                    parts.regions.push(RegionInfo { kind, start_line: line_no, end_line: line_no });
+                    parts.regions.push(RegionInfo {
+                        kind,
+                        start_line: line_no,
+                        end_line: line_no,
+                    });
                 }
             }
 
@@ -111,7 +117,12 @@ impl<'a> ModulePartitioner<'a> {
                 depth -= line.matches('}').count() as i32;
                 if in_system && depth == 0 {
                     let end_line = line_no - 1;
-                    if let Some(last) = parts.blocks.iter_mut().rev().find(|b| b.kind == BlockKind::System) {
+                    if let Some(last) = parts
+                        .blocks
+                        .iter_mut()
+                        .rev()
+                        .find(|b| b.kind == BlockKind::System)
+                    {
                         last.body_start_line = body_start.unwrap_or(line_no);
                         last.body_end_line = end_line;
                     }

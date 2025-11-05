@@ -6,9 +6,9 @@ use super::*;
 use crate::frame_c::ast::FrameEventPart;
 use crate::frame_c::ast::*;
 use crate::frame_c::code_builder::CodeBuilder;
+use crate::frame_c::native_region_segmenter::BodySegment;
 use crate::frame_c::scanner::{TargetRegion, TokenType};
 use crate::frame_c::symbol_table::{Arcanum, SymbolConfig};
-use crate::frame_c::native_region_segmenter::BodySegment;
 use crate::frame_c::target_parsers::typescript::{TypeScriptTargetAst, TypeScriptTargetElement};
 use crate::frame_c::target_parsers::ParsedTargetBlock;
 use convert_case::{Case, Casing};
@@ -16,6 +16,8 @@ use regex;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
+
+// B2 MixedBody/MIR directive emission (offline fallback: textual composition)
 
 #[derive(Clone, Debug)]
 struct TypeScriptNativeBinding {
@@ -136,7 +138,8 @@ impl TypeScriptVisitor {
             is_in_action: false,
             current_event_handler_default_return_value: None,
             node_module_imports: HashSet::new(),
-            generate_runtime_classes: true, // Default: generate runtime classes for standalone compilation
+            // Default: do not embed runtime; import shared runtime instead
+            generate_runtime_classes: false,
             in_module_function: false,      // Default: not in module function
             state_var_initializers: HashMap::new(),
             pending_frame_math_property: false,
@@ -172,7 +175,8 @@ impl TypeScriptVisitor {
     /// Create a new TypeScript visitor for multifile compilation (without runtime classes)
     pub fn new_for_multifile(arcanum: Vec<Arcanum>, symbol_config: SymbolConfig) -> Self {
         let mut visitor = Self::new(arcanum, symbol_config);
-        visitor.generate_runtime_classes = false; // Don't generate runtime classes for multifile modules
+        // For multifile, do not embed runtime in each module; linker/main will import it once
+        visitor.generate_runtime_classes = false;
         visitor.in_module_function = false; // Initialize module function flag
         visitor.pending_super_call = false;
         visitor
@@ -991,7 +995,11 @@ impl TypeScriptVisitor {
     }
 
     fn require_node_module(&mut self, module: &str) {
-        self.node_module_imports.insert(module.to_string());
+        let m = module.trim();
+        if m.is_empty() {
+            return;
+        }
+        self.node_module_imports.insert(m.to_string());
     }
 
     fn sanitize_identifier(identifier: &str) -> String {
@@ -1564,13 +1572,29 @@ impl TypeScriptVisitor {
         // Bug 53 fix: Generate runtime function declarations after analysis
         self.emit_runtime_function_declarations();
 
-        let (mut code, _mappings) = self.builder.build();
+        let (mut code, mappings) = self.builder.build();
 
         // Insert any required Node.js module imports detected during visitation
         code = Self::insert_node_module_imports(code, &self.node_module_imports);
 
         // Post-process to fix patterns that weren't caught by AST visitors
         code = Self::post_process_typescript_output(code);
+
+        // Optional mapping dump (debug): append mapping comments when enabled
+        if std::env::var("FRAME_TS_MAP_COMMENTS").is_ok() {
+            use std::fmt::Write as _;
+            let mut trailer = String::new();
+            trailer.push_str("\n// __frame_map_begin__\n");
+            for m in mappings {
+                let _ = write!(
+                    &mut trailer,
+                    "// map frame:{} -> ts:{}\n",
+                    m.frame_line, m.python_line
+                );
+            }
+            trailer.push_str("// __frame_map_end__\n");
+            code.push_str(&trailer);
+        }
 
         code
     }
@@ -1619,7 +1643,7 @@ impl TypeScriptVisitor {
 
     fn emit_runtime_imports(&mut self) {
         self.builder.writeln(
-            "import { FrameRuntime, FrameCollections, FrameCounter, FrameDict, FrameMath, FrameString, FrameEvent, FrameCompartment, OrderedDict, ChainMap, FrameSocketClient, configparser, json, numpy, os, random, signal, sys, time, open } from './frame_runtime_ts';",
+            "import { FrameRuntime, FrameCollections, FrameCounter, FrameDict, FrameMath, FrameString, FrameEvent, FrameCompartment, OrderedDict, ChainMap, FrameSocketClient, configparser, json, numpy, os, random, signal, sys, time, open } from '../typescript/runtime/frame_runtime';",
         );
         self.builder.newline();
     }
@@ -1674,13 +1698,17 @@ impl TypeScriptVisitor {
 
         let mut new_imports: Vec<String> = Vec::new();
         for module in modules {
+            let module = module.trim();
+            if module.is_empty() {
+                continue;
+            }
             if matches!(
-                module.as_str(),
+                module,
                 "random" | "time" | "sys" | "signal" | "configparser" | "numpy"
             ) {
                 continue;
             }
-            let alias = module.replace(|c: char| !(c.is_alphanumeric() || c == '_'), "_");
+            let alias = Self::sanitize_identifier(module);
             let import_line = format!("const {} = require('{}');", alias, module);
             if !existing_imports.contains(&import_line) {
                 existing_imports.insert(import_line.clone());
@@ -1855,6 +1883,59 @@ impl TypeScriptVisitor {
             self.system_name.to_lowercase(),
             state_name.trim_start_matches('$')
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::frame_c::visitors::TargetLanguage;
+
+    #[test]
+    fn mixedbody_maps_directive_line() {
+        let mut v = TypeScriptVisitor::new(Vec::new(), SymbolConfig::default());
+        // Simulate a simple mixed body with one native line and one directive at Frame line 123
+        let items = vec![
+            MixedBodyItem::NativeText {
+                target: TargetLanguage::TypeScript,
+                text: "const x = 1;\n".to_string(),
+                start_line: 10,
+                end_line: 10,
+            },
+            MixedBodyItem::Frame {
+                frame_line: 123,
+                stmt: MirStatement::StackPush,
+            },
+        ];
+        let (_generated, _ignored) =
+            v.emit_target_specific_body(ActionBody::Mixed, &[], &[], &[], None, Some(&items));
+
+        let (_out, mappings) = v.builder.build();
+        let has_directive_mapping = mappings.iter().any(|m| m.frame_line == 123);
+        assert!(
+            has_directive_mapping,
+            "expected mapping for directive frame line 123"
+        );
+    }
+
+    #[test]
+    fn mixedbody_maps_native_start_line() {
+        let mut v = TypeScriptVisitor::new(Vec::new(), SymbolConfig::default());
+        let items = vec![MixedBodyItem::NativeText {
+            target: TargetLanguage::TypeScript,
+            text: "console.log('x');\n".to_string(),
+            start_line: 77,
+            end_line: 77,
+        }];
+        let (_generated, _ignored) =
+            v.emit_target_specific_body(ActionBody::Mixed, &[], &[], &[], None, Some(&items));
+
+        let (_out, mappings) = v.builder.build();
+        let has_native_mapping = mappings.iter().any(|m| m.frame_line == 77);
+        assert!(
+            has_native_mapping,
+            "expected mapping for native start frame line 77"
+        );
     }
 }
 
@@ -2797,6 +2878,7 @@ impl AstVisitor for TypeScriptVisitor {
             &handler.target_specific_regions,
             &handler.unrecognized_statements,
             handler.segmented_body.as_ref().map(|v| v.as_slice()),
+            handler.mixed_body.as_deref(),
         );
 
         if generated_target_specific
@@ -2977,6 +3059,7 @@ impl AstVisitor for TypeScriptVisitor {
             &operation.target_specific_regions,
             &operation.unrecognized_statements,
             operation.segmented_body.as_deref(),
+            operation.mixed_body.as_deref(),
         );
 
         if generated_target_specific
@@ -3117,6 +3200,7 @@ impl AstVisitor for TypeScriptVisitor {
             &action.target_specific_regions,
             &action.unrecognized_statements,
             action.segmented_body.as_deref(),
+            action.mixed_body.as_deref(),
         );
 
         if generated_target_specific
@@ -5129,10 +5213,10 @@ impl TypeScriptVisitor {
                 }
                 TargetStateContextType::StateStackPop {} => {
                     // Pop previously pushed value/state and return from handler
-                    self.builder.writeln("const __popped = this.returnStack.pop();");
-                    self.builder.writeln(
-                        "this.returnStack[this.returnStack.length - 1] = __popped;",
-                    );
+                    self.builder
+                        .writeln("const __popped = this.returnStack.pop();");
+                    self.builder
+                        .writeln("this.returnStack[this.returnStack.length - 1] = __popped;");
                     self.builder.writeln("return;");
                     return;
                 }
@@ -7645,6 +7729,7 @@ impl TypeScriptVisitor {
             &function_node.target_specific_regions,
             &function_node.unrecognized_statements,
             None,
+            None,
         );
 
         if generated_target_specific
@@ -8428,6 +8513,7 @@ impl TypeScriptVisitor {
         region_refs: &[TargetSpecificRegionRef],
         unrecognized: &[UnrecognizedStatementNode],
         segments: Option<&[BodySegment]>,
+        mixed: Option<&[MixedBodyItem]>,
     ) -> (bool, BTreeSet<String>) {
         let mut generated = false;
         let mut ignored: BTreeSet<String> = unrecognized
@@ -8435,7 +8521,49 @@ impl TypeScriptVisitor {
             .map(|entry| format!("{:?}", entry.target))
             .collect();
 
-        if let Some(segs) = segments {
+        // Prefer MixedBody if provided (B2 path); fallback to segmented native text
+        if let Some(items) = mixed {
+            for it in items {
+                match it {
+                    MixedBodyItem::NativeText {
+                        text, start_line, ..
+                    } => {
+                        // Map the first output position of this native span to its frame line
+                        self.builder.map_next(*start_line);
+                        if !text.trim().is_empty() {
+                            self.builder.write(text);
+                            if !text.ends_with('\n') {
+                                self.builder.newline();
+                            }
+                        }
+                    }
+                    MixedBodyItem::NativeAst {
+                        start_line, ast, ..
+                    } => {
+                        self.builder.map_next(*start_line);
+                        let code = ast.to_source();
+                        if !code.trim().is_empty() {
+                            self.builder.write(code);
+                            if !code.ends_with('\n') {
+                                self.builder.newline();
+                            }
+                        }
+                    }
+                    MixedBodyItem::Frame { frame_line, stmt } => {
+                        // Map directive glue to the directive's frame line
+                        self.builder.map_next(*frame_line);
+                        let code = self.emit_mir_statement_as_swc(stmt);
+                        if !code.is_empty() {
+                            self.builder.write(&code);
+                            if !code.ends_with('\n') {
+                                self.builder.newline();
+                            }
+                        }
+                    }
+                }
+            }
+            return (true, ignored);
+        } else if let Some(segs) = segments {
             for seg in segs {
                 match seg {
                     BodySegment::Native { text, .. } => {
@@ -8446,15 +8574,21 @@ impl TypeScriptVisitor {
                             }
                         }
                     }
-                    BodySegment::Directive { kind, line_text, .. } => {
+                    BodySegment::FrameStmt {
+                        kind, line_text, ..
+                    } => {
                         match kind {
-                            crate::frame_c::native_region_segmenter::DirectiveKind::Transition => {
+                            crate::frame_c::native_region_segmenter::FrameStmtKind::Transition => {
                                 // Very simple parse: look for "$Name" after ->
                                 if let Some(dollar) = line_text.find('$') {
-                                    let tail = &line_text[dollar+1..];
+                                    let tail = &line_text[dollar + 1..];
                                     let mut name = String::new();
                                     for ch in tail.chars() {
-                                        if ch.is_alphanumeric() || ch == '_' { name.push(ch); } else { break; }
+                                        if ch.is_alphanumeric() || ch == '_' {
+                                            name.push(ch);
+                                        } else {
+                                            break;
+                                        }
                                     }
                                     if !name.is_empty() {
                                         // Emit basic transition glue without args
@@ -8468,7 +8602,7 @@ impl TypeScriptVisitor {
                                     }
                                 }
                             }
-                            crate::frame_c::native_region_segmenter::DirectiveKind::Forward => {
+                            crate::frame_c::native_region_segmenter::FrameStmtKind::Forward => {
                                 // Parent forward: set nextCompartment to parent state and forward current event
                                 // Determine current state and its parent from the AST if possible.
                                 if let Some(curr_state_name) = &self.current_state_name {
@@ -8483,7 +8617,8 @@ impl TypeScriptVisitor {
                                             "this._nextCompartment = new FrameCompartment('{}', null, null, {{}}, {{}});",
                                             parent_name
                                         ));
-                                        self.builder.writeln("this._nextCompartment.forwardEvent = __e;");
+                                        self.builder
+                                            .writeln("this._nextCompartment.forwardEvent = __e;");
                                         self.builder.writeln("return;");
                                     } else {
                                         // If parent not found, fall back to forwarding to current state
@@ -8493,23 +8628,27 @@ impl TypeScriptVisitor {
                                             "this._nextCompartment = new FrameCompartment('{}', null, null, {{}}, {{}});",
                                             curr
                                         ));
-                                        self.builder.writeln("this._nextCompartment.forwardEvent = __e;");
+                                        self.builder
+                                            .writeln("this._nextCompartment.forwardEvent = __e;");
                                         self.builder.writeln("return;");
                                     }
                                 } else {
                                     self.builder.writeln("// TODO: unable to resolve current state for parent forward");
                                 }
                             }
-                            crate::frame_c::native_region_segmenter::DirectiveKind::StackPush => {
+                            crate::frame_c::native_region_segmenter::FrameStmtKind::StackPush => {
                                 // Push current state onto return stack (or dedicated state stack) and return
                                 // For TS backend we use returnStack as general stack storage.
                                 self.builder.writeln("this.returnStack.push({});");
                                 self.builder.writeln("return;");
                             }
-                            crate::frame_c::native_region_segmenter::DirectiveKind::StackPop => {
+                            crate::frame_c::native_region_segmenter::FrameStmtKind::StackPop => {
                                 // Pop a previously pushed value/state and return it as handler result
-                                self.builder.writeln("const __popped = this.returnStack.pop();");
-                                self.builder.writeln("this.returnStack[this.returnStack.length - 1] = __popped;");
+                                self.builder
+                                    .writeln("const __popped = this.returnStack.pop();");
+                                self.builder.writeln(
+                                    "this.returnStack[this.returnStack.length - 1] = __popped;",
+                                );
                                 self.builder.writeln("return;");
                             }
                         }
@@ -8699,6 +8838,42 @@ impl TypeScriptVisitor {
                 self.builder.newline();
             } else {
                 self.builder.writeln(line);
+            }
+        }
+    }
+
+    fn emit_mir_statement_as_swc(&self, mir: &MirStatement) -> String {
+        match mir {
+            MirStatement::Transition { state, .. } => {
+                format!(
+                    "this._frame_transition(new FrameCompartment(\"{}\", null, null, {{}}, {{}}));\nreturn;\n",
+                    state
+                )
+            }
+            MirStatement::ParentForward => {
+                let mut target = String::new();
+                if let Some(curr) = &self.current_state_name {
+                    let curr_formatted = self.format_state_name(curr);
+                    if let Some(parent) = self.parent_state_map.get(&curr_formatted).and_then(|p| p.clone()) {
+                        target = parent;
+                    } else {
+                        target = curr_formatted;
+                    }
+                }
+                if target.is_empty() { target = "".to_string(); }
+                format!(
+                    "this._nextCompartment = new FrameCompartment(\"{}\", null, null, {{}}, {{}});\nthis._nextCompartment.forwardEvent = __e;\nreturn;\n",
+                    target
+                )
+            }
+            MirStatement::StackPush => {
+                "this.returnStack.push({});\nreturn;\n".to_string()
+            }
+            MirStatement::StackPop => {
+                "const __popped = this.returnStack.pop();\nthis.returnStack[this.returnStack.length - 1] = __popped;\nreturn;\n".to_string()
+            }
+            MirStatement::Return(_expr) => {
+                "return;\n".to_string()
             }
         }
     }

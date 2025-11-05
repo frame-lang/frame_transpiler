@@ -6,6 +6,11 @@ const FRAME_RUNTIME_PY_INIT: &str = include_str!("../../../frame_runtime_py/__in
 const FRAME_RUNTIME_PY_SOCKET: &str = include_str!("../../../frame_runtime_py/socket.py");
 const FRAME_RUNTIME_TS_INDEX: &str = include_str!("../../../frame_runtime_ts/index.ts");
 
+/// Get the embedded TypeScript runtime source as a &str for inlining
+pub fn typescript_runtime_source() -> &'static str {
+    FRAME_RUNTIME_TS_INDEX
+}
+
 /// Ensure the shared Python runtime package is available in the provided
 /// output directory. Returns the path to the emitted package.
 pub fn emit_python_runtime_package(output_dir: &Path) -> io::Result<PathBuf> {

@@ -18,6 +18,118 @@ CompilationUnit (.frm file)
   → Visitors (code generation)
 ```
 
+### End‑to‑End Pipeline (detailed)
+
+```
+               +----------------------+
+               |  Frame Source (.frm) |
+               +-----------+----------+
+                           |
+                           v
+         +-----------------+-----------------+
+         |     Module Partitioner             |
+         |  (file/module partitions & ranges) |
+         +-----------------+-----------------+
+                           |
+                           v
+        +------------------+------------------+
+        |   Scanner (Frame Common)            |
+        | - Tokens (Frame)                    |
+        | - Target regions (aka NativeRegion) |
+        +------------------+------------------+
+                           |
+                           v
+      +--------------------+--------------------+
+      |      Parser (Pass 1: Symbols)          |
+      |      Arcanum (symbol tables)           |
+      +--------------------+--------------------+
+                           |
+                           v
+      +--------------------+--------------------+
+      |      Parser (Pass 2: AST)              |
+      |  - Frame AST                            |
+      |  - Target body parse (SWC/RustPython)   |
+      |  - NativeRegionSegmenter (body slices)  |
+      +--------------------+--------------------+
+                           |
+                           v
+      +--------------------+--------------------+
+      |    MixedBody / MIR Assembly            |
+      |  [NativeText | Frame(MirDirective)]     |
+      +--------------------+--------------------+
+                           |
+                           v
+      +--------------------+--------------------+
+      | Semantic Analyzer (planned, out-of-pass)|
+      |  Resolution, validation, typing rules   |
+      +--------------------+--------------------+
+                           |
+                           v
+      +--------------------+--------------------+
+      |   Visitors (TS/Py/LLVM/GraphViz)       |
+      |   Code emission + source maps          |
+      +--------------------+--------------------+
+                           |
+                           v
+      +--------------------+--------------------+
+      | Toolchains / Runtime Integration       |
+      | node/tsc · python3 · clang/llvm        |
+      +--------------------+--------------------+
+                           |
+                           v
+      +--------------------+--------------------+
+      | Test Runner + CI (frame_test_runner)   |
+      +----------------------------------------+
+```
+
+## Stage‑by‑Stage Details
+
+1) Inputs & Configuration
+- Inputs: `.frm` sources, CLI flags (`-l target`), optional FID cache (`.frame/cache/fid/{target}`); env overrides (`FRAME_FID_PATH`).
+- Invariants: all sources in a build agree on target; `@target` prolog matches CLI.
+
+2) Module Partitioner
+- Produces ordered partitions (Prolog, Imports, FrameOutline, Body). Body partitions carry brace‑balanced ranges. See stages/module_partitioner.md
+
+3) Scanner (Frame Common) & Target Discovery
+- Emits Frame tokens and `TargetRegion` (aka `NativeRegion`) entries for native bodies with `TargetSourceMap` anchors.
+
+4) Parser Pass 1 (Symbols)
+- Builds `Arcanum` scope stack for systems/classes/functions/actions/operations.
+
+5) Parser Pass 2 (AST)
+- Builds `FrameModule` AST; for bodies:
+  - Native‑only → target parser (SWC/rustpython) → `ParsedTargetBlock`.
+  - Mixed/undecidable → `NativeRegionSegmenter` → `segmented_body`.
+ - More: stages/target_parsers.md
+
+6) NativeRegionSegmenter (per target)
+- Classifies native body lines into `BodySegment::{Native,Directive}` using a brace/string/comment/template‑aware state machine. See stages/native_region_segmenter.md
+
+7) MixedBody / MIR Assembly
+- Converts to `[MixedBodyItem::{NativeText,Frame(MirDirective)}]` for stable codegen and source mapping. See stages/mixed_body_mir.md
+
+Parsers & Mixed AST Linkage
+- Target parsers (SWC for TypeScript; rustpython for Python) validate native‑only bodies and supply structured spans, but do not own Frame semantics or codegen.
+- Mixed bodies skip target parsing and instead use the NativeRegionSegmenter + MixedBody/MIR. Visitors emit native spans verbatim and expand directives with deterministic glue.
+- Frame symbols are maintained by Arcanum; native symbol information (when collected) is kept in a sidecar index for diagnostics only. No merging into Arcanum.
+- Further details: stages/mixed_asts_and_symbols.md
+
+8) Semantic Analyzer (planned)
+- Out‑of‑pass analyzer for resolution and validation; removes semantic checks from parser pass 2.
+
+9) Visitors
+- Target code emission; B2 path expands MIR into target AST (e.g., SWC) instead of string glue.
+
+10) Diagnostics & Source Maps
+- Compose Frame/native spans across partitions and mixed bodies. See stages/diagnostics_and_source_maps.md
+
+11) Toolchains & Runtime
+- Node/tsc (TS), Python 3 (Py), LLVM FFI→IR transition.
+
+12) Test Runner & CI
+- Full suite validation after each stage change.
+
 ### Terminology: Partition vs Segment
 
 - Partition (Frame‑outer context): a contiguous region where Frame is the host grammar and native code appears only as embedded islands. Partitions are produced by the ModulePartitioner.
@@ -61,6 +173,96 @@ In short: we partition Frame blocks; we segment native blocks.
   - Implementations: `framec/src/frame_c/source_map.rs`, `framec/src/frame_c/source_mapping.rs`
   - Policy: Partitions choose diagnostic domain (Frame vs native). Segments carry dual locations (frame_line for directives; start/end target lines for native).
 
+### MixedBody + MIR (B2 direction)
+
+This section defines the MIR used by the Frame compiler to represent embedded Frame control semantics inside target‑native bodies.
+
+Definition
+- MIR (Minimal Intermediate Representation) is a compact, target‑agnostic model for Frame‑only control semantics that may appear inside native target code blocks. It is intentionally small and stable to enable deterministic code generation and mapping.
+
+Scope
+- MIR only models Frame semantics that cross native boundaries:
+  - State transition: `-> $State(args)`
+  - Parent forward: `=> $^`
+  - State stack operations: `$$[+]`, `$$[-]`
+  - Return terminator: `return [expr]` (handler/operation/action context)
+- Everything else remains as native text (verbatim) and is not represented in MIR.
+
+Data Model
+- MixedBodyItem (ordered):
+  - `NativeText { target, text, start_line, end_line }`
+  - `Frame(MirDirective)`
+- MirDirective:
+  - `Transition { state: String, args: Vec<String> }`
+  - `ParentForward`
+  - `StackPush`
+  - `StackPop`
+  - `Return(Option<String>)`
+
+### Directive Detection Invariants (All Targets)
+
+- SOL-anchored: A line is classified as a Frame directive only if the directive tokens begin at the first non-whitespace column. No mid-line detection.
+- Full token patterns:
+  - Transition: `-> $State` (require `$` after optional whitespace following `->`).
+  - Parent forward: `=> $^` (require `$^` after optional whitespace following `=>`).
+  - Stack ops: `$$[+]`, `$$[-]`.
+- String/comment safe: Per-target segmenters must ignore occurrences inside string literals, template literals, and comments using a small, explicit DFA. No heuristics.
+- Whitespace: Detection relies on a Unicode-aware space predicate (includes tabs, NBSP, U+2000–U+200A, U+202F, U+205F, U+3000). This ensures SOL and leading/trailing whitespace handling is robust across editors.
+- EOLs: The pipeline tolerates LF and CRLF. Standalone CR is normalized by the reader if encountered.
+- BOM: If a UTF-8 BOM is present, it is stripped before scanning so SOL detection is unaffected.
+
+### Per-Target Segmenters (Summary)
+
+- Python: Handles single/double/triple-quoted strings and `#` comments; SOL detection applies; triple-quoted literals are respected inside native bodies.
+- TypeScript: Handles single/double quotes, `//`, `/* */`, and backtick template literals with nested `${…}`; SOL detection applies; braces inside template expressions do not affect top-level detection.
+- C/C++: Recognizes `//`, `/* */`, and raw strings; SOL detection requires `-> $` to avoid `ptr->field` false positives.
+- Rust/Java/Kotlin/C#: Apply the same SOL + pattern rules; treat native arrow (`=>`) or lambdas as non-directives unless followed by `$^` at SOL.
+
+These invariants are enforced in segmenters and mirrored in the FrameCommon scanner to treat space-like characters as whitespace. Negative fixtures exist for common false positives.
+
+Semantics
+- Ordering: MixedBodyItem order equals source order.
+- Termination: Transition/Forward/StackPop are handler‑terminal; any following statements are considered unreachable (validator enforces).
+- Purity: MIR nodes carry only what is needed to generate correct target glue; evaluation of arguments (when present in the future) is deferred to target codegen.
+
+Construction
+- Native‑only body: parser attaches native target AST; MixedBody contains a single `NativeText` spanning the body.
+- Mixed body: NativeRegionSegmenter produces `BodySegment::{Native,Directive}`; parser converts segments to MixedBody by mapping directives to MirDirective and aggregating adjacent native lines into `NativeText` slices.
+
+Mapping to Codegen
+- Visitors iterate MixedBody and:
+  - Emit `NativeText` verbatim.
+  - Expand `MirDirective` to target‑native glue (custom visitor logic keeps emission deterministic).
+- Source maps:
+  - `NativeText`: use recorded start/end frame lines to map target lines back to Frame.
+  - `MirDirective`: synthesize mapping anchored at the directive’s frame line.
+
+Examples
+```
+// Frame (TypeScript target body)
+{
+  const x = 1;
+  -> $Running
+}
+
+// MixedBody
+[
+  NativeText { text: "  const x = 1;\n", start_line: L+1, end_line: L+1, target: typescript },
+  Frame(Transition { state: "Running", args: [] })
+]
+```
+
+Constraints & Invariants
+- No reformatting of native text in MixedBody assembly.
+- MIR carries names and (later) argument string forms only; it does not own type information (that remains in Arcanum / analyzer).
+- MixedBody must be present or derivable for all bodies that contain directives inside native code.
+
+Extensibility
+- New Frame control semantics can be added as new MirDirective variants with a corresponding visitor emission rule.
+
+Further Reading
+- Stage doc: stages/mixed_body_mir.md (assembly rules and validation).
+
 ### Evolution (planned and in progress)
 
 - Parse‑once + dedicated SemanticAnalyzer
@@ -72,6 +274,11 @@ In short: we partition Frame blocks; we segment native blocks.
   - `interleaver` modules → `native_region_segmenter`
   - `FrameStmtKind` → `DirectiveKind`
   - `ActionBody::Interleaved` → `ActionBody::Segmented`
+
+- MixedBody/B2 implementation
+  - Populate `mixed_body` for all target bodies that are native or segmented.
+  - Translate `MirDirective` into target-native AST (SWC for TypeScript), then delegate emission to native printers.
+  - Compose Frame/native source maps for precise diagnostics across mixed content.
 
 ---
 

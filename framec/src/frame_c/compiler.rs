@@ -467,6 +467,11 @@ impl Exe {
             }
         }
 
+        // Desugar single-file constructs before emission (pseudo-symbols, etc.)
+        if let Some(lang) = target_language {
+            crate::frame_c::desugar::desugar_module(&mut frame_module, lang);
+        }
+
         // let generate_enter_args = semantic_parser.generate_enter_args;
         // let generate_exit_args = semantic_parser.generate_exit_args;
         let generate_state_context = semantic_parser.generate_state_context;
@@ -1010,7 +1015,8 @@ mod native_module_tests {
     fn typescript_native_modules_missing() {
         let module = build_native_module(&["runtime", "unknown"]);
         let err = validate_typescript_native_modules(&module).unwrap_err();
-        assert!(err.error.contains("runtime/unknown"));
+        // Error should include the missing module path in :: form
+        assert!(err.error.contains("runtime::unknown"));
     }
 }
 

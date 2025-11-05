@@ -5,7 +5,6 @@ system NativePython {
     machine:
         $Init {
             start() {
-                #[target: python]
                 print("native python block start")
                 for idx in range(2):
                     print(f"idx = {idx}")
@@ -16,14 +15,12 @@ system NativePython {
 
     actions:
         log(message) {
-            #[target: python]
             print("LOG: " + message)
             return
         }
     }
 
 fn helper() {
-    #[target: python]
     print("helper native")
     return 42
 }

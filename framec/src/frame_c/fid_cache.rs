@@ -141,7 +141,11 @@ fn collect_search_dirs(spec_dir: Option<&Path>, target: TargetLanguage) -> Vec<P
     }
 
     if let Ok(cwd) = env::current_dir() {
-        push_unique_dir(&mut dirs, &mut seen, cwd.join(".frame/cache/fid").join(target_segment));
+        push_unique_dir(
+            &mut dirs,
+            &mut seen,
+            cwd.join(".frame/cache/fid").join(target_segment),
+        );
     }
 
     if let Ok(paths_var) = env::var("FRAME_FID_PATH") {

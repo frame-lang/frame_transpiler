@@ -6,10 +6,10 @@ use super::scanner::{TargetRegion, Token, TokenLiteral, TokenType};
 use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 
 // Removed unused OperatorType imports
-use crate::frame_c::symbol_table::{InterfaceMethodSymbol, OperationScopeSymbol, ParameterSymbol};
-use crate::frame_c::target_parsers::ParsedTargetBlock;
-use crate::frame_c::visitors::*;
 use crate::frame_c::native_region_segmenter::BodySegment;
+use crate::frame_c::symbol_table::{InterfaceMethodSymbol, OperationScopeSymbol, ParameterSymbol};
+use crate::frame_c::target_parsers::{ParsedTargetBlock, TargetAst};
+use crate::frame_c::visitors::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt;
@@ -415,6 +415,51 @@ pub enum ActionBody {
     Frame,
     TargetSpecific,
     Mixed,
+}
+
+/// Frame MIR (minimal intermediate representation) used inside mixed bodies
+/// to capture Frame directives alongside native target code.
+#[derive(Debug, Clone)]
+pub enum MirStatement {
+    /// -> $StateName(args...)
+    Transition {
+        state: String,
+        // Future: carry parsed args once available (ExprType). For now, capture as strings.
+        args: Vec<String>,
+    },
+    /// => $^
+    ParentForward,
+    /// $$[+]
+    StackPush,
+    /// $$[-]
+    StackPop,
+    /// return [expr]
+    Return(Option<String>),
+}
+
+/// MixedBodyItem captures an ordered sequence of native target code and
+/// embedded Frame directives (as MIR). This is target-agnostic at the AST level.
+#[derive(Clone)]
+pub enum MixedBodyItem {
+    /// Verbatim native text for the active target with source span
+    NativeText {
+        target: TargetLanguage,
+        text: String,
+        start_line: usize,
+        end_line: usize,
+    },
+    /// Parsed native AST slice for the active target with source span
+    NativeAst {
+        target: TargetLanguage,
+        start_line: usize,
+        end_line: usize,
+        ast: Arc<dyn TargetAst>,
+    },
+    /// A Frame statement occurring inside a native body
+    Frame {
+        frame_line: usize,
+        stmt: MirStatement,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -1177,6 +1222,7 @@ pub struct ActionNode {
     pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
     pub body: ActionBody,
     pub segmented_body: Option<Vec<BodySegment>>, // NativeRegion segments for native bodies
+    pub mixed_body: Option<Vec<MixedBodyItem>>,   // Unified sequence (native + MIR directives)
 }
 
 impl ActionNode {
@@ -1206,6 +1252,7 @@ impl ActionNode {
             unrecognized_statements: Vec::new(),
             body: ActionBody::Empty,
             segmented_body: None,
+            mixed_body: None,
         }
     }
 }
@@ -1243,6 +1290,7 @@ pub struct OperationNode {
     pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
     pub body: ActionBody,
     pub segmented_body: Option<Vec<BodySegment>>, // NativeRegion segments for native bodies
+    pub mixed_body: Option<Vec<MixedBodyItem>>,   // Unified sequence (native + MIR directives)
 }
 
 impl OperationNode {
@@ -1274,6 +1322,7 @@ impl OperationNode {
             unrecognized_statements: Vec::new(),
             body: ActionBody::Empty,
             segmented_body: None,
+            mixed_body: None,
         }
     }
 
@@ -1804,6 +1853,7 @@ pub struct EventHandlerNode {
     pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
     pub body: ActionBody,
     pub segmented_body: Option<Vec<crate::frame_c::native_region_segmenter::BodySegment>>, // NativeRegion segments for native TS bodies
+    pub mixed_body: Option<Vec<MixedBodyItem>>, // Unified sequence (native + MIR directives)
 }
 
 impl EventHandlerNode {
@@ -1835,6 +1885,7 @@ impl EventHandlerNode {
             unrecognized_statements: Vec::new(),
             body: ActionBody::Empty,
             segmented_body: None,
+            mixed_body: None,
         }
     }
 

@@ -697,7 +697,10 @@ fn typedoc_invocation() -> (String, Vec<String>) {
     }
     // 3) Prefer npm exec typedoc if npm is available; fallback to npx typedoc
     // We cannot detect npm presence portably here; try npm exec and let OS handle failures.
-    ("npm".to_string(), vec!["exec".into(), "--".into(), "typedoc".into()])
+    (
+        "npm".to_string(),
+        vec!["exec".into(), "--".into(), "typedoc".into()],
+    )
 }
 
 fn temp_json_path() -> PathBuf {

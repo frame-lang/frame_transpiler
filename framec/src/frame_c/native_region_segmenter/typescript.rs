@@ -1,4 +1,4 @@
-use super::{BodySegment, DirectiveKind};
+use super::{BodySegment, FrameStmtKind};
 
 /// Segment a TypeScript native region into Native and Directive segments.
 /// Top-level detection uses a small state machine for strings/comments/template literals.
@@ -100,66 +100,163 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
 
             // String states
             if !in_template && !in_squote && !in_dquote {
-                if ch == '\'' { in_squote = true; j += 1; continue; }
-                if ch == '"' { in_dquote = true; j += 1; continue; }
-                if ch == '`' { in_template = true; j += 1; continue; }
+                if ch == '\'' {
+                    in_squote = true;
+                    j += 1;
+                    continue;
+                }
+                if ch == '"' {
+                    in_dquote = true;
+                    j += 1;
+                    continue;
+                }
+                if ch == '`' {
+                    in_template = true;
+                    j += 1;
+                    continue;
+                }
             } else {
                 if in_squote {
-                    if ch == '\\' { j += 2; continue; }
-                    if ch == '\'' { in_squote = false; j += 1; continue; }
-                    j += 1; continue;
+                    if ch == '\\' {
+                        j += 2;
+                        continue;
+                    }
+                    if ch == '\'' {
+                        in_squote = false;
+                        j += 1;
+                        continue;
+                    }
+                    j += 1;
+                    continue;
                 }
                 if in_dquote {
-                    if ch == '\\' { j += 2; continue; }
-                    if ch == '"' { in_dquote = false; j += 1; continue; }
-                    j += 1; continue;
+                    if ch == '\\' {
+                        j += 2;
+                        continue;
+                    }
+                    if ch == '"' {
+                        in_dquote = false;
+                        j += 1;
+                        continue;
+                    }
+                    j += 1;
+                    continue;
                 }
                 if in_template {
                     if ch == '$' && j + 1 < bytes.len() && bytes[j + 1] as char == '{' {
-                        tpl_expr_depth += 1; j += 2; continue;
+                        tpl_expr_depth += 1;
+                        j += 2;
+                        continue;
                     }
-                    if ch == '}' && tpl_expr_depth > 0 { tpl_expr_depth -= 1; j += 1; continue; }
-                    if ch == '`' && tpl_expr_depth == 0 { in_template = false; j += 1; continue; }
-                    j += 1; continue;
+                    if ch == '}' && tpl_expr_depth > 0 {
+                        tpl_expr_depth -= 1;
+                        j += 1;
+                        continue;
+                    }
+                    if ch == '`' && tpl_expr_depth == 0 {
+                        in_template = false;
+                        j += 1;
+                        continue;
+                    }
+                    j += 1;
+                    continue;
                 }
             }
 
             // Update brace depth outside strings/comments/template text
-            if ch == '{' { brace_depth += 1; j += 1; continue; }
-            if ch == '}' { brace_depth -= 1; j += 1; continue; }
+            if ch == '{' {
+                brace_depth += 1;
+                j += 1;
+                continue;
+            }
+            if ch == '}' {
+                brace_depth -= 1;
+                j += 1;
+                continue;
+            }
 
-            // Detect directives at top level
+            // Detect directives at top level and only at first non-whitespace column
             if brace_depth == 0 {
-                // Transition: "->"
-                if ch == '-' && j + 1 < bytes.len() && bytes[j + 1] as char == '>' {
-                    // Flush native up to previous line
-                    flush_native(&mut segments, region_lines, start_line, native_start, frame_ln.saturating_sub(1));
-                    native_start = None;
-                    segments.push(BodySegment::Directive { kind: DirectiveKind::Transition, frame_line: frame_ln, line_text: line.to_string() });
-                    // Consume rest of line
-                    break;
-                }
-                // Forward: "=> $^" (avoid TS arrow false positives)
-                if ch == '=' && j + 1 < bytes.len() && bytes[j + 1] as char == '>' {
-                    // lookahead for $^
-                    let mut k = j + 2;
-                    while k < bytes.len() && (bytes[k] as char).is_whitespace() { k += 1; }
-                    if k + 1 < bytes.len() && bytes[k] as char == '$' && bytes[k + 1] as char == '^' {
-                        flush_native(&mut segments, region_lines, start_line, native_start, frame_ln.saturating_sub(1));
-                        native_start = None;
-                        segments.push(BodySegment::Directive { kind: DirectiveKind::Forward, frame_line: frame_ln, line_text: line.to_string() });
-                        break;
-                    }
-                }
-                // Stack push/pop
-                if ch == '$' && j + 4 < bytes.len() && bytes[j + 1] as char == '$' && bytes[j + 2] as char == '[' {
-                    let sign = bytes[j + 3] as char;
-                    if (sign == '+' || sign == '-') && bytes[j + 4] as char == ']' {
-                        flush_native(&mut segments, region_lines, start_line, native_start, frame_ln.saturating_sub(1));
-                        native_start = None;
-                        let kind = if sign == '+' { DirectiveKind::StackPush } else { DirectiveKind::StackPop };
-                        segments.push(BodySegment::Directive { kind, frame_line: frame_ln, line_text: line.to_string() });
-                        break;
+                if let Some(col0) = line.find(|c: char| !c.is_whitespace()) {
+                    if j == col0 {
+                        // Transition: require '->' followed by optional WS and then '$'
+                        if ch == '-' && j + 1 < bytes.len() && bytes[j + 1] as char == '>' {
+                            let mut k = j + 2;
+                            while k < bytes.len() && (bytes[k] as char).is_whitespace() {
+                                k += 1;
+                            }
+                            if k < bytes.len() && bytes[k] as char == '$' {
+                                flush_native(
+                                    &mut segments,
+                                    region_lines,
+                                    start_line,
+                                    native_start,
+                                    frame_ln.saturating_sub(1),
+                                );
+                                native_start = None;
+                                segments.push(BodySegment::FrameStmt {
+                                    kind: FrameStmtKind::Transition,
+                                    frame_line: frame_ln,
+                                    line_text: line.to_string(),
+                                });
+                                break;
+                            }
+                        }
+                        // Forward: '=>' followed by optional WS and then '$^'
+                        if ch == '=' && j + 1 < bytes.len() && bytes[j + 1] as char == '>' {
+                            let mut k = j + 2;
+                            while k < bytes.len() && (bytes[k] as char).is_whitespace() {
+                                k += 1;
+                            }
+                            if k + 1 < bytes.len()
+                                && bytes[k] as char == '$'
+                                && bytes[k + 1] as char == '^'
+                            {
+                                flush_native(
+                                    &mut segments,
+                                    region_lines,
+                                    start_line,
+                                    native_start,
+                                    frame_ln.saturating_sub(1),
+                                );
+                                native_start = None;
+                                segments.push(BodySegment::FrameStmt {
+                                    kind: FrameStmtKind::Forward,
+                                    frame_line: frame_ln,
+                                    line_text: line.to_string(),
+                                });
+                                break;
+                            }
+                        }
+                        // Stack push/pop: $$[+]/$$[-]
+                        if ch == '$'
+                            && j + 4 < bytes.len()
+                            && bytes[j + 1] as char == '$'
+                            && bytes[j + 2] as char == '['
+                        {
+                            let sign = bytes[j + 3] as char;
+                            if (sign == '+' || sign == '-') && bytes[j + 4] as char == ']' {
+                                flush_native(
+                                    &mut segments,
+                                    region_lines,
+                                    start_line,
+                                    native_start,
+                                    frame_ln.saturating_sub(1),
+                                );
+                                native_start = None;
+                                let kind = if sign == '+' {
+                                    FrameStmtKind::StackPush
+                                } else {
+                                    FrameStmtKind::StackPop
+                                };
+                                segments.push(BodySegment::FrameStmt {
+                                    kind,
+                                    frame_line: frame_ln,
+                                    line_text: line.to_string(),
+                                });
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -171,7 +268,7 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
         if !segments
             .last()
             .map(|s| match s {
-                BodySegment::Directive { frame_line, .. } if *frame_line == frame_ln => true,
+                BodySegment::FrameStmt { frame_line, .. } if *frame_line == frame_ln => true,
                 _ => false,
             })
             .unwrap_or(false)
@@ -184,7 +281,13 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
 
     // Flush trailing native run
     if let Some(start) = native_start {
-        flush_native(&mut segments, region_lines, start_line, Some(start), end_line);
+        flush_native(
+            &mut segments,
+            region_lines,
+            start_line,
+            Some(start),
+            end_line,
+        );
     }
 
     segments
@@ -212,7 +315,11 @@ system NativeLine {
         let segs = segment_ts_body(src, 5, 5);
         assert_eq!(segs.len(), 1);
         match &segs[0] {
-            BodySegment::Native { text, start_line, end_line } => {
+            BodySegment::Native {
+                text,
+                start_line,
+                end_line,
+            } => {
                 assert!(text.contains("const x = 1;"));
                 assert_eq!((*start_line, *end_line), (5, 5));
             }
@@ -235,6 +342,9 @@ system S {
 }
 "#;
         let segs = segment_ts_body(src, 5, 5);
-        assert!(matches!(segs.last().unwrap(), BodySegment::Directive { .. }));
+        assert!(matches!(
+            segs.last().unwrap(),
+            BodySegment::FrameStmt { .. }
+        ));
     }
 }

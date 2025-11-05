@@ -310,6 +310,10 @@ impl ModuleLinker {
                 TargetLanguage::TypeScript => {
                     // Only extract import statements, not export class declarations
                     if trimmed.starts_with("import ") && !trimmed.starts_with("// Frame import:") {
+                        // Skip runtime import; runtime is embedded once by the linker
+                        if trimmed.contains("from './frame_runtime_ts'") {
+                            continue;
+                        }
                         imports.insert(trimmed.to_string());
                     }
                 }
@@ -377,7 +381,10 @@ impl ModuleLinker {
                 output.push_str("            self.state_args = state_args or {}\n");
             }
             TargetLanguage::TypeScript => {
-                output.push_str("import { FrameRuntime, FrameCollections, FrameCounter, FrameDict, FrameMath, FrameTime, FrameSys, FrameSignal, FrameNumpy, FrameString, FrameEvent, FrameCompartment, configparser, json, numpy, os, random, signal, sys, time, open } from './frame_runtime_ts';\n\n");
+                // Import the TypeScript runtime from the test runner's shared runtime path
+                output.push_str(
+                    "import { FrameRuntime, FrameCollections, FrameCounter, FrameDict, FrameMath, FrameTime, FrameSys, FrameSignal, FrameNumpy, FrameString, FrameEvent, FrameCompartment, configparser, json, numpy, os, random, signal, sys, time, open } from '../typescript/runtime/frame_runtime';\n\n",
+                );
             }
             _ => {
                 output.push_str("// Frame runtime classes\n");

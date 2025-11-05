@@ -80,15 +80,18 @@ pub fn run_fid_import(
     let manifest: FidManifest = serde_json::from_str(&config_contents).map_err(|err| {
         RunError::new(
             frame_exitcode::CONFIG_ERR,
-            &format!(
-                "Invalid FID manifest '{}': {}",
-                config_path.display(),
-                err
-            ),
+            &format!("Invalid FID manifest '{}': {}", config_path.display(), err),
         )
     })?;
 
-    run_fid_manifest(config_path, &manifest, force, dry_run, verbose, allow_missing)
+    run_fid_manifest(
+        config_path,
+        &manifest,
+        force,
+        dry_run,
+        verbose,
+        allow_missing,
+    )
 }
 
 fn run_fid_manifest(
@@ -113,7 +116,11 @@ fn run_fid_manifest(
 
     let mut generated_files = Vec::new();
     let mut lock_entries: Vec<LockEntry> = Vec::new();
-    let context = DeclarationImportContext { config_dir: base_dir.clone(), verbose, native_imports: Vec::new() };
+    let context = DeclarationImportContext {
+        config_dir: base_dir.clone(),
+        verbose,
+        native_imports: Vec::new(),
+    };
 
     for src in &manifest.sources {
         let (importer_name, target_subdir) = match src.target.as_str() {
@@ -136,7 +143,11 @@ fn run_fid_manifest(
             fs::create_dir_all(&output_dir).map_err(|err| {
                 RunError::new(
                     frame_exitcode::CONFIG_ERR,
-                    &format!("Unable to create cache directory '{}': {}", output_dir.display(), err),
+                    &format!(
+                        "Unable to create cache directory '{}': {}",
+                        output_dir.display(),
+                        err
+                    ),
                 )
             })?;
         }
@@ -240,7 +251,8 @@ fn run_single_import(
     if verbose {
         println!(
             "[fid import] Using importer '{}' for {:?}",
-            importer.name(), source_config.input
+            importer.name(),
+            source_config.input
         );
     }
 
@@ -252,7 +264,8 @@ fn run_single_import(
         if verbose {
             println!(
                 "[fid import] Importer '{}' produced no modules for {:?}",
-                importer.name(), source_config.input
+                importer.name(),
+                source_config.input
             );
         }
         return Ok(());
@@ -272,7 +285,10 @@ fn run_single_import(
         if output_path.exists() && !force {
             return Err(RunError::new(
                 frame_exitcode::CONFIG_ERR,
-                &format!("FID file '{}' already exists. Use --force to overwrite.", output_path.display()),
+                &format!(
+                    "FID file '{}' already exists. Use --force to overwrite.",
+                    output_path.display()
+                ),
             ));
         }
 
@@ -297,8 +313,15 @@ fn run_single_import(
                 .unwrap_or_else(|| "unknown".to_string()),
             resource: LockResource::from_source(source_config),
             modules: vec![module.qualified_name.clone()],
-            fingerprint: Fingerprint { algorithm: "sha256".to_string(), value: hex_sha256(&stringified), package: None },
-            outputs: vec![LockOutput { namespace: module.path(), path: output_path.to_string_lossy().to_string() }],
+            fingerprint: Fingerprint {
+                algorithm: "sha256".to_string(),
+                value: hex_sha256(&stringified),
+                package: None,
+            },
+            outputs: vec![LockOutput {
+                namespace: module.path(),
+                path: output_path.to_string_lossy().to_string(),
+            }],
         });
     }
 
@@ -347,18 +370,30 @@ impl LockResource {
     fn from_source(src: &DeclarationSourceConfig) -> Self {
         if let Some(opts) = &src.options {
             if let Some(module_name) = opts.get("moduleName").and_then(|v| v.as_str()) {
-                return LockResource::Module { module: LockModule { name: module_name.to_string() } };
+                return LockResource::Module {
+                    module: LockModule {
+                        name: module_name.to_string(),
+                    },
+                };
             }
         }
-        LockResource::File { file: LockFile { uri: src.input.to_string_lossy().to_string() } }
+        LockResource::File {
+            file: LockFile {
+                uri: src.input.to_string_lossy().to_string(),
+            },
+        }
     }
 }
 
 #[derive(Debug, Serialize)]
-struct LockFile { uri: String }
+struct LockFile {
+    uri: String,
+}
 
 #[derive(Debug, Serialize)]
-struct LockModule { name: String }
+struct LockModule {
+    name: String,
+}
 
 #[derive(Debug, Serialize)]
 struct Fingerprint {
@@ -369,10 +404,18 @@ struct Fingerprint {
 }
 
 #[derive(Debug, Serialize)]
-struct LockPackage { manager: String, name: String, version: String, resolved: String }
+struct LockPackage {
+    manager: String,
+    name: String,
+    version: String,
+    resolved: String,
+}
 
 #[derive(Debug, Serialize)]
-struct LockOutput { namespace: String, path: String }
+struct LockOutput {
+    namespace: String,
+    path: String,
+}
 
 fn write_lockfile(base_dir: &Path, entries: Vec<LockEntry>, verbose: bool) -> Result<(), RunError> {
     // Use RFC3339 timestamp
@@ -381,7 +424,10 @@ fn write_lockfile(base_dir: &Path, entries: Vec<LockEntry>, verbose: bool) -> Re
         {
             // Minimal timestamp using std since chrono may not be available
             use std::time::{SystemTime, UNIX_EPOCH};
-            let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+            let secs = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
             format!("{}", secs)
         }
     };
@@ -390,15 +436,24 @@ fn write_lockfile(base_dir: &Path, entries: Vec<LockEntry>, verbose: bool) -> Re
         schema: "docs/schemas/fid_lock.schema.json".to_string(),
         lockVersion: "1".to_string(),
         generatedAt: generated_at,
-        toolchain: LockToolchain { framec: env!("FRAME_VERSION").to_string(), importers: BTreeMap::new() },
+        toolchain: LockToolchain {
+            framec: env!("FRAME_VERSION").to_string(),
+            importers: BTreeMap::new(),
+        },
         entries,
     };
     let json = serde_json::to_string_pretty(&lf).map_err(|err| {
-        RunError::new(frame_exitcode::CONFIG_ERR, &format!("Failed to encode lockfile JSON: {}", err))
+        RunError::new(
+            frame_exitcode::CONFIG_ERR,
+            &format!("Failed to encode lockfile JSON: {}", err),
+        )
     })?;
     let path = base_dir.join("fid.lock.json");
     fs::write(&path, json).map_err(|err| {
-        RunError::new(frame_exitcode::CONFIG_ERR, &format!("Failed to write lockfile '{}': {}", path.display(), err))
+        RunError::new(
+            frame_exitcode::CONFIG_ERR,
+            &format!("Failed to write lockfile '{}': {}", path.display(), err),
+        )
     })?;
     if verbose {
         println!("[fid import] Wrote lockfile {}", path.display());

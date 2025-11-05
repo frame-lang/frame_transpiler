@@ -12,12 +12,12 @@ fn cstr_to_string(ptr: *const c_char) -> String {
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_new(message: *const c_char) -> *mut FrameEvent {
+pub unsafe extern "C" fn frame_runtime_event_new(message: *const c_char) -> *mut FrameEvent {
     Box::into_raw(Box::new(FrameEvent::new(cstr_to_string(message))))
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_free(event: *mut FrameEvent) {
+pub unsafe extern "C" fn frame_runtime_event_free(event: *mut FrameEvent) {
     if event.is_null() {
         return;
     }
@@ -27,7 +27,7 @@ pub extern "C" fn frame_runtime_event_free(event: *mut FrameEvent) {
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_push_param_i32(event: *mut FrameEvent, value: i32) {
+pub unsafe extern "C" fn frame_runtime_event_push_param_i32(event: *mut FrameEvent, value: i32) {
     if event.is_null() {
         return;
     }
@@ -37,7 +37,7 @@ pub extern "C" fn frame_runtime_event_push_param_i32(event: *mut FrameEvent, val
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_push_param_double(event: *mut FrameEvent, value: f64) {
+pub unsafe extern "C" fn frame_runtime_event_push_param_double(event: *mut FrameEvent, value: f64) {
     if event.is_null() {
         return;
     }
@@ -47,7 +47,7 @@ pub extern "C" fn frame_runtime_event_push_param_double(event: *mut FrameEvent, 
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_push_param_bool(event: *mut FrameEvent, value: bool) {
+pub unsafe extern "C" fn frame_runtime_event_push_param_bool(event: *mut FrameEvent, value: bool) {
     if event.is_null() {
         return;
     }
@@ -57,7 +57,7 @@ pub extern "C" fn frame_runtime_event_push_param_bool(event: *mut FrameEvent, va
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_push_param_cstring(
+pub unsafe extern "C" fn frame_runtime_event_push_param_cstring(
     event: *mut FrameEvent,
     value: *const c_char,
 ) {
@@ -73,7 +73,10 @@ pub extern "C" fn frame_runtime_event_push_param_cstring(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_get_param_i32(event: *const FrameEvent, index: i32) -> i32 {
+pub unsafe extern "C" fn frame_runtime_event_get_param_i32(
+    event: *const FrameEvent,
+    index: i32,
+) -> i32 {
     if event.is_null() || index < 0 {
         return 0;
     }
@@ -85,7 +88,7 @@ pub extern "C" fn frame_runtime_event_get_param_i32(event: *const FrameEvent, in
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_get_param_double(
+pub unsafe extern "C" fn frame_runtime_event_get_param_double(
     event: *const FrameEvent,
     index: i32,
 ) -> f64 {
@@ -100,7 +103,10 @@ pub extern "C" fn frame_runtime_event_get_param_double(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_get_param_bool(event: *const FrameEvent, index: i32) -> bool {
+pub unsafe extern "C" fn frame_runtime_event_get_param_bool(
+    event: *const FrameEvent,
+    index: i32,
+) -> bool {
     if event.is_null() || index < 0 {
         return false;
     }
@@ -112,7 +118,7 @@ pub extern "C" fn frame_runtime_event_get_param_bool(event: *const FrameEvent, i
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_get_param_cstring(
+pub unsafe extern "C" fn frame_runtime_event_get_param_cstring(
     event: *const FrameEvent,
     index: i32,
 ) -> *const c_char {
@@ -132,7 +138,7 @@ pub extern "C" fn frame_runtime_compartment_new(state: *const c_char) -> *mut Fr
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_free(compartment: *mut FrameCompartment) {
+pub unsafe extern "C" fn frame_runtime_compartment_free(compartment: *mut FrameCompartment) {
     if compartment.is_null() {
         return;
     }
@@ -142,14 +148,16 @@ pub extern "C" fn frame_runtime_compartment_free(compartment: *mut FrameCompartm
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_kernel_new(compartment: *mut FrameCompartment) -> *mut FrameKernel {
+pub unsafe extern "C" fn frame_runtime_kernel_new(
+    compartment: *mut FrameCompartment,
+) -> *mut FrameKernel {
     FrameKernel::new(compartment)
         .map(|kernel| Box::into_raw(Box::new(kernel)))
         .unwrap_or(ptr::null_mut())
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_kernel_free(kernel: *mut FrameKernel) {
+pub unsafe extern "C" fn frame_runtime_kernel_free(kernel: *mut FrameKernel) {
     if kernel.is_null() {
         return;
     }
@@ -159,7 +167,7 @@ pub extern "C" fn frame_runtime_kernel_free(kernel: *mut FrameKernel) {
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_kernel_dispatch(
+pub unsafe extern "C" fn frame_runtime_kernel_dispatch(
     kernel: *mut FrameKernel,
     event: *mut FrameEvent,
 ) -> i32 {
@@ -175,7 +183,10 @@ pub extern "C" fn frame_runtime_kernel_dispatch(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_kernel_set_state(kernel: *mut FrameKernel, state: *const c_char) {
+pub unsafe extern "C" fn frame_runtime_kernel_set_state(
+    kernel: *mut FrameKernel,
+    state: *const c_char,
+) {
     if kernel.is_null() {
         return;
     }
@@ -186,7 +197,9 @@ pub extern "C" fn frame_runtime_kernel_set_state(kernel: *mut FrameKernel, state
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_kernel_next_event(kernel: *mut FrameKernel) -> *mut FrameEvent {
+pub unsafe extern "C" fn frame_runtime_kernel_next_event(
+    kernel: *mut FrameKernel,
+) -> *mut FrameEvent {
     if kernel.is_null() {
         return ptr::null_mut();
     }
@@ -199,7 +212,7 @@ pub extern "C" fn frame_runtime_kernel_next_event(kernel: *mut FrameKernel) -> *
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_event_is_message(
+pub unsafe extern "C" fn frame_runtime_event_is_message(
     event: *const FrameEvent,
     message: *const c_char,
 ) -> bool {
@@ -212,7 +225,7 @@ pub extern "C" fn frame_runtime_event_is_message(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_set_enter_event(
+pub unsafe extern "C" fn frame_runtime_compartment_set_enter_event(
     compartment: *mut FrameCompartment,
     event: *mut FrameEvent,
 ) {
@@ -232,7 +245,7 @@ pub extern "C" fn frame_runtime_compartment_set_enter_event(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_take_enter_event(
+pub unsafe extern "C" fn frame_runtime_compartment_take_enter_event(
     compartment: *mut FrameCompartment,
 ) -> *mut FrameEvent {
     if compartment.is_null() {
@@ -247,7 +260,7 @@ pub extern "C" fn frame_runtime_compartment_take_enter_event(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_set_exit_event(
+pub unsafe extern "C" fn frame_runtime_compartment_set_exit_event(
     compartment: *mut FrameCompartment,
     event: *mut FrameEvent,
 ) {
@@ -302,7 +315,7 @@ pub extern "C" fn frame_runtime_compartment_set_forward_event(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_kernel_push_compartment(
+pub unsafe extern "C" fn frame_runtime_kernel_push_compartment(
     kernel: *mut FrameKernel,
     compartment: *mut FrameCompartment,
 ) -> *mut FrameCompartment {
@@ -313,7 +326,7 @@ pub extern "C" fn frame_runtime_kernel_push_compartment(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_kernel_pop_compartment(
+pub unsafe extern "C" fn frame_runtime_kernel_pop_compartment(
     kernel: *mut FrameKernel,
 ) -> *mut FrameCompartment {
     if kernel.is_null() {
@@ -323,7 +336,7 @@ pub extern "C" fn frame_runtime_kernel_pop_compartment(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_get_parent(
+pub unsafe extern "C" fn frame_runtime_compartment_get_parent(
     compartment: *mut FrameCompartment,
 ) -> *mut FrameCompartment {
     if compartment.is_null() {
@@ -333,7 +346,7 @@ pub extern "C" fn frame_runtime_compartment_get_parent(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_state_arg_set_i32(
+pub unsafe extern "C" fn frame_runtime_compartment_state_arg_set_i32(
     compartment: *mut FrameCompartment,
     key: *const c_char,
     value: i32,
@@ -348,7 +361,7 @@ pub extern "C" fn frame_runtime_compartment_state_arg_set_i32(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_state_arg_set_double(
+pub unsafe extern "C" fn frame_runtime_compartment_state_arg_set_double(
     compartment: *mut FrameCompartment,
     key: *const c_char,
     value: f64,
@@ -363,7 +376,7 @@ pub extern "C" fn frame_runtime_compartment_state_arg_set_double(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_state_arg_set_bool(
+pub unsafe extern "C" fn frame_runtime_compartment_state_arg_set_bool(
     compartment: *mut FrameCompartment,
     key: *const c_char,
     value: bool,
@@ -378,7 +391,7 @@ pub extern "C" fn frame_runtime_compartment_state_arg_set_bool(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_state_arg_set_cstring(
+pub unsafe extern "C" fn frame_runtime_compartment_state_arg_set_cstring(
     compartment: *mut FrameCompartment,
     key: *const c_char,
     value: *const c_char,
@@ -396,7 +409,7 @@ pub extern "C" fn frame_runtime_compartment_state_arg_set_cstring(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_state_arg_get_i32(
+pub unsafe extern "C" fn frame_runtime_compartment_state_arg_get_i32(
     compartment: *mut FrameCompartment,
     key: *const c_char,
 ) -> i32 {
@@ -413,7 +426,7 @@ pub extern "C" fn frame_runtime_compartment_state_arg_get_i32(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_state_arg_get_double(
+pub unsafe extern "C" fn frame_runtime_compartment_state_arg_get_double(
     compartment: *mut FrameCompartment,
     key: *const c_char,
 ) -> f64 {
@@ -430,7 +443,7 @@ pub extern "C" fn frame_runtime_compartment_state_arg_get_double(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_state_arg_get_bool(
+pub unsafe extern "C" fn frame_runtime_compartment_state_arg_get_bool(
     compartment: *mut FrameCompartment,
     key: *const c_char,
 ) -> bool {
@@ -447,7 +460,7 @@ pub extern "C" fn frame_runtime_compartment_state_arg_get_bool(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_state_arg_get_cstring(
+pub unsafe extern "C" fn frame_runtime_compartment_state_arg_get_cstring(
     compartment: *mut FrameCompartment,
     key: *const c_char,
 ) -> *const c_char {
@@ -464,7 +477,7 @@ pub extern "C" fn frame_runtime_compartment_state_arg_get_cstring(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_enter_arg_set_i32(
+pub unsafe extern "C" fn frame_runtime_compartment_enter_arg_set_i32(
     compartment: *mut FrameCompartment,
     key: *const c_char,
     value: i32,
@@ -479,7 +492,7 @@ pub extern "C" fn frame_runtime_compartment_enter_arg_set_i32(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_enter_arg_set_double(
+pub unsafe extern "C" fn frame_runtime_compartment_enter_arg_set_double(
     compartment: *mut FrameCompartment,
     key: *const c_char,
     value: f64,
@@ -494,7 +507,7 @@ pub extern "C" fn frame_runtime_compartment_enter_arg_set_double(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_enter_arg_set_bool(
+pub unsafe extern "C" fn frame_runtime_compartment_enter_arg_set_bool(
     compartment: *mut FrameCompartment,
     key: *const c_char,
     value: bool,
@@ -509,7 +522,7 @@ pub extern "C" fn frame_runtime_compartment_enter_arg_set_bool(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_enter_arg_set_cstring(
+pub unsafe extern "C" fn frame_runtime_compartment_enter_arg_set_cstring(
     compartment: *mut FrameCompartment,
     key: *const c_char,
     value: *const c_char,
@@ -527,7 +540,7 @@ pub extern "C" fn frame_runtime_compartment_enter_arg_set_cstring(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_enter_arg_get_i32(
+pub unsafe extern "C" fn frame_runtime_compartment_enter_arg_get_i32(
     compartment: *mut FrameCompartment,
     key: *const c_char,
 ) -> i32 {
@@ -544,7 +557,7 @@ pub extern "C" fn frame_runtime_compartment_enter_arg_get_i32(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_enter_arg_get_double(
+pub unsafe extern "C" fn frame_runtime_compartment_enter_arg_get_double(
     compartment: *mut FrameCompartment,
     key: *const c_char,
 ) -> f64 {
@@ -561,7 +574,7 @@ pub extern "C" fn frame_runtime_compartment_enter_arg_get_double(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_enter_arg_get_bool(
+pub unsafe extern "C" fn frame_runtime_compartment_enter_arg_get_bool(
     compartment: *mut FrameCompartment,
     key: *const c_char,
 ) -> bool {
@@ -578,7 +591,7 @@ pub extern "C" fn frame_runtime_compartment_enter_arg_get_bool(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_enter_arg_get_cstring(
+pub unsafe extern "C" fn frame_runtime_compartment_enter_arg_get_cstring(
     compartment: *mut FrameCompartment,
     key: *const c_char,
 ) -> *const c_char {
@@ -595,7 +608,9 @@ pub extern "C" fn frame_runtime_compartment_enter_arg_get_cstring(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_compartment_enter_args_clear(compartment: *mut FrameCompartment) {
+pub unsafe extern "C" fn frame_runtime_compartment_enter_args_clear(
+    compartment: *mut FrameCompartment,
+) {
     if compartment.is_null() {
         return;
     }
@@ -605,7 +620,7 @@ pub extern "C" fn frame_runtime_compartment_enter_args_clear(compartment: *mut F
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_print_line(message: *const c_char) {
+pub unsafe extern "C" fn frame_runtime_print_line(message: *const c_char) {
     if message.is_null() {
         return;
     }
@@ -615,7 +630,7 @@ pub extern "C" fn frame_runtime_print_line(message: *const c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_print_int(value: i32) {
+pub unsafe extern "C" fn frame_runtime_print_int(value: i32) {
     unsafe {
         libc::printf(
             b"%d
@@ -627,7 +642,7 @@ pub extern "C" fn frame_runtime_print_int(value: i32) {
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_print_double(value: f64) {
+pub unsafe extern "C" fn frame_runtime_print_double(value: f64) {
     unsafe {
         libc::printf(
             b"%f
@@ -639,7 +654,7 @@ pub extern "C" fn frame_runtime_print_double(value: f64) {
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_print_bool(value: bool) {
+pub unsafe extern "C" fn frame_runtime_print_bool(value: bool) {
     let text_ptr = if value {
         b"true ".as_ptr() as *const i8
     } else {
@@ -650,7 +665,7 @@ pub extern "C" fn frame_runtime_print_bool(value: bool) {
     }
 }
 #[no_mangle]
-pub extern "C" fn frame_runtime_kernel_state_stack_push(
+pub unsafe extern "C" fn frame_runtime_kernel_state_stack_push(
     kernel: *mut FrameKernel,
     state_index: i32,
 ) {
@@ -663,7 +678,7 @@ pub extern "C" fn frame_runtime_kernel_state_stack_push(
 }
 
 #[no_mangle]
-pub extern "C" fn frame_runtime_kernel_state_stack_pop(
+pub unsafe extern "C" fn frame_runtime_kernel_state_stack_pop(
     kernel: *mut FrameKernel,
     state_out: *mut i32,
 ) -> *mut FrameCompartment {

@@ -420,6 +420,90 @@ impl<'a> Parser<'a> {
         self.pending_segments.take()
     }
 
+    fn build_mixed_body_from_segments(
+        &self,
+        target: TargetLanguage,
+        segments: &[crate::frame_c::native_region_segmenter::BodySegment],
+    ) -> Vec<MixedBodyItem> {
+        use crate::frame_c::native_region_segmenter::{BodySegment, FrameStmtKind};
+        use crate::frame_c::scanner::{TargetRegion, TargetSourceMap};
+        use crate::frame_c::target_parsers::parse_target_region;
+        let mut items = Vec::new();
+        for seg in segments {
+            match seg {
+                BodySegment::Native {
+                    text,
+                    start_line,
+                    end_line,
+                } => {
+                    // Try to parse native slice into a TargetAst; fall back to text
+                    let raw = text.clone();
+                    let region = TargetRegion {
+                        start_position: 0,
+                        end_position: None,
+                        raw_content: raw,
+                        target: target.clone(),
+                        source_map: TargetSourceMap {
+                            frame_start_line: *start_line,
+                            target_line_offsets: Vec::new(),
+                        },
+                    };
+                    match parse_target_region(target.clone(), &region) {
+                        Ok(ast) => {
+                            items.push(MixedBodyItem::NativeAst {
+                                target: target.clone(),
+                                start_line: *start_line,
+                                end_line: *end_line,
+                                ast,
+                            });
+                        }
+                        Err(_) => {
+                            items.push(MixedBodyItem::NativeText {
+                                target: target.clone(),
+                                text: text.clone(),
+                                start_line: *start_line,
+                                end_line: *end_line,
+                            });
+                        }
+                    }
+                }
+                BodySegment::FrameStmt {
+                    kind,
+                    frame_line: fl,
+                    line_text,
+                } => {
+                    let mir = match kind {
+                        FrameStmtKind::Transition => {
+                            // Minimal extract of state name after "$"
+                            let mut state = String::new();
+                            if let Some(dollar) = line_text.find('$') {
+                                for ch in line_text[dollar + 1..].chars() {
+                                    if ch.is_alphanumeric() || ch == '_' {
+                                        state.push(ch);
+                                    } else {
+                                        break;
+                                    }
+                                }
+                            }
+                            MirStatement::Transition {
+                                state,
+                                args: Vec::new(),
+                            }
+                        }
+                        FrameStmtKind::Forward => MirStatement::ParentForward,
+                        FrameStmtKind::StackPush => MirStatement::StackPush,
+                        FrameStmtKind::StackPop => MirStatement::StackPop,
+                    };
+                    items.push(MixedBodyItem::Frame {
+                        frame_line: *fl,
+                        stmt: mir,
+                    });
+                }
+            }
+        }
+        items
+    }
+
     fn module_scope(&mut self) -> Result<FrameModule, ParseError> {
         // Module scope management following the function_scope() pattern
 
@@ -2278,11 +2362,13 @@ impl<'a> Parser<'a> {
                 self.peek()
             );
         }
-        // For TypeScript target bodies, capture native lines verbatim and skip Frame parsing
+        // For TypeScript/Python target bodies, capture native lines verbatim and skip Frame parsing
         let mut statements: Vec<DeclOrStmtType> = Vec::new();
         let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
         let mut target_specific_regions: Vec<TargetSpecificRegionRef> = Vec::new();
-        if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript))
+            || matches!(self.target_language, Some(TargetLanguage::Python3))
+        {
             // Skip tokens until matching '}' without consuming the closing brace
             let mut depth: i32 = 1; // already consumed '{'
             let mut last_line = body_start_line;
@@ -2302,7 +2388,7 @@ impl<'a> Parser<'a> {
                 self.advance();
             }
 
-            // Slice source lines and construct a synthetic TypeScript target block
+            // Slice source lines and construct a synthetic target block
             let start_line = body_start_line.saturating_add(1);
             let end_line = last_line;
             if end_line >= start_line {
@@ -2316,25 +2402,55 @@ impl<'a> Parser<'a> {
                     }
                 }
 
-                let _region = TargetRegion {
+                let region = TargetRegion {
                     start_position: 0,
                     end_position: None,
                     raw_content: raw,
-                    target: TargetLanguage::TypeScript,
+                    target: if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                        TargetLanguage::TypeScript
+                    } else {
+                        TargetLanguage::Python3
+                    },
                     source_map: TargetSourceMap {
                         frame_start_line: start_line,
                         target_line_offsets: Vec::new(),
                     },
                 };
 
-                // Segment native region for emission
-                let segments = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
-                    &self.source_text(),
-                    start_line,
-                    end_line,
-                );
-                // Attach segments for visitor consumption; skip SWC validation in event handlers for MVP
-                self.pending_segments = Some(segments);
+                // Parse using target parser (TS/Python)
+                match parse_target_region(region.target, &region) {
+                    Ok(ast) => {
+                        parsed_target_blocks.push(ParsedTargetBlock {
+                            region_index: 0,
+                            frame_start_line: start_line,
+                            frame_end_line: end_line,
+                            ast,
+                        });
+                    }
+                    Err(err) => {
+                        if let super::target_parsers::TargetParseError::Parse {
+                            target_language,
+                            message,
+                            target_line,
+                            column,
+                        } = err
+                        {
+                            let frame_line = start_line + target_line.saturating_sub(1);
+                            let display = ParseError::new(&format!(
+                                "{:?} target parse error: {}",
+                                target_language, message
+                            ))
+                            .with_frame_line(frame_line)
+                            .with_target_context(
+                                target_language,
+                                target_line,
+                                Some(column),
+                                None,
+                            );
+                            return Err(display);
+                        }
+                    }
+                }
             }
         } else {
             statements = self.statements(IdentifierDeclScope::BlockVarScope);
@@ -2373,8 +2489,7 @@ impl<'a> Parser<'a> {
             // Fenced regions path
             target_specific_regions =
                 self.collect_target_specific_regions(body_start_line, body_end_line);
-            parsed_target_blocks =
-                self.resolve_target_specific_blocks(&target_specific_regions)?;
+            parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
             statements = self.resolve_target_statements(statements, &target_specific_regions);
         }
 
@@ -3536,7 +3651,9 @@ impl<'a> Parser<'a> {
         let mut statements: Vec<DeclOrStmtType> = Vec::new();
         let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
         let mut target_specific_regions: Vec<TargetSpecificRegionRef> = Vec::new();
-        if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript))
+            || matches!(self.target_language, Some(TargetLanguage::Python3))
+        {
             // Skip tokens until matching '}' without consuming the closing brace
             let mut depth: i32 = 1; // already consumed '{'
             let mut last_line = body_start_line;
@@ -3573,14 +3690,18 @@ impl<'a> Parser<'a> {
                     start_position: 0,
                     end_position: None,
                     raw_content: raw,
-                    target: TargetLanguage::TypeScript,
+                    target: if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                        TargetLanguage::TypeScript
+                    } else {
+                        TargetLanguage::Python3
+                    },
                     source_map: TargetSourceMap {
                         frame_start_line: start_line,
                         target_line_offsets: Vec::new(),
                     },
                 };
 
-                match parse_target_region(TargetLanguage::TypeScript, &region) {
+                match parse_target_region(region.target, &region) {
                     Ok(ast) => {
                         parsed_target_blocks.push(ParsedTargetBlock {
                             region_index: 0,
@@ -3590,11 +3711,25 @@ impl<'a> Parser<'a> {
                         });
                     }
                     Err(err) => {
-                        if let super::target_parsers::TargetParseError::Parse { target_language, message, target_line, column } = err {
+                        if let super::target_parsers::TargetParseError::Parse {
+                            target_language,
+                            message,
+                            target_line,
+                            column,
+                        } = err
+                        {
                             let frame_line = start_line + target_line.saturating_sub(1);
-                            let display = ParseError::new(&format!("{:?} target parse error: {}", target_language, message))
-                                .with_frame_line(frame_line)
-                                .with_target_context(target_language, target_line, Some(column), None);
+                            let display = ParseError::new(&format!(
+                                "{:?} target parse error: {}",
+                                target_language, message
+                            ))
+                            .with_frame_line(frame_line)
+                            .with_target_context(
+                                target_language,
+                                target_line,
+                                Some(column),
+                                None,
+                            );
                             return Err(display);
                         }
                     }
@@ -3630,8 +3765,7 @@ impl<'a> Parser<'a> {
         if parsed_target_blocks.is_empty() {
             target_specific_regions =
                 self.collect_target_specific_regions(body_start_line, body_end_line);
-            parsed_target_blocks =
-                self.resolve_target_specific_blocks(&target_specific_regions)?;
+            parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
             statements = self.resolve_target_statements(statements, &target_specific_regions);
         }
 
@@ -3703,6 +3837,103 @@ impl<'a> Parser<'a> {
         //     }
         // }
 
+        // For TypeScript/Python target bodies, prefer native parsing or segmentation
+        let mut local_parsed_blocks: Vec<ParsedTargetBlock> = Vec::new();
+        let mut local_segmented: Option<Vec<crate::frame_c::native_region_segmenter::BodySegment>> =
+            None;
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript))
+            || matches!(self.target_language, Some(TargetLanguage::Python3))
+        {
+            // Skip tokens until matching '}' without consuming the closing brace
+            let mut depth: i32 = 1; // already consumed '{'
+            let mut last_line = body_start_line;
+            while !self.is_at_end() && depth > 0 {
+                let tk = self.peek().clone();
+                match tk.token_type {
+                    TokenType::OpenBrace => depth += 1,
+                    TokenType::CloseBrace => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                last_line = tk.line;
+                self.advance();
+            }
+
+            let start_line = body_start_line.saturating_add(1);
+            let end_line = last_line;
+            if end_line >= start_line {
+                let mut raw = String::new();
+                for ln in start_line..=end_line {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        raw.push_str(s);
+                        if !s.ends_with('\n') {
+                            raw.push('\n');
+                        }
+                    }
+                }
+                if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                    let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
+                        &self.source_text(),
+                        start_line,
+                        end_line,
+                    );
+                    let has_directive = segs.iter().any(|seg| {
+                        matches!(
+                            seg,
+                            crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
+                        )
+                    });
+                    if has_directive {
+                        local_segmented = Some(segs);
+                    }
+                } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+                    let segs = crate::frame_c::native_region_segmenter::python::segment_py_body(
+                        &self.source_text(),
+                        start_line,
+                        end_line,
+                    );
+                    let has_stmt = segs.iter().any(|seg| {
+                        matches!(
+                            seg,
+                            crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
+                        )
+                    });
+                    if has_stmt {
+                        local_segmented = Some(segs);
+                    }
+                }
+                if local_segmented.is_none() {
+                    let region = TargetRegion {
+                        start_position: 0,
+                        end_position: None,
+                        raw_content: raw,
+                        target: if matches!(self.target_language, Some(TargetLanguage::TypeScript))
+                        {
+                            TargetLanguage::TypeScript
+                        } else {
+                            TargetLanguage::Python3
+                        },
+                        source_map: TargetSourceMap {
+                            frame_start_line: start_line,
+                            target_line_offsets: Vec::new(),
+                        },
+                    };
+                    if let Ok(ast) = parse_target_region(region.target, &region) {
+                        local_parsed_blocks.push(ParsedTargetBlock {
+                            region_index: 0,
+                            frame_start_line: start_line,
+                            frame_end_line: end_line,
+                            ast,
+                        });
+                    }
+                }
+            }
+        }
+
         let action_node = ActionNode::new(
             action_line, // v0.78.7: source map support
             action_name.clone(),
@@ -3720,7 +3951,12 @@ impl<'a> Parser<'a> {
         {
             let mut action_mut = action_node_rcref.borrow_mut();
             action_mut.target_specific_regions = target_specific_regions;
-            action_mut.parsed_target_blocks = parsed_target_blocks;
+            // Prefer locally parsed/segmented if present for TS/Py bodies
+            if !local_parsed_blocks.is_empty() {
+                action_mut.parsed_target_blocks = local_parsed_blocks;
+            } else {
+                action_mut.parsed_target_blocks = parsed_target_blocks;
+            }
             action_mut.body = self
                 .classify_action_body(&action_mut.statements, &action_mut.target_specific_regions);
             action_mut.unrecognized_statements = self.build_unrecognized_statements(
@@ -3728,9 +3964,13 @@ impl<'a> Parser<'a> {
                 &action_mut.parsed_target_blocks,
             );
             // Attach segmented native body if present
-            if let Some(segs) = self.take_pending_segments() {
+            if let Some(segs) = local_segmented {
                 if !segs.is_empty() {
-                    action_mut.segmented_body = Some(segs);
+                    action_mut.segmented_body = Some(segs.clone());
+                    // Build MixedBody from segments for downstream emission
+                    action_mut.mixed_body = Some(
+                        self.build_mixed_body_from_segments(TargetLanguage::TypeScript, &segs),
+                    );
                 }
             }
         }
@@ -3973,7 +4213,95 @@ impl<'a> Parser<'a> {
         //     code_opt = Some(token.lexeme.clone());
         // }
 
-        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        // For Python/TypeScript target bodies, prefer native parsing for operations
+        let mut statements = Vec::new();
+        let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript))
+            || matches!(self.target_language, Some(TargetLanguage::Python3))
+        {
+            // Skip tokens until matching '}' without consuming the closing brace
+            let mut depth: i32 = 1; // already consumed '{'
+            let mut last_line = body_start_line;
+            while !self.is_at_end() && depth > 0 {
+                let tk = self.peek().clone();
+                match tk.token_type {
+                    TokenType::OpenBrace => depth += 1,
+                    TokenType::CloseBrace => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                last_line = tk.line;
+                self.advance();
+            }
+
+            let start_line = body_start_line.saturating_add(1);
+            let end_line = last_line;
+            if end_line >= start_line {
+                let mut raw = String::new();
+                for ln in start_line..=end_line {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        raw.push_str(s);
+                        if !s.ends_with('\n') {
+                            raw.push('\n');
+                        }
+                    }
+                }
+                let region = TargetRegion {
+                    start_position: 0,
+                    end_position: None,
+                    raw_content: raw,
+                    target: if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                        TargetLanguage::TypeScript
+                    } else {
+                        TargetLanguage::Python3
+                    },
+                    source_map: TargetSourceMap {
+                        frame_start_line: start_line,
+                        target_line_offsets: Vec::new(),
+                    },
+                };
+                // For TypeScript, prefer segmentation if directives appear
+                let mut used_segmentation = false;
+                if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                    let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
+                        &self.source_text(),
+                        start_line,
+                        end_line,
+                    );
+                    let has_directive = segs.iter().any(|seg| {
+                        matches!(
+                            seg,
+                            crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
+                        )
+                    });
+                    if has_directive {
+                        used_segmentation = true;
+                        // Attach to operation after node creation below
+                        // We stash in a temporary; we'll reconstruct later by setting on the node
+                        // To keep code localized, we’ll push into parsed_target_blocks only when not segmented
+                        // and use a local store otherwise.
+                        // Store in a temporary on self for later retrieval is overkill; we’ll rebuild segs later.
+                        // Instead, we carry segs in a local Option and assign after node creation.
+                    }
+                }
+                if !used_segmentation {
+                    if let Ok(ast) = parse_target_region(region.target, &region) {
+                        parsed_target_blocks.push(ParsedTargetBlock {
+                            region_index: 0,
+                            frame_start_line: start_line,
+                            frame_end_line: end_line,
+                            ast,
+                        });
+                    }
+                }
+            }
+        } else {
+            statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        }
 
         // TODO P0: align/factor return statements into a function
         // foo(...) : type { ... return
@@ -4002,7 +4330,11 @@ impl<'a> Parser<'a> {
 
         let target_specific_regions =
             self.collect_target_specific_regions(body_start_line, body_end_line);
-        let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
+        let parsed_target_blocks = if parsed_target_blocks.is_empty() {
+            self.resolve_target_specific_blocks(&target_specific_regions)?
+        } else {
+            parsed_target_blocks
+        };
         let statements = self.resolve_target_statements(statements, &target_specific_regions);
 
         let mut operation_node = OperationNode::new(
@@ -4019,7 +4351,36 @@ impl<'a> Parser<'a> {
         );
 
         operation_node.target_specific_regions = target_specific_regions;
-        operation_node.parsed_target_blocks = parsed_target_blocks;
+        // Recompute segmentation for TS operations to attach MixedBody if directives exist
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+            let start_line = body_start_line.saturating_add(1);
+            let end_line = body_end_line.saturating_sub(1);
+            if end_line >= start_line {
+                let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
+                    &self.source_text(),
+                    start_line,
+                    end_line,
+                );
+                let has_directive = segs.iter().any(|seg| {
+                    matches!(
+                        seg,
+                        crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
+                    )
+                });
+                if has_directive {
+                    operation_node.segmented_body = Some(segs.clone());
+                    operation_node.mixed_body = Some(
+                        self.build_mixed_body_from_segments(TargetLanguage::TypeScript, &segs),
+                    );
+                } else {
+                    operation_node.parsed_target_blocks = parsed_target_blocks;
+                }
+            } else {
+                operation_node.parsed_target_blocks = parsed_target_blocks;
+            }
+        } else {
+            operation_node.parsed_target_blocks = parsed_target_blocks;
+        }
         operation_node.body = self.classify_action_body(
             &operation_node.statements,
             &operation_node.target_specific_regions,
@@ -5298,7 +5659,8 @@ impl<'a> Parser<'a> {
                 Some(sym) => sym,
                 None => {
                     // Fallback for nested states not present in the second-pass symbol table
-                    let state_symbol = StateSymbol::new(&state_name, self.arcanum.get_current_symtab());
+                    let state_symbol =
+                        StateSymbol::new(&state_name, self.arcanum.get_current_symtab());
                     let state_symbol_rcref = Rc::new(RefCell::new(state_symbol));
                     // Enter a synthetic state scope so downstream parsing can proceed
                     self.arcanum.enter_scope(ParseScopeType::State {
@@ -6493,28 +6855,116 @@ impl<'a> Parser<'a> {
                 for ln in start_line..=end_line_inclusive {
                     if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
                         raw.push_str(s);
-                        if !s.ends_with('\n') { raw.push('\n'); }
+                        if !s.ends_with('\n') {
+                            raw.push('\n');
+                        }
                     }
                 }
                 let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
-                    &self.source_text(), start_line, end_line_inclusive);
-                let has_directive = segs.iter().any(|seg| matches!(seg, crate::frame_c::native_region_segmenter::BodySegment::Directive { .. }));
+                    &self.source_text(),
+                    start_line,
+                    end_line_inclusive,
+                );
+                let has_directive = segs.iter().any(|seg| {
+                    matches!(
+                        seg,
+                        crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
+                    )
+                });
                 if has_directive {
-                    event_handler.segmented_body = Some(segs);
+                    event_handler.segmented_body = Some(segs.clone());
+                    // Build MixedBody from segments for downstream B2 codegen
+                    event_handler.mixed_body = Some(
+                        self.build_mixed_body_from_segments(TargetLanguage::TypeScript, &segs),
+                    );
                 } else if !raw.trim().is_empty() {
                     let region = TargetRegion {
                         start_position: 0,
                         end_position: None,
                         raw_content: raw,
                         target: TargetLanguage::TypeScript,
-                        source_map: TargetSourceMap { frame_start_line: start_line, target_line_offsets: Vec::new() },
+                        source_map: TargetSourceMap {
+                            frame_start_line: start_line,
+                            target_line_offsets: Vec::new(),
+                        },
                     };
                     if let Ok(ast) = parse_target_region(TargetLanguage::TypeScript, &region) {
                         // Prefer SWC AST for native handlers without directives
-                        event_handler.parsed_target_blocks.push(ParsedTargetBlock { region_index: 0, frame_start_line: start_line, frame_end_line: end_line_inclusive, ast });
+                        event_handler.parsed_target_blocks.push(ParsedTargetBlock {
+                            region_index: 0,
+                            frame_start_line: start_line,
+                            frame_end_line: end_line_inclusive,
+                            ast,
+                        });
+                        // Provide MixedBody with a single native span for uniform downstream handling
+                        event_handler.mixed_body = Some(vec![MixedBodyItem::NativeText {
+                            target: TargetLanguage::TypeScript,
+                            text: region.raw_content.clone(),
+                            start_line,
+                            end_line: end_line_inclusive,
+                        }]);
                     } else {
                         // Fallback to segmentation
-                        if !segs.is_empty() { event_handler.segmented_body = Some(segs); }
+                        if !segs.is_empty() {
+                            event_handler.segmented_body = Some(segs.clone());
+                            event_handler.mixed_body =
+                                Some(self.build_mixed_body_from_segments(
+                                    TargetLanguage::TypeScript,
+                                    &segs,
+                                ));
+                        }
+                    }
+                }
+            }
+        } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+            // Python handlers: segment for Frame statements; native-only -> parse
+            let start_line = body_start_line.saturating_add(1);
+            let end_line_inclusive = body_end_line.saturating_sub(1);
+            if end_line_inclusive >= start_line {
+                // Build raw slice
+                let mut raw = String::new();
+                for ln in start_line..=end_line_inclusive {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        raw.push_str(s);
+                        if !s.ends_with('\n') {
+                            raw.push('\n');
+                        }
+                    }
+                }
+                // Segment the body for Frame statements
+                let segs = crate::frame_c::native_region_segmenter::python::segment_py_body(
+                    &self.source_text(),
+                    start_line,
+                    end_line_inclusive,
+                );
+                let has_stmt = segs.iter().any(|seg| {
+                    matches!(
+                        seg,
+                        crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
+                    )
+                });
+                if has_stmt {
+                    event_handler.segmented_body = Some(segs.clone());
+                    event_handler.mixed_body =
+                        Some(self.build_mixed_body_from_segments(TargetLanguage::Python3, &segs));
+                } else if !raw.trim().is_empty() {
+                    let region = TargetRegion {
+                        start_position: 0,
+                        end_position: None,
+                        raw_content: raw,
+                        target: TargetLanguage::Python3,
+                        source_map: TargetSourceMap {
+                            frame_start_line: start_line,
+                            target_line_offsets: Vec::new(),
+                        },
+                    };
+                    if let Ok(ast) = parse_target_region(TargetLanguage::Python3, &region) {
+                        event_handler.parsed_target_blocks.push(ParsedTargetBlock {
+                            region_index: 0,
+                            frame_start_line: start_line,
+                            frame_end_line: end_line_inclusive,
+                            ast,
+                        });
                     }
                 }
             }
@@ -6555,7 +7005,9 @@ impl<'a> Parser<'a> {
         // skip to the matching '}' and return an empty statements list. The native code will be
         // handled by the NativeRegionSegmenter/target parser path.
         if matches!(self.target_language, Some(TargetLanguage::TypeScript))
-            && (self.is_action_scope || self.operation_scope_depth > 0)
+            && (self.is_action_scope
+                || self.operation_scope_depth > 0
+                || self.current_event_symbol_opt.is_some())
         {
             let mut depth: i32 = 1; // caller consumed '{'
             while !self.is_at_end() && depth > 0 {
@@ -16493,7 +16945,14 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            if self.match_token(&[TokenType::Type]) {
+            // 'type' is not a reserved keyword globally (to allow target-native uses),
+            // but inside a native module item list, a leading 'type' starts a type declaration.
+            if self.match_token(&[TokenType::Type])
+                || (self.check(TokenType::Identifier) && self.peek().lexeme == "type" && {
+                    self.advance();
+                    true
+                })
+            {
                 let type_decl = self.parse_native_type_decl()?;
                 items.push(NativeModuleItem::Type(type_decl));
             } else {
@@ -17434,87 +17893,29 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn target_parse_error_includes_native_snippet() {
+    fn scanner_reports_error_for_inline_target_directive() {
         let source = r#"
 system TargetDiag {
     machine:
         $Init {
             start() {
                 #[target: python]
-                if True
-                    print("oops")
-                return
+                print("oops")
             }
         }
 }
 "#;
 
         let scanner = Scanner::new(source.to_string());
-        let (has_errors, scan_errors, tokens, target_regions) = scanner.scan_tokens();
-        assert!(!has_errors, "scanner reported errors: {}", scan_errors);
-
-        let target_regions = Arc::new(target_regions);
-        let source_lines = Arc::new(source.lines().map(|line| line.to_string()).collect());
-        let mut parser_comments = Vec::new();
-        let parser = Parser::new(
-            &tokens,
-            &mut parser_comments,
-            true,
-            Arcanum::new(),
-            Arc::clone(&target_regions),
-            Arc::clone(&source_lines),
-        );
-
-        let region = parser
-            .target_discovery
-            .region_by_index(0)
-            .expect("expected target region");
-        let line_count = region.raw_content.lines().count();
-        let frame_start_line = region.source_map.frame_start_line;
-        let frame_end_line = if line_count == 0 {
-            frame_start_line
-        } else {
-            frame_start_line + line_count - 1
-        };
-        let region_ref = TargetSpecificRegionRef {
-            target: region.target,
-            region_index: 0,
-            frame_start_line,
-            frame_end_line,
-        };
-
-        let result = parser.resolve_target_specific_blocks(&[region_ref]);
+        let (has_errors, scan_errors, _tokens, _target_regions) = scanner.scan_tokens();
         assert!(
-            result.is_err(),
-            "expected parse error but parsing succeeded"
+            has_errors,
+            "expected scanner error for inline target directive"
         );
-        let err = result.err().unwrap();
-        assert_eq!(err.target_language, Some(TargetLanguage::Python3));
-        assert_eq!(err.target_line, Some(2));
         assert!(
-            err.target_snippet
-                .as_deref()
-                .map(|snippet| snippet.contains("if True"))
-                .unwrap_or(false),
-            "expected target snippet containing 'if True', got {:?}",
-            err.target_snippet
-        );
-        let display = err.to_display_string();
-        assert!(
-            err.frame_line.is_some(),
-            "expected frame line to be populated"
-        );
-        if let Some(frame_line) = err.frame_line {
-            assert!(
-                display.contains(&format!("frame> line {}", frame_line)),
-                "display string missing frame line: {}",
-                display
-            );
-        }
-        assert!(
-            display.contains("target> python3 line 2"),
-            "display string missing target context: {}",
-            display
+            scan_errors.contains("Inline #[target: python] directives are no longer supported"),
+            "unexpected error text: {}",
+            scan_errors
         );
     }
 

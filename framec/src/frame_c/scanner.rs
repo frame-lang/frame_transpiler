@@ -27,7 +27,36 @@ pub(crate) struct Scanner {
 }
 
 impl Scanner {
+    #[inline]
+    fn is_space_like_char(c: char) -> bool {
+        // Unicode-aware whitespace including NBSP and other editor-inserted spaces
+        c.is_whitespace()
+            || matches!(
+                c,
+                '\u{00A0}' // NBSP
+                    | '\u{2000}' // EN QUAD
+                    | '\u{2001}' // EM QUAD
+                    | '\u{2002}' // EN SPACE
+                    | '\u{2003}' // EM SPACE
+                    | '\u{2004}' // THREE-PER-EM SPACE
+                    | '\u{2005}' // FOUR-PER-EM SPACE
+                    | '\u{2006}' // SIX-PER-EM SPACE
+                    | '\u{2007}' // FIGURE SPACE
+                    | '\u{2008}' // PUNCTUATION SPACE
+                    | '\u{2009}' // THIN SPACE
+                    | '\u{200A}' // HAIR SPACE
+                    | '\u{202F}' // NARROW NO-BREAK SPACE
+                    | '\u{205F}' // MEDIUM MATHEMATICAL SPACE
+                    | '\u{3000}' // IDEOGRAPHIC SPACE
+            )
+    }
     pub(crate) fn new(source: String) -> Scanner {
+        // Normalize UTF-8 BOM at start to avoid interfering with SOL detection
+        let normalized = if source.starts_with('\u{FEFF}') {
+            source.trim_start_matches('\u{FEFF}').to_string()
+        } else {
+            source
+        };
         let keywords: HashMap<String, TokenType> = [
             ("None".to_string(), TokenType::None_),
             ("true".to_string(), TokenType::True),
@@ -89,9 +118,9 @@ impl Scanner {
         .cloned()
         .collect();
 
-        let chars: Vec<char> = source.chars().collect();
+        let chars: Vec<char> = normalized.chars().collect();
         Scanner {
-            source,
+            source: normalized,
             chars,
             tokens: Vec::new(),
             start: 0,
@@ -227,10 +256,8 @@ impl Scanner {
     }
 
     fn is_whitespace(&self) -> bool {
-        if self.peek() == ' ' || self.peek() == '\n' || self.peek() == '\r' || self.peek() == '\t' {
-            return true;
-        }
-        false
+        // Treat all Unicode whitespace and space-like characters as whitespace
+        Self::is_space_like_char(self.peek())
     }
 
     // fn match_first_header_token(&mut self) -> bool {
@@ -266,6 +293,10 @@ impl Scanner {
 
     fn scan_token(&mut self) {
         let c: char = self.advance();
+        // Skip any space-like characters (Unicode-aware, includes NBSP and variants).
+        if Self::is_space_like_char(c) {
+            return;
+        }
         match c {
             '(' => self.add_token(TokenType::LParen),
             ')' => self.add_token(TokenType::RParen),
@@ -579,6 +610,28 @@ impl Scanner {
                                         .error(self.line, &format!("Found unexpected character '{}'.", c)),
                                 }
                             }
+                        } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+                            if c == '\'' || c == '"' {
+                                self.skip_py_string(c);
+                            } else if c == '#' {
+                                // Skip the rest of the line for Python comments
+                                while !self.is_at_end() && self.peek() != '\n' {
+                                    self.advance();
+                                }
+                            } else {
+                                match c {
+                                    '\u{2018}' | '\u{2019}' => self.error(
+                                        self.line,
+                                        "Found Unicode smart quote. Use ASCII single quote (') instead.",
+                                    ),
+                                    '\u{201C}' | '\u{201D}' => self.error(
+                                        self.line,
+                                        "Found Unicode smart quote. Use ASCII double quote (\") instead.",
+                                    ),
+                                    _ => self
+                                        .error(self.line, &format!("Found unexpected character '{}'.", c)),
+                                }
+                            }
                         } else {
                             // Provide helpful error messages for common Unicode quote characters
                             match c {
@@ -621,6 +674,45 @@ impl Scanner {
             if ch == '\n' {
                 // already handled in advance()
             }
+        }
+    }
+
+    // Skip a Python string, handling single, double, and triple-quoted strings with escapes.
+    fn skip_py_string(&mut self, delimiter: char) {
+        let is_triple = self.peek() == delimiter && self.peek_next() == delimiter;
+        if is_triple {
+            // consume the remaining two delimiters
+            self.advance();
+            self.advance();
+            loop {
+                if self.is_at_end() {
+                    break;
+                }
+                let ch = self.advance();
+                if ch == delimiter && self.peek() == delimiter && self.peek_next() == delimiter {
+                    self.advance();
+                    self.advance();
+                    break;
+                }
+            }
+            return;
+        }
+        // single-line string with escapes
+        loop {
+            if self.is_at_end() {
+                break;
+            }
+            let ch = self.advance();
+            if ch == '\\' {
+                if !self.is_at_end() {
+                    self.advance();
+                }
+                continue;
+            }
+            if ch == delimiter {
+                break;
+            }
+            // line counting handled by advance()
         }
     }
 
@@ -892,7 +984,7 @@ impl Scanner {
                 if ch == '\n' {
                     seen_line_start = true;
                     break;
-                } else if ch == ' ' || ch == '\t' || ch == '\r' {
+                } else if Self::is_space_like_char(ch) && ch != '\n' {
                     back -= 1;
                 } else {
                     break;
@@ -904,11 +996,8 @@ impl Scanner {
             return false;
         }
 
-        while idx < self.chars.len() {
-            match self.chars[idx] {
-                ' ' | '\t' | '\r' | '\n' => idx += 1,
-                _ => break,
-            }
+        while idx < self.chars.len() && Self::is_space_like_char(self.chars[idx]) {
+            idx += 1;
         }
 
         if idx >= self.chars.len() {
@@ -1277,24 +1366,12 @@ impl Scanner {
 
         if let Some(rest) = trimmed.strip_prefix("target") {
             let lang_part = rest.trim_start_matches(|c: char| c == ':' || c.is_whitespace());
-            let lang_name = lang_part.trim().to_ascii_lowercase();
-
-            let language = match lang_name.as_str() {
-                "python" | "python3" => Some(TargetLanguage::Python3),
-                "typescript" => Some(TargetLanguage::TypeScript),
-                "graphviz" => Some(TargetLanguage::Graphviz),
-                "llvm" => Some(TargetLanguage::LLVM),
-                "c" => Some(TargetLanguage::C),
-                "c++" | "cpp" => Some(TargetLanguage::Cpp),
-                "java" => Some(TargetLanguage::Java),
-                "csharp" | "c#" | "cs" => Some(TargetLanguage::CSharp),
-                "rust" | "rs" => Some(TargetLanguage::Rust),
-                _ => None,
-            };
-
-            if let Some(language) = language {
-                self.switch_scanning_mode(ScanningMode::TargetSpecific(language));
-            }
+            let lang_name = lang_part.trim();
+            let msg = format!(
+                "Inline #[target: {}] directives are no longer supported",
+                lang_name
+            );
+            self.error(self.line, &msg);
         }
 
         // Skip rest of the line after directive
@@ -1896,7 +1973,7 @@ mod tests {
     }
 
     #[test]
-    fn typescript_target_region_handles_nested_braces_and_comments() {
+    fn typescript_inline_target_directive_is_rejected() {
         let source = r#"
 system Example {
     actions:
@@ -1904,59 +1981,90 @@ system Example {
             #[target: typescript]
             if (true) {
                 /* block comment */
-                runtime/socket.frame_socket_client_write_line(client, "value");
-                // trailing comment
+                doSomething();
             }
-            return;
         }
 }
 "#;
 
-        let regions = scan_target_regions(source);
-        assert_eq!(regions.len(), 1);
-        let region = &regions[0];
-        assert_eq!(region.target, TargetLanguage::TypeScript);
+        let scanner = Scanner::new(source.to_string());
+        let (has_errors, errors, _tokens, regions) = scanner.scan_tokens();
         assert!(
-            region
-                .raw_content
-                .contains("runtime/socket.frame_socket_client_write_line"),
-            "Slash-separated runtime references should stay inside the target region"
+            has_errors,
+            "expected scanner error for inline target directive"
         );
-        assert!(region.raw_content.contains("/* block comment */"));
-        assert!(region.raw_content.contains("if (true) {"));
         assert!(
-            !region.raw_content.trim_end().ends_with("}"),
-            "Closing braces for Frame blocks should remain outside the target region"
+            errors.contains("Inline #[target: typescript] directives are no longer supported"),
+            "unexpected error text: {}",
+            errors
         );
+        assert_eq!(regions.len(), 0, "no target regions should be recorded");
     }
 
     #[test]
-    fn python_target_region_handles_triple_quotes_and_comments() {
+    fn python_inline_target_directive_is_rejected() {
         let source = r#"
 fn helper() {
     #[target: python]
-    text = '''multi-line
-text with -> and '''
-    # inline comment inside target
+    text = '''multi-line'''
     print(text)
 }
 "#;
 
-        let regions = scan_target_regions(source);
-        assert_eq!(regions.len(), 1);
-        let region = &regions[0];
-        assert_eq!(region.target, TargetLanguage::Python3);
+        let scanner = Scanner::new(source.to_string());
+        let (has_errors, errors, _tokens, regions) = scanner.scan_tokens();
         assert!(
-            region.raw_content.contains("'''multi-line"),
-            "Triple-quoted string should remain inside target region"
+            has_errors,
+            "expected scanner error for inline target directive"
         );
         assert!(
-            region.raw_content.contains("print(text)"),
-            "Target statements should be captured"
+            errors.contains("Inline #[target: python] directives are no longer supported"),
+            "unexpected error text: {}",
+            errors
         );
+        assert_eq!(regions.len(), 0, "no target regions should be recorded");
+    }
+
+    #[test]
+    fn unicode_nbsp_is_treated_as_whitespace() {
+        let nbsp = '\u{00A0}';
+        let mut source = String::new();
+        source.push_str("@target python\n");
+        source.push(nbsp);
+        source.push(nbsp);
+        source.push_str("system S {}\n");
+        let scanner = Scanner::new(source);
+        let (has_errors, errors, tokens, _regions) = scanner.scan_tokens();
+        assert!(!has_errors, "scanner reported errors: {}", errors);
+        assert!(tokens.iter().any(|t| t.token_type == TokenType::System));
+    }
+
+    #[test]
+    fn crlf_line_endings_are_supported() {
+        let source = "@target python\r\nsystem S {\r\n}\r\n".to_string();
+        let scanner = Scanner::new(source);
+        let (has_errors, errors, _tokens, _regions) = scanner.scan_tokens();
+        assert!(!has_errors, "scanner reported errors: {}", errors);
+    }
+
+    #[test]
+    fn utf8_bom_is_ignored() {
+        let source = "\u{FEFF}@target python\nsystem S {}\n".to_string();
+        let scanner = Scanner::new(source);
+        let (has_errors, errors, tokens, _regions) = scanner.scan_tokens();
+        assert!(!has_errors, "scanner reported errors: {}", errors);
         assert!(
-            !region.raw_content.contains("}"),
-            "Frame braces should terminate the target region"
+            tokens.iter().any(|t| t.token_type == TokenType::TargetAnnotation),
+            "expected TargetAnnotation token"
         );
+    }
+
+    #[test]
+    fn cr_only_line_endings_supported() {
+        // Old Mac-style CR-only line endings should not cause scanner errors
+        let source = "@target python\rsystem S {\r}\r".to_string();
+        let scanner = Scanner::new(source);
+        let (has_errors, errors, _tokens, _regions) = scanner.scan_tokens();
+        assert!(!has_errors, "scanner reported errors: {}", errors);
     }
 }

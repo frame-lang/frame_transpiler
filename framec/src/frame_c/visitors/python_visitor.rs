@@ -82,6 +82,84 @@ pub struct PythonVisitor {
 }
 
 impl PythonVisitor {
+    fn emit_mixed_body(&mut self, items: &[MixedBodyItem]) -> bool {
+        let mut generated = false;
+        for it in items {
+            match it {
+                MixedBodyItem::NativeAst {
+                    start_line,
+                    end_line,
+                    ast,
+                    ..
+                } => {
+                    let code = ast.to_source();
+                    self.emit_target_source_with_metadata(
+                        code,
+                        *start_line,
+                        *end_line,
+                        TargetLanguage::Python3,
+                    );
+                    generated = true;
+                }
+                MixedBodyItem::NativeText {
+                    text,
+                    start_line,
+                    end_line,
+                    ..
+                } => {
+                    self.emit_target_source_with_metadata(
+                        text,
+                        *start_line,
+                        *end_line,
+                        TargetLanguage::Python3,
+                    );
+                    generated = true;
+                }
+                MixedBodyItem::Frame { frame_line, stmt } => {
+                    // Map glue to directive's frame line
+                    match stmt {
+                        MirStatement::Transition { state, .. } => {
+                            self.builder.map_next(*frame_line);
+                            self.builder.writeln(&format!(
+                                "self._frame_transition(FrameCompartment('{}', None, None, {{}}, {{}}))",
+                                state
+                            ));
+                            self.builder.map_next(*frame_line);
+                            self.builder.writeln("return");
+                        }
+                        MirStatement::ParentForward => {
+                            self.builder.map_next(*frame_line);
+                            // Route to the parent compartment if available; otherwise no-op.
+                            self.builder
+                                .writeln("if compartment and getattr(compartment, 'parent_compartment', None):");
+                            self.builder.indent();
+                            self.builder
+                                .writeln("self._frame_router(__e, compartment.parent_compartment)");
+                            self.builder.dedent();
+                            self.builder.writeln("return");
+                        }
+                        MirStatement::StackPush => {
+                            self.builder.map_next(*frame_line);
+                            self.builder.writeln("self.return_stack.append(None)");
+                            self.builder.writeln("return");
+                        }
+                        MirStatement::StackPop => {
+                            self.builder.map_next(*frame_line);
+                            self.builder.writeln("__popped = self.return_stack.pop()");
+                            self.builder.writeln("self.return_stack[-1] = __popped");
+                            self.builder.writeln("return");
+                        }
+                        MirStatement::Return(_expr) => {
+                            self.builder.map_next(*frame_line);
+                            self.builder.writeln("return");
+                        }
+                    }
+                    generated = true;
+                }
+            }
+        }
+        generated
+    }
     pub fn new(
         arcanum: Vec<Arcanum>,
         symbol_config: SymbolConfig,
@@ -471,6 +549,33 @@ mod tests {
         assert_eq!(mappings.len(), 2);
         assert_eq!(mappings[0].frame_line, 10);
         assert_eq!(mappings[1].frame_line, 11);
+    }
+
+    #[test]
+    fn mixedbody_maps_native_and_frame_stmt_lines() {
+        let mut visitor = baseline_visitor();
+
+        // Build a MixedBody with one native line and one Frame statement
+        let items = vec![
+            MixedBodyItem::NativeText {
+                target: TargetLanguage::Python3,
+                text: "print('native')\n".to_string(),
+                start_line: 100,
+                end_line: 100,
+            },
+            MixedBodyItem::Frame {
+                frame_line: 123,
+                stmt: MirStatement::StackPush,
+            },
+        ];
+
+        let _ = visitor.emit_mixed_body(&items);
+
+        let (_code, mappings) = visitor.into_output();
+        let has_native = mappings.iter().any(|m| m.frame_line == 100);
+        let has_stmt = mappings.iter().any(|m| m.frame_line == 123);
+        assert!(has_native, "expected mapping for native start line 100");
+        assert!(has_stmt, "expected mapping for frame stmt line 123");
     }
 }
 
@@ -1434,12 +1539,20 @@ impl PythonVisitor {
             action_node.line, // v0.78.7: now has line field for source mapping
         );
 
-        let (mut generated_target_specific, ignored_targets) = self.emit_target_specific_body(
+        // Prefer MixedBody if present
+        let mut generated_target_specific = if let Some(items) = &action_node.mixed_body {
+            self.emit_mixed_body(items)
+        } else {
+            false
+        };
+
+        let (generated_more, ignored_targets) = self.emit_target_specific_body(
             action_node.body,
             &action_node.parsed_target_blocks,
             &action_node.target_specific_regions,
             &action_node.unrecognized_statements,
         );
+        generated_target_specific |= generated_more;
 
         if let Some(code) = &action_node.code_opt {
             if !generated_target_specific {
@@ -1547,12 +1660,20 @@ impl PythonVisitor {
             operation_node.line, // v0.78.2: Use actual line from Frame source
         );
 
-        let (generated_target_specific, ignored_targets) = self.emit_target_specific_body(
+        // Prefer MixedBody if present
+        let mut generated_target_specific = if let Some(items) = &operation_node.mixed_body {
+            self.emit_mixed_body(items)
+        } else {
+            false
+        };
+
+        let (generated_more, ignored_targets) = self.emit_target_specific_body(
             operation_node.body,
             &operation_node.parsed_target_blocks,
             &operation_node.target_specific_regions,
             &operation_node.unrecognized_statements,
         );
+        generated_target_specific |= generated_more;
 
         if generated_target_specific
             && matches!(operation_node.body, ActionBody::Mixed)
@@ -2300,6 +2421,10 @@ impl PythonVisitor {
     }
 
     fn emit_target_specific_handler(&mut self, evt_handler: &EventHandlerNode) -> bool {
+        // Prefer MixedBody if present
+        if let Some(items) = &evt_handler.mixed_body {
+            return self.emit_mixed_body(items);
+        }
         let (generated, ignored_targets) = self.emit_target_specific_body(
             evt_handler.body,
             &evt_handler.parsed_target_blocks,
@@ -4103,18 +4228,16 @@ impl PythonVisitor {
             _ => {}
         }
 
-        let (target_state_name, target_state_ref, state_args_opt, enter_args_opt) = match &node
-            .transition_expr_node
-            .target_state_context_t
-        {
-            TargetStateContextType::StateRef { state_context_node } => (
-                self.format_state_name(&state_context_node.state_ref_node.name),
-                Some(&state_context_node.state_ref_node.name),
-                state_context_node.state_ref_args_opt.as_ref(),
-                state_context_node.enter_args_opt.as_ref(),
-            ),
-            _ => unreachable!("Special variants handled above"),
-        };
+        let (target_state_name, target_state_ref, state_args_opt, enter_args_opt) =
+            match &node.transition_expr_node.target_state_context_t {
+                TargetStateContextType::StateRef { state_context_node } => (
+                    self.format_state_name(&state_context_node.state_ref_node.name),
+                    Some(&state_context_node.state_ref_node.name),
+                    state_context_node.state_ref_args_opt.as_ref(),
+                    state_context_node.enter_args_opt.as_ref(),
+                ),
+                _ => unreachable!("Special variants handled above"),
+            };
 
         // Build state_vars dictionary for the target state
         let state_vars_dict = if let Some(state_name) = target_state_ref {
