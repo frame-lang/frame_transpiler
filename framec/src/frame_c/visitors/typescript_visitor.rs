@@ -5128,7 +5128,18 @@ impl TypeScriptVisitor {
                     )
                 }
                 TargetStateContextType::StateStackPop {} => {
-                    self.builder.writeln("// TODO: Handle state stack pop");
+                    // Pop previously pushed value/state and return from handler
+                    self.builder.writeln("const __popped = this.returnStack.pop();");
+                    self.builder.writeln(
+                        "this.returnStack[this.returnStack.length - 1] = __popped;",
+                    );
+                    self.builder.writeln("return;");
+                    return;
+                }
+                TargetStateContextType::StateStackPush {} => {
+                    // Push placeholder onto return stack and return
+                    self.builder.writeln("this.returnStack.push({});");
+                    self.builder.writeln("return;");
                     return;
                 }
             };

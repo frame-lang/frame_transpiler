@@ -446,6 +446,7 @@ impl SystemEmitContext {
                 .get(&state_context_node.state_ref_node.name)
                 .copied(),
             TargetStateContextType::StateStackPop {} => None,
+            TargetStateContextType::StateStackPush {} => None,
         }
     }
 

@@ -3383,6 +3383,7 @@ pub enum TargetStateContextType {
         state_context_node: TargetStateContextNode,
     },
     StateStackPop {},
+    StateStackPush {},
     // MethodCall { state_context_node:StateContextNode }, // TODO
 }
 

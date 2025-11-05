@@ -831,6 +831,26 @@ impl GraphVizVisitor {
             label
         ));
     }
+
+    fn generate_state_stack_push_transition(
+        &mut self,
+        transition_statement: &TransitionStatementNode,
+    ) {
+        // Represent push as a special node annotation similar to pop
+        self.newline();
+        match &transition_statement.transition_expr_node.label_opt {
+            Some(_label) => {}
+            None => {}
+        }
+        self.add_code(&format!(
+            "{}StackPush[shape={} label={} width={} margin={}]\n",
+            self.dent(),
+            "\"circle\"",
+            "\"H+\"",
+            "\"0\"",
+            "\"0\""
+        ));
+    }
 }
 
 //* --------------------------------------------------------------------- *//
@@ -1379,6 +1399,10 @@ impl AstVisitor for GraphVizVisitor {
             }
             TargetStateContextType::StateStackPop {} => {
                 self.generate_state_stack_pop_transition(transition_statement)
+            }
+            TargetStateContextType::StateStackPush {} => {
+                // GraphViz: represent push as a self-loop with annotation
+                self.generate_state_stack_push_transition(transition_statement)
             }
         };
     }

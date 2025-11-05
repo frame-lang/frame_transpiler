@@ -4083,19 +4083,38 @@ impl PythonVisitor {
         use crate::frame_c::ast::IdentifierDeclScope;
 
         // Create compartment for target state
-        let (target_state_name, target_state_ref, state_args_opt, enter_args_opt) =
-            match &node.transition_expr_node.target_state_context_t {
-                TargetStateContextType::StateRef { state_context_node } => (
-                    self.format_state_name(&state_context_node.state_ref_node.name),
-                    Some(&state_context_node.state_ref_node.name),
-                    state_context_node.state_ref_args_opt.as_ref(),
-                    state_context_node.enter_args_opt.as_ref(),
-                ),
-                TargetStateContextType::StateStackPop {} => {
-                    // Handle state stack pop
-                    ("StateStackPop".to_string(), None, None, None)
-                }
-            };
+        // Handle special state stack operations first
+        match &node.transition_expr_node.target_state_context_t {
+            TargetStateContextType::StateStackPop {} => {
+                // Pop a value/state and place it as the current handler result, then return
+                self.builder.writeln("__popped = self.return_stack.pop()");
+                self.builder.writeln("self.return_stack[-1] = __popped");
+                self.builder
+                    .writeln_mapped_with_type("return", node.line, MappingType::Return);
+                return;
+            }
+            TargetStateContextType::StateStackPush {} => {
+                // Push a placeholder onto the return stack and return
+                self.builder.writeln("self.return_stack.append(None)");
+                self.builder
+                    .writeln_mapped_with_type("return", node.line, MappingType::Return);
+                return;
+            }
+            _ => {}
+        }
+
+        let (target_state_name, target_state_ref, state_args_opt, enter_args_opt) = match &node
+            .transition_expr_node
+            .target_state_context_t
+        {
+            TargetStateContextType::StateRef { state_context_node } => (
+                self.format_state_name(&state_context_node.state_ref_node.name),
+                Some(&state_context_node.state_ref_node.name),
+                state_context_node.state_ref_args_opt.as_ref(),
+                state_context_node.enter_args_opt.as_ref(),
+            ),
+            _ => unreachable!("Special variants handled above"),
+        };
 
         // Build state_vars dictionary for the target state
         let state_vars_dict = if let Some(state_name) = target_state_ref {

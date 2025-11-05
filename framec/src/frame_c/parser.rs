@@ -5532,9 +5532,9 @@ impl<'a> Parser<'a> {
         // Parse event handlers
         let state_event_handlers = self.parse_state_event_handlers(&state_name)?;
 
-        // Parse nested states inside this state's body (hierarchical states) in first pass only.
+        // Parse nested states inside this state's body (hierarchical states).
         // Any nested states discovered are accumulated and later appended to the machine's state list.
-        while self.is_building_symbol_table && self.match_token(&[TokenType::State]) {
+        while self.match_token(&[TokenType::State]) {
             let child_line = self.previous().line;
             // Temporarily set parent context so parent-dispatch (=> $^) is allowed within nested state
             let saved_parent = self.state_parent_opt.clone();
@@ -6488,7 +6488,9 @@ impl<'a> Parser<'a> {
             // Heuristic: if body contains obvious TS-native tokens, segment it
             let mut raw = String::new();
             let start_line = body_start_line.saturating_add(1);
-            for ln in start_line..=body_end_line {
+            // Exclude the closing '}' line
+            let end_line_inclusive = body_end_line.saturating_sub(1);
+            for ln in start_line..=end_line_inclusive {
                 if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
                     raw.push_str(s);
                     if !s.ends_with('\n') {
@@ -6501,7 +6503,7 @@ impl<'a> Parser<'a> {
                 let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
                     &self.source_text(),
                     start_line,
-                    body_end_line,
+                    end_line_inclusive,
                 );
                 if !segs.is_empty() {
                     event_handler.segmented_body = Some(segs);
@@ -14146,10 +14148,15 @@ impl<'a> Parser<'a> {
             }
             Ok(Some(TargetStateContextType::StateStackPop {}))
         } else if self.match_token(&[TokenType::StateStackOperationPush]) {
-            let err_msg =
-                "Error - $$[+] is an invalid transition target. Try replacing with $$[-]. ";
-            self.error_at_previous(&err_msg);
-            return Err(ParseError::new(err_msg));
+            if !is_transition {
+                let err_msg = "State change disallowed to a pushed state.";
+                self.error_at_previous(&err_msg);
+            } else if let Some(..) = enter_args_opt {
+                let err_msg =
+                    "Transition enter arguments disallowed when transitioning to a pushed state.";
+                self.error_at_previous(&err_msg);
+            }
+            Ok(Some(TargetStateContextType::StateStackPush {}))
         } else {
             // parse state ref e.g. '$S1'
             if !self.match_token(&[TokenType::State]) {
