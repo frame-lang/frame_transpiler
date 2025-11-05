@@ -6483,30 +6483,39 @@ impl<'a> Parser<'a> {
             &event_handler.target_specific_regions,
             &event_handler.parsed_target_blocks,
         );
-        // Conditionally attach segmented native body for TypeScript if handler contains native TS
+        // TypeScript handlers: prefer SWC parse if no directives; otherwise attach segmentation
         if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-            // Heuristic: if body contains obvious TS-native tokens, segment it
-            let mut raw = String::new();
             let start_line = body_start_line.saturating_add(1);
-            // Exclude the closing '}' line
             let end_line_inclusive = body_end_line.saturating_sub(1);
-            for ln in start_line..=end_line_inclusive {
-                if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                    raw.push_str(s);
-                    if !s.ends_with('\n') {
-                        raw.push('\n');
+            if end_line_inclusive >= start_line {
+                // Build raw slice
+                let mut raw = String::new();
+                for ln in start_line..=end_line_inclusive {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        raw.push_str(s);
+                        if !s.ends_with('\n') { raw.push('\n'); }
                     }
                 }
-            }
-            let looks_native = raw.contains("const ") || raw.contains("let ") || raw.contains("=>");
-            if looks_native {
                 let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
-                    &self.source_text(),
-                    start_line,
-                    end_line_inclusive,
-                );
-                if !segs.is_empty() {
+                    &self.source_text(), start_line, end_line_inclusive);
+                let has_directive = segs.iter().any(|seg| matches!(seg, crate::frame_c::native_region_segmenter::BodySegment::Directive { .. }));
+                if has_directive {
                     event_handler.segmented_body = Some(segs);
+                } else if !raw.trim().is_empty() {
+                    let region = TargetRegion {
+                        start_position: 0,
+                        end_position: None,
+                        raw_content: raw,
+                        target: TargetLanguage::TypeScript,
+                        source_map: TargetSourceMap { frame_start_line: start_line, target_line_offsets: Vec::new() },
+                    };
+                    if let Ok(ast) = parse_target_region(TargetLanguage::TypeScript, &region) {
+                        // Prefer SWC AST for native handlers without directives
+                        event_handler.parsed_target_blocks.push(ParsedTargetBlock { region_index: 0, frame_start_line: start_line, frame_end_line: end_line_inclusive, ast });
+                    } else {
+                        // Fallback to segmentation
+                        if !segs.is_empty() { event_handler.segmented_body = Some(segs); }
+                    }
                 }
             }
         }
