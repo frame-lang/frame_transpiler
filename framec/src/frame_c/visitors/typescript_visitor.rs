@@ -8,6 +8,7 @@ use crate::frame_c::ast::*;
 use crate::frame_c::code_builder::CodeBuilder;
 use crate::frame_c::scanner::{TargetRegion, TokenType};
 use crate::frame_c::symbol_table::{Arcanum, SymbolConfig};
+use crate::frame_c::native_region_segmenter::BodySegment;
 use crate::frame_c::target_parsers::typescript::{TypeScriptTargetAst, TypeScriptTargetElement};
 use crate::frame_c::target_parsers::ParsedTargetBlock;
 use convert_case::{Case, Casing};
@@ -97,6 +98,8 @@ pub struct TypeScriptVisitor {
     target_regions: Arc<Vec<TargetRegion>>,
     native_module_bindings: HashMap<String, TypeScriptNativeBinding>,
     runtime_imports: BTreeSet<String>,
+    // Parent lookup: formatted state name -> formatted parent state name (if any)
+    parent_state_map: HashMap<String, Option<String>>,
 }
 
 struct NodeApiActionMapping {
@@ -155,6 +158,7 @@ impl TypeScriptVisitor {
             target_regions: Arc::new(Vec::new()),
             native_module_bindings: HashMap::new(),
             runtime_imports,
+            parent_state_map: HashMap::new(),
         }
     }
 
@@ -2087,6 +2091,20 @@ impl AstVisitor for TypeScriptVisitor {
         let previous_async_runtime = self.system_has_async_runtime;
         self.system_has_async_runtime = self.system_needs_async_runtime(system_node);
 
+        // Build parent state map for this system for quick parent-forward lookup
+        self.parent_state_map.clear();
+        if let Some(machine) = &system_node.machine_block_node_opt {
+            for state_rcref in &machine.states {
+                let state = state_rcref.borrow();
+                let formatted = self.format_state_name(&state.name);
+                let parent_formatted = state
+                    .dispatch_opt
+                    .as_ref()
+                    .map(|d| self.format_state_name(&d.target_state_ref.name));
+                self.parent_state_map.insert(formatted, parent_formatted);
+            }
+        }
+
         // Prepare state variable initializers for this system
         self.state_var_initializers.clear();
         self.state_param_names.clear();
@@ -2778,6 +2796,7 @@ impl AstVisitor for TypeScriptVisitor {
             &handler.parsed_target_blocks,
             &handler.target_specific_regions,
             &handler.unrecognized_statements,
+            handler.segmented_body.as_ref().map(|v| v.as_slice()),
         );
 
         if generated_target_specific
@@ -2957,6 +2976,7 @@ impl AstVisitor for TypeScriptVisitor {
             &operation.parsed_target_blocks,
             &operation.target_specific_regions,
             &operation.unrecognized_statements,
+            operation.segmented_body.as_deref(),
         );
 
         if generated_target_specific
@@ -3096,6 +3116,7 @@ impl AstVisitor for TypeScriptVisitor {
             &action.parsed_target_blocks,
             &action.target_specific_regions,
             &action.unrecognized_statements,
+            action.segmented_body.as_deref(),
         );
 
         if generated_target_specific
@@ -7612,6 +7633,7 @@ impl TypeScriptVisitor {
             &function_node.parsed_target_blocks,
             &function_node.target_specific_regions,
             &function_node.unrecognized_statements,
+            None,
         );
 
         if generated_target_specific
@@ -8394,12 +8416,97 @@ impl TypeScriptVisitor {
         parsed_blocks: &[ParsedTargetBlock],
         region_refs: &[TargetSpecificRegionRef],
         unrecognized: &[UnrecognizedStatementNode],
+        segments: Option<&[BodySegment]>,
     ) -> (bool, BTreeSet<String>) {
         let mut generated = false;
         let mut ignored: BTreeSet<String> = unrecognized
             .iter()
             .map(|entry| format!("{:?}", entry.target))
             .collect();
+
+        if let Some(segs) = segments {
+            for seg in segs {
+                match seg {
+                    BodySegment::Native { text, .. } => {
+                        if !text.trim().is_empty() {
+                            self.builder.write(text);
+                            if !text.ends_with('\n') {
+                                self.builder.newline();
+                            }
+                        }
+                    }
+                    BodySegment::Directive { kind, line_text, .. } => {
+                        match kind {
+                            crate::frame_c::native_region_segmenter::DirectiveKind::Transition => {
+                                // Very simple parse: look for "$Name" after ->
+                                if let Some(dollar) = line_text.find('$') {
+                                    let tail = &line_text[dollar+1..];
+                                    let mut name = String::new();
+                                    for ch in tail.chars() {
+                                        if ch.is_alphanumeric() || ch == '_' { name.push(ch); } else { break; }
+                                    }
+                                    if !name.is_empty() {
+                                        // Emit basic transition glue without args
+                                        self.builder.writeln(&format!(
+                                            "this._frame_transition(new FrameCompartment('{}', null, null, {{}}, {{}}));",
+                                            name
+                                        ));
+                                        self.builder.writeln("return;");
+                                    } else {
+                                        self.builder.writeln("// TODO: transition parse failed");
+                                    }
+                                }
+                            }
+                            crate::frame_c::native_region_segmenter::DirectiveKind::Forward => {
+                                // Parent forward: set nextCompartment to parent state and forward current event
+                                // Determine current state and its parent from the AST if possible.
+                                if let Some(curr_state_name) = &self.current_state_name {
+                                    // Resolve parent via precomputed map
+                                    let curr_formatted = self.format_state_name(curr_state_name);
+                                    let parent_name_opt = self
+                                        .parent_state_map
+                                        .get(&curr_formatted)
+                                        .and_then(|p| p.clone());
+                                    if let Some(parent_name) = parent_name_opt {
+                                        self.builder.writeln(&format!(
+                                            "this._nextCompartment = new FrameCompartment('{}', null, null, {{}}, {{}});",
+                                            parent_name
+                                        ));
+                                        self.builder.writeln("this._nextCompartment.forwardEvent = __e;");
+                                        self.builder.writeln("return;");
+                                    } else {
+                                        // If parent not found, fall back to forwarding to current state
+                                        self.builder.writeln("// WARN: parent state not found; forwarding to current state");
+                                        let curr = curr_formatted;
+                                        self.builder.writeln(&format!(
+                                            "this._nextCompartment = new FrameCompartment('{}', null, null, {{}}, {{}});",
+                                            curr
+                                        ));
+                                        self.builder.writeln("this._nextCompartment.forwardEvent = __e;");
+                                        self.builder.writeln("return;");
+                                    }
+                                } else {
+                                    self.builder.writeln("// TODO: unable to resolve current state for parent forward");
+                                }
+                            }
+                            crate::frame_c::native_region_segmenter::DirectiveKind::StackPush => {
+                                // Push current state onto return stack (or dedicated state stack) and return
+                                // For TS backend we use returnStack as general stack storage.
+                                self.builder.writeln("this.returnStack.push({});");
+                                self.builder.writeln("return;");
+                            }
+                            crate::frame_c::native_region_segmenter::DirectiveKind::StackPop => {
+                                // Pop a previously pushed value/state and return it as handler result
+                                self.builder.writeln("const __popped = this.returnStack.pop();");
+                                self.builder.writeln("this.returnStack[this.returnStack.length - 1] = __popped;");
+                                self.builder.writeln("return;");
+                            }
+                        }
+                    }
+                }
+            }
+            return (true, ignored);
+        }
 
         if !matches!(body_kind, ActionBody::TargetSpecific | ActionBody::Mixed) {
             return (generated, ignored);

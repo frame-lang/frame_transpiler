@@ -308,6 +308,7 @@ fn run_single_import(
 // ---------------- Lockfile writing -----------------
 
 #[derive(Debug, Serialize)]
+#[allow(non_snake_case)]
 struct Lockfile {
     #[serde(rename = "$schema")]
     schema: String,
@@ -412,6 +413,7 @@ fn hex_sha256(content: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+#[allow(dead_code)]
 fn collect_native_imports(spec_paths: &[PathBuf]) -> Result<Vec<NativeImportRequest>, RunError> {
     let mut results = Vec::new();
     let mut seen = HashSet::new();

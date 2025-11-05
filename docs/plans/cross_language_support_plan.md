@@ -579,6 +579,19 @@ impl TargetSourceMap {
 | **Phase 4** | (Post Phase 3) | LLVM visitor integration (deferred) |
 | **Total** | **~7 weeks (+LLVM)** | **Production-ready Python/TypeScript support; LLVM follows** |
 
+## 🔧 Parser Architecture Evolution (post-TypeScript)
+
+After the TypeScript interleaver is stable (and Python parity lands), evolve to a standard compiler pipeline: parse once to AST, then analyze.
+
+- P1: Introduce a dedicated `SemanticAnalyzer` that walks the AST with `Arcanum` (symbol tables) for name binding, call-chain checks, start-state/enter-param validation, etc.
+- P2: Build/populate symbol tables during (or immediately after) AST construction; expose a stable view to the analyzer.
+- P3: Migrate logic currently guarded by `is_building_symbol_table` in `Parser` into the analyzer; remove second `Parser` pass.
+- P4: Keep OutlineScanner + Interleaver unchanged; they feed the single parse/AST as today.
+
+Acceptance:
+- Single parse to AST; separate analyzer pass produces identical or improved diagnostics.
+- Visitors unchanged; tests for both Python and TypeScript remain green.
+
 ## 🔄 Future Extensions
 
 ### Additional Target Languages

@@ -9,6 +9,7 @@ use super::symbol_table::{ActionScopeSymbol, EventSymbol, SymbolType};
 use crate::frame_c::symbol_table::{InterfaceMethodSymbol, OperationScopeSymbol, ParameterSymbol};
 use crate::frame_c::target_parsers::ParsedTargetBlock;
 use crate::frame_c::visitors::*;
+use crate::frame_c::native_region_segmenter::BodySegment;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt;
@@ -1175,6 +1176,7 @@ pub struct ActionNode {
     pub parsed_target_blocks: Vec<ParsedTargetBlock>,
     pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
     pub body: ActionBody,
+    pub segmented_body: Option<Vec<BodySegment>>, // NativeRegion segments for native bodies
 }
 
 impl ActionNode {
@@ -1203,6 +1205,7 @@ impl ActionNode {
             parsed_target_blocks: Vec::new(),
             unrecognized_statements: Vec::new(),
             body: ActionBody::Empty,
+            segmented_body: None,
         }
     }
 }
@@ -1239,6 +1242,7 @@ pub struct OperationNode {
     pub parsed_target_blocks: Vec<ParsedTargetBlock>,
     pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
     pub body: ActionBody,
+    pub segmented_body: Option<Vec<BodySegment>>, // NativeRegion segments for native bodies
 }
 
 impl OperationNode {
@@ -1269,6 +1273,7 @@ impl OperationNode {
             parsed_target_blocks: Vec::new(),
             unrecognized_statements: Vec::new(),
             body: ActionBody::Empty,
+            segmented_body: None,
         }
     }
 
@@ -1798,6 +1803,7 @@ pub struct EventHandlerNode {
     pub parsed_target_blocks: Vec<ParsedTargetBlock>,
     pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
     pub body: ActionBody,
+    pub segmented_body: Option<Vec<crate::frame_c::native_region_segmenter::BodySegment>>, // NativeRegion segments for native TS bodies
 }
 
 impl EventHandlerNode {
@@ -1828,6 +1834,7 @@ impl EventHandlerNode {
             parsed_target_blocks: Vec::new(),
             unrecognized_statements: Vec::new(),
             body: ActionBody::Empty,
+            segmented_body: None,
         }
     }
 

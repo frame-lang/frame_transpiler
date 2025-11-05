@@ -558,21 +558,124 @@ impl Scanner {
                             self.handle_target_language_declaration();
                         }
                     } else {
-                        // Provide helpful error messages for common Unicode quote characters
-                        match c {
-                            '\u{2018}' | '\u{2019}' => self.error(
-                                self.line,
-                                "Found Unicode smart quote. Use ASCII single quote (') instead.",
-                            ),
-                            '\u{201C}' | '\u{201D}' => self.error(
-                                self.line,
-                                "Found Unicode smart quote. Use ASCII double quote (\") instead.",
-                            ),
-                            _ => self
-                                .error(self.line, &format!("Found unexpected character '{}'.", c)),
+                        // Be tolerant of native TypeScript strings/templates in FrameCommon mode
+                        if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                            if c == '\'' || c == '"' {
+                                self.skip_ts_string(c);
+                            } else if c == '`' {
+                                self.skip_ts_template();
+                            } else {
+                                // Provide helpful error messages for common Unicode quote characters
+                                match c {
+                                    '\u{2018}' | '\u{2019}' => self.error(
+                                        self.line,
+                                        "Found Unicode smart quote. Use ASCII single quote (') instead.",
+                                    ),
+                                    '\u{201C}' | '\u{201D}' => self.error(
+                                        self.line,
+                                        "Found Unicode smart quote. Use ASCII double quote (\") instead.",
+                                    ),
+                                    _ => self
+                                        .error(self.line, &format!("Found unexpected character '{}'.", c)),
+                                }
+                            }
+                        } else {
+                            // Provide helpful error messages for common Unicode quote characters
+                            match c {
+                                '\u{2018}' | '\u{2019}' => self.error(
+                                    self.line,
+                                    "Found Unicode smart quote. Use ASCII single quote (') instead.",
+                                ),
+                                '\u{201C}' | '\u{201D}' => self.error(
+                                    self.line,
+                                    "Found Unicode smart quote. Use ASCII double quote (\") instead.",
+                                ),
+                                _ => self
+                                    .error(self.line, &format!("Found unexpected character '{}'.", c)),
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Skip a TypeScript single- or double-quoted string, handling escapes.
+    fn skip_ts_string(&mut self, delimiter: char) {
+        loop {
+            if self.is_at_end() {
+                break;
+            }
+            let ch = self.advance();
+            if ch == '\\' {
+                // Skip escaped char
+                if !self.is_at_end() {
+                    self.advance();
+                }
+                continue;
+            }
+            if ch == delimiter {
+                break;
+            }
+            // Update line counter on newline inside strings
+            if ch == '\n' {
+                // already handled in advance()
+            }
+        }
+    }
+
+    // Skip a TypeScript template literal, supporting nested ${ ... } expressions.
+    fn skip_ts_template(&mut self) {
+        let mut expr_depth: i32 = 0;
+        let mut inner_string: Option<char> = None;
+        loop {
+            if self.is_at_end() {
+                break;
+            }
+            let ch = self.advance();
+            if ch == '\\' {
+                // Skip escaped char
+                if !self.is_at_end() {
+                    self.advance();
+                }
+                continue;
+            }
+
+            // If inside a quoted string within an expression, only look for its closing quote
+            if let Some(delim) = inner_string {
+                if ch == delim {
+                    inner_string = None;
+                }
+                continue;
+            }
+
+            // Not inside a quoted string
+            match ch {
+                '\'' | '"' if expr_depth > 0 => {
+                    // Enter inner quoted string within an expression
+                    inner_string = Some(ch);
+                }
+                '`' => {
+                    if expr_depth == 0 {
+                        // End of the outer template
+                        break;
+                    } else {
+                        // Nested template inside an expression: skip it fully
+                        self.skip_ts_template();
+                    }
+                }
+                '$' => {
+                    if self.peek() == '{' {
+                        self.advance();
+                        expr_depth += 1;
+                    }
+                }
+                '}' => {
+                    if expr_depth > 0 {
+                        expr_depth -= 1;
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -1683,6 +1786,11 @@ pub struct TargetRegion {
     pub target: TargetLanguage,
     pub source_map: TargetSourceMap,
 }
+
+// Transitional alias: prefer `NativeRegion` in new code to reflect that this
+// represents a native-language region captured during scanning. This will be
+// renamed in a future cleanup once all call sites migrate.
+pub type NativeRegion = TargetRegion;
 
 #[derive(Debug, Clone, Default)]
 pub struct TargetSourceMap {

@@ -1,4 +1,83 @@
-# Frame Transpiler Architecture
+# Frame Transpiler Architecture (Authoritative)
+
+Status: Authoritative design reference for the current and in‑flight architecture (Option A).  
+Last updated: 2025‑11‑03
+
+This document is the single source of truth for the Frame compiler pipeline, terminology, and component responsibilities. Older sections below are retained as legacy context; the “Authoritative Architecture” sections supersede them.
+
+## Authoritative Architecture
+
+### Pipeline (high‑level)
+
+```
+CompilationUnit (.frm file)
+  → ModulePartitioner (file/module structure & native regions)
+  → Parser (AST build; 2‑pass today)
+  → NativeRegionSegmenter (per native region inside a body; top‑level classification)
+  → Semantic analysis (current: in Parser pass 2; planned: dedicated SemanticAnalyzer)
+  → Visitors (code generation)
+```
+
+### Terminology: Partition vs Segment
+
+- Partition (Frame‑outer context): a contiguous region where Frame is the host grammar and native code appears only as embedded islands. Partitions are produced by the ModulePartitioner.
+  - Examples: PrologPartition (@target), NativeImportPartition (contiguous native imports), FrameOutlinePartition (systems/blocks/headers), BodyPartition (per member body: FrameBody or NativeBody).
+
+- Segment (Native‑outer context): a classification inside a native region where the host is the target language and Frame appears only as embedded control directives. Segments are produced by the NativeRegionSegmenter.
+  - BodySegment::Native { text, start_line, end_line }
+  - BodySegment::Directive { kind: Transition | Forward | StackPush | StackPop, frame_line }
+
+In short: we partition Frame blocks; we segment native blocks.
+
+### Components (current mapping)
+
+- ModulePartitioner (file/module pass)
+  - Implementation: `framec/src/frame_c/scanner_outline.rs`
+  - Role: Identify ModuleUnit(s) in a CompilationUnit and produce ordered partitions:
+    - PrologPartition (e.g., `@target`)
+    - NativeImportPartition(s)
+    - FrameOutlinePartition (systems/blocks/headers, body ranges)
+    - BodyPartition (per member body)
+  - Notes: An implicit ModuleUnit exists even without explicit `module {}`; it still contains multiple partitions.
+
+- Parser (AST build; two‑pass today)
+  - Implementation: `framec/src/frame_c/parser.rs`
+  - Pass 1 builds symbol tables (Arcanum). Pass 2 performs semantic parsing/validation and constructs the AST.
+  - Attaches body metadata: Frame bodies remain Frame; native bodies will carry `ActionBody::Segmented(segments)` after segmentation.
+
+- NativeRegionSegmenter (per target native region)
+  - Implementation (TS scaffold): `framec/src/frame_c/native_region_segmenter/typescript.rs`
+  - Role: For each NativeBody partition, classify top‑level lines into Native vs Directive segments (brace/string/template/comment aware). No reordering and no full native parsing.
+
+- Semantic analysis
+  - Current: performed during Parser pass 2.
+  - Planned: a dedicated `SemanticAnalyzer` that walks the AST after a single parse (see “Evolution” below).
+
+- Visitors (code generation)
+  - Implementations: `framec/src/frame_c/visitors/*`
+  - Role: Emit Native segments verbatim; emit glue for Directive segments (transition, forward, stack operations).
+
+- Diagnostics & Source Maps
+  - Implementations: `framec/src/frame_c/source_map.rs`, `framec/src/frame_c/source_mapping.rs`
+  - Policy: Partitions choose diagnostic domain (Frame vs native). Segments carry dual locations (frame_line for directives; start/end target lines for native).
+
+### Evolution (planned and in progress)
+
+- Parse‑once + dedicated SemanticAnalyzer
+  - Move all semantic checks (call‑chain, start‑state/enter‑param validation, scope resolution) out of Parser pass 2 into a separate analyzer pass that walks the AST with Arcanum.
+  - Remove the second Parser pass once the analyzer is in place.
+
+- Naming cleanup (in code)
+  - `TargetRegion` → `NativeRegion`
+  - `interleaver` modules → `native_region_segmenter`
+  - `FrameStmtKind` → `DirectiveKind`
+  - `ActionBody::Interleaved` → `ActionBody::Segmented`
+
+---
+
+## Legacy Architecture (for context)
+
+The following sections describe the pre‑Option‑A pipeline and historical details. They are preserved for reference but are not authoritative for ongoing work.
 
 ## Overview
 

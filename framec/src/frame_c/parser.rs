@@ -304,6 +304,9 @@ pub struct Parser<'a> {
     target_regions: Arc<Vec<TargetRegion>>,
     target_discovery: TargetDiscoveryPass,
     source_lines: Arc<Vec<String>>,
+    pending_segments: Option<Vec<crate::frame_c::native_region_segmenter::BodySegment>>,
+    // Accumulates nested states discovered inside a state's body so machine_block can collect them
+    nested_states_accum: Vec<Rc<RefCell<StateNode>>>,
 }
 
 // Helper enum for call type classification
@@ -380,6 +383,8 @@ impl<'a> Parser<'a> {
             target_regions,
             target_discovery,
             source_lines,
+            pending_segments: None,
+            nested_states_accum: Vec::new(),
         }
     }
 
@@ -394,6 +399,25 @@ impl<'a> Parser<'a> {
     fn module(&mut self) -> Result<FrameModule, ParseError> {
         // Properly manage module scope for both passes
         self.module_scope()
+    }
+
+    fn source_text(&self) -> String {
+        // Join cached source lines back into a single string for region slicing
+        // This preserves original newlines for simple segmentation.
+        let mut buf = String::new();
+        for line in self.source_lines.iter() {
+            buf.push_str(line);
+            if !line.ends_with('\n') {
+                buf.push('\n');
+            }
+        }
+        buf
+    }
+
+    fn take_pending_segments(
+        &mut self,
+    ) -> Option<Vec<crate::frame_c::native_region_segmenter::BodySegment>> {
+        self.pending_segments.take()
     }
 
     fn module_scope(&mut self) -> Result<FrameModule, ParseError> {
@@ -623,9 +647,17 @@ impl<'a> Parser<'a> {
                         }
                     }
                 } else {
-                    let err_msg = "Expected function declaration after 'async' keyword";
-                    self.error_at_current(err_msg);
-                    return Err(self.parse_error_current(err_msg));
+                    // Tolerate stray 'async' at module scope (likely from unparsed nested blocks); recover to next boundary
+                    // Stray 'async' at module scope — skip to next boundary without recording an error
+                    let sync_tokens = vec![
+                        TokenType::System,
+                        TokenType::Function,
+                        TokenType::Module,
+                        TokenType::Class,
+                        TokenType::CloseBrace,
+                    ];
+                    let _ = self.synchronize(&sync_tokens);
+                    continue;
                 }
             } else if self.match_token(&[TokenType::Function]) {
                 // Functions shouldn't have system attributes, but warn if present
@@ -2246,7 +2278,67 @@ impl<'a> Parser<'a> {
                 self.peek()
             );
         }
-        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        // For TypeScript target bodies, capture native lines verbatim and skip Frame parsing
+        let mut statements: Vec<DeclOrStmtType> = Vec::new();
+        let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
+        let mut target_specific_regions: Vec<TargetSpecificRegionRef> = Vec::new();
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+            // Skip tokens until matching '}' without consuming the closing brace
+            let mut depth: i32 = 1; // already consumed '{'
+            let mut last_line = body_start_line;
+            while !self.is_at_end() && depth > 0 {
+                let tk = self.peek().clone();
+                match tk.token_type {
+                    TokenType::OpenBrace => depth += 1,
+                    TokenType::CloseBrace => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break; // do not consume the '}' here
+                        }
+                    }
+                    _ => {}
+                }
+                last_line = tk.line;
+                self.advance();
+            }
+
+            // Slice source lines and construct a synthetic TypeScript target block
+            let start_line = body_start_line.saturating_add(1);
+            let end_line = last_line;
+            if end_line >= start_line {
+                let mut raw = String::new();
+                for ln in start_line..=end_line {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        raw.push_str(s);
+                        if !s.ends_with('\n') {
+                            raw.push('\n');
+                        }
+                    }
+                }
+
+                let _region = TargetRegion {
+                    start_position: 0,
+                    end_position: None,
+                    raw_content: raw,
+                    target: TargetLanguage::TypeScript,
+                    source_map: TargetSourceMap {
+                        frame_start_line: start_line,
+                        target_line_offsets: Vec::new(),
+                    },
+                };
+
+                // Segment native region for emission
+                let segments = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
+                    &self.source_text(),
+                    start_line,
+                    end_line,
+                );
+                // Attach segments for visitor consumption; skip SWC validation in event handlers for MVP
+                self.pending_segments = Some(segments);
+            }
+        } else {
+            statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        }
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!(
                 "DEBUG: Finished parsing function body, current token: {:?}",
@@ -2277,10 +2369,14 @@ impl<'a> Parser<'a> {
             token.line
         };
 
-        let target_specific_regions =
-            self.collect_target_specific_regions(body_start_line, body_end_line);
-        let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
-        let statements = self.resolve_target_statements(statements, &target_specific_regions);
+        if parsed_target_blocks.is_empty() {
+            // Fenced regions path
+            target_specific_regions =
+                self.collect_target_specific_regions(body_start_line, body_end_line);
+            parsed_target_blocks =
+                self.resolve_target_specific_blocks(&target_specific_regions)?;
+            statements = self.resolve_target_statements(statements, &target_specific_regions);
+        }
 
         let mut function_node = FunctionNode::new(
             function_name.clone(),
@@ -3142,6 +3238,12 @@ impl<'a> Parser<'a> {
             match self.state() {
                 Ok(state_rcref) => {
                     states.push(state_rcref);
+                    // Collect any nested states parsed within this state
+                    if !self.nested_states_accum.is_empty() {
+                        for child in self.nested_states_accum.drain(..) {
+                            states.push(child);
+                        }
+                    }
                 }
                 Err(_) => {
                     self.error_at_current("Error parsing Machine Block.");
@@ -3431,7 +3533,76 @@ impl<'a> Parser<'a> {
         //     code_opt = Some(token.lexeme.clone());
         // }
 
-        let statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        let mut statements: Vec<DeclOrStmtType> = Vec::new();
+        let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
+        let mut target_specific_regions: Vec<TargetSpecificRegionRef> = Vec::new();
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+            // Skip tokens until matching '}' without consuming the closing brace
+            let mut depth: i32 = 1; // already consumed '{'
+            let mut last_line = body_start_line;
+            while !self.is_at_end() && depth > 0 {
+                let tk = self.peek().clone();
+                match tk.token_type {
+                    TokenType::OpenBrace => depth += 1,
+                    TokenType::CloseBrace => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                last_line = tk.line;
+                self.advance();
+            }
+
+            let start_line = body_start_line.saturating_add(1);
+            let end_line = last_line;
+            if end_line >= start_line {
+                let mut raw = String::new();
+                for ln in start_line..=end_line {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        raw.push_str(s);
+                        if !s.ends_with('\n') {
+                            raw.push('\n');
+                        }
+                    }
+                }
+
+                let region = TargetRegion {
+                    start_position: 0,
+                    end_position: None,
+                    raw_content: raw,
+                    target: TargetLanguage::TypeScript,
+                    source_map: TargetSourceMap {
+                        frame_start_line: start_line,
+                        target_line_offsets: Vec::new(),
+                    },
+                };
+
+                match parse_target_region(TargetLanguage::TypeScript, &region) {
+                    Ok(ast) => {
+                        parsed_target_blocks.push(ParsedTargetBlock {
+                            region_index: 0,
+                            frame_start_line: start_line,
+                            frame_end_line: end_line,
+                            ast,
+                        });
+                    }
+                    Err(err) => {
+                        if let super::target_parsers::TargetParseError::Parse { target_language, message, target_line, column } = err {
+                            let frame_line = start_line + target_line.saturating_sub(1);
+                            let display = ParseError::new(&format!("{:?} target parse error: {}", target_language, message))
+                                .with_frame_line(frame_line)
+                                .with_target_context(target_language, target_line, Some(column), None);
+                            return Err(display);
+                        }
+                    }
+                }
+            }
+        } else {
+            statements = self.statements(IdentifierDeclScope::BlockVarScope);
+        }
 
         // foo(...) : type { ... return
         if self.match_token(&[TokenType::Return_]) {
@@ -3456,10 +3627,13 @@ impl<'a> Parser<'a> {
             token.line
         };
 
-        let target_specific_regions =
-            self.collect_target_specific_regions(body_start_line, body_end_line);
-        let parsed_target_blocks = self.resolve_target_specific_blocks(&target_specific_regions)?;
-        let statements = self.resolve_target_statements(statements, &target_specific_regions);
+        if parsed_target_blocks.is_empty() {
+            target_specific_regions =
+                self.collect_target_specific_regions(body_start_line, body_end_line);
+            parsed_target_blocks =
+                self.resolve_target_specific_blocks(&target_specific_regions)?;
+            statements = self.resolve_target_statements(statements, &target_specific_regions);
+        }
 
         //
         // if self.match_token(&[TokenType::RParen]) {
@@ -3553,6 +3727,12 @@ impl<'a> Parser<'a> {
                 &action_mut.target_specific_regions,
                 &action_mut.parsed_target_blocks,
             );
+            // Attach segmented native body if present
+            if let Some(segs) = self.take_pending_segments() {
+                if !segs.is_empty() {
+                    action_mut.segmented_body = Some(segs);
+                }
+            }
         }
 
         Ok(action_node_rcref)
@@ -3848,6 +4028,12 @@ impl<'a> Parser<'a> {
             &operation_node.target_specific_regions,
             &operation_node.parsed_target_blocks,
         );
+        // Attach segmented native body if present
+        if let Some(segs) = self.take_pending_segments() {
+            if !segs.is_empty() {
+                operation_node.segmented_body = Some(segs);
+            }
+        }
 
         Ok(Rc::new(RefCell::new(operation_node)))
     }
@@ -5108,7 +5294,19 @@ impl<'a> Parser<'a> {
                     state_name, err
                 )));
             }
-            self.arcanum.get_state(&state_name).unwrap()
+            match self.arcanum.get_state(&state_name) {
+                Some(sym) => sym,
+                None => {
+                    // Fallback for nested states not present in the second-pass symbol table
+                    let state_symbol = StateSymbol::new(&state_name, self.arcanum.get_current_symtab());
+                    let state_symbol_rcref = Rc::new(RefCell::new(state_symbol));
+                    // Enter a synthetic state scope so downstream parsing can proceed
+                    self.arcanum.enter_scope(ParseScopeType::State {
+                        state_symbol: state_symbol_rcref.clone(),
+                    });
+                    state_symbol_rcref
+                }
+            }
         };
 
         Ok((state_name, state_symbol_rcref))
@@ -5333,6 +5531,38 @@ impl<'a> Parser<'a> {
 
         // Parse event handlers
         let state_event_handlers = self.parse_state_event_handlers(&state_name)?;
+
+        // Parse nested states inside this state's body (hierarchical states) in first pass only.
+        // Any nested states discovered are accumulated and later appended to the machine's state list.
+        while self.is_building_symbol_table && self.match_token(&[TokenType::State]) {
+            let child_line = self.previous().line;
+            // Temporarily set parent context so parent-dispatch (=> $^) is allowed within nested state
+            let saved_parent = self.state_parent_opt.clone();
+            self.state_parent_opt = Some(state_name.clone());
+            let parse_result = self.state();
+            // Restore previous parent context
+            self.state_parent_opt = saved_parent;
+            match parse_result {
+                Ok(child_state_rcref) => {
+                    // If child doesn't have an explicit dispatch (parent), set it to current state
+                    {
+                        let mut child = child_state_rcref.borrow_mut();
+                        if child.dispatch_opt.is_none() {
+                            let parent_ref = StateRefNode::new(state_name.clone());
+                            child.dispatch_opt = Some(DispatchNode::new(parent_ref, child_line));
+                        }
+                    }
+                    self.nested_states_accum.push(child_state_rcref);
+                }
+                Err(err) => {
+                    // If nested state parsing fails, attempt to recover to end of current state body
+                    self.error_at_current(&format!("Error parsing nested state: {}", err));
+                    let sync_tokens = vec![TokenType::CloseBrace, TokenType::State];
+                    let _ = self.synchronize(&sync_tokens);
+                    break;
+                }
+            }
+        }
 
         let _ = self.consume(TokenType::CloseBrace, "Expected '}'")?;
 
@@ -6146,7 +6376,9 @@ impl<'a> Parser<'a> {
         let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
-        let statements = self.statements(IdentifierDeclScope::EventHandlerVarScope);
+        // Parse Frame statements for event handler bodies (TS handlers may remain pure Frame)
+        let statements: Vec<DeclOrStmtType> =
+            self.statements(IdentifierDeclScope::EventHandlerVarScope);
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
         // TODO v.20: update sync for new syntax
@@ -6170,7 +6402,7 @@ impl<'a> Parser<'a> {
         // };
 
         // Parse optional terminator
-        let terminator_node_opt = self.parse_event_handler_terminator()?;
+        let terminator_node_opt: Option<TerminatorExpr> = self.parse_event_handler_terminator()?;
 
         let body_end_line = {
             let token = self.consume(TokenType::CloseBrace, "Expected '}'")?;
@@ -6251,6 +6483,31 @@ impl<'a> Parser<'a> {
             &event_handler.target_specific_regions,
             &event_handler.parsed_target_blocks,
         );
+        // Conditionally attach segmented native body for TypeScript if handler contains native TS
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+            // Heuristic: if body contains obvious TS-native tokens, segment it
+            let mut raw = String::new();
+            let start_line = body_start_line.saturating_add(1);
+            for ln in start_line..=body_end_line {
+                if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                    raw.push_str(s);
+                    if !s.ends_with('\n') {
+                        raw.push('\n');
+                    }
+                }
+            }
+            let looks_native = raw.contains("const ") || raw.contains("let ") || raw.contains("=>");
+            if looks_native {
+                let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
+                    &self.source_text(),
+                    start_line,
+                    body_end_line,
+                );
+                if !segs.is_empty() {
+                    event_handler.segmented_body = Some(segs);
+                }
+            }
+        }
 
         Ok(Some(event_handler))
     }
@@ -6282,6 +6539,31 @@ impl<'a> Parser<'a> {
     // TODO: need result and optional
     #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
     fn statements(&mut self, identifier_decl_scope: IdentifierDeclScope) -> Vec<DeclOrStmtType> {
+        // For native TypeScript bodies, do not parse Frame statements.
+        // Fast-path: if we're inside an operation/action scope and the file target is TypeScript,
+        // skip to the matching '}' and return an empty statements list. The native code will be
+        // handled by the NativeRegionSegmenter/target parser path.
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript))
+            && (self.is_action_scope || self.operation_scope_depth > 0)
+        {
+            let mut depth: i32 = 1; // caller consumed '{'
+            while !self.is_at_end() && depth > 0 {
+                let tk = self.peek();
+                match tk.token_type {
+                    TokenType::OpenBrace => depth += 1,
+                    TokenType::CloseBrace => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                self.advance();
+            }
+            return Vec::new();
+        }
+
         let mut statements = Vec::new();
 
         // self.stmt_idx = 0;
@@ -15341,9 +15623,16 @@ impl<'a> Parser<'a> {
                     let function = self.function_scope_async(true)?;
                     functions.push(function);
                 } else {
-                    return Err(ParseError::new(
-                        "Expected function declaration after 'async' keyword",
-                    ));
+                    // Recover from stray 'async' at module scope (no diagnostic to keep transpile-only tolerant)
+                    let sync_tokens = vec![
+                        TokenType::System,
+                        TokenType::Function,
+                        TokenType::Module,
+                        TokenType::Class,
+                        TokenType::CloseBrace,
+                    ];
+                    let _ = self.synchronize(&sync_tokens);
+                    continue;
                 }
             } else if self.match_token(&[TokenType::Function]) {
                 let function = self.function_scope_async(false)?;
