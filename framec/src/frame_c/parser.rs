@@ -18076,6 +18076,23 @@ mod ts_textual_scan_tests {
         let close = compute_close_line(src, TargetLanguage::TypeScript, 5);
         assert_eq!(close, 9);
     }
+
+    #[test]
+    fn ts_scan_crlf_newlines() {
+        let src = "@target typescript\r\nsystem S {\r\n    actions:\r\n        run() {\r\n            const a = `x`;\r\n        }\r\n    machine:\r\n        $Init { run() { } }\r\n}\r\n";
+        // '{' after run() is on line 4
+        let close = compute_close_line(src, TargetLanguage::TypeScript, 4);
+        // close should be on line 6
+        assert_eq!(close, 6);
+    }
+
+    #[test]
+    fn ts_scan_nbsp_and_tabs() {
+        // includes NBSP (\u{00A0}) and tab before closing brace
+        let src = "@target typescript\nsystem S {\n    actions:\n        run() {\n\t\u{00A0}const a = 1;\n        }\n    machine:\n        $Init { run() { } }\n}\n";
+        let close = compute_close_line(src, TargetLanguage::TypeScript, 4);
+        assert_eq!(close, 6);
+    }
 }
 
 // Helper enum for bracket expression parsing
