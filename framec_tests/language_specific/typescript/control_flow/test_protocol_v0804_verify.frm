@@ -1,193 +1,179 @@
-# Frame Protocol - Minimal Proof of Concept
-# This will be transpiled to Python to test the approach
+# Minimal Debug Protocol — TypeScript native bodies
 
 system MinimalDebugProtocol {
-    
     interface:
-        # Basic lifecycle
         initialize(port)
         connect()
         disconnect()
-        
-        # Debug commands
         handleContinue()
         handleStep()
         handleBreakpoint(line)
-        
-        # Query state
         canExecuteCommand(command)
         getCurrentState()
-    
+
     machine:
         $Disconnected {
             initialize(port) {
-                print(f"Initializing with port {port}")
+                print("Initializing with port " + str(port))
                 self.debugPort = port
                 -> $Connecting
             }
-            
+
             connect() {
                 print("Cannot connect - not initialized")
-                # Stay in $Disconnected
             }
-            
+
             handleContinue() {
                 print("Cannot continue - not connected")
             }
-            
+
             getCurrentState() {
                 return "disconnected"
             }
         }
-        
+
         $Connecting {
             $>() {
-                # Entry action - attempt connection
-                print(f"Attempting to connect to port {self.debugPort}")
-                # In real implementation, would start socket connection
+                // Entry action - attempt connection
+                print("Attempting to connect to port " + str(self.debugPort))
                 self.connectionAttempts = self.connectionAttempts + 1
             }
-            
+
             connect() {
-                # Simulate successful connection
                 print("Connection established")
                 -> $Initializing
             }
-            
+
             disconnect() {
                 print("Aborting connection attempt")
                 -> $Disconnected
             }
-            
+
             getCurrentState() {
                 return "connecting"
             }
         }
-        
+
         $Initializing {
             $>() {
                 print("Sending initialization data")
-                # Would send breakpoints, source maps, etc.
             }
-            
+
             handleContinue() {
                 print("Starting execution")
                 -> $Running
             }
-            
+
             handleBreakpoint(line) {
-                print(f"Adding breakpoint at line {line}")
+                print("Adding breakpoint at line " + str(line))
                 self.breakpoints.append(line)
-                # Stay in $Initializing
             }
-            
+
             getCurrentState() {
                 return "initializing"
             }
         }
-        
+
         $Running {
             handleContinue() {
                 print("Already running - ignoring continue")
-                # Stay in $Running
             }
-            
+
             handleStep() {
                 print("Cannot step while running")
                 return False
             }
-            
+
             handleBreakpoint(line) {
-                if line in self.breakpoints {
-                    print(f"Hit breakpoint at line {line}")
+                if (self.breakpoints.includes(line)) {
+                    print("Hit breakpoint at line " + str(line))
                     self.currentLine = line
                     -> $Paused
                 } else {
-                    print(f"Line {line} is not a breakpoint")
+                    print("Line " + str(line) + " is not a breakpoint")
                 }
             }
-            
+
             canExecuteCommand(command) {
-                if command == "continue" {
-                    return False  # Already running
-                } elif command == "step" {
-                    return False  # Can't step while running
-                } elif command == "pause" {
+                if (command === "continue") {
+                    return False
+                } else if (command === "step") {
+                    return False
+                } else if (command === "pause") {
                     return True
                 } else {
                     return False
+                }
             }
-            
+
             getCurrentState() {
                 return "running"
             }
-            
+
             disconnect() {
                 -> $Disconnecting
             }
         }
-        
+
         $Paused {
             $>() {
-                print(f"Paused at line {self.currentLine}")
+                print("Paused at line " + str(self.currentLine))
             }
-            
+
             handleContinue() {
                 print("Resuming execution")
                 -> $Running
             }
-            
+
             handleStep() {
                 print("Stepping to next line")
-                # In real implementation, would set step mode
                 -> $Stepping
             }
-            
+
             canExecuteCommand(command) {
-                if command in ["continue", "step", "stepOver", "stepOut"] {
+                if (["continue", "step", "stepOver", "stepOut"].includes(command)) {
                     return True
-                } elif command == "pause" {
-                    return False  # Already paused
+                } else if (command === "pause") {
+                    return False
                 } else {
-                    return True  # Most commands valid when paused
+                    return True
+                }
             }
-            
+
             getCurrentState() {
                 return "paused"
             }
-            
+
             disconnect() {
                 -> $Disconnecting
             }
         }
-        
+
         $Stepping {
             $>() {
                 print("Executing step operation")
-                # Simulate step completion
                 self.currentLine = self.currentLine + 1
             }
-            
+
             handleBreakpoint(line) {
-                # Step complete, now paused
                 self.currentLine = line
                 -> $Paused
             }
-            
+
             handleContinue() {
                 print("Step interrupted by continue")
                 -> $Running
             }
-            
+
             canExecuteCommand(command) {
-                return False  # No commands during step
+                return False
             }
-            
+
             getCurrentState() {
                 return "stepping"
             }
         }
-        
+
         $Disconnecting {
             $>() {
                 print("Closing connection")
@@ -195,44 +181,40 @@ system MinimalDebugProtocol {
                 self.breakpoints = []
                 self.currentLine = 0
             }
-            
+
             disconnect() {
                 print("Cleanup complete")
                 -> $Disconnected
             }
-            
+
             getCurrentState() {
                 return "disconnecting"
             }
         }
-    
+
     actions:
-        # Helper methods that don't change state
-        
         addBreakpoint(line) {
-            if line not in self.breakpoints {
+            if (!self.breakpoints.includes(line)) {
                 self.breakpoints.append(line)
-                print(f"Breakpoint added at line {line}")
+                print("Breakpoint added at line " + str(line))
             }
         }
-        
+
         removeBreakpoint(line) {
-            if line in self.breakpoints {
+            if (self.breakpoints.includes(line)) {
                 self.breakpoints.remove(line)
-                print(f"Breakpoint removed from line {line}")
+                print("Breakpoint removed from line " + str(line))
             }
         }
-        
+
         getBreakpoints() {
             return self.breakpoints
         }
-    
+
     domain:
-        # State variables
         var debugPort = 0
         var breakpoints = []
         var currentLine = 0
         var connectionAttempts = 0
 }
 
-##
