@@ -7030,10 +7030,10 @@ impl<'a> Parser<'a> {
     // TODO: need result and optional
     #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
     fn statements(&mut self, identifier_decl_scope: IdentifierDeclScope) -> Vec<DeclOrStmtType> {
-        // For native TypeScript bodies, do not parse Frame statements.
-        // Fast-path: if we're inside an operation/action scope and the file target is TypeScript,
-        // skip to the matching '}' and return an empty statements list. The native code will be
-        // handled by the NativeRegionSegmenter/target parser path.
+        // When inside TypeScript action/operation/handler bodies, do not parse
+        // native lines as Frame statements. Skip until matching '}' and return
+        // an empty statements list; native content is handled via MixedBody or
+        // the NativeRegionSegmenter/target parser path.
         if matches!(self.target_language, Some(TargetLanguage::TypeScript))
             && (self.is_action_scope
                 || self.operation_scope_depth > 0
