@@ -1643,7 +1643,7 @@ impl TypeScriptVisitor {
 
     fn emit_runtime_imports(&mut self) {
         self.builder.writeln(
-            "import { FrameRuntime, FrameCollections, FrameCounter, FrameDict, FrameMath, FrameString, FrameEvent, FrameCompartment, OrderedDict, ChainMap, FrameSocketClient, configparser, json, numpy, os, random, signal, sys, time, open } from '../typescript/runtime/frame_runtime';",
+            "import { FrameRuntime, FrameCollections, FrameCounter, FrameDict, FrameMath, FrameString, FrameEvent, FrameCompartment, OrderedDict, ChainMap, FrameSocketClient, configparser, json, numpy, os, random, signal, sys, time, open } from '../../typescript/runtime/frame_runtime';",
         );
         self.builder.newline();
     }
