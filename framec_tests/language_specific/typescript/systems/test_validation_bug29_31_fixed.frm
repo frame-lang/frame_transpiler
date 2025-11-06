@@ -1,5 +1,4 @@
-# Test case for validation system - Bug #29/#31 style issues - FIXED VERSION
-# This file has the missing braces added to show validation passing
+# Validation system test — TypeScript native bodies
 
 system DebuggerValidationTest {
     interface:
@@ -18,9 +17,9 @@ system DebuggerValidationTest {
             getCurrentState() {
                 return "Running"
             }
-            
+
             canExecuteCommand(command) {
-                if command == "pause" {
+                if (command === "pause") {
                     return True
                 }
             }
@@ -28,9 +27,9 @@ system DebuggerValidationTest {
 
         $Paused {
             getCurrentState() {
-                return "Paused"  
+                return "Paused"
             }
-            
+
             canExecuteCommand(command) {
                 return True
             }
@@ -42,3 +41,4 @@ system DebuggerValidationTest {
             print(msg)
         }
 }
+
