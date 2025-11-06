@@ -4224,13 +4224,11 @@ impl<'a> Parser<'a> {
         //     code_opt = Some(token.lexeme.clone());
         // }
 
-        // For Python/TypeScript target bodies, prefer native parsing for operations
+        // For Python target bodies, avoid parsing native lines as Frame; TypeScript uses statements() skip path.
         let mut statements = Vec::new();
         let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
         let mut mixed_native_opt: Option<(TargetLanguage, String, usize, usize)> = None;
-        if matches!(self.target_language, Some(TargetLanguage::TypeScript))
-            || matches!(self.target_language, Some(TargetLanguage::Python3))
-        {
+        if matches!(self.target_language, Some(TargetLanguage::Python3)) {
             // Skip tokens until matching '}' without consuming the closing brace
             let mut depth: i32 = 1; // already consumed '{'
             let mut last_line = body_start_line;
@@ -4266,11 +4264,7 @@ impl<'a> Parser<'a> {
                     start_position: 0,
                     end_position: None,
                     raw_content: raw,
-                    target: if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                        TargetLanguage::TypeScript
-                    } else {
-                        TargetLanguage::Python3
-                    },
+                    target: TargetLanguage::Python3,
                     source_map: TargetSourceMap {
                         frame_start_line: start_line,
                         target_line_offsets: Vec::new(),
@@ -4278,43 +4272,99 @@ impl<'a> Parser<'a> {
                 };
                 // Remember native slice to build MixedBody if not segmented
                 mixed_native_opt = Some((region.target.clone(), region.raw_content.clone(), start_line, end_line));
-                // For TypeScript, prefer segmentation if directives appear
-                let mut used_segmentation = false;
-                if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                    let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
-                        &self.source_text(),
-                        start_line,
-                        end_line,
-                    );
-                    let has_directive = segs.iter().any(|seg| {
-                        matches!(
-                            seg,
-                            crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
-                        )
+                // For Python operations, parse native-only region for validation
+                if let Ok(ast) = parse_target_region(region.target, &region) {
+                    parsed_target_blocks.push(ParsedTargetBlock {
+                        region_index: 0,
+                        frame_start_line: start_line,
+                        frame_end_line: end_line,
+                        ast,
                     });
-                if has_directive {
-                    used_segmentation = true;
-                        // Attach to operation after node creation below
-                        // We stash in a temporary; we'll reconstruct later by setting on the node
-                        // To keep code localized, we’ll push into parsed_target_blocks only when not segmented
-                        // and use a local store otherwise.
-                        // Store in a temporary on self for later retrieval is overkill; we’ll rebuild segs later.
-                        // Instead, we carry segs in a local Option and assign after node creation.
-                    }
-                }
-                if !used_segmentation {
-                    if let Ok(ast) = parse_target_region(region.target, &region) {
-                        parsed_target_blocks.push(ParsedTargetBlock {
-                            region_index: 0,
-                            frame_start_line: start_line,
-                            frame_end_line: end_line,
-                            ast,
-                        });
-                    }
                 }
             }
         } else {
-            statements = self.statements(IdentifierDeclScope::BlockVarScope);
+            // TypeScript: advance cursor to matching '}' using a textual scan to avoid
+            // mistaking template literal braces for block delimiters.
+            if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                let source = self.source_text();
+                let all_lines: Vec<&str> = source.lines().collect();
+                let mut in_squote = false;
+                let mut in_dquote = false;
+                let mut in_block_comment = false;
+                let mut in_template = false;
+                let mut tpl_expr_depth = 0i32;
+                let mut brace_depth = 1i32; // already consumed '{'
+                let start = body_start_line.saturating_add(1);
+                let mut close_line = body_start_line; // default to same line for one-liners
+                for idx in (start.saturating_sub(1))..all_lines.len() {
+                    let frame_ln = idx + 1;
+                    let line = all_lines[idx].as_bytes();
+                    let mut j = 0usize;
+                    let mut in_line_comment = false;
+                    while j < line.len() {
+                        let ch = line[j] as char;
+                        if !in_template && !in_squote && !in_dquote && !in_block_comment {
+                            if ch == '/' && j + 1 < line.len() && line[j + 1] as char == '/' {
+                                in_line_comment = true;
+                                break;
+                            }
+                            if ch == '/' && j + 1 < line.len() && line[j + 1] as char == '*' {
+                                in_block_comment = true;
+                                j += 2;
+                                continue;
+                            }
+                            if ch == '\'' { in_squote = true; j += 1; continue; }
+                            if ch == '"' { in_dquote = true; j += 1; continue; }
+                            if ch == '`' { in_template = true; j += 1; continue; }
+                        } else {
+                            if in_block_comment {
+                                if ch == '*' && j + 1 < line.len() && line[j + 1] as char == '/' {
+                                    in_block_comment = false; j += 2; continue;
+                                }
+                                j += 1; continue;
+                            }
+                            if in_squote {
+                                if ch == '\\' { j += 2; continue; }
+                                if ch == '\'' { in_squote = false; j += 1; continue; }
+                                j += 1; continue;
+                            }
+                            if in_dquote {
+                                if ch == '\\' { j += 2; continue; }
+                                if ch == '"' { in_dquote = false; j += 1; continue; }
+                                j += 1; continue;
+                            }
+                            if in_template {
+                                if ch == '$' && j + 1 < line.len() && line[j + 1] as char == '{' { tpl_expr_depth += 1; j += 2; continue; }
+                                if ch == '}' && tpl_expr_depth > 0 { tpl_expr_depth -= 1; j += 1; continue; }
+                                if ch == '`' && tpl_expr_depth == 0 { in_template = false; j += 1; continue; }
+                                j += 1; continue;
+                            }
+                        }
+                        // Outside strings/comments/templates
+                        if ch == '{' { brace_depth += 1; j += 1; continue; }
+                        if ch == '}' { brace_depth -= 1; if brace_depth == 0 { close_line = frame_ln; break; } j += 1; continue; }
+                        j += 1;
+                    }
+                    if in_line_comment { /* skip rest of line */ }
+                    if brace_depth == 0 { break; }
+                }
+                // Advance token cursor to just before the computed closing '}' token.
+                while !self.is_at_end() {
+                    let tk = self.peek();
+                    if tk.line < close_line {
+                        self.advance();
+                        continue;
+                    }
+                    if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) {
+                        self.advance();
+                        continue;
+                    }
+                    break; // at the closing '}' or beyond
+                }
+                // leave statements empty for TS native bodies
+            } else {
+                statements = self.statements(IdentifierDeclScope::BlockVarScope);
+            }
         }
 
         // TODO P0: align/factor return statements into a function

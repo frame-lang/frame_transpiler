@@ -246,6 +246,13 @@ Last updated: 2025‑11‑05
   - 16_comments_with_directive_tokens.frm
   - 17_template_literals_nested.frm
   - 22_typescript_island_mega_syntax.frm (comprehensive, no Node deps)
+  - 23_indented_transition_and_unreachable.frm
+  - 24_multiple_directives_interleaved.frm
+  - 25_directives_in_block_comments.frm
+  - 26_directives_in_strings_escaped.frm
+  - 18_whitespace_tabs_spaces.frm, 19_nbsp_indentation.frm, 20_arrow_fn_not_segmented.frm, 21_directive_tokens_in_strings.frm
+
+Note: A deeper nested template case with backticks inside backticks is deferred until the TS textual body-closer helper is unified.
 
 TypeScript Segmenter Acceptance Checklist
 - [x] Template literals with nested `${}` do not confuse directive detection

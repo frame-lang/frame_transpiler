@@ -29,6 +29,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [ ] Reduced visitor complexity (measured by lines of runtime helper code)
 - [ ] Performance parity with hand-written target code
 - [ ] 100% Frame test suite compatibility
+  - Single-file: TS/Py suites at 100% (transpile-only) with extensive island fixtures
 
 ## 📋 Implementation Phases
 
@@ -60,6 +61,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - **Boundary detection test suite** covering nested braces, strings, comments
 - Unit tests for `@target typescript` parsing
 - Integration tests with existing Frame scanner
+ - Single-file island fixtures for TS/Py, including heavy cases (see “Fixture Inventory”)
 
 **Validation Criteria**:
 - LLVM toolchain strategy decided and documented (FFI-first path recorded)
@@ -67,6 +69,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Boundary detection handles complex nested constructs correctly
 - Backward compatibility: files without `@target` work unchanged
 - Error handling for invalid target names
+ - TypeScript/Python single-file suites pass with island fixtures
 
 #### Week 2: Parser Infrastructure & Diagnostics Integration
 **Goal**: Extend parser to handle target-specific syntax regions with first-class diagnostics
@@ -737,3 +740,30 @@ Checklist
 Validation
 - [ ] Full TypeScript test suite green (excluding deferred multi-file and FID/runtime tests)
 - [ ] Full Python transpile-only suite green; selected exec smoke for mixed bodies
+## Fixture Inventory (Single-File)
+
+### TypeScript Islands
+- 22_typescript_island_mega_syntax.frm (comprehensive)
+- 23_indented_transition_and_unreachable.frm
+- 24_multiple_directives_interleaved.frm
+- 25_directives_in_block_comments.frm
+- 26_directives_in_strings_escaped.frm
+- 16_comments_with_directive_tokens.frm
+- 17_template_literals_nested.frm
+- 18_whitespace_tabs_spaces.frm
+- 19_nbsp_indentation.frm
+- 20_arrow_fn_not_segmented.frm
+- 21_directive_tokens_in_strings.frm
+
+Note: an aggressive nested-backtick-in-backtick case has been deferred pending unification of the TS body textual skip helper.
+
+### Python Islands
+- test_python_island_mega_syntax.frm (comprehensive)
+- test_python_indented_directive_and_unreachable.frm
+- test_python_fstring_nested_directive_tokens.frm
+- test_python_triple_quote_with_directives.frm
+
+## Near-Term Next Steps (Single-File)
+- Extract TS textual body-closer scan into a reusable helper and apply uniformly (actions/ops/handlers/statements guard)
+- Re-introduce a deeper nested-template test once the helper is in place
+- Keep MixedBody authoritative; avoid token-depth heuristics for TS native bodies
