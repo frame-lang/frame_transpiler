@@ -33,3 +33,14 @@ the common grammar.
 
 ## Source Mapping
 - Preserve offsets for dual‑origin diagnostics.
+## Domain Declarations (C++ target)
+
+Use Frame style (`var name [: type] = value`) in the `domain:` block. The C++
+visitor maps these to class/struct members with initializers.
+
+Example (Frame):
+```
+domain:
+    var value: int = 0
+    var name: string = ""
+```

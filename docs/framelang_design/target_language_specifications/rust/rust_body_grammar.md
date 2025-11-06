@@ -34,3 +34,14 @@ common grammar.
 
 ## Source Mapping
 - Preserve offsets for dual‑origin diagnostics.
+## Domain Declarations (Rust target)
+
+Domain variables appear in `domain:` using Frame style (`var name [: type] = value`).
+The Rust visitor emits them as struct fields with default initializers.
+
+Example (Frame):
+```
+domain:
+    var count: int = 0
+    var label: string = ""
+```

@@ -103,7 +103,11 @@ operations:
 ### Domain Block
 ```
 domain:
-    var identifier [: type] = expression
+    // Target‑native style per language
+    // Python: native assignments (no 'var')
+    // TypeScript: Frame style for now (maps to class fields)
+    var identifier [: type] = expression   // TypeScript (current)
+    identifier [: type] = expression       // Python (native)
     ...
 
 ### Native Imports & FID Generation

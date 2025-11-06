@@ -35,3 +35,15 @@ Core Frame constructs are handled by the common grammar.
 
 ## Source Mapping
 - Preserve offsets for dual‑origin diagnostics.
+## Domain Declarations (C target)
+
+Domain variables in Frame for the C target are declared in the `domain:` block
+using Frame style (`var name [: type] = value`). The C visitor will emit these as
+struct members with appropriate initializers.
+
+Example (Frame):
+```
+domain:
+    var count: int = 0
+    var flag: bool = false
+```

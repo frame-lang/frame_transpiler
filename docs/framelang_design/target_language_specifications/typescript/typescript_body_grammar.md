@@ -43,6 +43,20 @@ Frame constructs (`$State`, `$Child => $Parent`, `$>()`, `<$()`, `->`, `=> $^`,
 ## Initially Unsupported
 - Optional chaining `?.`, nullish coalescing `??`, ternary `?:` (pending spec).
 
+## Domain Declarations (TypeScript target)
+
+Domain variables in Frame map to TypeScript class fields. Today, Frame uses the
+`var` form in `domain:` for TypeScript targets and the visitor emits proper
+class properties in the generated code. A future revision may allow native class
+field declarations directly in the `domain:` block for TypeScript.
+
+Examples (Frame):
+```
+domain:
+    var count: int = 0
+    var message: string = "hello"
+```
+
 ## Source Mapping
 - Preserve offsets for dual‑origin diagnostics.
 

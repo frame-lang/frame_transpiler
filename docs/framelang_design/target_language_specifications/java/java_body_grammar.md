@@ -33,3 +33,15 @@ by the common grammar.
 
 ## Source Mapping
 - Preserve offsets for dual‑origin diagnostics.
+## Domain Declarations (Java target)
+
+Domain variables are listed in the `domain:` block using Frame style
+(`var name [: type] = value`). The Java visitor emits them as class fields with
+initializers.
+
+Example (Frame):
+```
+domain:
+    var count: int = 0
+    var message: string = "hello"
+```

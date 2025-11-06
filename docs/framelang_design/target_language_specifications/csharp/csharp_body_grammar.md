@@ -30,3 +30,15 @@ common grammar.
 
 ## Source Mapping
 - Preserve offsets for dual‑origin diagnostics.
+## Domain Declarations (C# target)
+
+Domain variables declared in the `domain:` block use Frame style
+(`var name [: type] = value`). The C# visitor maps them to class fields with
+initializers.
+
+Example (Frame):
+```
+domain:
+    var count: int = 0
+    var text: string = ""
+```
