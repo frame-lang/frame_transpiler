@@ -25,7 +25,6 @@ system ProcessTest {
             print(f"Args test output: {echo_result.stdout.strip()}")
             
             print("=== Process Control Test Complete ===")
-}
 
 fn main() {
     testProcessControl()

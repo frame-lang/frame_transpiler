@@ -1,4 +1,3 @@
-@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 # Simple async validation test for Frame v0.37
@@ -25,11 +24,9 @@ system AsyncTest {
                 print("Received: " + data)
                 self.last_data = data
                 system.return = data
-            
             setStatus(status) {
                 print("Setting status: " + status)
                 self.status = status
-        
     domain:
         last_data = ""
         status = "ready"

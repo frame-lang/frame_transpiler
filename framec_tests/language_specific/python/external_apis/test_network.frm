@@ -46,7 +46,6 @@ system NetworkTest {
                 print("Server closed: true")
             
             print("=== Network Test Complete ===")
-}
 
 fn main() {
     testNetworkOperations()

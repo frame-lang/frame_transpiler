@@ -24,7 +24,7 @@ system FileIOTest {
                 content = f_read.read().strip()
                 f_read.close()
                 print(f"File content: {content}")
-            } else {
+            else:
                 print("File content: [file not found]")
             
             # Write file using Python idioms

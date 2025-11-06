@@ -10,7 +10,5 @@ system AsyncInterface {
             getData(id) {
                 print("Getting data")
                 return "data"
-            }
-        }
 }
 }

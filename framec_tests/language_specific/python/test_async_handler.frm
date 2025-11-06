@@ -1,4 +1,3 @@
-@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test async interface methods with proper event handlers
 
@@ -14,7 +13,6 @@ system AsyncHandler {
                 # In real code, this would await an async operation
                 result = "data_" + str(id)
                 return result
-            
             normalMethod(x) {
                 print("Normal method: " + str(x))
                 return x * 2

@@ -45,8 +45,6 @@ system FileProcessor {
                     self.content = file.read()
                     print("Read " + str(len(self.content)) + " bytes")
                 -> $Processing
-            }
-        }
         
         $Processing {
             $>() {
@@ -54,14 +52,10 @@ system FileProcessor {
                 # Transform content to uppercase
                 self.processed = self.content.upper()
                 -> $Done
-            }
-        }
         
         $Done {
             $>() {
                 print("Processing complete")
-            }
-        }
         
     domain:
         content = ""
@@ -87,8 +81,6 @@ system AsyncDataFetcher {
                 print("Fetched " + str(len(self.data)) + " bytes")
                 print("Status: " + str(self.status_code))
                 system.return = self.data
-            }
-        }
         
     domain:
         data = ""
