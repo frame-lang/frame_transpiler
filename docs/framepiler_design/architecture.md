@@ -119,6 +119,8 @@ Parsers & Mixed AST Linkage
 
 Some TypeScript bodies include template literals with nested `${…}` that can confuse simple token‑based brace counting. For reliable body boundary detection we use a textual, template‑aware closer that scans bytes and tracks strings/comments/template nesting. See stages/ts_textual_body_closer.md for the algorithm and tested behaviors. Current usage: applied to operations; staged rollout for actions/handlers (guarded by backtick detection).
 
+Python target bodies can include triple‑quoted strings and f‑strings; we use a textual closer that tracks single/double/triple‑quoted strings and `#` comments so braces inside strings are ignored. See stages/py_textual_body_closer.md. Rollout is guarded and validated against the full Python suite.
+
 8) Semantic Analyzer (planned)
 - Out‑of‑pass analyzer for resolution and validation; removes semantic checks from parser pass 2.
 

@@ -461,6 +461,66 @@ impl<'a> Parser<'a> {
         close_line
     }
 
+    /// Textual scan for Python bodies to locate the matching closing '}' line.
+    /// Tracks single/double quotes with escapes and triple-quoted strings (''' and """).
+    /// All braces inside strings are ignored.
+    fn scan_py_closing_brace_line(&self, body_start_line: usize) -> usize {
+        let source = self.source_text();
+        let all_lines: Vec<&str> = source.lines().collect();
+        let mut in_squote = false;
+        let mut in_dquote = false;
+        let mut in_tsquote = false; // '''
+        let mut in_tdquote = false; // """
+        let mut brace_depth: i32 = 1; // '{' already consumed
+        let start = body_start_line.saturating_add(1);
+        let mut close_line = body_start_line;
+        for idx in (start.saturating_sub(1))..all_lines.len() {
+            let frame_ln = idx + 1;
+            let bytes = all_lines[idx].as_bytes();
+            let mut j = 0usize;
+            // '#' starts a line comment unless inside string
+            while j < bytes.len() {
+                let ch = bytes[j] as char;
+                if !(in_squote || in_dquote || in_tsquote || in_tdquote) {
+                    // Detect triple quotes first
+                    if j + 2 < bytes.len() && bytes[j] == b'\'' && bytes[j + 1] == b'\'' && bytes[j + 2] == b'\'' {
+                        in_tsquote = true; j += 3; continue;
+                    }
+                    if j + 2 < bytes.len() && bytes[j] == b'"' && bytes[j + 1] == b'"' && bytes[j + 2] == b'"' {
+                        in_tdquote = true; j += 3; continue;
+                    }
+                    if ch == '\'' { in_squote = true; j += 1; continue; }
+                    if ch == '"' { in_dquote = true; j += 1; continue; }
+                    if ch == '#' { break; } // rest of line is a comment
+                    if ch == '{' { brace_depth += 1; j += 1; continue; }
+                    if ch == '}' { brace_depth -= 1; if brace_depth == 0 { close_line = frame_ln; break; } j += 1; continue; }
+                    j += 1; continue;
+                } else {
+                    if in_tsquote {
+                        if j + 2 < bytes.len() && bytes[j] == b'\'' && bytes[j + 1] == b'\'' && bytes[j + 2] == b'\'' { in_tsquote = false; j += 3; continue; }
+                        j += 1; continue;
+                    }
+                    if in_tdquote {
+                        if j + 2 < bytes.len() && bytes[j] == b'"' && bytes[j + 1] == b'"' && bytes[j + 2] == b'"' { in_tdquote = false; j += 3; continue; }
+                        j += 1; continue;
+                    }
+                    if in_squote {
+                        if ch == '\\' { j += 2; continue; }
+                        if ch == '\'' { in_squote = false; j += 1; continue; }
+                        j += 1; continue;
+                    }
+                    if in_dquote {
+                        if ch == '\\' { j += 2; continue; }
+                        if ch == '"' { in_dquote = false; j += 1; continue; }
+                        j += 1; continue;
+                    }
+                }
+            }
+            if brace_depth == 0 { break; }
+        }
+        close_line
+    }
+
     
     pub fn parse(&mut self) -> Result<FrameModule, ParseError> {
         self.module()
@@ -3950,7 +4010,7 @@ impl<'a> Parser<'a> {
                     (last_line, false)
                 }
             } else {
-                // Python path uses token-depth only
+                // Python path: keep token-depth guard (textual closer available but not enabled yet)
                 let mut depth: i32 = 1; let mut last_line = body_start_line;
                 while !self.is_at_end() && depth > 0 {
                     let tk = self.peek().clone();
@@ -18111,6 +18171,46 @@ mod ts_textual_scan_tests {
         // includes NBSP (\u{00A0}) and tab before closing brace
         let src = "@target typescript\nsystem S {\n    actions:\n        run() {\n\t\u{00A0}const a = 1;\n        }\n    machine:\n        $Init { run() { } }\n}\n";
         let close = compute_close_line(src, TargetLanguage::TypeScript, 4);
+        assert_eq!(close, 6);
+    }
+}
+
+#[cfg(test)]
+mod py_textual_scan_tests {
+    use super::*;
+    use crate::frame_c::scanner::Scanner;
+    use std::sync::Arc;
+
+    fn compute_close_line_py(content: &str, body_start_line: usize) -> usize {
+        let scanner = Scanner::new(content.to_string());
+        let (_has_errors, _errs, tokens, target_regions) = scanner.scan_tokens();
+        let mut comments: Vec<Token> = Vec::new();
+        let source_lines = Arc::new(content.lines().map(|s| format!("{}\n", s)).collect());
+        let arcanum = Arcanum::new();
+        let mut p = Parser::new(
+            &tokens,
+            &mut comments,
+            true,
+            arcanum,
+            Arc::new(target_regions),
+            Arc::clone(&source_lines),
+        );
+        p.target_language = Some(TargetLanguage::Python3);
+        p.scan_py_closing_brace_line(body_start_line)
+    }
+
+    #[test]
+    fn py_scan_triple_quotes() {
+        let src = "@target python\nsystem S {\n    actions:\n        run() {\n            doc = \"\"\"{ } inside triple\"\"\"\n        }\n    machine:\n        $Init { run() { } }\n}\n";
+        // '{' of run() is line 4; closing '}' should be line 6
+        let close = compute_close_line_py(src, 4);
+        assert_eq!(close, 6);
+    }
+
+    #[test]
+    fn py_scan_fstring_with_braces() {
+        let src = "@target python\nsystem S {\n    actions:\n        run() {\n            s = f\"value {1 + {2:3}}\"\n        }\n    machine:\n        $Init { run() { } }\n}\n";
+        let close = compute_close_line_py(src, 4);
         assert_eq!(close, 6);
     }
 }
