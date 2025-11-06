@@ -7463,27 +7463,34 @@ impl<'a> Parser<'a> {
                     }
                 }
             } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
-                // Lookahead for triple quotes or f-string markers; if present, use textual scan
+                // Lookahead for triple quotes/f-strings OR native-style colon control lines
                 let mut needs_textual = false;
+                let mut looks_native = false;
                 for ln in start_line..(start_line + 128).min(self.source_lines.len() + 1) {
                     if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
                         let trimmed = s.trim_start();
-                        if trimmed.starts_with('}') {
-                            break;
+                        if trimmed.starts_with('}') { break; }
+                        if s.contains("\"\"\"") || s.contains("'''") || s.contains("f\"") || s.contains("f\'") || s.contains("F\"") || s.contains("F\'") {
+                            needs_textual = true; break;
                         }
-                        if s.contains("\"\"\"")
-                            || s.contains("'''")
-                            || s.contains("f\"")
-                            || s.contains("f\'")
-                            || s.contains("F\"")
-                            || s.contains("F\'")
+                        if (trimmed.starts_with("if ")
+                            || trimmed.starts_with("elif ")
+                            || trimmed.starts_with("else:")
+                            || trimmed.starts_with("for ")
+                            || trimmed.starts_with("while ")
+                            || trimmed.starts_with("try:")
+                            || trimmed.starts_with("except")
+                            || trimmed.starts_with("finally:")
+                            || trimmed.starts_with("with ")
+                            || trimmed.starts_with("async with ")
+                            || trimmed.starts_with("async for "))
+                            && trimmed.ends_with(':')
                         {
-                            needs_textual = true;
-                            break;
+                            looks_native = true; break;
                         }
                     }
                 }
-                if needs_textual {
+                if needs_textual || looks_native {
                     let close_line = self.scan_py_closing_brace_line(body_start_line);
                     // Validate that a tokenized CloseBrace exists at close_line; else fallback to tokens
                     let mut has_close_token = false;
@@ -7528,27 +7535,54 @@ impl<'a> Parser<'a> {
                             match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
                             last_line = tk.line; self.advance();
                         }
-                        let _ = last_line; // silence unused var
-                    }
-                }
-                else {
-                    // Even without triple quotes, treat Python handler body as native-only: skip to matching '}'
-                    let mut depth: i32 = 1;
-                    while !self.is_at_end() && depth > 0 {
-                        let tk = self.peek().clone();
-                        match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
-                        self.advance();
+                        let _ = last_line;
                     }
                 }
             }
         }
 
-        // Parse Frame statements for event handler bodies
-        // For Python target bodies, do not parse Frame statements; treat body as native-only
-        let statements: Vec<DeclOrStmtType> = if matches!(self.target_language, Some(TargetLanguage::Python3)) {
-            Vec::new()
-        } else {
+        // Decide whether to parse Frame statements based on body style
+        // Python: detect native-style (colon/indent) vs Frame-style (braces)
+        let mut parse_frame_statements = true;
+        if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+            let start_line = body_start_line.saturating_add(1);
+            // Estimate the end line using the textual closer to avoid consuming tokens
+            let close_line = self.scan_py_closing_brace_line(body_start_line);
+            let end_line_inclusive = close_line.saturating_sub(1);
+            if end_line_inclusive >= start_line {
+                let mut looks_native = false;
+                for ln in start_line..=end_line_inclusive.min(start_line + 64) {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        let t = s.trim_start();
+                        if t.is_empty() { continue; }
+                        // If we see colon-terminated Python control lines, treat as native
+                        if (t.starts_with("if ")
+                            || t.starts_with("elif ")
+                            || t.starts_with("else:")
+                            || t.starts_with("for ")
+                            || t.starts_with("while ")
+                            || t.starts_with("try:")
+                            || t.starts_with("except")
+                            || t.starts_with("finally:")
+                            || t.starts_with("with ")
+                            || t.starts_with("async with ")
+                            || t.starts_with("async for "))
+                            && t.ends_with(':')
+                        {
+                            looks_native = true;
+                            break;
+                        }
+                    }
+                }
+                parse_frame_statements = !looks_native;
+            }
+        }
+
+        // Parse Frame statements for event handler bodies if not native-only
+        let statements: Vec<DeclOrStmtType> = if parse_frame_statements {
             self.statements(IdentifierDeclScope::EventHandlerVarScope)
+        } else {
+            Vec::new()
         };
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
@@ -7846,33 +7880,9 @@ impl<'a> Parser<'a> {
     // TODO: need result and optional
     #[allow(clippy::vec_init_then_push)] // false positive in 1.51, fixed by 1.55
     fn statements(&mut self, identifier_decl_scope: IdentifierDeclScope) -> Vec<DeclOrStmtType> {
-        // When inside TypeScript action/operation/handler bodies, do not parse
-        // native lines as Frame statements. Skip until matching '}' and return
-        // an empty statements list; native content is handled via MixedBody or
-        // the NativeRegionSegmenter/target parser path.
-        if (matches!(self.target_language, Some(TargetLanguage::TypeScript))
-            || matches!(self.target_language, Some(TargetLanguage::Python3)))
-            && (self.is_action_scope
-                || self.operation_scope_depth > 0
-                || self.current_event_symbol_opt.is_some())
-        {
-            let mut depth: i32 = 1; // caller consumed '{'
-            while !self.is_at_end() && depth > 0 {
-                let tk = self.peek();
-                match tk.token_type {
-                    TokenType::OpenBrace => depth += 1,
-                    TokenType::CloseBrace => {
-                        depth -= 1;
-                        if depth == 0 {
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-                self.advance();
-            }
-            return Vec::new();
-        }
+        // Default: parse Frame statements normally. Native/mixed bodies are handled
+        // by higher-level handlers (action/operation/event_handler) that decide whether
+        // to parse statements or segment native content.
 
         let mut statements = Vec::new();
 
