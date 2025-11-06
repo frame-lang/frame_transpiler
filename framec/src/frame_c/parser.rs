@@ -4010,14 +4010,61 @@ impl<'a> Parser<'a> {
                     (last_line, false)
                 }
             } else {
-                // Python path: keep token-depth guard (textual closer available but not enabled yet)
-                let mut depth: i32 = 1; let mut last_line = body_start_line;
-                while !self.is_at_end() && depth > 0 {
-                    let tk = self.peek().clone();
-                    match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
-                    last_line = tk.line; self.advance();
+                // Python path: guarded textual closer for triple quotes / f-string markers
+                let mut needs_textual = false;
+                for ln in start_line..(start_line + 128).min(self.source_lines.len() + 1) {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        let trimmed = s.trim_start();
+                        if trimmed.starts_with('}') { break; }
+                        if s.contains("\"\"\"") || s.contains("'''") || s.contains("f\"") || s.contains("f\'") || s.contains("F\"") || s.contains("F\'") {
+                            needs_textual = true; break;
+                        }
+                    }
                 }
-                (last_line, false)
+                if needs_textual {
+                    let close_line = self.scan_py_closing_brace_line(body_start_line);
+                    // Validate that a tokenized CloseBrace exists at close_line; else fallback
+                    let mut has_close_token = false;
+                    let mut idx = self.current;
+                    while idx < self.tokens.len() {
+                        let tk = &self.tokens[idx];
+                        if tk.line < close_line { idx += 1; continue; }
+                        if tk.line == close_line {
+                            if matches!(tk.token_type, TokenType::CloseBrace) { has_close_token = true; }
+                            break;
+                        }
+                        if tk.line > close_line { break; }
+                        idx += 1;
+                    }
+                    if has_close_token {
+                        // advance tokens up to just before '}' at close_line
+                        while !self.is_at_end() {
+                            let tk = self.peek();
+                            if tk.line < close_line { self.advance(); continue; }
+                            if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
+                            break;
+                        }
+                        (close_line.saturating_sub(1), true)
+                    } else {
+                        // token-depth fallback
+                        let mut depth: i32 = 1; let mut last_line = body_start_line;
+                        while !self.is_at_end() && depth > 0 {
+                            let tk = self.peek().clone();
+                            match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
+                            last_line = tk.line; self.advance();
+                        }
+                        (last_line, false)
+                    }
+                } else {
+                    // token-depth fallback
+                    let mut depth: i32 = 1; let mut last_line = body_start_line;
+                    while !self.is_at_end() && depth > 0 {
+                        let tk = self.peek().clone();
+                        match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
+                        last_line = tk.line; self.advance();
+                    }
+                    (last_line, false)
+                }
             };
             if end_line >= start_line {
                 let mut raw = String::new();

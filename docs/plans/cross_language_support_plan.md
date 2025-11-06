@@ -770,3 +770,27 @@ Note: an aggressive nested-backtick-in-backtick case has been deferred pending u
 - Document the helper and rollout:
   - docs/framepiler_design/stages/ts_textual_body_closer.md (algorithm, tested behaviors, guard strategy)
   - docs/framelang_design/target_language_specifications/typescript/typescript_body_grammar.md (Body Boundary Detection section)
+
+## DPDA Detectors and Failure Characterizers
+
+Goals
+- [ ] Adopt DPDA-style boundary detectors for TS and Py (complete for ops; guarded for actions)
+- [ ] Introduce Failure Characterizers to improve diagnostics on detector failure
+
+Docs
+- [x] TS textual closer docs (template-aware)
+- [x] Py textual closer docs (triple-quote/f-string aware)
+- [x] Overview: docs/framepiler_design/stages/body_boundary_detectors.md
+
+Implementation Tasks
+- [ ] Define `DetectionResult` (Ok/Failure) for detectors
+- [ ] Wire parser to map Failure kinds to targeted `ParseError`s
+- [ ] Add characterizers:
+  - [ ] TS: UnterminatedTemplate, UnterminatedString, UnterminatedBlockComment
+  - [ ] Py: UnterminatedTripleQuote, UnterminatedString
+- [ ] Add negative fixtures (unterminated literals/templates/comments) and validate classification
+- [ ] Keep fallback to token-depth and standard synchronize when needed
+
+Acceptance Criteria
+- [ ] Single-file TS/Py suites remain 100% during rollout
+- [ ] Negative fixtures produce clear, specific diagnostics (line + kind)

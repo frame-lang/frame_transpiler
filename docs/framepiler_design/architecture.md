@@ -115,6 +115,13 @@ Parsers & Mixed AST Linkage
 - Frame symbols are maintained by Arcanum; native symbol information (when collected) is kept in a sidecar index for diagnostics only. No merging into Arcanum.
 - Further details: stages/mixed_asts_and_symbols.md
 
+### DPDA Body Boundary Detectors
+
+Body boundary detection uses small DPDA scanners per target to locate the matching closing `}` in target-native bodies. Detectors track language-specific string/comment modes and nested constructs (e.g., `${…}` in TS), and only count braces at the top level.
+
+See:
+- stages/body_boundary_detectors.md (overview and characterizers)
+
 ### TypeScript Body Boundary Detection
 
 Some TypeScript bodies include template literals with nested `${…}` that can confuse simple token‑based brace counting. For reliable body boundary detection we use a textual, template‑aware closer that scans bytes and tracks strings/comments/template nesting. See stages/ts_textual_body_closer.md for the algorithm and tested behaviors. Current usage: applied to operations; staged rollout for actions/handlers (guarded by backtick detection).
