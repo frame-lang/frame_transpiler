@@ -4114,91 +4114,56 @@ impl<'a> Parser<'a> {
         let mut statements: Vec<DeclOrStmtType> = Vec::new();
         let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
         let mut target_specific_regions: Vec<TargetSpecificRegionRef> = Vec::new();
-        if matches!(self.target_language, Some(TargetLanguage::TypeScript))
-            || matches!(self.target_language, Some(TargetLanguage::Python3))
-        {
-            // Skip tokens until matching '}' without consuming the closing brace
-            let mut depth: i32 = 1; // already consumed '{'
-            let mut last_line = body_start_line;
-            while !self.is_at_end() && depth > 0 {
-                let tk = self.peek().clone();
-                match tk.token_type {
-                    TokenType::OpenBrace => depth += 1,
-                    TokenType::CloseBrace => {
-                        depth -= 1;
-                        if depth == 0 {
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-                last_line = tk.line;
-                self.advance();
-            }
 
+        // Decide if body should be parsed as Frame statements or treated as native slice
+        let mut parse_frame_statements = true;
+        if matches!(self.target_language, Some(TargetLanguage::Python3)) {
             let start_line = body_start_line.saturating_add(1);
-            let end_line = last_line;
-            if end_line >= start_line {
-                let mut raw = String::new();
-                for ln in start_line..=end_line {
-                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                        raw.push_str(s);
-                        if !s.ends_with('\n') {
-                            raw.push('\n');
-                        }
-                    }
-                }
-
-                let region = TargetRegion {
-                    start_position: 0,
-                    end_position: None,
-                    raw_content: raw,
-                    target: if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                        TargetLanguage::TypeScript
-                    } else {
-                        TargetLanguage::Python3
-                    },
-                    source_map: TargetSourceMap {
-                        frame_start_line: start_line,
-                        target_line_offsets: Vec::new(),
-                    },
-                };
-
-                match parse_target_region(region.target, &region) {
-                    Ok(ast) => {
-                        parsed_target_blocks.push(ParsedTargetBlock {
-                            region_index: 0,
-                            frame_start_line: start_line,
-                            frame_end_line: end_line,
-                            ast,
-                        });
-                    }
-                    Err(err) => {
-                        if let super::target_parsers::TargetParseError::Parse {
-                            target_language,
-                            message,
-                            target_line,
-                            column,
-                        } = err
-                        {
-                            let frame_line = start_line + target_line.saturating_sub(1);
-                            let display = ParseError::new(&format!(
-                                "{:?} target parse error: {}",
-                                target_language, message
-                            ))
-                            .with_frame_line(frame_line)
-                            .with_target_context(
-                                target_language,
-                                target_line,
-                                Some(column),
-                                None,
-                            );
-                            return Err(display);
-                        }
+            let close_line = self.scan_py_closing_brace_line(body_start_line);
+            let end_inclusive = close_line.saturating_sub(1);
+            let mut looks_native = false;
+            for ln in start_line..=end_inclusive.min(start_line + 64) {
+                if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                    let t = s.trim_start();
+                    if t.is_empty() { continue; }
+                    if (t.starts_with("if ")
+                        || t.starts_with("elif ")
+                        || t.starts_with("else:")
+                        || t.starts_with("for ")
+                        || t.starts_with("while ")
+                        || t.starts_with("try:")
+                        || t.starts_with("except")
+                        || t.starts_with("finally:")
+                        || t.starts_with("with ")
+                        || t.starts_with("async with ")
+                        || t.starts_with("async for "))
+                        && t.ends_with(':')
+                    {
+                        looks_native = true; break;
                     }
                 }
             }
-        } else {
+            parse_frame_statements = !looks_native;
+            if !parse_frame_statements {
+                // Build native slice and attempt target parse for validation/mixed body
+                let start = start_line; let end = end_inclusive;
+                if end >= start {
+                    let mut raw = String::new();
+                    for ln in start..=end {
+                        if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                            raw.push_str(s);
+                            if !s.ends_with('\n') { raw.push('\n'); }
+                        }
+                    }
+                    let region = TargetRegion { start_position: 0, end_position: None, raw_content: raw, target: TargetLanguage::Python3, source_map: TargetSourceMap { frame_start_line: start, target_line_offsets: Vec::new() } };
+                    if let Ok(ast) = parse_target_region(TargetLanguage::Python3, &region) {
+                        parsed_target_blocks.push(ParsedTargetBlock { region_index: 0, frame_start_line: start, frame_end_line: end, ast });
+                    }
+                }
+            }
+        }
+
+        if parse_frame_statements {
             statements = self.statements(IdentifierDeclScope::BlockVarScope);
         }
 
