@@ -45,6 +45,8 @@ system FileProcessor {
                     self.content = file.read()
                     print("Read " + str(len(self.content)) + " bytes")
                 -> $Processing
+            }
+        }
         
         $Processing {
             $>() {
@@ -52,14 +54,18 @@ system FileProcessor {
                 # Transform content to uppercase
                 self.processed = self.content.upper()
                 -> $Done
+            }
+        }
         
         $Done {
             $>() {
                 print("Processing complete")
+            }
+        }
         
     domain:
-        content = ""
-        processed = ""
+        var content = ""
+        var processed = ""
 }
 
 # Test async with in async system methods
@@ -81,10 +87,12 @@ system AsyncDataFetcher {
                 print("Fetched " + str(len(self.data)) + " bytes")
                 print("Status: " + str(self.status_code))
                 system.return = self.data
+            }
+        }
         
     domain:
-        data = ""
-        status_code = 0
+        var data = ""
+        var status_code = 0
 }
 
 # Async function to test everything

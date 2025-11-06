@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Python-specific Network external API test
 # Must produce identical output to TypeScript version
@@ -46,6 +47,8 @@ system NetworkTest {
                 print("Server closed: true")
             
             print("=== Network Test Complete ===")
+        }
+    }
 
 fn main() {
     testNetworkOperations()

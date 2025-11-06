@@ -11,11 +11,14 @@ system NativePython {
                     print(f"idx = {idx}")
                 self.log("native complete")
                 return
-
+            }
+        }
     actions:
         log(message) {
             print("LOG: " + message)
             return
+        }
+}
 
 fn helper() {
     print("helper native")

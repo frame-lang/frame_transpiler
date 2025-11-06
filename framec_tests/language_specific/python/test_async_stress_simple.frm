@@ -40,13 +40,15 @@ system AsyncStressTest {
                 print("Starting test " + str(test_id))
                 self.current_test = test_id
                 -> $Running
-            
+            }
             getStatus() {
                 system.return = "idle"
-            
+            }
             processItems(items) {
                 self.items_to_process = items
                 -> $Processing
+            }
+        }
         
         $Running {
             async $>() {
@@ -55,10 +57,11 @@ system AsyncStressTest {
                 print("Test result: " + result)
                 self.last_result = result
                 -> $Complete
-            
+            }
             getStatus() {
                 system.return = "running test " + str(self.current_test)
-        
+            }
+        }
         $Processing {
             async $>() {
                 # Processing items count would require len() support
@@ -70,21 +73,24 @@ system AsyncStressTest {
                     print("Processed: " + result)
                 
                 -> $Complete
-            
+            }
             getStatus() {
                 system.return = "processing"
-        
+            }
+        }
         $Complete {
             $>() {
                 print("All tasks complete")
-            
+            }
             getStatus() {
                 system.return = "complete"
-            
+            }
             runTest(test_id) {
                 self.current_test = test_id
                 -> $Running
-        
+            }
+        }
+    }
     domain:
         current_test = 0
         last_result = ""
@@ -103,18 +109,19 @@ system AsyncErrorTest {
                 if should_fail:
                     self.error_count = self.error_count + 1
                     -> $Error
-                } else {
+                else:
                     result = await async_work(1, 0.2)
                     self.last_success = result
                     system.return = result
-            
+            }
             handleError(error_msg) {
                 print("Handling error: " + error_msg)
                 self.last_error = error_msg
                 self.error_count = self.error_count + 1
                 if self.error_count > 3:
                     -> $Error  
-        
+            }
+        }
         $Error {
             async $>() {
                 print("Error state entered. Count: " + str(self.error_count))
@@ -124,10 +131,11 @@ system AsyncErrorTest {
                 print("Attempting recovery...")
                 self.error_count = 0
                 -> $Ready
-            
+            }
             handleError(error_msg) {
                 system.return = "Already in error state"
-        
+            }
+        }
     domain:
         error_count = 0
         last_error = ""

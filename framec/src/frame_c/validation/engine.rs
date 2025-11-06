@@ -41,6 +41,9 @@ impl ValidationEngine {
                 .add_rule(crate::frame_c::validation::rules::InterfaceCompletenessRule::new());
             engine =
                 engine.add_rule(crate::frame_c::validation::rules::StateReachabilityRule::new());
+            // Enforce native-only policy inside Python bodies (actions/ops/handlers)
+            engine = engine
+                .add_rule(crate::frame_c::validation::rules::PythonNativePolicyRule::new());
         }
 
         if engine.config.level >= ValidationLevel::Semantic {

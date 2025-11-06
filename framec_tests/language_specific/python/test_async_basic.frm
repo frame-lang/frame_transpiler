@@ -25,6 +25,7 @@ system AsyncService {
             print("Fetching from endpoint: " + endpoint)
             response = await fetch_data(endpoint)
             return response
+        }
         
     interface:
         async getData(id)
@@ -39,16 +40,21 @@ system AsyncService {
                 # Store data in domain for processing state
                 self.lastData = data
                 -> $Processing
+            }
             async processItem(item) {
                 result = await process_data(item)
                 print("Result: " + result)
                 return result
+            }
+        }
         $Processing {
             async $>() {
                 print("Now processing: " + self.lastData)
                 processed = await process_data(self.lastData)
                 print("Processing complete: " + processed)
                 -> $Ready
+            }
+        }
         
     actions:
         logMessage(msg) {

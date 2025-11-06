@@ -146,11 +146,13 @@ system MegaPythonIsland {
             print("[OK] match", match_demo([1,2]), match_demo(ImmutablePair(1,2)))
             print("[OK] area_total", round(area_total, 3))
             print("[OK] vec", v3, round(dot, 3))
-
+        }
     machine:
         $Init {
             start() {
                 runmega()
                 -> $Done
+            }
+        }
         $Done {}
 }

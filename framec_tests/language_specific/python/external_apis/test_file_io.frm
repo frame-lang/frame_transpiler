@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Python-specific File I/O external API test
 # Must produce identical output to TypeScript version
@@ -37,6 +38,7 @@ system FileIOTest {
             print(f"Write successful: {write_exists}")
             
             print("=== File I/O Test Complete ===")
+    }
 }
 
 fn main() {

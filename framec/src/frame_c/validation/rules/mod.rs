@@ -8,6 +8,7 @@ pub mod return_value_consistency;
 pub mod state_reachability;
 pub mod unmatched_braces;
 pub mod async_consistency;
+pub mod python_native_policy;
 
 // Re-export all rules for easy access
 pub use event_flow_analysis::EventFlowAnalysisRule;
@@ -16,5 +17,6 @@ pub use malformed_handler::MalformedHandlerRule;
 pub use return_value_consistency::ReturnValueConsistencyRule;
 pub use state_reachability::StateReachabilityRule;
 pub use unmatched_braces::UnmatchedBracesRule;
+pub use python_native_policy::PythonNativePolicyRule;
 
 // Module for validation rules

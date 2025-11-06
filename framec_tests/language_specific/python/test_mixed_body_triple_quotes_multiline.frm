@@ -10,6 +10,7 @@ It also mentions -> $Other within the string.
 '''
                 print(text)
                 -> $Next
+            }
+        }
         $Next {}
 }
-

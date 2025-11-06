@@ -29,6 +29,8 @@ system CommentTest {
                 print("Result: " + str(result))
                 system.return = result
                 return
+            }
+        }
 }
 
 

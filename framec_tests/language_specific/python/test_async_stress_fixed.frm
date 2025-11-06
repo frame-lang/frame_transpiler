@@ -83,19 +83,20 @@ system AsyncDataPipeline {
                 self.current_urls = urls
                 self.batch_data = []
                 -> $Downloading
-            
+            }
             configure(settings) {
                 print("Configuring pipeline: " + str(settings))
                 self.config = settings
                 system.return = "configured"
-            
+            }
             async getStatus() {
                 system.return = "idle"
-            
+            }
             async runPipeline(config) {
                 self.pipeline_config = config
                 -> $PipelineRunning
-        
+            }
+        }
         $Downloading {
             async $>() {  # Explicitly mark as async handler
                 # Parallel download on enter
@@ -104,10 +105,11 @@ system AsyncDataPipeline {
                 elapsed = time() - start_time
                 print("Downloaded " + str(len(self.batch_data)) + " items in " + str(elapsed) + "s")
                 -> $Processing
-            
+            }
             async getStatus() {
                 system.return = "downloading"
-        
+            }
+        }
         $Processing {
             async $>() {  # Explicitly mark as async handler
                 # Process each downloaded item
@@ -119,23 +121,24 @@ system AsyncDataPipeline {
                 
                 print("Processed " + str(len(self.processed_data)) + " items")
                 -> $Complete
-            
+            }
             async processBatch(batch_id) {  # Mark as async since it uses await
                 print("Processing batch: " + str(batch_id))
                 # Simulate batch processing with timeout
                 result = await with_timeout(compute_heavy(1000), 2.0)
                 system.return = "Batch " + str(batch_id) + " result: " + str(result)
-            
+            }
             async getStatus() {
                 system.return = "processing"
-        
+            }
+        }
         $Complete {
             async $>() {  # Must be async - entered from async PipelineRunning state
                 print("Pipeline complete. Processed " + str(len(self.processed_data)) + " items")
-            
+            }
             async getStatus() {
                 system.return = "complete: " + str(len(self.processed_data)) + " items"
-            
+            }
             async fetchBatch(urls) {
                 # Can start new batch
                 self.current_urls = urls
@@ -147,7 +150,8 @@ system AsyncDataPipeline {
                 # Can still process batches even when complete
                 result = await with_timeout(compute_heavy(500), 2.0)
                 system.return = "Batch " + str(batch_id) + " result: " + str(result)
-        
+            }
+        }
         $PipelineRunning {
             async $>() {  # Explicitly mark as async handler
                 # Complex pipeline with multiple async stages
@@ -171,10 +175,12 @@ system AsyncDataPipeline {
                 print("Stage 3 complete: " + str(compute_tasks))
                 
                 -> $Complete
-            
+            }
             async getStatus() {
                 system.return = "pipeline running"
-        
+            }
+        }
+    }
     actions:
         async _process_with_limit(data) {
             # Need semaphore support - temporary simplified version
@@ -242,9 +248,9 @@ async fn benchmark_async() {
     for i in range(100):
         if i % 3 == 0:
             tasks.append(mock_download("url_" + str(i)))
-        } elif i % 3 == 1 {
+        elif i % 3 == 1:
             tasks.append(mock_process("data_" + str(i)))
-        } else {
+        else:
             tasks.append(compute_heavy(100))
     
     # Run all tasks in parallel

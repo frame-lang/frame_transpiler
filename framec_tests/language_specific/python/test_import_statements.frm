@@ -38,6 +38,7 @@ system ImportTest {
             # Test using imports in operations (simplified)
             result = 1.0
             print("Cosine of 0: " + str(result))
+        }
     
     interface:
         useJson()
@@ -48,4 +49,6 @@ system ImportTest {
                 obj = json.loads("{\"test\": true}")
                 print("Loaded JSON: " + str(obj))
                 return
+            }
+        }
 }

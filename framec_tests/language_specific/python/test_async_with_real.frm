@@ -70,14 +70,14 @@ system HttpClient {
                     if self.last_status == 200:
                         print("  Fetch successful")
                         system.return = "success"
-                    } else {
+                    else:
                         print("  Fetch failed with status: " + str(self.last_status))
                         system.return = "failed"
                 except:
                     print("  Network error in system")
                     self.last_status = 0
                     system.return = "error"
-            
+            }
             async fetchMultiple(urls) {
                 print("Fetching multiple URLs...")
                 self.fetch_count = 0
@@ -94,10 +94,13 @@ system HttpClient {
                     print("  Error fetching URLs")
                 
                 system.return = self.fetch_count
-            
+            }
             getLastStatus() {
                 system.return = self.last_status
-    
+            }
+        }
+    }
+
     domain:
         last_status = 0
         last_content = ""

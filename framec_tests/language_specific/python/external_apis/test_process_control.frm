@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Python-specific Process Control external API test
 # Must produce identical output to TypeScript version
@@ -25,6 +26,8 @@ system ProcessTest {
             print(f"Args test output: {echo_result.stdout.strip()}")
             
             print("=== Process Control Test Complete ===")
+        }
+    }
 
 fn main() {
     testProcessControl()

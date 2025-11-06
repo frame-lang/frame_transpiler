@@ -16,10 +16,13 @@ system SimpleAsync {
                 print("Getting data for id: " + str(id))
                 self.result = "data_" + str(id)
                 system.return = self.result
+            }
+        }
     
     actions:
         logMessage(msg) {
             print("LOG: " + msg)
+        }
     
     domain:
         result = None

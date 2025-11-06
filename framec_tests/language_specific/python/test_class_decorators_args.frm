@@ -1,27 +1,24 @@
 @target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
-# Test class decorators with arguments (v0.58)
+# Test class decorators with arguments (v0.58) — executed inside a native action
 
-from dataclasses import dataclass
+system PyDecorArgs {
+    actions:
+        run() {
+            from dataclasses import dataclass
 
-# Test decorator with arguments  
-@dataclass(frozen=True)
-class ImmutablePoint {
-    fn init(x, y) {
-        self.x = x
-        self.y = y
-}
+            @dataclass(frozen=True)
+            class ImmutablePoint:
+                def __init__(self, x, y):
+                    self.x = x
+                    self.y = y
 
-# Test function
-fn test_decorators() {
-    # Create instance
-    p = ImmutablePoint(5, 12)
-    
-    # Test that it works
-    print("ImmutablePoint: (" + str(p.x) + ", " + str(p.y) + ")")
+            p = ImmutablePoint(5, 12)
+            print("ImmutablePoint: (" + str(p.x) + ", " + str(p.y) + ")")
+        }
 }
 
 fn main() {
-    # Run the test
-    test_decorators()
+    s = PyDecorArgs()
+    s._action_run()
 }

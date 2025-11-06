@@ -1,28 +1,25 @@
 @target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test class decorators pass-through for Python (v0.58)
-# Simplified version without complex decorator arguments
+# Simplified to run inside a native Python action body
 
-from dataclasses import dataclass
+system PyDecorSimple {
+    actions:
+        run() {
+            from dataclasses import dataclass
 
-# Test basic dataclass decorator
-@dataclass
-class Point {
-    fn init(x, y) {
-        self.x = x
-        self.y = y
-}
+            @dataclass
+            class Point:
+                def __init__(self, x, y):
+                    self.x = x
+                    self.y = y
 
-# Test function
-fn test_decorators() {
-    # Create instance
-    p1 = Point(3, 4)
-    
-    # Test that it works
-    print("Point: (" + str(p1.x) + ", " + str(p1.y) + ")")
+            p1 = Point(3, 4)
+            print("Point: (" + str(p1.x) + ", " + str(p1.y) + ")")
+        }
 }
 
 fn main() {
-    # Run the test
-    test_decorators()
+    s = PyDecorSimple()
+    s._action_run()
 }

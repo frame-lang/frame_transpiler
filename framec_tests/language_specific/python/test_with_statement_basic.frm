@@ -80,29 +80,33 @@ system FileProcessor {
                 # Clean up
                 os.unlink(path)
                 -> $Processing
-            
+            }
             getResult() {
                 system.return = "Not processed yet"
+            }
+        }
         
         $Processing {
             $>() {
                 print("Transforming content...")
                 self.processed = self.content.upper()
                 -> $Done
-            
+            }
             getResult() {
                 system.return = "Processing: " + self.content
-        
+            }
+        }
         $Done {
             $>() {
                 print("Processing complete!")
-            
+            }
             getResult() {
                 system.return = "Done: " + self.processed
-        
+            }
+        }
     domain:
-        content = ""
-        processed = ""
+        var content = ""
+        var processed = ""
 }
 
 # Main test function

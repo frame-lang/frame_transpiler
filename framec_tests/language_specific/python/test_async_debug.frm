@@ -11,10 +11,15 @@ system AsyncDebug {
             getData(id) {
                 print("ID: " + str(id))
                 -> $Processing
+            }
             normalMethod(x) {
                 print("X: " + str(x))
                 return x
+            }
+        }
         $Processing {
             $>() {
                 print("In processing")
+            }
+        }
 }

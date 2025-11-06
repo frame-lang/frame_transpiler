@@ -7463,8 +7463,16 @@ impl<'a> Parser<'a> {
         //     }
         // };
 
-        // Parse optional terminator
-        let terminator_node_opt: Option<TerminatorExpr> = self.parse_event_handler_terminator()?;
+        // Parse optional terminator (Frame-level). For Python target-native bodies,
+        // do not attempt to parse a Frame 'return' terminator inside the native block.
+        let terminator_node_opt: Option<TerminatorExpr> = if matches!(
+            self.target_language,
+            Some(TargetLanguage::Python3)
+        ) {
+            None
+        } else {
+            self.parse_event_handler_terminator()?
+        };
 
         let body_end_line = {
             let token = self.consume(TokenType::CloseBrace, "Expected '}'")?;
@@ -7711,7 +7719,8 @@ impl<'a> Parser<'a> {
         // native lines as Frame statements. Skip until matching '}' and return
         // an empty statements list; native content is handled via MixedBody or
         // the NativeRegionSegmenter/target parser path.
-        if matches!(self.target_language, Some(TargetLanguage::TypeScript))
+        if (matches!(self.target_language, Some(TargetLanguage::TypeScript))
+            || matches!(self.target_language, Some(TargetLanguage::Python3)))
             && (self.is_action_scope
                 || self.operation_scope_depth > 0
                 || self.current_event_symbol_opt.is_some())

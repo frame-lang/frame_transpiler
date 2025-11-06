@@ -77,19 +77,20 @@ system AsyncDataPipeline {
                 self.current_urls = urls
                 self.batch_data = []
                 -> $Downloading
-            
+            }
             configure(settings) {
                 print("Configuring pipeline: " + str(settings))
                 self.config = settings
                 system.return = "configured"
-            
+            }
             getStatus() {
                 system.return = "idle"
-            
+            }
             runPipeline(config) {
                 self.pipeline_config = config
                 -> $PipelineRunning
-        
+            }
+        }
         $Downloading {
             async $>() {
                 # Parallel download on enter
@@ -98,10 +99,11 @@ system AsyncDataPipeline {
                 elapsed = time() - start_time
                 print("Downloaded " + str(len(self.batch_data)) + " items in " + str(elapsed) + "s")
                 -> $Processing
-            
+            }
             getStatus() {
                 system.return = "downloading"
-        
+            }
+        }
         $Processing {
             async $>() {
                 # Process each downloaded item
@@ -114,35 +116,37 @@ system AsyncDataPipeline {
                 
                 print("Processed " + str(len(self.processed_data)) + " items")
                 -> $Complete
-            
+            }
             async processBatch(batch_id) {
                 print("Processing batch: " + str(batch_id))
                 # Simulate batch processing with timeout
                 result = await with_timeout(compute_heavy(1000), 2.0)
                 system.return = "Batch " + str(batch_id) + " result: " + str(result)
-            
+            }
             getStatus() {
                 system.return = "processing"
-        
+            }
+        }
         $Complete {
             $>() {
                 print("Pipeline complete. Processed " + str(len(self.processed_data)) + " items")
-            
+            }
             getStatus() {
                 system.return = "complete: " + str(len(self.processed_data)) + " items"
-            
+            }
             fetchBatch(urls) {
                 # Can start new batch
                 self.current_urls = urls
                 self.batch_data = []
                 -> $Downloading
-            
+            }
             async processBatch(batch_id) {
                 print("Processing batch: " + str(batch_id) + " (in complete state)")
                 # Can still process batches even when complete
                 result = await with_timeout(compute_heavy(500), 2.0)
                 system.return = "Batch " + str(batch_id) + " result: " + str(result)
-        
+            }
+        }
         $PipelineRunning {
             async $>() {
                 # Complex pipeline with multiple async stages
@@ -166,10 +170,12 @@ system AsyncDataPipeline {
                 print("Stage 3 complete: " + str(compute_tasks))
                 
                 -> $Complete
-            
+            }
             getStatus() {
                 system.return = "pipeline running"
-        
+            }
+        }
+    }
     actions:
         async _process_with_limit(data) {
             # Need semaphore support - temporary simplified version
@@ -201,7 +207,7 @@ system AsyncWorkerPool {
             $>() {
                 # TODO: Initialize results dict - Frame needs dict literal support
                 # For now, we'll skip dict operations in this test
-            
+            }
             async submitTask(task_id, work_amount) {
                 print("Worker processing task: " + str(task_id))
                 
@@ -210,7 +216,7 @@ system AsyncWorkerPool {
                 # TODO: Store result - self.results[str(task_id)] = result
                 
                 system.return = "Task " + str(task_id) + " complete"
-            
+            }
             async submitBatch(task_ids) {
                 print("Processing batch of " + str(len(task_ids)) + " tasks")
                 
@@ -218,23 +224,25 @@ system AsyncWorkerPool {
                 await self._process_batch(task_ids)
                 
                 system.return = "Batch complete: " + str(len(task_ids)) + " tasks"
-            
+            }
             getResults() {
                 # Return a simple string describing results
                 system.return = "6 tasks completed"
-            
+            }
             shutdown() {
                 print("Worker pool shutting down")
                 -> $Shutdown
-        
+            }
+        }
         $Shutdown {
             $>() {
                 print("Worker pool shut down")
                 # TODO: Clear results dictionary - Frame needs dict literal support
-            
+            }
             getResults() {
                 system.return = "Pool is shut down"
-        
+            }
+        }
     actions:
         async _process_batch(task_ids) {
             for tid in task_ids:
@@ -273,7 +281,7 @@ system AsyncErrorHandler {
                     self.error_count = self.error_count + 1
                     system.return = "Failed after " + str(max_retries) + " attempts"
                     -> $ErrorState
-                } else {
+                else:
                     system.return = result
             
             handleError(error_type) {
@@ -295,7 +303,8 @@ system AsyncErrorHandler {
                     print("Primary processing failed, using fallback")
                     await asyncio.sleep(0.1)
                     system.return = "Fallback: " + data
-        
+            }
+        }
         $ErrorState {
             async $>() {
                 print("System in error state. Errors: " + str(self.error_count))
@@ -310,7 +319,9 @@ system AsyncErrorHandler {
             handleError(error_type) {
                 print("Already in error state. New error: " + error_type)
                 system.return = "In error recovery"
-        
+            }
+        }
+    }
     domain:
         error_count = 0
         last_error = ""
@@ -402,9 +413,9 @@ async fn benchmark_async() {
     for i in range(100):
         if i % 3 == 0:
             tasks.append(mock_download("url_" + str(i)))
-        } elif i % 3 == 1 {
+        elif i % 3 == 1:
             tasks.append(mock_process("data_" + str(i)))
-        } else {
+        else:
             tasks.append(compute_heavy(100))
     
     # Run all tasks in parallel
@@ -422,7 +433,7 @@ async fn benchmark_async() {
     for i in range(50):
         if i % 2 == 0:
             tasks2.append(mock_download("limited_url_" + str(i)))
-        } else {
+        else:
             tasks2.append(compute_heavy(50))
     results2 = await asyncio.gather(*tasks2)
     

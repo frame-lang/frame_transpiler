@@ -9,5 +9,7 @@ system MixedBodyStringsComments {
                 # A comment that mentions => $^ and -> $Other should not be parsed as Frame
                 print(text)
                 -> $Done
+            }
+        }
         $Done {}
 }

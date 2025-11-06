@@ -25,6 +25,7 @@ system ImportTest {
         testMath() {
             result = math.cos(0)
             print("Cosine of 0: " + str(result))
+        }
     
     interface:
         start()
@@ -34,4 +35,6 @@ system ImportTest {
             start() {
                 print("System started")
                 return
+            }
+        }
 }

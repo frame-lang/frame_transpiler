@@ -7,9 +7,9 @@ system PyFStringNested {
             name = "world"
             s1 = f"hello {name.upper()}"
             s2 = f"tokens -> $Next and $$[+] and => $^ inside fstring"
-            s3 = f"nested {f"level2 {a}"} end"
+            s3 = f"nested {f\"level2 {a}\"} end"
+        }
     machine:
         $Init { op() { } }
         $Next {}
 }
-

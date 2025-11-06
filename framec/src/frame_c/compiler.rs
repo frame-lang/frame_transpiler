@@ -300,6 +300,10 @@ impl Exe {
                 Arc::clone(&target_regions),
                 Arc::clone(&source_lines),
             );
+            // If CLI or header resolved a target language, seed the parser so body gating applies
+            if let Some(lang) = target_language {
+                syntactic_parser.target_language = Some(lang);
+            }
             if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
                 eprintln!("DEBUG: Created syntactic parser with is_building_symbol_table=true");
             }
@@ -391,6 +395,9 @@ impl Exe {
             Arc::clone(&target_regions),
             Arc::clone(&source_lines),
         );
+        if let Some(lang) = target_language {
+            semantic_parser.target_language = Some(lang);
+        }
 
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!("DEBUG: Created semantic parser with is_building_symbol_table=false");
