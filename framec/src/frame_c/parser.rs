@@ -390,6 +390,77 @@ impl<'a> Parser<'a> {
 
     /* --------------------------------------------------------------------- */
 
+    /// Textual scan for TypeScript bodies to locate the matching closing '}' line.
+    /// Accounts for strings, // and /* */ comments, and template literals with nested `${...}`.
+    fn scan_ts_closing_brace_line(&self, body_start_line: usize) -> usize {
+        let source = self.source_text();
+        let all_lines: Vec<&str> = source.lines().collect();
+        let mut in_squote = false;
+        let mut in_dquote = false;
+        let mut in_block_comment = false;
+        let mut in_template = false;
+        let mut tpl_expr_depth: i32 = 0;
+        let mut brace_depth: i32 = 1; // already consumed '{'
+        let start = body_start_line.saturating_add(1);
+        let mut close_line = body_start_line; // default for single-line bodies
+        for idx in (start.saturating_sub(1))..all_lines.len() {
+            let frame_ln = idx + 1;
+            let bytes = all_lines[idx].as_bytes();
+            let mut j = 0usize;
+            let mut in_line_comment = false;
+            while j < bytes.len() {
+                let ch = bytes[j] as char;
+                if !in_template && !in_squote && !in_dquote && !in_block_comment {
+                    if ch == '/' && j + 1 < bytes.len() && bytes[j + 1] as char == '/' {
+                        in_line_comment = true;
+                        break;
+                    }
+                    if ch == '/' && j + 1 < bytes.len() && bytes[j + 1] as char == '*' {
+                        in_block_comment = true;
+                        j += 2;
+                        continue;
+                    }
+                    if ch == '\'' { in_squote = true; j += 1; continue; }
+                    if ch == '"' { in_dquote = true; j += 1; continue; }
+                    if ch == '`' { in_template = true; j += 1; continue; }
+                } else {
+                    if in_block_comment {
+                        if ch == '*' && j + 1 < bytes.len() && bytes[j + 1] as char == '/' {
+                            in_block_comment = false; j += 2; continue;
+                        }
+                        j += 1; continue;
+                    }
+                    if in_squote {
+                        if ch == '\\' { j += 2; continue; }
+                        if ch == '\'' { in_squote = false; j += 1; continue; }
+                        j += 1; continue;
+                    }
+                    if in_dquote {
+                        if ch == '\\' { j += 2; continue; }
+                        if ch == '"' { in_dquote = false; j += 1; continue; }
+                        j += 1; continue;
+                    }
+                    if in_template {
+                        if ch == '$' && j + 1 < bytes.len() && bytes[j + 1] as char == '{' { tpl_expr_depth += 1; j += 2; continue; }
+                        if ch == '}' && tpl_expr_depth > 0 { tpl_expr_depth -= 1; j += 1; continue; }
+                        if ch == '`' && tpl_expr_depth == 0 { in_template = false; j += 1; continue; }
+                        j += 1; continue;
+                    }
+                }
+                if ch == '{' { brace_depth += 1; j += 1; continue; }
+                if ch == '}' {
+                    brace_depth -= 1;
+                    if brace_depth == 0 { close_line = frame_ln; break; }
+                    j += 1; continue;
+                }
+                j += 1;
+            }
+            if in_line_comment { /* skip rest of line */ }
+            if brace_depth == 0 { break; }
+        }
+        close_line
+    }
+
     pub fn parse(&mut self) -> Result<FrameModule, ParseError> {
         self.module()
     }
