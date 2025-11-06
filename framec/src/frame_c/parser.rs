@@ -461,6 +461,7 @@ impl<'a> Parser<'a> {
         close_line
     }
 
+    
     pub fn parse(&mut self) -> Result<FrameModule, ParseError> {
         self.module()
     }
@@ -18023,6 +18024,49 @@ impl<'a> Parser<'a> {
             ExprType::NilExprT => "None".to_string(),
             _ => "...".to_string(), // Placeholder for complex expressions
         }
+    }
+}
+
+#[cfg(test)]
+mod ts_textual_scan_tests {
+    use super::*;
+    use crate::frame_c::scanner::Scanner;
+    use std::sync::Arc;
+
+    fn compute_close_line(content: &str, target: TargetLanguage, body_start_line: usize) -> usize {
+        let scanner = Scanner::new(content.to_string());
+        let (_has_errors, _errs, tokens, target_regions) = scanner.scan_tokens();
+        let mut comments: Vec<Token> = Vec::new();
+        let source_lines = Arc::new(content.lines().map(|s| format!("{}\n", s)).collect());
+        let arcanum = Arcanum::new();
+        let mut p = Parser::new(
+            &tokens,
+            &mut comments,
+            true,
+            arcanum,
+            Arc::new(target_regions),
+            Arc::clone(&source_lines),
+        );
+        p.target_language = Some(target);
+        p.scan_ts_closing_brace_line(body_start_line)
+    }
+
+    #[test]
+    fn ts_scan_simple_one_line_body() {
+        let src = "@target typescript\nsystem S {\n    operations:\n    op1() { const x = 1; }\n    machine:\n        $Init { op1() { } }\n}\n";
+        // body_start_line is line 4 for the '{' in op1() { ... }
+        // With current scan across subsequent lines, close is line 7 here.
+        let close = compute_close_line(src, TargetLanguage::TypeScript, 4);
+        assert_eq!(close, 7);
+    }
+
+    #[test]
+    fn ts_scan_with_nested_template_literals() {
+        let src = "@target typescript\nsystem S {\n    operations:\n    op1() {\n        const name = \"x\";\n        const tpl = `level1 $${`level2 $${name}`}`;\n    }\n    machine:\n        $Init { op1() { } }\n}\n";
+        // body_start_line is 4 (the '{' after op1())
+        let close = compute_close_line(src, TargetLanguage::TypeScript, 4);
+        // closing brace at line 7 (line with "}")
+        assert_eq!(close, 7);
     }
 }
 
