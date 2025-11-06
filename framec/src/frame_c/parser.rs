@@ -2840,6 +2840,30 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
+                // Python: disallow legacy braced control-flow in action bodies
+                if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+                    for (idx, s) in raw.lines().enumerate() {
+                        let t = s.trim_start();
+                        if (t.starts_with("if ")
+                            || t.starts_with("elif ")
+                            || t.starts_with("else")
+                            || t.starts_with("for ")
+                            || t.starts_with("while ")
+                            || t.starts_with("try")
+                            || t.starts_with("except")
+                            || t.starts_with("finally")
+                            || t.starts_with("with ")
+                            || t.starts_with("async with ")
+                            || t.starts_with("async for "))
+                            && t.ends_with('{')
+                        {
+                            let line = start_line + idx;
+                            let err = ParseError::new("Legacy braced control-flow is not allowed in Python bodies (use ':' and indentation)")
+                                .with_frame_line(line);
+                            return Err(err);
+                        }
+                    }
+                }
 
                 let region = TargetRegion {
                     start_position: 0,
@@ -5029,6 +5053,20 @@ impl<'a> Parser<'a> {
             }
 
             if self.match_token(&[TokenType::Var, TokenType::Const]) {
+                // Python policy: domain must use native assignments
+                if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+                    let err = ParseError::new("Use Python-native assignment in domain blocks (drop 'var')").with_frame_line(self.previous().line);
+                    self.error_at_previous("Use Python-native assignment in domain blocks (drop 'var')");
+                    // Synchronize on next entry
+                    let sync_tokens = vec![
+                        TokenType::Var,
+                        TokenType::Const,
+                        TokenType::Enum,
+                        TokenType::CloseBrace,
+                    ];
+                    self.synchronize(&sync_tokens);
+                    continue;
+                }
                 match self.var_declaration(IdentifierDeclScope::DomainBlockScope) {
                     Ok(node) => domain_variables.push(node),
                     Err(_parse_err) => {
@@ -7637,6 +7675,28 @@ impl<'a> Parser<'a> {
                         if !s.ends_with('\n') {
                             raw.push('\n');
                         }
+                    }
+                }
+                // Policy: disallow legacy braced control-flow in Python event handler bodies
+                for (idx, s) in raw.lines().enumerate() {
+                    let t = s.trim_start();
+                    if (t.starts_with("if ")
+                        || t.starts_with("elif ")
+                        || t.starts_with("else")
+                        || t.starts_with("for ")
+                        || t.starts_with("while ")
+                        || t.starts_with("try")
+                        || t.starts_with("except")
+                        || t.starts_with("finally")
+                        || t.starts_with("with ")
+                        || t.starts_with("async with ")
+                        || t.starts_with("async for "))
+                        && t.ends_with('{')
+                    {
+                        let line = start_line + idx;
+                        let err = ParseError::new("Legacy braced control-flow is not allowed in Python bodies (use ':' and indentation)")
+                            .with_frame_line(line);
+                        return Err(err);
                     }
                 }
                 let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
