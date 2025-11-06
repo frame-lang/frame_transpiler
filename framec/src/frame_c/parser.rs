@@ -3918,27 +3918,47 @@ impl<'a> Parser<'a> {
         if matches!(self.target_language, Some(TargetLanguage::TypeScript))
             || matches!(self.target_language, Some(TargetLanguage::Python3))
         {
-            // Skip tokens until matching '}' without consuming the closing brace
-            let mut depth: i32 = 1; // already consumed '{'
-            let mut last_line = body_start_line;
-            while !self.is_at_end() && depth > 0 {
-                let tk = self.peek().clone();
-                match tk.token_type {
-                    TokenType::OpenBrace => depth += 1,
-                    TokenType::CloseBrace => {
-                        depth -= 1;
-                        if depth == 0 {
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-                last_line = tk.line;
-                self.advance();
-            }
-
+            // For TypeScript actions, guard against template literals with a textual closer
             let start_line = body_start_line.saturating_add(1);
-            let end_line = last_line;
+            let (end_line, _used_textual) = if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                // detect backticks quickly; if present, use textual closer
+                let mut has_backtick = false;
+                for ln in start_line..(start_line + 64).min(self.source_lines.len() + 1) {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        if s.contains('`') { has_backtick = true; break; }
+                        if s.trim_start().starts_with('}') { break; }
+                    }
+                }
+                if has_backtick {
+                    let close_line = self.scan_ts_closing_brace_line(body_start_line);
+                    // advance tokens up to close_line (just before '}')
+                    while !self.is_at_end() {
+                        let tk = self.peek();
+                        if tk.line < close_line { self.advance(); continue; }
+                        if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
+                        break;
+                    }
+                    (close_line.saturating_sub(1), true)
+                } else {
+                    // token-depth fallback
+                    let mut depth: i32 = 1; let mut last_line = body_start_line;
+                    while !self.is_at_end() && depth > 0 {
+                        let tk = self.peek().clone();
+                        match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
+                        last_line = tk.line; self.advance();
+                    }
+                    (last_line, false)
+                }
+            } else {
+                // Python path uses token-depth only
+                let mut depth: i32 = 1; let mut last_line = body_start_line;
+                while !self.is_at_end() && depth > 0 {
+                    let tk = self.peek().clone();
+                    match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
+                    last_line = tk.line; self.advance();
+                }
+                (last_line, false)
+            };
             if end_line >= start_line {
                 let mut raw = String::new();
                 for ln in start_line..=end_line {

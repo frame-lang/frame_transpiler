@@ -45,3 +45,15 @@ Frame constructs (`$State`, `$Child => $Parent`, `$>()`, `<$()`, `->`, `=> $^`,
 
 ## Source Mapping
 - Preserve offsets for dual‑origin diagnostics.
+
+## Body Boundary Detection
+
+Some TypeScript bodies include template literals with nested `${ … }` that can contain braces. To avoid miscounting braces when locating the end of a TS body, the compiler uses a textual, template‑aware scan that:
+
+- Tracks strings (`'…'`, `"…"` with escapes), template literals (`` `…` ``) and nested `${ … }`, and comments (`//`, `/* … */`).
+- Only counts `{` and `}` as body delimiters when outside those constructs.
+- Handles CRLF newlines and NBSP/tab indentation without special cases.
+
+“Template‑aware” means the scanner understands backticks and `${ … }` and does not treat braces inside those regions as body delimiters.
+
+See also: `docs/framepiler_design/stages/ts_textual_body_closer.md` for algorithm details and unit‑tested behaviors. Current rollout: active for operations; staged for actions/handlers (guarded by backtick detection) with full suite validation after each change.

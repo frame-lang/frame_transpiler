@@ -767,3 +767,6 @@ Note: an aggressive nested-backtick-in-backtick case has been deferred pending u
 - Extract TS textual body-closer scan into a reusable helper and apply uniformly (actions/ops/handlers/statements guard)
 - Re-introduce a deeper nested-template test once the helper is in place
 - Keep MixedBody authoritative; avoid token-depth heuristics for TS native bodies
+- Document the helper and rollout:
+  - docs/framepiler_design/stages/ts_textual_body_closer.md (algorithm, tested behaviors, guard strategy)
+  - docs/framelang_design/target_language_specifications/typescript/typescript_body_grammar.md (Body Boundary Detection section)

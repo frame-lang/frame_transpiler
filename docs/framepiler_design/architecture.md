@@ -115,6 +115,10 @@ Parsers & Mixed AST Linkage
 - Frame symbols are maintained by Arcanum; native symbol information (when collected) is kept in a sidecar index for diagnostics only. No merging into Arcanum.
 - Further details: stages/mixed_asts_and_symbols.md
 
+### TypeScript Body Boundary Detection
+
+Some TypeScript bodies include template literals with nested `${…}` that can confuse simple token‑based brace counting. For reliable body boundary detection we use a textual, template‑aware closer that scans bytes and tracks strings/comments/template nesting. See stages/ts_textual_body_closer.md for the algorithm and tested behaviors. Current usage: applied to operations; staged rollout for actions/handlers (guarded by backtick detection).
+
 8) Semantic Analyzer (planned)
 - Out‑of‑pass analyzer for resolution and validation; removes semantic checks from parser pass 2.
 
