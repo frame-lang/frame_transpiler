@@ -18068,6 +18068,14 @@ mod ts_textual_scan_tests {
         // closing brace at line 7 (line with "}")
         assert_eq!(close, 7);
     }
+
+    #[test]
+    fn ts_scan_block_comment_with_directive_tokens() {
+        let src = "@target typescript\nsystem S {\n    actions:\n        run() {\n            /*\n             * tokens -> $Next and $$[+] and => $^\n             */\n            const z = 1;\n        }\n    machine:\n        $Init { run() { } }\n}\n";
+        // '{' of run() is on line 5; with current scan, closing '}' is read at line 9
+        let close = compute_close_line(src, TargetLanguage::TypeScript, 5);
+        assert_eq!(close, 9);
+    }
 }
 
 // Helper enum for bracket expression parsing
