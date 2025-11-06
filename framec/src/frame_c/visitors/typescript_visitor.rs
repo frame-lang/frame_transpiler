@@ -8524,6 +8524,7 @@ impl TypeScriptVisitor {
         // Prefer MixedBody if provided (B2 path); fallback to segmented native text
         if let Some(items) = mixed {
             let mut after_terminal_dir = false; // transition/forward/stack ops imply early return
+            let mut warned_unreachable = false; // emit warning once per body
             for it in items {
                 match it {
                     MixedBodyItem::NativeText {
@@ -8532,9 +8533,10 @@ impl TypeScriptVisitor {
                         // Map the first output position of this native span to its frame line
                         self.builder.map_next(*start_line);
                         if !text.trim().is_empty() {
-                            if after_terminal_dir {
+                            if after_terminal_dir && !warned_unreachable {
                                 // Emit a non-fatal warning comment to flag unreachable native code
                                 self.builder.writeln("// WARNING: Unreachable code after transition/forward/stack op");
+                                warned_unreachable = true;
                             }
                             self.builder.write(text);
                             if !text.ends_with('\n') {
@@ -8548,8 +8550,9 @@ impl TypeScriptVisitor {
                         self.builder.map_next(*start_line);
                         let code = ast.to_source();
                         if !code.trim().is_empty() {
-                            if after_terminal_dir {
+                            if after_terminal_dir && !warned_unreachable {
                                 self.builder.writeln("// WARNING: Unreachable code after transition/forward/stack op");
+                                warned_unreachable = true;
                             }
                             self.builder.write(code);
                             if !code.ends_with('\n') {
