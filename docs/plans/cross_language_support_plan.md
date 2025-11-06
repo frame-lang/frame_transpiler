@@ -38,6 +38,8 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Negative fixtures added for unterminated templates/strings/comments
 
 ## ▶️ Next Steps (High‑Level)
+- [x] Test runner: validator-verified fixtures (post-transpile)
+  - Acceptance: Runner invokes `framec --validate-syntax --validation-only` per test; negative tests pass when validation fails; summary honors validation; HOW_TO updated.
 - [ ] Python native‑only handlers complete
   - Acceptance: `language_specific_python` transpile‑only = 100%; all handler bodies use native Python (no `var`, no braced control‑flow), structural Frame braces intact.
 - [ ] Enforce native‑only policy in Python bodies

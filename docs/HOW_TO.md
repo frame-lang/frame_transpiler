@@ -125,6 +125,18 @@ python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec
 
 # Transpile-only mode (no execution)
 python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec --transpile-only
+
+# Validator-verified runs (default)
+# The runner now validates every fixture after transpilation using framec's validator.
+# To adjust or disable validation:
+python3 framec_tests/runner/frame_test_runner.py \
+  --languages python typescript \
+  --framec ./target/release/framec \
+  --validation-level structural \
+  --validation-format human
+
+# Disable validation explicitly if needed
+python3 framec_tests/runner/frame_test_runner.py --no-validate --languages python --framec ./target/release/framec
 ```
 
 **Single File Testing:**

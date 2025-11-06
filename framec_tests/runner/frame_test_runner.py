@@ -25,6 +25,7 @@ class TestResult:
     language: str
     transpile_success: bool
     execute_success: bool
+    validation_success: bool = False
     error_message: Optional[str] = None
     execution_time: float = 0.0
     output: Optional[str] = None
@@ -39,6 +40,9 @@ class TestConfig:
     categories: List[str] = None
     verbose: bool = False
     execute: bool = True  # If False, only transpile
+    validate: bool = True  # Run validator after transpile
+    validation_level: str = "structural"  # basic|structural|semantic|target-language
+    validation_format: str = "human"  # human|json|junit
     parallel: bool = False
     timeout: int = 10
     
@@ -215,6 +219,45 @@ class FrameTestRunner:
             return False, str(output_file), "Transpilation timeout"
         except Exception as e:
             return False, str(output_file), str(e)
+
+    def validate(self, test_file: Path, language: str) -> Tuple[bool, str]:
+        """Run framec validation on a Frame file for a given target language."""
+        lang_flag = {
+            "python": "python_3",
+            "typescript": "typescript",
+            "rust": "rust",
+            "golang": "golang",
+            "javascript": "javascript",
+            "llvm": "llvm",
+        }.get(language, language)
+
+        cmd = [
+            self.config.framec_path,
+            "--language",
+            lang_flag,
+            "--validate-syntax",
+            "--validation-only",
+            "--validation-level",
+            self.config.validation_level,
+            "--validation-format",
+            self.config.validation_format,
+            str(test_file),
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=max(self.config.timeout, 10),
+            )
+            success = result.returncode == 0
+            output = (result.stdout or "") + (result.stderr or "")
+            return success, output
+        except subprocess.TimeoutExpired:
+            return False, "Validation timeout"
+        except Exception as e:
+            return False, f"Validation error: {e}"
     
     def execute_python(self, py_file: str) -> Tuple[bool, str]:
         """Execute Python file and return success status and output."""
@@ -696,23 +739,35 @@ class FrameTestRunner:
             language=language,
             transpile_success=False,
             execute_success=False,
+            validation_success=False,
             is_negative_test=is_negative
         )
         
         # Transpile
         transpile_success, output_file, error = self.transpile(test_file, language)
         result.transpile_success = transpile_success
+
+        # Optionally validate (after transpile to ensure parsing paths are similar)
+        validation_success = False
+        validation_output = ""
+        if self.config.validate:
+            validation_success, validation_output = self.validate(test_file, language)
+            result.validation_success = validation_success
         
         # Handle negative tests specially
         if is_negative:
-            if not transpile_success:
-                # Negative test failed transpilation as expected - this is a success!
+            # Negative tests are successful if either transpilation or validation fails
+            if (not transpile_success) or (self.config.validate and not validation_success):
                 result.expected_failure = True
-                result.error_message = f"Expected transpilation failure: {error}"
+                # Prefer validation output if available
+                err = error or validation_output
+                result.error_message = f"Expected failure: {err[:200]}" if err else "Expected failure"
             else:
-                # Negative test unexpectedly passed transpilation - this is a failure!
                 result.expected_failure = False
-                result.error_message = "Negative test unexpectedly passed transpilation"
+                result.error_message = (
+                    "Negative test unexpectedly passed transpilation" +
+                    (" and validation" if self.config.validate else "")
+                )
         elif is_infinite_loop:
             # Infinite loop test - only check transpilation, skip execution
             if not transpile_success:
@@ -725,6 +780,9 @@ class FrameTestRunner:
             # Positive test - normal handling
             if not transpile_success:
                 result.error_message = f"Transpilation failed: {error}"
+            elif self.config.validate and not validation_success:
+                # Fail early on validation errors; do not execute
+                result.error_message = f"Validation failed: {validation_output[:500]}"
             elif self.config.execute:
                 # Execute based on language
                 if language == "python":
@@ -829,6 +887,11 @@ class FrameTestRunner:
             transpile_success = sum(1 for r in lang_results if 
                                   (not r.is_negative_test and r.transpile_success) or
                                   (r.is_negative_test and r.expected_failure))
+            # Validation success: for positive tests, validation_success must be True when validate enabled
+            validation_success = sum(1 for r in lang_results if 
+                                   (not self.config.validate) or
+                                   (not r.is_negative_test and r.validation_success) or
+                                   (r.is_negative_test and r.expected_failure))
             
             # For execution success: positive tests that execute OR negative tests (which don't execute)
             execute_success = sum(1 for r in lang_results if 
@@ -837,16 +900,22 @@ class FrameTestRunner:
             
             # Overall success rate - tests that behave as expected
             overall_success = sum(1 for r in lang_results if
-                                (not r.is_negative_test and not self.is_infinite_loop_test(Path(r.file)) and r.transpile_success and (not self.config.execute or r.execute_success)) or
+                                (not r.is_negative_test 
+                                 and not self.is_infinite_loop_test(Path(r.file)) 
+                                 and r.transpile_success 
+                                 and (not self.config.validate or r.validation_success)
+                                 and (not self.config.execute or r.execute_success)) or
                                 (r.is_negative_test and r.expected_failure) or
                                 (self.is_infinite_loop_test(Path(r.file)) and r.transpile_success))
             
             report["summary"]["by_language"][lang] = {
                 "total": len(lang_results),
                 "transpile_success": transpile_success,
+                "validation_success": validation_success,
                 "execute_success": execute_success,
                 "overall_success": overall_success,
                 "transpile_rate": f"{100*transpile_success/len(lang_results):.1f}%" if lang_results else "0%",
+                "validation_rate": f"{100*validation_success/len(lang_results):.1f}%" if lang_results else "0%",
                 "execute_rate": f"{100*execute_success/len(lang_results):.1f}%" if lang_results else "0%",
                 "overall_rate": f"{100*overall_success/len(lang_results):.1f}%" if lang_results else "0%"
             }
@@ -856,7 +925,11 @@ class FrameTestRunner:
         for category in categories:
             cat_results = [r for r in self.results if r.category == category]
             success_count = sum(1 for r in cat_results if
-                              (not r.is_negative_test and not self.is_infinite_loop_test(Path(r.file)) and r.transpile_success and (not self.config.execute or r.execute_success)) or
+                              (not r.is_negative_test 
+                               and not self.is_infinite_loop_test(Path(r.file)) 
+                               and r.transpile_success 
+                               and (not self.config.validate or r.validation_success)
+                               and (not self.config.execute or r.execute_success)) or
                               (r.is_negative_test and r.expected_failure) or
                               (self.is_infinite_loop_test(Path(r.file)) and r.transpile_success))
             report["summary"]["by_category"][category] = {
@@ -879,6 +952,8 @@ class FrameTestRunner:
             print(f"  Total tests: {stats['total']}")
             print(f"  Overall success: {stats['overall_success']}/{stats['total']} ({stats['overall_rate']})")
             print(f"  Transpilation: {stats['transpile_success']}/{stats['total']} ({stats['transpile_rate']})")
+            if self.config.validate:
+                print(f"  Validation: {stats['validation_success']}/{stats['total']} ({stats['validation_rate']})")
             if self.config.execute:
                 print(f"  Execution: {stats['execute_success']}/{stats['total']} ({stats['execute_rate']})")
         
@@ -889,7 +964,7 @@ class FrameTestRunner:
         
         # List failures (tests that didn't behave as expected)
         failures = [r for r in self.results if
-                   (not r.is_negative_test and not self.is_infinite_loop_test(Path(r.file)) and (not r.transpile_success or (self.config.execute and not r.execute_success))) or
+                   (not r.is_negative_test and not self.is_infinite_loop_test(Path(r.file)) and ((not r.transpile_success) or (self.config.validate and not r.validation_success) or (self.config.execute and not r.execute_success))) or
                    (r.is_negative_test and not r.expected_failure) or
                    (self.is_infinite_loop_test(Path(r.file)) and not r.transpile_success)]
         if failures:
@@ -915,6 +990,14 @@ def main():
                        help='Verbose output')
     parser.add_argument('--transpile-only', action='store_true',
                        help='Only transpile, do not execute')
+    parser.add_argument('--no-validate', action='store_true',
+                       help='Skip validator step (transpile/execute only)')
+    parser.add_argument('--validation-level', default='structural',
+                       choices=['basic','structural','semantic','target-language'],
+                       help='Validator level to apply')
+    parser.add_argument('--validation-format', default='human',
+                       choices=['human','json','junit'],
+                       help='Validator output format')
     parser.add_argument('--output', '-o', help='Output JSON report to file')
     parser.add_argument('--timeout', type=int, default=10,
                        help='Timeout for each test in seconds')
@@ -928,6 +1011,9 @@ def main():
         categories=args.categories,
         verbose=args.verbose,
         execute=not args.transpile_only,
+        validate=not args.no_validate,
+        validation_level=args.validation_level,
+        validation_format=args.validation_format,
         timeout=args.timeout
     )
     
