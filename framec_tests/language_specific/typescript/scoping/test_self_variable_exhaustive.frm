@@ -81,7 +81,7 @@ system SelfVariableExhaustive {
                 print("N3: self.x * 2 + self.y / 3 - 100 -> " + str(n3))
                 self.process(self.x)
                 self.process(self.calculate(self.x))
-                if ((self.x > 100) && (self.y < 500)) {
+                if ((self.x > 100) and (self.y < 500)) {
                     print("N6: (self.x > 100) && (self.y < 500) -> true")
                 } else {
                     print("N6: (self.x > 100) && (self.y < 500) -> false")
@@ -124,4 +124,3 @@ fn main() {
     var test = SelfVariableExhaustive()
     test.run_tests()
 }
-

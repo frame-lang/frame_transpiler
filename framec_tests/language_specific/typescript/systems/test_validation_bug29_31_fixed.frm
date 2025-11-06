@@ -11,6 +11,10 @@ system DebuggerValidationTest {
             start() {
                 -> $Running
             }
+            
+            getCurrentState() {
+                return "Init"
+            }
         }
 
         $Running {
@@ -41,4 +45,3 @@ system DebuggerValidationTest {
             print(msg)
         }
 }
-

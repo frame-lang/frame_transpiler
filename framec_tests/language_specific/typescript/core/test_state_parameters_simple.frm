@@ -18,6 +18,14 @@ system SimpleStateParams {
                 print("Configuring with low: " + str(low) + ", high: " + str(high))
                 -> $Configured(low, high)
             }
+
+            tick() {
+                // no-op to satisfy interface coverage
+            }
+
+            check() {
+                // no-op to satisfy interface coverage
+            }
         }
 
         $Running(timeout: int) {
@@ -29,6 +37,10 @@ system SimpleStateParams {
                 print("Tick - timeout is: " + str(timeout))
                 -> $Idle
             }
+
+            check() {
+                // no-op when running
+            }
         }
 
         $Configured(min: int, max: int) {
@@ -39,6 +51,10 @@ system SimpleStateParams {
             check() {
                 print("Checking range: " + str(min) + " to " + str(max))
                 -> $Idle
+            }
+
+            tick() {
+                // no-op when configured
             }
         }
     }
@@ -53,4 +69,3 @@ fn main() {
     machine.configure(10, 100)
     machine.check()
 }
-
