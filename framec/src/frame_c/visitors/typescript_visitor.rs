@@ -19,6 +19,11 @@ use std::sync::Arc;
 
 // B2 MixedBody/MIR directive emission (offline fallback: textual composition)
 
+// SWC codegen imports for B2 emission of MIR
+// (B2 planned) SWC codegen can be enabled later for MIR emission
+#[cfg(feature = "ts_b2_codegen")]
+mod ts_b2;
+
 #[derive(Clone, Debug)]
 struct TypeScriptNativeBinding {
     identifier: Option<String>,
@@ -1585,7 +1590,7 @@ impl TypeScriptVisitor {
             use std::fmt::Write as _;
             let mut trailer = String::new();
             trailer.push_str("\n// __frame_map_begin__\n");
-            for m in mappings {
+            for m in &mappings {
                 let _ = write!(
                     &mut trailer,
                     "// map frame:{} -> ts:{}\n",
@@ -1594,6 +1599,29 @@ impl TypeScriptVisitor {
             }
             trailer.push_str("// __frame_map_end__\n");
             code.push_str(&trailer);
+        }
+
+        // Optional mapping dump as JSON (debug): append a JSON block inside comments
+        if std::env::var("FRAME_TS_MAP_JSON").is_ok() {
+            let mut entries: Vec<String> = Vec::new();
+            for m in &mappings {
+                // We expose python_line as tsLine for clarity on the TS target
+                let ty = m
+                    .mapping_type
+                    .as_ref()
+                    .map(|t| format!("\"{:?}\"", t))
+                    .unwrap_or("null".to_string());
+                entries.push(format!(
+                    "{{\"frameLine\":{},\"tsLine\":{},\"type\":{}}}",
+                    m.frame_line, m.python_line, ty
+                ));
+            }
+            let json = format!("[{}]", entries.join(","));
+            let json_block = format!(
+                "\n// __frame_map_json_begin__\n// {}\n// __frame_map_json_end__\n",
+                json
+            );
+            code.push_str(&json_block);
         }
 
         code
@@ -1935,6 +1963,43 @@ mod tests {
         assert!(
             has_native_mapping,
             "expected mapping for native start frame line 77"
+        );
+    }
+
+    #[test]
+    fn mixedbody_maps_transition_line_and_warns_unreachable() {
+        let mut v = TypeScriptVisitor::new(Vec::new(), SymbolConfig::default());
+        let items = vec![
+            MixedBodyItem::NativeText {
+                target: TargetLanguage::TypeScript,
+                text: "const a = 1;\n".to_string(),
+                start_line: 40,
+                end_line: 40,
+            },
+            MixedBodyItem::Frame {
+                frame_line: 41,
+                stmt: MirStatement::Transition {
+                    state: "Next".to_string(),
+                    args: vec![],
+                },
+            },
+            // Following native code should be warned as unreachable in the emitted output
+            MixedBodyItem::NativeText {
+                target: TargetLanguage::TypeScript,
+                text: "const b = 2;\n".to_string(),
+                start_line: 42,
+                end_line: 42,
+            },
+        ];
+        let (_generated, _ignored) =
+            v.emit_target_specific_body(ActionBody::Mixed, &[], &[], &[], None, Some(&items));
+
+        let (out, mappings) = v.builder.build();
+        let has_transition_mapping = mappings.iter().any(|m| m.frame_line == 41);
+        assert!(has_transition_mapping, "expected mapping for transition frame line 41");
+        assert!(
+            out.contains("WARNING: Unreachable code after transition/forward/stack op"),
+            "expected unreachable warning after transition"
         );
     }
 }
@@ -8864,6 +8929,12 @@ impl TypeScriptVisitor {
     fn emit_mir_statement_as_swc(&self, mir: &MirStatement) -> String {
         match mir {
             MirStatement::Transition { state, .. } => {
+                #[cfg(feature = "ts_b2_codegen")]
+                {
+                    if let Some(code) = ts_b2::b2_emit_transition(state) {
+                        return code;
+                    }
+                }
                 format!(
                     "this._frame_transition(new FrameCompartment(\"{}\", null, null, {{}}, {{}}));\nreturn;\n",
                     state

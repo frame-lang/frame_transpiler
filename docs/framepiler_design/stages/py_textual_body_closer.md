@@ -1,6 +1,6 @@
 # Python Body Boundary Detection (Triple‑Quote/F‑String Aware)
 
-Status: Ready; staged for guarded rollout
+Status: Active for actions and event handlers (guarded)
 Last updated: 2025‑11‑06
 
 ## Purpose
@@ -34,8 +34,8 @@ Find the closing `}` for a Python target body without being confused by Python s
 - Handles CRLF (`\r\n`) and treats NBSP/tabs as ordinary characters.
 - We do not parse f‑string expression contents; boundary detection only needs to avoid counting braces inside string literals.
 
-## Usage plan
+## Usage
 
-- Guarded rollout: use the textual detector for Python bodies only when triple quotes or obvious f‑string markers are present; otherwise keep the current token‑depth guard. Validate the full Python single‑file suite after each change.
+- Guarded: the textual detector is applied when triple quotes or obvious f‑string markers are present; otherwise we keep the token‑depth guard.
+- Validation: full Python single‑file suite passes (transpile‑only). Negative fixtures cover unterminated triple‑quoted and single/double‑quoted strings.
 - MixedBody/segmenter behavior is unchanged; this detector only provides a reliable body slice.
-

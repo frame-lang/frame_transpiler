@@ -39,6 +39,18 @@ pub struct ParseError {
     pub target_snippet: Option<String>,
 }
 
+// Failure characterization for textual closers (used by guarded TS/Py body scanners)
+enum DetectionFailure {
+    UnterminatedTemplateLiteral { start_line: usize },
+    UnterminatedBlockComment { start_line: usize },
+    UnterminatedString { kind: &'static str, start_line: usize },
+}
+
+enum DetectionResult {
+    Ok { close_line: usize },
+    Failure(DetectionFailure),
+}
+
 fn parse_python_import_symbols(line: &str) -> Vec<String> {
     let trimmed = line.trim();
     if trimmed.starts_with("from ") {
@@ -461,6 +473,300 @@ impl<'a> Parser<'a> {
         close_line
     }
 
+    // Failure characterization for textual closers (module scope)
+
+    /// TypeScript: textual detection with failure characterization.
+    fn detect_ts_close_or_failure(&self, body_start_line: usize) -> DetectionResult {
+        let source = self.source_text();
+        let all_lines: Vec<&str> = source.lines().collect();
+        let mut in_squote = false;
+        let mut in_dquote = false;
+        let mut in_block_comment = false;
+        let mut in_template = false;
+        let mut tpl_expr_depth: i32 = 0;
+        let mut brace_depth: i32 = 1; // already consumed '{'
+        let mut tpl_start_line: Option<usize> = None;
+        let mut block_comment_start: Option<usize> = None;
+        let start = body_start_line.saturating_add(1);
+        let mut close_line = body_start_line; // default for single-line bodies
+        for idx in (start.saturating_sub(1))..all_lines.len() {
+            let frame_ln = idx + 1;
+            let bytes = all_lines[idx].as_bytes();
+            let mut j = 0usize;
+            let mut in_line_comment = false;
+            while j < bytes.len() {
+                let ch = bytes[j] as char;
+                if !in_template && !in_squote && !in_dquote && !in_block_comment {
+                    if ch == '/' && j + 1 < bytes.len() && bytes[j + 1] as char == '/' {
+                        in_line_comment = true;
+                        break;
+                    }
+                    if ch == '/' && j + 1 < bytes.len() && bytes[j + 1] as char == '*' {
+                        in_block_comment = true;
+                        block_comment_start.get_or_insert(frame_ln);
+                        j += 2;
+                        continue;
+                    }
+                    if ch == '\'' {
+                        in_squote = true;
+                        j += 1;
+                        continue;
+                    }
+                    if ch == '"' {
+                        in_dquote = true;
+                        j += 1;
+                        continue;
+                    }
+                    if ch == '`' {
+                        in_template = true;
+                        tpl_start_line.get_or_insert(frame_ln);
+                        j += 1;
+                        continue;
+                    }
+                } else {
+                    if in_block_comment {
+                        if ch == '*' && j + 1 < bytes.len() && bytes[j + 1] as char == '/' {
+                            in_block_comment = false;
+                            j += 2;
+                            continue;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                    if in_squote {
+                        if ch == '\\' {
+                            j += 2;
+                            continue;
+                        }
+                        if ch == '\'' {
+                            in_squote = false;
+                            j += 1;
+                            continue;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                    if in_dquote {
+                        if ch == '\\' {
+                            j += 2;
+                            continue;
+                        }
+                        if ch == '"' {
+                            in_dquote = false;
+                            j += 1;
+                            continue;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                    if in_template {
+                        if ch == '$' && j + 1 < bytes.len() && bytes[j + 1] as char == '{' {
+                            tpl_expr_depth += 1;
+                            j += 2;
+                            continue;
+                        }
+                        if ch == '}' && tpl_expr_depth > 0 {
+                            tpl_expr_depth -= 1;
+                            j += 1;
+                            continue;
+                        }
+                        if ch == '`' && tpl_expr_depth == 0 {
+                            in_template = false;
+                            j += 1;
+                            continue;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                }
+                if ch == '{' {
+                    brace_depth += 1;
+                    j += 1;
+                    continue;
+                }
+                if ch == '}' {
+                    brace_depth -= 1;
+                    if brace_depth == 0 {
+                        close_line = frame_ln;
+                        break;
+                    }
+                    j += 1;
+                    continue;
+                }
+                j += 1;
+            }
+            if in_line_comment {}
+            if brace_depth == 0 {
+                break;
+            }
+        }
+        if brace_depth > 0 {
+            if in_template {
+                return DetectionResult::Failure(DetectionFailure::UnterminatedTemplateLiteral {
+                    start_line: tpl_start_line.unwrap_or(body_start_line + 1),
+                });
+            }
+            if in_block_comment {
+                return DetectionResult::Failure(DetectionFailure::UnterminatedBlockComment {
+                    start_line: block_comment_start.unwrap_or(body_start_line + 1),
+                });
+            }
+        }
+        DetectionResult::Ok { close_line }
+    }
+
+    /// Python: textual detection with failure characterization.
+    fn detect_py_close_or_failure(&self, body_start_line: usize) -> DetectionResult {
+        let source = self.source_text();
+        let all_lines: Vec<&str> = source.lines().collect();
+        let mut in_squote = false;
+        let mut in_dquote = false;
+        let mut in_tsquote = false; // '''
+        let mut in_tdquote = false; // """
+        let mut sq_start: Option<usize> = None;
+        let mut dq_start: Option<usize> = None;
+        let mut ts_start: Option<usize> = None;
+        let mut td_start: Option<usize> = None;
+        let mut brace_depth: i32 = 1; // '{' already consumed
+        let start = body_start_line.saturating_add(1);
+        let mut close_line = body_start_line;
+        for idx in (start.saturating_sub(1))..all_lines.len() {
+            let frame_ln = idx + 1;
+            let bytes = all_lines[idx].as_bytes();
+            let mut j = 0usize;
+            while j < bytes.len() {
+                let ch = bytes[j] as char;
+                if !(in_squote || in_dquote || in_tsquote || in_tdquote) {
+                    if j + 2 < bytes.len() && bytes[j] == b'\'' && bytes[j + 1] == b'\'' && bytes[j + 2] == b'\'' {
+                        in_tsquote = true;
+                        ts_start.get_or_insert(frame_ln);
+                        j += 3;
+                        continue;
+                    }
+                    if j + 2 < bytes.len() && bytes[j] == b'"' && bytes[j + 1] == b'"' && bytes[j + 2] == b'"' {
+                        in_tdquote = true;
+                        td_start.get_or_insert(frame_ln);
+                        j += 3;
+                        continue;
+                    }
+                    if ch == '\'' {
+                        in_squote = true;
+                        sq_start.get_or_insert(frame_ln);
+                        j += 1;
+                        continue;
+                    }
+                    if ch == '"' {
+                        in_dquote = true;
+                        dq_start.get_or_insert(frame_ln);
+                        j += 1;
+                        continue;
+                    }
+                    if ch == '#' {
+                        break; // rest of line comment
+                    }
+                    if ch == '{' {
+                        brace_depth += 1;
+                        j += 1;
+                        continue;
+                    }
+                    if ch == '}' {
+                        brace_depth -= 1;
+                        if brace_depth == 0 {
+                            close_line = frame_ln;
+                            break;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                    j += 1;
+                    continue;
+                } else {
+                    if in_tsquote {
+                        if j + 2 < bytes.len()
+                            && bytes[j] == b'\''
+                            && bytes[j + 1] == b'\''
+                            && bytes[j + 2] == b'\''
+                        {
+                            in_tsquote = false;
+                            j += 3;
+                            continue;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                    if in_tdquote {
+                        if j + 2 < bytes.len()
+                            && bytes[j] == b'"'
+                            && bytes[j + 1] == b'"'
+                            && bytes[j + 2] == b'"'
+                        {
+                            in_tdquote = false;
+                            j += 3;
+                            continue;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                    if in_squote {
+                        if ch == '\\' {
+                            j += 2;
+                            continue;
+                        }
+                        if ch == '\'' {
+                            in_squote = false;
+                            j += 1;
+                            continue;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                    if in_dquote {
+                        if ch == '\\' {
+                            j += 2;
+                            continue;
+                        }
+                        if ch == '"' {
+                            in_dquote = false;
+                            j += 1;
+                            continue;
+                        }
+                        j += 1;
+                        continue;
+                    }
+                }
+            }
+            if brace_depth == 0 {
+                break;
+            }
+        }
+        if brace_depth > 0 {
+            if in_tsquote {
+                return DetectionResult::Failure(DetectionFailure::UnterminatedString {
+                    kind: "'''",
+                    start_line: ts_start.unwrap_or(body_start_line + 1),
+                });
+            }
+            if in_tdquote {
+                return DetectionResult::Failure(DetectionFailure::UnterminatedString {
+                    kind: "\"\"\"",
+                    start_line: td_start.unwrap_or(body_start_line + 1),
+                });
+            }
+            if in_squote {
+                return DetectionResult::Failure(DetectionFailure::UnterminatedString {
+                    kind: "'",
+                    start_line: sq_start.unwrap_or(body_start_line + 1),
+                });
+            }
+            if in_dquote {
+                return DetectionResult::Failure(DetectionFailure::UnterminatedString {
+                    kind: "\"",
+                    start_line: dq_start.unwrap_or(body_start_line + 1),
+                });
+            }
+        }
+        DetectionResult::Ok { close_line }
+    }
     /// Textual scan for Python bodies to locate the matching closing '}' line.
     /// Tracks single/double quotes with escapes and triple-quoted strings (''' and """).
     /// All braces inside strings are ignored.
@@ -7010,7 +7316,107 @@ impl<'a> Parser<'a> {
         let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
-        // Parse Frame statements for event handler bodies (TS handlers may remain pure Frame)
+        // Guarded textual closer for TS/Py native-heavy bodies: advance to just before the
+        // computed close '}' when template literals (TS) or triple quotes/f-strings (Py)
+        // are detected. This prevents the statements() walker from mis-parsing native code
+        // as Frame statements. MixedBody/segmentation below remains authoritative.
+        {
+            let start_line = body_start_line.saturating_add(1);
+            if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                // Quick lookahead for backticks; if found, use textual scan
+                let mut has_backtick = false;
+                for ln in start_line..(start_line + 64).min(self.source_lines.len() + 1) {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        let trimmed = s.trim_start();
+                        if trimmed.starts_with('}') { break; }
+                        if s.contains('`') {
+                            has_backtick = true;
+                            break;
+                        }
+                    }
+                }
+                if has_backtick {
+                    let close_line = self.scan_ts_closing_brace_line(body_start_line);
+                    // advance tokens up to just before '}' at close_line
+                    while !self.is_at_end() {
+                        let tk = self.peek();
+                        if tk.line < close_line {
+                            self.advance();
+                            continue;
+                        }
+                        if tk.line == close_line
+                            && !matches!(tk.token_type, TokenType::CloseBrace)
+                        {
+                            self.advance();
+                            continue;
+                        }
+                        break;
+                    }
+                }
+            } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+                // Lookahead for triple quotes or f-string markers; if present, use textual scan
+                let mut needs_textual = false;
+                for ln in start_line..(start_line + 128).min(self.source_lines.len() + 1) {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        let trimmed = s.trim_start();
+                        if trimmed.starts_with('}') {
+                            break;
+                        }
+                        if s.contains("\"\"\"")
+                            || s.contains("'''")
+                            || s.contains("f\"")
+                            || s.contains("f\'")
+                            || s.contains("F\"")
+                            || s.contains("F\'")
+                        {
+                            needs_textual = true;
+                            break;
+                        }
+                    }
+                }
+                if needs_textual {
+                    let close_line = self.scan_py_closing_brace_line(body_start_line);
+                    // Validate that a tokenized CloseBrace exists at close_line; else fallback to tokens
+                    let mut has_close_token = false;
+                    let mut idx = self.current;
+                    while idx < self.tokens.len() {
+                        let tk = &self.tokens[idx];
+                        if tk.line < close_line {
+                            idx += 1;
+                            continue;
+                        }
+                        if tk.line == close_line {
+                            if matches!(tk.token_type, TokenType::CloseBrace) {
+                                has_close_token = true;
+                            }
+                            break;
+                        }
+                        if tk.line > close_line {
+                            break;
+                        }
+                        idx += 1;
+                    }
+                    if has_close_token {
+                        while !self.is_at_end() {
+                            let tk = self.peek();
+                            if tk.line < close_line {
+                                self.advance();
+                                continue;
+                            }
+                            if tk.line == close_line
+                                && !matches!(tk.token_type, TokenType::CloseBrace)
+                            {
+                                self.advance();
+                                continue;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Parse Frame statements for event handler bodies (TS/Py may remain pure native islands)
         let statements: Vec<DeclOrStmtType> =
             self.statements(IdentifierDeclScope::EventHandlerVarScope);
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();

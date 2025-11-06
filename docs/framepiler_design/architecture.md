@@ -55,7 +55,7 @@ CompilationUnit (.frm file)
                            v
       +--------------------+--------------------+
       |    MixedBody / MIR Assembly            |
-      |  [NativeText | Frame(MirDirective)]     |
+      |  [NativeText | NativeAst | Frame(MirStatement)] |
       +--------------------+--------------------+
                            |
                            v
@@ -107,7 +107,7 @@ CompilationUnit (.frm file)
 - Classifies native body lines into `BodySegment::{Native,Directive}` using a brace/string/comment/template‑aware state machine. See stages/native_region_segmenter.md
 
 7) MixedBody / MIR Assembly
-- Converts to `[MixedBodyItem::{NativeText,Frame(MirDirective)}]` for stable codegen and source mapping. See stages/mixed_body_mir.md
+- Converts to `[MixedBodyItem::{NativeText,NativeAst,Frame(MirStatement)}]` for stable codegen and source mapping. See stages/mixed_body_mir.md
 
 Parsers & Mixed AST Linkage
 - Target parsers (SWC for TypeScript; rustpython for Python) validate native‑only bodies and supply structured spans, but do not own Frame semantics or codegen.
@@ -124,9 +124,9 @@ See:
 
 ### TypeScript Body Boundary Detection
 
-Some TypeScript bodies include template literals with nested `${…}` that can confuse simple token‑based brace counting. For reliable body boundary detection we use a textual, template‑aware closer that scans bytes and tracks strings/comments/template nesting. See stages/ts_textual_body_closer.md for the algorithm and tested behaviors. Current usage: applied to operations; staged rollout for actions/handlers (guarded by backtick detection).
+Some TypeScript bodies include template literals with nested `${…}` that can confuse simple token‑based brace counting. For reliable body boundary detection we use a textual, template‑aware closer that scans bytes and tracks strings/comments/template nesting. See stages/ts_textual_body_closer.md for the algorithm and tested behaviors. Current usage: applied to operations, actions, and event handlers (guarded by backtick detection) and validated across the full single‑file TS suite.
 
-Python target bodies can include triple‑quoted strings and f‑strings; we use a textual closer that tracks single/double/triple‑quoted strings and `#` comments so braces inside strings are ignored. See stages/py_textual_body_closer.md. Rollout is guarded and validated against the full Python suite.
+Python target bodies can include triple‑quoted strings and f‑strings; we use a textual closer that tracks single/double/triple‑quoted strings and `#` comments so braces inside strings are ignored. See stages/py_textual_body_closer.md. Usage: applied to actions and event handlers (guarded) and validated against the full Python single‑file suite.
 
 8) Semantic Analyzer (planned)
 - Out‑of‑pass analyzer for resolution and validation; removes semantic checks from parser pass 2.
@@ -148,9 +148,9 @@ Python target bodies can include triple‑quoted strings and f‑strings; we use
 - Partition (Frame‑outer context): a contiguous region where Frame is the host grammar and native code appears only as embedded islands. Partitions are produced by the ModulePartitioner.
   - Examples: PrologPartition (@target), NativeImportPartition (contiguous native imports), FrameOutlinePartition (systems/blocks/headers), BodyPartition (per member body: FrameBody or NativeBody).
 
-- Segment (Native‑outer context): a classification inside a native region where the host is the target language and Frame appears only as embedded control directives. Segments are produced by the NativeRegionSegmenter.
+- Segment (Native‑outer context): a classification inside a native region where the host is the target language and Frame appears only as embedded control statements. Segments are produced by the NativeRegionSegmenter.
   - BodySegment::Native { text, start_line, end_line }
-  - BodySegment::Directive { kind: Transition | Forward | StackPush | StackPop, frame_line }
+  - BodySegment::FrameStmt { kind: Transition | Forward | StackPush | StackPop, frame_line }
 
 In short: we partition Frame blocks; we segment native blocks.
 

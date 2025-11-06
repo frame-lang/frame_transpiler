@@ -2,7 +2,7 @@
 
 **Document Version**: 1.0  
 **Date**: 2025-11-05  
-**Status**: Implementation Plan (updated policy: inline target directives removed)  
+**Status**: Implementation Plan (inline target directives removed; TS/Py textual closers active for actions/handlers)  
 **Priority**: High  
 **Related Issues**: Bug #055 - TypeScript async runtime lacks socket helpers
 
@@ -28,8 +28,34 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [ ] Bug #055 TypeScript async socket operations compile and execute
 - [ ] Reduced visitor complexity (measured by lines of runtime helper code)
 - [ ] Performance parity with hand-written target code
-- [ ] 100% Frame test suite compatibility
-  - Single-file: TS/Py suites at 100% (transpile-only) with extensive island fixtures
+- [x] 100% Frame test suite compatibility (single-file transpile-only)
+  - [x] Single-file: TS/Py suites at 100% (transpile-only) with extensive island fixtures
+
+## ✅ Current Status (Single‑File)
+- TS/Py single‑file transpile-only suites: 100%
+- Guarded DPDA closers active for actions/handlers (TS backticks; Py triple quotes/f‑strings)
+- MixedBody authoritative; mapping anchors in both TS/Py visitors; TS has comment/JSON mapping trailers (env flags)
+- Negative fixtures added for unterminated templates/strings/comments
+
+## ▶️ Next Steps (High‑Level)
+- [ ] TS B2 AST emission (feature‑gated)
+  - [ ] Pin swc_ecma_codegen compatibly; enable `ts_b2_codegen` feature
+  - [ ] Implement Transition via SWC AST with mapping; fallback textual glue
+  - [ ] Extend to ParentForward, StackPush/Pop
+- [ ] MixedBody mapping fixtures (TS)
+  - [ ] Add small fixtures and assert JSON trailer anchors for native+MIR items
+- [ ] TS multi‑file linking & imports
+  - [ ] Deduplicate runtime imports; stabilize module paths; pass control_flow multi‑file
+- [ ] Python segmenter/mapping polish
+  - [ ] Add additional f‑string/triple‑quote edge fixtures; keep suite green
+- [ ] Desugar pass + unreachable warnings
+  - [ ] Early rewrite for `system.return` (TS/Py)
+  - [ ] Extract unreachable‑after‑transition warnings to a semantic pass
+- [ ] FID/native imports finalize
+  - [ ] Finalize fid_manifest.json with wildcards; importer writes `.frame/cache/fid/{target}` + lock
+  - [ ] Loader precedence + simple "generate then compile" tests
+- [ ] Docs + new negative tests
+  - [ ] Expand B2 documentation, mapping debug flags, and add more negative cases as policy evolves
 
 ## 📋 Implementation Phases
 
@@ -69,7 +95,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Boundary detection handles complex nested constructs correctly
 - Backward compatibility: files without `@target` work unchanged
 - Error handling for invalid target names
- - TypeScript/Python single-file suites pass with island fixtures
+- TypeScript/Python single-file suites pass with island fixtures (DONE)
 
 #### Week 2: Parser Infrastructure & Diagnostics Integration
 **Goal**: Extend parser to handle target-specific syntax regions with first-class diagnostics

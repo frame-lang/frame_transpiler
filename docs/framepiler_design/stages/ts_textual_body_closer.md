@@ -1,6 +1,6 @@
 # TypeScript Body Boundary Detection (Template‑Aware)
 
-Status: In use for operations; staged rollout for actions/handlers
+Status: Active for operations, actions, and event handlers (guarded)
 Last updated: 2025‑11‑06
 
 ## Purpose
@@ -52,11 +52,10 @@ See unit tests: `framec/src/frame_c/parser.rs` (module `ts_textual_scan_tests`).
 
 ## Current usage and rollout
 
-- Active: used for operations.
-- Next steps: guarded rollout to actions/handlers (use textual closer only when backticks are present). Validate full TS single‑file suite after each step. If stable, consider using the textual closer universally.
+- Active: used for operations, actions, and event handlers. Guarded by backtick detection; when backticks are present we use the textual closer, otherwise token‑depth is sufficient.
+- Validation: full single‑file TS suite passes (transpile‑only). Negative fixtures cover unterminated templates and related failures.
 
 ## Limitations and future work
 
 - This is a boundary detector, not a parser; it does not build AST. For mixed bodies we still rely on the NativeRegionSegmenter + MixedBody.
 - Eventually, directive expansions (MIR) will be emitted via SWC AST (B2 codegen) for deterministic formatting and precise source maps.
-

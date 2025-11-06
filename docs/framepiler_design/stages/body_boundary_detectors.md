@@ -22,8 +22,8 @@ Inputs:
 - `body_start_line` (1‑based): line where the body’s opening `{` appears
 
 Outputs:
-- `DetectionResult::Ok { close_line, notes }` with the line containing the closing `}`
-- `DetectionResult::Failure { kind, context }` if detection fails
+- `DetectionResult::Ok { close_line }` with the line containing the closing `}`
+- `DetectionResult::Failure(kind)` if detection fails
 
 Modes & Counters (examples)
 - TypeScript: in_squote/in_dquote/in_template/in_block_comment/in_line_comment; `brace_depth`, `tpl_expr_depth` for `${ … }`
@@ -71,13 +71,11 @@ Python
 - Primary: triple‑quote/f‑string‑aware detector (`scan_py_closing_brace_line`)
 - Characterizers: unterminated triple‑quoted string, unterminated single/double quoted string
 
-## Error Messages (suggested)
+## Error Messages
 - TS: "Unterminated template literal (started at line N)"; "Unterminated block comment (started at line M)"
 - Py: "Unterminated triple‑quoted string (started at line N)"; "Unterminated string literal (started at line M)"
 
-## Roadmap Tasks
-- Represent detector outputs as `DetectionResult` (Ok/Failure) in code
-- Add characterizers per target and wire them to parser error surfaces
-- Add negative fixtures for unterminated literals/templates/comments with expected failure classification
-- Keep detector fallbacks and parser synchronization unchanged
-
+## Status and Follow‑ups
+- Implemented `DetectionResult` (Ok/Failure) and wired to parser error surfaces.
+- Added negative fixtures (unterminated TS template; unterminated Python triple‑quote).
+- Keep detector fallbacks and parser synchronization unchanged. Add more negative fixtures (TS block comment; Py single/double quotes) as follow‑ups.
