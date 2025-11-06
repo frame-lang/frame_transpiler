@@ -2366,6 +2366,7 @@ impl<'a> Parser<'a> {
         let mut statements: Vec<DeclOrStmtType> = Vec::new();
         let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
         let mut target_specific_regions: Vec<TargetSpecificRegionRef> = Vec::new();
+        // Note: functions currently keep parsed_target_blocks only; MixedBody not required here.
         if matches!(self.target_language, Some(TargetLanguage::TypeScript))
             || matches!(self.target_language, Some(TargetLanguage::Python3))
         {
@@ -3839,6 +3840,7 @@ impl<'a> Parser<'a> {
 
         // For TypeScript/Python target bodies, prefer native parsing or segmentation
         let mut local_parsed_blocks: Vec<ParsedTargetBlock> = Vec::new();
+        let mut local_mixed_native_opt: Option<(TargetLanguage, String, usize, usize)> = None;
         let mut local_segmented: Option<Vec<crate::frame_c::native_region_segmenter::BodySegment>> =
             None;
         if matches!(self.target_language, Some(TargetLanguage::TypeScript))
@@ -3875,6 +3877,13 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
+                // Remember native slice for MixedBody if we don't segment
+                let tgt = if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                    TargetLanguage::TypeScript
+                } else {
+                    TargetLanguage::Python3
+                };
+                local_mixed_native_opt = Some((tgt.clone(), raw.clone(), start_line, end_line));
                 if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
                     let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
                         &self.source_text(),
@@ -3911,12 +3920,7 @@ impl<'a> Parser<'a> {
                         start_position: 0,
                         end_position: None,
                         raw_content: raw,
-                        target: if matches!(self.target_language, Some(TargetLanguage::TypeScript))
-                        {
-                            TargetLanguage::TypeScript
-                        } else {
-                            TargetLanguage::Python3
-                        },
+                        target: tgt,
                         source_map: TargetSourceMap {
                             frame_start_line: start_line,
                             target_line_offsets: Vec::new(),
@@ -3963,7 +3967,7 @@ impl<'a> Parser<'a> {
                 &action_mut.target_specific_regions,
                 &action_mut.parsed_target_blocks,
             );
-            // Attach segmented native body if present
+            // Attach segmented native body if present; otherwise attach MixedBody with native slice
             if let Some(segs) = local_segmented {
                 if !segs.is_empty() {
                     action_mut.segmented_body = Some(segs.clone());
@@ -3972,6 +3976,13 @@ impl<'a> Parser<'a> {
                         self.build_mixed_body_from_segments(TargetLanguage::TypeScript, &segs),
                     );
                 }
+            } else if let Some((tgt, text, s, e)) = local_mixed_native_opt.take() {
+                action_mut.mixed_body = Some(vec![MixedBodyItem::NativeText {
+                    target: tgt,
+                    text,
+                    start_line: s,
+                    end_line: e,
+                }]);
             }
         }
 
@@ -4216,6 +4227,7 @@ impl<'a> Parser<'a> {
         // For Python/TypeScript target bodies, prefer native parsing for operations
         let mut statements = Vec::new();
         let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
+        let mut mixed_native_opt: Option<(TargetLanguage, String, usize, usize)> = None;
         if matches!(self.target_language, Some(TargetLanguage::TypeScript))
             || matches!(self.target_language, Some(TargetLanguage::Python3))
         {
@@ -4264,6 +4276,8 @@ impl<'a> Parser<'a> {
                         target_line_offsets: Vec::new(),
                     },
                 };
+                // Remember native slice to build MixedBody if not segmented
+                mixed_native_opt = Some((region.target.clone(), region.raw_content.clone(), start_line, end_line));
                 // For TypeScript, prefer segmentation if directives appear
                 let mut used_segmentation = false;
                 if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
@@ -4278,8 +4292,8 @@ impl<'a> Parser<'a> {
                             crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
                         )
                     });
-                    if has_directive {
-                        used_segmentation = true;
+                if has_directive {
+                    used_segmentation = true;
                         // Attach to operation after node creation below
                         // We stash in a temporary; we'll reconstruct later by setting on the node
                         // To keep code localized, we’ll push into parsed_target_blocks only when not segmented
@@ -4373,6 +4387,15 @@ impl<'a> Parser<'a> {
                         self.build_mixed_body_from_segments(TargetLanguage::TypeScript, &segs),
                     );
                 } else {
+                    // No directives; attach MixedBody as single native span for uniform downstream handling
+                    if let Some((tgt, text, s, e)) = mixed_native_opt.take() {
+                        operation_node.mixed_body = Some(vec![MixedBodyItem::NativeText {
+                            target: tgt,
+                            text,
+                            start_line: s,
+                            end_line: e,
+                        }]);
+                    }
                     operation_node.parsed_target_blocks = parsed_target_blocks;
                 }
             } else {
@@ -6965,6 +6988,13 @@ impl<'a> Parser<'a> {
                             frame_end_line: end_line_inclusive,
                             ast,
                         });
+                        // Also attach MixedBody with a single native span for uniform handling
+                        event_handler.mixed_body = Some(vec![MixedBodyItem::NativeText {
+                            target: TargetLanguage::Python3,
+                            text: region.raw_content.clone(),
+                            start_line,
+                            end_line: end_line_inclusive,
+                        }]);
                     }
                 }
             }
