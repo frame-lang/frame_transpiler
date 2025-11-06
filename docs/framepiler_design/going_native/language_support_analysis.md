@@ -271,3 +271,61 @@ Python Segmenter Acceptance Checklist
 - [ ] SOL directive tokens recognized only at first non-whitespace column
 - [ ] No detection inside strings/comments/templates/macros
 - [ ] Brace/indent depth tracking stable across lines
+
+---
+
+## Planned Targets (Docs‑only, no code yet)
+
+These sections capture what the segmenters must support and propose a comprehensive “mega” fixture outline for each language. We will not add code/tests until TS/Python MixedBody work is complete and validated.
+
+### Java
+- Strings/Comments: " ", character literals with escapes; // and /* */ comments; Javadoc.
+- Annotations: @Annotation on classes/methods/params; ignore directive tokens inside annotations.
+- Generics/Bounds: List<Map<String, List<Integer>>>; wildcards; method refs.
+- Interop: package/import; nested classes/interfaces; enums.
+- Acceptance checklist (apply Cross‑Language list with Java specifics):
+  - [ ] Multi-line block comments containing directive-like tokens do not segment
+  - [ ] Annotations before methods/classes do not segment
+  - [ ] String/char escapes do not break SOL detection
+- Proposed mega fixture (not added):
+  - operations: body with imports, class-with-generic methods, streams/lamdas, try-with-resources, annotations, and SOL directives on their own lines.
+
+### Rust
+- Strings: normal, byte, raw strings r#"…"# with variable hashes; format! macros.
+- Comments: //, /* */ and doc comments ///, //!; macros and attributes #[derive(...)] etc.
+- Macros: ensure we do not segment inside macro invocations or attribute payloads.
+- Lifetimes/generics/where-clauses; modules/use; nested blocks.
+- Acceptance notes:
+  - [ ] Raw strings with # counts do not confuse scanning
+  - [ ] Macro bodies do not segment even if they contain directive-like tokens
+- Proposed mega fixture (not added):
+  - operations: body with struct/enum impl blocks, generics, iterator adapters, format!/println!, attributes, and SOL directives.
+
+### C / C++
+- Strings: normal and raw (C++11 R"(…)"); comments // and /* */; preprocessor lines starting with #.
+- Templates (C++), namespaces, lambdas, initializer lists; macro definitions/expansions.
+- Strategy: segmenter must treat preprocessor lines as single-line native and ignore contents for Frame detection.
+- Acceptance notes:
+  - [ ] No detection inside preprocessor, macros, or raw strings
+  - [ ] Template angle brackets do not affect brace depth
+- Proposed mega fixture (not added):
+  - operations: body with macros (#define), templates, namespaces, try/catch (C++), and SOL directives.
+
+### Go
+- Strings: " ", raw backtick strings; comments // and /* */; package/import; short var :=.
+- Defer/panic/recover; interfaces; goroutines/channels (syntax only, no runtime needed in tests).
+- Acceptance notes:
+  - [ ] Backtick raw strings may contain directive-like tokens without segmentation
+  - [ ] Short var declarations at SOL do not clash with directive detection
+- Proposed mega fixture (not added):
+  - operations: body with multiple funcs, methods on types, interface impl patterns, and SOL directives.
+
+### Swift / Kotlin
+- Swift: multiline triple-quote strings, interpolation \(…); // and /* */; attributes @.
+- Kotlin: multiline strings """…""", interpolation ${…}; annotations @; generics/inline functions.
+- Acceptance notes:
+  - [ ] Multiline strings with interpolation are ignored by detector
+  - [ ] Annotations/attributes do not trigger segmentation
+- Proposed mega fixtures (not added):
+  - Swift: body using extensions, protocols, generics, optionals, and SOL directives.
+  - Kotlin: body with data classes, sealed classes, coroutines syntax (no runtime), and SOL directives.
