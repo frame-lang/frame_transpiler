@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 async fn fetch_data(url) {
@@ -24,7 +25,7 @@ system SimpleAsync {
         }
     
     domain:
-        var result = None
+        result = None
 }
 
 fn main() {

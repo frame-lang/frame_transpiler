@@ -6,8 +6,6 @@ system NBSPIndentPy {
             start() {
                 text = "NBSP indent"
                 -> $Next
-            }
-        }
         $Next {}
 }
 

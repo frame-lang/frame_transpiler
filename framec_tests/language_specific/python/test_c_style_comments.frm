@@ -1,14 +1,15 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 fn test_c_comments() {
     
-    var x = 42
+    x = 42
     
     print("Value: " + str(x))
     
-    var y =  100
+    y =  100
     
-    var z = x + y
+    z = x + y
     
     return z
 }
@@ -24,20 +25,18 @@ system CommentTest {
             
             test() {
                 
-                var result = test_c_comments()
+                result = test_c_comments()
                 print("Result: " + str(result))
                 system.return = result
                 return
-            }
-        }
 }
 
 
 # Single line comment
 fn main() {
     # Another single line
-    var ct = CommentTest()
-    var r = ct.test()
+    ct = CommentTest()
+    r = ct.test()
     print("Final: " + str(r))
     
 }

@@ -7411,14 +7411,36 @@ impl<'a> Parser<'a> {
                             }
                             break;
                         }
+                    } else {
+                        // No reliable close token found via textual scan; fall back to token-depth skip
+                        let mut depth: i32 = 1; let mut last_line = body_start_line;
+                        while !self.is_at_end() && depth > 0 {
+                            let tk = self.peek().clone();
+                            match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
+                            last_line = tk.line; self.advance();
+                        }
+                        let _ = last_line; // silence unused var
+                    }
+                }
+                else {
+                    // Even without triple quotes, treat Python handler body as native-only: skip to matching '}'
+                    let mut depth: i32 = 1;
+                    while !self.is_at_end() && depth > 0 {
+                        let tk = self.peek().clone();
+                        match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
+                        self.advance();
                     }
                 }
             }
         }
 
-        // Parse Frame statements for event handler bodies (TS/Py may remain pure native islands)
-        let statements: Vec<DeclOrStmtType> =
-            self.statements(IdentifierDeclScope::EventHandlerVarScope);
+        // Parse Frame statements for event handler bodies
+        // For Python target bodies, do not parse Frame statements; treat body as native-only
+        let statements: Vec<DeclOrStmtType> = if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+            Vec::new()
+        } else {
+            self.statements(IdentifierDeclScope::EventHandlerVarScope)
+        };
         let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
         // TODO v.20: update sync for new syntax

@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 # Simplified async stress test for Frame v0.37
@@ -18,10 +19,9 @@ async fn parallel_work(count) {
     print("Running " + str(count) + " parallel tasks")
     
     # Simulate parallel work
-    for i in [0, 1, 2, 3, 4] {
-        var result = await async_work(i, 0.1)
+    for i in [0, 1, 2, 3, 4]:
+        result = await async_work(i, 0.1)
         print("Task " + str(i) + " completed: " + result)
-    }
     
     print("All tasks completed")
     return "done"
@@ -40,31 +40,24 @@ system AsyncStressTest {
                 print("Starting test " + str(test_id))
                 self.current_test = test_id
                 -> $Running
-            }
             
             getStatus() {
                 system.return = "idle"
-            }
             
             processItems(items) {
                 self.items_to_process = items
                 -> $Processing
-            }
-        }
         
         $Running {
             async $>() {
                 print("Test running...")
-                var result = await async_work(self.current_test, 0.5)
+                result = await async_work(self.current_test, 0.5)
                 print("Test result: " + result)
                 self.last_result = result
                 -> $Complete
-            }
             
             getStatus() {
                 system.return = "running test " + str(self.current_test)
-            }
-        }
         
         $Processing {
             async $>() {
@@ -72,38 +65,30 @@ system AsyncStressTest {
                 print("Processing items")
                 
                 # Process each item
-                for item in self.items_to_process {
-                    var result = await async_work(item, 0.1)
+                for item in self.items_to_process:
+                    result = await async_work(item, 0.1)
                     print("Processed: " + result)
-                }
                 
                 -> $Complete
-            }
             
             getStatus() {
                 system.return = "processing"
-            }
-        }
         
         $Complete {
             $>() {
                 print("All tasks complete")
-            }
             
             getStatus() {
                 system.return = "complete"
-            }
             
             runTest(test_id) {
                 self.current_test = test_id
                 -> $Running
-            }
-        }
         
     domain:
-        var current_test = 0
-        var last_result = ""
-        var items_to_process = []
+        current_test = 0
+        last_result = ""
+        items_to_process = []
 }
 
 # Error handling system
@@ -115,25 +100,20 @@ system AsyncErrorTest {
     machine:
         $Ready {
             async tryOperation(should_fail) {
-                if should_fail {
+                if should_fail:
                     self.error_count = self.error_count + 1
                     -> $Error
                 } else {
-                    var result = await async_work(1, 0.2)
+                    result = await async_work(1, 0.2)
                     self.last_success = result
                     system.return = result
-                }
-            }
             
             handleError(error_msg) {
                 print("Handling error: " + error_msg)
                 self.last_error = error_msg
                 self.error_count = self.error_count + 1
-                if self.error_count > 3 {
+                if self.error_count > 3:
                     -> $Error  
-                }
-            }
-        }
         
         $Error {
             async $>() {
@@ -144,17 +124,14 @@ system AsyncErrorTest {
                 print("Attempting recovery...")
                 self.error_count = 0
                 -> $Ready
-            }
             
             handleError(error_msg) {
                 system.return = "Already in error state"
-            }
-        }
         
     domain:
-        var error_count = 0
-        var last_error = ""
-        var last_success = ""
+        error_count = 0
+        last_error = ""
+        last_success = ""
 }
 
 # Main test function
@@ -165,25 +142,25 @@ async fn run_stress_test() {
     # Test 1: Basic async work
     print("Test 1: Basic Async Work")
     print("-" * 30)
-    var result = await async_work(100, 0.5)
+    result = await async_work(100, 0.5)
     print("Result: " + result)
     print("")
     
     # Test 2: Parallel execution
     print("Test 2: Parallel Execution")
     print("-" * 30)
-    var result2 = await parallel_work(5)
+    result2 = await parallel_work(5)
     print("Result: " + result2)
     print("")
     
     # Test 3: Async state machine
     print("Test 3: Async State Machine")
     print("-" * 30)
-    var machine = AsyncStressTest()
+    machine = AsyncStressTest()
     
     # Run a test
     await machine.runTest(42)
-    var status = machine.getStatus()
+    status = machine.getStatus()
     print("Status: " + status)
     
     # Process items
@@ -195,10 +172,10 @@ async fn run_stress_test() {
     # Test 4: Error handling
     print("Test 4: Error Handling")
     print("-" * 30)
-    var error_test = AsyncErrorTest()
+    error_test = AsyncErrorTest()
     
     # Successful operation
-    var success = await error_test.tryOperation(false)
+    success = await error_test.tryOperation(false)
     print("Success: " + success)
     
     # Failed operation
@@ -217,9 +194,8 @@ async fn benchmark() {
     print("=== Performance Benchmark ===")
     
     # Run many tasks sequentially (Frame doesn't support gather)
-    for i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] {
-        var result = await async_work(i, 0.1)
-    }
+    for i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
+        result = await async_work(i, 0.1)
     
     print("10 tasks completed")
     print("Note: Sequential execution in Frame, not parallel")

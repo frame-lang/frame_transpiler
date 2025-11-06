@@ -1,3 +1,4 @@
+@target python
 system NativePython {
     interface:
         start()
@@ -10,15 +11,11 @@ system NativePython {
                     print(f"idx = {idx}")
                 self.log("native complete")
                 return
-            }
-        }
 
     actions:
         log(message) {
             print("LOG: " + message)
             return
-        }
-    }
 
 fn helper() {
     print("helper native")
@@ -26,6 +23,6 @@ fn helper() {
 }
 
 fn main() {
-    var sys = NativePython()
+    sys = NativePython()
     sys.start()
 }

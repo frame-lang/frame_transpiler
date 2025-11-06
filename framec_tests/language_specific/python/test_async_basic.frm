@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 # Test basic async/await functionality in Frame v0.35
@@ -13,7 +14,7 @@ async fn fetch_data(url) {
 # Async module-level function
 async fn process_data(data) {
     print("Processing: " + data)
-    var result = await fetch_data("api.example.com/process")
+    result = await fetch_data("api.example.com/process")
     return "processed " + data + " with " + result
 }
 
@@ -22,7 +23,7 @@ system AsyncService {
     operations:
         async fetchRemote(endpoint) {
             print("Fetching from endpoint: " + endpoint)
-            var response = await fetch_data(endpoint)
+            response = await fetch_data(endpoint)
             return response
         }
         
@@ -34,24 +35,22 @@ system AsyncService {
         $Ready {
             async getData(id) {
                 print("Getting data for id: " + str(id))
-                var data = await fetch_data("api.example.com/item/" + str(id))
+                data = await fetch_data("api.example.com/item/" + str(id))
                 print("Received: " + data)
                 # Store data in domain for processing state
                 self.lastData = data
                 -> $Processing
             }
-            
             async processItem(item) {
-                var result = await process_data(item)
+                result = await process_data(item)
                 print("Result: " + result)
                 return result
             }
         }
-        
         $Processing {
             async $>() {
                 print("Now processing: " + self.lastData)
-                var processed = await process_data(self.lastData)
+                processed = await process_data(self.lastData)
                 print("Processing complete: " + processed)
                 -> $Ready
             }
@@ -60,16 +59,15 @@ system AsyncService {
     actions:
         logMessage(msg) {
             print("LOG: " + msg)
-        }
         
     domain:
-        var lastData = None
+        lastData = None
 }
 
 # Regular function that can't use await
 fn main() {
     print("Starting async test")
-    var service = AsyncService()
+    service = AsyncService()
     # Can't await here since main is not async
     # But we can call the async methods - they'll return coroutines
     service.getData(123)
@@ -80,17 +78,17 @@ fn main() {
 # Async entry point
 async fn async_main() {
     print("Starting async main")
-    var service = AsyncService()
+    service = AsyncService()
     
     # Here we can properly await
-    var data = await service.getData(456)
+    data = await service.getData(456)
     print("Got data: " + data)
     
-    var result = await service.processItem("async item")
+    result = await service.processItem("async item")
     print("Processed: " + result)
     
     # Call async operation
-    var remote = await service.fetchRemote("api.example.com/remote")
+    remote = await service.fetchRemote("api.example.com/remote")
     print("Remote data: " + remote)
     
     print("Async main complete")

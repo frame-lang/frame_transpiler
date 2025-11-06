@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test async generators in Frame v0.42
 # This demonstrates Frame's support for async generators combining v0.35 async and v0.42 generators
@@ -6,12 +7,11 @@ import asyncio
 
 # Basic async generator
 async fn async_range(n) {
-    var i = 0
-    while i < n {
+    i = 0
+    while i < n:
         await asyncio.sleep(0.01)  # Simulate async work
         yield i
         i = i + 1
-    }
 }
 
 # Async generator that yields from async operations
@@ -30,29 +30,25 @@ async fn test_async_gen() {
     print("Testing async generator:")
     
     # Create async generator
-    var gen = async_range(3)
+    gen = async_range(3)
     
     # Manual iteration (Python's async for not yet in Frame)
     # In Python this would be: async for val in async_range(3): print(val)
-    try {
-        while True {
-            var val = await gen.__anext__()
+    try:
+        while True:
+            val = await gen.__anext__()
             print("Generated: " + str(val))
-        }
-    } except StopAsyncIteration {
+    except StopAsyncIteration:
         print("Generator exhausted")
-    }
     
     print("\nTesting fetch generator:")
-    var fetch_gen = fetch_data_generator()
-    try {
-        while True {
-            var msg = await fetch_gen.__anext__()
+    fetch_gen = fetch_data_generator()
+    try:
+        while True:
+            msg = await fetch_gen.__anext__()
             print("Status: " + msg)
-        }
-    } except StopAsyncIteration {
+    except StopAsyncIteration:
         print("Fetch complete")
-    }
 }
 
 # Main async function

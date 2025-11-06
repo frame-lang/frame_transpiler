@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 # Simple async validation test for Frame v0.37
@@ -20,21 +21,18 @@ system AsyncTest {
         $Ready {
             async getData(id) {
                 print("Getting data for: " + str(id))
-                var data = await fetch_data(id)
+                data = await fetch_data(id)
                 print("Received: " + data)
                 self.last_data = data
                 system.return = data
-            }
             
             setStatus(status) {
                 print("Setting status: " + status)
                 self.status = status
-            }
-        }
         
     domain:
-        var last_data = ""
-        var status = "ready"
+        last_data = ""
+        status = "ready"
 }
 
 # Main async test function
@@ -42,14 +40,14 @@ async fn run_test() {
     print("=== Async Validation Test ===")
     
     # Test basic async function
-    var result = await fetch_data(100)
+    result = await fetch_data(100)
     print("Direct call result: " + result)
     
     # Test async state machine
-    var test = AsyncTest()
+    test = AsyncTest()
     
     # Call async interface method
-    var data = await test.getData(42)
+    data = await test.getData(42)
     print("Interface call result: " + data)
     
     # Call sync interface method

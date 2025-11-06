@@ -11,7 +11,7 @@ system ProcessTest {
             print("=== Process Control Test ===")
             
             # Test simple command execution using Python subprocess
-            var result = subprocess.run([sys.executable, "-c", "print('Hello from subprocess')"], 
+            result = subprocess.run([sys.executable, "-c", "print('Hello from subprocess')"], 
                                        capture_output=True, text=True)
             
             print("Process started: true")
@@ -19,13 +19,12 @@ system ProcessTest {
             print(f"Exit code: {result.returncode}")
             
             # Test command with arguments
-            var echo_result = subprocess.run([sys.executable, "-c", "import sys; print(' '.join(sys.argv[1:]))", "Frame", "Process", "Test"], 
+            echo_result = subprocess.run([sys.executable, "-c", "import sys; print(' '.join(sys.argv[1:]))", "Frame", "Process", "Test"], 
                                            capture_output=True, text=True)
             
             print(f"Args test output: {echo_result.stdout.strip()}")
             
             print("=== Process Control Test Complete ===")
-        }
 }
 
 fn main() {

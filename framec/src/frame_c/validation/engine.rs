@@ -48,6 +48,8 @@ impl ValidationEngine {
                 engine.add_rule(crate::frame_c::validation::rules::EventFlowAnalysisRule::new());
             engine = engine
                 .add_rule(crate::frame_c::validation::rules::ReturnValueConsistencyRule::new());
+            engine = engine
+                .add_rule(crate::frame_c::validation::rules::async_consistency::AsyncConsistencyRule::new());
         }
 
         // Add default reporter

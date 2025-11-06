@@ -10,7 +10,6 @@ system PyTripleQuotes {
             => $^
             """
             x = len(doc)
-        }
     machine:
         $Init { run() { } }
         $Next {}

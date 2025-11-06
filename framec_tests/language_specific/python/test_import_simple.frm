@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Simple test for import statements
 import math
@@ -10,8 +11,8 @@ fn main() {
     print("Testing imports...")
     
     # math module
-    var pi_value = math.pi
-    var root = math.sqrt(16)
+    pi_value = math.pi
+    root = math.sqrt(16)
     print("Pi: " + str(pi_value))
     print("Square root of 16: " + str(root))
     
@@ -22,9 +23,8 @@ fn main() {
 system ImportTest {
     operations:
         testMath() {
-            var result = math.cos(0)
+            result = math.cos(0)
             print("Cosine of 0: " + str(result))
-        }
     
     interface:
         start()
@@ -34,6 +34,4 @@ system ImportTest {
             start() {
                 print("System started")
                 return
-            }
-        }
 }

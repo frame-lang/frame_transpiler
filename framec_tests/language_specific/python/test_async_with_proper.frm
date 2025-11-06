@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Proper test for async with statement in Frame v0.37
 # This test actually validates async context manager functionality
@@ -12,28 +13,24 @@ async fn test_real_async_with() {
     print("Testing real async with statement...")
     
     # Test 1: Real HTTP request using async with
-    try {
-        async with aiohttp.ClientSession() as session {
+    try:
+        async with aiohttp.ClientSession() as session:
             # Make a real API call
-            async with session.get("https://api.github.com/zen") as response {
-                var status = response.status
-                var text = await response.text()
+            async with session.get("https://api.github.com/zen") as response:
+                status = response.status
+                text = await response.text()
                 
                 # Verify we got a real response
-                if status == 200 {
+                if status == 200:
                     print("SUCCESS: Got GitHub zen: " + text)
                 } else {
                     print("FAIL: Unexpected status: " + str(status))
                     # Force test failure by raising an exception
-                    var failed_tests = []
-                    var index = failed_tests[999]  # This will cause an IndexError and fail the test
-                }
-            }
-        }
+                    failed_tests = []
+                    index = failed_tests[999]  # This will cause an IndexError and fail the test
         print("Async with statement properly closed session")
-    } except {
+    except:
         print("Network error (expected if offline)")
-    }
 }
 
 # Mock async context manager (Frame doesn't support classes)
@@ -52,19 +49,18 @@ async fn test_custom_async_context() {
     print("\nTesting custom async context manager...")
     
     # Simulate context manager with async function
-    var result = await mock_async_context("ctx1")
+    result = await mock_async_context("ctx1")
     print("  Work result: " + result)
     
     # Since we can't actually test context manager lifecycle without classes,
     # we'll just verify the function worked
-    if result == "Work done by ctx1" {
+    if result == "Work done by ctx1":
         print("SUCCESS: Async context simulation worked")
     } else {
         print("FAIL: Async context simulation failed")
         # Force test failure by raising an exception
-        var failed_tests = []
-        var index = failed_tests[999]  # This will cause an IndexError and fail the test
-    }
+        failed_tests = []
+        index = failed_tests[999]  # This will cause an IndexError and fail the test
 }
 
 # Test nested async with statements
@@ -73,49 +69,46 @@ async fn test_nested_async_with() {
     
     # Simulate nested context managers with nested function calls
     print("  In outer context")
-    var result1 = await mock_async_context("outer")
+    result1 = await mock_async_context("outer")
     print("    In inner context")
-    var result2 = await mock_async_context("inner")
+    result2 = await mock_async_context("inner")
     print("    Results: " + result1 + ", " + result2)
     print("  Back in outer context")
     
     # Verify both worked
-    if result1 == "Work done by outer" and result2 == "Work done by inner" {
+    if result1 == "Work done by outer" and result2 == "Work done by inner":
         print("SUCCESS: Nested async simulation worked")
     } else {
         print("FAIL: Nested async simulation failed")
         # Force test failure by raising an exception
-        var failed_tests = []
-        var index = failed_tests[999]  # This will cause an IndexError and fail the test
-    }
+        failed_tests = []
+        index = failed_tests[999]  # This will cause an IndexError and fail the test
 }
 
 # Test exception handling in async with
 async fn test_async_with_exception() {
     print("\nTesting async with exception handling...")
     
-    var exception_caught = false
+    exception_caught = false
     
-    try {
+    try:
         print("  Simulating context with exception")
         await asyncio.sleep(0.01)
         print("  Inside context, about to raise exception")
         # Frame doesn't support throw, simulate with division by zero
-        var x = 1 / 0
-    } except {
+        x = 1 / 0
+    except:
         exception_caught = true
         print("  Exception caught as expected")
-    }
     
     # Verify exception was caught
-    if exception_caught {
+    if exception_caught:
         print("SUCCESS: Exception handling worked")
     } else {
         print("FAIL: Exception not caught")
         # Force test failure by raising an exception
-        var failed_tests = []
-        var index = failed_tests[999]  # This will cause an IndexError and fail the test
-    }
+        failed_tests = []
+        index = failed_tests[999]  # This will cause an IndexError and fail the test
 }
 
 # Test async with in a Frame system
@@ -131,12 +124,9 @@ system AsyncResourceManager {
                 print("Acquiring resource: " + resource_name)
                 self.resource_name = resource_name
                 -> $ResourceAcquired
-            }
             
             getStatus() {
                 system.return = "idle"
-            }
-        }
         
         $ResourceAcquired {
             async processWithResource(data) {
@@ -150,27 +140,21 @@ system AsyncResourceManager {
                 
                 print("  Resource released, transitioning to complete")
                 -> $Complete
-            }
             
             getStatus() {
                 system.return = "resource acquired: " + self.resource_name
-            }
-        }
         
         $Complete {
             $>() {
                 print("Processing complete with result: " + self.result)
-            }
             
             getStatus() {
                 system.return = "complete: " + self.result
-            }
-        }
     
     domain:
-        var resource_name = ""
-        var result = ""
-        var processed_data = ""
+        resource_name = ""
+        result = ""
+        processed_data = ""
 }
 
 # Test file operations with async context
@@ -205,20 +189,19 @@ async fn run_all_tests() {
     
     # Test async with in systems
     print("\nTesting async with in Frame systems...")
-    var manager = AsyncResourceManager()
+    manager = AsyncResourceManager()
     await manager.acquireResource("database_connection")
     await manager.processWithResource("test_data")
-    var status = await manager.getStatus()
+    status = await manager.getStatus()
     # Check if status starts with "complete:"
-    var is_complete = True  # Simplified check
-    if is_complete {
+    is_complete = True  # Simplified check
+    if is_complete:
         print("SUCCESS: System async with works correctly (status: " + status + ")")
     } else {
         print("FAIL: System async with failed")
         # Force test failure by raising an exception
-        var failed_tests = []
-        var index = failed_tests[999]  # This will cause an IndexError and fail the test
-    }
+        failed_tests = []
+        index = failed_tests[999]  # This will cause an IndexError and fail the test
     
     print("\n" + "=" * 70)
     print("All async with tests completed!")

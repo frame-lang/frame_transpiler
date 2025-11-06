@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test class decorators pass-through for Python (v0.58)
 
@@ -10,7 +11,6 @@ class Point {
     fn init(x, y) {
         self.x = x
         self.y = y
-    }
 }
 
 # Test multiple decorators
@@ -20,7 +20,6 @@ class ImmutablePoint {
     fn init(x, y) {
         self.x = x
         self.y = y
-    }
 }
 
 # Test decorator with arguments
@@ -30,33 +29,30 @@ class OrderedPoint {
         self.x = x
         self.y = y
         self.z = z
-    }
 }
 
 # Test custom decorator
 @dataclass
 @my_custom_decorator
 class CustomPoint {
-    var class_counter = 0
+    class_counter = 0
     
     fn init(x, y) {
         self.x = x
         self.y = y
         CustomPoint.class_counter = CustomPoint.class_counter + 1
-    }
     
     fn distance_to_origin() {
         return (self.x ** 2 + self.y ** 2) ** 0.5
-    }
 }
 
 # Test function
 fn test_decorators() {
     # Create instances
-    var p1 = Point(3, 4)
-    var p2 = ImmutablePoint(5, 12)
-    var p3 = OrderedPoint(1, 2, 3)
-    var p4 = CustomPoint(6, 8)
+    p1 = Point(3, 4)
+    p2 = ImmutablePoint(5, 12)
+    p3 = OrderedPoint(1, 2, 3)
+    p4 = CustomPoint(6, 8)
     
     # Test that they work
     print(f"Point: ({p1.x}, {p1.y})")

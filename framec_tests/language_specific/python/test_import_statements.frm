@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test all import statement types
 import math
@@ -12,8 +13,8 @@ fn main() {
     print("Testing imports...")
     
     # math module (simplified - module access not yet supported without backticks)
-    var pi_value = 3.14159
-    var root = 4.0
+    pi_value = 3.14159
+    root = 4.0
     print("Pi: " + str(pi_value))
     print("Square root of 16: " + str(root))
     
@@ -22,12 +23,12 @@ fn main() {
     # print("NumPy array: " + // Removed backticks - str(arr))
     
     # From imports (simplified)
-    var d = "defaultdict"
-    var od = "OrderedDict"
+    d = "defaultdict"
+    od = "OrderedDict"
     print("Created defaultdict and OrderedDict")
     
     # Built-in json - simplified
-    var json_str = "{\"name\": \"Frame\", \"version\": \"0.31\"}"
+    json_str = "{\"name\": \"Frame\", \"version\": \"0.31\"}"
     print("JSON: " + json_str)
 }
 
@@ -35,9 +36,8 @@ system ImportTest {
     operations:
         testImports() {
             # Test using imports in operations (simplified)
-            var result = 1.0
+            result = 1.0
             print("Cosine of 0: " + str(result))
-        }
     
     interface:
         useJson()
@@ -45,9 +45,7 @@ system ImportTest {
     machine:
         $Ready {
             useJson() {
-                var obj = json.loads("{\"test\": true}")
+                obj = json.loads("{\"test\": true}")
                 print("Loaded JSON: " + str(obj))
                 return
-            }
-        }
 }

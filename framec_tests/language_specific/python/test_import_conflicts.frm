@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test import edge cases and potential conflicts - v0.34
 # Expected: User functions can coexist with imports when no FSL imported
@@ -15,9 +16,9 @@ fn int(x) {
 fn test_user_defined_shadows() {
     print("=== Testing User-Defined Functions (No FSL) ===")
     
-    var num = 42
-    var custom_str = str(num)      # Calls our str() function
-    var custom_int = int("999")    # Calls our int() function
+    num = 42
+    custom_str = str(num)      # Calls our str() function
+    custom_int = int("999")    # Calls our int() function
     
     print("Custom str(42): " + custom_str)        # Expected: [custom:value]
     print("Custom int('999'): 1000")  # Expected: 1000
@@ -32,9 +33,9 @@ fn test_multiple_import_styles() {
     print("=== Testing Multiple Import Styles ===")
     
     # All three import styles for os module
-    var cwd = # Removed backticks - os.getcwd()
-    var joined = # Removed backticks - path.join('a', 'b')
-    var exists = # Removed backticks - file_exists('/tmp')
+    cwd = # Removed backticks - os.getcwd()
+    joined = # Removed backticks - path.join('a', 'b')
+    exists = # Removed backticks - file_exists('/tmp')
     
     print("os.getcwd(): " + cwd)
     print("path.join(): " + joined)

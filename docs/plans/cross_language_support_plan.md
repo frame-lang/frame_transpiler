@@ -38,24 +38,20 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Negative fixtures added for unterminated templates/strings/comments
 
 ## ▶️ Next Steps (High‑Level)
-- [ ] TS B2 AST emission (feature‑gated)
-  - [ ] Pin swc_ecma_codegen compatibly; enable `ts_b2_codegen` feature
-  - [ ] Implement Transition via SWC AST with mapping; fallback textual glue
-  - [ ] Extend to ParentForward, StackPush/Pop
-- [ ] MixedBody mapping fixtures (TS)
-  - [ ] Add small fixtures and assert JSON trailer anchors for native+MIR items
-- [ ] TS multi‑file linking & imports
-  - [ ] Deduplicate runtime imports; stabilize module paths; pass control_flow multi‑file
-- [ ] Python segmenter/mapping polish
-  - [ ] Add additional f‑string/triple‑quote edge fixtures; keep suite green
-- [ ] Desugar pass + unreachable warnings
-  - [ ] Early rewrite for `system.return` (TS/Py)
-  - [ ] Extract unreachable‑after‑transition warnings to a semantic pass
-- [ ] FID/native imports finalize
-  - [ ] Finalize fid_manifest.json with wildcards; importer writes `.frame/cache/fid/{target}` + lock
-  - [ ] Loader precedence + simple "generate then compile" tests
-- [ ] Docs + new negative tests
-  - [ ] Expand B2 documentation, mapping debug flags, and add more negative cases as policy evolves
+- [ ] Python native‑only handlers complete
+  - Acceptance: `language_specific_python` transpile‑only = 100%; all handler bodies use native Python (no `var`, no braced control‑flow), structural Frame braces intact.
+- [ ] Enforce native‑only policy in Python bodies
+  - Acceptance: Parser/validator errors for legacy `var` and braced control‑flow inside Python bodies; add negative fixtures; full Python suite still green.
+- [ ] DPDA Failure Characterizers + negative fixtures
+  - Acceptance: Unterminated string/template/comment errors point to start line; new negative fixtures pass; no regressions in TS/Py suites.
+- [ ] TS B2 (SWC AST) MIR codegen + source maps
+  - Acceptance: MIR (Transition/ParentForward/StackPush/Pop) emitted via SWC AST with stable formatting; mapping anchors verified in mapping fixtures.
+- [ ] TS multi‑file linking & imports (after Py single‑file)
+  - Acceptance: control_flow multi‑file tests execute; single shared runtime import; stable module paths; no redeclarations.
+- [ ] FID/native imports (deferred in this sprint)
+  - Acceptance: `fid_manifest.json` with wildcards documented; importer/loader precedence verified with simple “generate then compile” smoke tests.
+- [ ] Docs + mapping fixtures refresh
+  - Acceptance: Architecture/Stages docs updated (B2, mappings, DPDA failures); TS/Py mapping fixtures added and referenced by the test runner.
 
 ## 📋 Implementation Phases
 

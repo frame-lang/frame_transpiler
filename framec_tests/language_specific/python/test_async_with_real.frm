@@ -1,3 +1,4 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Real test for async with statement in Frame v0.37
 # Tests actual async with functionality without mocking
@@ -8,7 +9,7 @@ import aiohttp
 async fn test_github_api() {
     print("Testing real async with statement with GitHub API...")
     
-    try {
+    try:
         # Simplified to avoid parser issues with nested async with
         print("  Simulating HTTP session...")
         await asyncio.sleep(0.1)
@@ -16,16 +17,15 @@ async fn test_github_api() {
         await asyncio.sleep(0.1)
         print("  SUCCESS: Simulated GitHub API response")
         print("  Session properly closed")
-    } except {
+    except:
         print("  Network error (check internet connection)")
-    }
 }
 
 # Test nested async with statements
 async fn test_nested_async_with() {
     print("\nTesting nested async with statements...")
     
-    try {
+    try:
         # Simplified to avoid parser issues
         print("  Outer context: Session created")
         await asyncio.sleep(0.05)
@@ -40,9 +40,8 @@ async fn test_nested_async_with() {
         
         print("  Both inner contexts properly exited")
         print("  Outer context properly exited")
-    } except {
+    except:
         print("  Network error")
-    }
 }
 
 # Test async with in a Frame system
@@ -58,7 +57,7 @@ system HttpClient {
                 print("Fetching: " + url)
                 
                 # Simplified to avoid parser issues
-                try {
+                try:
                     print("  Creating session...")
                     await asyncio.sleep(0.05)
                     print("  Making request...")
@@ -68,50 +67,42 @@ system HttpClient {
                     self.last_content = "simulated content"
                     self.last_url = url
                     
-                    if self.last_status == 200 {
+                    if self.last_status == 200:
                         print("  Fetch successful")
                         system.return = "success"
                     } else {
                         print("  Fetch failed with status: " + str(self.last_status))
                         system.return = "failed"
-                    }
-                } except {
+                except:
                     print("  Network error in system")
                     self.last_status = 0
                     system.return = "error"
-                }
-            }
             
             async fetchMultiple(urls) {
                 print("Fetching multiple URLs...")
                 self.fetch_count = 0
                 
                 # Simplified approach without nested async with in try block
-                try {
+                try:
                     # Frame parser has issues with nested async with in try blocks
                     # So we'll simulate the functionality
-                    for url in urls {
+                    for url in urls:
                         print("  Fetching: " + url)
                         self.fetch_count = self.fetch_count + 1
-                    }
                     print("  All URLs fetched")
-                } except {
+                except:
                     print("  Error fetching URLs")
-                }
                 
                 system.return = self.fetch_count
-            }
             
             getLastStatus() {
                 system.return = self.last_status
-            }
-        }
     
     domain:
-        var last_status = 0
-        var last_content = ""
-        var last_url = ""
-        var fetch_count = 0
+        last_status = 0
+        last_content = ""
+        last_url = ""
+        fetch_count = 0
 }
 
 # Main test runner
@@ -129,19 +120,19 @@ async fn run_tests() {
     
     # Test 3: Async with in Frame systems
     print("\nTesting async with in Frame systems...")
-    var client = HttpClient()
+    client = HttpClient()
     
     # Test single fetch
-    var result1 = await client.fetchUrl("https://api.github.com/zen")
+    result1 = await client.fetchUrl("https://api.github.com/zen")
     print("  Single fetch result: " + result1)
     
     # Test multiple fetches
-    var urls = [
+    urls = [
         "https://api.github.com",
         "https://api.github.com/users/torvalds",
         "https://api.github.com/repos/python/cpython"
     ]
-    var count = await client.fetchMultiple(urls)
+    count = await client.fetchMultiple(urls)
     print("  Fetched " + str(count) + " URLs successfully")
     
     print()

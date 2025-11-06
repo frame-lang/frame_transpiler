@@ -1,84 +1,81 @@
+@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.56 - Walrus Operator, Numeric Underscores, and Complex Numbers
 
 fn test_walrus_operator() {
     # Basic walrus operator usage
-    if (n := len([1, 2, 3, 4, 5])) > 3 {
+    if (n := len([1, 2, 3, 4, 5])) > 3:
         print("List is long: " + str(n) + " elements")
-    }
     
     # Walrus in while loop (simplified for now)
-    var counter = 0
-    while (val := counter) < 5 {
+    counter = 0
+    while (val := counter) < 5:
         print("Counter: " + str(val))
         counter = counter + 1
-    }
     
     # Walrus in list comprehension
-    var results = [y for x in range(10) if (y := x * 2) > 5]
+    results = [y for x in range(10) if (y := x * 2) > 5]
     print("Filtered results: " + str(results))
 }
 
 fn test_numeric_underscores() {
     # Decimal numbers with underscores
-    var million = 1_000_000
-    var billion = 1_000_000_000
+    million = 1_000_000
+    billion = 1_000_000_000
     print("Million: " + str(million))
     print("Billion: " + str(billion))
     
     # Float with underscores
-    var pi_approx = 3.141_592_653
+    pi_approx = 3.141_592_653
     print("Pi: " + str(pi_approx))
     
     # Binary literal with underscores
-    var binary = 0b1111_0000_1111_0000
+    binary = 0b1111_0000_1111_0000
     print("Binary: " + str(binary))
     
     # Hexadecimal with underscores
-    var hex_val = 0xFF_FF_00_00
+    hex_val = 0xFF_FF_00_00
     print("Hex: " + str(hex_val))
     
     # Octal with underscores
-    var octal = 0o777_666_555
+    octal = 0o777_666_555
     print("Octal: " + str(octal))
 }
 
 fn test_complex_numbers() {
     # Complex number literals
-    var z1 = 3.5j
+    z1 = 3.5j
     print("Pure imaginary: " + str(z1))
     
     # Complex arithmetic (requires complex() function in Python)
-    var z2 = 2 + 3j
-    var z3 = 4 - 2j
+    z2 = 2 + 3j
+    z3 = 4 - 2j
     print("Complex 1: " + str(z2))
     print("Complex 2: " + str(z3))
     
     # Complex operations
-    var z_sum = z2 + z3
-    var z_product = z2 * z3
+    z_sum = z2 + z3
+    z_product = z2 * z3
     print("Sum: " + str(z_sum))
     print("Product: " + str(z_product))
     
     # Complex with underscores
-    var big_complex = 1_000 + 2_000j
+    big_complex = 1_000 + 2_000j
     print("Big complex: " + str(big_complex))
 }
 
 fn test_combined_features() {
     # Combine walrus with complex numbers
-    if (z := 3 + 4j) != 0 {
+    if (z := 3 + 4j) != 0:
         print("Complex walrus: " + str(z))
-    }
     
     # Walrus with underscored numbers
-    if (big := 1_000_000) > 999_999 {
+    if (big := 1_000_000) > 999_999:
         print("Big number via walrus: " + str(big))
-    }
     
     # All features in one expression
-    var nums = [1_000, 2_000, 3_000]
-    var complex_list = [(z := n + 0.5j) for n in nums if n > 1_500]
+    nums = [1_000, 2_000, 3_000]
+    complex_list = [(z := n + 0.5j) for n in nums if n > 1_500]
     print("Complex filtered list: " + str(complex_list))
 }
 

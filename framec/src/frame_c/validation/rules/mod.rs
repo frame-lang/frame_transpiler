@@ -7,6 +7,7 @@ pub mod malformed_handler;
 pub mod return_value_consistency;
 pub mod state_reachability;
 pub mod unmatched_braces;
+pub mod async_consistency;
 
 // Re-export all rules for easy access
 pub use event_flow_analysis::EventFlowAnalysisRule;
