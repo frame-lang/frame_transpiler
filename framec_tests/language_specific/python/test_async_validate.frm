@@ -31,9 +31,10 @@ system AsyncTest {
                 self.status = status
             }
         }
+        }
         domain:
-        var last_data = ""
-        var status = "ready"
+        last_data = ""
+        status = "ready"
 }
 
 # Main async test function

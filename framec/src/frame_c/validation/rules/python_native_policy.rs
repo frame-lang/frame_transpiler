@@ -128,6 +128,41 @@ impl ValidationRule for PythonNativePolicyRule {
             }
         }
 
+        // Domain: flag 'var' usage for Python domains by scanning source lines near the domain
+        // node. This is a best-effort textual check; parser now accepts native assignments.
+        if let Some(domain_block) = &context.ast.domain_block_node_opt {
+            for var_r in &domain_block.member_variables {
+                let v = var_r.borrow();
+                // If the source line still begins with 'var ', report it for Python policy.
+                if let Some(line_text) = context
+                    .source_code
+                    .lines()
+                    .nth(v.line.saturating_sub(1))
+                {
+                    if line_text.trim_start().starts_with("var ") {
+                        issues.push(ValidationIssue {
+                            severity: Severity::Error,
+                            category: Category::Syntax,
+                            rule_name: self.name().to_string(),
+                            message: "Use Python-native assignment in domain blocks (drop 'var')"
+                                .to_string(),
+                            location: SourceLocation {
+                                line: v.line as u32,
+                                column: 1,
+                                offset: 0,
+                                length: 0,
+                                file_path: Some(
+                                    context.file_path.to_string_lossy().to_string(),
+                                ),
+                            },
+                            suggestion: Some("Example: counter = 0".to_string()),
+                            help_url: None,
+                        });
+                    }
+                }
+            }
+        }
+
         issues
     }
 }

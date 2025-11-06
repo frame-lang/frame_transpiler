@@ -104,9 +104,10 @@ system FileProcessor {
                 system.return = "Done: " + self.processed
             }
         }
+        }
     domain:
-        var content = ""
-        var processed = ""
+        content = ""
+        processed = ""
 }
 
 # Main test function

@@ -62,10 +62,10 @@ system FileProcessor {
                 print("Processing complete")
             }
         }
-        
+        }
     domain:
-        var content = ""
-        var processed = ""
+        content = ""
+        processed = ""
 }
 
 # Test async with in async system methods
@@ -91,8 +91,8 @@ system AsyncDataFetcher {
         }
         
     domain:
-        var data = ""
-        var status_code = 0
+        data = ""
+        status_code = 0
 }
 
 # Async function to test everything

@@ -1568,8 +1568,11 @@ state_var: 'var' IDENTIFIER (',' IDENTIFIER)* type? '=' expr (',' expr)*  // v0.
 ## Domain Block
 
 ```bnf
-domain_block: 'domain:' (domain_var | enum_decl)*
+domain_block: 'domain:' (domain_var | enum_decl | target_native_domain_decl)*
 domain_var: 'var' IDENTIFIER (',' IDENTIFIER)* type? '=' expr (',' expr)*  // v0.53: Multiple variable declarations
+target_native_domain_decl: // Target-specific domain declarations
+    // Python (native): IDENTIFIER [':' type] '=' expr
+    // TypeScript: continue to use 'var'/'const' per target style
 ```
 
 ### Domain Variable Access (v0.31)
@@ -1579,8 +1582,8 @@ Domain variables are accessed using the `self.variable` syntax, which clearly di
 ```frame
 system Counter {
     domain:
-        var count: int = 0
-        var message: string = "Count"
+        count: int = 0        // Python: native
+        message: string = "Count"
     
     interface:
         increment()

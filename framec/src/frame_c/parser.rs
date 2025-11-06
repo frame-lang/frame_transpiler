@@ -5013,29 +5013,100 @@ impl<'a> Parser<'a> {
         let mut domain_variables = Vec::new();
         let mut enums = Vec::new();
 
-        while self.match_token(&[TokenType::Var, TokenType::Const, TokenType::Enum]) {
-            if self.previous().token_type == TokenType::Enum {
+        // Accept legacy 'var/const' and 'enum' entries, but for Python also allow
+        // native assignments in the domain block: identifier '=' expr
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            if self.match_token(&[TokenType::Enum]) {
                 match self.enum_decl() {
-                    Ok(enum_decl_node) => {
-                        enums.push(enum_decl_node);
-                    }
+                    Ok(enum_decl_node) => enums.push(enum_decl_node),
                     Err(_parse_err) => {
                         let sync_tokens =
                             vec![TokenType::Var, TokenType::Const, TokenType::CloseBrace];
                         self.synchronize(&sync_tokens);
                     }
                 }
-            } else {
-                match self.var_declaration(IdentifierDeclScope::DomainBlockScope) {
-                    Ok(domain_variable_node) => domain_variables.push(domain_variable_node),
-                    Err(_parse_err) => {
-                        // TODO: TokenType::Const isn't a real thing yet
-                        let sync_tokens =
-                            vec![TokenType::Var, TokenType::Const, TokenType::CloseBrace];
-                        self.synchronize(&sync_tokens);
-                    }
-                }
+                continue;
             }
+
+            if self.match_token(&[TokenType::Var, TokenType::Const]) {
+                match self.var_declaration(IdentifierDeclScope::DomainBlockScope) {
+                    Ok(node) => domain_variables.push(node),
+                    Err(_parse_err) => {
+                        let sync_tokens =
+                            vec![TokenType::Var, TokenType::Const, TokenType::CloseBrace];
+                        self.synchronize(&sync_tokens);
+                    }
+                }
+                continue;
+            }
+
+            if matches!(self.target_language, Some(TargetLanguage::Python3))
+                && self.check(TokenType::Identifier)
+            {
+                // Parse: name [ : type ] = expr
+                let id_tok = self.advance().clone();
+                let name = id_tok.lexeme.clone();
+                let var_line = id_tok.line;
+
+                let mut type_opt: Option<TypeNode> = None;
+                if self.match_token(&[TokenType::Colon]) {
+                    match self.type_decl() {
+                        Ok(t) => type_opt = Some(t),
+                        Err(_parse_error) => {
+                            // Recover: treat as no type and continue to parse value
+                            type_opt = None;
+                        }
+                    }
+                }
+
+                if !self.match_token(&[TokenType::Equals]) {
+                    let err_msg = "Expected '=' in Python domain assignment.";
+                    self.error_at_current(err_msg);
+                    // attempt to resync on next entry or block end
+                    let sync_tokens =
+                        vec![TokenType::Var, TokenType::Const, TokenType::Enum, TokenType::CloseBrace];
+                    self.synchronize(&sync_tokens);
+                    continue;
+                }
+
+                let value_rc = match self.parse_variable_initializer(&name) {
+                    Ok(v) => v,
+                    Err(_e) => {
+                        let sync_tokens = vec![
+                            TokenType::Var,
+                            TokenType::Const,
+                            TokenType::Enum,
+                            TokenType::CloseBrace,
+                        ];
+                        self.synchronize(&sync_tokens);
+                        continue;
+                    }
+                };
+                let node = VariableDeclNode::new(
+                    var_line,
+                    name.clone(),
+                    type_opt.clone(),
+                    false,
+                    value_rc.clone(),
+                    value_rc.clone(),
+                    IdentifierDeclScope::DomainBlockScope,
+                );
+                let node_r = Rc::new(RefCell::new(node));
+                if self.is_building_symbol_table {
+                    // Register symbol like var_declaration does
+                    let _ = self.create_variable_symbol(
+                        name,
+                        type_opt,
+                        &IdentifierDeclScope::DomainBlockScope,
+                        node_r.clone(),
+                    );
+                }
+                domain_variables.push(node_r);
+                continue;
+            }
+
+            // Nothing recognized: break out
+            break;
         }
 
         self.arcanum

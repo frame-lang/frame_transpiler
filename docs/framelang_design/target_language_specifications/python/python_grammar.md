@@ -1623,6 +1623,21 @@ system SelfVariableDemo {
         }
 }
 
+### Domain Declarations (Python target)
+
+In Python, declare domain variables using native assignments — do not use `var`.
+
+```
+domain:
+    counter = 0
+    status = "ready"
+
+// Optional type hints
+domain:
+    counter: int = 0
+    name: str = ""
+```
+
 ## Operations Block
 
 ```bnf
