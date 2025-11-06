@@ -1,33 +1,25 @@
-# Repository Guidelines
+# AGENTS.md — Working Rules for this Repo
 
-## Project Structure & Module Organization
-- Core Rust compiler lives in `framec/src/frame_c/`; visitors sit in `visitors/`, with Rust runtime support in `frame_runtime/`.
-- Integration tests and fixtures belong under `framec_tests/` (`common/tests/` for shared .frm specs, `python/` and `typescript/` for language-specific assets). Never drop test artifacts in the repo root.
-- Reference docs, design notes, and coordination plans reside in `docs/` (start with `docs/HOW_TO.md` and `docs/plans/ai_planning.md`).
+Scope: Entire repository.
 
-## Build, Test, and Development Commands
-- `cargo build` / `cargo build --release`: Compile the transpiler; release builds power the CLI (`./target/release/framec`).
-- `./target/release/framec --help`: Inspect language targets and flags before running experiments.
-- `python3 framec_tests/runner/frame_test_runner.py --languages python typescript --framec ./target/release/framec`: Canonical end-to-end validation; add `--transpile-only` for quick checks.
-- `cargo fmt` and `cargo clippy --all-targets --all-features`: Enforce formatting and lint hygiene before reviews.
+Non‑negotiables
+- Do NOT commit or push without explicit user approval. Always stage changes for review first.
+- Always validate each meaningful change by running the full TypeScript transpile‑only suite, and Python when relevant.
+- Never introduce temporary hacks that compromise determinism in scanning/lexing/parsing.
 
-## Coding Style & Naming Conventions
-- Follow Rust defaults: 4-space indentation, `snake_case` for modules/functions, `PascalCase` for types. Run `cargo fmt` to stay consistent.
-- Keep generated code paths deterministic; avoid ad-hoc logging. Favor descriptive visitor method names (e.g., `visit_transition_stmt`) that mirror AST nodes.
-- Rustdoc comments (`///`) are preferred for public APIs; inline `//` comments only when behavior is non-obvious.
+Architecture alignment
+- MixedBody/MIR (B2) is the authoritative model: bodies are sequences of native items and Frame statements.
+- Frame directives are strictly SOL‑anchored (start of line), ignored in strings/comments/templates.
+- Per‑target segmenters must be brace/string/comment aware; avoid regex for language syntax.
 
-## Testing Guidelines
-- All new behavior requires Frame specs in `framec_tests/common/tests/` (or the relevant language-specific folder) plus automated runner coverage.
-- Execute Python and TypeScript suites together unless the change is explicitly scoped; record any exclusions.
-- Use the runner’s patterns/configs instead of bespoke scripts (e.g., `python3 framec_tests/runner/frame_test_runner.py -c configs/all_tests.json`).
-- Do not claim validation without fully executing generated targets as documented in `CLAUDE.local.md`.
+Testing policy
+- Prefer hermetic tests and compile‑only validation where runtime dependencies exist.
+- Add negative fixtures alongside positive ones for policy changes (e.g., inline target directives).
 
-## Commit & Pull Request Guidelines
-- Follow Conventional Commits: `feat(scope):`, `fix(parser):`, `docs(runtime):`, etc., matching recent history.
-- When releasing, update `[workspace.package].version` in `Cargo.toml`, run `./scripts/sync-versions.sh`, and keep changelog entries aligned.
-- PRs should cite impacted tests, summarize language targets exercised, and link related issues or bug IDs.
-- Request review once `cargo fmt`, `cargo clippy`, and the full test runner pass; include command outputs in the PR description.
+Docs
+- Keep `docs/framepiler_design/architecture.md` as the detailed, authoritative reference.
+- Reflect syntax and policy decisions promptly in per‑language grammar docs.
 
-## Agent Workflow Tips
-- Begin each session by rereading `docs/HOW_TO.md` and `CLAUDE.md`, checking `git status`, and noting outstanding TODOs in `docs/plans/ai_planning.md`.
-- Never implement temporary workarounds; fix root causes and keep documentation synchronized when behavior changes.
+Operations
+- If a change requires external tooling (npm/typedoc/etc.), document it and gate it behind CLI flags; avoid adding network dependencies to the build.
+

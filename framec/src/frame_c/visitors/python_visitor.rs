@@ -84,6 +84,7 @@ pub struct PythonVisitor {
 impl PythonVisitor {
     fn emit_mixed_body(&mut self, items: &[MixedBodyItem]) -> bool {
         let mut generated = false;
+        let mut after_terminal_dir = false; // transition/forward/stack imply early return
         for it in items {
             match it {
                 MixedBodyItem::NativeAst {
@@ -93,6 +94,10 @@ impl PythonVisitor {
                     ..
                 } => {
                     let code = ast.to_source();
+                    if after_terminal_dir && !code.trim().is_empty() {
+                        self.builder.map_next(*start_line);
+                        self.builder.writeln("# WARNING: Unreachable code after transition/forward/stack op");
+                    }
                     self.emit_target_source_with_metadata(
                         code,
                         *start_line,
@@ -107,6 +112,10 @@ impl PythonVisitor {
                     end_line,
                     ..
                 } => {
+                    if after_terminal_dir && !text.trim().is_empty() {
+                        self.builder.map_next(*start_line);
+                        self.builder.writeln("# WARNING: Unreachable code after transition/forward/stack op");
+                    }
                     self.emit_target_source_with_metadata(
                         text,
                         *start_line,
@@ -155,6 +164,13 @@ impl PythonVisitor {
                         }
                     }
                     generated = true;
+                    match stmt {
+                        MirStatement::Transition { .. }
+                        | MirStatement::ParentForward
+                        | MirStatement::StackPush
+                        | MirStatement::StackPop => after_terminal_dir = true,
+                        _ => {}
+                    }
                 }
             }
         }

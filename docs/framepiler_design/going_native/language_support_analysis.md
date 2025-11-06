@@ -185,6 +185,35 @@ Last updated: 2025‑11‑05
 
 ---
 
+## C#
+
+### Lexing/Parsing
+- C# has `//` and `/* */` comments; verbatim/interpolated strings: `@"…"`, `$"…{expr}…"`, raw string literals (`"""…"""` in C# 11). Lambdas use `=>` (like TS/Java); require `=> $^` for Frame parent forward to avoid conflicts.
+- OutlineScanner: brace depth for bodies; segmenter must ignore directive tokens inside strings and comments; handle `$"…{ … }…"` interpolation blocks.
+
+### Embedding in Frame
+- Functions/actions/operations/handlers: MixedBody; start with segmentation + RegionGraph boundaries; later integrate a C# parser (Roslyn via subprocess or a Rust binding) for AST slices if needed.
+- Classes/namespaces: preserve `using` directives and namespace declarations at top; linker must not reorder. For single‑file generation, keep using directives near top of output.
+- Systems: C# class with kernel fields/methods; MIR expansions generate calls and set return values deterministically.
+
+### Signatures
+- Full C# method signatures inside native bodies (generics, params arrays, optional params, ref/out) are allowed. For Frame headers, keep portable subset for now; if we support target‑native headers, map `params` (varargs) to arrays internally; `ref/out` remain native‑only and not surfaced at Frame boundary initially.
+
+### Async/await
+- C# async/await mirrors TS/Py patterns; async handlers allowed with `async Task` and `await`. Ensure MIR transitions/forward terminate the logical event consistently even within async flows.
+
+### Tricky Issues
+- Interpolated strings `$"…{expr}…"`: segmenter must ignore `->`, `=>`, `$$` inside strings; interpolation expressions can contain braces and nested strings.
+- `=>` lambdas vs `=> $^` Frame: SOL anchoring + `$^` requirement avoids ambiguity.
+- `using` statement vs `using` directives: keep both intact and in order; do not interleave with Frame glue.
+
+### Tests to Add
+- Bodies with `$"…{ expr with braces }…"`, raw strings `"""…"""`, nested lambdas, and directive‑like tokens inside strings/comments.
+- MixedBody with transitions/forward/stack ops interleaved.
+- Async handler with `await` and transitions.
+
+---
+
 ## Tricky Cross‑Language Topics
 - Return semantics after transitions: insert early `return` consistently post‑expansion; warn on unreachable native code
 - Async vs sync: ensure the runtime for a language supports async where needed (e.g., Python asyncio vs TS Promises vs Java futures)
@@ -207,3 +236,38 @@ Last updated: 2025‑11‑05
 - Replace TS MIR glue with SWC AST recipes (B2) and maintain mapping
 - Extend test suites per language with edge cases listed above
 
+---
+
+## Appendix: Fixtures & Acceptance Checklists
+
+### TypeScript Fixtures
+- Islands directory: `framec_tests/language_specific/typescript/islands/`
+  - 10_template_literals.frm
+  - 16_comments_with_directive_tokens.frm
+  - 17_template_literals_nested.frm
+  - 22_typescript_island_mega_syntax.frm (comprehensive, no Node deps)
+
+TypeScript Segmenter Acceptance Checklist
+- [x] Template literals with nested `${}` do not confuse directive detection
+- [x] Comments containing directive-like tokens are ignored
+- [x] Mixed native+Frame lines are split only at SOL directives
+- [x] Brace depth and string states do not leak across lines
+
+### Python Fixtures
+- Comprehensive island: `framec_tests/language_specific/python/test_python_island_mega_syntax.frm`
+
+Python Segmenter Acceptance Checklist
+- [x] Triple-quoted strings (''' and """) handled without false positives
+- [x] f-strings ignore directive-like tokens inside expressions
+- [x] Comments starting with `#` suppress detection on the line
+- [x] Indent/dedent boundaries produce correct body ranges
+
+### Cross‑Language Segmenter Checklist (apply per target)
+- [ ] Strings (all forms for the language)
+- [ ] Comments (single-line, block, doc comments)
+- [ ] Raw/multiline strings (e.g., Python triple quotes, Rust raw, Swift multi-line)
+- [ ] Interpolation (C#, Kotlin, Swift, JS templates)
+- [ ] Preprocessor/macros/annotations handling (C/C++/Rust/Java/C#)
+- [ ] SOL directive tokens recognized only at first non-whitespace column
+- [ ] No detection inside strings/comments/templates/macros
+- [ ] Brace/indent depth tracking stable across lines

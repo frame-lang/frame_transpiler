@@ -1,7 +1,7 @@
 # Frame Transpiler Architecture (Authoritative)
 
-Status: Authoritative design reference for the current and in‑flight architecture (Option A).  
-Last updated: 2025‑11‑03
+Status: Authoritative design reference for the current and in‑flight architecture (MixedBody/MIR — “B2”).  
+Last updated: 2025‑11‑06
 
 This document is the single source of truth for the Frame compiler pipeline, terminology, and component responsibilities. Older sections below are retained as legacy context; the “Authoritative Architecture” sections supersede them.
 
@@ -173,7 +173,7 @@ In short: we partition Frame blocks; we segment native blocks.
   - Implementations: `framec/src/frame_c/source_map.rs`, `framec/src/frame_c/source_mapping.rs`
   - Policy: Partitions choose diagnostic domain (Frame vs native). Segments carry dual locations (frame_line for directives; start/end target lines for native).
 
-### MixedBody + MIR (B2 direction)
+### MixedBody + MIR (Authoritative)
 
 This section defines the MIR used by the Frame compiler to represent embedded Frame control semantics inside target‑native bodies.
 
