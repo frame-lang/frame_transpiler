@@ -366,57 +366,9 @@ impl ValidationRule for UnmatchedBracesRule {
                 }
             }
             Some(TargetLanguage::TypeScript) => {
-                // If we successfully built an AST (i.e., parser balanced structural braces),
-                // skip textual unmatched-braces checks to avoid false positives from native spans.
-                if context.ast.machine_block_node_opt.is_some()
-                    || context.ast.actions_block_node_opt.is_some()
-                    || context.ast.interface_block_node_opt.is_some()
-                    || context.ast.operations_block_node_opt.is_some()
-                {
-                    return Vec::new();
-                }
-                // Mask native/mixed body lines to avoid counting TS-native braces
-                let mut mask = HashSet::<u32>::new();
-                if let Some(machine) = &context.ast.machine_block_node_opt {
-                    for state_r in &machine.states {
-                        let state = state_r.borrow();
-                        for eh_r in &state.evt_handlers_rcref {
-                            let eh = eh_r.borrow();
-                            if let Some(items) = &eh.mixed_body {
-                                for item in items {
-                                    if let crate::frame_c::ast::MixedBodyItem::NativeText { start_line, end_line, .. } = item {
-                                        for ln in *start_line as u32..=*end_line as u32 { mask.insert(ln); }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                if let Some(actions) = &context.ast.actions_block_node_opt {
-                    for a_r in &actions.actions {
-                        let a = a_r.borrow();
-                        if let Some(items) = &a.mixed_body {
-                            for item in items {
-                                if let crate::frame_c::ast::MixedBodyItem::NativeText { start_line, end_line, .. } = item {
-                                    for ln in *start_line as u32..=*end_line as u32 { mask.insert(ln); }
-                                }
-                            }
-                        }
-                    }
-                }
-                if let Some(ops) = &context.ast.operations_block_node_opt {
-                    for o_r in &ops.operations {
-                        let o = o_r.borrow();
-                        if let Some(items) = &o.mixed_body {
-                            for item in items {
-                                if let crate::frame_c::ast::MixedBodyItem::NativeText { start_line, end_line, .. } = item {
-                                    for ln in *start_line as u32..=*end_line as u32 { mask.insert(ln); }
-                                }
-                            }
-                        }
-                    }
-                }
-                self.analyze_brace_matching_with_mask(context.source_code, &mask)
+                // For TypeScript, rely on the parser for structural brace balance
+                // to avoid false positives from native spans; skip textual checks.
+                Vec::new()
             }
             _ => self.analyze_brace_matching(context.source_code),
         }

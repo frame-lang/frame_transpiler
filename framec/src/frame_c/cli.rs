@@ -777,8 +777,23 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
     let mut overall_success = true;
 
     if ast.systems.is_empty() {
-        eprintln!("Warning: No systems found in Frame module");
-        return true; // No validation needed
+        // No systems: still run file-level validation rules that operate on source
+        // (e.g., negatives like nested function, Python-try patterns in TS files)
+        let primary_system = ast.get_primary_system();
+        let context = ValidationContext {
+            ast: &primary_system,
+            source_code: &source_code,
+            file_path: path,
+            target_language: target_lang,
+            generated_code: None,
+            symbol_table: None,
+        };
+
+        let (result, formatted_output) = engine.validate_and_format(context);
+        for output in formatted_output {
+            println!("{}", output);
+        }
+        return result.success;
     }
 
     for system_node in &ast.systems {

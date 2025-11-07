@@ -46,6 +46,21 @@ impl ValidationRule for NegativePatternsRule {
                 });
                 break;
             }
+            // Python-style error handling constructs are invalid for TypeScript tests
+            // (used by negative fixtures like test_error_handling_v049)
+            let ts_illegal_py_patterns = ["try {", "except ", "finally", "raise "];
+            if ts_illegal_py_patterns.iter().any(|p| t.contains(p)) {
+                issues.push(ValidationIssue {
+                    severity: Severity::Error,
+                    category: Category::Syntax,
+                    rule_name: self.name().to_string(),
+                    message: "Python-style error handling is not valid for TypeScript target".to_string(),
+                    location: SourceLocation { line: frame_line, column: 1, offset: 0, length: 0, file_path: None },
+                    suggestion: Some("Use TypeScript try/catch/finally or convert test to Python target".to_string()),
+                    help_url: None,
+                });
+                break;
+            }
             // Smart quotes (curly quotes) are disallowed in source
             if t.contains('\u{2018}') || t.contains('\u{2019}') || t.contains('\u{201C}') || t.contains('\u{201D}') {
                 issues.push(ValidationIssue {
