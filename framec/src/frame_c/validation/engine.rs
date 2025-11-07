@@ -44,6 +44,12 @@ impl ValidationEngine {
             // Enforce native-only policy inside Python bodies (actions/ops/handlers)
             engine = engine
                 .add_rule(crate::frame_c::validation::rules::PythonNativePolicyRule::new());
+            // Enforce MixedBody system usage policies (self vs system, nested system members, unknown interface methods, conflicts)
+            engine = engine
+                .add_rule(crate::frame_c::validation::rules::MixedBodySystemPolicyRule::new());
+            // Enforce simple negative patterns for TS negatives
+            engine = engine
+                .add_rule(crate::frame_c::validation::rules::NegativePatternsRule::new());
         }
 
         if engine.config.level >= ValidationLevel::Semantic {

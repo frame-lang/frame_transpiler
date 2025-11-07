@@ -2963,6 +2963,10 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
+                // Negative policy: disallow nested function definitions inside function bodies
+                if raw.lines().any(|l| l.trim_start().starts_with("fn ")) {
+                    return Err(ParseError::new("Nested function definitions are not allowed in Frame bodies."));
+                }
                 // Python: disallow legacy braced control-flow in action bodies
                 if matches!(self.target_language, Some(TargetLanguage::Python3)) {
                     for (idx, s) in raw.lines().enumerate() {
@@ -8995,6 +8999,12 @@ impl<'a> Parser<'a> {
     }
 
     fn statement(&mut self) -> Result<Option<StatementType>, ParseError> {
+        // Disallow nested function declarations inside other function/event/action/operation bodies
+        if self.check(TokenType::Function) {
+            let err_msg = "Nested function definitions are not allowed in Frame bodies.";
+            self.error_at_current(err_msg);
+            return Err(ParseError::new(err_msg));
+        }
         // Due to Frame test and transition syntax, we need to get the first expression
         // and then see if it is an expression in the "first set" of expressions for tests
         // and transitions.

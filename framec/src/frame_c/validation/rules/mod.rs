@@ -9,6 +9,8 @@ pub mod state_reachability;
 pub mod unmatched_braces;
 pub mod async_consistency;
 pub mod python_native_policy;
+pub mod mixed_body_system_policy;
+pub mod negative_patterns;
 
 // Re-export all rules for easy access
 pub use event_flow_analysis::EventFlowAnalysisRule;
@@ -18,5 +20,8 @@ pub use return_value_consistency::ReturnValueConsistencyRule;
 pub use state_reachability::StateReachabilityRule;
 pub use unmatched_braces::UnmatchedBracesRule;
 pub use python_native_policy::PythonNativePolicyRule;
+pub use async_consistency::AsyncConsistencyRule;
+pub use mixed_body_system_policy::MixedBodySystemPolicyRule;
+pub use negative_patterns::NegativePatternsRule;
 
 // Module for validation rules

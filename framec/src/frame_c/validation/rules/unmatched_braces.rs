@@ -353,7 +353,18 @@ impl ValidationRule for UnmatchedBracesRule {
 
     fn validate(&self, context: &ValidationContext) -> Vec<ValidationIssue> {
         match context.target_language {
-            Some(TargetLanguage::Python) => self.analyze_brace_matching_python(context.source_code),
+            Some(TargetLanguage::Python) => {
+                // If AST successfully built (structural braces balanced), skip textual pass
+                if context.ast.machine_block_node_opt.is_some()
+                    || context.ast.actions_block_node_opt.is_some()
+                    || context.ast.interface_block_node_opt.is_some()
+                    || context.ast.operations_block_node_opt.is_some()
+                {
+                    Vec::new()
+                } else {
+                    self.analyze_brace_matching_python(context.source_code)
+                }
+            }
             Some(TargetLanguage::TypeScript) => {
                 // If we successfully built an AST (i.e., parser balanced structural braces),
                 // skip textual unmatched-braces checks to avoid false positives from native spans.
