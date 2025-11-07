@@ -103,11 +103,10 @@ system FileProcessor {
                 system.return = "Done: " + self.processed
             }
         }
-        }
     domain:
         content = ""
         processed = ""
-}
+    }
 
 # Main test function
 fn main() {

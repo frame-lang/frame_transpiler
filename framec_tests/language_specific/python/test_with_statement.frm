@@ -54,18 +54,19 @@ system FileProcessor {
                 self.processed = self.content.upper()
                 -> $Done
             }
+            processFile(filename) { return }
         }
         
         $Done {
             $>() {
                 print("Processing complete")
             }
-        }
+            processFile(filename) { return }
         }
     domain:
         content = ""
         processed = ""
-}
+    }
 
 # Test async with in async system methods
 system AsyncDataFetcher {
