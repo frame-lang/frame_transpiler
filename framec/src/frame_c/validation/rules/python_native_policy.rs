@@ -40,7 +40,7 @@ impl ValidationRule for PythonNativePolicyRule {
         .unwrap();
         // Closing brace starting a legacy 'else' chain (e.g., `} else {`)
         // Closing brace lines can appear adjacent to native regions due to segmentation; ignore them.
-        let brace_else = Regex::new(r"^$").unwrap(); // disabled
+        let _brace_else = Regex::new(r"^$").unwrap(); // disabled
 
         // Helper to scan a body of MixedBody items
         let mut scan_mixed = |_name: &str, items_opt: &Option<Vec<MixedBodyItem>>| {

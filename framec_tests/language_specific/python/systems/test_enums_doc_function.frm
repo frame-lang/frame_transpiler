@@ -16,7 +16,7 @@ system TestSystem {
                 self.testFruit()
                 return
             }
-            
+
             describeFruit(fruit_value: Fruit) {
                 self.describeFruit(fruit_value)
                 return

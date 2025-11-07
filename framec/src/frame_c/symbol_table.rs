@@ -2647,9 +2647,70 @@ impl Arcanum {
                 // eprintln!("DEBUG: Looking for symbol '{}' in scope '{}'. Available symbols: {:?}",
                 //           scope_name, scope_name_for_debug, available_symbols);
 
-                let found_symbol = symbols_map.get(scope_name).map(|symbol_t_rcref| {
+                let found_symbol = symbols_map.get(scope_name).and_then(|symbol_t_rcref| {
                     let symbol_t = symbol_t_rcref.borrow();
-                    symbol_t.get_symbol_table()
+                    // Only treat true scope symbols as parse scopes; skip leaf/variable symbols.
+                    match &*symbol_t {
+                        SymbolType::FunctionScope { function_symbol_ref } => {
+                            Some(function_symbol_ref.borrow().get_symbol_table())
+                        }
+                        SymbolType::System { system_symbol_rcref } => {
+                            Some(system_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::Module { module_symbol_rcref } => {
+                            Some(Rc::clone(&module_symbol_rcref.borrow().symtab_rcref))
+                        }
+                        SymbolType::InterfaceBlock { interface_block_symbol_rcref } => {
+                            Some(interface_block_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::MachineBlockScope { machine_block_symbol_rcref } => {
+                            Some(machine_block_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::ActionsBlockScope { actions_block_symbol_rcref } => {
+                            Some(actions_block_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::ActionScope { action_scope_symbol_rcref } => {
+                            Some(action_scope_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::OperationsBlockScope { operations_block_symbol_rcref } => {
+                            Some(operations_block_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::OperationScope { operation_scope_symbol_rcref } => {
+                            Some(operation_scope_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::DomainBlockScope { domain_block_symbol_rcref } => {
+                            Some(domain_block_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::State { state_symbol_ref } => {
+                            Some(state_symbol_ref.borrow().get_symbol_table())
+                        }
+                        SymbolType::StateParamsScope { state_params_scope_rcref } => {
+                            Some(state_params_scope_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::StateLocalScope { state_local_scope_struct_rcref } => {
+                            Some(state_local_scope_struct_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::EventHandlerScope { event_handler_scope_symbol } => {
+                            Some(event_handler_scope_symbol.borrow().get_symbol_table())
+                        }
+                        SymbolType::EventHandlerParamsScope { event_handler_params_scope_symbol_rcref } => {
+                            Some(event_handler_params_scope_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::EventHandlerLocalScope { event_handler_local_scope_rcref } => {
+                            Some(event_handler_local_scope_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::LoopStmtSymbol { loop_scope_symbol_rcref } => {
+                            Some(loop_scope_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::BlockScope { block_scope_rcref } => {
+                            Some(block_scope_rcref.borrow().get_symbol_table())
+                        }
+                        SymbolType::ParamsScope { params_scope_symbol_rcref } => {
+                            Some(params_scope_symbol_rcref.borrow().get_symbol_table())
+                        }
+                        // Not a scope symbol: skip to parent scope
+                        _ => None,
+                    }
                 });
 
                 let parent_opt = symbol_table.parent_symtab_rcref_opt.as_ref().map(Rc::clone);

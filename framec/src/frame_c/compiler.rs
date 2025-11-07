@@ -268,8 +268,11 @@ impl Exe {
                 .map(|line| line.to_string())
                 .collect::<Vec<_>>(),
         );
-        let scanner = Scanner::new(content);
-
+        let mut scanner = Scanner::new(content);
+        // Seed scanner with effective/CLI/header target so it can tolerate target-native tokens
+        if let Some(lang) = target_language {
+            scanner.target_language = Some(lang);
+        }
         let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
         if has_errors {
             let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);
@@ -656,8 +659,10 @@ impl Exe {
                 .map(|line| line.to_string())
                 .collect::<Vec<_>>(),
         );
-        let scanner = Scanner::new(content);
-
+        let mut scanner = Scanner::new(content);
+        if let Some(lang) = target_language {
+            scanner.target_language = Some(lang);
+        }
         let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
         if has_errors {
             let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);

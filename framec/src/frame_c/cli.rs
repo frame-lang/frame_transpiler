@@ -692,7 +692,10 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
 
     // Parse the Frame file to get the actual AST using two-pass approach
     let source_lines = Arc::new(source_code.lines().map(|line| line.to_string()).collect());
-    let scanner = Scanner::new(source_code.clone());
+    let mut scanner = Scanner::new(source_code.clone());
+    if let Some(lang) = effective_target {
+        scanner.target_language = Some(lang);
+    }
     let (has_errors, errors, tokens, target_regions_vec) = scanner.scan_tokens();
 
     if has_errors {

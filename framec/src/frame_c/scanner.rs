@@ -298,6 +298,7 @@ impl Scanner {
             return;
         }
         match c {
+            // Revert Python-specific quote skipping at scanner level; handle strings via existing paths
             '(' => self.add_token(TokenType::LParen),
             ')' => self.add_token(TokenType::RParen),
             '[' => self.add_token(TokenType::LBracket),
@@ -1583,6 +1584,57 @@ impl Scanner {
 
         self.advance();
 
+        self.add_string_token_literal(TokenType::String, TokenLiteral::None);
+    }
+
+    fn string_single(&mut self) {
+        // Handle triple single-quoted string '''...'''
+        if self.peek() == '\'' && self.peek_at(1) == '\'' {
+            self.advance(); // second '
+            self.advance(); // third '
+            // Scan until closing '''
+            while !self.is_at_end() {
+                if self.peek() == '\'' && self.peek_at(1) == '\'' && self.peek_at(2) == '\'' {
+                    self.advance();
+                    self.advance();
+                    self.advance();
+                    // Represent triple-quoted as a string token
+                    self.add_prefixed_string_token(TokenType::TripleQuotedString);
+                    return;
+                }
+                if self.peek() == '\n' {
+                    self.line += 1;
+                }
+                self.advance();
+            }
+            // Unterminated triple single-quoted string
+            self.error(self.line, "Missing closing triple quotes (''')");
+            return;
+        }
+
+        // Regular single-quoted string with escapes
+        while !self.is_at_end() {
+            let c = self.peek();
+            if c == '\\' {
+                self.advance();
+                if self.is_at_end() {
+                    break;
+                }
+            } else if c == '\n' {
+                // allow newline; line count handled
+            } else if c == '\'' {
+                break;
+            }
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            self.error(self.line, "Missing closing quote for string");
+            return;
+        }
+
+        self.advance(); // consume closing '
+        // Represent as generic string token
         self.add_string_token_literal(TokenType::String, TokenLiteral::None);
     }
 

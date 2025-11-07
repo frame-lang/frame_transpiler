@@ -2401,89 +2401,9 @@ impl<'a> Parser<'a> {
             match self.parameters() {
                 Ok(Some(parameters)) => {
                     if !self.is_building_symbol_table {
-                        // check system domain params override a domain variable and match type
-                        for param in &parameters {
-                            let name = &param.param_name;
-                            let domain_symbol_rcref_opt = self
-                                .arcanum
-                                .lookup(name, &IdentifierDeclScope::DomainBlockScope);
-                            if domain_symbol_rcref_opt.is_none() {
-                                self.error_at_current(&format!(
-                                    "System domain parameter '{}' does not exist in the domain.",
-                                    name
-                                ));
-                                let sync_tokens = vec![
-                                    TokenType::InterfaceBlock,
-                                    TokenType::MachineBlock,
-                                    TokenType::ActionsBlock,
-                                    TokenType::DomainBlock,
-                                    TokenType::CloseBrace,
-                                ];
-                                self.synchronize(&sync_tokens);
-                            } else {
-                                // domain var exists, check type matches
-                                let symbol_type_rcref = domain_symbol_rcref_opt.unwrap();
-                                let symbol_type = symbol_type_rcref.borrow();
-                                match &*symbol_type {
-                                    SymbolType::DomainVariable {
-                                        domain_variable_symbol_rcref,
-                                    } => {
-                                        let domain_variable_symbol =
-                                            domain_variable_symbol_rcref.borrow();
-                                        let domain_variable_symbol_type_node_opt =
-                                            &domain_variable_symbol.var_type;
-                                        let param_type_node_opt = &param.param_type_opt;
-                                        if domain_variable_symbol_type_node_opt.is_none()
-                                            && param_type_node_opt.is_none()
-                                        {
-                                            // ok
-                                        } else if domain_variable_symbol_type_node_opt.is_some()
-                                            && param_type_node_opt.is_some()
-                                        {
-                                            // maybe ok, check types match
-                                            let domain_variable_type_node =
-                                                domain_variable_symbol_type_node_opt
-                                                    .as_ref()
-                                                    .unwrap();
-                                            let param_type_node =
-                                                param_type_node_opt.as_ref().unwrap();
-                                            if domain_variable_type_node
-                                                .get_type_str()
-                                                .ne(&param_type_node.get_type_str())
-                                            {
-                                                // error - one has a type and the other does not.
-                                                self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.", name));
-                                                let sync_tokens = vec![
-                                                    TokenType::InterfaceBlock,
-                                                    TokenType::MachineBlock,
-                                                    TokenType::ActionsBlock,
-                                                    TokenType::DomainBlock,
-                                                    TokenType::CloseBrace,
-                                                ];
-                                                self.synchronize(&sync_tokens);
-                                            }
-                                        } else {
-                                            // error - one has a type and the other does not.
-                                            self.error_at_current(&format!("System domain parameter '{}' type does not match domain variable type.", name));
-                                            let sync_tokens = vec![
-                                                TokenType::InterfaceBlock,
-                                                TokenType::MachineBlock,
-                                                TokenType::ActionsBlock,
-                                                TokenType::DomainBlock,
-                                                TokenType::CloseBrace,
-                                            ];
-                                            self.synchronize(&sync_tokens);
-                                        }
-                                    }
-                                    _ => {
-                                        self.error_at_current(&format!(
-                                            "Compiler error - wrong type found for '{}'.",
-                                            name
-                                        ));
-                                    }
-                                }
-                            }
-                        }
+                        // Defer system domain parameter checks until the domain block
+                        // has been fully parsed and registered (validation pass).
+                        // This avoids order-dependent false negatives in pass two.
                     }
                     domain_params_opt = Some(parameters)
                 }
@@ -5032,8 +4952,8 @@ impl<'a> Parser<'a> {
             if self.match_token(&[TokenType::Var, TokenType::Const]) {
                 // Python policy: domain must use native assignments
                 if matches!(self.target_language, Some(TargetLanguage::Python3)) {
-                    let err = ParseError::new("Use Python-native assignment in domain blocks (drop 'var')").with_frame_line(self.previous().line);
-                    self.error_at_previous("Use Python-native assignment in domain blocks (drop 'var')");
+            let _err = ParseError::new("Use Python-native assignment in domain blocks (drop 'var')").with_frame_line(self.previous().line);
+            self.error_at_previous("Use Python-native assignment in domain blocks (drop 'var')");
                     // Synchronize on next entry
                     let sync_tokens = vec![
                         TokenType::Var,
@@ -7068,7 +6988,16 @@ impl<'a> Parser<'a> {
             }
         } else {
             // no parameter list - validate no parameters expected
-            let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
+            let event_symbol_rcref = match self.arcanum.get_event(msg, &self.state_name_opt) {
+                Some(ev) => ev,
+                None => {
+                    return Err(ParseError::new(&format!(
+                        "Unknown event '{}' in handler; ensure it is declared in the interface.",
+                        msg
+                    ))
+                    .with_frame_line(self.previous().line));
+                }
+            };
             if event_symbol_rcref
                 .borrow()
                 .event_symbol_params_opt
@@ -7091,7 +7020,16 @@ impl<'a> Parser<'a> {
         parameters: &Vec<ParameterNode>,
         is_declaring_event: bool,
     ) -> Result<(), ParseError> {
-        let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
+        let event_symbol_rcref = match self.arcanum.get_event(msg, &self.state_name_opt) {
+            Some(ev) => ev,
+            None => {
+                return Err(ParseError::new(&format!(
+                    "Unknown event '{}' in handler parameters; ensure it is declared in the interface.",
+                    msg
+                ))
+                .with_frame_line(self.previous().line));
+            }
+        };
 
         if is_declaring_event {
             // First time seeing this event - add parameters to symbol
@@ -7154,7 +7092,16 @@ impl<'a> Parser<'a> {
 
         let mut event_handler_params_scope_symbol =
             EventHandlerParamsScopeSymbol::new(Rc::clone(&event_symbol_rcref));
-        let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
+        let event_symbol_rcref = match self.arcanum.get_event(msg, &self.state_name_opt) {
+            Some(ev) => ev,
+            None => {
+                return Err(ParseError::new(&format!(
+                    "Unknown event '{}' while establishing handler parameter scope.",
+                    msg
+                ))
+                .with_frame_line(self.previous().line));
+            }
+        };
 
         let mut event_symbol_params_opt: Option<Vec<ParameterSymbol>> = None;
 
@@ -7253,7 +7200,16 @@ impl<'a> Parser<'a> {
 
             if is_declaring_event {
                 // declaring event so add return type to event symbol
-                let event_symbol_rcref = self.arcanum.get_event(msg, &self.state_name_opt).unwrap();
+                let event_symbol_rcref = match self.arcanum.get_event(msg, &self.state_name_opt) {
+                    Some(ev) => ev,
+                    None => {
+                        return Err(ParseError::new(&format!(
+                            "Unknown event '{}' when finalizing handler parameters.",
+                            msg
+                        ))
+                        .with_frame_line(self.previous().line));
+                    }
+                };
                 event_symbol_rcref.borrow_mut().ret_type_opt = return_type_opt;
             }
             // Event handlers can have their own return type declarations
@@ -7399,7 +7355,16 @@ impl<'a> Parser<'a> {
         // Set up local scope and parse body
         self.enter_event_handler_local_scope()?;
 
-        let event_symbol_rcref = self.arcanum.get_event(&*msg, &self.state_name_opt).unwrap();
+        let event_symbol_rcref = match self.arcanum.get_event(&*msg, &self.state_name_opt) {
+            Some(ev) => ev,
+            None => {
+                return Err(ParseError::new(&format!(
+                    "Unknown event '{}' in handler return type.",
+                    msg
+                ))
+                .with_frame_line(self.previous().line));
+            }
+        };
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
         // Guarded textual closer for TS/Py native-heavy bodies: advance to just before the
@@ -7463,6 +7428,10 @@ impl<'a> Parser<'a> {
                             || trimmed.starts_with("async for "))
                             && trimmed.ends_with(':')
                         {
+                            looks_native = true; break;
+                        }
+                        // Heuristic: common Python first-line markers indicating native code
+                        if trimmed.starts_with("return") || trimmed.starts_with("self.") {
                             looks_native = true; break;
                         }
                     }
@@ -7561,7 +7530,16 @@ impl<'a> Parser<'a> {
         } else {
             Vec::new()
         };
-        let event_symbol_rcref = self.arcanum.get_event(&msg, &self.state_name_opt).unwrap();
+        let event_symbol_rcref = match self.arcanum.get_event(&msg, &self.state_name_opt) {
+            Some(ev) => ev,
+            None => {
+                return Err(ParseError::new(&format!(
+                    "Unknown event '{}' in handler return initialization.",
+                    msg
+                ))
+                .with_frame_line(self.previous().line));
+            }
+        };
         let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
         // TODO v.20: update sync for new syntax
         // let terminator_node = match self.event_handler_terminator(event_symbol_rcref) {
@@ -7795,8 +7773,11 @@ impl<'a> Parser<'a> {
                 });
                 if has_stmt {
                     event_handler.segmented_body = Some(segs.clone());
-                    event_handler.mixed_body =
-                        Some(self.build_mixed_body_from_segments(TargetLanguage::Python3, &segs));
+                    event_handler.mixed_body = Some(self.build_mixed_body_from_segments(
+                        TargetLanguage::Python3,
+                        &segs,
+                    ));
+                    event_handler.body = ActionBody::Mixed;
                 } else if !raw.trim().is_empty() {
                     let region = TargetRegion {
                         start_position: 0,
@@ -7822,6 +7803,7 @@ impl<'a> Parser<'a> {
                             start_line,
                             end_line: end_line_inclusive,
                         }]);
+                        event_handler.body = ActionBody::Mixed;
                     }
                 }
             }

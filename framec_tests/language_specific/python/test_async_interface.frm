@@ -12,5 +12,3 @@ system AsyncInterface {
             }
         }
 }
-}
-}
