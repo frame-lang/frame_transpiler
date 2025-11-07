@@ -14,9 +14,9 @@ system DebugAdapter {
     machine:
         $Idle {
             initialize() {
-                if self.checkConfiguration() {
+                if self.checkConfiguration():
                     -> $Configuring
-                } else {
+                else:
                     return False
                 }
                 return True
@@ -33,9 +33,9 @@ system DebugAdapter {
         
         $Running {
             setBreakpoints() {
-                if self.validateBreakpoints() {
+                if self.validateBreakpoints():
                     return True
-                } else {
+                else:
                     return False
                 }
             }

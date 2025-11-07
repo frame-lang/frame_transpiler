@@ -27,11 +27,10 @@ fn testEnclosingScope() {
     print("Outer var: " + outer)
     
     # Loop variables are scoped to the loop
-    for var i = 0; i < 1; i = i + 1 {
+    for var i = 0; i < 1; i = i + 1:
         inner = "inner_scope"
         print("Inner can see outer: " + outer)
         print("Inner var: " + inner)
-    }
     
     # This would error if uncommented - inner not visible here
     # print("Cannot see inner: " + inner)
@@ -40,9 +39,8 @@ fn testEnclosingScope() {
 # Test loop variable scoping
 fn testLoopScope() {
     # Loop variables should be scoped to the loop
-    for var i = 0; i < 3; i = i + 1 {
+    for var i = 0; i < 3; i = i + 1:
         print("Loop i = " + str(i))
-    }
     
     # This would error if uncommented - i not visible outside loop
     # print("Cannot see i: " + str(i))

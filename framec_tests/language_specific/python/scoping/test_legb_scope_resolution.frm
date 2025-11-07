@@ -35,7 +35,7 @@ fn test_function_scope() {
     print("Function local: " + local_only)
     
     # Test block scope shadows function
-    if true {
+    if true:
         name = "BLOCK"
         block_only = "BLOCK_VAR"
         
@@ -43,13 +43,11 @@ fn test_function_scope() {
         print("Block local: " + block_only)
         
         # Nested block shadows outer block
-        if true {
+        if true:
             name = "NESTED"
             print("Nested block: name=" + name)  # Should be NESTED
-        }
         
         print("After nested: name=" + name)  # Should be BLOCK again
-    }
     
     print("After block: name=" + name)  # Should be FUNCTION again
 }
@@ -59,12 +57,12 @@ fn test_nested_scopes() {
     
     level1 = "L1"
     
-    if true {
+    if true:
         level2 = "L2"
         print("Can see L1: " + level1)
         print("Can see L2: " + level2)
         
-        if true {
+        if true:
             level3 = "L3"
             print("Can see L1: " + level1)
             print("Can see L2: " + level2)
@@ -73,11 +71,9 @@ fn test_nested_scopes() {
             # Shadow outer variable
             level1 = "L1_SHADOW"
             print("Shadowed L1: " + level1)  # Should be L1_SHADOW
-        }
         
         print("L1 restored: " + level1)  # Should be L1 again
         # level3 should not be accessible here
-    }
     
     # Only level1 accessible here
     print("Only L1 remains: " + level1)
@@ -92,11 +88,10 @@ fn test_builtin_access() {
     name = "OUTER"
     print("Outer name: " + name)
     
-    if true {
+    if true:
         # Shadow in block scope
         name = "INNER"
         print("Inner name: " + name)
-    }
     
     print("Back to outer: " + name)
 }
@@ -106,7 +101,7 @@ fn test_loop_scopes() {
     
     outer = "OUTER"
     
-    for i in [1, 2, 3] {
+    for i in [1, 2, 3]:
         loop_var = "LOOP_" + str(i)
         print(loop_var)
         
@@ -116,7 +111,6 @@ fn test_loop_scopes() {
         # Shadow outer
         outer = "LOOP_SHADOW"
         print("Shadowed in loop: " + outer)
-    }
     
     print("After loop: " + outer)  # Should be OUTER again
 }
@@ -138,12 +132,11 @@ system TestSystem {
                 print(domain_var)
                 
                 # Test nested scopes in handler
-                if true {
+                if true:
                     nested = "NESTED_IN_HANDLER"
                     print(nested)
                     print(handler_var)  # Can still see handler scope
                     print(domain_var)   # Can still see domain
-                }
                 
                 # Call action
                 self.test_action()

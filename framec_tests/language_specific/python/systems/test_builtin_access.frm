@@ -15,13 +15,11 @@ fn main() {
 fn test_function_builtins() {
     print("Function can access built-ins")
     
-    if true {
+    if true:
         print("Block can access built-ins")
         
-        if true {
+        if true:
             print("Nested block can access built-ins")
-        }
-    }
 }
 
 system TestBuiltins {
@@ -33,9 +31,8 @@ system TestBuiltins {
             test_interface() {
                 print("System can access built-ins")
                 
-                if true {
+                if true:
                     print("System block can access built-ins")
-                }
                 
                 self.test_action()
             }

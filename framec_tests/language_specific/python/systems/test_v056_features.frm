@@ -8,18 +8,16 @@ type Config = dict[str, str]
 
 fn test_walrus_operator() {
     # Basic walrus operator
-    if (n := 5) > 0 {
+    if (n := 5) > 0:
         print("n is positive: " + str(n))
-    }
     
     # Walrus in while loop (simplified - ternary in while not supported)
     items = [1, 2, 3, 4, 5]
     total = 0
-    while len(items) > 0 {
+    while len(items) > 0:
         item = items.pop()
         total = total + item
         print("Added " + str(item) + ", total: " + str(total))
-    }
     
     # Walrus in list comprehension
     data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -28,9 +26,8 @@ fn test_walrus_operator() {
     
     # Walrus with expression (nested functions not supported)
     values = [42, 100, 200]
-    if (result := values[0]) == 42 {
+    if (result := values[0]) == 42:
         print("Got the answer: " + str(result))
-    }
 }
 
 fn test_numeric_underscores() {

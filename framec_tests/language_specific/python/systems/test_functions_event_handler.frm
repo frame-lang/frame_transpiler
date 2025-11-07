@@ -13,22 +13,21 @@ system GradeProcessor {
         $Start {
             processScore(score: int): string {
                 # Validate input
-                if score < 0 {
+                if score < 0:
                     return "Invalid"
-                } elif score > 100 {
+                elif score > 100:
                     return "Invalid"
-                }
                 
                 # Calculate letter grade
-                if score >= 90 {
+                if score >= 90:
                     return "A"
-                } elif score >= 80 {
+                elif score >= 80:
                     return "B"
-                } elif score >= 70 {
+                elif score >= 70:
                     return "C"
-                } elif score >= 60 {
+                elif score >= 60:
                     return "D"
-                } else {
+                else:
                     return "F"
                 }
             }

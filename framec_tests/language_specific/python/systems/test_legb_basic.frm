@@ -19,11 +19,10 @@ fn test_function() {
     func_var = "FUNCTION"
     print(func_var)
     
-    if true {
+    if true:
         block_var = "BLOCK"
         print(block_var)
         print(func_var)
-    }
     
     print(func_var)
 }

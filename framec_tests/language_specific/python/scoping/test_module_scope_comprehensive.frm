@@ -81,10 +81,10 @@ fn create_module_system() {
 
 fn use_module_system() {
     print("=== use_module_system ===")
-    if (module_system != None) {
+    if (module_system != None):
         module_system.test()
         print("System method called successfully")
-    } else {
+    else:
         print("System is null")
     }
 }

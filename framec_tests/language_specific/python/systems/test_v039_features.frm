@@ -46,11 +46,11 @@ fn test_control_flow() {
     # if-elif-else
     score = 85
     grade = ""
-    if score >= 90 {
+    if score >= 90:
         grade = "A"
-    } elif score >= 80 {
+    elif score >= 80:
         grade = "B"
-    } else {
+    else:
         grade = "C"
     }
     print("Grade for " + str(score) + ": " + grade)
@@ -58,10 +58,9 @@ fn test_control_flow() {
     # Loops
     count = 0
     i = 0
-    while i < 3 {
+    while i < 3:
         count = count + 1
         i = i + 1
-    }
     print("Loop result: " + str(count))
     
     return

@@ -24,9 +24,9 @@ system ConditionalTransitionTest {
             
             onRuntimeReady() {
                 # This conditional transition should appear in state diagram
-                if self.stopOnEntry {
+                if self.stopOnEntry:
                     -> $WaitingForEntry  # Bug #37: This transition missing from diagram
-                } else {
+                else:
                     -> $Running
                 }
                 return True
@@ -81,21 +81,19 @@ fn main() {
     # Test both conditional paths
     print("Testing with stopOnEntry = True")
     result1 = test.configure(True)
-    if result1 {
+    if result1:
         test.onRuntimeReady()  # Should transition to $WaitingForEntry
         print("SUCCESS: Conditional transition to WaitingForEntry")
-    }
     
     print("Testing with stopOnEntry = False") 
     result2 = test.configure(False)
-    if result2 {
+    if result2:
         test.onRuntimeReady()  # Should transition to $Running
         print("SUCCESS: Conditional transition to Running")
-    }
     
-    if result1 and result2 {
+    if result1 and result2:
         print("SUCCESS: All conditional transitions work correctly")
-    } else {
+    else:
         print("FAIL: Conditional transitions failed")
         # Force test failure
         failed_tests = []

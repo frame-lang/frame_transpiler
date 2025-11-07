@@ -19,9 +19,8 @@ fn main() {
     ]
     
     print("\n=== Results ===")
-    for result in results {
+    for result in results:
         print("Result: " + result)
-    }
     
     print("\n=== State Management Test ===")
     processor.reset()
@@ -44,23 +43,22 @@ system AdvancedProcessor {
             
             processData(input: str): str {
                 # Early validation with return = 
-                if input == "" {
+                if input == "":
                     system.return = "error: empty input"
                     return
-                }
                 
                 # Transition to processing state with data
                 -> $Processing(input)
             }
             
             configure(mode: str) {
-                if mode == "debug" {
+                if mode == "debug":
                     print("Enabling debug mode")
                     -> $Debug
-                } elif mode == "fast" {
+                elif mode == "fast":
                     print("Enabling fast mode") 
                     -> $FastProcessing
-                } else {
+                else:
                     print("Unknown mode: " + mode)
                 }
                 return
@@ -79,13 +77,13 @@ system AdvancedProcessor {
                 # Complex processing logic with if/elif/else
                 result = processText(data)
                 
-                if result == "error" {
+                if result == "error":
                     system.return = "processing failed"
                     -> $Idle
-                } elif result == "warning" {
+                elif result == "warning":
                     system.return = "processed with warnings"
                     -> $Idle
-                } else {
+                else:
                     system.return = "success: " + result
                     -> $Idle
                 }
@@ -106,10 +104,9 @@ system AdvancedProcessor {
             processData(input: str): str {
                 print("DEBUG: Processing '" + input + "'")
                 
-                if input == "debug test" {
+                if input == "debug test":
                     system.return = "debug: test successful"
                     return
-                }
                 
                 system.return = "debug: " + input
                 return
@@ -135,26 +132,22 @@ system AdvancedProcessor {
     actions:
         processText(text: str): str {
             # Action with complex return logic
-            if text == "ERROR" {
+            if text == "ERROR":
                 return "error"
-            }
             
-            if len(text) > 50 {
+            if len(text) > 50:
                 return "warning"  
-            }
             
-            if text == "test" {
+            if text == "test":
                 return "validated"
-            }
             
             return "processed"
         }
         
         len(s: str): int {
             count = 0
-            for c in s {
+            for c in s:
                 count = count + 1
-            }
             return count
         }
 }

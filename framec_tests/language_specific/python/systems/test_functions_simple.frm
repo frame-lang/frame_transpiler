@@ -16,15 +16,15 @@ system Utils {
 
         @staticmethod
         categorizeNumber(num: int): string {
-            if num < 0 {
+            if num < 0:
                 return "negative"
-            } elif num == 0 {
+            elif num == 0:
                 return "zero"
-            } elif num < 10 {
+            elif num < 10:
                 return "single digit"
-            } elif num < 100 {
+            elif num < 100:
                 return "double digit"
-            } else {
+            else:
                 return "large number"
             }
         }

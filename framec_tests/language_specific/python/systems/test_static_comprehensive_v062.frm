@@ -100,9 +100,8 @@ system AdvancedStatic {
     operations:
         @staticmethod
         factory(type) {
-            if type == "point" {
+            if type == "point":
                 return Point.origin()
-            }
             return None
         }
         

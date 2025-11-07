@@ -22,13 +22,11 @@ fn test_enum_usage() {
     priority = Priority.HIGH
     
     # Test enum comparisons
-    if color == Color.RED {
+    if color == Color.RED:
         print("Color is red")
-    }
     
-    if priority == Priority.HIGH {
+    if priority == Priority.HIGH:
         print("Priority is high") 
-    }
     
     # Test enum values
     print("Color value:", color.value)
@@ -44,14 +42,12 @@ fn test_enum_usage() {
 fn test_enum_iteration() {
     # Test iterating over enum members
     print("All colors:")
-    for color in Color {
+    for color in Color:
         print(" -", color.name, "=", color.value)
-    }
     
     print("All priorities:")
-    for priority in Priority {
+    for priority in Priority:
         print(" -", priority.name, "=", priority.value)
-    }
     
     return
 }

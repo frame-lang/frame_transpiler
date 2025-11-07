@@ -91,10 +91,9 @@ system TrafficLight {
             
             auto_cycle() {
                 print("  [Red.auto_cycle] Starting auto-cycle")
-                for i in range(3) {
+                for i in range(3):
                     print("  Auto-cycle step " + str(i + 1))
                     system.next()
-                }
                 return
             }
             
@@ -144,10 +143,9 @@ system TrafficLight {
             
             auto_cycle() {
                 print("  [Green.auto_cycle] Starting auto-cycle")
-                for i in range(3) {
+                for i in range(3):
                     print("  Auto-cycle step " + str(i + 1))
                     system.next()
-                }
                 return
             }
             
@@ -192,10 +190,9 @@ system TrafficLight {
             
             auto_cycle() {
                 print("  [Yellow.auto_cycle] Starting auto-cycle")
-                for i in range(3) {
+                for i in range(3):
                     print("  Auto-cycle step " + str(i + 1))
                     system.next()
-                }
                 return
             }
             

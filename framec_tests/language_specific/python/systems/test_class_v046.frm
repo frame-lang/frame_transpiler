@@ -62,10 +62,9 @@ class Temperature {
     
     @celsius.setter
     fn celsius(value) {
-        if value < -273.15 {
+        if value < -273.15:
             print("Error: Temperature below absolute zero")
             return
-        }
         self._celsius = value
     }
     
@@ -194,9 +193,8 @@ fn main() {
     print("User 1: " + str(user1))
     
     user2 = User.from_string("Bob:bob@example.com")
-    if user2 is not None {
+    if user2 is not None:
         print("User 2: " + str(user2))
-    }
     
     print("Total users: " + str(User.get_user_count()))
     print("Valid email test: " + str(User.validate_email("test@example.com")))

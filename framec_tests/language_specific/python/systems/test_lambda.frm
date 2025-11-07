@@ -40,11 +40,10 @@ fn test_function_as_value() {
     # Workaround: use if-elif chains
     op_type = "add"
     result = 0
-    if op_type == "add" {
+    if op_type == "add":
         result = add(5, 10)
-    } elif op_type == "square" {
+    elif op_type == "square":
         result = square(5)
-    }
     
     print("Operation result: " + str(result))
     return
@@ -54,15 +53,13 @@ fn apply_to_list(numbers, operation) {
     # Simulate higher-order function behavior
     results = []
     i = 0
-    while i < len(numbers) {
+    while i < len(numbers):
         num = numbers[i]
-        if operation == "square" {
+        if operation == "square":
             results.append(square(num))
-        } elif operation == "double" {
+        elif operation == "double":
             results.append(num * 2)
-        }
         i = i + 1
-    }
     return results
 }
 

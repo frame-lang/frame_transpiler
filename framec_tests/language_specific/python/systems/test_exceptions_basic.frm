@@ -5,14 +5,12 @@
 fn test_basic_try_except() {
     print("Testing basic try/except")
     
-    try {
+    try:
         print("In try block")
         x = 10 / 2
         print("Division succeeded: " + str(x))
-    }
-    except {
+    except :
         print("Exception caught")
-    }
     
     print("After try/except")
 }
@@ -20,139 +18,109 @@ fn test_basic_try_except() {
 fn test_specific_exception() {
     print("Testing specific exception types")
     
-    try {
+    try:
         list = []
         item = list[10]  {-- IndexError --}
-    }
-    except IndexError {
+    except IndexError :
         print("Caught IndexError")
-    }
     
-    try {
+    try:
         x = int("not a number")  {-- ValueError --}
-    }
-    except ValueError as e {
+    except ValueError as e :
         print("Caught ValueError: " + str(e))
-    }
 }
 
 fn test_multiple_exceptions() {
     print("Testing multiple exception types")
     
-    try {
+    try:
         {-- Some operation that could raise different errors --}
         x = 1 / 0
-    }
-    except (ZeroDivisionError, ValueError) as err {
+    except (ZeroDivisionError, ValueError) as err :
         print("Caught exception: " + str(err))
-    }
 }
 
 fn test_else_clause() {
     print("Testing else clause")
     
-    try {
+    try:
         x = 10 / 2
-    }
-    except ZeroDivisionError {
+    except ZeroDivisionError :
         print("Division by zero")
-    }
-    else {
+    else:
         print("No exception occurred")
-    }
 }
 
 fn test_finally_clause() {
     print("Testing finally clause")
     
-    try {
+    try:
         print("Try block")
         x = 10 / 0
-    }
-    except ZeroDivisionError {
+    except ZeroDivisionError :
         print("Caught division by zero")
-    }
-    finally {
+    finally:
         print("Finally block always executes")
-    }
 }
 
 fn test_nested_try() {
     print("Testing nested try blocks")
     
-    try {
+    try:
         print("Outer try")
-        try {
+        try:
             print("Inner try")
             raise ValueError("Inner error")
-        }
-        except ValueError as e {
+        except ValueError as e :
             print("Inner except: " + str(e))
             raise  {-- Re-raise the exception --}
-        }
-    }
-    except ValueError {
+    except ValueError :
         print("Outer except caught re-raised exception")
-    }
 }
 
 fn test_raise_statement() {
     print("Testing raise statement")
     
-    try {
+    try:
         raise ValueError("Custom error message")
-    }
-    except ValueError as e {
+    except ValueError as e :
         print("Caught: " + str(e))
-    }
     
     {-- Test raise with from clause --}
-    try {
-        try {
+    try:
+        try:
             x = 1 / 0
-        }
-        except ZeroDivisionError as e {
+        except ZeroDivisionError as e :
             raise ValueError("Wrapped error") from e
-        }
-    }
-    except ValueError as e {
+    except ValueError as e :
         print("Caught wrapped error: " + str(e))
-    }
 }
 
 fn test_bare_raise() {
     print("Testing bare raise (re-raise)")
     
-    try {
-        try {
+    try:
+        try:
             raise RuntimeError("Original error")
-        }
-        except RuntimeError {
+        except RuntimeError :
             print("Catching and re-raising")
             raise  {-- Re-raise the same exception --}
-        }
-    }
-    except RuntimeError as e {
+    except RuntimeError as e :
         print("Caught re-raised: " + str(e))
-    }
 }
 
 fn test_all_clauses() {
     print("Testing all clauses together")
     
-    try {
+    try:
         print("Try block")
         x = 10 / 2
-    }
-    except ZeroDivisionError {
+    except ZeroDivisionError :
         print("Exception handler")
-    }
-    else {
+    else:
         print("Else block - no exception")
-    }
-    finally {
+    finally:
         print("Finally block - always runs")
-    }
 }
 
 {-- Main function to run all tests --}

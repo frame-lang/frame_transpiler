@@ -4,9 +4,8 @@ system A {
     actions:
 
         a() {
-            if true {
+            if true:
                 doY()
-            }
         }
 
 }

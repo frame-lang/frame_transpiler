@@ -55,11 +55,10 @@ fn function_three() {
     local_three = "F3_LOCAL"
     
     # Test nested scope in this function
-    if true {
+    if true:
         nested = "F3_NESTED"
         print(nested)
         print(local_three)  # Can see function scope
-    }
     
     # Cannot see nested block's variables
     # print(nested)  // Should fail

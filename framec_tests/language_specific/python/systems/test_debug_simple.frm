@@ -123,9 +123,8 @@ fn main() {
     
     # List comprehension-like operations
     doubled = []
-    for item in myList {
+    for item in myList:
         doubled.append(item * 2)
-    }
     print("Doubled list: " + str(doubled))
     
     # ========== DICTIONARY OPERATIONS ==========
@@ -158,109 +157,89 @@ fn main() {
     print("More membership: 'key1' in dict=" + str(in_dict) + ", 2 in set=" + str(in_set))
     
     # ========== CONTROL FLOW - IF/ELSE ==========
-    if x > y {
+    if x > y:
         print("IF: x > y is true")
-    } else {
+    else:
         print("IF: x > y is false")
     }
     
     # Nested if
-    if x > 0 {
-        if y > 0 {
+    if x > 0:
+        if y > 0:
             print("NESTED IF: Both x and y are positive")
-            if z > 0 {
+            if z > 0:
                 print("TRIPLE NESTED: x, y, and z are all positive")
-            }
-        }
-    }
     
     # elif chains
-    if x < 10 {
+    if x < 10:
         print("ELIF: x < 10")
-    } elif x < 50 {
+    elif x < 50:
         print("ELIF: x < 50")
-    } elif x < 100 {
+    elif x < 100:
         print("ELIF: x < 100")
-    } else {
+    else:
         print("ELIF: x >= 100")
     }
     
     # ========== LOOPS - WHILE ==========
     i = 0
-    while i < 3 {
+    while i < 3:
         print("WHILE loop: i=" + str(i))
         i = i + 1
-    }
     
     # Nested while
     j = 0
-    while j < 2 {
+    while j < 2:
         k = 0
-        while k < 2 {
+        while k < 2:
             print("NESTED WHILE: j=" + str(j) + ", k=" + str(k))
             k = k + 1
-        }
         j = j + 1
-    }
     
     # ========== LOOPS - FOR ==========
-    for n in range(3) {
+    for n in range(3):
         print("FOR range: n=" + str(n))
-    }
     
-    for item in myList {
+    for item in myList:
         print("FOR list: item=" + str(item))
-    }
     
-    for key in myDict {
+    for key in myDict:
         print("FOR dict key: " + key + "=" + str(myDict[key]))
-    }
     
     # Nested for
-    for m in range(2) {
-        for p in range(2) {
+    for m in range(2):
+        for p in range(2):
             print("NESTED FOR: m=" + str(m) + ", p=" + str(p))
-        }
-    }
     
     # ========== BREAK STATEMENT ==========
     count = 0
-    while true {
-        if count == 3 {
+    while true:
+        if count == 3:
             print("BREAK: Breaking at count=" + str(count))
             break
-        }
         count = count + 1
-    }
     
     # Break in nested loop
-    for outer in range(3) {
-        for inner in range(3) {
-            if outer == 1 and inner == 1 {
+    for outer in range(3):
+        for inner in range(3):
+            if outer == 1 and inner == 1:
                 print("BREAK: Breaking inner loop at outer=" + str(outer) + ", inner=" + str(inner))
                 break
-            }
             print("NESTED BREAK: outer=" + str(outer) + ", inner=" + str(inner))
-        }
-    }
     
     # ========== CONTINUE STATEMENT ==========
-    for q in range(5) {
-        if q == 2 {
+    for q in range(5):
+        if q == 2:
             print("CONTINUE: Skipping q=" + str(q))
             continue
-        }
         print("CONTINUE loop: q=" + str(q))
-    }
     
     # ========== PASS STATEMENT ==========
-    if true {
+    if true:
         pass  # Do nothing
-    }
     
-    for r in range(1) {
+    for r in range(1):
         pass  # Empty loop body
-    }
     
     # ========== ASSERT STATEMENT ==========
     assert x == 42
@@ -269,7 +248,7 @@ fn main() {
     print("ASSERT: All assertions passed")
     
     # ========== TRY-EXCEPT-FINALLY ==========
-    try {
+    try:
         print("TRY: Attempting division")
         result1 = safe_divide(10, 2)
         print("TRY: Division result = " + str(result1))
@@ -277,10 +256,9 @@ fn main() {
         print("EXCEPT: Division failed")
     } finally {
         print("FINALLY: Cleanup after division")
-    }
     
     # Try with actual exception
-    try {
+    try:
         print("TRY: Attempting risky operation")
         result2 = safe_divide(10, 0)  # Will throw
         print("TRY: This should not print")
@@ -288,23 +266,20 @@ fn main() {
         print("EXCEPT: Caught division by zero")
     } finally {
         print("FINALLY: Cleanup after risky operation")
-    }
     
     # Nested try
-    try {
+    try:
         print("OUTER TRY: Starting")
-        try {
+        try:
             print("INNER TRY: Starting")
             throw_if_negative(-1)
         } except {
             print("INNER EXCEPT: Caught inner exception")
-        }
         print("OUTER TRY: Continuing after inner")
     } except {
         print("OUTER EXCEPT: Should not reach here")
     } finally {
         print("OUTER FINALLY: Done with nested try")
-    }
     
     # ========== FUNCTION CALLS ==========
     # Simple function call
@@ -332,29 +307,27 @@ fn main() {
     
     # ========== EXCEPTION THROWING ==========
     # Test exception propagation
-    try {
+    try:
         print("Testing exception from function")
         test_exception_thrower(true)
         print("This line should not execute")
     } except {
         print("Caught exception from function")
-    }
     
     # Test no exception case
-    try {
+    try:
         print("Testing no exception case")
         test_exception_thrower(false)
         print("No exception was thrown")
     } except {
         print("This should not execute")
-    }
     
     # ========== COMPLEX EXPRESSIONS ==========
     # Conditional assignment (ternary not supported, use if-else)
     ternary = 0
-    if x > y {
+    if x > y:
         ternary = x
-    } else {
+    else:
         ternary = y
     }
     print("Conditional assignment: " + str(ternary))
@@ -429,18 +402,16 @@ fn greet(name, greeting) {
 
 fn factorial(n) {
     print("  [factorial] Computing factorial(" + str(n) + ")")
-    if n <= 1 {
+    if n <= 1:
         return 1
-    }
     return n * factorial(n - 1)
 }
 
 fn sum_list(numbers) {
     print("  [sum_list] Summing list: " + str(numbers))
     total = 0
-    for val in numbers {
+    for val in numbers:
         total = total + val
-    }
     return total
 }
 
@@ -454,31 +425,28 @@ fn process_chain(val) {
 
 fn safe_divide(a, b) {
     print("  [safe_divide] Dividing " + str(a) + " by " + str(b))
-    if b == 0 {
+    if b == 0:
         print("  [safe_divide] ERROR: Division by zero!")
         error = "Division by zero"
         throw error
-    }
     return a / b
 }
 
 fn throw_if_negative(val) {
     print("  [throw_if_negative] Checking " + str(val))
-    if val < 0 {
+    if val < 0:
         print("  [throw_if_negative] ERROR: Negative value!")
         error = "Negative value not allowed"
         throw error
-    }
     return val
 }
 
 fn test_exception_thrower(should_throw) {
     print("  [test_exception_thrower] should_throw=" + str(should_throw))
-    if should_throw {
+    if should_throw:
         print("  [test_exception_thrower] Throwing exception")
         error = "Test exception from function"
         throw error
-    }
     print("  [test_exception_thrower] Returning normally")
     return "success"
 }
@@ -548,13 +516,11 @@ class Student(Person) {
     
     fn calculate_gpa() {
         print("  [Student.calculate_gpa] Calculating GPA")
-        if len(self.grades) == 0 {
+        if len(self.grades) == 0:
             return 0.0
-        }
         total = 0
-        for grade_record in self.grades {
+        for grade_record in self.grades:
             total = total + grade_record["grade"]
-        }
         gpa = total / len(self.grades)
         return gpa
     }

@@ -18,11 +18,11 @@ system TestSystem (max_loops) {
     $A {
         $>() {
             print("A enter, total_loops=" + str(total_loops))
-            if total_loops < max_loops {
+            if total_loops < max_loops:
                 total_loops = total_loops + 1
                 print("  Transitioning to B (loop " + str(total_loops) + " of " + str(max_loops) + ")")
                 -> $B
-            } else {
+            else:
                 print("  Staying in A (max_loops " + str(max_loops) + " reached)")
             }
         }
@@ -31,11 +31,11 @@ system TestSystem (max_loops) {
     $B {
         $>() {
             print("B enter, total_loops=" + str(total_loops))
-            if total_loops < max_loops {
+            if total_loops < max_loops:
                 total_loops = total_loops + 1
                 print("  Transitioning to A (loop " + str(total_loops) + " of " + str(max_loops) + ")")
                 -> $A
-            } else {
+            else:
                 print("  Staying in B (max_loops " + str(max_loops) + " reached)")
             }
         }

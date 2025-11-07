@@ -13,13 +13,13 @@ system A {
         }
 
         testBracedStyle() {
-            if x > 5 {
+            if x > 5:
                 doSomething()
                 doMore()
-            } elif y < 10 {
+            elif y < 10:
                 doOther()
                 doAnother()
-            } else {
+            else:
                 doDefault()
                 doFinal()
             }
@@ -28,11 +28,10 @@ system A {
         testMixed() {
             if simpleCondition:
                 singleStatement()
-            elif complexCondition {
+            elif complexCondition:
                 firstStatement()
                 secondStatement()
             } else:
                 fallbackStatement()
-        }
 
 }

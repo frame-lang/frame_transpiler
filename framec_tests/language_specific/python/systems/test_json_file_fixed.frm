@@ -96,12 +96,11 @@ fn test_data_manipulation() {
     total = 0.0
     items = data["items"]
     i = 0
-    while i < len(items) {
+    while i < len(items):
         item = items[i]
         price = item["price"]
         total = total + price
         i = i + 1
-    }
     
     print("Total price: $" + str(total))
     

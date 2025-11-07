@@ -8,9 +8,8 @@ system Grocery {
             getFruitOfTheDay(): string {
                 f: Fruit = Fruit.Peach
                 
-                if f == Fruit.Peach {
+                if f == Fruit.Peach:
                     return "Peaches"
-                }
                 
                 return "None"
             }

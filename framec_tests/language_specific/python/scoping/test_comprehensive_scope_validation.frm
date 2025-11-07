@@ -28,25 +28,22 @@ fn test_function_scope() {
     local_counter = 42
     
     # Test nested if scope
-    if true {
+    if true:
         if_var = "if_block_variable"
         print(func_var)    # Should access function variable
         print(if_var)      # Should access if block variable
         local_counter = local_counter + 1
         
-        if local_counter > 40 {
+        if local_counter > 40:
             nested_if_var = "nested_if_variable"
             print(nested_if_var)
-        }
-    }
     
     # Test for loop scope
-    for i in [1, 2, 3] {
+    for i in [1, 2, 3]:
         loop_var = "loop_variable"
         print(loop_var)
         # i should be in loop scope
         print("Loop iteration")
-    }
     
     print(func_var)     # Should still access function variable
 }
@@ -91,10 +88,9 @@ system TestSystem {
                 print(param_local) # Should access local variable
                 
                 # Test nested control flow in event handler
-                if data == "test_data" {
+                if data == "test_data":
                     nested_handler_var = "nested_in_handler"
                     print(nested_handler_var)
-                }
             }
         }
         
@@ -124,15 +120,13 @@ system ComplexSystem {
                 print(state_local)
                 
                 # Test complex nested scoping
-                for item in ["a", "b", "c"] {
+                for item in ["a", "b", "c"]:
                     loop_in_handler = "loop_in_event_handler"
                     print(loop_in_handler)
                     
-                    if item == "b" {
+                    if item == "b":
                         deep_nested = "deeply_nested_variable"
                         print(deep_nested)
-                    }
-                }
             }
         }
         

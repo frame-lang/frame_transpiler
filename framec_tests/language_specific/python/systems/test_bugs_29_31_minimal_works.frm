@@ -9,9 +9,9 @@ system MinimalWorking {
     machine:
         $Running {
             canExecuteCommand(command) {
-                if command == "pause" {
+                if command == "pause":
                     return True
-                } else {
+                else:
                     return False
                 }
             }
@@ -23,9 +23,9 @@ system MinimalWorking {
         
         $Paused {
             canExecuteCommand(command) {
-                if command == "continue" {
+                if command == "continue":
                     return True
-                } else {
+                else:
                     return False
                 }
             }

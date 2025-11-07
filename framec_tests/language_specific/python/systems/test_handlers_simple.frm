@@ -26,9 +26,8 @@ system SimpleHandlers {
             doWork(x) {
                 print("Doing work with: " + x)
                 self.workCount = self.workCount + 1
-                if self.workCount >= 3 {
+                if self.workCount >= 3:
                     -> $Idle
-                }
                 system.return = "processed"
             }
             

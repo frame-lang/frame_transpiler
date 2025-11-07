@@ -27,15 +27,15 @@ system Calculator {
             }
             
             categorizeNumber(num: int): str {
-                if num < 0 {
+                if num < 0:
                     system.return = "negative"
-                } elif num == 0 {
+                elif num == 0:
                     system.return = "zero"
-                } elif num < 10 {
+                elif num < 10:
                     system.return = "single digit"
-                } elif num < 100 {
+                elif num < 100:
                     system.return = "double digit"
-                } else {
+                else:
                     system.return = "large number"
                 }
                 return

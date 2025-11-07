@@ -3,9 +3,8 @@
 
 fn testNoneValue() {
     x = None
-    if x == None {
+    if x == None:
         print("x is None")
-    }
     return None
 }
 
@@ -17,9 +16,9 @@ system NoneChecker {
     machine:
         $Start {
             check(value) {
-                if value == None {
+                if value == None:
                     print("Received None")
-                } else {
+                else:
                     print("Received value: " + str(value))
                 }
                 return
@@ -40,9 +39,8 @@ fn main() {
     # Test function with None
     result = testNoneValue()
     print("here")
-    if result == None {
+    if result == None:
         print("Function returned None")
-    }
     
     # Test system with None
     checker = NoneChecker()
@@ -50,9 +48,8 @@ fn main() {
     checker.check(42)
     
     val = checker.getValue()
-    if val == None {
+    if val == None:
         print("System returned None")
-    }
     
     print("Test complete")
 }

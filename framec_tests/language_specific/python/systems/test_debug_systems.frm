@@ -23,9 +23,8 @@
         |tick|
             count = count + 1
             print("  [TrafficLight] Red tick " + str(count))
-            if count >= 3 {
+            if count >= 3:
                 -> $Green ^
-            }
         ^
         
         |stop| -> $End ^
@@ -39,9 +38,8 @@
         |tick|
             count = count + 1
             print("  [TrafficLight] Green tick " + str(count))
-            if count >= 3 {
+            if count >= 3:
                 -> $Yellow ^
-            }
         ^
         
         |stop| -> $End ^
@@ -55,9 +53,8 @@
         |tick|
             count = count + 1
             print("  [TrafficLight] Yellow tick " + str(count))
-            if count >= 1 {
+            if count >= 1:
                 -> $Red ^
-            }
         ^
         
         |stop| -> $End ^
@@ -97,9 +94,8 @@
         |insert_coin| [amount]
             balance = balance + amount
             print("  [VendingMachine] Inserted " + str(amount) + ". New balance: " + str(balance))
-            if balance >= 100 {
+            if balance >= 100:
                 -> $Ready ^
-            }
         ^
         
         |refund|
@@ -114,19 +110,19 @@
         
         |select_item| [item]
             print("  [VendingMachine] Selected: " + item)
-            if item == "soda" {
+            if item == "soda":
                 price = 150
-            } elif item == "chips" {
+            elif item == "chips":
                 price = 100
-            } else {
+            else:
                 price = 200
             }
             
-            if balance >= price {
+            if balance >= price:
                 balance = balance - price
                 selected_item = item
                 -> $Dispensing ^
-            } else {
+            else:
                 print("  [VendingMachine] Insufficient funds. Need " + str(price))
             }
         ^
@@ -151,9 +147,8 @@
     $Complete
         |>|
             print("  [VendingMachine] Transaction complete. Change: " + str(balance))
-            if balance > 0 {
+            if balance > 0:
                 print("  [VendingMachine] Returning change: " + str(balance))
-            }
             balance = 0
             -> $Idle ^
         ^
@@ -180,22 +175,19 @@ fn test_traffic_light() {
     light.start()
     
     # Test state transitions
-    for cycle in range(2) {
+    for cycle in range(2):
         print("--- Cycle " + str(cycle + 1) + " ---")
         
         # Red state (3 ticks)
-        for i in range(3) {
+        for i in range(3):
             light.tick()
-        }
         
         # Green state (3 ticks)
-        for i in range(3) {
+        for i in range(3):
             light.tick()
-        }
         
         # Yellow state (1 tick)
         light.tick()
-    }
     
     # Stop the system
     light.stop()

@@ -46,25 +46,25 @@ system FruitSystem {
 fn testFruit() {
     f: Fruit = getFruitOfTheDay()
 
-    if f == Fruit.Peach {
+    if f == Fruit.Peach:
         print("Found a Peach")
-    } elif f == Fruit.Pear {
+    elif f == Fruit.Pear:
         print("Found a Pear")
-    } elif f == Fruit.Banana {
+    elif f == Fruit.Banana:
         print("Found a Banana")
-    } else {
+    else:
         print("Unknown fruit")
     }
 }
 
 fn describeFruit(fruit_value: Fruit) {
-    if fruit_value == Fruit.Peach {
+    if fruit_value == Fruit.Peach:
         print("Peaches")
-    } elif fruit_value == Fruit.Pear {
+    elif fruit_value == Fruit.Pear:
         print("Pears") 
-    } elif fruit_value == Fruit.Banana {
+    elif fruit_value == Fruit.Banana:
         print("Bananas")
-    } else {
+    else:
         print("Other Fruit")
     }
 }

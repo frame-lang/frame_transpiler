@@ -24,11 +24,11 @@ system WatchTestSystem {
             }
             
             setState(newState) {
-                if newState == "running" {
+                if newState == "running":
                     -> $Running
-                } elif newState == "processing" {
+                elif newState == "processing":
                     -> $Processing
-                } else {
+                else:
                     print("Invalid state: " + newState)
                 }
             }
@@ -46,20 +46,20 @@ system WatchTestSystem {
                 print("Counter is now " + str(self.counter))
                 
                 # Test conditional expressions
-                if self.counter >= 5 {
+                if self.counter >= 5:
                     print("Counter reached threshold!")
                     -> $Processing
-                } else {
+                else:
                     -> $Running
                 }
             }
 
             decrement() {
                 print("Decrementing counter from " + str(self.counter))
-                if self.counter > 0 {
+                if self.counter > 0:
                     self.counter = self.counter - 1
                     print("Counter is now " + str(self.counter))
-                } else {
+                else:
                     print("Counter cannot go below zero")
                 }
                 -> $Running
@@ -88,18 +88,17 @@ system WatchTestSystem {
                 print("Processing " + str(len(self.items)) + " items")
                 total = 0
                 
-                for item in self.items {
+                for item in self.items:
                     total = total + item
                     print("Processing item: " + str(item) + ", total so far: " + str(total))
-                }
                 
                 self.lastResult = total
                 print("Processing complete, total: " + str(total))
                 
-                if total > 10 {
+                if total > 10:
                     self.counter = total
                     -> $Complete
-                } else {
+                else:
                     -> $Running
                 }
             }
@@ -132,9 +131,9 @@ system WatchTestSystem {
             }
             
             setState(newState) {
-                if newState == "start" {
+                if newState == "start":
                     -> $Start
-                } else {
+                else:
                     print("Can only reset to start from complete state")
                 }
             }

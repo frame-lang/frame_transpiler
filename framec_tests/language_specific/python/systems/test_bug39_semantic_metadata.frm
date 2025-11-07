@@ -14,10 +14,10 @@ system SemanticMetadataTest {
             }
             
             start() {
-                if self.initialize() {
+                if self.initialize():
                     -> $Processing
                     return True
-                } else {
+                else:
                     return False
                 }
             }
@@ -34,10 +34,10 @@ system SemanticMetadataTest {
             
             process() {
                 result = self.performWork()
-                if result {
+                if result:
                     -> $Complete
                     return True
-                } else {
+                else:
                     -> $Error
                     return False
                 }
@@ -91,9 +91,9 @@ fn main() {
     # - Python-to-Frame mappings
     
     result = test.start()
-    if result {
+    if result:
         print("SUCCESS: System executed with semantic metadata")
-    } else {
+    else:
         print("FAIL: System execution failed")
         # Force test failure
         failed_tests = []

@@ -23,22 +23,19 @@ system MenuSystem {
                 index = 1
                 
                 # Iterate over enum values
-                for option in MenuOption {
+                for option in MenuOption:
                     print(str(index) + ". " + option.name)
                     index = index + 1
-                }
                 
                 return
             }
             
             validateOption(name: string): bool {
                 # Check if name is valid enum member
-                for option in MenuOption {
-                    if option.name == name {
+                for option in MenuOption:
+                    if option.name == name:
                         print(name + " is a valid menu option")
                         return true
-                    }
-                }
                 
                 print(name + " is NOT a valid menu option")
                 return false
@@ -65,23 +62,21 @@ system Validator {
                 print("=== Processing All Statuses ===")
                 
                 # Iterate with custom values
-                for status in ProcessStatus {
+                for status in ProcessStatus:
                     print("Status: " + status.name + " (code: " + str(status.value) + ")")
                     
-                    if status.value < 0 {
+                    if status.value < 0:
                         print("  -> This is an error status")
-                    } elif status.value == 0 {
+                    elif status.value == 0:
                         print("  -> This is the idle status")
-                    } else {
+                    else:
                         print("  -> This is an active status")
-                    }
                 }
                 
                 # Count total statuses
                 count = 0
-                for s in ProcessStatus {
+                for s in ProcessStatus:
                     count = count + 1
-                }
                 print("Total statuses: " + str(count))
                 
                 return

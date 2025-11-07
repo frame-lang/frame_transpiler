@@ -29,9 +29,9 @@ system CombinedBugTest {
         # Bug #31: getCurrentState() call appears in canExecuteCommand
         $Running {
             canExecuteCommand(command) {
-                if command == "pause" {
+                if command == "pause":
                     return True
-                } else {
+                else:
                     return False
                 }
                 # BUG #31: Transpiler incorrectly adds getCurrentState() here
@@ -46,9 +46,9 @@ system CombinedBugTest {
         # BOTH BUGS MANIFEST HERE TOO:
         $Paused {
             canExecuteCommand(command) {
-                if command == "continue" {
+                if command == "continue":
                     return True
-                } else {
+                else:
                     return False  
                 }
                 # BUG #31: Transpiler incorrectly adds getCurrentState() here

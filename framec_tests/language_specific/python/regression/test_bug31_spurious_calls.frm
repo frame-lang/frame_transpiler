@@ -12,9 +12,9 @@ system Bug31Test {
     machine:
         $Idle {
             canExecuteCommand(command) {
-                if command == "start" {
+                if command == "start":
                     return True
-                } else {
+                else:
                     return False
                 }
             }
@@ -33,13 +33,13 @@ system Bug31Test {
         # inside the canExecuteCommand handler (unreachable code)
         $Running {
             canExecuteCommand(command) {
-                if command == "continue" {
+                if command == "continue":
                     return False  # Already running
-                } elif command == "step" {
+                elif command == "step":
                     return False  # Can't step while running  
-                } elif command == "pause" {
+                elif command == "pause":
                     return True
-                } else {
+                else:
                     return False
                 }
                 # BUG: Transpiler adds unreachable getCurrentState() call here
@@ -57,11 +57,11 @@ system Bug31Test {
         # BUG #31: This state also generates spurious getCurrentState() call
         $Paused {
             canExecuteCommand(command) {
-                if command in ["continue", "step"] {
+                if command in ["continue", "step"]:
                     return True
-                } elif command == "pause" {
+                elif command == "pause":
                     return False  # Already paused
-                } else {
+                else:
                     return True
                 }
                 # BUG: Transpiler adds unreachable getCurrentState() call here

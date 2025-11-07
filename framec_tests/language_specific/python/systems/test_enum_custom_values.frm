@@ -24,17 +24,14 @@ system HttpServer {
                 print("NotFound code: " + str(notFound.value))
                 print("ServerError code: " + str(serverError.value))
                 
-                if ok.value == 200 {
+                if ok.value == 200:
                     print("OK status is correctly 200")
-                }
                 
-                if notFound.value == 404 {
+                if notFound.value == 404:
                     print("NotFound status is correctly 404")
-                }
                 
-                if serverError.value == 500 {
+                if serverError.value == 500:
                     print("ServerError status is correctly 500")
-                }
                 
                 return
             }

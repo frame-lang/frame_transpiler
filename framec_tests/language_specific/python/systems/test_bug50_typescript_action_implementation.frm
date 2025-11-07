@@ -25,7 +25,7 @@ system TypeScriptActionTest {
     actions:
         # Complex action with multiple statements (problematic in Bug #50)
         spawnPythonRuntime() {
-            try {
+            try:
                 self.sendDebugConsole("Starting Python runtime")
                 
                 # Inject debug runtime code with source mapping
@@ -46,30 +46,26 @@ system TypeScriptActionTest {
                 
                 self.sendDebugConsole("Python runtime started - waiting for connection...")
                 
-            }
-            except Exception as e {
+            except Exception as e :
                 self.sendDebugConsole("Failed to spawn Python runtime: " + str(e))
                 self.sendEvent("terminated", {"exitCode": 1, "error": True})
-            }
         }
         
         # Another complex action
         performComplexAction() {
             step1 = self.validateInputs()
-            if not step1 {
+            if not step1:
                 return
-            }
             
             step2 = self.processData()
-            if not step2 {
+            if not step2:
                 self.cleanup()
                 return
-            }
             
             step3 = self.generateOutput()
-            if step3 {
+            if step3:
                 self.finalizeOperation()
-            } else {
+            else:
                 self.cleanup()
             }
         }

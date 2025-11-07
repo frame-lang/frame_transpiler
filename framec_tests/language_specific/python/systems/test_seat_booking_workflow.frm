@@ -117,10 +117,10 @@ system SeatManager {
                 print("Lock Request ID: " + lock_request_id)
                 print("Exchange Ticket Group ID: " + exchange_ticket_group_id)
                 
-                if self.is_seat_available(seat_id) {
+                if self.is_seat_available(seat_id):
                     self.create_mercury_lock(seat_id, lock_request_id, exchange_ticket_group_id)
                     -> $SeatReserved
-                } else {
+                else:
                     print("ERROR: Seat not available for reservation")
                     -> $Idle
                 }
@@ -136,10 +136,10 @@ system SeatManager {
             
             purchase_seat(seat_id, payment_info) {
                 print("Processing payment for seat: " + seat_id)
-                if self.process_payment(payment_info) {
+                if self.process_payment(payment_info):
                     print("Payment successful - seat sold")
                     -> $SeatSold
-                } else {
+                else:
                     print("Payment failed - releasing seat")
                     -> $Idle
                 }

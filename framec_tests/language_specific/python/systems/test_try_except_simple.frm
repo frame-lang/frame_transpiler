@@ -12,97 +12,77 @@ fn main() {
 # Test 1: Basic try-catch
 fn testBasicTryCatch() {
     print("Test 1: Basic try-catch")
-    try {
+    try:
         print("  In try block")
         # Force an error
         x = 1 / 0
         print("  Result: " + str(x))
-    }
-    except {
+    except :
         print("  Caught exception")
-    }
     print("  After try-catch")
 }
 
 # Test 2: Specific exception type with actual error
 fn testSpecificException() {
     print("Test 2: Specific exception")
-    try {
+    try:
         print("  Forcing ZeroDivisionError")
         result = 10 / 0
-    }
-    except ZeroDivisionError as e {
+    except ZeroDivisionError as e :
         print("  Caught ZeroDivisionError")
-    }
-    except {
+    except :
         print("  Caught other exception")
-    }
 }
 
 # Test 3: Else clause (runs if no exception)
 fn testElseClause() {
     print("Test 3: Else clause")
-    try {
+    try:
         print("  Try block - no exception")
         x = 1 + 1
-    }
-    except {
+    except :
         print("  This should not run")
-    }
-    else {
+    else:
         print("  Else block - ran because no exception")
-    }
 }
 
 # Test 4: Finally clause
 fn testFinallyClause() {
     print("Test 4: Finally clause")
-    try {
+    try:
         print("  Try block")
         x = 10 / 2
-    }
-    except {
+    except :
         print("  Except block")
-    }
-    finally {
+    finally:
         print("  Finally - always runs")
-    }
     
     # With exception
-    try {
+    try:
         y = 1 / 0
-    }
-    except {
+    except :
         print("  Caught division by zero")
-    }
-    finally {
+    finally:
         print("  Finally - runs even with exception")
-    }
 }
 
 # Test 5: Raise exceptions
 fn testRaiseException() {
     print("Test 5: Raise exceptions")
     
-    try {
+    try:
         print("  Raising ValueError")
         raise ValueError("Custom error message")
-    }
-    except ValueError as e {
+    except ValueError as e :
         print("  Caught ValueError: " + str(e))
-    }
     
     # Test bare raise
-    try {
-        try {
+    try:
+        try:
             raise RuntimeError("Original error")
-        }
-        except RuntimeError {
+        except RuntimeError :
             print("  Re-raising...")
             raise
-        }
-    }
-    except RuntimeError as e {
+    except RuntimeError as e :
         print("  Caught re-raised: " + str(e))
-    }
 }

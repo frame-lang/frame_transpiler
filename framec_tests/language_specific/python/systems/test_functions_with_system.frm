@@ -4,9 +4,8 @@ fn main() {
     
     # Demonstrate system interaction  
     iterations = [1, 2, 3]
-    for i in iterations {
+    for i in iterations:
         counter.increment()
-    }
     
     print("Final count: " + str(counter.getCount()))
 }

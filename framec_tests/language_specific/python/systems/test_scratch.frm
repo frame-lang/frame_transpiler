@@ -11,11 +11,11 @@ system A {
 
             if x: y() elif a: b() else: c()
             if (x): y() elif (a): b() else: c()
-            if x {
+            if x:
                 y() y()
-            } elif a {
+            elif a:
                 b() b()
-            } else {
+            else:
                 c() c()
             }
                   

@@ -20,13 +20,13 @@ fn apply_operation(op, x, y) {
 }
 
 fn get_operation(name) {
-    if name == "add" {
+    if name == "add":
         return add  # Return function reference
-    } elif name == "multiply" {
+    elif name == "multiply":
         return multiply
-    } elif name == "subtract" {
+    elif name == "subtract":
         return subtract
-    } else {
+    else:
         # Default to add
         return add
     }

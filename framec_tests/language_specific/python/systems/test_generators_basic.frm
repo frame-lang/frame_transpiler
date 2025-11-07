@@ -4,10 +4,9 @@
 # Test generator function with yield
 fn count_up_to(n) {
     i = 0
-    while i < n {
+    while i < n:
         yield i
         i = i + 1
-    }
 }
 
 # Test generator function with yield from
@@ -38,12 +37,10 @@ fn main() {
     test_generator_expressions()
 
     print("\n=== Testing yield functions ===")
-    for val in count_up_to(5) {
+    for val in count_up_to(5):
         print("Value: " + str(val))
-    }
 
     print("\n=== Testing yield from ===")
-    for val in delegated_generator() {
+    for val in delegated_generator():
         print("Delegated: " + str(val))
-    }
 }

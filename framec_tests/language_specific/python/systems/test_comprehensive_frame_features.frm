@@ -161,12 +161,12 @@ system ComprehensiveSystem(init_data) {
                 
                 # Use operation
                 is_valid = self.validate_input(data)
-                if is_valid {
+                if is_valid:
                     self.last_input = data
                     self.process_count = self.process_count + 1
                     system.return = true
                     -> $Processing
-                } else {
+                else:
                     print("Invalid input, staying in Ready")
                     system.return = false
                 }
@@ -178,12 +178,12 @@ system ComprehensiveSystem(init_data) {
             }
             
             trigger_event(event_type: string) {
-                if event_type == "shutdown" {
+                if event_type == "shutdown":
                     -> $Shutting_Down
-                } elif event_type == "important" {
+                elif event_type == "important":
                     print("Important event received")
                     -> $Alert
-                } else {
+                else:
                     print("Unknown event: " + event_type)
                 }
             }
@@ -251,10 +251,10 @@ system ComprehensiveSystem(init_data) {
             }
             
             trigger_event(event_type: string) {
-                if event_type == "clear" {
+                if event_type == "clear":
                     print("Alert cleared")
                     -> $Ready
-                } else {
+                else:
                     print("Additional event during alert: " + event_type)
                 }
             }
@@ -348,10 +348,10 @@ system SimpleCounter {
             }
             
             decrement() {
-                if self.count > 0 {
+                if self.count > 0:
                     self.count = self.count - 1
                     print("Count decremented to: " + str(self.count))
-                } else {
+                else:
                     print("Count already at 0")
                 }
             }

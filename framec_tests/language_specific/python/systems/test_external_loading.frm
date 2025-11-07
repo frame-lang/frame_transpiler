@@ -28,7 +28,7 @@ fn test_config_file() {
     
     # First create a test config file if it doesn't exist
     config_exists = os.path.exists("config.ini")
-    if not config_exists {
+    if not config_exists:
         print("Creating test config.ini file...")
         f = open("config.ini", "w")
         f.write("[database]\n")
@@ -44,7 +44,6 @@ fn test_config_file() {
         f.write("data = /var/data\n")
         f.write("logs = /var/logs\n")
         f.close()
-    }
     
     # Create config parser
     config = configparser.ConfigParser()
