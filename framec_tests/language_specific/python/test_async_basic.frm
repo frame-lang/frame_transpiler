@@ -58,6 +58,7 @@ system AsyncService {
     actions:
         logMessage(msg) {
             print("LOG: " + msg)
+        }
         
     domain:
         lastData = None
