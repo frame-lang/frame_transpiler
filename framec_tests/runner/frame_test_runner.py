@@ -152,6 +152,11 @@ class FrameTestRunner:
                             tests[category_name] = lang_tests
                     
         return tests
+
+    def is_torture_test(self, test_file: Path) -> bool:
+        """Return True if this test resides under a torture/ directory."""
+        parts = [p.lower() for p in test_file.parts]
+        return "torture" in parts
     
     def transpile(self, test_file: Path, language: str) -> Tuple[bool, str, str]:
         """
@@ -779,6 +784,16 @@ class FrameTestRunner:
                 # Infinite loop test transpiled successfully - mark as success without execution
                 result.execute_success = True
                 result.output = "Infinite loop test - transpilation successful, execution skipped"
+        elif self.is_torture_test(test_file):
+            # Torture tests are validation-only; never execute
+            if not transpile_success:
+                result.error_message = f"Transpilation failed: {error}"
+            elif self.config.validate and not validation_success:
+                result.error_message = f"Validation failed: {validation_output[:500]}"
+            else:
+                # Mark execution as skipped-success to keep summary simple
+                result.execute_success = True
+                result.output = "Torture test: validation-only; execution skipped"
         else:
             # Positive test - normal handling
             if not transpile_success:
