@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system DirectiveTokensInStringsTS {
     operations:
@@ -12,4 +12,3 @@ system DirectiveTokensInStringsTS {
         $Init { op1() { } }
         $Next {}
 }
-

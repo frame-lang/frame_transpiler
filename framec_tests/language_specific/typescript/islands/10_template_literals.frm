@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system NativeTemplates {
     operations:
@@ -10,4 +10,3 @@ system NativeTemplates {
     actions:
     domain:
 }
-

@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system MegaTSIsland {
     operations:
@@ -48,4 +48,3 @@ system MegaTSIsland {
         }
         $Next {}
 }
-

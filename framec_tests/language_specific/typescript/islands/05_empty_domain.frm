@@ -1,2 +1,1 @@
-@target typescript system DomainOnly { operations: interface: machine: actions: domain: }
-
+system DomainOnly { operations: interface: machine: actions: domain: }

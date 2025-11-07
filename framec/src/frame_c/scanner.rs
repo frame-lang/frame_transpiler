@@ -342,13 +342,17 @@ impl Scanner {
             }
             '!' => {
                 if self.match_char('=') {
-                    self.add_token(TokenType::BangEqual); // != is still valid for not-equal
+                    self.add_token(TokenType::BangEqual); // != not-equal
                 } else if self.peek() == '/' && self.peek_next() == '/' {
-                    // !/! pattern matching syntax removed
+                    // !// legacy pattern matching syntax removed
                     self.error(self.line, "Pattern matching syntax '!//' has been removed.");
                 } else {
-                    // ! for negation is no longer supported - use 'not' keyword
-                    self.error(self.line, "Use 'not' keyword instead of '!' operator");
+                    // Allow '!' in TypeScript native contexts; keep Python policy error elsewhere
+                    if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                        self.add_token(TokenType::Bang);
+                    } else {
+                        self.error(self.line, "Use 'not' keyword instead of '!' operator");
+                    }
                 }
             }
             '$' => {

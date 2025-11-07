@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system ForwardParent {
     operations:

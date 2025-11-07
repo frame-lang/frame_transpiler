@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system TabsSpacesTS {
     operations:
@@ -11,4 +11,3 @@ system TabsSpacesTS {
         $Init { op1() { } }
         $Next {}
 }
-

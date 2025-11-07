@@ -1,2 +1,1 @@
-@target typescript system MachineOnly { operations: interface: machine: actions: domain: }
-
+system MachineOnly { operations: interface: machine: actions: domain: }

@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system ArrowFnNotSegmented {
     operations:
@@ -10,4 +10,3 @@ system ArrowFnNotSegmented {
         $Init { op1() { } }
         $Next {}
 }
-

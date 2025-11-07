@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system IndentedTransitionTS {
     actions:
@@ -13,4 +13,3 @@ system IndentedTransitionTS {
         $Init { run() { } }
         $Next {}
 }
-

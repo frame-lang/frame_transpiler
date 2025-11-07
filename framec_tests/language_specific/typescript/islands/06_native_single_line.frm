@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system NativeLine {
     operations:
@@ -10,4 +10,3 @@ system NativeLine {
     actions:
     domain:
 }
-

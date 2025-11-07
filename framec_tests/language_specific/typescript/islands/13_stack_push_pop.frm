@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system StackOps {
     operations:
@@ -12,4 +12,3 @@ system StackOps {
     actions:
     domain:
 }
-

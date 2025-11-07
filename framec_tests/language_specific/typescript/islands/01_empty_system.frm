@@ -1,2 +1,1 @@
-@target typescript system Empty {}
-
+system Empty {}

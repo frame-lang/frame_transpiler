@@ -1,5 +1,4 @@
-@target typescript
-
+ 
 import { Socket } from "net";
 
 system RuntimeProtocolTs {

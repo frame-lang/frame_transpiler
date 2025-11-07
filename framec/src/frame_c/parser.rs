@@ -1128,6 +1128,61 @@ impl<'a> Parser<'a> {
                     Err(e) => return Err(e),
                 }
                 continue;
+            } else if matches!(self.target_language, Some(TargetLanguage::Python3))
+                && self.check(TokenType::Identifier)
+            {
+                // Python: support native assignments at module scope inside named modules
+                let id_tok = self.advance().clone();
+                let name = id_tok.lexeme.clone();
+                let var_line = id_tok.line;
+
+                let mut type_opt: Option<TypeNode> = None;
+                if self.match_token(&[TokenType::Colon]) {
+                    if let Ok(t) = self.type_decl() {
+                        type_opt = Some(t);
+                    }
+                }
+                if !self.match_token(&[TokenType::Equals]) {
+                    // Not an assignment; rewind and continue loop
+                    self.current = self.current.saturating_sub(1);
+                } else {
+                    let value_rc = match self.parse_variable_initializer(&name) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            let sync_tokens = vec![
+                                TokenType::Var,
+                                TokenType::Const,
+                                TokenType::Enum,
+                                TokenType::System,
+                                TokenType::Function,
+                                TokenType::Module,
+                                TokenType::CloseBrace,
+                            ];
+                            self.synchronize(&sync_tokens);
+                            continue;
+                        }
+                    };
+                    let node = VariableDeclNode::new(
+                        var_line,
+                        name.clone(),
+                        type_opt.clone(),
+                        false,
+                        value_rc.clone(),
+                        value_rc.clone(),
+                        IdentifierDeclScope::ModuleScope,
+                    );
+                    let node_r = Rc::new(RefCell::new(node));
+                    if self.is_building_symbol_table {
+                        let _ = self.create_variable_symbol(
+                            name,
+                            type_opt,
+                            &IdentifierDeclScope::ModuleScope,
+                            node_r.clone(),
+                        );
+                    }
+                    variables.push(node_r);
+                    continue;
+                }
             }
 
             // Native runtime module declarations
@@ -3008,13 +3063,19 @@ impl<'a> Parser<'a> {
         }
 
         // foo(...) : type { ... return True }
-        let body_end_line = {
+        // For TypeScript/Python, postpone consuming the closing '}' until after native scanning.
+        let mut body_end_line: usize = 0;
+        let defer_close_consume = matches!(
+            self.target_language,
+            Some(TargetLanguage::TypeScript) | Some(TargetLanguage::Python3)
+        );
+        if !defer_close_consume {
             let token = self.consume(
                 TokenType::CloseBrace,
                 &format!("Expected '}}' - found '{}'", self.current_token),
             )?;
-            token.line
-        };
+            body_end_line = token.line;
+        }
 
         if parsed_target_blocks.is_empty() {
             // Fenced regions path
@@ -4262,13 +4323,19 @@ impl<'a> Parser<'a> {
         }
 
         // foo(...) : type { ... return True }
-        let body_end_line = {
+        // For TypeScript/Python, postpone consuming the closing '}' until after native scanning.
+        let mut body_end_line: usize = 0;
+        let defer_close_consume = matches!(
+            self.target_language,
+            Some(TargetLanguage::TypeScript) | Some(TargetLanguage::Python3)
+        );
+        if !defer_close_consume {
             let token = self.consume(
                 TokenType::CloseBrace,
                 &format!("Expected '}}' - found '{}'", self.current_token),
             )?;
-            token.line
-        };
+            body_end_line = token.line;
+        }
 
         if parsed_target_blocks.is_empty() {
             target_specific_regions =
@@ -4373,6 +4440,9 @@ impl<'a> Parser<'a> {
                         if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
                         break;
                     }
+                    // Now consume the closing '}' and record the end line
+                    let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+                    body_end_line = tok.line;
                     (close_line.saturating_sub(1), true)
                 } else {
                     // token-depth fallback
@@ -4382,6 +4452,9 @@ impl<'a> Parser<'a> {
                         match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
                         last_line = tk.line; self.advance();
                     }
+                    // Consume the closing '}' now that we've advanced to it
+                    let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+                    body_end_line = tok.line;
                     (last_line, false)
                 }
             } else {
@@ -4394,6 +4467,9 @@ impl<'a> Parser<'a> {
                     if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
                     break;
                 }
+                // Consume closing '}' for Python action body
+                let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+                body_end_line = tok.line;
                 (close_line.saturating_sub(1), true)
             };
             if end_line >= start_line {
@@ -7511,6 +7587,26 @@ impl<'a> Parser<'a> {
                         }
                         break;
                     }
+                } else {
+                    // Fallback: token-depth skip to matching '}'
+                    let mut depth: i32 = 1;
+                    let mut last_line = body_start_line;
+                    while !self.is_at_end() && depth > 0 {
+                        let tk = self.peek().clone();
+                        match tk.token_type {
+                            TokenType::OpenBrace => depth += 1,
+                            TokenType::CloseBrace => {
+                                depth -= 1;
+                                if depth == 0 {
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
+                        last_line = tk.line;
+                        self.advance();
+                    }
+                    let _ = last_line;
                 }
             } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
                 // Python: only apply textual closer if body appears native.
@@ -7566,8 +7662,13 @@ impl<'a> Parser<'a> {
         }
 
         // Decide whether to parse Frame statements based on body style
+        // Default: do NOT parse Frame statements for TypeScript; TS bodies are native/MixedBody
         // Python: detect native-style (colon/indent) vs Frame-style (braces)
-        let mut parse_frame_statements = true;
+        let mut parse_frame_statements = if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+            false
+        } else {
+            true
+        };
         if matches!(self.target_language, Some(TargetLanguage::Python3)) {
             let start_line = body_start_line.saturating_add(1);
             // Estimate the end line using the textual closer to avoid consuming tokens
@@ -7744,28 +7845,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
-                // Policy: disallow legacy braced control-flow in Python event handler bodies
-                for (idx, s) in raw.lines().enumerate() {
-                    let t = s.trim_start();
-                    if (t.starts_with("if ")
-                        || t.starts_with("elif ")
-                        || t.starts_with("else")
-                        || t.starts_with("for ")
-                        || t.starts_with("while ")
-                        || t.starts_with("try")
-                        || t.starts_with("except")
-                        || t.starts_with("finally")
-                        || t.starts_with("with ")
-                        || t.starts_with("async with ")
-                        || t.starts_with("async for "))
-                        && t.ends_with('{')
-                    {
-                        let line = start_line + idx;
-                        let err = ParseError::new("Legacy braced control-flow is not allowed in Python bodies (use ':' and indentation)")
-                            .with_frame_line(line);
-                        return Err(err);
-                    }
-                }
+                // Policy applies only to Python target; do not check in TypeScript path
                 let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
                     &self.source_text(),
                     start_line,
@@ -7809,6 +7889,7 @@ impl<'a> Parser<'a> {
                             start_line,
                             end_line: end_line_inclusive,
                         }]);
+                        event_handler.body = ActionBody::Mixed;
                     } else {
                         // Fallback to segmentation
                         if !segs.is_empty() {
@@ -7818,6 +7899,7 @@ impl<'a> Parser<'a> {
                                     TargetLanguage::TypeScript,
                                     &segs,
                                 ));
+                            event_handler.body = ActionBody::Mixed;
                         }
                     }
                 }

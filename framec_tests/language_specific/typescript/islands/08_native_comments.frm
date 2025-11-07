@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system NativeComments {
     operations:
@@ -11,4 +11,3 @@ system NativeComments {
     actions:
     domain:
 }
-

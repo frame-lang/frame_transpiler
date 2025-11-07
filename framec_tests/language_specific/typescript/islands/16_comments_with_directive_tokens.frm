@@ -1,4 +1,4 @@
-@target typescript
+ 
 system CommentsWithDirectiveTokens {
     interface:
         start()
@@ -19,4 +19,3 @@ system CommentsWithDirectiveTokens {
     actions:
     domain:
 }
-

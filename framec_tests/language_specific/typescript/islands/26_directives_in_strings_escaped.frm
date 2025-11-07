@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system StringEscapesTS {
     operations:
@@ -11,4 +11,3 @@ system StringEscapesTS {
     machine:
         $Init { run() { } }
 }
-

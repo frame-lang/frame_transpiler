@@ -1,4 +1,4 @@
-@target typescript
+ 
 system TemplateLiteralsNested {
     interface:
         start()
@@ -17,4 +17,3 @@ system TemplateLiteralsNested {
     actions:
     domain:
 }
-

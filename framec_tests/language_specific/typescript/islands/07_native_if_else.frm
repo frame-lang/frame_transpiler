@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system NativeIfElse {
     operations:
@@ -11,4 +11,3 @@ system NativeIfElse {
     actions:
     domain:
 }
-

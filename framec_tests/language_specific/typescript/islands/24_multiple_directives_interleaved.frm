@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system MultiDirectivesTS {
     operations:
@@ -17,4 +17,3 @@ system MultiDirectivesTS {
         $Parent { $Child {} }
         $Next {}
 }
-

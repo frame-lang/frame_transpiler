@@ -6,7 +6,7 @@ fn main() {
     var scores = [95, 85, 75, 65, 55, -5, 105]
     
     print("=== Grade System Tests ===")
-    for score in scores {
+    for (const score of scores) {
         var grade = grader.calculateGrade(score)
         print("Score " + str(score) + " -> Grade: " + grade)
     }
@@ -92,4 +92,3 @@ system GradeSystem {
             }
         }
 }
-

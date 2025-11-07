@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system BlockCommentDirectivesTS {
     actions:
@@ -15,4 +15,3 @@ system BlockCommentDirectivesTS {
         $Init { run() { } }
         $Next {}
 }
-

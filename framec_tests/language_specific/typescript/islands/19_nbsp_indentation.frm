@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system NBSPIndentTS {
     operations:
@@ -10,4 +10,3 @@ system NBSPIndentTS {
         $Init { op1() { } }
         $Next {}
 }
-

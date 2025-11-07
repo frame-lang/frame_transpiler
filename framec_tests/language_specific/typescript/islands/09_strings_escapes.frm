@@ -1,4 +1,4 @@
-@target typescript
+ 
 
 system NativeStrings {
     operations:
@@ -12,4 +12,3 @@ system NativeStrings {
     actions:
     domain:
 }
-
