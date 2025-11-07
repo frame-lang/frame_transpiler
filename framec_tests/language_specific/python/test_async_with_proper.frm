@@ -123,9 +123,11 @@ system AsyncResourceManager {
                 print("Acquiring resource: " + resource_name)
                 self.resource_name = resource_name
                 -> $ResourceAcquired
-            
+            }
             getStatus() {
                 system.return = "idle"
+            }
+        }
         
         $ResourceAcquired {
             async processWithResource(data) {
@@ -139,16 +141,20 @@ system AsyncResourceManager {
                 
                 print("  Resource released, transitioning to complete")
                 -> $Complete
-            
+            }
             getStatus() {
                 system.return = "resource acquired: " + self.resource_name
+            }
+        }
         
         $Complete {
             $>() {
                 print("Processing complete with result: " + self.result)
-            
+            }
             getStatus() {
                 system.return = "complete: " + self.result
+            }
+        }
     
     domain:
         resource_name = ""

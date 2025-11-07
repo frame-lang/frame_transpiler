@@ -768,8 +768,10 @@ impl<'a> Parser<'a> {
         DetectionResult::Ok { close_line }
     }
     /// Textual scan for Python bodies to locate the matching closing '}' line.
-    /// Tracks single/double quotes with escapes and triple-quoted strings (''' and """).
-    /// All braces inside strings are ignored.
+    /// Tracks string prefixes (r/R, f/F, b/B and their 2-letter combos fr/rf, rb/br),
+    /// single/double quotes with escapes, and triple-quoted strings (''' and """).
+    /// Braces inside strings are ignored. For single-line bodies like `{ return }`,
+    /// the scan begins on the starting line to detect the immediate '}'.
     fn scan_py_closing_brace_line(&self, body_start_line: usize) -> usize {
         let source = self.source_text();
         let all_lines: Vec<&str> = source.lines().collect();
@@ -777,6 +779,8 @@ impl<'a> Parser<'a> {
         let mut in_dquote = false;
         let mut in_tsquote = false; // '''
         let mut in_tdquote = false; // """
+        let mut in_raw = false;      // raw string: disable escape skipping in single/double quotes
+        let mut _in_fstr = false;     // f-string: still treated as string for brace counting (unused)
         let mut brace_depth: i32 = 1; // '{' already consumed
         // Start scanning from the same line as the opening '{' to handle one-line bodies
         // like: handler() { return }
@@ -791,15 +795,37 @@ impl<'a> Parser<'a> {
             while j < bytes.len() {
                 let ch = bytes[j] as char;
                 if !(in_squote || in_dquote || in_tsquote || in_tdquote) {
-                    // Detect triple quotes first
+                    // Detect triple quotes first (with optional prefixes immediately before)
+                    // Check for prefixes by peeking 1-2 chars back
+                    let mut raw = false;
+                    let mut fstr = false;
+                    // Two-letter prefixes
+                    if j >= 2 {
+                        let p0 = bytes[j - 2] as char;
+                        let p1 = bytes[j - 1] as char;
+                        let p = [p0.to_ascii_lowercase(), p1.to_ascii_lowercase()];
+                        if (p == ['r','f']) || (p == ['f','r']) || (p == ['r','b']) || (p == ['b','r']) {
+                            raw = p.contains(&'r');
+                            fstr = p.contains(&'f');
+                        }
+                    }
+                    // One-letter prefixes (unless two-letter already matched)
+                    if j >= 1 && !(raw || fstr) {
+                        let p = (bytes[j - 1] as char).to_ascii_lowercase();
+                        if p == 'r' { raw = true; }
+                        if p == 'f' { fstr = true; }
+                        if p == 'b' { /* bytes prefix doesn't affect escaping */ }
+                    }
+
+                    // Triple quotes
                     if j + 2 < bytes.len() && bytes[j] == b'\'' && bytes[j + 1] == b'\'' && bytes[j + 2] == b'\'' {
-                        in_tsquote = true; j += 3; continue;
+                        in_tsquote = true; in_raw = raw; _in_fstr = fstr; j += 3; continue;
                     }
                     if j + 2 < bytes.len() && bytes[j] == b'"' && bytes[j + 1] == b'"' && bytes[j + 2] == b'"' {
-                        in_tdquote = true; j += 3; continue;
+                        in_tdquote = true; in_raw = raw; _in_fstr = fstr; j += 3; continue;
                     }
-                    if ch == '\'' { in_squote = true; j += 1; continue; }
-                    if ch == '"' { in_dquote = true; j += 1; continue; }
+                    if ch == '\'' { in_squote = true; in_raw = raw; _in_fstr = fstr; j += 1; continue; }
+                    if ch == '"' { in_dquote = true; in_raw = raw; _in_fstr = fstr; j += 1; continue; }
                     if ch == '#' { break; } // rest of line is a comment
                     if ch == '{' {
                         // Ignore the very first '{' on the starting line since the parser already consumed it
@@ -822,12 +848,12 @@ impl<'a> Parser<'a> {
                         j += 1; continue;
                     }
                     if in_squote {
-                        if ch == '\\' { j += 2; continue; }
+                        if !in_raw && ch == '\\' { j += 2; continue; }
                         if ch == '\'' { in_squote = false; j += 1; continue; }
                         j += 1; continue;
                     }
                     if in_dquote {
-                        if ch == '\\' { j += 2; continue; }
+                        if !in_raw && ch == '\\' { j += 2; continue; }
                         if ch == '"' { in_dquote = false; j += 1; continue; }
                         j += 1; continue;
                     }
