@@ -35,6 +35,15 @@ not redefined here.
   - `from package.module import (symbol_1, symbol_2, …)`
 - Imported symbols are scanned and forwarded to the `.fid` generator so Frame can validate subsequent usage.
 
+## Body Policy (Native‑Only)
+
+- Inside action/operation/event handler bodies and free `fn` function bodies, use native Python syntax exclusively:
+  - No `var` declarations in bodies; use native assignments (`x = expr`).
+  - No brace‑style control flow (`if { ... } else { ... }`); use colon + indentation (`if ...:\n    ...`).
+- Frame structural declarations remain Frame‑style:
+  - State and class fields are declared with `var` inside `$State { ... }` and `class { ... }` blocks (e.g., `var count:int = 0`).
+  - The `domain:` block uses native Python assignments (`name[: type] = expr`).
+
 ## Disambiguation with Core
 - Transition `->` is core only at statement start followed by a `$State` pattern;
   otherwise Python uses `->` only in type annotations of `def`, which do not

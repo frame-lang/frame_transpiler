@@ -108,6 +108,10 @@ domain:
     // TypeScript: Frame style for now (maps to class fields)
     var identifier [: type] = expression   // TypeScript (current)
     identifier [: type] = expression       // Python (native)
+
+Notes:
+- Python targets prohibit `var` inside native bodies (actions/handlers/operations/functions); use native assignments instead.
+- State and class fields remain Frame‑style `var` declarations across targets.
     ...
 
 ### Native Imports & FID Generation
