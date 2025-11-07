@@ -67,7 +67,6 @@ system TypeScriptActionTest {
                 self.finalizeOperation()
             else:
                 self.cleanup()
-            }
         }
         
         # Simple action for comparison
