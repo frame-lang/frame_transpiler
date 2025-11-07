@@ -22,7 +22,7 @@ async fn test_real_async_with() {
                 # Verify we got a real response
                 if status == 200:
                     print("SUCCESS: Got GitHub zen: " + text)
-                } else {
+                else:
                     print("FAIL: Unexpected status: " + str(status))
                     # Force test failure by raising an exception
                     failed_tests = []
@@ -55,7 +55,7 @@ async fn test_custom_async_context() {
     # we'll just verify the function worked
     if result == "Work done by ctx1":
         print("SUCCESS: Async context simulation worked")
-    } else {
+    else:
         print("FAIL: Async context simulation failed")
         # Force test failure by raising an exception
         failed_tests = []
@@ -77,7 +77,7 @@ async fn test_nested_async_with() {
     # Verify both worked
     if result1 == "Work done by outer" and result2 == "Work done by inner":
         print("SUCCESS: Nested async simulation worked")
-    } else {
+    else:
         print("FAIL: Nested async simulation failed")
         # Force test failure by raising an exception
         failed_tests = []
@@ -103,7 +103,7 @@ async fn test_async_with_exception() {
     # Verify exception was caught
     if exception_caught:
         print("SUCCESS: Exception handling worked")
-    } else {
+    else:
         print("FAIL: Exception not caught")
         # Force test failure by raising an exception
         failed_tests = []
@@ -196,7 +196,7 @@ async fn run_all_tests() {
     is_complete = True  # Simplified check
     if is_complete:
         print("SUCCESS: System async with works correctly (status: " + status + ")")
-    } else {
+    else:
         print("FAIL: System async with failed")
         # Force test failure by raising an exception
         failed_tests = []

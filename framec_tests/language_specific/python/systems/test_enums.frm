@@ -18,13 +18,13 @@ system Grocery {
                 f: Fruit = getRandomFruit()
 
                 # Demonstrate boolean tests for enums and return
-                if f == Fruit.Peach {
+                if f == Fruit.Peach:
                     print("Found a Peach.")
                     return "Peaches"
-                } elif f == Fruit.Pear {
+                elif f == Fruit.Pear:
                     print("Found a Pear.")
                     return "Pears"
-                } elif f == Fruit.Banana {
+                elif f == Fruit.Banana:
                     print("Found a Banana.")
                     return "Bananas"
                 }

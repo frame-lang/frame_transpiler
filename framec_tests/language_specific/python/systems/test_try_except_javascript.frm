@@ -15,13 +15,13 @@ fn main() {
 # Test 1: Basic try-catch
 fn testBasicTryCatch() {
     print("Test 1: Basic try-catch")
-    try {
+    try:
         print("  In try block")
         # Force an error
         x = 1 / 0
         print("  Result: " + str(x))
-    }
-    except {
+    
+    except:
         print("  Caught exception")
     }
     print("  After try-catch")
@@ -30,14 +30,14 @@ fn testBasicTryCatch() {
 # Test 2: Specific exception type
 fn testSpecificException() {
     print("\nTest 2: Specific exception")
-    try {
+    try:
         print("  Forcing ZeroDivisionError")
         result = 10 / 0
-    }
-    except ZeroDivisionError as e {
+    
+    except ZeroDivisionError as e:
         print("  Caught ZeroDivisionError:", str(e))
-    }
-    except {
+    
+    except:
         print("  Caught other exception")
     }
 }
@@ -47,20 +47,20 @@ fn testMultipleExceptions() {
     print("\nTest 3: Multiple exception types")
     
     # Test with IndexError
-    try {
+    try:
         arr = [1, 2, 3]
         item = arr[10]
-    }
-    except (IndexError, KeyError) as err {
+    
+    except (IndexError, KeyError) as err:
         print("  Caught IndexError or KeyError:", str(err))
     }
     
     # Test with another IndexError
-    try {
+    try:
         arr2 = [4, 5]
         item2 = arr2[100]  # Another index error
-    }
-    except (IndexError, KeyError) as err {
+    
+    except (IndexError, KeyError) as err:
         print("  Caught IndexError or KeyError again:", str(err))
     }
 }
@@ -68,25 +68,25 @@ fn testMultipleExceptions() {
 # Test 4: Else clause (runs if no exception)
 fn testElseClause() {
     print("\nTest 4: Else clause")
-    try {
+    try:
         print("  Try block - no exception")
         x = 10 / 2
-    }
-    except {
+    
+    except:
         print("  This should not run")
-    }
-    else {
+    
+    else:
         print("  Else block - ran because no exception")
     }
     
     # Now with exception
-    try {
+    try:
         y = 1 / 0
-    }
-    except ZeroDivisionError {
+    
+    except ZeroDivisionError:
         print("  Exception caught")
-    }
-    else {
+    
+    else:
         print("  This else should not run")
     }
 }
@@ -94,25 +94,25 @@ fn testElseClause() {
 # Test 5: Finally clause
 fn testFinallyClause() {
     print("\nTest 5: Finally clause")
-    try {
+    try:
         print("  Try block")
         x = 5 * 2
-    }
-    except {
+    
+    except:
         print("  Except block")
-    }
-    finally {
+    
+    finally:
         print("  Finally - always runs")
     }
     
     # With exception
-    try {
+    try:
         y = 1 / 0
-    }
-    except {
+    
+    except:
         print("  Caught exception")
-    }
-    finally {
+    
+    finally:
         print("  Finally - runs even with exception")
     }
 }
@@ -121,25 +121,24 @@ fn testFinallyClause() {
 fn testRaiseException() {
     print("\nTest 6: Raise exceptions")
     
-    try {
+    try:
         print("  Raising RuntimeError")
         raise RuntimeError("Custom error message")
-    }
-    except RuntimeError as e {
+    
+    except RuntimeError as e:
         print("  Caught:", str(e))
     }
     
     # Exception chaining
-    try {
-        try {
+    try:
+        try:
             x = 1 / 0
-        }
-        except ZeroDivisionError as original {
+        
+        except ZeroDivisionError as original:
             print("  Chaining exceptions")
             raise RuntimeError("New error") from original
-        }
-    }
-    except RuntimeError as e {
+        
+    except RuntimeError as e:
         print("  Caught chained:", str(e))
     }
 }
@@ -147,21 +146,21 @@ fn testRaiseException() {
 # Test 7: Nested try blocks
 fn testNestedTry() {
     print("\nTest 7: Nested try blocks")
-    try {
+    try:
         print("  Outer try")
-        try {
+        try:
             print("    Inner try")
             x = 1 / 0
-        }
-        except ZeroDivisionError as e {
+        
+        except ZeroDivisionError as e:
             print("    Inner catch:", str(e))
             raise RuntimeError("Outer error")
         }
-    }
-    except RuntimeError as e {
+    
+    except RuntimeError as e:
         print("  Outer catch:", str(e))
-    }
-    finally {
+    
+    finally:
         print("  Outer finally")
     }
     

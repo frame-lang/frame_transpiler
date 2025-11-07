@@ -61,15 +61,15 @@ fn main() {
     print("Line 62: System returned: " + str(sys_result))
     
     # Some control flow
-    if x > 50 {
+    if x > 50:
         print("Line 66: x is greater than 50")
-    } else {
+    else:
         print("Line 68: x is not greater than 50")
     }
     
     # Loop
     i = 0
-    while i < 3 {
+    while i < 3:
         print("Line 74: Loop iteration " + str(i))
         i = i + 1
     }
