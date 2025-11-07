@@ -1891,7 +1891,7 @@ impl<'a> Parser<'a> {
     fn parse_interface_block(&mut self) -> Result<Option<InterfaceBlockNode>, ParseError> {
         // Check for operations block appearing after interface (wrong order)
         if !self.is_building_symbol_table
-            && !matches!(self.target_language, Some(TargetLanguage::Python3))
+            && !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript))
             && self.peek().token_type == TokenType::OperationsBlock
         {
             let err_msg =
@@ -1918,7 +1918,7 @@ impl<'a> Parser<'a> {
     fn parse_machine_block(&mut self) -> Result<Option<MachineBlockNode>, ParseError> {
         // Check for blocks appearing after machine in wrong order
         if !self.is_building_symbol_table
-            && !matches!(self.target_language, Some(TargetLanguage::Python3))
+            && !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript))
             && self.peek().token_type == TokenType::InterfaceBlock
         {
             let err_msg =
@@ -1927,7 +1927,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new(err_msg));
         }
         if !self.is_building_symbol_table
-            && !matches!(self.target_language, Some(TargetLanguage::Python3))
+            && !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript))
             && self.peek().token_type == TokenType::OperationsBlock
         {
             let err_msg =
@@ -1954,7 +1954,7 @@ impl<'a> Parser<'a> {
     fn parse_actions_block(&mut self) -> Result<Option<ActionsBlockNode>, ParseError> {
         // Check for blocks appearing after actions (wrong order)
         if !self.is_building_symbol_table
-            && !matches!(self.target_language, Some(TargetLanguage::Python3))
+            && !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript))
             && self.peek().token_type == TokenType::MachineBlock
         {
             let err_msg =
@@ -1963,7 +1963,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new(err_msg));
         }
         if !self.is_building_symbol_table
-            && !matches!(self.target_language, Some(TargetLanguage::Python3))
+            && !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript))
             && self.peek().token_type == TokenType::InterfaceBlock
         {
             let err_msg =
@@ -1972,7 +1972,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::new(err_msg));
         }
         if !self.is_building_symbol_table
-            && !matches!(self.target_language, Some(TargetLanguage::Python3))
+            && !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript))
             && self.peek().token_type == TokenType::OperationsBlock
         {
             let err_msg =
@@ -1993,25 +1993,25 @@ impl<'a> Parser<'a> {
 
     fn parse_domain_block(&mut self) -> Result<Option<DomainBlockNode>, ParseError> {
         // Check for blocks appearing after domain (wrong order - domain must be last)
-        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::MachineBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript)) && self.peek().token_type == TokenType::MachineBlock {
             let err_msg = "Block ordering error: 'machine:' block must come before 'domain:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::InterfaceBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript)) && self.peek().token_type == TokenType::InterfaceBlock {
             let err_msg =
                 "Block ordering error: 'interface:' block must come before 'domain:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::OperationsBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript)) && self.peek().token_type == TokenType::OperationsBlock {
             let err_msg =
                 "Block ordering error: 'operations:' block must come before 'domain:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
         if !self.is_building_symbol_table
-            && !matches!(self.target_language, Some(TargetLanguage::Python3))
+            && !matches!(self.target_language, Some(TargetLanguage::Python3) | Some(TargetLanguage::TypeScript))
             && self.peek().token_type == TokenType::ActionsBlock
         {
             let err_msg = "Block ordering error: 'actions:' block must come before 'domain:' block";
@@ -4423,40 +4423,17 @@ impl<'a> Parser<'a> {
             // For TypeScript actions, guard against template literals with a textual closer
             let start_line = body_start_line.saturating_add(1);
             let (end_line, _used_textual) = if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                // detect backticks quickly; if present, use textual closer
-                let mut has_backtick = false;
-                for ln in start_line..(start_line + 64).min(self.source_lines.len() + 1) {
-                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                        if s.contains('`') { has_backtick = true; break; }
-                        if s.trim_start().starts_with('}') { break; }
-                    }
+                // Always use textual closer for TS to avoid template/brace ambiguities
+                let close_line = self.scan_ts_closing_brace_line(body_start_line);
+                while !self.is_at_end() {
+                    let tk = self.peek();
+                    if tk.line < close_line { self.advance(); continue; }
+                    if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
+                    break;
                 }
-                if has_backtick {
-                    let close_line = self.scan_ts_closing_brace_line(body_start_line);
-                    // advance tokens up to close_line (just before '}')
-                    while !self.is_at_end() {
-                        let tk = self.peek();
-                        if tk.line < close_line { self.advance(); continue; }
-                        if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
-                        break;
-                    }
-                    // Now consume the closing '}' and record the end line
-                    let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
-                    body_end_line = tok.line;
-                    (close_line.saturating_sub(1), true)
-                } else {
-                    // token-depth fallback
-                    let mut depth: i32 = 1; let mut last_line = body_start_line;
-                    while !self.is_at_end() && depth > 0 {
-                        let tk = self.peek().clone();
-                        match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
-                        last_line = tk.line; self.advance();
-                    }
-                    // Consume the closing '}' now that we've advanced to it
-                    let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
-                    body_end_line = tok.line;
-                    (last_line, false)
-                }
+                let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+                body_end_line = tok.line;
+                (close_line.saturating_sub(1), true)
             } else {
                 // Python path: always use textual DPDA closer to find exact end line
                 let close_line = self.scan_py_closing_brace_line(body_start_line);

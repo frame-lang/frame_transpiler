@@ -2,6 +2,7 @@
 // Detects unmatched braces throughout the Frame source
 
 use crate::frame_c::validation::*;
+use std::collections::HashSet;
 
 pub struct UnmatchedBracesRule {
     name: String,
@@ -225,6 +226,122 @@ impl UnmatchedBracesRule {
     }
 }
 
+impl UnmatchedBracesRule {
+    /// Analyze brace matching while skipping masked line numbers (1-based)
+    fn analyze_brace_matching_with_mask(
+        &self,
+        source_code: &str,
+        mask_lines: &HashSet<u32>,
+    ) -> Vec<ValidationIssue> {
+        let mut issues = Vec::new();
+        let mut brace_stack = Vec::new();
+        let mut in_string = false;
+        let mut in_comment = false;
+        let mut escape_next = false;
+
+        for (line_idx, line) in source_code.lines().enumerate() {
+            let line_num = (line_idx as u32) + 1;
+            if mask_lines.contains(&line_num) {
+                // Skip native/mixed body lines; Frame braces on these lines are not authoritative
+                continue;
+            }
+
+            for (col_num, ch) in line.chars().enumerate() {
+                if escape_next {
+                    escape_next = false;
+                    continue;
+                }
+                if ch == '\\' {
+                    escape_next = true;
+                    continue;
+                }
+                if ch == '"' && !in_comment {
+                    in_string = !in_string;
+                    continue;
+                }
+                if in_string {
+                    continue;
+                }
+                if ch == '/' && line.chars().nth(col_num + 1) == Some('/') {
+                    in_comment = true;
+                    continue;
+                }
+                if in_comment {
+                    continue;
+                }
+                match ch {
+                    '{' => brace_stack.push((line_num, col_num as u32 + 1, ch)),
+                    '}' => {
+                        if let Some((open_line, open_col, open_char)) = brace_stack.pop() {
+                            if open_char != '{' {
+                                issues.push(ValidationIssue {
+                                    severity: Severity::Error,
+                                    category: Category::Syntax,
+                                    rule_name: self.name.clone(),
+                                    message: format!(
+                                        "Mismatched brace: found '{}' but expected closing for '{}'",
+                                        ch, open_char
+                                    ),
+                                    location: SourceLocation {
+                                        line: line_num,
+                                        column: col_num as u32 + 1,
+                                        offset: 0,
+                                        length: 1,
+                                        file_path: None,
+                                    },
+                                    suggestion: Some(format!(
+                                        "Check brace at line {}:{}",
+                                        open_line, open_col
+                                    )),
+                                    help_url: None,
+                                });
+                            }
+                        } else {
+                            issues.push(ValidationIssue {
+                                severity: Severity::Error,
+                                category: Category::Syntax,
+                                rule_name: self.name.clone(),
+                                message: "Unexpected closing brace '}'".to_string(),
+                                location: SourceLocation {
+                                    line: line_num,
+                                    column: col_num as u32 + 1,
+                                    offset: 0,
+                                    length: 1,
+                                    file_path: None,
+                                },
+                                suggestion: Some(
+                                    "Remove this brace or add a matching opening brace".to_string(),
+                                ),
+                                help_url: None,
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            in_comment = false;
+        }
+        for (line, col, brace_char) in brace_stack {
+            issues.push(ValidationIssue {
+                severity: Severity::Error,
+                category: Category::Syntax,
+                rule_name: self.name.clone(),
+                message: format!("Unclosed brace '{}'", brace_char),
+                location: SourceLocation {
+                    line,
+                    column: col,
+                    offset: 0,
+                    length: 1,
+                    file_path: None,
+                },
+                suggestion: Some("Add a matching closing brace".to_string()),
+                help_url: None,
+            });
+        }
+        issues
+    }
+}
+
 impl ValidationRule for UnmatchedBracesRule {
     fn name(&self) -> &str {
         &self.name
@@ -237,6 +354,50 @@ impl ValidationRule for UnmatchedBracesRule {
     fn validate(&self, context: &ValidationContext) -> Vec<ValidationIssue> {
         match context.target_language {
             Some(TargetLanguage::Python) => self.analyze_brace_matching_python(context.source_code),
+            Some(TargetLanguage::TypeScript) => {
+                // Mask native/mixed body lines to avoid counting TS-native braces
+                let mut mask = HashSet::<u32>::new();
+                if let Some(machine) = &context.ast.machine_block_node_opt {
+                    for state_r in &machine.states {
+                        let state = state_r.borrow();
+                        for eh_r in &state.evt_handlers_rcref {
+                            let eh = eh_r.borrow();
+                            if let Some(items) = &eh.mixed_body {
+                                for item in items {
+                                    if let crate::frame_c::ast::MixedBodyItem::NativeText { start_line, end_line, .. } = item {
+                                        for ln in *start_line as u32..=*end_line as u32 { mask.insert(ln); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(actions) = &context.ast.actions_block_node_opt {
+                    for a_r in &actions.actions {
+                        let a = a_r.borrow();
+                        if let Some(items) = &a.mixed_body {
+                            for item in items {
+                                if let crate::frame_c::ast::MixedBodyItem::NativeText { start_line, end_line, .. } = item {
+                                    for ln in *start_line as u32..=*end_line as u32 { mask.insert(ln); }
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(ops) = &context.ast.operations_block_node_opt {
+                    for o_r in &ops.operations {
+                        let o = o_r.borrow();
+                        if let Some(items) = &o.mixed_body {
+                            for item in items {
+                                if let crate::frame_c::ast::MixedBodyItem::NativeText { start_line, end_line, .. } = item {
+                                    for ln in *start_line as u32..=*end_line as u32 { mask.insert(ln); }
+                                }
+                            }
+                        }
+                    }
+                }
+                self.analyze_brace_matching_with_mask(context.source_code, &mask)
+            }
             _ => self.analyze_brace_matching(context.source_code),
         }
     }

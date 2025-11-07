@@ -33,6 +33,16 @@ system SimpleStateParams {
                 print("Running state entered with timeout: " + str(timeout))
             }
 
+            start(duration) {
+                // interface coverage: ignore when already running
+                return
+            }
+
+            configure(low, high) {
+                // interface coverage: ignore when already running
+                return
+            }
+
             tick() {
                 print("Tick - timeout is: " + str(timeout))
                 -> $Idle
@@ -46,6 +56,17 @@ system SimpleStateParams {
         $Configured(min: int, max: int) {
             $>() {
                 print("Configured state: min=" + str(min) + ", max=" + str(max))
+            }
+
+            start(duration) {
+                // interface coverage: ignore when configured
+                return
+            }
+
+            configure(low, high) {
+                // already configured; allow reconfigure
+                print("Reconfiguring: min=" + str(low) + ", max=" + str(high))
+                -> $Configured(low, high)
             }
 
             check() {
