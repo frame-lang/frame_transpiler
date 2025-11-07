@@ -10,7 +10,6 @@ system A {
                 doOther()
             else:
                 doDefault()
-        }
 
         testBracedStyle() {
             if x > 5:
@@ -31,7 +30,9 @@ system A {
             elif complexCondition:
                 firstStatement()
                 secondStatement()
-            } else:
+            else:
                 fallbackStatement()
+
+        }
 
 }
