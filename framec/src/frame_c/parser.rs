@@ -778,8 +778,11 @@ impl<'a> Parser<'a> {
         let mut in_tsquote = false; // '''
         let mut in_tdquote = false; // """
         let mut brace_depth: i32 = 1; // '{' already consumed
-        let start = body_start_line.saturating_add(1);
+        // Start scanning from the same line as the opening '{' to handle one-line bodies
+        // like: handler() { return }
+        let start = body_start_line;
         let mut close_line = body_start_line;
+        let mut first_line = true;
         for idx in (start.saturating_sub(1))..all_lines.len() {
             let frame_ln = idx + 1;
             let bytes = all_lines[idx].as_bytes();
@@ -798,7 +801,15 @@ impl<'a> Parser<'a> {
                     if ch == '\'' { in_squote = true; j += 1; continue; }
                     if ch == '"' { in_dquote = true; j += 1; continue; }
                     if ch == '#' { break; } // rest of line is a comment
-                    if ch == '{' { brace_depth += 1; j += 1; continue; }
+                    if ch == '{' {
+                        // Ignore the very first '{' on the starting line since the parser already consumed it
+                        if first_line {
+                            first_line = false;
+                            j += 1;
+                            continue;
+                        }
+                        brace_depth += 1; j += 1; continue;
+                    }
                     if ch == '}' { brace_depth -= 1; if brace_depth == 0 { close_line = frame_ln; break; } j += 1; continue; }
                     j += 1; continue;
                 } else {
@@ -823,6 +834,8 @@ impl<'a> Parser<'a> {
                 }
             }
             if brace_depth == 0 { break; }
+            // After the first scanned line, disable first_line bypass
+            if first_line { first_line = false; }
         }
         close_line
     }
@@ -4237,61 +4250,16 @@ impl<'a> Parser<'a> {
                     (last_line, false)
                 }
             } else {
-                // Python path: guarded textual closer for triple quotes / f-string markers
-                let mut needs_textual = false;
-                for ln in start_line..(start_line + 128).min(self.source_lines.len() + 1) {
-                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                        let trimmed = s.trim_start();
-                        if trimmed.starts_with('}') { break; }
-                        if s.contains("\"\"\"") || s.contains("'''") || s.contains("f\"") || s.contains("f\'") || s.contains("F\"") || s.contains("F\'") {
-                            needs_textual = true; break;
-                        }
-                    }
+                // Python path: always use textual DPDA closer to find exact end line
+                let close_line = self.scan_py_closing_brace_line(body_start_line);
+                // Advance tokens up to just before '}' at close_line
+                while !self.is_at_end() {
+                    let tk = self.peek();
+                    if tk.line < close_line { self.advance(); continue; }
+                    if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
+                    break;
                 }
-                if needs_textual {
-                    let close_line = self.scan_py_closing_brace_line(body_start_line);
-                    // Validate that a tokenized CloseBrace exists at close_line; else fallback
-                    let mut has_close_token = false;
-                    let mut idx = self.current;
-                    while idx < self.tokens.len() {
-                        let tk = &self.tokens[idx];
-                        if tk.line < close_line { idx += 1; continue; }
-                        if tk.line == close_line {
-                            if matches!(tk.token_type, TokenType::CloseBrace) { has_close_token = true; }
-                            break;
-                        }
-                        if tk.line > close_line { break; }
-                        idx += 1;
-                    }
-                    if has_close_token {
-                        // advance tokens up to just before '}' at close_line
-                        while !self.is_at_end() {
-                            let tk = self.peek();
-                            if tk.line < close_line { self.advance(); continue; }
-                            if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
-                            break;
-                        }
-                        (close_line.saturating_sub(1), true)
-                    } else {
-                        // token-depth fallback
-                        let mut depth: i32 = 1; let mut last_line = body_start_line;
-                        while !self.is_at_end() && depth > 0 {
-                            let tk = self.peek().clone();
-                            match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
-                            last_line = tk.line; self.advance();
-                        }
-                        (last_line, false)
-                    }
-                } else {
-                    // token-depth fallback
-                    let mut depth: i32 = 1; let mut last_line = body_start_line;
-                    while !self.is_at_end() && depth > 0 {
-                        let tk = self.peek().clone();
-                        match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
-                        last_line = tk.line; self.advance();
-                    }
-                    (last_line, false)
-                }
+                (close_line.saturating_sub(1), true)
             };
             if end_line >= start_line {
                 let mut raw = String::new();
@@ -4398,9 +4366,13 @@ impl<'a> Parser<'a> {
                 if !segs.is_empty() {
                     action_mut.segmented_body = Some(segs.clone());
                     // Build MixedBody from segments for downstream emission
-                    action_mut.mixed_body = Some(
-                        self.build_mixed_body_from_segments(TargetLanguage::TypeScript, &segs),
-                    );
+                    let tgt = if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                        TargetLanguage::TypeScript
+                    } else {
+                        TargetLanguage::Python3
+                    };
+                    action_mut.mixed_body = Some(self.build_mixed_body_from_segments(tgt, &segs));
+                    action_mut.body = ActionBody::Mixed;
                 }
             } else if let Some((tgt, text, s, e)) = local_mixed_native_opt.take() {
                 action_mut.mixed_body = Some(vec![MixedBodyItem::NativeText {
@@ -4409,6 +4381,7 @@ impl<'a> Parser<'a> {
                     start_line: s,
                     end_line: e,
                 }]);
+                action_mut.body = ActionBody::Mixed;
             }
         }
 
@@ -7405,76 +7378,46 @@ impl<'a> Parser<'a> {
                     }
                 }
             } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
-                // Lookahead for triple quotes/f-strings OR native-style colon control lines
-                let mut needs_textual = false;
+                // Python: only apply textual closer if body appears native.
+                let start_line = body_start_line.saturating_add(1);
                 let mut looks_native = false;
-                for ln in start_line..(start_line + 128).min(self.source_lines.len() + 1) {
+                for ln in start_line..(start_line + 96).min(self.source_lines.len() + 1) {
                     if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                        let trimmed = s.trim_start();
-                        if trimmed.starts_with('}') { break; }
-                        if s.contains("\"\"\"") || s.contains("'''") || s.contains("f\"") || s.contains("f\'") || s.contains("F\"") || s.contains("F\'") {
-                            needs_textual = true; break;
-                        }
-                        if (trimmed.starts_with("if ")
-                            || trimmed.starts_with("elif ")
-                            || trimmed.starts_with("else:")
-                            || trimmed.starts_with("for ")
-                            || trimmed.starts_with("while ")
-                            || trimmed.starts_with("try:")
-                            || trimmed.starts_with("except")
-                            || trimmed.starts_with("finally:")
-                            || trimmed.starts_with("with ")
-                            || trimmed.starts_with("async with ")
-                            || trimmed.starts_with("async for "))
-                            && trimmed.ends_with(':')
-                        {
-                            looks_native = true; break;
-                        }
-                        // Heuristic: common Python first-line markers indicating native code
-                        if trimmed.starts_with("return") || trimmed.starts_with("self.") {
-                            looks_native = true; break;
-                        }
+                        let t = s.trim_start();
+                        if t.starts_with('}') { break; }
+                        if (t.starts_with("if ") || t.starts_with("elif ") || t.starts_with("else:")
+                            || t.starts_with("for ") || t.starts_with("while ") || t.starts_with("try:")
+                            || t.starts_with("except") || t.starts_with("finally:") || t.starts_with("with ")
+                            || t.starts_with("async with ") || t.starts_with("async for ")) && t.ends_with(':')
+                        { looks_native = true; break; }
+                        if t.starts_with("self.") || t.starts_with("return") { looks_native = true; break; }
+                        if s.contains("\"\"\"") || s.contains("'''") { looks_native = true; break; }
                     }
                 }
-                if needs_textual || looks_native {
+                if looks_native {
                     let close_line = self.scan_py_closing_brace_line(body_start_line);
-                    // Validate that a tokenized CloseBrace exists at close_line; else fallback to tokens
+                    // Only advance if a CloseBrace token exists at that line; otherwise fallback
                     let mut has_close_token = false;
                     let mut idx = self.current;
                     while idx < self.tokens.len() {
                         let tk = &self.tokens[idx];
-                        if tk.line < close_line {
-                            idx += 1;
-                            continue;
-                        }
+                        if tk.line < close_line { idx += 1; continue; }
                         if tk.line == close_line {
-                            if matches!(tk.token_type, TokenType::CloseBrace) {
-                                has_close_token = true;
-                            }
+                            if matches!(tk.token_type, TokenType::CloseBrace) { has_close_token = true; }
                             break;
                         }
-                        if tk.line > close_line {
-                            break;
-                        }
+                        if tk.line > close_line { break; }
                         idx += 1;
                     }
                     if has_close_token {
                         while !self.is_at_end() {
                             let tk = self.peek();
-                            if tk.line < close_line {
-                                self.advance();
-                                continue;
-                            }
-                            if tk.line == close_line
-                                && !matches!(tk.token_type, TokenType::CloseBrace)
-                            {
-                                self.advance();
-                                continue;
-                            }
+                            if tk.line < close_line { self.advance(); continue; }
+                            if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
                             break;
                         }
                     } else {
-                        // No reliable close token found via textual scan; fall back to token-depth skip
+                        // Fallback to token-depth skip
                         let mut depth: i32 = 1; let mut last_line = body_start_line;
                         while !self.is_at_end() && depth > 0 {
                             let tk = self.peek().clone();

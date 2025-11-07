@@ -2604,6 +2604,11 @@ impl PythonVisitor {
             .iter()
             .map(|entry| format!("{:?}", entry.target))
             .collect();
+        // If MixedBody is present, it is authoritative; do not emit target-specific
+        // blocks again to avoid duplicate output.
+        if matches!(body_kind, ActionBody::Mixed) {
+            return (generated, ignored);
+        }
 
         if !matches!(body_kind, ActionBody::TargetSpecific | ActionBody::Mixed) {
             return (generated, ignored);
@@ -2676,13 +2681,39 @@ impl PythonVisitor {
         };
         self.builder.write_comment(&comment);
 
+        // Compute minimal common indentation across non-empty lines
+        let mut min_indent: Option<usize> = None;
+        for l in &lines {
+            let trimmed = l.trim_end();
+            if trimmed.trim().is_empty() { continue; }
+            let count = l.chars().take_while(|c| c.is_whitespace()).count();
+            min_indent = Some(match min_indent { Some(v) => v.min(count), None => count });
+        }
+
         for (offset, line) in lines.iter().enumerate() {
             let mapping_line = frame_start_line + offset;
-            if line.trim().is_empty() {
+            let is_blank = line.trim().is_empty();
+            if is_blank {
                 self.builder.newline();
-            } else {
-                self.builder.writeln_mapped(line, mapping_line);
+                continue;
             }
+            let out = if let Some(indent) = min_indent {
+                // Slice away 'indent' leading whitespace characters (by char count)
+                let mut ch_count = 0usize;
+                let mut start_idx = 0usize;
+                for (i, ch) in line.char_indices() {
+                    if ch.is_whitespace() && ch_count < indent {
+                        ch_count += 1;
+                        continue;
+                    }
+                    start_idx = i;
+                    break;
+                }
+                &line[start_idx..]
+            } else {
+                line
+            };
+            self.builder.writeln_mapped(out, mapping_line);
         }
     }
 
