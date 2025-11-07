@@ -27,7 +27,6 @@ system Grocery {
                 elif f == Fruit.Banana:
                     print("Found a Banana.")
                     return "Bananas"
-                }
                 
                 return "None"
             }
@@ -45,7 +44,6 @@ system Grocery {
                 return Fruit.Banana
             else:
                 return Fruit.Peach
-            }
         }
 
     domain:

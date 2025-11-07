@@ -35,7 +35,6 @@ system TestSystem {
                 print("Found a Banana")
             else:
                 print("Unknown fruit")
-            }
         }
 
         describeFruit(fruit_value: Fruit) {
@@ -47,7 +46,6 @@ system TestSystem {
                 print("Bananas")
             else:
                 print("Other Fruit")
-            }
         }
         
     domain:
