@@ -65,14 +65,12 @@ fn main() {
         print("Line 66: x is greater than 50")
     else:
         print("Line 68: x is not greater than 50")
-    }
     
     # Loop
     i = 0
     while i < 3:
         print("Line 74: Loop iteration " + str(i))
         i = i + 1
-    }
     
     print("Line 78: Program ending")
     return
