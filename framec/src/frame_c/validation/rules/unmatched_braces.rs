@@ -128,6 +128,101 @@ impl UnmatchedBracesRule {
 
         issues
     }
+
+    /// Python-aware brace scan: supports '#', single/double quotes, and triple quotes.
+    fn analyze_brace_matching_python(&self, source_code: &str) -> Vec<ValidationIssue> {
+        let mut issues = Vec::new();
+        let mut brace_stack: Vec<(usize, usize, char)> = Vec::new();
+        let mut in_squote = false;
+        let mut in_dquote = false;
+        let mut in_tsquote = false; // '''
+        let mut in_tdquote = false; // """
+
+        for (line_idx, line) in source_code.lines().enumerate() {
+            let bytes = line.as_bytes();
+            let mut j = 0usize;
+            // Treat '#' as comment start when not in a string
+            while j < bytes.len() {
+                let ch = bytes[j] as char;
+                if !(in_squote || in_dquote || in_tsquote || in_tdquote) {
+                    // Triple quotes first
+                    if j + 2 < bytes.len() && bytes[j] == b'\'' && bytes[j + 1] == b'\'' && bytes[j + 2] == b'\'' {
+                        in_tsquote = true; j += 3; continue;
+                    }
+                    if j + 2 < bytes.len() && bytes[j] == b'"' && bytes[j + 1] == b'"' && bytes[j + 2] == b'"' {
+                        in_tdquote = true; j += 3; continue;
+                    }
+                    if ch == '\'' { in_squote = true; j += 1; continue; }
+                    if ch == '"' { in_dquote = true; j += 1; continue; }
+                    if ch == '#' { break; } // rest of line is a comment
+
+                    match ch {
+                        '{' => { brace_stack.push((line_idx + 1, j + 1, ch)); j += 1; continue; }
+                        '}' => {
+                            if let Some((_, _, open_ch)) = brace_stack.pop() {
+                                if open_ch != '{' {
+                                    issues.push(ValidationIssue {
+                                        severity: Severity::Error,
+                                        category: Category::Syntax,
+                                        rule_name: self.name.clone(),
+                                        message: format!("Mismatched brace: found '{}'", ch),
+                                        location: SourceLocation { line: line_idx as u32 + 1, column: j as u32 + 1, offset: 0, length: 1, file_path: None },
+                                        suggestion: Some("Check surrounding braces".to_string()),
+                                        help_url: None,
+                                    });
+                                }
+                            } else {
+                                issues.push(ValidationIssue {
+                                    severity: Severity::Error,
+                                    category: Category::Syntax,
+                                    rule_name: self.name.clone(),
+                                    message: "Unexpected closing brace '}'".to_string(),
+                                    location: SourceLocation { line: line_idx as u32 + 1, column: j as u32 + 1, offset: 0, length: 1, file_path: None },
+                                    suggestion: Some("Remove this brace or add a matching opening brace".to_string()),
+                                    help_url: None,
+                                });
+                            }
+                            j += 1; continue;
+                        }
+                        _ => { j += 1; continue; }
+                    }
+                } else {
+                    if in_tsquote {
+                        if j + 2 < bytes.len() && bytes[j] == b'\'' && bytes[j + 1] == b'\'' && bytes[j + 2] == b'\'' { in_tsquote = false; j += 3; continue; }
+                        j += 1; continue;
+                    }
+                    if in_tdquote {
+                        if j + 2 < bytes.len() && bytes[j] == b'"' && bytes[j + 1] == b'"' && bytes[j + 2] == b'"' { in_tdquote = false; j += 3; continue; }
+                        j += 1; continue;
+                    }
+                    if in_squote {
+                        if bytes[j] == b'\\' { j += 2; continue; }
+                        if ch == '\'' { in_squote = false; j += 1; continue; }
+                        j += 1; continue;
+                    }
+                    if in_dquote {
+                        if bytes[j] == b'\\' { j += 2; continue; }
+                        if ch == '"' { in_dquote = false; j += 1; continue; }
+                        j += 1; continue;
+                    }
+                }
+            }
+        }
+
+        for (line, col, brace_char) in brace_stack {
+            issues.push(ValidationIssue {
+                severity: Severity::Error,
+                category: Category::Syntax,
+                rule_name: self.name.clone(),
+                message: format!("Unclosed brace '{}'", brace_char),
+                location: SourceLocation { line: line as u32, column: col as u32, offset: 0, length: 1, file_path: None },
+                suggestion: Some("Add a matching closing brace".to_string()),
+                help_url: None,
+            });
+        }
+
+        issues
+    }
 }
 
 impl ValidationRule for UnmatchedBracesRule {
@@ -140,6 +235,9 @@ impl ValidationRule for UnmatchedBracesRule {
     }
 
     fn validate(&self, context: &ValidationContext) -> Vec<ValidationIssue> {
-        self.analyze_brace_matching(context.source_code)
+        match context.target_language {
+            Some(TargetLanguage::Python) => self.analyze_brace_matching_python(context.source_code),
+            _ => self.analyze_brace_matching(context.source_code),
+        }
     }
 }

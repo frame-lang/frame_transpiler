@@ -98,7 +98,6 @@ system HttpClient {
                 system.return = self.last_status
             }
         }
-    }
 
     domain:
         last_status = 0
