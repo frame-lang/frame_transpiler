@@ -3,7 +3,7 @@
 
 class Point {
     # Static/class variable
-    instance_count = 0
+    var instance_count:int = 0
     
     # Constructor (implicit init method)
     fn init(x, y) {
@@ -65,15 +65,13 @@ fn main() {
     circle = Circle(origin, 5.0)
     print("Circle area: " + str(circle.area()))
     
-    if circle.contains(p1) {
+    if circle.contains(p1):
         print("p1 is inside the circle")
-    } else {
+    else:
         print("p1 is outside the circle")
-    }
     
-    if circle.contains(p2) {
-        print("p2 is inside the circle")  
-    } else {
+    if circle.contains(p2):
+        print("p2 is inside the circle")
+    else:
         print("p2 is outside the circle")
-    }
 }

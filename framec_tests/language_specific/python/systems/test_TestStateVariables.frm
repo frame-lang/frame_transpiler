@@ -12,7 +12,7 @@ system StateVariableDemo {
 
     machine:
         $JoeName {
-            name: string = "Joe"
+            var name:string = "Joe"
 
             print() {
                 print(name)

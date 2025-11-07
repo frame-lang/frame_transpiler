@@ -2,7 +2,7 @@
 # Simple v0.46 test
 
 class Animal {
-    count = 0
+    var count:int = 0
     
     fn init(name) {
         self.name = name

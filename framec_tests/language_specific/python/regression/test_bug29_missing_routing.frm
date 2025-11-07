@@ -93,25 +93,23 @@ system Bug29Test {
             }
             
             handleBreakpoint(line) {
-                if line in self.breakpoints {
+                if line in self.breakpoints:
                     print(f"Hit breakpoint at line {line}")
                     self.currentLine = line
                     -> $Paused
-                } else {
+                else:
                     print(f"Line {line} is not a breakpoint")
-                }
             }
             
             canExecuteCommand(command) {
-                if command == "continue" {
+                if command == "continue":
                     return False
-                } elif command == "step" {
+                elif command == "step":
                     return False
-                } elif command == "pause" {
+                elif command == "pause":
                     return True
-                } else {
+                else:
                     return False
-                }
             }
             
             # THIS HANDLER SHOULD BE GENERATED BUT ISN'T
@@ -141,13 +139,12 @@ system Bug29Test {
             }
             
             canExecuteCommand(command) {
-                if command in ["continue", "step", "stepOver", "stepOut"] {
+                if command in ["continue", "step", "stepOver", "stepOut"]:
                     return True
-                } elif command == "pause" {
+                elif command == "pause":
                     return False
-                } else {
+                else:
                     return True
-                }
             }
             
             # THIS HANDLER SHOULD BE GENERATED BUT ISN'T
@@ -205,17 +202,15 @@ system Bug29Test {
     
     actions:
         addBreakpoint(line) {
-            if line not in self.breakpoints {
+            if line not in self.breakpoints:
                 self.breakpoints.append(line)
                 print(f"Breakpoint added at line {line}")
-            }
         }
         
         removeBreakpoint(line) {
-            if line in self.breakpoints {
+            if line in self.breakpoints:
                 self.breakpoints.remove(line)
                 print(f"Breakpoint removed from line {line}")
-            }
         }
         
         getBreakpoints() {

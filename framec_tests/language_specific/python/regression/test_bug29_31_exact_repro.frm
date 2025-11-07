@@ -209,17 +209,15 @@ system MinimalDebugProtocol {
         # Helper methods that don't change state
         
         addBreakpoint(line) {
-            if line not in self.breakpoints {
+            if line not in self.breakpoints:
                 self.breakpoints.append(line)
                 print(f"Breakpoint added at line {line}")
-            }
         }
         
         removeBreakpoint(line) {
-            if line in self.breakpoints {
+            if line in self.breakpoints:
                 self.breakpoints.remove(line)
                 print(f"Breakpoint removed from line {line}")
-            }
         }
         
         getBreakpoints() {

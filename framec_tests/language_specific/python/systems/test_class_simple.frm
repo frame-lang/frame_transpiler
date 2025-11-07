@@ -2,8 +2,8 @@
 # Simple class test
 
 class TestClass {
-    x = 0
-    y = 0
+    var x:int = 0
+    var y:int = 0
     
     fn init(x, y) {
         self.x = x

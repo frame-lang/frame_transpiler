@@ -4,8 +4,8 @@
 
 # Animal base class
 class Animal {
-    species = "Unknown"
-    count = 0  # Class variable to track instances
+    var species:str = "Unknown"
+    var count:int = 0  # Class variable to track instances
     
     fn init(name) {
         self.name = name
@@ -107,7 +107,7 @@ class Vector {
 
 # Factory pattern with class methods
 class User {
-    user_count = 0
+    var user_count:int = 0
     
     fn init(name, email) {
         self.name = name
@@ -119,9 +119,8 @@ class User {
     fn from_string(cls, user_string) {
         # Parse "name:email" format
         parts = user_string.split(":")
-        if len(parts) == 2 {
+        if len(parts) == 2:
             return cls(parts[0], parts[1])
-        }
         return None
     }
     
