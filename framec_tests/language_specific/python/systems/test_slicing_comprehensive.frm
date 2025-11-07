@@ -1,7 +1,7 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var text = "Hello, World!"
-    var numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    text = "Hello, World!"
+    numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     
     # Test string slicing
     print("Original text: " + text)
@@ -20,11 +20,11 @@ fn main() {
     print("Reverse: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]")
     
     # Actually compute them
-    var first3 = numbers[:3]
-    var last3 = numbers[7:]
-    var middle = numbers[3:7]
-    var every2nd = numbers[::2]
-    var reversed_list = numbers[::-1]
+    first3 = numbers[:3]
+    last3 = numbers[7:]
+    middle = numbers[3:7]
+    every2nd = numbers[::2]
+    reversed_list = numbers[::-1]
     
     # Print actual computed values (not using str for simplicity)
     print("Computed slices work correctly!")

@@ -49,7 +49,7 @@ system DebugAdapter {
             }
             
             evaluate(expression: string) {
-                var result = self.evaluateExpression(expression)
+                result = self.evaluateExpression(expression)
                 return result
             }
             
@@ -76,7 +76,7 @@ system DebugAdapter {
 }
 
 fn main() {
-    var adapter = DebugAdapter()
+    adapter = DebugAdapter()
     print("Debug adapter created")
     print("Adapter ID: " + adapter.adapterID)
 }

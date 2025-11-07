@@ -3,11 +3,11 @@
 # Validates multiple systems in multi-entity format
 
 fn main() {
-    var a = 1
-    var sys1 = FirstSystem()
+    a = 1
+    sys1 = FirstSystem()
     sys1.start()
     
-    var sys2 = SecondSystem()
+    sys2 = SecondSystem()
     sys2.activate()
 }
 

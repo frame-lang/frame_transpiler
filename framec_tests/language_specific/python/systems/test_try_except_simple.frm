@@ -15,7 +15,7 @@ fn testBasicTryCatch() {
     try {
         print("  In try block")
         # Force an error
-        var x = 1 / 0
+        x = 1 / 0
         print("  Result: " + str(x))
     }
     except {
@@ -29,7 +29,7 @@ fn testSpecificException() {
     print("Test 2: Specific exception")
     try {
         print("  Forcing ZeroDivisionError")
-        var result = 10 / 0
+        result = 10 / 0
     }
     except ZeroDivisionError as e {
         print("  Caught ZeroDivisionError")
@@ -44,7 +44,7 @@ fn testElseClause() {
     print("Test 3: Else clause")
     try {
         print("  Try block - no exception")
-        var x = 1 + 1
+        x = 1 + 1
     }
     except {
         print("  This should not run")
@@ -59,7 +59,7 @@ fn testFinallyClause() {
     print("Test 4: Finally clause")
     try {
         print("  Try block")
-        var x = 10 / 2
+        x = 10 / 2
     }
     except {
         print("  Except block")
@@ -70,7 +70,7 @@ fn testFinallyClause() {
     
     # With exception
     try {
-        var y = 1 / 0
+        y = 1 / 0
     }
     except {
         print("  Caught division by zero")

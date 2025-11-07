@@ -6,7 +6,7 @@ fn main() {
     print("=== Multi-Entity Scope Test ===")
     
     # Module-level variable accessible to all functions
-    var shared_module_var = "MODULE_SHARED"
+    shared_module_var = "MODULE_SHARED"
     
     print("Module var: " + shared_module_var)
     
@@ -16,8 +16,8 @@ fn main() {
     function_three()
     
     # Create and test systems
-    var s1 = FirstSystem()
-    var s2 = SecondSystem()
+    s1 = FirstSystem()
+    s2 = SecondSystem()
     
     s1.test_scope()
     s2.test_scope()
@@ -28,7 +28,7 @@ fn main() {
 
 fn function_one() {
     print("\n=== Function One ===")
-    var local_one = "F1_LOCAL"
+    local_one = "F1_LOCAL"
     print(local_one)
     
     # Cannot see function_two's locals
@@ -40,7 +40,7 @@ fn function_one() {
 
 fn function_two() {
     print("\n=== Function Two ===")
-    var local_two = "F2_LOCAL"
+    local_two = "F2_LOCAL"
     print(local_two)
     
     # Cannot see function_one's locals
@@ -52,11 +52,11 @@ fn function_two() {
 
 fn function_three() {
     print("\n=== Function Three ===")
-    var local_three = "F3_LOCAL"
+    local_three = "F3_LOCAL"
     
     # Test nested scope in this function
     if true {
-        var nested = "F3_NESTED"
+        nested = "F3_NESTED"
         print(nested)
         print(local_three)  # Can see function scope
     }
@@ -77,7 +77,7 @@ fn test_cross_entity_isolation() {
     # SecondSystem.system_operation()  // Should fail
     
     # But can create instances and use interfaces
-    var sys = FirstSystem()
+    sys = FirstSystem()
     sys.test_scope()
     
     print("Cross-entity isolation verified")
@@ -166,13 +166,13 @@ fn final_test() {
     print("\n=== Final Isolation Check ===")
     
     # Create local variables that shadow system names
-    var FirstSystem = "NOT_A_SYSTEM"
-    var SecondSystem = "ALSO_NOT_A_SYSTEM"
+    FirstSystem = "NOT_A_SYSTEM"
+    SecondSystem = "ALSO_NOT_A_SYSTEM"
     
     print(FirstSystem)   # Should print the string
     print(SecondSystem)  # Should print the string
     
     # Can still create actual systems with new
-    var real_sys = FirstSystem()  # Constructor call should work
+    real_sys = FirstSystem()  # Constructor call should work
     real_sys.test_scope()
 }

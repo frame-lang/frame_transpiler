@@ -6,7 +6,7 @@ fn main() {
     print("=== Function Scope Isolation Test ===")
     
     # Create a system instance
-    var sys = IsolatedSystem()
+    sys = IsolatedSystem()
     
     # From module scope, we can call interface methods
     sys.public_interface()  # This should work
@@ -31,7 +31,7 @@ fn test_function_cannot_access_internals() {
     # internal_operation()  // Should fail - operation not in scope
     
     # But we can create system instances and call their interfaces
-    var local_sys = IsolatedSystem()
+    local_sys = IsolatedSystem()
     local_sys.public_interface()  # This should work
     
     print("Function isolation test completed")
@@ -43,7 +43,7 @@ fn test_function_can_call_functions() {
     # Functions should be able to call other module-level functions
     helper_function()  # Should work
     
-    var result = compute_value(5, 3)  # Should work
+    result = compute_value(5, 3)  # Should work
     print("Computed: " + str(result))
 }
 
@@ -53,11 +53,11 @@ fn test_function_can_use_builtins() {
     # Built-in functions should always be accessible
     print("Print works")  # Obviously works since we're using it
     
-    var text = str(42)  # str() should work
+    text = str(42)  # str() should work
     print("Stringified: " + text)
     
     # Other built-ins if available
-    var num = 10
+    num = 10
     print("Number: " + str(num))
 }
 
@@ -112,7 +112,7 @@ system AnotherSystem {
                 # IsolatedSystem.internal_operation()  // Should fail
                 
                 # But can create instance and call interface
-                var other = IsolatedSystem()
+                other = IsolatedSystem()
                 other.public_interface()  # Should work
             }
         }

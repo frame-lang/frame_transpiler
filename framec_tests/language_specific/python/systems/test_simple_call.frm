@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var service = TestService()
+    service = TestService()
 }
 
 system TestService {

@@ -1,7 +1,7 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var grader = GradeProcessor()
-    var grade = grader.processScore(85)
+    grader = GradeProcessor()
+    grade = grader.processScore(85)
     print("Grade: " + grade)
 }
 

@@ -42,13 +42,13 @@ system SimpleHandlers {
 }
 
 fn main() {
-    var s = SimpleHandlers()
+    s = SimpleHandlers()
     print("State: " + s.getState())
     s.start()
     print("State: " + s.getState())
-    var r1 = s.doWork("task1")
+    r1 = s.doWork("task1")
     print("Result: " + r1)
-    var r2 = s.doWork("task2")
-    var r3 = s.doWork("task3")
+    r2 = s.doWork("task2")
+    r3 = s.doWork("task3")
     print("State: " + s.getState())
 }

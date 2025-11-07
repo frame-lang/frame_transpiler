@@ -6,15 +6,15 @@ fn test_basic_features() {
     print("=== Basic Frame Features Working ===")
     
     # Variables and basic operations
-    var x = 10
-    var y = 20
-    var sum = x + y
+    x = 10
+    y = 20
+    sum = x + y
     print("Basic math: " + str(x) + " + " + str(y) + " = " + str(sum))
     
     # String operations
-    var greeting = "Hello"
-    var name = "Frame"
-    var message = greeting + " " + name
+    greeting = "Hello"
+    name = "Frame"
+    message = greeting + " " + name
     print("String concat: " + message)
     
     return
@@ -24,17 +24,17 @@ fn test_collections() {
     print("\n=== Collections Working ===")
     
     # Lists
-    var numbers = [1, 2, 3, 4, 5]
+    numbers = [1, 2, 3, 4, 5]
     numbers.append(6)
     print("List operations: " + str(numbers))
     
     # Dictionaries
-    var person = {"name": "Alice", "age": 30}
+    person = {"name": "Alice", "age": 30}
     person["city"] = "NYC"
     print("Dict operations: " + str(person))
     
     # Dictionary comprehensions
-    var squares = {x: x * x for x in range(5)}
+    squares = {x: x * x for x in range(5)}
     print("Dict comprehension: " + str(squares))
     
     return
@@ -44,8 +44,8 @@ fn test_control_flow() {
     print("\n=== Control Flow Working ===")
     
     # if-elif-else
-    var score = 85
-    var grade = ""
+    score = 85
+    grade = ""
     if score >= 90 {
         grade = "A"
     } elif score >= 80 {
@@ -56,8 +56,8 @@ fn test_control_flow() {
     print("Grade for " + str(score) + ": " + grade)
     
     # Loops
-    var count = 0
-    var i = 0
+    count = 0
+    i = 0
     while i < 3 {
         count = count + 1
         i = i + 1
@@ -74,7 +74,7 @@ fn helper(a, b) {
 fn test_functions() {
     print("\n=== Functions Working ===")
     
-    var result = helper(6, 7)
+    result = helper(6, 7)
     print("Function call: " + str(result))
     
     return
@@ -106,10 +106,10 @@ system TestSystem {
 fn test_systems() {
     print("\n=== Systems Working ===")
     
-    var sys = TestSystem()
+    sys = TestSystem()
     sys.increment()
     sys.increment()
-    var count = sys.getCount()
+    count = sys.getCount()
     print("System counter: " + str(count))
     
     return

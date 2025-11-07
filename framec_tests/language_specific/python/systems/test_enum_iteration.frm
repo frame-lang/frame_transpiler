@@ -2,12 +2,12 @@
 # Test enum iteration
 
 fn main() {
-    var menu = MenuSystem()
+    menu = MenuSystem()
     menu.displayAllOptions()
     menu.validateOption("SaveFile")
     menu.validateOption("InvalidOption")
     
-    var validator = Validator()
+    validator = Validator()
     validator.processAllStatuses()
 }
 
@@ -20,7 +20,7 @@ system MenuSystem {
         $Ready {
             displayAllOptions() {
                 print("=== Menu Options ===")
-                var index = 1
+                index = 1
                 
                 # Iterate over enum values
                 for option in MenuOption {
@@ -78,7 +78,7 @@ system Validator {
                 }
                 
                 # Count total statuses
-                var count = 0
+                count = 0
                 for s in ProcessStatus {
                     count = count + 1
                 }

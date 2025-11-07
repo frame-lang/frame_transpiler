@@ -12,8 +12,8 @@ fn test_module_member_access() {
     # var path = os.path.join("dir", "file.txt")
     
     # Simulation without imports or backticks
-    var pi_value = 3.14159  # Simulate math.pi
-    var path = "dir/file.txt"  # Simulate path joining
+    pi_value = 3.14159  # Simulate math.pi
+    path = "dir/file.txt"  # Simulate path joining
     
     print("Pi value: " + str(pi_value))
     print("Path: " + path)
@@ -22,7 +22,7 @@ fn test_module_member_access() {
 
 fn test_dictionary_operations() {
     # Frame v0.38 supports dictionary operations without backticks!
-    var dict = {}
+    dict = {}
     dict["key"] = "value"
     
     print("Dict value: " + str(dict["key"]))
@@ -34,18 +34,18 @@ fn test_method_chaining() {
     # var result = "hello".upper().replace("H", "J")
     
     # Step-by-step approach (requires FSL import)
-    var text = "hello"
+    text = "hello"
     # var upper = text.upper()  // Requires: from fsl import str
     # var result = upper.replace("H", "J")
-    var result = "JELLO"  # Simulate the chained result
+    result = "JELLO"  # Simulate the chained result
     print("Chained result: " + result)
     return
 }
 
 fn test_complex_indexing() {
     # Frame v0.38 supports nested indexing without backticks!
-    var matrix = [[1, 2], [3, 4]]
-    var val = matrix[0][1]
+    matrix = [[1, 2], [3, 4]]
+    val = matrix[0][1]
     print("Matrix value: " + str(val))
     return
 }

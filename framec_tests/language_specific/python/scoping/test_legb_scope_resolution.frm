@@ -6,8 +6,8 @@ fn main() {
     print("=== LEGB Scope Resolution Test ===")
     
     # Module scope variable
-    var name = "MODULE"
-    var value = 100
+    name = "MODULE"
+    value = 100
     
     print("Module scope: name=" + name)
     
@@ -28,23 +28,23 @@ fn test_function_scope() {
     print("\n=== Function Scope Test ===")
     
     # Function scope shadows module
-    var name = "FUNCTION"
-    var local_only = "LOCAL_VAR"
+    name = "FUNCTION"
+    local_only = "LOCAL_VAR"
     
     print("Function scope: name=" + name)  # Should be FUNCTION
     print("Function local: " + local_only)
     
     # Test block scope shadows function
     if true {
-        var name = "BLOCK"
-        var block_only = "BLOCK_VAR"
+        name = "BLOCK"
+        block_only = "BLOCK_VAR"
         
         print("Block scope: name=" + name)  # Should be BLOCK
         print("Block local: " + block_only)
         
         # Nested block shadows outer block
         if true {
-            var name = "NESTED"
+            name = "NESTED"
             print("Nested block: name=" + name)  # Should be NESTED
         }
         
@@ -57,21 +57,21 @@ fn test_function_scope() {
 fn test_nested_scopes() {
     print("\n=== Nested Scope Test ===")
     
-    var level1 = "L1"
+    level1 = "L1"
     
     if true {
-        var level2 = "L2"
+        level2 = "L2"
         print("Can see L1: " + level1)
         print("Can see L2: " + level2)
         
         if true {
-            var level3 = "L3"
+            level3 = "L3"
             print("Can see L1: " + level1)
             print("Can see L2: " + level2)
             print("Can see L3: " + level3)
             
             # Shadow outer variable
-            var level1 = "L1_SHADOW"
+            level1 = "L1_SHADOW"
             print("Shadowed L1: " + level1)  # Should be L1_SHADOW
         }
         
@@ -89,12 +89,12 @@ fn test_builtin_access() {
     print("Built-in print works")
     
     # Test shadowing of other names (not built-ins to avoid issues)
-    var name = "OUTER"
+    name = "OUTER"
     print("Outer name: " + name)
     
     if true {
         # Shadow in block scope
-        var name = "INNER"
+        name = "INNER"
         print("Inner name: " + name)
     }
     
@@ -104,17 +104,17 @@ fn test_builtin_access() {
 fn test_loop_scopes() {
     print("\n=== Loop Scope Test ===")
     
-    var outer = "OUTER"
+    outer = "OUTER"
     
     for i in [1, 2, 3] {
-        var loop_var = "LOOP_" + str(i)
+        loop_var = "LOOP_" + str(i)
         print(loop_var)
         
         # Can access outer
         print("Outer in loop: " + outer)
         
         # Shadow outer
-        var outer = "LOOP_SHADOW"
+        outer = "LOOP_SHADOW"
         print("Shadowed in loop: " + outer)
     }
     
@@ -131,7 +131,7 @@ system TestSystem {
                 print("\n=== System Scope Test ===")
                 
                 # Event handler scope
-                var handler_var = "HANDLER"
+                handler_var = "HANDLER"
                 print(handler_var)
                 
                 # Can access domain
@@ -139,7 +139,7 @@ system TestSystem {
                 
                 # Test nested scopes in handler
                 if true {
-                    var nested = "NESTED_IN_HANDLER"
+                    nested = "NESTED_IN_HANDLER"
                     print(nested)
                     print(handler_var)  # Can still see handler scope
                     print(domain_var)   # Can still see domain
@@ -153,7 +153,7 @@ system TestSystem {
     actions:
         test_action() {
             print("Action scope")
-            var action_var = "ACTION"
+            action_var = "ACTION"
             print(action_var)
             
             # Can access domain from action

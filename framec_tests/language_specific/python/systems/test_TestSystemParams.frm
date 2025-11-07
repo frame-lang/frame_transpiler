@@ -2,19 +2,19 @@
 # Test file for v0.20 system parameter syntax
 fn main() {
     # Test 1: No system parameters
-    var sys1 = NoParamsSystem()
+    sys1 = NoParamsSystem()
     
     # Test 2: Start state parameters only
-    var sys2 = StartStateParameters("hello")
+    sys2 = StartStateParameters("hello")
     
     # Test 3: Start state enter event parameters only  
-    var sys3 = StartStateEnterParameters("world")
+    sys3 = StartStateEnterParameters("world")
     
     # Test 4: Domain variable initialization only
-    var sys4 = DomainVariables(1, 2)
+    sys4 = DomainVariables(1, 2)
     
     # Test 5: All parameter types together (flattened argument list)
-    var sys5 = AllParameterTypes(10, 20, 1, 2)
+    sys5 = AllParameterTypes(10, 20, 1, 2)
 }
 
 # System with no parameters

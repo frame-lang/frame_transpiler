@@ -4,7 +4,7 @@
 fn main() {
     print("=== Basic LEGB Test ===")
     
-    var module_var = "MODULE"
+    module_var = "MODULE"
     print(module_var)
     
     test_function()
@@ -16,11 +16,11 @@ fn main() {
 fn test_function() {
     print("=== Function Scope ===")
     
-    var func_var = "FUNCTION"
+    func_var = "FUNCTION"
     print(func_var)
     
     if true {
-        var block_var = "BLOCK"
+        block_var = "BLOCK"
         print(block_var)
         print(func_var)
     }

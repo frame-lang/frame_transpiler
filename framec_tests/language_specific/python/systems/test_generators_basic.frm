@@ -3,7 +3,7 @@
 
 # Test generator function with yield
 fn count_up_to(n) {
-    var i = 0
+    i = 0
     while i < n {
         yield i
         i = i + 1
@@ -19,16 +19,16 @@ fn delegated_generator() {
 # Test generator expressions
 fn test_generator_expressions() {
     # Generator expression
-    var gen = (x * 2 for x in range(5))
+    gen = (x * 2 for x in range(5))
     
     # Generator with condition
-    var even_gen = (x for x in range(10) if x % 2 == 0)
+    even_gen = (x for x in range(10) if x % 2 == 0)
     
     # Convert to list to see results
-    var results = list(gen)
+    results = list(gen)
     print("Generator results: " + str(results))
     
-    var even_results = list(even_gen)
+    even_results = list(even_gen)
     print("Even generator results: " + str(even_results))
 }
 

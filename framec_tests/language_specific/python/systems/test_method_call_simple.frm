@@ -2,7 +2,7 @@
 # Very simple method call test
 
 fn main() {
-    var sys = TestSystem()
+    sys = TestSystem()
     # This should generate: sys.run(), NOT: sys.self.run()  
     sys.run()
 }

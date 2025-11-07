@@ -7,10 +7,10 @@
 fn main() {
     print("=== Frame v0.20 Comprehensive Feature Test ===")
     
-    var processor = AdvancedProcessor()
+    processor = AdvancedProcessor()
     
     # Test various scenarios
-    var results = [
+    results = [
         processor.processData(""),
         processor.processData("test"),
         processor.processData("ERROR"),
@@ -77,7 +77,7 @@ system AdvancedProcessor {
                 print("Processing: " + data)
                 
                 # Complex processing logic with if/elif/else
-                var result = processText(data)
+                result = processText(data)
                 
                 if result == "error" {
                     system.return = "processing failed"
@@ -151,7 +151,7 @@ system AdvancedProcessor {
         }
         
         len(s: str): int {
-            var count = 0
+            count = 0
             for c in s {
                 count = count + 1
             }

@@ -1,7 +1,7 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test basic system with no parameters
 fn main() {
-    var sys = NoParamsSystem()
+    sys = NoParamsSystem()
 }
 
 system NoParamsSystem {

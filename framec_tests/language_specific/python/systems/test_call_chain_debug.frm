@@ -2,7 +2,7 @@
 # Minimal test to debug call chain parsing
 
 fn main() {
-    var obj = TestSystem()
+    obj = TestSystem()
     obj.run()  # This should build a call chain: [obj] -> run()
 }
 

@@ -3,7 +3,7 @@
 # Validates interaction between systems and functions
 
 fn main() {
-    var sys = TestSystem()
+    sys = TestSystem()
     sys.start()
     utility("test")
 }

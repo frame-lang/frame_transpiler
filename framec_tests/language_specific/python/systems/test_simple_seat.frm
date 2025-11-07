@@ -3,7 +3,7 @@
 
 fn main() {
     print("=== Simple Seat Test ===")
-    var seat = SeatSystem()
+    seat = SeatSystem()
     seat.select_seat("A1")
 }
 

@@ -3,9 +3,9 @@
 
 fn main() {
     # Test multi-system instantiation
-    var sys1 = SystemA()
-    var sys2 = SystemB("parameter") 
-    var sys3 = SystemC()
+    sys1 = SystemA()
+    sys2 = SystemB("parameter") 
+    sys3 = SystemC()
     
     sys1.start()
     sys2.activate("test")

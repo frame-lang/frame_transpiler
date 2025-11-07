@@ -55,18 +55,18 @@ system TypeScriptActionTest {
         
         # Another complex action
         performComplexAction() {
-            var step1 = self.validateInputs()
+            step1 = self.validateInputs()
             if not step1 {
                 return
             }
             
-            var step2 = self.processData()
+            step2 = self.processData()
             if not step2 {
                 self.cleanup()
                 return
             }
             
-            var step3 = self.generateOutput()
+            step3 = self.generateOutput()
             if step3 {
                 self.finalizeOperation()
             } else {
@@ -129,7 +129,7 @@ system TypeScriptActionTest {
 }
 
 fn main() {
-    var test = TypeScriptActionTest()
+    test = TypeScriptActionTest()
     print("Testing complex TypeScript action generation...")
     
     # Test the complex action that should NOT generate TODO placeholders

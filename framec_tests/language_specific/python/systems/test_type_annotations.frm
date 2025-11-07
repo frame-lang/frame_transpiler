@@ -54,31 +54,31 @@ async fn async_fetch(url: str) : str {
 # Test variable type annotations
 fn test_variables() {
     # Basic types
-    var count: int = 0
-    var price: float = 19.99
-    var message: string = "Frame v0.43"
-    var is_active: bool = true
+    count: int = 0
+    price: float = 19.99
+    message: string = "Frame v0.43"
+    is_active: bool = true
     
     # Python-style types
-    var name: str = "Python"
-    var numbers: list = [1, 2, 3, 4, 5]
-    var config: dict = {"key": "value"}
-    var unique: set = {1, 2, 3}
-    var coords: tuple = (100, 200)
-    var anything: any = None
+    name: str = "Python"
+    numbers: list = [1, 2, 3, 4, 5]
+    config: dict = {"key": "value"}
+    unique: set = {1, 2, 3}
+    coords: tuple = (100, 200)
+    anything: any = None
     
     # Variables without type annotations (still valid)
-    var auto = "inferred"
+    auto = "inferred"
     
     print("Type annotations test complete")
 }
 
 # Test function calls with typed returns
 fn main() {
-    var sum: int = add(5, 3)
-    var area: float = calculate_area(10.5, 20.3)
-    var greeting: string = greet("Frame")
-    var items: set = unique_items([1, 2, 2, 3, 3, 3])
+    sum: int = add(5, 3)
+    area: float = calculate_area(10.5, 20.3)
+    greeting: string = greet("Frame")
+    items: set = unique_items([1, 2, 2, 3, 3, 3])
     
     print("Sum: " + str(sum))
     print("Area: " + str(area))

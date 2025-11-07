@@ -4,8 +4,8 @@
 
 # Animal base class
 class Animal {
-    var species = "Unknown"
-    var count = 0  # Class variable to track instances
+    species = "Unknown"
+    count = 0  # Class variable to track instances
     
     fn init(name) {
         self.name = name
@@ -107,7 +107,7 @@ class Vector {
 
 # Factory pattern with class methods
 class User {
-    var user_count = 0
+    user_count = 0
     
     fn init(name, email) {
         self.name = name
@@ -146,7 +146,7 @@ fn main() {
     
     # Test inheritance
     print("\n--- Testing Inheritance ---")
-    var dog = Dog("Buddy", "Golden Retriever")
+    dog = Dog("Buddy", "Golden Retriever")
     print("Dog name: " + dog.name)
     print("Dog breed: " + dog.breed)
     print("Dog species: " + dog.species)
@@ -161,7 +161,7 @@ fn main() {
     
     # Test properties
     print("\n--- Testing Properties ---")
-    var temp = Temperature(25.0)
+    temp = Temperature(25.0)
     print("Temperature in Celsius: " + str(temp.celsius))
     print("Temperature in Fahrenheit: " + str(temp.fahrenheit))
     
@@ -177,12 +177,12 @@ fn main() {
     
     # Test special methods
     print("\n--- Testing Special Methods ---")
-    var v1 = Vector(3, 4)
-    var v2 = Vector(1, 2)
+    v1 = Vector(3, 4)
+    v2 = Vector(1, 2)
     print("v1: " + str(v1))
     print("v2: " + str(v2))
     
-    var v3 = v1 + v2
+    v3 = v1 + v2
     print("v1 + v2: " + str(v3))
     
     print("v1 == v2: " + str(v1 == v2))
@@ -191,10 +191,10 @@ fn main() {
     
     # Test factory pattern with class methods
     print("\n--- Testing Factory Pattern ---")
-    var user1 = User("Alice", "alice@example.com")
+    user1 = User("Alice", "alice@example.com")
     print("User 1: " + str(user1))
     
-    var user2 = User.from_string("Bob:bob@example.com")
+    user2 = User.from_string("Bob:bob@example.com")
     if user2 is not None {
         print("User 2: " + str(user2))
     }

@@ -4,19 +4,19 @@
 
 fn main() {
     # Test static calls from standalone function
-    var result1 = MathUtils.add(10, 20)
+    result1 = MathUtils.add(10, 20)
     print("From function: " + str(result1))
     
     # Test static calls on class
-    var origin = Point.origin()
+    origin = Point.origin()
     print("Origin: " + origin.toString())
     
     # Test instance calling static (allowed but not idiomatic)
-    var p = Point(3, 4)
-    var origin2 = p.origin()  # Works but should use Point.origin()
+    p = Point(3, 4)
+    origin2 = p.origin()  # Works but should use Point.origin()
     
     # Test system with static operations
-    var calc = Calculator()
+    calc = Calculator()
     calc.performCalculations()
     
     return
@@ -40,8 +40,8 @@ class Point {
     
     @staticmethod
     fn distance(p1, p2) {
-        var dx = p2.x - p1.x
-        var dy = p2.y - p1.y
+        dx = p2.x - p1.x
+        dy = p2.y - p1.y
         return ((dx * dx) + (dy * dy)) ** 0.5
     }
 }
@@ -75,16 +75,16 @@ system Calculator {
         $Idle {
             performCalculations() {
                 # Static calls from within system
-                var sum = MathUtils.add(5, 7)
+                sum = MathUtils.add(5, 7)
                 print("5 + 7 = " + str(sum))
                 
-                var product = MathUtils.multiply(3, 4)
+                product = MathUtils.multiply(3, 4)
                 print("3 * 4 = " + str(product))
                 
                 # Test static class method call
-                var p1 = Point(0, 0)
-                var p2 = Point(3, 4)
-                var dist = Point.distance(p1, p2)
+                p1 = Point(0, 0)
+                p2 = Point(3, 4)
+                dist = Point.distance(p1, p2)
                 print("Distance: " + str(dist))
                 
                 # This would fail - can't call instance method statically

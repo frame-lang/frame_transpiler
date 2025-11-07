@@ -98,25 +98,23 @@ system MinimalDebugProtocol {
             }
             
             handleBreakpoint(line) {
-                if line in self.breakpoints {
+                if line in self.breakpoints:
                     print(f"Hit breakpoint at line {line}")
                     self.currentLine = line
                     -> $Paused
-                } else {
+                else:
                     print(f"Line {line} is not a breakpoint")
-                }
             }
             
             canExecuteCommand(command) {
-                if command == "continue" {
+                if command == "continue":
                     return False  # Already running
-                } elif command == "step" {
+                elif command == "step":
                     return False  # Can't step while running
-                } elif command == "pause" {
+                elif command == "pause":
                     return True
-                } else {
+                else:
                     return False
-                }
             }
             
             getCurrentState() {
@@ -145,13 +143,12 @@ system MinimalDebugProtocol {
             }
             
             canExecuteCommand(command) {
-                if command in ["continue", "step", "stepOver", "stepOut"] {
+                if command in ["continue", "step", "stepOver", "stepOut"]:
                     return True
-                } elif command == "pause" {
+                elif command == "pause":
                     return False  # Already paused
-                } else {
+                else:
                     return True  # Most commands valid when paused
-                }
             }
             
             getCurrentState() {
@@ -251,11 +248,11 @@ fn main() {
     print("Frame source v0.80.4 transpiler bugs")
     
     # Create instance (starts in Disconnected state)
-    var test = MinimalDebugProtocol()
+    test = MinimalDebugProtocol()
     
     # Test getCurrentState() in Disconnected state (should work - has routing)
     print("\\n1. Testing getCurrentState() in Disconnected state:")
-    var result = test.getCurrentState()
+    result = test.getCurrentState()
     print(f"   Result: '{result}' (expected: 'disconnected')")
     
     # Transition to Connecting -> Initializing -> Running
@@ -268,13 +265,13 @@ fn main() {
     print("   Frame source line 121-123 defines getCurrentState() handler in Running state")
     result = test.getCurrentState()
     print(f"   Result: '{result}'")
-    if result != "running" {
+    if result != "running":
         print("   ❌ BUG #29 CONFIRMED: getCurrentState() returned wrong value!")
         print(f"   Expected: 'running', Got: '{result}'")
         print("   The dispatcher routing is missing in Running state")
-    } else {
+    else:
         print("   ✅ Bug #29 appears to be fixed")
-    }
+    
     
     print("\\n4. Testing canExecuteCommand() to trigger Bug #31:")
     result = test.canExecuteCommand("pause")

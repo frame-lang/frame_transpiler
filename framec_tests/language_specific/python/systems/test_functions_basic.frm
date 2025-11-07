@@ -3,14 +3,14 @@
 # Function-like behavior is implemented via system actions.
 
 fn main() {
-    var calc = Calculator()
+    calc = Calculator()
     
     # Test addition
-    var sum = calc.add(5, 3)
+    sum = calc.add(5, 3)
     print("5 + 3 = " + str(sum))
     
     # Test number categorization  
-    var category = calc.categorizeNumber(42)
+    category = calc.categorizeNumber(42)
     print("42 is: " + category)
 }
 

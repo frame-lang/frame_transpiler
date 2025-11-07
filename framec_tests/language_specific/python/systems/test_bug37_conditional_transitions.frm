@@ -75,19 +75,19 @@ system ConditionalTransitionTest {
 }
 
 fn main() {
-    var test = ConditionalTransitionTest()
+    test = ConditionalTransitionTest()
     print("Testing conditional transitions for state diagram generation...")
     
     # Test both conditional paths
     print("Testing with stopOnEntry = True")
-    var result1 = test.configure(True)
+    result1 = test.configure(True)
     if result1 {
         test.onRuntimeReady()  # Should transition to $WaitingForEntry
         print("SUCCESS: Conditional transition to WaitingForEntry")
     }
     
     print("Testing with stopOnEntry = False") 
-    var result2 = test.configure(False)
+    result2 = test.configure(False)
     if result2 {
         test.onRuntimeReady()  # Should transition to $Running
         print("SUCCESS: Conditional transition to Running")
@@ -98,7 +98,7 @@ fn main() {
     } else {
         print("FAIL: Conditional transitions failed")
         # Force test failure
-        var failed_tests = []
-        var index = failed_tests[999]  # This will cause an IndexError and fail the test
+        failed_tests = []
+        index = failed_tests[999]  # This will cause an IndexError and fail the test
     }
 }

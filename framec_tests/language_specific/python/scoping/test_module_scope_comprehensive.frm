@@ -3,18 +3,18 @@
 # Tests all permutations of module variable access and modification
 
 # Module-level variable declarations with different types
-var module_string = "initial_string"
-var module_int = 42
-var module_bool = True
-var module_float = 3.14
-var module_none = None
-var module_list = [1, 2, 3]
+module_string = "initial_string"
+module_int = 42
+module_bool = True
+module_float = 3.14
+module_none = None
+module_list = [1, 2, 3]
 
 # Module variable that will be modified by multiple functions
-var shared_counter = 0
+shared_counter = 0
 
 # Module variable that will be instantiated later
-var module_system = None
+module_system = None
 
 # Test basic read access from function
 fn test_read_access() {
@@ -92,7 +92,7 @@ fn use_module_system() {
 # Test function that only reads (no global declaration needed)
 fn read_only_function() {
     print("=== read_only_function ===")
-    var local_copy = module_int
+    local_copy = module_int
     print("Local copy of module_int: " + str(local_copy))
     print("Direct read of module_string: " + module_string)
 }
@@ -100,8 +100,8 @@ fn read_only_function() {
 # Test function with local variables (not shadowing)
 fn function_with_locals() {
     print("=== function_with_locals ===")
-    var local_var1 = "I am local"
-    var local_var2 = 999
+    local_var1 = "I am local"
+    local_var2 = 999
     print("local_var1: " + local_var1)
     print("local_var2: " + str(local_var2))
     print("module_string: " + module_string)
@@ -227,9 +227,9 @@ system AdvancedModuleTest {
 # Test function for advanced system
 fn test_advanced_system() {
     print("\n=== test_advanced_system ===")
-    var adv_sys = AdvancedModuleTest()
+    adv_sys = AdvancedModuleTest()
     adv_sys.modify(50)
-    var result = adv_sys.query()
+    result = adv_sys.query()
     print("Query result: " + str(result))
 }
 

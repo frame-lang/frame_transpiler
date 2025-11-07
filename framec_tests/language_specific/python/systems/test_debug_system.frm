@@ -6,7 +6,7 @@ fn main() {
     print("=== Starting System Debug Test ===")
     
     # Create and test the traffic light system
-    var light = TrafficLight()
+    light = TrafficLight()
     
     # Test initial state
     print("Initial state: should be Red")
@@ -18,7 +18,7 @@ fn main() {
     light.next()  # Red -> Green again
     
     # Test interface methods
-    var status = light.get_status()
+    status = light.get_status()
     print("Current status: " + status)
     
     # Test emergency - goes to Offline state

@@ -16,13 +16,13 @@ fn global_helper(x) {
 # Test function (lambdas removed for compatibility)
 fn test_basic_operations() {
     print("Testing basic operations...")
-    var x = 5
-    var result = x * x
+    x = 5
+    result = x * x
     print("Square of 5 = " + str(result))
     
     # Simple calculation
-    var multiplier = 3
-    var multiply_result = x * multiplier
+    multiplier = 3
+    multiply_result = x * multiplier
     print("Multiply result: " + str(multiply_result))
 }
 
@@ -31,18 +31,18 @@ fn test_collections() {
     print("Testing collections...")
     
     # Lists
-    var numbers = [1, 2, 3, 4, 5]
+    numbers = [1, 2, 3, 4, 5]
     numbers.append(6)
     print("List after append: " + str(numbers))
     
     # Dictionaries
-    var data = {"name": "Frame", "version": "0.81"}
+    data = {"name": "Frame", "version": "0.81"}
     data["feature"] = "comprehensive"
     print("Dict: " + str(data))
     
     # Nested access
-    var matrix = [[1, 2], [3, 4]]
-    var val = matrix[1][0]
+    matrix = [[1, 2], [3, 4]]
+    val = matrix[1][0]
     print("Matrix[1][0] = " + str(val))
 }
 
@@ -51,15 +51,15 @@ fn main() {
     print("=== Comprehensive Frame Test ===")
     
     # Test module access
-    var pi_val = math.pi
+    pi_val = math.pi
     print("Math.pi = " + str(pi_val))
     
     # Test path operations
-    var file_path = os.path.join("debug", "test.frm")
+    file_path = os.path.join("debug", "test.frm")
     print("Path join: " + file_path)
     
     # Test helper function
-    var helper_result = global_helper(5)
+    helper_result = global_helper(5)
     print("Helper result: " + str(helper_result))
     
     # Test basic operations
@@ -70,7 +70,7 @@ fn main() {
     
     # Create and test comprehensive system
     print("\n--- Testing System ---")
-    var comp_system = ComprehensiveSystem("initial_data")
+    comp_system = ComprehensiveSystem("initial_data")
     
     # Test interface methods
     comp_system.initialize()
@@ -82,7 +82,7 @@ fn main() {
     
     # Create second system to test multiple instances
     print("\n--- Testing Second System ---")
-    var counter_system = SimpleCounter()
+    counter_system = SimpleCounter()
     counter_system.increment()
     counter_system.increment()
     counter_system.get_count()
@@ -103,7 +103,7 @@ system ComprehensiveSystem(init_data) {
         
         process_internal(value) {
             print("Processing internal: " + str(value))
-            var result = value * self.multiplier + self.offset
+            result = value * self.multiplier + self.offset
             return result
         }
         
@@ -160,7 +160,7 @@ system ComprehensiveSystem(init_data) {
                 print("Processing data in Ready: " + data)
                 
                 # Use operation
-                var is_valid = self.validate_input(data)
+                is_valid = self.validate_input(data)
                 if is_valid {
                     self.last_input = data
                     self.process_count = self.process_count + 1
@@ -173,7 +173,7 @@ system ComprehensiveSystem(init_data) {
             }
             
             get_status(): string {
-                var status = "Ready - processed " + str(self.process_count) + " items"
+                status = "Ready - processed " + str(self.process_count) + " items"
                 system.return = status
             }
             
@@ -211,7 +211,7 @@ system ComprehensiveSystem(init_data) {
             
             calculate_result(input: int): int {
                 print("Calculating result for: " + str(input))
-                var result = self.process_internal(input)
+                result = self.process_internal(input)
                 self.last_result = result
                 system.return = result
                 -> $Ready

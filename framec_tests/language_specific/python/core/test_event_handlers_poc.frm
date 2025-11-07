@@ -19,7 +19,7 @@ fn process_sync(data) {
 # Mock async processing
 async fn process_async(data) {
     print("Async processing: " + data)
-    var extra = await fetch_data(999)
+    extra = await fetch_data(999)
     return "async_" + data + "_with_" + extra
 }
 
@@ -57,7 +57,7 @@ system MixedHandlerDemo {
             # Another async handler with await
             async processData(data) {
                 print("Async handler: processData")
-                var result = await process_async(data)
+                result = await process_async(data)
                 system.return = result
             }
             
@@ -97,17 +97,17 @@ system MixedHandlerDemo {
 # Note: All interface methods become async when any are async
 async fn test_mixed_handlers() {
     print("=== Testing Mixed Handler Demo ===")
-    var demo = MixedHandlerDemo()
+    demo = MixedHandlerDemo()
     
     # Since system has async methods, all interface methods are async
     await demo.async_start()  # Initialize async system
     
     # Call getData (async due to system having async methods)
-    var data = await demo.getData(123)
+    data = await demo.getData(123)
     print("Got sync data: " + data)
     
     # Get status (also async)
-    var status = await demo.getStatus()
+    status = await demo.getStatus()
     print("Status: " + status)
     
     print("=== Test Complete ===")
@@ -116,19 +116,19 @@ async fn test_mixed_handlers() {
 # Async test function
 async fn test_async_handlers() {
     print("=== Testing Async Handlers ===")
-    var demo = MixedHandlerDemo()
+    demo = MixedHandlerDemo()
     await demo.async_start()  # Initialize async system
     
     # Call async method
-    var remote = await demo.fetchRemote(456)
+    remote = await demo.fetchRemote(456)
     print("Got remote data: " + str(remote))
     
     # Process data async
-    var result = await demo.processData("test_data")
+    result = await demo.processData("test_data")
     print("Processed result: " + result)
     
     # Get status after async operations (also async)
-    var status = await demo.getStatus()
+    status = await demo.getStatus()
     print("Final status: " + status)
     
     print("=== Async Test Complete ===")

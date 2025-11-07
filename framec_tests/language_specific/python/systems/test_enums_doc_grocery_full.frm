@@ -2,7 +2,7 @@
 import random
 
 fn main() {
-    var grocery = Grocery()
+    grocery = Grocery()
     print("We are selling " + grocery.getFruitOfTheDay() + " today.")
     print("We sold " + grocery.getFruitOfTheDay() + " yesterday.")
     print("We are selling " + grocery.getFruitOfTheDay() + " tomorrow.")
@@ -15,7 +15,7 @@ system Grocery {
     machine:
         $Start {
             getFruitOfTheDay(): string {
-                var f: Fruit = getRandomFruit()
+                f: Fruit = getRandomFruit()
 
                 # Demonstrate boolean tests for enums and return
                 if f == Fruit.Peach {
@@ -35,7 +35,7 @@ system Grocery {
 
     actions:
         getRandomFruit(): Fruit {
-            var val = random.randint(1, 3)
+            val = random.randint(1, 3)
 
             if val == 1 {
                 return Fruit.Peach

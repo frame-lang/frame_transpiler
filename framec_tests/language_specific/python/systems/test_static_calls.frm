@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var test = TestSystem()
+    test = TestSystem()
     test.run_test()
     return
 }
@@ -26,10 +26,10 @@ system TestSystem {
         $Start {
             run_test() {
                 # Test static operation calls
-                var result = UtilitySystem.calculate(42)
+                result = UtilitySystem.calculate(42)
                 print("Result: " + str(result))
                 
-                var msg = UtilitySystem.format_message("Hello")
+                msg = UtilitySystem.format_message("Hello")
                 print("Message: " + msg)
                 
                 return

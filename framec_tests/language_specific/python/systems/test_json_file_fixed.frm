@@ -6,7 +6,7 @@ fn test_json_like_parsing() {
     print("=== Testing JSON-like Data Handling ===")
     
     # Simulate JSON data as Frame dictionaries
-    var json_data = {
+    json_data = {
         "user": {
             "id": 123,
             "name": "Alice",
@@ -25,14 +25,14 @@ fn test_json_like_parsing() {
     
     print("Simulated JSON data:")
     # Work around: Extract to variables first
-    var user_data = json_data["user"]
+    user_data = json_data["user"]
     print("User info: " + str(user_data))
-    var user_name = user_data["name"]
+    user_name = user_data["name"]
     print("User name: " + user_name)
     
-    var settings_data = json_data["settings"]
+    settings_data = json_data["settings"]
     print("Settings: " + str(settings_data))
-    var theme = settings_data["theme"]
+    theme = settings_data["theme"]
     print("Theme: " + theme)
     
     return
@@ -41,7 +41,7 @@ fn test_json_like_parsing() {
 fn test_nested_data_access() {
     print("\n=== Testing Nested Data Access ===")
     
-    var config = {
+    config = {
         "database": {
             "host": "localhost",
             "port": 5432,
@@ -58,13 +58,13 @@ fn test_nested_data_access() {
     }
     
     # Access nested values - work around by extracting step by step
-    var db_config = config["database"]
-    var db_host = db_config["host"]
-    var db_credentials = db_config["credentials"]
-    var db_user = db_credentials["username"]
+    db_config = config["database"]
+    db_host = db_config["host"]
+    db_credentials = db_config["credentials"]
+    db_user = db_credentials["username"]
     
-    var api_config = config["api"]
-    var api_url = api_config["base_url"]
+    api_config = config["api"]
+    api_url = api_config["base_url"]
     
     print("Database host: " + db_host)
     print("Database user: " + db_user) 
@@ -76,7 +76,7 @@ fn test_nested_data_access() {
 fn test_data_manipulation() {
     print("\n=== Testing Data Manipulation ===")
     
-    var data = {
+    data = {
         "items": [
             {"id": 1, "name": "apple", "price": 1.50},
             {"id": 2, "name": "banana", "price": 0.75},
@@ -85,20 +85,20 @@ fn test_data_manipulation() {
     }
     
     # Access array elements
-    var items_list = data["items"]
-    var first_item = items_list[0]
-    var item_name = first_item["name"]
-    var item_price = first_item["price"]
+    items_list = data["items"]
+    first_item = items_list[0]
+    item_name = first_item["name"]
+    item_price = first_item["price"]
     
     print("First item: " + item_name + " - $" + str(item_price))
     
     # Calculate total
-    var total = 0.0
-    var items = data["items"]
-    var i = 0
+    total = 0.0
+    items = data["items"]
+    i = 0
     while i < len(items) {
-        var item = items[i]
-        var price = item["price"]
+        item = items[i]
+        price = item["price"]
         total = total + price
         i = i + 1
     }

@@ -1,7 +1,7 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # EXPECTED_OUTPUT: NoParameters started
 fn main() {
-    var sys = NoParameters()
+    sys = NoParameters()
     # System should auto-start with enter event now
 }
 

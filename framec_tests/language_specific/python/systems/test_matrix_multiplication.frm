@@ -7,8 +7,8 @@ fn test_basic_matmul() {
     # In real usage, you'd use NumPy arrays
     
     # Simulated matrix multiplication (conceptual)
-    var a = [[1, 2], [3, 4]]
-    var b = [[5, 6], [7, 8]]
+    a = [[1, 2], [3, 4]]
+    b = [[5, 6], [7, 8]]
     
     # Matrix multiplication operator
     # Note: This generates @ in Python but won't work
@@ -19,8 +19,8 @@ fn test_basic_matmul() {
     print("Matrix multiplication operator @ transpiles correctly")
     
     # Test that operator generates correct Python syntax
-    var x = 10
-    var y = 20
+    x = 10
+    y = 20
     # This will generate: result = x @ y
     # (would need proper matrix types to actually run)
     # var result = x @ y
@@ -28,8 +28,8 @@ fn test_basic_matmul() {
 
 fn test_matmul_compound() {
     # Test compound assignment
-    var matrix1 = [[1, 0], [0, 1]]
-    var matrix2 = [[2, 0], [0, 2]]
+    matrix1 = [[1, 0], [0, 1]]
+    matrix2 = [[2, 0], [0, 2]]
     
     # Matrix multiplication compound assignment
     # matrix1 @= matrix2
@@ -39,10 +39,10 @@ fn test_matmul_compound() {
 
 fn test_matmul_precedence() {
     # Test precedence (same as * and /)
-    var a = 2
-    var b = 3
-    var c = 4
-    var d = 5
+    a = 2
+    b = 3
+    c = 4
+    d = 5
     
     # @ has same precedence as * and /
     # Should be: (a * b) @ (c * d)

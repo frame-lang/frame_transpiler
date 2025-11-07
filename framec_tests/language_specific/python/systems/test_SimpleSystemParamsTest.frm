@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var sys = TestSystem("a")
+    sys = TestSystem("a")
 }
 
 system TestSystem ($(A)) {

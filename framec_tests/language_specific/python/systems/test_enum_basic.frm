@@ -31,7 +31,7 @@ system EnumValueSystem {
 system FruitSystem {
     actions:
         getFruitOfTheDay(): Fruit {
-            var fruit_of_the_day: Fruit = Fruit.Pear
+            fruit_of_the_day: Fruit = Fruit.Pear
             return fruit_of_the_day
         }
         
@@ -44,7 +44,7 @@ system FruitSystem {
 }
 
 fn testFruit() {
-    var f: Fruit = getFruitOfTheDay()
+    f: Fruit = getFruitOfTheDay()
 
     if f == Fruit.Peach {
         print("Found a Peach")

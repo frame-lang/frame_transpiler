@@ -52,7 +52,7 @@ system TrafficLight {
 }
 
 fn main() {
-    var tl = TrafficLight()
+    tl = TrafficLight()
     tl.tick()
     tl.tick()
     tl.tick()

@@ -2,8 +2,8 @@
 # Simple class test
 
 class TestClass {
-    var x = 0
-    var y = 0
+    x = 0
+    y = 0
     
     fn init(x, y) {
         self.x = x
@@ -16,8 +16,8 @@ class TestClass {
 }
 
 fn main() {
-    var obj = TestClass(5, 10)
-    var result = obj.add()
+    obj = TestClass(5, 10)
+    result = obj.add()
     print("Result: " + str(result))
     return
 }

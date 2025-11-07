@@ -6,7 +6,7 @@ fn main() {
     print("=== CultureTicks Seat Booking Workflow Test ===")
     
     # Create seat management system
-    var seat_manager = SeatManager()
+    seat_manager = SeatManager()
     
     # Test Phase 1: Core Business Rules
     seat_manager.test_seat_state_management()

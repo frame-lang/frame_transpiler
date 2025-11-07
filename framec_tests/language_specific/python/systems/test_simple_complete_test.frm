@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var sys = Simple()
+    sys = Simple()
     # Trigger enter event
     sys._sStart(FrameEvent("$>", []))
 }

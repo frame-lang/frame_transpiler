@@ -6,7 +6,7 @@ fn main() {
 system TestSystem {
     machine:
         $Start {
-            var testVar = None
+            testVar = None
             
             test() {
                 print("In test")

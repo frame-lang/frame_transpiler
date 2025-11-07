@@ -5,7 +5,7 @@
 fn main() {
     print("Main function")
     helper("test")
-    var result = calculate(10, 20)
+    result = calculate(10, 20)
     print(result)
 }
 

@@ -4,8 +4,8 @@
 
 fn main() {
     minimal()
-    var empty = EmptySystem()
-    var simple = SimpleSystem()
+    empty = EmptySystem()
+    simple = SimpleSystem()
 }
 
 fn minimal() {

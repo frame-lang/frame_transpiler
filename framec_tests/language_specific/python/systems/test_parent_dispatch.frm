@@ -7,7 +7,7 @@
 # 4. Statements can follow => $^ dispatch
 
 fn main() {
-    var hsm = ParentDispatchTest()
+    hsm = ParentDispatchTest()
     
     # Test basic parent dispatch
     hsm.test1()

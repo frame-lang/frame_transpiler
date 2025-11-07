@@ -13,7 +13,7 @@ fn module_func(): string {
 # Test local variable shadowing
 fn testLocalShadowing() {
     # Local variable shadows module-level function name
-    var module_func = "local_shadowed"
+    module_func = "local_shadowed"
     print("Local shadowing: " + module_func)  # Should print "local_shadowed"
     
     # Don't actually shadow print as it will break the test
@@ -23,12 +23,12 @@ fn testLocalShadowing() {
 
 # Test enclosing scope (loops provide scope)
 fn testEnclosingScope() {
-    var outer = "outer_scope"
+    outer = "outer_scope"
     print("Outer var: " + outer)
     
     # Loop variables are scoped to the loop
     for var i = 0; i < 1; i = i + 1 {
-        var inner = "inner_scope"
+        inner = "inner_scope"
         print("Inner can see outer: " + outer)
         print("Inner var: " + inner)
     }
@@ -55,7 +55,7 @@ system ScopeTestSystem {
             print("System operation")
             
             # Operations can also see module scope
-            var res = module_func()
+            res = module_func()
             print("Operation called module_func: " + res)
         }
         
@@ -66,7 +66,7 @@ system ScopeTestSystem {
         $Start {
             testScopes() {
                 # Can call module-level function
-                var result = module_func()
+                result = module_func()
                 print("Called module_func: " + result)
                 
                 # Can use built-ins
@@ -84,7 +84,7 @@ system ScopeTestSystem {
             print("System action called")
             
             # Actions can see module-level functions
-            var res = module_func()
+            res = module_func()
             print("Action called module_func: " + res)
         }
 }
@@ -94,14 +94,14 @@ fn testBuiltins() {
     # All built-ins should be accessible
     print("print is accessible")
     
-    var s = str(42)
+    s = str(42)
     print("str() is accessible: " + s)
     
-    var i = int("10")
+    i = int("10")
     print("int() is accessible: " + str(i))
     
-    var items = [1, 2, 3]
-    var l = len(items)
+    items = [1, 2, 3]
+    l = len(items)
     print("len() is accessible: " + str(l))
 }
 
@@ -110,7 +110,7 @@ fn testFunctionCannotAccessSystemInternals() {
     print("Testing function cannot access system internals")
     
     # This works - create system instance
-    var sys = ScopeTestSystem()
+    sys = ScopeTestSystem()
     
     # This works - call interface method
     sys.testScopes()
@@ -137,7 +137,7 @@ fn main() {
     testBuiltins()
     
     print("\n--- Testing System Scopes ---")
-    var sys = ScopeTestSystem()
+    sys = ScopeTestSystem()
     sys.testScopes()
     
     print("\n--- Testing Function Isolation ---")

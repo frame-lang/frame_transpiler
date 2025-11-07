@@ -2,7 +2,7 @@
 # Simple v0.46 test
 
 class Animal {
-    var count = 0
+    count = 0
     
     fn init(name) {
         self.name = name
@@ -15,6 +15,6 @@ class Animal {
 }
 
 fn main() {
-    var a = Animal("Dog")
+    a = Animal("Dog")
     print(str(Animal.get_count()))
 }

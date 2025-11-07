@@ -22,7 +22,7 @@ fn test_direct_reference() {
     # var my_add = add  // This should work but doesn't yet
     
     # Workaround with lambda
-    var my_add = lambda a, b: add(a, b)
+    my_add = lambda a, b: add(a, b)
     print("Wrapped add result: " + str(my_add(3, 4)))
 }
 
@@ -33,8 +33,8 @@ fn test_passing_functions() {
     # var result = apply_op(add, 5, 3)  // Should work but doesn't
     
     # Lambda workaround
-    var add_lambda = lambda a, b: a + b
-    var result = apply_op(add_lambda, 5, 3)
+    add_lambda = lambda a, b: a + b
+    result = apply_op(add_lambda, 5, 3)
     print("Apply with lambda: " + str(result))
 }
 

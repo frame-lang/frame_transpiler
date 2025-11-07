@@ -2,7 +2,7 @@
 # Single system test for comparison
 
 fn main() {
-    var first = FirstSystem()
+    first = FirstSystem()
 }
 
 system FirstSystem {

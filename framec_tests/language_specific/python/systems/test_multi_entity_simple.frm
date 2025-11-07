@@ -19,17 +19,17 @@ fn main() {
     print("=== Simple Multi-Entity Demo ===")
     
     # Test helper function
-    var result = helper("hello")
+    result = helper("hello")
     print("Result: " + result)
     
     # Create and test toggle system
-    var toggle = ToggleSwitch()
+    toggle = ToggleSwitch()
     toggle.flip()
     toggle.flip()
     toggle.flip()
     
     # Create and test state machine
-    var machine = SimpleStateMachine()
+    machine = SimpleStateMachine()
     machine.advance()
     machine.advance()
     machine.advance()

@@ -19,25 +19,25 @@ fn main() {
     print("---------------------------")
     
     # Test helper function
-    var result = format_message("TEST", "helper_works")
+    result = format_message("TEST", "helper_works")
     print("Result: " + result)
     
     # Create first system - a simple counter
-    var counter = CounterSystem()
+    counter = CounterSystem()
     counter.increment()
     counter.increment()
-    var count = counter.get_count()
+    count = counter.get_count()
     print("Counter value: " + str(count))
     counter.reset()
     
     # Create second system - a toggle switch
-    var toggle = ToggleSystem()
+    toggle = ToggleSystem()
     toggle.switch()
     toggle.switch()
     toggle.switch()
     
     # Create third system - a traffic light with transitions
-    var light = TrafficLight()
+    light = TrafficLight()
     light.next()
     light.next()
     light.next()

@@ -2,8 +2,8 @@
 # Valid multiple systems test for v0.30
 
 fn main() {
-    var first = FirstSystem()
-    var second = SecondSystem()
+    first = FirstSystem()
+    second = SecondSystem()
 }
 
 system FirstSystem {

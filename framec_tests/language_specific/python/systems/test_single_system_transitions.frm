@@ -1,7 +1,7 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
     # Test with max_loops=2 to allow Init->A->B->A->B then stop
-    var service = TestSystem(2)
+    service = TestSystem(2)
     print("Test completed - system initialized with max_loops=2")
 }
 

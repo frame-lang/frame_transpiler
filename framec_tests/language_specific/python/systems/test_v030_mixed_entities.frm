@@ -3,9 +3,9 @@
 # Functions, multiple systems, parameters, operations
 
 fn main() {
-    var worker = Worker("task1")
-    var monitor = Monitor()
-    var processor = Processor()
+    worker = Worker("task1")
+    monitor = Monitor()
+    processor = Processor()
     
     worker.start()
     monitor.watch()
@@ -31,7 +31,7 @@ system Worker(task_name) {
         $Idle {
             start() {
                 shared_utility("Worker")
-                var result = calculate(10, 3)
+                result = calculate(10, 3)
                 print("Task: " + task_name + ", Result: " + str(result))
                 -> $Working
             }

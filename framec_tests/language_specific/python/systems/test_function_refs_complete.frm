@@ -36,8 +36,8 @@ fn test_function_refs() {
     print("\n=== Testing Function References ===")
     
     # Test 1: Assign function to variable
-    var my_add = add
-    var result = my_add(3, 4)
+    my_add = add
+    result = my_add(3, 4)
     print("Direct ref: 3 + 4 = " + str(result))
     
     # Test 2: Pass function as parameter
@@ -48,12 +48,12 @@ fn test_function_refs() {
     print("Pass as param: 5 * 3 = " + str(result))
     
     # Test 3: Return function from function
-    var op = get_operation("multiply")
+    op = get_operation("multiply")
     result = op(6, 7)
     print("Returned func: 6 * 7 = " + str(result))
     
     # Test 4: Store functions in list
-    var operations = [add, multiply, subtract]
+    operations = [add, multiply, subtract]
     result = operations[0](10, 5)
     print("From list[0]: 10 + 5 = " + str(result))
     
@@ -64,7 +64,7 @@ fn test_function_refs() {
     print("From list[2]: 10 - 5 = " + str(result))
     
     # Test 5: Store functions in dictionary
-    var ops_dict = {
+    ops_dict = {
         "addition": add,
         "multiplication": multiply,
         "subtraction": subtract
@@ -81,8 +81,8 @@ fn test_higher_order() {
     print("\n=== Testing Higher-Order Functions ===")
     
     # Test function that returns a function
-    var selected_op = get_operation("add")
-    var result = selected_op(100, 50)
+    selected_op = get_operation("add")
+    result = selected_op(100, 50)
     print("Selected op: 100 + 50 = " + str(result))
     
     # Test reassignment

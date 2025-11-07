@@ -4,7 +4,7 @@
 # when the parent state triggers a transition
 
 fn main() {
-    var hsm = TransitionDetectionTest()
+    hsm = TransitionDetectionTest()
     
     print("=== Testing parent transition detection ===")
     

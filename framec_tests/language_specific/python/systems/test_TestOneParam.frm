@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var sys2 = StartStateParameters("hello")
+    sys2 = StartStateParameters("hello")
 }
 
 system StartStateParameters($(p1)) {

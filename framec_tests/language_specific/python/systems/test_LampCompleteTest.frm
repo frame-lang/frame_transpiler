@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var lamp = Lamp()
+    lamp = Lamp()
     lamp.turnOn()
     lamp.turnOff()
 }

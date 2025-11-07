@@ -4,7 +4,7 @@ import signal
 import sys
 
 fn main() {
-    var service = CleanExitService()
+    service = CleanExitService()
 }
 
 system CleanExitService {

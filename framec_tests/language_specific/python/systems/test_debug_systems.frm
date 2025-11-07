@@ -70,7 +70,7 @@
     -actions-
     
     -domain-
-    var count = 0
+    count = 0
     
 ##
 
@@ -166,9 +166,9 @@
     }
     
     -domain-
-    var balance = 0
-    var selected_item = ""
-    var price = 0
+    balance = 0
+    selected_item = ""
+    price = 0
     
 ##
 
@@ -176,7 +176,7 @@ fn test_traffic_light() {
     print("=== Testing Traffic Light System ===")
     
     # Create and start traffic light
-    var light = TrafficLight()
+    light = TrafficLight()
     light.start()
     
     # Test state transitions
@@ -208,7 +208,7 @@ fn test_vending_machine() {
     print("=== Testing Vending Machine System ===")
     
     # Create vending machine
-    var vending = VendingMachine()
+    vending = VendingMachine()
     
     # Test insufficient funds
     vending.insert_coin(50)
@@ -239,7 +239,7 @@ fn test_nested_calls() {
     print("=== Testing Nested Function Calls ===")
     
     # Test deep nesting
-    var result = level1(5)
+    result = level1(5)
     print("Final nested result: " + str(result))
     
     print("=== Nested Calls Test Complete ===")
@@ -248,21 +248,21 @@ fn test_nested_calls() {
 
 fn level1(x) {
     print("  [level1] Called with x=" + str(x))
-    var result = level2(x * 2)
+    result = level2(x * 2)
     print("  [level1] Returning " + str(result))
     return result
 }
 
 fn level2(x) {
     print("  [level2] Called with x=" + str(x))
-    var result = level3(x + 5)
+    result = level3(x + 5)
     print("  [level2] Returning " + str(result))
     return result
 }
 
 fn level3(x) {
     print("  [level3] Called with x=" + str(x))
-    var result = level4(x - 3)
+    result = level4(x - 3)
     print("  [level3] Returning " + str(result))
     return result
 }
@@ -270,7 +270,7 @@ fn level3(x) {
 fn level4(x) {
     print("  [level4] Called with x=" + str(x))
     # Final computation
-    var result = x * 3
+    result = x * 3
     print("  [level4] Final computation: " + str(result))
     return result
 }

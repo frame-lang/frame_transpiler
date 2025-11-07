@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var eemd = EnterExitMessagesDemo()
+    eemd = EnterExitMessagesDemo()
     eemd.next()
     eemd.next()
 }

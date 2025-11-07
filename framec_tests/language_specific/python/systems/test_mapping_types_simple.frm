@@ -6,7 +6,7 @@ system TestMappingTypes {
         $Init {
             start() {
                 print("Hello World")
-                var x = 42
+                x = 42
                 doAction()
             }
         }

@@ -2,7 +2,7 @@
 
 fn testFunction(value) {
     print("  In testFunction with value: " + str(value))
-    var result = value * 2
+    result = value * 2
     return result
 }
 
@@ -32,7 +32,7 @@ system SimpleSystem {
             
             process(value) {
                 print("  Processing value: " + str(value))
-                var result = value + 10
+                result = value + 10
                 system.return = result
                 return
             }
@@ -46,18 +46,18 @@ fn main() {
     print("Line 47: Starting main function")  # This should be line 47
     print("Line 48: Setting up initial state")
     
-    var x = 100
-    var y = 200
+    x = 100
+    y = 200
     print("Line 52: x = " + str(x) + ", y = " + str(y))
     
     # Test function call
-    var result = testFunction(x)
+    result = testFunction(x)
     print("Line 56: Function returned: " + str(result))
     
     # Test system
-    var sys = SimpleSystem()
+    sys = SimpleSystem()
     sys.start()
-    var sys_result = sys.process(42)
+    sys_result = sys.process(42)
     print("Line 62: System returned: " + str(sys_result))
     
     # Some control flow
@@ -68,7 +68,7 @@ fn main() {
     }
     
     # Loop
-    var i = 0
+    i = 0
     while i < 3 {
         print("Line 74: Loop iteration " + str(i))
         i = i + 1

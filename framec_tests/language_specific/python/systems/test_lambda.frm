@@ -38,8 +38,8 @@ fn test_function_as_value() {
     # var result = operation(5, 10)  // Will allow indirect calls
     
     # Workaround: use if-elif chains
-    var op_type = "add"
-    var result = 0
+    op_type = "add"
+    result = 0
     if op_type == "add" {
         result = add(5, 10)
     } elif op_type == "square" {
@@ -52,10 +52,10 @@ fn test_function_as_value() {
 
 fn apply_to_list(numbers, operation) {
     # Simulate higher-order function behavior
-    var results = []
-    var i = 0
+    results = []
+    i = 0
     while i < len(numbers) {
-        var num = numbers[i]
+        num = numbers[i]
         if operation == "square" {
             results.append(square(num))
         } elif operation == "double" {
@@ -69,9 +69,9 @@ fn apply_to_list(numbers, operation) {
 fn test_higher_order_like() {
     print("\n=== Higher-Order Function Simulation ===")
     
-    var numbers = [1, 2, 3, 4, 5]
-    var squared = apply_to_list(numbers, "square")
-    var doubled = apply_to_list(numbers, "double")
+    numbers = [1, 2, 3, 4, 5]
+    squared = apply_to_list(numbers, "square")
+    doubled = apply_to_list(numbers, "double")
     
     print("Original: " + str(numbers))
     print("Squared: " + str(squared))

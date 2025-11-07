@@ -6,7 +6,7 @@ system Grocery {
     machine:
         $Start {
             getFruitOfTheDay(): string {
-                var f: Fruit = Fruit.Peach
+                f: Fruit = Fruit.Peach
                 
                 if f == Fruit.Peach {
                     print("Found a Peach")

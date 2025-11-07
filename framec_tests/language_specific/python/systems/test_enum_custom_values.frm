@@ -2,10 +2,10 @@
 # Test custom enum values
 
 fn main() {
-    var http = HttpServer()
+    http = HttpServer()
     http.testStatusCodes()
     
-    var logger = Logger()
+    logger = Logger()
     logger.testLogLevels()
 }
 
@@ -16,9 +16,9 @@ system HttpServer {
     machine:
         $Ready {
             testStatusCodes() {
-                var ok = HttpStatus.Ok
-                var notFound = HttpStatus.NotFound
-                var serverError = HttpStatus.ServerError
+                ok = HttpStatus.Ok
+                notFound = HttpStatus.NotFound
+                serverError = HttpStatus.ServerError
                 
                 print("OK code: " + str(ok.value))
                 print("NotFound code: " + str(notFound.value))
@@ -59,20 +59,20 @@ system Logger {
         $Active {
             testLogLevels() {
                 # Test negative values
-                var silent = Priority.Silent
-                var low = Priority.Low
-                var high = Priority.High
+                silent = Priority.Silent
+                low = Priority.Low
+                high = Priority.High
                 
                 print("Silent priority: " + str(silent.value))
                 print("Low priority: " + str(low.value))
                 print("High priority: " + str(high.value))
                 
                 # Test mixed explicit and auto values
-                var unknown = MixedEnum.Unknown
-                var idle = MixedEnum.Idle
-                var running = MixedEnum.Running
-                var complete = MixedEnum.Complete
-                var error = MixedEnum.Error
+                unknown = MixedEnum.Unknown
+                idle = MixedEnum.Idle
+                running = MixedEnum.Running
+                complete = MixedEnum.Complete
+                error = MixedEnum.Error
                 
                 print("Unknown: " + str(unknown.value))  # -1
                 print("Idle: " + str(idle.value))        # 0

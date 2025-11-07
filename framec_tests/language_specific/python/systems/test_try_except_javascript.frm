@@ -18,7 +18,7 @@ fn testBasicTryCatch() {
     try {
         print("  In try block")
         # Force an error
-        var x = 1 / 0
+        x = 1 / 0
         print("  Result: " + str(x))
     }
     except {
@@ -32,7 +32,7 @@ fn testSpecificException() {
     print("\nTest 2: Specific exception")
     try {
         print("  Forcing ZeroDivisionError")
-        var result = 10 / 0
+        result = 10 / 0
     }
     except ZeroDivisionError as e {
         print("  Caught ZeroDivisionError:", str(e))
@@ -48,8 +48,8 @@ fn testMultipleExceptions() {
     
     # Test with IndexError
     try {
-        var arr = [1, 2, 3]
-        var item = arr[10]
+        arr = [1, 2, 3]
+        item = arr[10]
     }
     except (IndexError, KeyError) as err {
         print("  Caught IndexError or KeyError:", str(err))
@@ -57,8 +57,8 @@ fn testMultipleExceptions() {
     
     # Test with another IndexError
     try {
-        var arr2 = [4, 5]
-        var item2 = arr2[100]  # Another index error
+        arr2 = [4, 5]
+        item2 = arr2[100]  # Another index error
     }
     except (IndexError, KeyError) as err {
         print("  Caught IndexError or KeyError again:", str(err))
@@ -70,7 +70,7 @@ fn testElseClause() {
     print("\nTest 4: Else clause")
     try {
         print("  Try block - no exception")
-        var x = 10 / 2
+        x = 10 / 2
     }
     except {
         print("  This should not run")
@@ -81,7 +81,7 @@ fn testElseClause() {
     
     # Now with exception
     try {
-        var y = 1 / 0
+        y = 1 / 0
     }
     except ZeroDivisionError {
         print("  Exception caught")
@@ -96,7 +96,7 @@ fn testFinallyClause() {
     print("\nTest 5: Finally clause")
     try {
         print("  Try block")
-        var x = 5 * 2
+        x = 5 * 2
     }
     except {
         print("  Except block")
@@ -107,7 +107,7 @@ fn testFinallyClause() {
     
     # With exception
     try {
-        var y = 1 / 0
+        y = 1 / 0
     }
     except {
         print("  Caught exception")
@@ -132,7 +132,7 @@ fn testRaiseException() {
     # Exception chaining
     try {
         try {
-            var x = 1 / 0
+            x = 1 / 0
         }
         except ZeroDivisionError as original {
             print("  Chaining exceptions")
@@ -151,7 +151,7 @@ fn testNestedTry() {
         print("  Outer try")
         try {
             print("    Inner try")
-            var x = 1 / 0
+            x = 1 / 0
         }
         except ZeroDivisionError as e {
             print("    Inner catch:", str(e))

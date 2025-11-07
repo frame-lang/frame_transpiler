@@ -15,8 +15,8 @@ fn apply_op(op, x, y) {
 
 fn main() {
     # Test 1: Use function ref directly
-    var my_add = add
-    var result = my_add(3, 4)
+    my_add = add
+    result = my_add(3, 4)
     print("3 + 4 = " + str(result))
     
     # Test 2: Pass function as parameter

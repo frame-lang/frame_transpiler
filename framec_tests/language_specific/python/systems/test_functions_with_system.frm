@@ -1,9 +1,9 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var counter = Counter()
+    counter = Counter()
     
     # Demonstrate system interaction  
-    var iterations = [1, 2, 3]
+    iterations = [1, 2, 3]
     for i in iterations {
         counter.increment()
     }

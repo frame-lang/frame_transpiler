@@ -10,21 +10,21 @@ fn main() {
     
     # ========== VARIABLE OPERATIONS ==========
     # Basic variable declarations
-    var x = 101
+    x = 101
     print("Variable declaration: x = " + str(x))
     
-    var y = 20
-    var z = 30.5
-    var flag = true
-    var name = "Frame"
+    y = 20
+    z = 30.5
+    flag = true
+    name = "Frame"
     print("Multiple types: y=" + str(y) + ", z=" + str(z) + ", flag=" + str(flag) + ", name=" + name)
     
     # Multiple variable assignment
-    var a, b = divmod_custom(17, 5)
+    a, b = divmod_custom(17, 5)
     print("Multiple assignment: a=" + str(a) + ", b=" + str(b))
     
     # Tuple unpacking
-    var t1, t2, t3 = unpack_three()
+    t1, t2, t3 = unpack_three()
     print("Tuple unpacking: t1=" + str(t1) + ", t2=" + str(t2) + ", t3=" + str(t3))
     
     # Reassignment
@@ -33,85 +33,85 @@ fn main() {
     
     # ========== ARITHMETIC EXPRESSIONS ==========
     # Basic arithmetic
-    var sum = x + y
-    var diff = x - y  
-    var prod = x * y
-    var quot = x / y
-    var mod = x % y
-    var power = x ** 2
-    var floor_div = x // y
+    sum = x + y
+    diff = x - y  
+    prod = x * y
+    quot = x / y
+    mod = x % y
+    power = x ** 2
+    floor_div = x // y
     print("Arithmetic: sum=" + str(sum) + ", diff=" + str(diff) + ", prod=" + str(prod))
     print("More math: quot=" + str(quot) + ", mod=" + str(mod) + ", power=" + str(power) + ", floor=" + str(floor_div))
     
     # Compound expressions
-    var complex1 = (x + y) * (x - y)
-    var complex2 = x + y * z - power / 2
-    var complex3 = ((x + y) * z) / (a + b)
+    complex1 = (x + y) * (x - y)
+    complex2 = x + y * z - power / 2
+    complex3 = ((x + y) * z) / (a + b)
     print("Complex expressions: c1=" + str(complex1) + ", c2=" + str(complex2) + ", c3=" + str(complex3))
     
     # ========== COMPARISON OPERATIONS ==========
-    var gt = x > y
-    var lt = x < y
-    var gte = x >= y
-    var lte = x <= y
-    var eq = x == y
-    var neq = x != y
+    gt = x > y
+    lt = x < y
+    gte = x >= y
+    lte = x <= y
+    eq = x == y
+    neq = x != y
     print("Comparisons: x>y=" + str(gt) + ", x<y=" + str(lt) + ", x>=y=" + str(gte))
     print("More comparisons: x<=y=" + str(lte) + ", x==y=" + str(eq) + ", x!=y=" + str(neq))
     
     # Chained comparisons
-    var chained = 10 < x < 100
+    chained = 10 < x < 100
     print("Chained comparison 10 < x < 100: " + str(chained))
     
     # ========== LOGICAL OPERATIONS ==========
-    var and1 = true and true
-    var and2 = true and false
-    var or1 = false or true
-    var or2 = false or false
-    var not1 = not true
-    var not2 = not false
+    and1 = true and true
+    and2 = true and false
+    or1 = false or true
+    or2 = false or false
+    not1 = not true
+    not2 = not false
     print("Logic: and(T,T)=" + str(and1) + ", and(T,F)=" + str(and2) + ", or(F,T)=" + str(or1))
     print("More logic: or(F,F)=" + str(or2) + ", not(T)=" + str(not1) + ", not(F)=" + str(not2))
     
     # Complex logical expressions
-    var complex_logic = (x > y) and (not flag or (z < 100))
+    complex_logic = (x > y) and (not flag or (z < 100))
     print("Complex logic expression: " + str(complex_logic))
     
     # ========== BITWISE OPERATIONS ==========
-    var bit_and = 5 & 3  # 101 & 011 = 001
-    var bit_or = 5 | 3   # 101 | 011 = 111
-    var bit_xor = 5 ^ 3  # 101 ^ 011 = 110
-    var bit_not = ~5     # ~101 = ...11111010 (two's complement)
-    var bit_left = 5 << 1  # 101 << 1 = 1010
-    var bit_right = 5 >> 1 # 101 >> 1 = 10
+    bit_and = 5 & 3  # 101 & 011 = 001
+    bit_or = 5 | 3   # 101 | 011 = 111
+    bit_xor = 5 ^ 3  # 101 ^ 011 = 110
+    bit_not = ~5     # ~101 = ...11111010 (two's complement)
+    bit_left = 5 << 1  # 101 << 1 = 1010
+    bit_right = 5 >> 1 # 101 >> 1 = 10
     print("Bitwise: 5&3=" + str(bit_and) + ", 5|3=" + str(bit_or) + ", 5^3=" + str(bit_xor))
     print("More bitwise: ~5=" + str(bit_not) + ", 5<<1=" + str(bit_left) + ", 5>>1=" + str(bit_right))
     
     # ========== STRING OPERATIONS ==========
-    var str1 = "Hello"
-    var str2 = "World"
-    var concat = str1 + " " + str2
-    var repeated = str1 * 3
+    str1 = "Hello"
+    str2 = "World"
+    concat = str1 + " " + str2
+    repeated = str1 * 3
     print("String concat: " + concat)
     print("String repeat: " + repeated)
     
     # String formatting
-    var formatted = "x=" + str(x) + ", y=" + str(y)
+    formatted = "x=" + str(x) + ", y=" + str(y)
     print("Formatted string: " + formatted)
     
     # ========== LIST OPERATIONS ==========
-    var myList = [1, 2, 3, 4, 5]
+    myList = [1, 2, 3, 4, 5]
     print("Original list: " + str(myList))
     
     # List access
-    var first = myList[0]
-    var last = myList[-1]
+    first = myList[0]
+    last = myList[-1]
     print("List access: first=" + str(first) + ", last=" + str(last))
     
     # List slicing
-    var slice1 = myList[1:3]
-    var slice2 = myList[::2]
-    var slice3 = myList[::-1]
+    slice1 = myList[1:3]
+    slice2 = myList[::2]
+    slice3 = myList[::-1]
     print("Slices: [1:3]=" + str(slice1) + ", [::2]=" + str(slice2) + ", [::-1]=" + str(slice3))
     
     # List modification
@@ -122,18 +122,18 @@ fn main() {
     print("After myList[0]=100: " + str(myList))
     
     # List comprehension-like operations
-    var doubled = []
+    doubled = []
     for item in myList {
         doubled.append(item * 2)
     }
     print("Doubled list: " + str(doubled))
     
     # ========== DICTIONARY OPERATIONS ==========
-    var myDict = {"key1": "value1", "key2": 42, "key3": true}
+    myDict = {"key1": "value1", "key2": 42, "key3": true}
     print("Original dict: " + str(myDict))
     
     # Dictionary access
-    var val1 = myDict["key1"]
+    val1 = myDict["key1"]
     print("Dict access: myDict['key1']=" + str(val1))
     
     # Dictionary modification
@@ -145,15 +145,15 @@ fn main() {
     print("After del key2: " + str(myDict))
     
     # ========== SET OPERATIONS ==========
-    var set1 = {1, 2, 3}
-    var set2 = {2, 3, 4}
+    set1 = {1, 2, 3}
+    set2 = {2, 3, 4}
     print("Sets: set1=" + str(set1) + ", set2=" + str(set2))
     
     # ========== MEMBERSHIP OPERATIONS ==========
-    var in_list = 3 in myList
-    var not_in_list = 999 in myList
-    var in_dict = "key1" in myDict
-    var in_set = 2 in set1
+    in_list = 3 in myList
+    not_in_list = 999 in myList
+    in_dict = "key1" in myDict
+    in_set = 2 in set1
     print("Membership: 3 in list=" + str(in_list) + ", 999 in list=" + str(not_in_list))
     print("More membership: 'key1' in dict=" + str(in_dict) + ", 2 in set=" + str(in_set))
     
@@ -186,16 +186,16 @@ fn main() {
     }
     
     # ========== LOOPS - WHILE ==========
-    var i = 0
+    i = 0
     while i < 3 {
         print("WHILE loop: i=" + str(i))
         i = i + 1
     }
     
     # Nested while
-    var j = 0
+    j = 0
     while j < 2 {
-        var k = 0
+        k = 0
         while k < 2 {
             print("NESTED WHILE: j=" + str(j) + ", k=" + str(k))
             k = k + 1
@@ -224,7 +224,7 @@ fn main() {
     }
     
     # ========== BREAK STATEMENT ==========
-    var count = 0
+    count = 0
     while true {
         if count == 3 {
             print("BREAK: Breaking at count=" + str(count))
@@ -271,7 +271,7 @@ fn main() {
     # ========== TRY-EXCEPT-FINALLY ==========
     try {
         print("TRY: Attempting division")
-        var result1 = safe_divide(10, 2)
+        result1 = safe_divide(10, 2)
         print("TRY: Division result = " + str(result1))
     } except {
         print("EXCEPT: Division failed")
@@ -282,7 +282,7 @@ fn main() {
     # Try with actual exception
     try {
         print("TRY: Attempting risky operation")
-        var result2 = safe_divide(10, 0)  # Will throw
+        result2 = safe_divide(10, 0)  # Will throw
         print("TRY: This should not print")
     } except {
         print("EXCEPT: Caught division by zero")
@@ -308,26 +308,26 @@ fn main() {
     
     # ========== FUNCTION CALLS ==========
     # Simple function call
-    var add_result = add(10, 20)
+    add_result = add(10, 20)
     print("FUNCTION: add(10, 20) = " + str(add_result))
     
     # Function with multiple returns
-    var div, rem = divmod_custom(17, 5)
+    div, rem = divmod_custom(17, 5)
     print("FUNCTION: divmod(17, 5) = (" + str(div) + ", " + str(rem) + ")")
     
     # Recursive function
-    var fact = factorial(5)
+    fact = factorial(5)
     print("RECURSIVE: factorial(5) = " + str(fact))
     
     # Function with side effects
     greet("Alice", "Hello")
     
     # Nested function calls
-    var nested_result = add(add(1, 2), add(3, 4))
+    nested_result = add(add(1, 2), add(3, 4))
     print("NESTED CALLS: add(add(1,2), add(3,4)) = " + str(nested_result))
     
     # Function returning function result
-    var chain = process_chain(5)
+    chain = process_chain(5)
     print("FUNCTION CHAIN: process_chain(5) = " + str(chain))
     
     # ========== EXCEPTION THROWING ==========
@@ -351,7 +351,7 @@ fn main() {
     
     # ========== COMPLEX EXPRESSIONS ==========
     # Conditional assignment (ternary not supported, use if-else)
-    var ternary = 0
+    ternary = 0
     if x > y {
         ternary = x
     } else {
@@ -360,43 +360,43 @@ fn main() {
     print("Conditional assignment: " + str(ternary))
     
     # Complex nested expressions
-    var complex_expr = ((x + y) * z / (a + b)) ** 2 + sum - diff * prod
+    complex_expr = ((x + y) * z / (a + b)) ** 2 + sum - diff * prod
     print("Complex expression: " + str(complex_expr))
     
     # Boolean short-circuit evaluation
-    var short1 = false and crash_function()  # Should not call crash_function
-    var short2 = true or crash_function()    # Should not call crash_function
+    short1 = false and crash_function()  # Should not call crash_function
+    short2 = true or crash_function()    # Should not call crash_function
     print("Short-circuit evaluation completed successfully")
     
     # ========== EDGE CASES ==========
     # Empty collections
-    var empty_list = []
-    var empty_dict = {}
+    empty_list = []
+    empty_dict = {}
     print("Empty collections: list=" + str(empty_list) + ", dict=" + str(empty_dict))
     
     # Single element collections
-    var single_list = [42]
-    var single_dict = {"only": "one"}
+    single_list = [42]
+    single_dict = {"only": "one"}
     print("Single element: list=" + str(single_list) + ", dict=" + str(single_dict))
     
     # Large numbers
-    var large = 999999999
-    var very_large = large * large
+    large = 999999999
+    very_large = large * large
     print("Large numbers: " + str(large) + " * " + str(large) + " = " + str(very_large))
     
     # Negative numbers
-    var neg = -42
-    var neg_result = neg * neg
+    neg = -42
+    neg_result = neg * neg
     print("Negative: " + str(neg) + " * " + str(neg) + " = " + str(neg_result))
     
     # Float precision
-    var float1 = 0.1
-    var float2 = 0.2
-    var float_sum = float1 + float2
+    float1 = 0.1
+    float2 = 0.2
+    float_sum = float1 + float2
     print("Float precision: 0.1 + 0.2 = " + str(float_sum))
     
     # ========== CLASS TESTING ==========
-    var class_result = test_classes()
+    class_result = test_classes()
     print("Class test result (GPA): " + str(class_result))
     
     print("=== All Tests Completed Successfully ===")
@@ -412,8 +412,8 @@ fn add(a, b) {
 
 fn divmod_custom(dividend, divisor) {
     print("  [divmod] Dividing " + str(dividend) + " by " + str(divisor))
-    var quotient = dividend // divisor
-    var remainder = dividend % divisor
+    quotient = dividend // divisor
+    remainder = dividend % divisor
     return quotient, remainder
 }
 
@@ -437,7 +437,7 @@ fn factorial(n) {
 
 fn sum_list(numbers) {
     print("  [sum_list] Summing list: " + str(numbers))
-    var total = 0
+    total = 0
     for val in numbers {
         total = total + val
     }
@@ -446,9 +446,9 @@ fn sum_list(numbers) {
 
 fn process_chain(val) {
     print("  [process_chain] Processing " + str(val))
-    var step1 = val * 2
-    var step2 = step1 + 10
-    var step3 = step2 / 2
+    step1 = val * 2
+    step2 = step1 + 10
+    step3 = step2 / 2
     return step3
 }
 
@@ -456,7 +456,7 @@ fn safe_divide(a, b) {
     print("  [safe_divide] Dividing " + str(a) + " by " + str(b))
     if b == 0 {
         print("  [safe_divide] ERROR: Division by zero!")
-        var error = "Division by zero"
+        error = "Division by zero"
         throw error
     }
     return a / b
@@ -466,7 +466,7 @@ fn throw_if_negative(val) {
     print("  [throw_if_negative] Checking " + str(val))
     if val < 0 {
         print("  [throw_if_negative] ERROR: Negative value!")
-        var error = "Negative value not allowed"
+        error = "Negative value not allowed"
         throw error
     }
     return val
@@ -476,7 +476,7 @@ fn test_exception_thrower(should_throw) {
     print("  [test_exception_thrower] should_throw=" + str(should_throw))
     if should_throw {
         print("  [test_exception_thrower] Throwing exception")
-        var error = "Test exception from function"
+        error = "Test exception from function"
         throw error
     }
     print("  [test_exception_thrower] Returning normally")
@@ -485,7 +485,7 @@ fn test_exception_thrower(should_throw) {
 
 fn crash_function() {
     print("  ERROR: This function should never be called due to short-circuit!")
-    var error = "Should not reach here"
+    error = "Should not reach here"
     throw error
     return false
 }
@@ -493,9 +493,9 @@ fn crash_function() {
 # ========== CLASS DEFINITIONS ==========
 
 class Person {
-    var name = ""
-    var age = 0
-    var email = ""
+    name = ""
+    age = 0
+    email = ""
     
     fn init(name, age, email) {
         self.name = name
@@ -522,9 +522,9 @@ class Person {
 }
 
 class Student(Person) {
-    var student_id = ""
-    var grades = []
-    var courses = []
+    student_id = ""
+    grades = []
+    courses = []
     
     fn init(name, age, email, student_id) {
         super.init(name, age, email)  # Call parent constructor
@@ -551,11 +551,11 @@ class Student(Person) {
         if len(self.grades) == 0 {
             return 0.0
         }
-        var total = 0
+        total = 0
         for grade_record in self.grades {
             total = total + grade_record["grade"]
         }
-        var gpa = total / len(self.grades)
+        gpa = total / len(self.grades)
         return gpa
     }
     
@@ -567,8 +567,8 @@ class Student(Person) {
 }
 
 class Calculator {
-    var memory = 0
-    var history = []
+    memory = 0
+    history = []
     
     fn init() {
         self.memory = 0
@@ -578,14 +578,14 @@ class Calculator {
     
     fn add(a, b) {
         print("  [Calculator.add] Adding " + str(a) + " + " + str(b))
-        var add_result = a + b
+        add_result = a + b
         self.history.append("add(" + str(a) + ", " + str(b) + ") = " + str(add_result))
         return add_result
     }
     
     fn multiply(a, b) {
         print("  [Calculator.multiply] Multiplying " + str(a) + " * " + str(b))
-        var mult_result = a * b
+        mult_result = a * b
         self.history.append("multiply(" + str(a) + ", " + str(b) + ") = " + str(mult_result))
         return mult_result
     }
@@ -603,7 +603,7 @@ class Calculator {
     
     fn clear_history() {
         print("  [Calculator.clear_history] Clearing history")
-        var old_count = len(self.history)
+        old_count = len(self.history)
         self.history = []
         return old_count
     }
@@ -613,17 +613,17 @@ fn test_classes() {
     print("=== Testing Classes ===")
     
     # Test basic class instantiation
-    var person1 = Person("Alice", 30, "alice@example.com")
+    person1 = Person("Alice", 30, "alice@example.com")
     person1.greet()
-    var info = person1.get_info()
+    info = person1.get_info()
     print("Person info: " + str(info))
     
     # Test method calls and property access
-    var new_age = person1.have_birthday()
+    new_age = person1.have_birthday()
     print("New age after birthday: " + str(new_age))
     
     # Test inheritance
-    var student1 = Student("Bob", 20, "bob@university.edu", "STU001")
+    student1 = Student("Bob", 20, "bob@university.edu", "STU001")
     student1.greet()  # Should use overridden method
     
     # Test methods on inherited class
@@ -631,21 +631,21 @@ fn test_classes() {
     student1.enroll("Mathematics")
     student1.add_grade("Computer Science", 85)
     student1.add_grade("Mathematics", 90)
-    var gpa = student1.calculate_gpa()
+    gpa = student1.calculate_gpa()
     print("Student GPA: " + str(gpa))
     
     # Test another class
-    var calc = Calculator()
-    var sum_result = calc.add(10, 20)
-    var mult_result = calc.multiply(5, 6)
+    calc = Calculator()
+    sum_result = calc.add(10, 20)
+    mult_result = calc.multiply(5, 6)
     calc.store(sum_result)
-    var recalled = calc.recall()
+    recalled = calc.recall()
     print("Calculator memory: " + str(recalled))
     print("Calculator history: " + str(calc.history))
     
     # Test multiple instances
-    var person2 = Person("Charlie", 25, "charlie@example.com")
-    var student2 = Student("Diana", 22, "diana@university.edu", "STU002")
+    person2 = Person("Charlie", 25, "charlie@example.com")
+    student2 = Student("Diana", 22, "diana@university.edu", "STU002")
     
     person2.greet()
     student2.greet()

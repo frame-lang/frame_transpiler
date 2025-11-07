@@ -4,14 +4,14 @@
 fn main() {
     print("=== Mixed Entity Test ===")
     
-    var module_var = "MODULE"
+    module_var = "MODULE"
     print(module_var)
     
     function_one()
     function_two()
     
-    var s1 = SystemA()
-    var s2 = SystemB()
+    s1 = SystemA()
+    s2 = SystemB()
     
     s1.interface_a()
     s2.interface_b()
@@ -21,7 +21,7 @@ fn main() {
 
 fn function_one() {
     print("Function One")
-    var local_one = "F1"
+    local_one = "F1"
     print(local_one)
     
     helper()
@@ -29,7 +29,7 @@ fn function_one() {
 
 fn function_two() {
     print("Function Two")
-    var local_two = "F2"
+    local_two = "F2"
     print(local_two)
     
     helper()

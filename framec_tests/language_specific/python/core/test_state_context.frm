@@ -54,7 +54,7 @@ system StateContextSm {
                 return x
             }
             Next(arg:int) {
-                var tmp = arg * 10
+                tmp = arg * 10
                 (10) -> (tmp) $Bar(x)
             }
         }
@@ -86,4 +86,3 @@ system StateContextSm {
     domain:
         tape = []
 }
-

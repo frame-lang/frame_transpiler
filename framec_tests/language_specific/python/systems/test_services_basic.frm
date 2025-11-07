@@ -2,7 +2,7 @@
 import time
 
 fn main() {
-    var service = BasicService()
+    service = BasicService()
 }
 
 system BasicService {

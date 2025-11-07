@@ -1,7 +1,7 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive test for explicit self/system syntax in Frame v0.31
 fn main() {
-    var sys = ComprehensiveSystem()
+    sys = ComprehensiveSystem()
     
     # Test interface calls
     sys.processTask("task1")
@@ -40,7 +40,7 @@ system ComprehensiveSystem {
                 taskCount = taskCount + 1
                 
                 # Test calling action with return value
-                var result = self.computeHash(taskName)
+                result = self.computeHash(taskName)
                 print("Hash: " + str(result))
                 
                 # Test nested calls
@@ -51,7 +51,7 @@ system ComprehensiveSystem {
             
             calculate(a: int, b: int): int {
                 # Test operation with return
-                var doubled = self.helperOp(a)
+                doubled = self.helperOp(a)
                 
                 # Test action that modifies domain
                 self.updateTotal(doubled + b)

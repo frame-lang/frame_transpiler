@@ -5,7 +5,7 @@ fn main() {
     print("=== Simple Seat Booking Test ===")
     
     # Test the scope bug fix: obj.method() should work
-    var seat_manager = SeatManager()
+    seat_manager = SeatManager()
     seat_manager.test_operations()
     
     print("=== Test Complete ===")

@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var sys = TestContinue()
+    sys = TestContinue()
     sys.test()
 }
 

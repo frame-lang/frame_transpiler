@@ -6,8 +6,8 @@ system A {
 
         a() {
 
-            var x = 0
-            var a = 0
+            x = 0
+            a = 0
 
             if x: y() elif a: b() else: c()
             if (x): y() elif (a): b() else: c()

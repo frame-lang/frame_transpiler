@@ -5,7 +5,7 @@ fn test_json_like_parsing() {
     print("=== Testing JSON-like Data Handling ===")
     
     # Simulate JSON data as Frame dictionaries
-    var json_data = {
+    json_data = {
         "user": {
             "id": 123,
             "name": "Alice",
@@ -34,7 +34,7 @@ fn test_json_like_parsing() {
 fn test_nested_data_access() {
     print("\n=== Testing Nested Data Access ===")
     
-    var config = {
+    config = {
         "database": {
             "host": "localhost",
             "port": 5432,
@@ -51,9 +51,9 @@ fn test_nested_data_access() {
     }
     
     # Access nested values
-    var db_host = config["database"]["host"]
-    var db_user = config["database"]["credentials"]["username"]
-    var api_url = config["api"]["base_url"]
+    db_host = config["database"]["host"]
+    db_user = config["database"]["credentials"]["username"]
+    api_url = config["api"]["base_url"]
     
     print("Database host: " + db_host)
     print("Database user: " + db_user) 
@@ -65,7 +65,7 @@ fn test_nested_data_access() {
 fn test_data_manipulation() {
     print("\n=== Testing Data Manipulation ===")
     
-    var data = {
+    data = {
         "items": [
             {"id": 1, "name": "apple", "price": 1.50},
             {"id": 2, "name": "banana", "price": 0.75},
@@ -74,18 +74,18 @@ fn test_data_manipulation() {
     }
     
     # Access array elements
-    var first_item = data["items"][0]
-    var item_name = first_item["name"]
-    var item_price = first_item["price"]
+    first_item = data["items"][0]
+    item_name = first_item["name"]
+    item_price = first_item["price"]
     
     print("First item: " + item_name + " - $" + str(item_price))
     
     # Calculate total
-    var total = 0.0
-    var items = data["items"]
-    var i = 0
+    total = 0.0
+    items = data["items"]
+    i = 0
     while i < len(items) {
-        var item = items[i]
+        item = items[i]
         total = total + item["price"]
         i = i + 1
     }

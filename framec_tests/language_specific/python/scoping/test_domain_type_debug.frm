@@ -1,6 +1,6 @@
 # Python-specific: domain native assignment
 fn main() {
-    var sys = TestSystem()
+    sys = TestSystem()
     sys.test()
 }
 

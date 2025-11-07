@@ -2,8 +2,8 @@
 # Test assert statement functionality (v0.47)
 
 fn test_basic_assertions() {
-    var x = 10
-    var y = 20
+    x = 10
+    y = 20
     
     # Basic assertions
     assert x < y
@@ -14,7 +14,7 @@ fn test_basic_assertions() {
 }
 
 fn test_assertions_in_functions() {
-    var value = 42
+    value = 42
     
     # Function parameter validation
     assert value > 0

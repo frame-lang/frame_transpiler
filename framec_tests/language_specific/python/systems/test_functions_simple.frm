@@ -1,9 +1,9 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var result = Utils.add(5, 3)
+    result = Utils.add(5, 3)
     print("5 + 3 = " + str(result))
     
-    var category = Utils.categorizeNumber(42)
+    category = Utils.categorizeNumber(42)
     print("42 is " + category)
 }
 

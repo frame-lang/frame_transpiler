@@ -1,7 +1,7 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test explicit self.domainVar syntax
 fn main() {
-    var sys = DomainVarTest()
+    sys = DomainVarTest()
     sys.test()
 }
 
@@ -20,7 +20,7 @@ system DomainVarTest {
                 print("Count after increment: " + str(self.count))
                 
                 # Test domain var in expression with self (works)
-                var doubled = self.count * 2
+                doubled = self.count * 2
                 print("Doubled: " + str(doubled))
                 
                 # Test string domain var

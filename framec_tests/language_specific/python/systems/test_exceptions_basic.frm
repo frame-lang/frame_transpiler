@@ -7,7 +7,7 @@ fn test_basic_try_except() {
     
     try {
         print("In try block")
-        var x = 10 / 2
+        x = 10 / 2
         print("Division succeeded: " + str(x))
     }
     except {
@@ -21,15 +21,15 @@ fn test_specific_exception() {
     print("Testing specific exception types")
     
     try {
-        var list = []
-        var item = list[10]  {-- IndexError --}
+        list = []
+        item = list[10]  {-- IndexError --}
     }
     except IndexError {
         print("Caught IndexError")
     }
     
     try {
-        var x = int("not a number")  {-- ValueError --}
+        x = int("not a number")  {-- ValueError --}
     }
     except ValueError as e {
         print("Caught ValueError: " + str(e))
@@ -41,7 +41,7 @@ fn test_multiple_exceptions() {
     
     try {
         {-- Some operation that could raise different errors --}
-        var x = 1 / 0
+        x = 1 / 0
     }
     except (ZeroDivisionError, ValueError) as err {
         print("Caught exception: " + str(err))
@@ -52,7 +52,7 @@ fn test_else_clause() {
     print("Testing else clause")
     
     try {
-        var x = 10 / 2
+        x = 10 / 2
     }
     except ZeroDivisionError {
         print("Division by zero")
@@ -67,7 +67,7 @@ fn test_finally_clause() {
     
     try {
         print("Try block")
-        var x = 10 / 0
+        x = 10 / 0
     }
     except ZeroDivisionError {
         print("Caught division by zero")
@@ -109,7 +109,7 @@ fn test_raise_statement() {
     {-- Test raise with from clause --}
     try {
         try {
-            var x = 1 / 0
+            x = 1 / 0
         }
         except ZeroDivisionError as e {
             raise ValueError("Wrapped error") from e
@@ -142,7 +142,7 @@ fn test_all_clauses() {
     
     try {
         print("Try block")
-        var x = 10 / 2
+        x = 10 / 2
     }
     except ZeroDivisionError {
         print("Exception handler")

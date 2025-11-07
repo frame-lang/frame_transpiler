@@ -6,7 +6,7 @@ fn test_try_except() {
     print("Test 1: Basic try-except")
     try {
         print("  Trying division by zero")
-        var x = 10 / 0
+        x = 10 / 0
         print("  This should not print")
     }
     except ZeroDivisionError {
@@ -16,7 +16,7 @@ fn test_try_except() {
     # Test 2: Try-except with variable binding
     print("\nTest 2: Exception with variable binding")
     try {
-        var y = 1 / 0
+        y = 1 / 0
     }
     except ZeroDivisionError as e {
         print("  Caught exception:", str(e))
@@ -25,8 +25,8 @@ fn test_try_except() {
     # Test 3: Multiple exception types (using list index out of range)
     print("\nTest 3: Multiple exception types")
     try {
-        var lst = [1, 2, 3]
-        var item = lst[10]  # This will raise IndexError
+        lst = [1, 2, 3]
+        item = lst[10]  # This will raise IndexError
     }
     except (IndexError, KeyError) as err {
         print("  Caught IndexError or KeyError:", str(err))
@@ -35,7 +35,7 @@ fn test_try_except() {
     # Test 4: Try-except-else (no exception case)
     print("\nTest 4: Try-except-else")
     try {
-        var result = 10 / 2
+        result = 10 / 2
         print("  Division successful:", str(result))
     }
     except ZeroDivisionError {
@@ -49,7 +49,7 @@ fn test_try_except() {
     print("\nTest 5: Try-except-finally")
     try {
         print("  Trying risky operation")
-        var z = 5 / 0
+        z = 5 / 0
     }
     except ZeroDivisionError as e {
         print("  Error caught:", str(e))
@@ -61,7 +61,7 @@ fn test_try_except() {
     # Test 6: Try-except-else-finally
     print("\nTest 6: Try-except-else-finally")
     try {
-        var safe_result = 100 / 4
+        safe_result = 100 / 4
     }
     except ZeroDivisionError {
         print("  Division error")
@@ -87,7 +87,7 @@ fn test_try_except() {
     print("\nTest 8: Re-raise")
     try {
         try {
-            var problem = 1 / 0
+            problem = 1 / 0
         }
         except ZeroDivisionError {
             print("  Inner: Caught error, re-raising...")
@@ -102,7 +102,7 @@ fn test_try_except() {
     print("\nTest 9: Exception chaining")
     try {
         try {
-            var bad_calc = 10 / 0
+            bad_calc = 10 / 0
         }
         except ZeroDivisionError as original {
             raise ValueError("Calculation failed") from original
@@ -115,7 +115,7 @@ fn test_try_except() {
     # Test 10: Bare except clause
     print("\nTest 10: Bare except")
     try {
-        var err = 1 / 0
+        err = 1 / 0
     }
     except {
         print("  Caught any exception with bare except")
@@ -136,7 +136,7 @@ system TryExceptSystem {
                 try {
                     print("  System: Attempting operation")
                     # Simulate an operation that might fail
-                    var result = 10 / 2
+                    result = 10 / 2
                     print("  System: Operation successful, result:", str(result))
                 }
                 except ZeroDivisionError {
@@ -163,7 +163,7 @@ system TryExceptSystem {
                 # Try to recover
                 try {
                     print("  System: Attempting recovery")
-                    var recovery = 5 + 5
+                    recovery = 5 + 5
                     print("  System: Recovery successful")
                     -> $Init
                 }
@@ -181,7 +181,7 @@ fn main() {
     test_try_except()
     
     print("\n=== Testing System Exception Handling ===")
-    var sys = TryExceptSystem()
+    sys = TryExceptSystem()
     sys.test_error_handling()
     
     print("\n=== All Tests Complete ===")

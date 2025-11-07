@@ -16,7 +16,7 @@ fn test_module_access() {
 
 fn test_dict_ops() {
     # Dictionary operations that should work
-    var dict = {}  # This works!
+    dict = {}  # This works!
     dict["key"] = "value"  # This works too!
     
     print("Dictionary indexing works: " + str(dict))
@@ -27,7 +27,7 @@ fn test_chaining() {
     # Note: Need to import FSL functions first
     # from fsl import str
     
-    var text = "hello"
+    text = "hello"
     
     # Try method chaining - this won't work
     # var result = text.upper().lower()
@@ -39,14 +39,14 @@ fn test_chaining() {
 }
 
 fn test_indexing() {
-    var matrix = [[1, 2], [3, 4]]
+    matrix = [[1, 2], [3, 4]]
     
     # Single indexing works
-    var row = matrix[0]
+    row = matrix[0]
     print("Single index works: " + str(row))
     
     # Double indexing actually works now!
-    var val = matrix[0][1]
+    val = matrix[0][1]
     print("Nested indexing works: " + str(val))
     return
 }

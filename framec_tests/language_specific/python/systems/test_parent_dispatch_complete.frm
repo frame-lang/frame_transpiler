@@ -8,7 +8,7 @@
 # 5. Event handlers without explicit return work correctly
 
 fn main() {
-    var hsm = ParentDispatchTest()
+    hsm = ParentDispatchTest()
     
     # Test basic parent dispatch
     hsm.test1()

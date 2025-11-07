@@ -2,7 +2,7 @@
 # Test for None keyword standardization
 
 fn testNoneValue() {
-    var x = None
+    x = None
     if x == None {
         print("x is None")
     }
@@ -38,18 +38,18 @@ system NoneChecker {
 
 fn main() {
     # Test function with None
-    var result = testNoneValue()
+    result = testNoneValue()
     print("here")
     if result == None {
         print("Function returned None")
     }
     
     # Test system with None
-    var checker = NoneChecker()
+    checker = NoneChecker()
     checker.check(None)
     checker.check(42)
     
-    var val = checker.getValue()
+    val = checker.getValue()
     if val == None {
         print("System returned None")
     }

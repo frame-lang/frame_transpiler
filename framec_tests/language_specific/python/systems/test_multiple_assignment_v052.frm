@@ -4,8 +4,8 @@
 
 fn test_basic_assignment() {
     # Basic multiple assignment
-    var x = 1
-    var y = 2
+    x = 1
+    y = 2
     print("Before: x=" + str(x) + ", y=" + str(y))
     
     x, y = 10, 20
@@ -14,8 +14,8 @@ fn test_basic_assignment() {
 
 fn test_swap() {
     # Variable swapping
-    var a = 5
-    var b = 10
+    a = 5
+    b = 10
     print("Before swap: a=" + str(a) + ", b=" + str(b))
     
     a, b = b, a
@@ -24,10 +24,10 @@ fn test_swap() {
 
 fn test_tuple_unpack() {
     # Unpacking from a tuple
-    var t = (100, 200, 300)
-    var p = 0
-    var q = 0
-    var r = 0
+    t = (100, 200, 300)
+    p = 0
+    q = 0
+    r = 0
     
     p, q, r = t
     print("Unpacked from tuple: p=" + str(p) + ", q=" + str(q) + ", r=" + str(r))
@@ -37,12 +37,12 @@ fn test_list_unpack() {
     # Unpacking from a list
     # Note: Currently Frame converts [1, 2, 3] to [(1, 2, 3)] due to RHS parsing
     # This is a known limitation in v0.52
-    var lst = [1]
+    lst = [1]
     lst.append(2)
     lst.append(3)
-    var x1 = 0
-    var y1 = 0
-    var z1 = 0
+    x1 = 0
+    y1 = 0
+    z1 = 0
     
     x1, y1, z1 = lst
     print("Unpacked from list: x1=" + str(x1) + ", y1=" + str(y1) + ", z1=" + str(z1))
@@ -54,17 +54,17 @@ fn get_coordinates() {
 
 fn test_function_return() {
     # Function returning multiple values
-    var lat = 0
-    var lon = 0
+    lat = 0
+    lon = 0
     lat, lon = get_coordinates()
     print("Coordinates: lat=" + str(lat) + ", lon=" + str(lon))
 }
 
 fn test_complex_expressions() {
     # Multiple assignment with expressions
-    var n1 = 1
-    var n2 = 2
-    var n3 = 3
+    n1 = 1
+    n2 = 2
+    n3 = 3
     
     n1, n2, n3 = n1 + 1, n2 * 2, n3 ** 2
     print("After expressions: n1=" + str(n1) + ", n2=" + str(n2) + ", n3=" + str(n3))

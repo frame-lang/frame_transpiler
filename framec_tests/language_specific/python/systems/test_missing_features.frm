@@ -19,7 +19,7 @@ fn test_module_nested_access() {
 }
 
 fn test_dict_assignment() {
-    var data = {}
+    data = {}
     
     # Dictionary key assignment likely won't work
     # Uncomment to test: data["key"] = "value"
@@ -27,7 +27,7 @@ fn test_dict_assignment() {
 }
 
 fn test_method_chaining() {
-    var text = "hello"
+    text = "hello"
     
     # Method chaining likely won't work
     # Uncomment to test: var result = text.upper().replace("H", "J")
@@ -35,7 +35,7 @@ fn test_method_chaining() {
 }
 
 fn test_nested_indexing() {
-    var matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
     
     # Nested indexing likely won't work
     # Uncomment to test: var val = matrix[1][2]

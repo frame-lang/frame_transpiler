@@ -86,7 +86,7 @@ system WatchTestSystem {
             
             processItems() {
                 print("Processing " + str(len(self.items)) + " items")
-                var total = 0
+                total = 0
                 
                 for item in self.items {
                     total = total + item
@@ -158,7 +158,7 @@ fn validateCounter(test_system, expectedValue) {
 fn main() {
     print("=== Watch Expressions and Conditional Breakpoints Test ===")
     
-    var watch_system = WatchTestSystem()
+    watch_system = WatchTestSystem()
     
     # Test sequence 1: Basic increment with watch expressions
     print("\n--- Test 1: Basic Increment Sequence ---")

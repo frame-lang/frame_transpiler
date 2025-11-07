@@ -33,7 +33,7 @@ system SemanticMetadataTest {
             }
             
             process() {
-                var result = self.performWork()
+                result = self.performWork()
                 if result {
                     -> $Complete
                     return True
@@ -81,7 +81,7 @@ system SemanticMetadataTest {
 }
 
 fn main() {
-    var test = SemanticMetadataTest()
+    test = SemanticMetadataTest()
     print("Testing semantic metadata generation...")
     
     # This test validates that debug output includes semantic metadata
@@ -90,13 +90,13 @@ fn main() {
     # - State machine topology
     # - Python-to-Frame mappings
     
-    var result = test.start()
+    result = test.start()
     if result {
         print("SUCCESS: System executed with semantic metadata")
     } else {
         print("FAIL: System execution failed")
         # Force test failure
-        var failed_tests = []
-        var index = failed_tests[999]  # This will cause an IndexError and fail the test
+        failed_tests = []
+        index = failed_tests[999]  # This will cause an IndexError and fail the test
     }
 }

@@ -1,7 +1,7 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
     print("test")
-    var x = "value"
+    x = "value"
     print(x)
 }
 

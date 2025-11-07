@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var hws = HelloWorldSystem()
+    hws = HelloWorldSystem()
     hws.sayHello()
     hws.sayWorld()
 }

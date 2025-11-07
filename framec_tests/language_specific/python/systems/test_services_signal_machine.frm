@@ -4,7 +4,7 @@ import signal
 import sys
 
 fn main() {
-    var service = SignalMachineService()
+    service = SignalMachineService()
 }
 
 system SignalMachineService {

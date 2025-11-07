@@ -6,7 +6,7 @@ fn main() {
     
     test_function_builtins()
     
-    var sys = TestBuiltins()
+    sys = TestBuiltins()
     sys.test_interface()
     
     print("Built-in access test completed")

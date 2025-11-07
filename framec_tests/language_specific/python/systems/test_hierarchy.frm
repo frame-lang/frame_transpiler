@@ -2,10 +2,10 @@
 # Test complex module hierarchies
 
 module Company {
-    var name = "Frame Corp"
+    name = "Frame Corp"
     
     module Engineering {
-        var team_size = 10
+        team_size = 10
         
         module Frontend {
             fn getStack() {
@@ -33,7 +33,7 @@ module Company {
     }
     
     module Sales {
-        var team_size = 5
+        team_size = 5
         
         fn getQuota() {
             return 1000000

@@ -6,8 +6,8 @@ fn main() {
     print("=== System Scope Isolation Test ===")
     
     # Create instances of both systems
-    var sys1 = SystemOne()
-    var sys2 = SystemTwo()
+    sys1 = SystemOne()
+    sys2 = SystemTwo()
     
     # Test public interfaces work
     sys1.public_method()
@@ -36,7 +36,7 @@ system SystemOne {
                 print("\n=== SystemOne Public Method ===")
                 
                 # Can call own internals
-                var result = self.internal_op_one()
+                result = self.internal_op_one()
                 print("Own operation: " + result)
                 
                 self.private_action_one()
@@ -52,7 +52,7 @@ system SystemOne {
                 # print(domain_two)  // Should fail - can't see other system's domain
                 
                 # But CAN create instance and call public interface
-                var other = SystemTwo()
+                other = SystemTwo()
                 other.public_method()  # This should work
                 
                 print("Can only access SystemTwo through public interface")
@@ -86,7 +86,7 @@ system SystemTwo {
                 print("\n=== SystemTwo Public Method ===")
                 
                 # Can call own internals
-                var result = self.internal_op_two()
+                result = self.internal_op_two()
                 print("Own operation: " + result)
                 
                 self.private_action_two()
@@ -102,7 +102,7 @@ system SystemTwo {
                 # print(domain_one)  // Should fail - can't see other system's domain
                 
                 # But CAN create instance and call public interface
-                var other = SystemOne()
+                other = SystemOne()
                 other.public_method()  # This should work
                 
                 print("Can only access SystemOne through public interface")
@@ -136,13 +136,13 @@ system SystemThree {
                 
                 # Cannot access internals of SystemOne or SystemTwo
                 # But can use their public interfaces
-                var s1 = SystemOne()
-                var s2 = SystemTwo()
+                s1 = SystemOne()
+                s2 = SystemTwo()
                 
                 s1.public_method()
                 s2.public_method()
                 
-                var value = s2.get_value()
+                value = s2.get_value()
                 print("Got value from SystemTwo: " + value)
                 
                 # Can only access own internals

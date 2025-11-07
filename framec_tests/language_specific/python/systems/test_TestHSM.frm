@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var sys = ContinueTerminatorDemo()
+    sys = ContinueTerminatorDemo()
     sys.passMe1()
     sys.passMe2()
 }

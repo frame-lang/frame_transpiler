@@ -3,7 +3,7 @@
 # Expected: Various del operations work correctly
 
 fn test_del_list_element() {
-    var mylist = [1, 2, 3, 4, 5]
+    mylist = [1, 2, 3, 4, 5]
     print("Original list: " + str(mylist))
     
     # Delete element at index 2
@@ -18,7 +18,7 @@ fn test_del_list_element() {
 }
 
 fn test_del_dict_entry() {
-    var mydict = {"a": 1, "b": 2, "c": 3}
+    mydict = {"a": 1, "b": 2, "c": 3}
     print("Original dict: " + str(mydict))
     
     # Delete a key
@@ -26,7 +26,7 @@ fn test_del_dict_entry() {
     print("After del mydict['b']: " + str(mydict))
     
     # Delete another key with variable
-    var key = "a"
+    key = "a"
     del mydict[key]
     print("After del mydict[key]: " + str(mydict))
     
@@ -34,8 +34,8 @@ fn test_del_dict_entry() {
 }
 
 fn test_del_variable() {
-    var x = 42
-    var y = "hello"
+    x = 42
+    y = "hello"
     print("x = " + str(x))
     print("y = " + y)
     
@@ -48,8 +48,8 @@ fn test_del_variable() {
     del y
     
     # Create new variables with different names
-    var new_x = 100
-    var new_y = "world"
+    new_x = 100
+    new_y = "world"
     print("new_x = " + str(new_x))
     print("new_y = " + new_y)
     
@@ -57,7 +57,7 @@ fn test_del_variable() {
 }
 
 fn test_del_slice() {
-    var nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     print("Original: " + str(nums))
     
     # Delete a slice
@@ -72,7 +72,7 @@ fn test_del_slice() {
 }
 
 fn test_del_nested_structures() {
-    var data = {
+    data = {
         "users": [
             {"name": "Alice", "age": 30},
             {"name": "Bob", "age": 25},
@@ -103,27 +103,27 @@ fn main() {
     print("")
     
     print("--- Test 1: Delete list elements ---")
-    var result1 = test_del_list_element()
+    result1 = test_del_list_element()
     print("Final result: " + str(result1))
     print("")
     
     print("--- Test 2: Delete dict entries ---")
-    var result2 = test_del_dict_entry()
+    result2 = test_del_dict_entry()
     print("Final result: " + str(result2))
     print("")
     
     print("--- Test 3: Delete variables ---")
-    var result3 = test_del_variable()
+    result3 = test_del_variable()
     print("Final result: " + str(result3))
     print("")
     
     print("--- Test 4: Delete slices ---")
-    var result4 = test_del_slice()
+    result4 = test_del_slice()
     print("Final result: " + str(result4))
     print("")
     
     print("--- Test 5: Delete in nested structures ---")
-    var result5 = test_del_nested_structures()
+    result5 = test_del_nested_structures()
     print("Final result: " + str(result5))
     print("")
     

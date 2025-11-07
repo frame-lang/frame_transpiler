@@ -15,10 +15,10 @@ module Utils {
 
 fn main() {
     # Direct nested access
-    var result = Utils::Math::square(7)
+    result = Utils::Math::square(7)
     print("7 squared = " + str(result))
     
     # Indirect access through outer module
-    var indirect = Utils::useNested()
+    indirect = Utils::useNested()
     print("5 squared = " + str(indirect))
 }

@@ -3,7 +3,7 @@
 
 class Point {
     # Static/class variable
-    var instance_count = 0
+    instance_count = 0
     
     # Constructor (implicit init method)
     fn init(x, y) {
@@ -14,9 +14,9 @@ class Point {
     
     # Instance method
     fn distance_to(other) {
-        var dx = self.x - other.x
-        var dy = self.y - other.y
-        var sum_of_squares = (dx * dx) + (dy * dy)
+        dx = self.x - other.x
+        dy = self.y - other.y
+        sum_of_squares = (dx * dx) + (dy * dy)
         return sum_of_squares ** 0.5
     }
     
@@ -42,7 +42,7 @@ class Circle {
     }
     
     fn contains(point) {
-        var distance = self.center.distance_to(point)
+        distance = self.center.distance_to(point)
         return distance <= self.radius
     }
 }
@@ -50,19 +50,19 @@ class Circle {
 # Test the classes
 fn main() {
     # Create points
-    var p1 = Point(3.0, 4.0)
-    var p2 = Point(6.0, 8.0)
-    var origin = Point.origin()
+    p1 = Point(3.0, 4.0)
+    p2 = Point(6.0, 8.0)
+    origin = Point.origin()
     
     # Test instance methods
-    var dist = p1.distance_to(p2)
+    dist = p1.distance_to(p2)
     print("Distance from p1 to p2: " + str(dist))
     
     # Test static variable
     print("Total points created: " + str(Point.instance_count))
     
     # Test Circle class
-    var circle = Circle(origin, 5.0)
+    circle = Circle(origin, 5.0)
     print("Circle area: " + str(circle.area()))
     
     if circle.contains(p1) {

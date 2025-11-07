@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var test = TestSystem()
+    test = TestSystem()
     test.run_test()
     return
 }
@@ -23,13 +23,13 @@ system TestSystem {
             run_test() {
                 # Test self.operation() calls
                 self.do_work()
-                var result = self.calculate(42)
+                result = self.calculate(42)
                 
                 # Test self.domainVar access
                 print("Counter: " + str(self.counter))
                 
                 # Test interface method calls (with system. prefix)
-                var msg = system.get_value()
+                msg = system.get_value()
                 print("Got: " + msg)
                 
                 return

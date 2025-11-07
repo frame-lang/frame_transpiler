@@ -18,8 +18,8 @@ system ColorSystem {
 
 fn test_enum_usage() {
     # Test enum member access
-    var color = Color.RED
-    var priority = Priority.HIGH
+    color = Color.RED
+    priority = Priority.HIGH
     
     # Test enum comparisons
     if color == Color.RED {

@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var sys = SystemInitializationDemo("a", "b", "c", "d", "e", "f")
+    sys = SystemInitializationDemo("a", "b", "c", "d", "e", "f")
 }
 
 system SystemInitializationDemo ($(A,B), $>(C,D), E, F) {

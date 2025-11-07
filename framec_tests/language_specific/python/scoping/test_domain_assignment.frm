@@ -1,6 +1,6 @@
 # Python-specific: domain native assignment
 fn main() {
-    var test = DomainTest()
+    test = DomainTest()
     test.run_test()
     return
 }

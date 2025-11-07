@@ -34,5 +34,5 @@ system ValidationTest {
 }
 
 fn main() {
-    var test = ValidationTest()
+    test = ValidationTest()
 }

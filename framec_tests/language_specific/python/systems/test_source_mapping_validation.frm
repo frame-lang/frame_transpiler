@@ -2,19 +2,19 @@ fn main() {
     # Test basic constructs to validate source mapping coverage
     
     # Variable assignments
-    var x = 42
-    var name = "test"
+    x = 42
+    name = "test"
     
     # Collections
-    var list_val = [1, 2, 3]
-    var dict_val = {"key": "value"}
-    var set_val = {1, 2, 3}
-    var tuple_val = (1, 2)
+    list_val = [1, 2, 3]
+    dict_val = {"key": "value"}
+    set_val = {1, 2, 3}
+    tuple_val = (1, 2)
     
     # Expressions
-    var result = x + 10
-    var negated = -x
-    var comparison = x > 10
+    result = x + 10
+    negated = -x
+    comparison = x > 10
     
     # Function calls
     print("Hello World")

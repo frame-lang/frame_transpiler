@@ -1,6 +1,6 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
-    var sys = TestSystem()
+    sys = TestSystem()
     sys.testFruit()
     sys.describeFruit(TestSystem_Fruit.Banana)
 }
@@ -25,7 +25,7 @@ system TestSystem {
         
     actions:
         testFruit() {
-            var f: Fruit = Fruit.Pear
+            f: Fruit = Fruit.Pear
 
             if f == Fruit.Peach {
                 print("Found a Peach")
