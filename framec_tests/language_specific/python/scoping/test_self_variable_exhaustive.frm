@@ -103,15 +103,12 @@ system SelfVariableExhaustive {
                 print("")
                 print("=== ALL TESTS COMPLETED ===")
                 return
-            }
-        }
 
     domain:
         x: int = 0
         y: int = 0
         z: int = 0
         msg: str = ""
-}
 
 fn main() {
     test = SelfVariableExhaustive()

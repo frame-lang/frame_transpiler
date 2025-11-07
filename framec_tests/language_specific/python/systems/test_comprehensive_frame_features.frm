@@ -169,7 +169,6 @@ system ComprehensiveSystem(init_data) {
                 else:
                     print("Invalid input, staying in Ready")
                     system.return = false
-                }
             }
             
             get_status(): string {
@@ -185,7 +184,6 @@ system ComprehensiveSystem(init_data) {
                     -> $Alert
                 else:
                     print("Unknown event: " + event_type)
-                }
             }
             
             shutdown() {
@@ -256,7 +254,6 @@ system ComprehensiveSystem(init_data) {
                     -> $Ready
                 else:
                     print("Additional event during alert: " + event_type)
-                }
             }
             
             shutdown() {
@@ -353,7 +350,6 @@ system SimpleCounter {
                     print("Count decremented to: " + str(self.count))
                 else:
                     print("Count already at 0")
-                }
             }
             
             get_count() {

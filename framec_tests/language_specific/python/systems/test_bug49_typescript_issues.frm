@@ -18,7 +18,6 @@ system DebugAdapter {
                     -> $Configuring
                 else:
                     return False
-                }
                 return True
             }
         }
@@ -37,7 +36,6 @@ system DebugAdapter {
                     return True
                 else:
                     return False
-                }
             }
             
             continue() {

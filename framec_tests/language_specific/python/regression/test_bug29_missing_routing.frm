@@ -99,7 +99,6 @@ system Bug29Test {
                     -> $Paused
                 else:
                     print(f"Line {line} is not a breakpoint")
-            }
             
             canExecuteCommand(command) {
                 if command == "continue":
@@ -110,7 +109,6 @@ system Bug29Test {
                     return True
                 else:
                     return False
-            }
             
             # THIS HANDLER SHOULD BE GENERATED BUT ISN'T
             getCurrentState() {
@@ -145,7 +143,6 @@ system Bug29Test {
                     return False
                 else:
                     return True
-            }
             
             # THIS HANDLER SHOULD BE GENERATED BUT ISN'T
             getCurrentState() {

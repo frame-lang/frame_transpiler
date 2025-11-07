@@ -13,7 +13,6 @@ system MinimalWorking {
                     return True
                 else:
                     return False
-                }
             }
             
             getCurrentState() {
@@ -27,7 +26,6 @@ system MinimalWorking {
                     return True
                 else:
                     return False
-                }
             }
             
             getCurrentState() {

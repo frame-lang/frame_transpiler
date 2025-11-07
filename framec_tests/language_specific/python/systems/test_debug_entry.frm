@@ -65,7 +65,6 @@ fn main() {
         print("Line 66: x is greater than 50")
     else:
         print("Line 68: x is not greater than 50")
-    }
     
     # Loop
     i = 0

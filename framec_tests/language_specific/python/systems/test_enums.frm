@@ -44,7 +44,6 @@ system Grocery {
                 return Fruit.Banana
             else:
                 return Fruit.Peach
-        }
 
     domain:
         enum Fruit {

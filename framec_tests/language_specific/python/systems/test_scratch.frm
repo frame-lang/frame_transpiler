@@ -17,7 +17,6 @@ system A {
                 b() b()
             else:
                 c() c()
-            }
                   
         }
 

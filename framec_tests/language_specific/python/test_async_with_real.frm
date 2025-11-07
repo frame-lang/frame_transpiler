@@ -18,7 +18,6 @@ async fn test_github_api() {
         print("  Session properly closed")
     except:
         print("  Network error (check internet connection)")
-}
 
 # Test nested async with statements
 async fn test_nested_async_with() {
@@ -41,7 +40,6 @@ async fn test_nested_async_with() {
         print("  Outer context properly exited")
     except:
         print("  Network error")
-}
 
 # Test async with in a Frame system
 system HttpClient {
@@ -76,7 +74,6 @@ system HttpClient {
                     print("  Network error in system")
                     self.last_status = 0
                     system.return = "error"
-            }
             async fetchMultiple(urls) {
                 print("Fetching multiple URLs...")
                 self.fetch_count = 0
@@ -93,19 +90,14 @@ system HttpClient {
                     print("  Error fetching URLs")
                 
                 system.return = self.fetch_count
-            }
             getLastStatus() {
                 system.return = self.last_status
-            }
-        }
-    }
 
     domain:
         last_status = 0
         last_content = ""
         last_url = ""
         fetch_count = 0
-}
 
 # Main test runner
 async fn run_tests() {
@@ -142,7 +134,6 @@ async fn run_tests() {
     print("Real async with tests completed!")
     print("NOTE: These tests made actual HTTP requests - no mocking!")
     print("=" * 60)
-}
 
 # Entry point
 fn main() {

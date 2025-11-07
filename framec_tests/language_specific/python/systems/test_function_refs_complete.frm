@@ -29,7 +29,6 @@ fn get_operation(name) {
     else:
         # Default to add
         return add
-    }
 }
 
 fn test_function_refs() {

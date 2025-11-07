@@ -37,7 +37,6 @@ system FileIOTest {
             print(f"Write successful: {write_exists}")
             
             print("=== File I/O Test Complete ===")
-    }
 }
 
 fn main() {

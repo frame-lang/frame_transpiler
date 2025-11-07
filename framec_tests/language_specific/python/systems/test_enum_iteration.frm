@@ -71,7 +71,6 @@ system Validator {
                         print("  -> This is the idle status")
                     else:
                         print("  -> This is an active status")
-                }
                 
                 # Count total statuses
                 count = 0

@@ -74,4 +74,3 @@ fn main() {
         print("p2 is inside the circle")
     else:
         print("p2 is outside the circle")
-}

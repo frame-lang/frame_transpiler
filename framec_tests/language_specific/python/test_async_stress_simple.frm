@@ -112,7 +112,6 @@ system AsyncErrorTest {
                     result = await async_work(1, 0.2)
                     self.last_success = result
                     system.return = result
-            }
             handleError(error_msg) {
                 print("Handling error: " + error_msg)
                 self.last_error = error_msg

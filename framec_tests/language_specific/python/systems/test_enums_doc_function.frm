@@ -35,7 +35,6 @@ system TestSystem {
                 print("Found a Banana")
             else:
                 print("Unknown fruit")
-        }
 
         describeFruit(fruit_value: Fruit) {
             if fruit_value == Fruit.Peach:
@@ -46,7 +45,6 @@ system TestSystem {
                 print("Bananas")
             else:
                 print("Other Fruit")
-        }
         
     domain:
         enum Fruit {

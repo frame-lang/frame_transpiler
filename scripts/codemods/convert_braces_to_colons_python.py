@@ -18,7 +18,7 @@ OPEN_PATTERNS = [
 
 # Patterns that combine a close + open, e.g., "} else {"
 COMBINED = [
-    (re.compile(r"^(?P<indent>\s*)\}\s*else\s*\{\s*$"), lambda m: ("pop", f"{m.group('indent')}else:")),
+    (re.compile(r"^(?P<indent>\s*)\}\s*else\s*\{\s*$"), lambda m: ("pop_push", f"{m.group('indent')}else:")),
     (re.compile(r"^(?P<indent>\s*)\}\s*elif\s+(.+?)\s*\{\s*$"), lambda m: ("pop_push", f"{m.group('indent')}elif {m.group(2)}:")),
 ]
 
@@ -78,6 +78,12 @@ def convert_file(path: Path) -> tuple[bool,int]:
                 # do not emit this '}'
             else:
                 out.append(line)
+            continue
+
+        # Treat existing colon-openers as blocks for pairing with stray '}'
+        if re.match(r'^\s*(if|elif|else|for|while|try|except\b.*|finally)\s*:\s*$', line):
+            out.append(line)
+            stack.append('block')
             continue
 
         # Default: passthrough

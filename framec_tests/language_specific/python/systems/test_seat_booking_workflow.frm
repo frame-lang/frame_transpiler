@@ -123,7 +123,6 @@ system SeatManager {
                 else:
                     print("ERROR: Seat not available for reservation")
                     -> $Idle
-                }
             }
         }
         
@@ -142,7 +141,6 @@ system SeatManager {
                 else:
                     print("Payment failed - releasing seat")
                     -> $Idle
-                }
             }
             
             release_seat(seat_id) {

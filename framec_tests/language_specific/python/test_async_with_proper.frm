@@ -30,7 +30,6 @@ async fn test_real_async_with() {
         print("Async with statement properly closed session")
     except:
         print("Network error (expected if offline)")
-}
 
 # Mock async context manager (Frame doesn't support classes)
 # We'll simulate context manager behavior with a simple function
@@ -41,7 +40,6 @@ async fn mock_async_context(name) {
     await asyncio.sleep(0.05)
     print("  <- Exiting async context: " + name)
     return "Work done by " + name
-}
 
 # Test custom async context manager
 async fn test_custom_async_context() {
@@ -60,7 +58,6 @@ async fn test_custom_async_context() {
         # Force test failure by raising an exception
         failed_tests = []
         index = failed_tests[999]  # This will cause an IndexError and fail the test
-}
 
 # Test nested async with statements
 async fn test_nested_async_with() {
@@ -82,7 +79,6 @@ async fn test_nested_async_with() {
         # Force test failure by raising an exception
         failed_tests = []
         index = failed_tests[999]  # This will cause an IndexError and fail the test
-}
 
 # Test exception handling in async with
 async fn test_async_with_exception() {
@@ -108,7 +104,6 @@ async fn test_async_with_exception() {
         # Force test failure by raising an exception
         failed_tests = []
         index = failed_tests[999]  # This will cause an IndexError and fail the test
-}
 
 # Test async with in a Frame system
 system AsyncResourceManager {
@@ -154,7 +149,6 @@ system AsyncResourceManager {
         resource_name = ""
         result = ""
         processed_data = ""
-}
 
 # Test file operations with async context
 async fn test_async_file_operations() {
@@ -171,7 +165,6 @@ async fn test_async_file_operations() {
     
     # Mock verification
     print("SUCCESS: Async file operations simulated")
-}
 
 # Main test runner
 async fn run_all_tests() {
@@ -205,10 +198,8 @@ async fn run_all_tests() {
     print("\n" + "=" * 70)
     print("All async with tests completed!")
     print("=" * 70)
-}
 
 # Entry point
 fn main() {
     print("Starting proper async with validation...")
     asyncio.run(run_all_tests())
-}

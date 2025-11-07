@@ -26,6 +26,5 @@ system Utils {
                 return "double digit"
             else:
                 return "large number"
-            }
         }
 }

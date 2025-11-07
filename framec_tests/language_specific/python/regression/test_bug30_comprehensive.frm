@@ -104,7 +104,6 @@ system MinimalDebugProtocol {
                     -> $Paused
                 else:
                     print(f"Line {line} is not a breakpoint")
-            }
             
             canExecuteCommand(command) {
                 if command == "continue":
@@ -115,7 +114,6 @@ system MinimalDebugProtocol {
                     return True
                 else:
                     return False
-            }
             
             getCurrentState() {
                 return "running"
@@ -149,7 +147,6 @@ system MinimalDebugProtocol {
                     return False  # Already paused
                 else:
                     return True  # Most commands valid when paused
-            }
             
             getCurrentState() {
                 return "paused"
