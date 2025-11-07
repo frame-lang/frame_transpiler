@@ -1608,23 +1608,86 @@ impl<'a> Parser<'a> {
             self.error_at_current("Expected '{'.");
         }
 
-        // Parse system blocks in the correct order
-        operations_block_node_opt = self.parse_operations_block()?;
-        interface_block_node_opt = self.parse_interface_block()?;
-        machine_block_node_opt = self.parse_machine_block()?;
+        // Parse system blocks
+        if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+            // Python: allow blocks in any order for native-friendly authoring.
+            let mut ops_opt: Option<OperationsBlockNode> = None;
+            let mut iface_opt: Option<InterfaceBlockNode> = None;
+            let mut machine_opt: Option<MachineBlockNode> = None;
+            let mut actions_opt: Option<ActionsBlockNode> = None;
+            let mut domain_opt: Option<DomainBlockNode> = None;
 
-        // Validate start state parameters
-        if !self.is_building_symbol_table {
-            self.validate_start_state_params(
-                &machine_block_node_opt,
-                &system_start_state_state_params_opt,
-                &system_enter_params_opt,
-            );
+            while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+                match self.peek().token_type {
+                    TokenType::OperationsBlock => {
+                        if ops_opt.is_none() {
+                            ops_opt = self.parse_operations_block()?;
+                        } else {
+                            // Duplicate block – consume with error
+                            self.error_at_current("Duplicate 'operations:' block");
+                            let _ = self.parse_operations_block()?;
+                        }
+                    }
+                    TokenType::InterfaceBlock => {
+                        if iface_opt.is_none() {
+                            iface_opt = self.parse_interface_block()?;
+                        } else {
+                            self.error_at_current("Duplicate 'interface:' block");
+                            let _ = self.parse_interface_block()?;
+                        }
+                    }
+                    TokenType::MachineBlock => {
+                        if machine_opt.is_none() {
+                            machine_opt = self.parse_machine_block()?;
+                        } else {
+                            self.error_at_current("Duplicate 'machine:' block");
+                            let _ = self.parse_machine_block()?;
+                        }
+                    }
+                    TokenType::ActionsBlock => {
+                        if actions_opt.is_none() {
+                            actions_opt = self.parse_actions_block()?;
+                        } else {
+                            self.error_at_current("Duplicate 'actions:' block");
+                            let _ = self.parse_actions_block()?;
+                        }
+                    }
+                    TokenType::DomainBlock => {
+                        if domain_opt.is_none() {
+                            domain_opt = self.parse_domain_block()?;
+                        } else {
+                            self.error_at_current("Duplicate 'domain:' block");
+                            let _ = self.parse_domain_block()?;
+                        }
+                    }
+                    _ => break,
+                }
+            }
+
+            operations_block_node_opt = ops_opt;
+            interface_block_node_opt = iface_opt;
+            machine_block_node_opt = machine_opt;
+            actions_block_node_opt = actions_opt;
+            domain_block_node_opt = domain_opt;
+        } else {
+            // Default: parse in canonical order with ordering checks
+            operations_block_node_opt = self.parse_operations_block()?;
+            interface_block_node_opt = self.parse_interface_block()?;
+            machine_block_node_opt = self.parse_machine_block()?;
+
+            // Validate start state parameters
+            if !self.is_building_symbol_table {
+                self.validate_start_state_params(
+                    &machine_block_node_opt,
+                    &system_start_state_state_params_opt,
+                    &system_enter_params_opt,
+                );
+            }
+
+            // Parse actions and domain blocks
+            actions_block_node_opt = self.parse_actions_block()?;
+            domain_block_node_opt = self.parse_domain_block()?;
         }
-
-        // Parse actions and domain blocks
-        actions_block_node_opt = self.parse_actions_block()?;
-        domain_block_node_opt = self.parse_domain_block()?;
 
         if !self.match_token(&[TokenType::CloseBrace]) {
             if self.peek().lexeme == "$" {
@@ -1747,7 +1810,7 @@ impl<'a> Parser<'a> {
 
     fn parse_interface_block(&mut self) -> Result<Option<InterfaceBlockNode>, ParseError> {
         // Check for operations block appearing after interface (wrong order)
-        if self.peek().token_type == TokenType::OperationsBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::OperationsBlock {
             let err_msg =
                 "Block ordering error: 'operations:' block must come before 'interface:' block";
             self.error_at_current(err_msg);
@@ -1771,13 +1834,13 @@ impl<'a> Parser<'a> {
 
     fn parse_machine_block(&mut self) -> Result<Option<MachineBlockNode>, ParseError> {
         // Check for blocks appearing after machine in wrong order
-        if self.peek().token_type == TokenType::InterfaceBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::InterfaceBlock {
             let err_msg =
                 "Block ordering error: 'interface:' block must come before 'machine:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        if self.peek().token_type == TokenType::OperationsBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::OperationsBlock {
             let err_msg =
                 "Block ordering error: 'operations:' block must come before 'machine:' block";
             self.error_at_current(err_msg);
@@ -1801,19 +1864,19 @@ impl<'a> Parser<'a> {
 
     fn parse_actions_block(&mut self) -> Result<Option<ActionsBlockNode>, ParseError> {
         // Check for blocks appearing after actions (wrong order)
-        if self.peek().token_type == TokenType::MachineBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::MachineBlock {
             let err_msg =
                 "Block ordering error: 'machine:' block must come before 'actions:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        if self.peek().token_type == TokenType::InterfaceBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::InterfaceBlock {
             let err_msg =
                 "Block ordering error: 'interface:' block must come before 'actions:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        if self.peek().token_type == TokenType::OperationsBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::OperationsBlock {
             let err_msg =
                 "Block ordering error: 'operations:' block must come before 'actions:' block";
             self.error_at_current(err_msg);
@@ -1832,24 +1895,24 @@ impl<'a> Parser<'a> {
 
     fn parse_domain_block(&mut self) -> Result<Option<DomainBlockNode>, ParseError> {
         // Check for blocks appearing after domain (wrong order - domain must be last)
-        if self.peek().token_type == TokenType::MachineBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::MachineBlock {
             let err_msg = "Block ordering error: 'machine:' block must come before 'domain:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        if self.peek().token_type == TokenType::InterfaceBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::InterfaceBlock {
             let err_msg =
                 "Block ordering error: 'interface:' block must come before 'domain:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        if self.peek().token_type == TokenType::OperationsBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::OperationsBlock {
             let err_msg =
                 "Block ordering error: 'operations:' block must come before 'domain:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
         }
-        if self.peek().token_type == TokenType::ActionsBlock {
+        if !matches!(self.target_language, Some(TargetLanguage::Python3)) && self.peek().token_type == TokenType::ActionsBlock {
             let err_msg = "Block ordering error: 'actions:' block must come before 'domain:' block";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
