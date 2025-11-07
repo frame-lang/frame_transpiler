@@ -28,6 +28,7 @@ system ConditionalTransitionTest {
                     -> $WaitingForEntry  # Bug #37: This transition missing from diagram
                 else:
                     -> $Running
+                }
                 return True
             }
         }
@@ -97,4 +98,5 @@ fn main() {
         # Force test failure
         failed_tests = []
         index = failed_tests[999]  # This will cause an IndexError and fail the test
+    }
 }

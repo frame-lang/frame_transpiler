@@ -19,6 +19,7 @@ system SemanticMetadataTest {
                     return True
                 else:
                     return False
+                }
             }
             
             $<() {
@@ -39,6 +40,7 @@ system SemanticMetadataTest {
                 else:
                     -> $Error
                     return False
+                }
             }
             
             $<() {
@@ -96,4 +98,5 @@ fn main() {
         # Force test failure
         failed_tests = []
         index = failed_tests[999]  # This will cause an IndexError and fail the test
+    }
 }

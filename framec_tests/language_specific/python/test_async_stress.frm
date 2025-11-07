@@ -25,6 +25,7 @@ async fn download_data(url) {
     except:
         # Fallback to mock for testing
         return await mock_download(url)
+}
 
 # Parallel download function
 async fn download_parallel(urls) {
@@ -33,6 +34,7 @@ async fn download_parallel(urls) {
         tasks.append(download_data(url))
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
+}
 
 # CPU-intensive async work simulation
 async fn compute_heavy(n) {
@@ -53,6 +55,7 @@ async fn with_timeout(coro, timeout_sec) {
         return result
     except:
         return "TIMEOUT"
+}
 
 # Complex async data pipeline system
 system AsyncDataPipeline {
@@ -73,6 +76,7 @@ system AsyncDataPipeline {
                 self.current_urls = urls
                 self.batch_data = []
                 -> $Downloading
+            }
             configure(settings) {
                 print("Configuring pipeline: " + str(settings))
                 self.config = settings
@@ -298,6 +302,8 @@ system AsyncErrorHandler {
                     print("Primary processing failed, using fallback")
                     await asyncio.sleep(0.1)
                     system.return = "Fallback: " + data
+            }
+        }
         $ErrorState {
             async $>() {
                 print("System in error state. Errors: " + str(self.error_count))
@@ -312,6 +318,9 @@ system AsyncErrorHandler {
             handleError(error_type) {
                 print("Already in error state. New error: " + error_type)
                 system.return = "In error recovery"
+            }
+        }
+    }
     domain:
         error_count = 0
         last_error = ""
@@ -429,6 +438,7 @@ async fn benchmark_async() {
     
     elapsed = time() - start
     print("Completed 50 tasks with concurrency limit in " + str(elapsed) + " seconds")
+}
 
 fn main() {
     print("Frame v0.37 Async Stress Test Suite")
@@ -440,3 +450,4 @@ fn main() {
     # Run performance benchmark
     print("")
     asyncio.run(benchmark_async())
+}

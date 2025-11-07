@@ -24,6 +24,7 @@ system TestSystem (max_loops) {
                 -> $B
             else:
                 print("  Staying in A (max_loops " + str(max_loops) + " reached)")
+            }
         }
     }
     
@@ -36,6 +37,7 @@ system TestSystem (max_loops) {
                 -> $A
             else:
                 print("  Staying in B (max_loops " + str(max_loops) + " reached)")
+            }
         }
     }
     

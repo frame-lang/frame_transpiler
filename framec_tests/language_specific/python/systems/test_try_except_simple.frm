@@ -20,6 +20,7 @@ fn testBasicTryCatch() {
     except :
         print("  Caught exception")
     print("  After try-catch")
+}
 
 # Test 2: Specific exception type with actual error
 fn testSpecificException() {
@@ -31,6 +32,7 @@ fn testSpecificException() {
         print("  Caught ZeroDivisionError")
     except :
         print("  Caught other exception")
+}
 
 # Test 3: Else clause (runs if no exception)
 fn testElseClause() {
@@ -42,6 +44,7 @@ fn testElseClause() {
         print("  This should not run")
     else:
         print("  Else block - ran because no exception")
+}
 
 # Test 4: Finally clause
 fn testFinallyClause() {
@@ -61,6 +64,7 @@ fn testFinallyClause() {
         print("  Caught division by zero")
     finally:
         print("  Finally - runs even with exception")
+}
 
 # Test 5: Raise exceptions
 fn testRaiseException() {
@@ -81,3 +85,4 @@ fn testRaiseException() {
             raise
     except RuntimeError as e :
         print("  Caught re-raised: " + str(e))
+}

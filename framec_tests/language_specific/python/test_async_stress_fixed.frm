@@ -31,6 +31,7 @@ async fn download_data(url) {
     except:
         # Fallback to mock for testing
         return await mock_download(url)
+}
 
 # Parallel download function
 async fn download_parallel(urls) {
@@ -39,6 +40,7 @@ async fn download_parallel(urls) {
         tasks.append(download_data(url))
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
+}
 
 # CPU-intensive async work simulation
 async fn compute_heavy(n) {
@@ -59,6 +61,7 @@ async fn with_timeout(coro, timeout_sec) {
         return result
     except:
         return "TIMEOUT"
+}
 
 # Simple async data pipeline system for testing
 system AsyncDataPipeline {
@@ -79,6 +82,7 @@ system AsyncDataPipeline {
                 self.current_urls = urls
                 self.batch_data = []
                 -> $Downloading
+            }
             configure(settings) {
                 print("Configuring pipeline: " + str(settings))
                 self.config = settings
@@ -253,6 +257,7 @@ async fn benchmark_async() {
     
     elapsed = time() - start
     print("Completed 100 async tasks in " + str(elapsed) + " seconds")
+}
 
 fn main() {
     print("Frame v0.37 Async Stress Test Suite - Fixed")

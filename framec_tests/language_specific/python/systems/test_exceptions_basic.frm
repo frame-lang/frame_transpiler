@@ -13,6 +13,7 @@ fn test_basic_try_except() {
         print("Exception caught")
     
     print("After try/except")
+}
 
 fn test_specific_exception() {
     print("Testing specific exception types")
@@ -27,6 +28,7 @@ fn test_specific_exception() {
         x = int("not a number")  {-- ValueError --}
     except ValueError as e :
         print("Caught ValueError: " + str(e))
+}
 
 fn test_multiple_exceptions() {
     print("Testing multiple exception types")
@@ -36,6 +38,7 @@ fn test_multiple_exceptions() {
         x = 1 / 0
     except (ZeroDivisionError, ValueError) as err :
         print("Caught exception: " + str(err))
+}
 
 fn test_else_clause() {
     print("Testing else clause")
@@ -46,6 +49,7 @@ fn test_else_clause() {
         print("Division by zero")
     else:
         print("No exception occurred")
+}
 
 fn test_finally_clause() {
     print("Testing finally clause")
@@ -57,6 +61,7 @@ fn test_finally_clause() {
         print("Caught division by zero")
     finally:
         print("Finally block always executes")
+}
 
 fn test_nested_try() {
     print("Testing nested try blocks")
@@ -71,6 +76,7 @@ fn test_nested_try() {
             raise  {-- Re-raise the exception --}
     except ValueError :
         print("Outer except caught re-raised exception")
+}
 
 fn test_raise_statement() {
     print("Testing raise statement")
@@ -88,6 +94,7 @@ fn test_raise_statement() {
             raise ValueError("Wrapped error") from e
     except ValueError as e :
         print("Caught wrapped error: " + str(e))
+}
 
 fn test_bare_raise() {
     print("Testing bare raise (re-raise)")
@@ -100,6 +107,7 @@ fn test_bare_raise() {
             raise  {-- Re-raise the same exception --}
     except RuntimeError as e :
         print("Caught re-raised: " + str(e))
+}
 
 fn test_all_clauses() {
     print("Testing all clauses together")
@@ -113,6 +121,7 @@ fn test_all_clauses() {
         print("Else block - no exception")
     finally:
         print("Finally block - always runs")
+}
 
 {-- Main function to run all tests --}
 fn main() {
@@ -147,5 +156,6 @@ fn main() {
     print("")
     
     print("=== All tests completed ===")
+}
 
 {-- Run the tests --}

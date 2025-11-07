@@ -30,6 +30,7 @@ system WatchTestSystem {
                     -> $Processing
                 else:
                     print("Invalid state: " + newState)
+                }
             }
         }
         
@@ -50,6 +51,7 @@ system WatchTestSystem {
                     -> $Processing
                 else:
                     -> $Running
+                }
             }
 
             decrement() {
@@ -59,6 +61,7 @@ system WatchTestSystem {
                     print("Counter is now " + str(self.counter))
                 else:
                     print("Counter cannot go below zero")
+                }
                 -> $Running
             }
             
@@ -97,6 +100,7 @@ system WatchTestSystem {
                     -> $Complete
                 else:
                     -> $Running
+                }
             }
             
             increment() {
@@ -131,6 +135,7 @@ system WatchTestSystem {
                     -> $Start
                 else:
                     print("Can only reset to start from complete state")
+                }
             }
         }
     

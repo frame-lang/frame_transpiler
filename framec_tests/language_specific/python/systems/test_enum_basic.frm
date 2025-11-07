@@ -54,6 +54,7 @@ fn testFruit() {
         print("Found a Banana")
     else:
         print("Unknown fruit")
+    }
 }
 
 fn describeFruit(fruit_value: Fruit) {
@@ -65,4 +66,5 @@ fn describeFruit(fruit_value: Fruit) {
         print("Bananas")
     else:
         print("Other Fruit")
+    }
 }

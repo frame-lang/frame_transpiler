@@ -48,11 +48,13 @@ async fn test_async_gen() {
             print("Status: " + msg)
     except StopAsyncIteration:
         print("Fetch complete")
+}
 
 # Main async function
 async fn async_main() {
     await test_async_gen()
     print("All async generator tests complete!")
+}
 
 fn main() {
     # Module initialization - demonstrates async generator creation
@@ -61,3 +63,4 @@ fn main() {
     
     # Note: To run, Python needs: asyncio.run(async_main())
     # This would typically be added in a runner script
+}

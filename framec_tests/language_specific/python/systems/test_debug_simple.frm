@@ -161,6 +161,7 @@ fn main() {
         print("IF: x > y is true")
     else:
         print("IF: x > y is false")
+    }
     
     # Nested if
     if x > 0:
@@ -178,6 +179,7 @@ fn main() {
         print("ELIF: x < 100")
     else:
         print("ELIF: x >= 100")
+    }
     
     # ========== LOOPS - WHILE ==========
     i = 0
@@ -327,6 +329,7 @@ fn main() {
         ternary = x
     else:
         ternary = y
+    }
     print("Conditional assignment: " + str(ternary))
     
     # Complex nested expressions
@@ -371,32 +374,38 @@ fn main() {
     
     print("=== All Tests Completed Successfully ===")
     return
+}
 
 # ========== HELPER FUNCTIONS ==========
 
 fn add(a, b) {
     print("  [add] Adding " + str(a) + " + " + str(b))
     return a + b
+}
 
 fn divmod_custom(dividend, divisor) {
     print("  [divmod] Dividing " + str(dividend) + " by " + str(divisor))
     quotient = dividend // divisor
     remainder = dividend % divisor
     return quotient, remainder
+}
 
 fn unpack_three() {
     print("  [unpack_three] Returning three values")
     return 100, 200, 300
+}
 
 fn greet(name, greeting) {
     print("  [greet] " + greeting + ", " + name + "!")
     return greeting + ", " + name
+}
 
 fn factorial(n) {
     print("  [factorial] Computing factorial(" + str(n) + ")")
     if n <= 1:
         return 1
     return n * factorial(n - 1)
+}
 
 fn sum_list(numbers) {
     print("  [sum_list] Summing list: " + str(numbers))

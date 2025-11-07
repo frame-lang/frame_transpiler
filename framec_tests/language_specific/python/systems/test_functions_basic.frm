@@ -37,6 +37,7 @@ system Calculator {
                     system.return = "double digit"
                 else:
                     system.return = "large number"
+                }
                 return
             }
         }

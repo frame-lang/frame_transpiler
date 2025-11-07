@@ -52,6 +52,7 @@ fn test_control_flow() {
         grade = "B"
     else:
         grade = "C"
+    }
     print("Grade for " + str(score) + ": " + grade)
     
     # Loops

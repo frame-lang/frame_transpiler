@@ -49,6 +49,7 @@ system TypeScriptActionTest {
             except Exception as e :
                 self.sendDebugConsole("Failed to spawn Python runtime: " + str(e))
                 self.sendEvent("terminated", {"exitCode": 1, "error": True})
+        }
         
         # Another complex action
         performComplexAction() {
@@ -66,6 +67,8 @@ system TypeScriptActionTest {
                 self.finalizeOperation()
             else:
                 self.cleanup()
+            }
+        }
         
         # Simple action for comparison
         doSimpleAction() {

@@ -94,6 +94,7 @@ fn test_try_except() {
         print("  Caught any exception with bare except")
     
     print("\nAll exception tests completed!")
+}
 
 system TryExceptSystem {
     interface:
@@ -115,11 +116,15 @@ system TryExceptSystem {
                 
                 print("  System: Transitioning to Success state")
                 -> $Success
+            }
+        }
         
         $Success {
             test_error_handling() {
                 print("  System: Already in Success state")
                 return
+            }
+        }
         
         $Error {
             test_error_handling() {
@@ -135,6 +140,9 @@ system TryExceptSystem {
                     print("  System: Recovery failed")
                 
                 return
+            }
+        }
+}
 
 fn main() {
     print("=== Frame Exception Handling Test Suite ===\n")
@@ -145,3 +153,4 @@ fn main() {
     sys.test_error_handling()
     
     print("\n=== All Tests Complete ===")
+}

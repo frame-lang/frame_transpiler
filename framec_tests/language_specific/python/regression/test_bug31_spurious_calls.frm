@@ -16,6 +16,7 @@ system Bug31Test {
                     return True
                 else:
                     return False
+                }
             }
             
             getCurrentState() {
@@ -40,6 +41,7 @@ system Bug31Test {
                     return True
                 else:
                     return False
+                }
                 # BUG: Transpiler adds unreachable getCurrentState() call here
             }
             
@@ -61,6 +63,7 @@ system Bug31Test {
                     return False  # Already paused
                 else:
                     return True
+                }
                 # BUG: Transpiler adds unreachable getCurrentState() call here
             }
             

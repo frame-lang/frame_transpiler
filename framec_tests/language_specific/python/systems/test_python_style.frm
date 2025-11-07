@@ -10,6 +10,7 @@ system A {
                 doOther()
             else:
                 doDefault()
+        }
 
         testBracedStyle() {
             if x > 5:
@@ -21,6 +22,7 @@ system A {
             else:
                 doDefault()
                 doFinal()
+            }
         }
 
         testMixed() {

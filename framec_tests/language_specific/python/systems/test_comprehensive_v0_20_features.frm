@@ -60,6 +60,7 @@ system AdvancedProcessor {
                     -> $FastProcessing
                 else:
                     print("Unknown mode: " + mode)
+                }
                 return
             }
             
@@ -85,6 +86,7 @@ system AdvancedProcessor {
                 else:
                     system.return = "success: " + result
                     -> $Idle
+                }
             }
             
             reset() {

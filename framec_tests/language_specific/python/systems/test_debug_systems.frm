@@ -116,6 +116,7 @@
                 price = 100
             else:
                 price = 200
+            }
             
             if balance >= price:
                 balance = balance - price
@@ -123,6 +124,7 @@
                 -> $Dispensing ^
             else:
                 print("  [VendingMachine] Insufficient funds. Need " + str(price))
+            }
         ^
         
         |insert_coin| [amount]

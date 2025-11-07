@@ -14,6 +14,7 @@ fn test_and_operator() {
     y = 10
     if x > 0 and y > 0 and x < y:
         print("Complex and expression works")
+}
 
 fn test_or_operator() {
     a = True
@@ -29,6 +30,7 @@ fn test_or_operator() {
     y = 10
     if x < 0 or y < 0 or x == y:
         print("Complex or expression works")
+}
 
 fn test_not_operator() {
     a = True
@@ -44,6 +46,7 @@ fn test_not_operator() {
         print("x is not greater than 10")
     if not not a:
         print("Double negation works")
+}
 
 fn test_mixed_operators() {
     a = True

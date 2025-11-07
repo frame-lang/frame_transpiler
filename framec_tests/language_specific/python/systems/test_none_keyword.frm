@@ -20,6 +20,7 @@ system NoneChecker {
                     print("Received None")
                 else:
                     print("Received value: " + str(value))
+                }
                 return
             }
             

@@ -33,6 +33,7 @@ system CombinedBugTest {
                     return True
                 else:
                     return False
+                }
                 # BUG #31: Transpiler incorrectly adds getCurrentState() here
             }
             
@@ -49,6 +50,7 @@ system CombinedBugTest {
                     return True
                 else:
                     return False  
+                }
                 # BUG #31: Transpiler incorrectly adds getCurrentState() here
             }
             

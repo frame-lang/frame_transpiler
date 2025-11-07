@@ -23,7 +23,9 @@ fn testBasicTryCatch() {
     
     except:
         print("  Caught exception")
+    }
     print("  After try-catch")
+}
 
 # Test 2: Specific exception type
 fn testSpecificException() {
@@ -37,6 +39,8 @@ fn testSpecificException() {
     
     except:
         print("  Caught other exception")
+    }
+}
 
 # Test 3: Multiple exception types
 fn testMultipleExceptions() {
@@ -49,6 +53,7 @@ fn testMultipleExceptions() {
     
     except (IndexError, KeyError) as err:
         print("  Caught IndexError or KeyError:", str(err))
+    }
     
     # Test with another IndexError
     try:
@@ -57,6 +62,8 @@ fn testMultipleExceptions() {
     
     except (IndexError, KeyError) as err:
         print("  Caught IndexError or KeyError again:", str(err))
+    }
+}
 
 # Test 4: Else clause (runs if no exception)
 fn testElseClause() {
@@ -70,6 +77,7 @@ fn testElseClause() {
     
     else:
         print("  Else block - ran because no exception")
+    }
     
     # Now with exception
     try:
@@ -80,6 +88,8 @@ fn testElseClause() {
     
     else:
         print("  This else should not run")
+    }
+}
 
 # Test 5: Finally clause
 fn testFinallyClause() {
@@ -93,6 +103,7 @@ fn testFinallyClause() {
     
     finally:
         print("  Finally - always runs")
+    }
     
     # With exception
     try:
@@ -103,6 +114,8 @@ fn testFinallyClause() {
     
     finally:
         print("  Finally - runs even with exception")
+    }
+}
 
 # Test 6: Raise exceptions
 fn testRaiseException() {
@@ -114,6 +127,7 @@ fn testRaiseException() {
     
     except RuntimeError as e:
         print("  Caught:", str(e))
+    }
     
     # Exception chaining
     try:
@@ -126,6 +140,8 @@ fn testRaiseException() {
         
     except RuntimeError as e:
         print("  Caught chained:", str(e))
+    }
+}
 
 # Test 7: Nested try blocks
 fn testNestedTry() {
@@ -139,11 +155,14 @@ fn testNestedTry() {
         except ZeroDivisionError as e:
             print("    Inner catch:", str(e))
             raise RuntimeError("Outer error")
+        }
     
     except RuntimeError as e:
         print("  Outer catch:", str(e))
     
     finally:
         print("  Outer finally")
+    }
     
     print("\nAll JavaScript simulation tests complete!")
+}

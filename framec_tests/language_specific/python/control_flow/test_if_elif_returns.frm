@@ -68,6 +68,7 @@ system GradeSystem {
                 else:
                     system.return = "F"
                     return
+            }
             
             testCategories() {
                 # Test different category patterns (native Python)
@@ -85,4 +86,7 @@ system GradeSystem {
                 else:
                     print("Very high value")
                     return
+            }
+        }
+}
 
