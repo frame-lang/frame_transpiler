@@ -143,7 +143,7 @@ system AsyncDataPipeline {
                 self.current_urls = urls
                 self.batch_data = []
                 -> $Downloading
-            
+            }
             async processBatch(batch_id) {  # Mark as async since it uses await
                 print("Processing batch: " + str(batch_id) + " (in complete state)")
                 # Can still process batches even when complete

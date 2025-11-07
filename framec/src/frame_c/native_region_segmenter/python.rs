@@ -11,12 +11,23 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
     }
 
     let all_lines: Vec<&str> = source.lines().collect();
-    let s_idx = start_line.saturating_sub(1).min(all_lines.len());
-    let e_idx = end_line.saturating_sub(1).min(all_lines.len());
-    if s_idx >= all_lines.len() || s_idx > e_idx {
+    let len0 = all_lines.len();
+    if len0 == 0 {
         return vec![];
     }
-    let region_lines = &all_lines[s_idx..=e_idx];
+    // Convert 1-based line numbers to 0-based indices and clamp safely.
+    let s_raw = start_line.saturating_sub(1);
+    if s_raw >= len0 {
+        return vec![];
+    }
+    let mut e_raw = end_line.saturating_sub(1);
+    if e_raw >= len0 {
+        e_raw = len0 - 1;
+    }
+    if s_raw > e_raw {
+        return vec![];
+    }
+    let region_lines = &all_lines[s_raw..=e_raw];
 
     let mut segments: Vec<BodySegment> = Vec::new();
     let mut native_start: Option<usize> = None;
