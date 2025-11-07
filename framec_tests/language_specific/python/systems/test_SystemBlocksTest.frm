@@ -11,4 +11,3 @@ system HelloWorldSystem {
     
     domain:
 
-}
