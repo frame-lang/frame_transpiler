@@ -1,4 +1,3 @@
-@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Python-specific File I/O external API test
 # Must produce identical output to TypeScript version

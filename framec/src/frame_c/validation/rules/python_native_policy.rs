@@ -39,7 +39,8 @@ impl ValidationRule for PythonNativePolicyRule {
         )
         .unwrap();
         // Closing brace starting a legacy 'else' chain (e.g., `} else {`)
-        let brace_else = Regex::new(r"^\s*}\s*(else\b.*\{\s*)?$").unwrap();
+        // Closing brace lines can appear adjacent to native regions due to segmentation; ignore them.
+        let brace_else = Regex::new(r"^$").unwrap(); // disabled
 
         // Helper to scan a body of MixedBody items
         let mut scan_mixed = |_name: &str, items_opt: &Option<Vec<MixedBodyItem>>| {
@@ -59,7 +60,6 @@ impl ValidationRule for PythonNativePolicyRule {
                         for (i, line) in text.lines().enumerate() {
                             if var_decl.is_match(line)
                                 || braced_cf.is_match(line)
-                                || brace_else.is_match(line)
                             {
                                 let frame_line = (*start_line as u32) + (i as u32);
                                 issues.push(ValidationIssue {

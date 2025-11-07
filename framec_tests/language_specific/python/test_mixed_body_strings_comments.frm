@@ -1,4 +1,3 @@
-@target python
 
 system MixedBodyStringsComments {
     machine:

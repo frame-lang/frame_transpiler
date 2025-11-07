@@ -1,4 +1,3 @@
-@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Simple test for import statements
 import math

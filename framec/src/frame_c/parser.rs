@@ -4119,8 +4119,20 @@ impl<'a> Parser<'a> {
         let mut parse_frame_statements = true;
         if matches!(self.target_language, Some(TargetLanguage::Python3)) {
             let start_line = body_start_line.saturating_add(1);
-            let close_line = self.scan_py_closing_brace_line(body_start_line);
-            let end_inclusive = close_line.saturating_sub(1);
+            // Prefer token-depth scan for actions to avoid misclassification
+            let mut depth: i32 = 1;
+            let mut last_line = body_start_line;
+            while !self.is_at_end() && depth > 0 {
+                let tk = self.peek().clone();
+                match tk.token_type {
+                    TokenType::OpenBrace => depth += 1,
+                    TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }
+                    _ => {}
+                }
+                last_line = tk.line;
+                self.advance();
+            }
+            let end_inclusive = last_line;
             let mut looks_native = false;
             for ln in start_line..=end_inclusive.min(start_line + 64) {
                 if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {

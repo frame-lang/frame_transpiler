@@ -8,15 +8,17 @@ system TransitionParamsSm {
 
     machine:
         $A {
-            Init() { -> (1) $B }
-            Go(val:int) { -> (val) $B }
+            Init() { -> $B(1) }
+            Go(val:int) { -> $B(val) }
             Report() { return }
         }
         $B(n:int) {
-            Report() { print("n=" + str(n)); return }
+            Report() {
+                print("n=" + str(n))
+                return
+            }
         }
 
     domain:
         tape = []
 }
-

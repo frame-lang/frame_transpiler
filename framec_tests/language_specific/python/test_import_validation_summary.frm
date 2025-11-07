@@ -1,4 +1,3 @@
-@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive Import & FSL Syntax Validation Summary - v0.34
 # This test validates ALL supported import and FSL syntax

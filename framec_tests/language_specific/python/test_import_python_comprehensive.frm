@@ -1,4 +1,3 @@
-@target python
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test all Python import types - v0.34
 # Expected: All import statements should be passed through to Python

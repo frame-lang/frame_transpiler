@@ -1,4 +1,3 @@
-@target python
 
 system TripleQuotesMultilinePy {
     machine:

@@ -713,6 +713,10 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
             Arc::clone(&target_regions),
             Arc::clone(&source_lines),
         );
+        // Seed parser with effective target so body gating applies during validation
+        if let Some(lang) = effective_target {
+            syntactic_parser.target_language = Some(lang);
+        }
         match syntactic_parser.parse() {
             Ok(_) => {
                 if syntactic_parser.had_error() {
@@ -743,6 +747,9 @@ fn handle_validation(args: &Cli, target_language: Option<TargetLanguage>) -> boo
         Arc::clone(&target_regions),
         Arc::clone(&source_lines),
     );
+    if let Some(lang) = effective_target {
+        semantic_parser.target_language = Some(lang);
+    }
 
     let ast = match semantic_parser.parse() {
         Ok(frame_module) => frame_module,

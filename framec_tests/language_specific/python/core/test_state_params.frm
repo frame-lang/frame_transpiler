@@ -8,17 +8,23 @@ system StateParamsSm {
 
     machine:
         $Init {
-            Next() { -> (1) $S(0) }
+            Next() {
+                -> (1) $S(0)
+            }
             Prev() { return }
             Report() { return }
         }
         $S(k:int) {
-            Next() { -> (k+1) $S(k) }
+            Next() {
+                -> (k+1) $S(k)
+            }
             Prev() { -> $Init }
-            Report() { print("k=" + str(k)); return }
+            Report() {
+                print("k=" + str(k))
+                return
+            }
         }
 
     domain:
         param_log = []
 }
-

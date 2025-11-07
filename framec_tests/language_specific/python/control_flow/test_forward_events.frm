@@ -47,9 +47,12 @@ system ForwardEvents {
                 log("Exit $S1")
                 return
             }
+            GotoS1() { return }
+            GotoS2() { return }
             ReturnFromS1() {
                 -> $S0
             }
+            ReturnFromS2() { return }
         }
 
         $S2 {
@@ -61,9 +64,12 @@ system ForwardEvents {
                 log("Exit $S2")
                 return
             }
+            GotoS1() { return }
+            GotoS2() { return }
             ReturnFromS2() {
                 -> $$[-]
             }
+            ReturnFromS1() { return }
         }
 
     actions:

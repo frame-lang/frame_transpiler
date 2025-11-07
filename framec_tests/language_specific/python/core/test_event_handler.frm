@@ -28,7 +28,7 @@ system EventHandler {
             LogReturn(a:int, b:int) : int {
                 log("a", a)
                 log("b", b)
-                var r = a + b
+                r = a + b
                 log("r", r)
                 return r
             }
@@ -38,7 +38,7 @@ system EventHandler {
             }
 
             PassReturn(a:int, b:int): int {
-                var r = a + b
+                r = a + b
                 log("r", r)
                 -> $S2(r)
             }
@@ -49,6 +49,11 @@ system EventHandler {
                 log("p", p)
                 return
             }
+            LogIt(x:int) { return }
+            LogAdd(a:int, b:int) { return }
+            LogReturn(a:int, b:int) : int { return 0 }
+            PassAdd(a:int, b:int) { return }
+            PassReturn(a:int, b:int) : int { return 0 }
         }
 
     actions:

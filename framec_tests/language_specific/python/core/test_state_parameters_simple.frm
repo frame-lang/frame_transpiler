@@ -41,6 +41,10 @@ system SimpleStateParams {
             check() {
                 # no-op when running
             }
+
+            # Interface coverage
+            start(duration) { return }
+            configure(low, high) { return }
         }
 
         $Configured(min: int, max: int) {
@@ -56,8 +60,11 @@ system SimpleStateParams {
             tick() {
                 # no-op when configured
             }
+
+            # Interface coverage
+            start(duration) { return }
+            configure(low, high) { return }
         }
-    }
 }
 
 fn main() {
