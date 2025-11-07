@@ -19,8 +19,9 @@ impl ValidationRule for NegativePatternsRule {
         for (i, line) in context.source_code.lines().enumerate() {
             let frame_line = i as u32 + 1;
             let t = line;
-            // Nested function definition inside a body (indented fn ...)
-            if t.trim_start().starts_with("fn ") && t.starts_with(' ') {
+            let leading_ws = t.chars().take_while(|c| c.is_whitespace()).count();
+            // Nested function definition inside a body (indented Frame fn ...)
+            if leading_ws > 0 && t.trim_start().starts_with("fn ") {
                 issues.push(ValidationIssue {
                     severity: Severity::Error,
                     category: Category::Structure,
@@ -28,6 +29,19 @@ impl ValidationRule for NegativePatternsRule {
                     message: "Nested function definitions are not allowed in Frame bodies.".to_string(),
                     location: SourceLocation { line: frame_line, column: 1, offset: 0, length: 0, file_path: None },
                     suggestion: Some("Move nested function to module scope".to_string()),
+                    help_url: None,
+                });
+                break;
+            }
+            // Nested TypeScript function declaration (indented `function ...`)
+            if leading_ws > 0 && t.trim_start().starts_with("function ") {
+                issues.push(ValidationIssue {
+                    severity: Severity::Error,
+                    category: Category::Structure,
+                    rule_name: self.name().to_string(),
+                    message: "Nested function declarations are not allowed in TypeScript bodies.".to_string(),
+                    location: SourceLocation { line: frame_line, column: 1, offset: 0, length: 0, file_path: None },
+                    suggestion: Some("Move nested function to module scope or use arrow function assigned to const".to_string()),
                     help_url: None,
                 });
                 break;
@@ -63,4 +77,3 @@ impl ValidationRule for NegativePatternsRule {
         issues
     }
 }
-

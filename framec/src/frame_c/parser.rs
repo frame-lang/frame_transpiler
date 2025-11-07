@@ -1258,6 +1258,8 @@ impl<'a> Parser<'a> {
                         Ok(function) => functions.push(function),
                         Err(func_error) => {
                             eprintln!("Warning: Async function parsing failed: {}", func_error);
+                            // Record as parser error so the compiler can fail the run
+                            self.error_at_current(&func_error.to_display_string());
                             self.recover_from_system_error(&func_error)?;
                             continue;
                         }
@@ -1305,6 +1307,8 @@ impl<'a> Parser<'a> {
                             eprintln!("DEBUG: Function parsing failed: {}", func_error);
                         }
                         eprintln!("Warning: Function parsing failed: {}", func_error);
+                        // Record as parser error so the compiler emits non-zero exit
+                        self.error_at_current(&func_error.to_display_string());
                         self.recover_from_system_error(&func_error)?;
                         continue;
                     }
@@ -2923,15 +2927,17 @@ impl<'a> Parser<'a> {
                 self.peek()
             );
         }
-        // For TypeScript/Python target bodies, capture native lines verbatim and skip Frame parsing
+        // Choose between Frame-statement parsing and target-native slice for TS/Py.
+        // Default is Frame statements; switch to native only when the body clearly "looks native".
         let mut statements: Vec<DeclOrStmtType> = Vec::new();
         let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
         let mut target_specific_regions: Vec<TargetSpecificRegionRef> = Vec::new();
-        // Note: functions currently keep parsed_target_blocks only; MixedBody not required here.
-        if matches!(self.target_language, Some(TargetLanguage::TypeScript))
-            || matches!(self.target_language, Some(TargetLanguage::Python3))
+
+        let mut treat_as_native = false;
+        if matches!(self.target_language, Some(TargetLanguage::Python3))
+            || matches!(self.target_language, Some(TargetLanguage::TypeScript))
         {
-            // Skip tokens until matching '}' without consuming the closing brace
+            // Scan ahead to the matching '}' without consuming it to extract the raw span
             let mut depth: i32 = 1; // already consumed '{'
             let mut last_line = body_start_line;
             while !self.is_at_end() && depth > 0 {
@@ -2940,9 +2946,7 @@ impl<'a> Parser<'a> {
                     TokenType::OpenBrace => depth += 1,
                     TokenType::CloseBrace => {
                         depth -= 1;
-                        if depth == 0 {
-                            break; // do not consume the '}' here
-                        }
+                        if depth == 0 { break; }
                     }
                     _ => {}
                 }
@@ -2950,106 +2954,87 @@ impl<'a> Parser<'a> {
                 self.advance();
             }
 
-            // Slice source lines and construct a synthetic target block
             let start_line = body_start_line.saturating_add(1);
             let end_line = last_line;
             if end_line >= start_line {
-                let mut raw = String::new();
-                for ln in start_line..=end_line {
-                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                        raw.push_str(s);
-                        if !s.ends_with('\n') {
-                            raw.push('\n');
-                        }
-                    }
-                }
-                // Negative policy: disallow nested function definitions inside function bodies
-                if raw.lines().any(|l| l.trim_start().starts_with("fn ")) {
-                    return Err(ParseError::new("Nested function definitions are not allowed in Frame bodies."));
-                }
-                // Python: disallow legacy braced control-flow in action bodies
+                // Simple, robust native-body detectors per target
                 if matches!(self.target_language, Some(TargetLanguage::Python3)) {
-                    for (idx, s) in raw.lines().enumerate() {
-                        let t = s.trim_start();
-                        if (t.starts_with("if ")
-                            || t.starts_with("elif ")
-                            || t.starts_with("else")
-                            || t.starts_with("for ")
-                            || t.starts_with("while ")
-                            || t.starts_with("try")
-                            || t.starts_with("except")
-                            || t.starts_with("finally")
-                            || t.starts_with("with ")
-                            || t.starts_with("async with ")
-                            || t.starts_with("async for "))
-                            && t.ends_with('{')
-                        {
-                            let line = start_line + idx;
-                            let err = ParseError::new("Legacy braced control-flow is not allowed in Python bodies (use ':' and indentation)")
-                                .with_frame_line(line);
-                            return Err(err);
+                    // Python native: look for colon-terminated control-flow, with/try, or triple-quoted docstring on first statement
+                    for ln in start_line..=end_line.min(start_line + 64) {
+                        if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                            let t = s.trim_start();
+                            if t.is_empty() { continue; }
+                            let is_control = (
+                                (t.starts_with("if ") || t.starts_with("elif ") || t.starts_with("else:"))
+                                    && t.ends_with(':')
+                            ) || ((t.starts_with("for ") || t.starts_with("while ")) && t.ends_with(':'))
+                                || (t.starts_with("try:") || t.starts_with("except") || t.starts_with("finally:"))
+                                || t.starts_with("with ") || t.starts_with("async with ") || t.starts_with("async for ")
+                                || t.starts_with("\"\"\"") || t.starts_with("\'\'\'");
+                            if is_control { treat_as_native = true; break; }
                         }
                     }
-                }
-
-                let region = TargetRegion {
-                    start_position: 0,
-                    end_position: None,
-                    raw_content: raw.clone(),
-                    target: if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                        TargetLanguage::TypeScript
-                    } else {
-                        TargetLanguage::Python3
-                    },
-                    source_map: TargetSourceMap {
-                        frame_start_line: start_line,
-                        target_line_offsets: Vec::new(),
-                    },
-                };
-
-                // Parse using target parser (TS/Python) unless the body contains Frame-only constructs
-                // like namespace resolution '::' which Python target parser cannot accept.
-                let skip_native_parse = matches!(region.target, TargetLanguage::Python3)
-                    && raw.contains("::");
-                if skip_native_parse {
-                    // Skip native parsing to avoid false errors; leave parsed_target_blocks empty.
                 } else {
-                    match parse_target_region(region.target, &region) {
-                        Ok(ast) => {
-                            parsed_target_blocks.push(ParsedTargetBlock {
-                                region_index: 0,
-                                frame_start_line: start_line,
-                                frame_end_line: end_line,
-                                ast,
-                            });
-                        }
-                        Err(err) => {
-                            if let super::target_parsers::TargetParseError::Parse {
-                                target_language,
-                                message,
-                                target_line,
-                                column,
-                            } = err
-                            {
-                                let frame_line = start_line + target_line.saturating_sub(1);
-                                let display = ParseError::new(&format!(
-                                    "{:?} target parse error: {}",
-                                    target_language, message
-                                ))
-                                .with_frame_line(frame_line)
-                                .with_target_context(
-                                    target_language,
-                                    target_line,
-                                    Some(column),
-                                    None,
-                                );
-                                return Err(display);
+                    // TypeScript native: look for backticks (templates), arrow functions, or let/const at SOL
+                    for ln in start_line..=end_line.min(start_line + 64) {
+                        if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                            let t = s.trim_start();
+                            if t.is_empty() { continue; }
+                            if t.contains('`') || t.contains("=>") || t.starts_with("let ") || t.starts_with("const ") {
+                                treat_as_native = true; break;
                             }
                         }
                     }
                 }
+
+                if treat_as_native {
+                    // Build raw span and try native parse for validation
+                    let mut raw = String::new();
+                    for ln in start_line..=end_line {
+                        if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                            raw.push_str(s);
+                            if !s.ends_with('\n') { raw.push('\n'); }
+                        }
+                    }
+
+                    // Guard: no nested Frame-style fn inside native bodies
+                    if raw.lines().any(|l| l.trim_start().starts_with("fn ")) {
+                        return Err(ParseError::new("Nested function definitions are not allowed in Frame bodies."));
+                    }
+
+                    // Python policy: disallow legacy braced control-flow in native bodies
+                    if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+                        for (idx, s) in raw.lines().enumerate() {
+                            let t = s.trim_start();
+                            if (t.starts_with("if ") || t.starts_with("elif ") || t.starts_with("else")
+                                || t.starts_with("for ") || t.starts_with("while ") || t.starts_with("try")
+                                || t.starts_with("except") || t.starts_with("finally") || t.starts_with("with ")
+                                || t.starts_with("async with ") || t.starts_with("async for ")) && t.ends_with('{') {
+                                let line = start_line + idx;
+                                let err = ParseError::new("Legacy braced control-flow is not allowed in Python bodies (use ':' and indentation)")
+                                    .with_frame_line(line);
+                                return Err(err);
+                            }
+                        }
+                    }
+
+                    let target = if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                        TargetLanguage::TypeScript
+                    } else { TargetLanguage::Python3 };
+                    let region = TargetRegion { start_position: 0, end_position: None, raw_content: raw.clone(), target, source_map: TargetSourceMap { frame_start_line: start_line, target_line_offsets: Vec::new() } };
+
+                    let skip_native_parse = matches!(target, TargetLanguage::Python3) && raw.contains("::");
+                    if !skip_native_parse {
+                        if let Ok(ast) = parse_target_region(target, &region) {
+                            parsed_target_blocks.push(ParsedTargetBlock { region_index: 0, frame_start_line: start_line, frame_end_line: end_line, ast });
+                        }
+                    }
+                }
             }
-        } else {
+        }
+
+        if !treat_as_native {
+            // Fall back to Frame statements for this function body
             statements = self.statements(IdentifierDeclScope::BlockVarScope);
         }
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
@@ -3081,6 +3066,14 @@ impl<'a> Parser<'a> {
             Some(TargetLanguage::TypeScript) | Some(TargetLanguage::Python3)
         );
         if !defer_close_consume {
+            let token = self.consume(
+                TokenType::CloseBrace,
+                &format!("Expected '}}' - found '{}'", self.current_token),
+            )?;
+            body_end_line = token.line;
+        } else if !treat_as_native {
+            // TS/Py target but this function body was parsed as Frame statements —
+            // consume the closing brace now to keep the parser in sync.
             let token = self.consume(
                 TokenType::CloseBrace,
                 &format!("Expected '}}' - found '{}'", self.current_token),

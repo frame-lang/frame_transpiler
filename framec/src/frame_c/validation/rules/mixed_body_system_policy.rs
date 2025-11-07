@@ -143,6 +143,21 @@ impl ValidationRule for MixedBodySystemPolicyRule {
                                         help_url: None,
                                     });
                                 }
+                            } else if !name.is_empty() {
+                                // Not an interface method; detect action/operation ambiguity under self.
+                                let has_action = action_names.contains(&name);
+                                let has_op = operation_names.contains(&name);
+                                if has_action && has_op {
+                                    issues.push(ValidationIssue {
+                                        severity: Severity::Error,
+                                        category: Category::Structure,
+                                        rule_name: self.name().to_string(),
+                                        message: format!("Ambiguous 'self.{}()' call: name exists as both an action and an operation.", name),
+                                        location: SourceLocation { line: frame_line, column: 1, offset: 0, length: 0, file_path: None },
+                                        suggestion: Some("Rename either the action or the operation to disambiguate".to_string()),
+                                        help_url: None,
+                                    });
+                                }
                             }
                         }
                     }

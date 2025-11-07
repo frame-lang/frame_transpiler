@@ -727,6 +727,9 @@ class FrameTestRunner:
         
         # Check if this is a negative test
         is_negative = self.is_negative_test(test_file)
+        # Per-language override: this shared test is positive in Python but negative in TypeScript
+        if language == "typescript" and test_file.stem == "test_error_handling_v049":
+            is_negative = True
         
         # Check if this is an infinite loop test
         is_infinite_loop = self.is_infinite_loop_test(test_file)

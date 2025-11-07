@@ -247,6 +247,22 @@ impl Exe {
             .map(|p| p.to_path_buf());
         //        let mut output= String::new(); ^^^^ See above! ^^^^
 
+        // Pre-parse sanitation: reject curly smart quotes and invalid sentinels early
+        if content.contains('\u{2018}') || content.contains('\u{2019}')
+            || content.contains('\u{201C}') || content.contains('\u{201D}')
+        {
+            return Err(RunError::new(
+                frame_exitcode::PARSE_ERR,
+                "Curly smart quotes are not allowed; use ASCII quotes",
+            ));
+        }
+        if content.contains("EOF < /dev/null") {
+            return Err(RunError::new(
+                frame_exitcode::PARSE_ERR,
+                "Invalid here-doc sentinel in source",
+            ));
+        }
+
         let header_target = detect_header_target_annotation(&content);
         if let Some(cli_target) = target_language {
             if let Some(header) = header_target {

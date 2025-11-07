@@ -37,6 +37,20 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - MixedBody authoritative; mapping anchors in both TS/Py visitors; TS has comment/JSON mapping trailers (env flags)
 - Negative fixtures added for unterminated templates/strings/comments
 
+## 🗺️ Roadmap (Checkboxes Tracked)
+
+- [x] TS single‑file MixedBody pipeline complete (transpile+validate)
+- [x] Python single‑file MixedBody pipeline complete for language_specific suite
+- [x] Gate function() native‑body to “looks native” (TS/Py)
+- [ ] TS negative tests parity (ensure nested‑function and error_handling_v049 fail as expected)
+- [ ] TS multi‑file linking/import paths stabilized (single shared runtime import)
+- [ ] Python: native‑only policy strictly enforced across all suites (no legacy braces/var in bodies)
+- [ ] Desugar pass for system.<ref> (e.g., system.return) with per‑target rewrites
+- [ ] Source‑map composer finalized for MixedBody spans (TS/Py)
+- [ ] Re‑implement FID integration (manifest + importer) after single‑file parity
+- [ ] Documentation cleanup pass (architecture is authoritative); audit changes from last branches (new_parsers, going_native) to improve organization
+
+
 ## ▶️ Next Steps (High‑Level)
 - [x] Test runner: validator-verified fixtures (post-transpile)
   - Acceptance: Runner invokes `framec --validate-syntax --validation-only` per test; negative tests pass when validation fails; summary honors validation; HOW_TO updated.
