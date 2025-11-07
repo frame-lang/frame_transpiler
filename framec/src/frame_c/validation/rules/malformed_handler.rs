@@ -279,17 +279,19 @@ impl ValidationRule for MalformedHandlerRule {
     fn validate(&self, context: &ValidationContext) -> Vec<ValidationIssue> {
         let mut issues = Vec::new();
 
-        // Check machine states for malformed handlers
-        if let Some(machine) = &context.ast.machine_block_node_opt {
-            for state_ref in &machine.states {
-                let state = state_ref.borrow();
-                for handler_ref in &state.evt_handlers_rcref {
-                    let handler = handler_ref.borrow();
+        // Check machine states for malformed handlers (skip structure scan for TypeScript; AST parse is authoritative)
+        if !matches!(context.target_language, Some(TargetLanguage::TypeScript)) {
+            if let Some(machine) = &context.ast.machine_block_node_opt {
+                for state_ref in &machine.states {
+                    let state = state_ref.borrow();
+                    for handler_ref in &state.evt_handlers_rcref {
+                        let handler = handler_ref.borrow();
 
-                    if let Some(issue) =
-                        self.has_malformed_structure(&*handler, context.source_code)
-                    {
-                        issues.push(issue);
+                        if let Some(issue) =
+                            self.has_malformed_structure(&*handler, context.source_code)
+                        {
+                            issues.push(issue);
+                        }
                     }
                 }
             }

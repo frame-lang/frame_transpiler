@@ -30,8 +30,7 @@ system AsyncTest {
                 self.status = status
             }
         }
-        }
-        domain:
+    domain:
         last_data = ""
         status = "ready"
 }

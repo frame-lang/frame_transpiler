@@ -86,7 +86,6 @@ fn use_module_system() {
         print("System method called successfully")
     else:
         print("System is null")
-    }
 }
 
 # Test function that only reads (no global declaration needed)

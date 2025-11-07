@@ -355,6 +355,15 @@ impl ValidationRule for UnmatchedBracesRule {
         match context.target_language {
             Some(TargetLanguage::Python) => self.analyze_brace_matching_python(context.source_code),
             Some(TargetLanguage::TypeScript) => {
+                // If we successfully built an AST (i.e., parser balanced structural braces),
+                // skip textual unmatched-braces checks to avoid false positives from native spans.
+                if context.ast.machine_block_node_opt.is_some()
+                    || context.ast.actions_block_node_opt.is_some()
+                    || context.ast.interface_block_node_opt.is_some()
+                    || context.ast.operations_block_node_opt.is_some()
+                {
+                    return Vec::new();
+                }
                 // Mask native/mixed body lines to avoid counting TS-native braces
                 let mut mask = HashSet::<u32>::new();
                 if let Some(machine) = &context.ast.machine_block_node_opt {

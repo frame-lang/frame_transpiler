@@ -1677,7 +1677,7 @@ impl<'a> Parser<'a> {
         }
 
         // Parse system blocks
-        if matches!(self.target_language, Some(TargetLanguage::Python3))
+        if matches!(self.target_language, Some(TargetLanguage::Python3 | TargetLanguage::TypeScript))
             || (self.is_building_symbol_table
                 && matches!(
                     self.peek().token_type,
@@ -1688,7 +1688,7 @@ impl<'a> Parser<'a> {
                         | TokenType::DomainBlock
                 ))
         {
-            // Python: allow blocks in any order for native-friendly authoring.
+            // Python/TypeScript: allow blocks in any order for native-friendly authoring.
             let mut ops_opt: Option<OperationsBlockNode> = None;
             let mut iface_opt: Option<InterfaceBlockNode> = None;
             let mut machine_opt: Option<MachineBlockNode> = None;
@@ -2991,7 +2991,7 @@ impl<'a> Parser<'a> {
                 let region = TargetRegion {
                     start_position: 0,
                     end_position: None,
-                    raw_content: raw,
+                    raw_content: raw.clone(),
                     target: if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
                         TargetLanguage::TypeScript
                     } else {
@@ -3003,37 +3003,44 @@ impl<'a> Parser<'a> {
                     },
                 };
 
-                // Parse using target parser (TS/Python)
-                match parse_target_region(region.target, &region) {
-                    Ok(ast) => {
-                        parsed_target_blocks.push(ParsedTargetBlock {
-                            region_index: 0,
-                            frame_start_line: start_line,
-                            frame_end_line: end_line,
-                            ast,
-                        });
-                    }
-                    Err(err) => {
-                        if let super::target_parsers::TargetParseError::Parse {
-                            target_language,
-                            message,
-                            target_line,
-                            column,
-                        } = err
-                        {
-                            let frame_line = start_line + target_line.saturating_sub(1);
-                            let display = ParseError::new(&format!(
-                                "{:?} target parse error: {}",
-                                target_language, message
-                            ))
-                            .with_frame_line(frame_line)
-                            .with_target_context(
+                // Parse using target parser (TS/Python) unless the body contains Frame-only constructs
+                // like namespace resolution '::' which Python target parser cannot accept.
+                let skip_native_parse = matches!(region.target, TargetLanguage::Python3)
+                    && raw.contains("::");
+                if skip_native_parse {
+                    // Skip native parsing to avoid false errors; leave parsed_target_blocks empty.
+                } else {
+                    match parse_target_region(region.target, &region) {
+                        Ok(ast) => {
+                            parsed_target_blocks.push(ParsedTargetBlock {
+                                region_index: 0,
+                                frame_start_line: start_line,
+                                frame_end_line: end_line,
+                                ast,
+                            });
+                        }
+                        Err(err) => {
+                            if let super::target_parsers::TargetParseError::Parse {
                                 target_language,
+                                message,
                                 target_line,
-                                Some(column),
-                                None,
-                            );
-                            return Err(display);
+                                column,
+                            } = err
+                            {
+                                let frame_line = start_line + target_line.saturating_sub(1);
+                                let display = ParseError::new(&format!(
+                                    "{:?} target parse error: {}",
+                                    target_language, message
+                                ))
+                                .with_frame_line(frame_line)
+                                .with_target_context(
+                                    target_language,
+                                    target_line,
+                                    Some(column),
+                                    None,
+                                );
+                                return Err(display);
+                            }
                         }
                     }
                 }
@@ -4422,7 +4429,14 @@ impl<'a> Parser<'a> {
         {
             // For TypeScript actions, guard against template literals with a textual closer
             let start_line = body_start_line.saturating_add(1);
-            let (end_line, _used_textual) = if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+            // Compute end_line via fast-path or textual closers
+            let (end_line, _used_textual) = if matches!(self.peek().token_type, TokenType::CloseBrace) {
+                let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+                body_end_line = tok.line;
+                // No native text lines between braces
+                let end_line = body_start_line;
+                (end_line, false)
+            } else if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
                 // Always use textual closer for TS to avoid template/brace ambiguities
                 let close_line = self.scan_ts_closing_brace_line(body_start_line);
                 while !self.is_at_end() {
@@ -4431,6 +4445,8 @@ impl<'a> Parser<'a> {
                     if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
                     break;
                 }
+                // Try to consume the closing '}' at or just after the computed close line
+                // Consume the CloseBrace token now (we should be positioned on it)
                 let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
                 body_end_line = tok.line;
                 (close_line.saturating_sub(1), true)
@@ -17068,6 +17084,77 @@ impl<'a> Parser<'a> {
                     Ok(var_decl) => variables.push(var_decl),
                     Err(err) => return Err(err),
                 }
+            } else if matches!(self.target_language, Some(TargetLanguage::Python3))
+                && self.check(TokenType::Identifier)
+            {
+                // Python target: allow module-scope native assignments: name [: type]? = expr
+                let id_tok = self.advance().clone();
+                let name = id_tok.lexeme.clone();
+                let var_line = id_tok.line;
+
+                let mut type_opt: Option<TypeNode> = None;
+                if self.match_token(&[TokenType::Colon]) {
+                    match self.type_decl() {
+                        Ok(t) => type_opt = Some(t),
+                        Err(_parse_error) => {
+                            // Recover: treat as no type and continue to parse value
+                            type_opt = None;
+                        }
+                    }
+                }
+
+                if !self.match_token(&[TokenType::Equals]) {
+                    let err_msg = "Expected '=' in Python module assignment.";
+                    self.error_at_current(err_msg);
+                    // attempt to resync on next entry or block end
+                    let sync_tokens = vec![
+                        TokenType::Var,
+                        TokenType::Const,
+                        TokenType::Enum,
+                        TokenType::Function,
+                        TokenType::System,
+                        TokenType::Module,
+                        TokenType::CloseBrace,
+                    ];
+                    self.synchronize(&sync_tokens);
+                    continue;
+                }
+
+                let value_rc = match self.parse_variable_initializer(&name) {
+                    Ok(v) => v,
+                    Err(_e) => {
+                        let sync_tokens = vec![
+                            TokenType::Var,
+                            TokenType::Const,
+                            TokenType::Enum,
+                            TokenType::Function,
+                            TokenType::System,
+                            TokenType::Module,
+                            TokenType::CloseBrace,
+                        ];
+                        self.synchronize(&sync_tokens);
+                        continue;
+                    }
+                };
+                let node = VariableDeclNode::new(
+                    var_line,
+                    name.clone(),
+                    type_opt.clone(),
+                    false,
+                    value_rc.clone(),
+                    value_rc.clone(),
+                    IdentifierDeclScope::ModuleScope,
+                );
+                let node_r = Rc::new(RefCell::new(node));
+                if self.is_building_symbol_table {
+                    let _ = self.create_variable_symbol(
+                        name,
+                        type_opt,
+                        &IdentifierDeclScope::ModuleScope,
+                        node_r.clone(),
+                    );
+                }
+                variables.push(node_r);
             } else if self.match_token(&[TokenType::Enum]) {
                 match self.enum_decl() {
                     Ok(enum_decl) => enums.push(enum_decl),
