@@ -474,6 +474,36 @@ impl<'a> Parser<'a> {
         close_line
     }
 
+    /// Advance the token cursor to consume a CloseBrace '}' that appears on the
+    /// provided `close_line`. This tolerates trailing line comments `// ...` on the
+    /// same line, and advances at most one line beyond `close_line` to locate the
+    /// brace. Returns the consumed token's line on success.
+    fn consume_close_brace_at_line(&mut self, close_line: usize) -> Result<usize, ParseError> {
+        while !self.is_at_end() {
+            let tk = self.peek();
+            if tk.line < close_line {
+                self.advance();
+                continue;
+            }
+            if tk.line == close_line {
+                if matches!(tk.token_type, TokenType::CloseBrace) {
+                    let t = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+                    return Ok(t.line);
+                }
+                // Skip tokens on the close line (including // comment tokens) until we find '}'
+                self.advance();
+                continue;
+            }
+            // One line past computed close_line: accept '}' if found immediately
+            if matches!(tk.token_type, TokenType::CloseBrace) {
+                let t = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+                return Ok(t.line);
+            }
+            break;
+        }
+        Err(ParseError::new("Expected '}'"))
+    }
+
     // Failure characterization for textual closers (module scope)
 
     /// TypeScript: textual detection with failure characterization.
@@ -4442,16 +4472,7 @@ impl<'a> Parser<'a> {
             } else if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
                 // Always use textual closer for TS to avoid template/brace ambiguities
                 let close_line = self.scan_ts_closing_brace_line(body_start_line);
-                while !self.is_at_end() {
-                    let tk = self.peek();
-                    if tk.line < close_line { self.advance(); continue; }
-                    if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
-                    break;
-                }
-                // Try to consume the closing '}' at or just after the computed close line
-                // Consume the CloseBrace token now (we should be positioned on it)
-                let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
-                close_tok_line = tok.line;
+                close_tok_line = self.consume_close_brace_at_line(close_line)?;
                 (close_line.saturating_sub(1), true)
             } else {
                 // Python path: always use textual DPDA closer to find exact end line
@@ -7548,21 +7569,7 @@ impl<'a> Parser<'a> {
                 }
                 if has_backtick {
                     let close_line = self.scan_ts_closing_brace_line(body_start_line);
-                    // advance tokens up to just before '}' at close_line
-                    while !self.is_at_end() {
-                        let tk = self.peek();
-                        if tk.line < close_line {
-                            self.advance();
-                            continue;
-                        }
-                        if tk.line == close_line
-                            && !matches!(tk.token_type, TokenType::CloseBrace)
-                        {
-                            self.advance();
-                            continue;
-                        }
-                        break;
-                    }
+                    let _ = self.consume_close_brace_at_line(close_line)?;
                 } else {
                     // Fallback: token-depth skip to matching '}'
                     let mut depth: i32 = 1;

@@ -18,7 +18,7 @@ impl TransitionsTerminalRule {
             MirStatement::ParentForward |
             MirStatement::StackPush |
             MirStatement::StackPop => true,
-            MirStatement::Return(_) => true, // treat MIR return as terminal within MixedBody
+            MirStatement::Return(_) => false,
         }
     }
 

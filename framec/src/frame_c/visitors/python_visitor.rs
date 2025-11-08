@@ -134,7 +134,7 @@ impl PythonVisitor {
             None
         };
         // Helper to peek the previous header line (ending with ':') absolute indent
-        let prev_header_indent = |from: usize| -> Option<usize> {
+        let _prev_header_indent = |from: usize| -> Option<usize> {
             let mut i = from as isize - 1;
             while i >= 0 {
                 match &items[i as usize] {
@@ -241,6 +241,10 @@ impl PythonVisitor {
                     }
                 }
                 MixedBodyItem::Frame { frame_line, indent: _indent, stmt } => {
+                    if after_terminal_dir {
+                        // After a terminal directive, ignore any further MIR glue
+                        continue;
+                    }
                     // Map glue to directive's frame line
                     match stmt {
                         MirStatement::Transition { state, args } => {
@@ -357,6 +361,7 @@ impl PythonVisitor {
                             if emit_bare_return {
                                 self.builder.writeln(&format!("{}return", inner_prefix));
                             }
+                            after_terminal_dir = true;
                         }
                     }
                     generated = true;

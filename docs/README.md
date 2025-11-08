@@ -15,6 +15,7 @@ Below is the living index of the most relevant specs and plans across `framelang
 - Common Grammar: docs/framelang_design/target_language_specifications/common/frame_common_grammar.md
 - Native Imports & FID: docs/framelang_design/frame_interface_definition/native_imports_and_fid.md
 - Cross‑Language Support Analysis: docs/framelang_design/cross_language_support_analysis.md
+ - Research RFCs: docs/framelang_design/research/README.md (RFC index)
 
 ### Target Body Grammars
 - Python: docs/framelang_design/target_language_specifications/python/python_body_grammar.md
