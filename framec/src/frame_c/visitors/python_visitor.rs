@@ -1541,23 +1541,36 @@ impl PythonVisitor {
                 self.visit_decl_or_stmt(stmt);
             }
 
-            // Handle terminator (usually return statement)
-            match method.terminator_expr.terminator_type {
-                TerminatorType::Return => {
-                    if let Some(expr) = &method.terminator_expr.return_expr_t_opt {
+        // Handle terminator (usually return statement)
+        use crate::frame_c::ast::ExprType;
+        match method.terminator_expr.terminator_type {
+            TerminatorType::Return => {
+                if let Some(expr) = &method.terminator_expr.return_expr_t_opt {
+                    // If return expression is an assignment, emit it as a statement, then a bare return
+                    let mut is_assignment_expr = false;
+                    if let ExprType::AssignmentExprT { .. } = expr { is_assignment_expr = true; }
+                    if is_assignment_expr {
+                        let mut assign_line = String::new();
+                        self.visit_expr_node_to_string(expr, &mut assign_line);
+                        self.builder
+                            .writeln_mapped(&assign_line, method.terminator_expr.line);
+                        self.builder
+                            .writeln_mapped("return", method.terminator_expr.line);
+                    } else {
                         let mut ret_val = String::new();
                         self.visit_expr_node_to_string(expr, &mut ret_val);
                         self.builder.writeln_mapped(
                             &format!("return {}", ret_val),
                             method.terminator_expr.line,
                         );
-                    } else {
-                        // Return without value
-                        self.builder
-                            .writeln_mapped("return", method.terminator_expr.line);
                     }
+                } else {
+                    // Return without value
+                    self.builder
+                        .writeln_mapped("return", method.terminator_expr.line);
                 }
             }
+        }
         }
 
         self.builder.end_function();
@@ -4633,10 +4646,27 @@ impl PythonVisitor {
             let mut output = String::new();
             self.visit_expr_node_to_string(expr, &mut output);
 
+            // If output looks like an assignment, emit it as a statement then a bare return
+            let looks_like_assign = output.contains('=')
+                && !output.contains("==")
+                && !output.contains("!=")
+                && !output.contains(">=")
+                && !output.contains("<=");
+
             if is_interface_handler {
                 // In interface handlers, set return_stack and then return
                 self.builder
                     .writeln(&format!("self.return_stack[-1] = {}", output));
+                self.builder
+                    .writeln_mapped_with_type("return", node.line, MappingType::Return);
+            } else if looks_like_assign {
+                // Convert invalid "return a = b" into "a = b" then "return"
+                let assign_line = if output.trim_start().starts_with("return ") {
+                    output.trim_start()["return ".len()..].to_string()
+                } else {
+                    output
+                };
+                self.builder.writeln_mapped(&assign_line, node.line);
                 self.builder
                     .writeln_mapped_with_type("return", node.line, MappingType::Return);
             } else {

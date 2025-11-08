@@ -4427,9 +4427,10 @@ impl<'a> Parser<'a> {
             // For TypeScript actions, guard against template literals with a textual closer
             let start_line = body_start_line.saturating_add(1);
             // Compute end_line via fast-path or textual closers
+            let close_tok_line: usize;
             let (end_line, _used_textual) = if matches!(self.peek().token_type, TokenType::CloseBrace) {
                 let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
-                body_end_line = tok.line;
+                close_tok_line = tok.line;
                 // No native text lines between braces
                 let end_line = body_start_line;
                 (end_line, false)
@@ -4445,7 +4446,7 @@ impl<'a> Parser<'a> {
                 // Try to consume the closing '}' at or just after the computed close line
                 // Consume the CloseBrace token now (we should be positioned on it)
                 let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
-                body_end_line = tok.line;
+                close_tok_line = tok.line;
                 (close_line.saturating_sub(1), true)
             } else {
                 // Python path: always use textual DPDA closer to find exact end line
@@ -4459,9 +4460,12 @@ impl<'a> Parser<'a> {
                 }
                 // Consume closing '}' for Python action body
                 let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
-                body_end_line = tok.line;
+                close_tok_line = tok.line;
                 (close_line.saturating_sub(1), true)
             };
+            // Assign consumed close-brace line once
+            body_end_line = close_tok_line;
+            let _ = body_end_line; // touch to avoid 'assigned but never read' warnings in some paths
             if end_line >= start_line {
                 let mut raw = String::new();
                 for ln in start_line..=end_line {
@@ -5723,31 +5727,13 @@ impl<'a> Parser<'a> {
 
         // Parse method body
         let mut statements = Vec::new();
-        let mut explicit_return_expr_opt: Option<ExprType> = None;
-        let mut return_line = line; // Default to method declaration line if no explicit return
+        let explicit_return_expr_opt: Option<ExprType> = None;
+        let return_line = line; // Default to method declaration line if no explicit return
 
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
-            // Check for explicit return statement as terminator
-            if self.check(TokenType::Return_) {
-                return_line = self.peek().line; // Capture the actual return statement line
-                self.advance(); // consume 'return'
-
-                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!(
-                        "DEBUG: Found return in method_decl, is_class_method={}, return_line={}",
-                        self.is_class_method, return_line
-                    );
-                }
-
-                // Parse the return expression
-                explicit_return_expr_opt = self.expression()?;
-
-                // A return statement should be the last thing in the method
-                break;
-            }
             // Use EventHandlerVarScope for local variables in methods
             // This prevents them from getting the self. prefix
-            else if let Some(stmt) =
+            if let Some(stmt) =
                 self.decl_or_stmt(IdentifierDeclScope::EventHandlerVarScope)?
             {
                 statements.push(stmt);
@@ -8661,6 +8647,12 @@ impl<'a> Parser<'a> {
             let err_msg = "Syntax error: 'return = value' is not valid. Use 'system.return = value' to set the interface method return value, or use 'return value' for a regular return statement.";
             self.error_at_current(err_msg);
             return Err(ParseError::new(err_msg));
+        }
+
+        // If the next token closes the current block, treat as bare return
+        if self.check(TokenType::CloseBrace) {
+            let return_stmt_node = ReturnStmtNode::new(line, None);
+            return Ok(Some(StatementType::ReturnStmt { return_stmt_node }));
         }
 
         // Regular return statement: "return expr?"
@@ -17459,7 +17451,7 @@ impl<'a> Parser<'a> {
 
         // Parse statements
         let mut statements = Vec::new();
-        let mut explicit_return_expr_opt: Option<ExprType> = None;
+        let explicit_return_expr_opt: Option<ExprType> = None;
 
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
             eprintln!(
@@ -17475,30 +17467,8 @@ impl<'a> Parser<'a> {
                     self.peek()
                 );
             }
-
-            // Check for explicit return statement as terminator
-            if self.check(TokenType::Return_) {
-                self.advance(); // consume 'return'
-
-                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!(
-                        "DEBUG: Found return statement in class method, is_class_method={}",
-                        self.is_class_method
-                    );
-                }
-
-                // Parse the return expression
-                explicit_return_expr_opt = self.expression()?;
-
-                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                    eprintln!("DEBUG: Parsed explicit return expression in class method");
-                }
-
-                // A return statement should be the last thing in the method
-                break;
-            }
             // Check for variable declarations
-            else if self.check(TokenType::Var) || self.check(TokenType::Const) {
+            if self.check(TokenType::Var) || self.check(TokenType::Const) {
                 self.match_token(&[TokenType::Var, TokenType::Const]);
                 // Use EventHandlerVarScope for method local variables (similar to how event handlers work)
                 let var_decl = self.var_declaration(IdentifierDeclScope::EventHandlerVarScope)?;

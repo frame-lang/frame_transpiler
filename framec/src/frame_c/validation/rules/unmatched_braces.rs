@@ -131,6 +131,7 @@ impl UnmatchedBracesRule {
     }
 
     /// Python-aware brace scan: supports '#', single/double quotes, and triple quotes.
+    #[allow(dead_code)]
     fn analyze_brace_matching_python(&self, source_code: &str) -> Vec<ValidationIssue> {
         let mut issues = Vec::new();
         let mut brace_stack: Vec<(usize, usize, char)> = Vec::new();
@@ -228,6 +229,7 @@ impl UnmatchedBracesRule {
 
 impl UnmatchedBracesRule {
     /// Analyze brace matching while skipping masked line numbers (1-based)
+    #[allow(dead_code)]
     fn analyze_brace_matching_with_mask(
         &self,
         source_code: &str,
