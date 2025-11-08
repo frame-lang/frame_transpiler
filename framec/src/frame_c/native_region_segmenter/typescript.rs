@@ -87,6 +87,30 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
         let frame_ln = start_line + i; // actual frame line for this region line
         let line = region_lines[i];
 
+        // Fast path: if not inside any state and the first non-whitespace
+        // character cannot begin a Frame directive, and the line contains no
+        // quotes/backticks or comment markers, treat the whole line as native.
+        if !in_template && !in_squote && !in_dquote {
+            if let Some(col0) = line.find(|c: char| !c.is_whitespace()) {
+                let head = &line[col0..];
+                let starts_ok = !(head.starts_with("->")
+                    || head.starts_with("=>")
+                    || head.starts_with("$$")
+                    || head.starts_with("system.return"));
+                let has_string_or_comment = line.as_bytes().contains(&b'\'')
+                    || line.as_bytes().contains(&b'"')
+                    || line.as_bytes().contains(&b'`')
+                    || head.starts_with("//");
+                if starts_ok && !has_string_or_comment {
+                    if native_start.is_none() { native_start = Some(frame_ln); }
+                    continue;
+                }
+            } else {
+                if native_start.is_none() { native_start = Some(frame_ln); }
+                continue;
+            }
+        }
+
         // Reset single-line comment per line
         let mut in_line_comment = false;
 

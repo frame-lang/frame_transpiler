@@ -4445,10 +4445,8 @@ impl<'a> Parser<'a> {
                             if !s.ends_with('\n') { raw.push('\n'); }
                         }
                     }
-                    let region = TargetRegion { start_position: 0, end_position: None, raw_content: raw, target: TargetLanguage::Python3, source_map: TargetSourceMap { frame_start_line: start, target_line_offsets: Vec::new() } };
-                    if let Ok(ast) = parse_target_region(TargetLanguage::Python3, &region) {
-                        parsed_target_blocks.push(ParsedTargetBlock { region_index: 0, frame_start_line: start, frame_end_line: end, ast });
-                    }
+                    // Skip native AST parsing for Python actions to avoid heavy rustpython cost on large bodies.
+                    // Raw target regions will be emitted via target_specific_regions by the visitor.
                 }
             }
         }
@@ -5034,14 +5032,7 @@ impl<'a> Parser<'a> {
                 // Remember native slice to build MixedBody if not segmented (currently unused in this context)
                 _mixed_native_opt = Some((region.target.clone(), region.raw_content.clone(), start_line, end_line));
                 // For Python operations, parse native-only region for validation
-                if let Ok(ast) = parse_target_region(region.target, &region) {
-                    parsed_target_blocks.push(ParsedTargetBlock {
-                        region_index: 0,
-                        frame_start_line: start_line,
-                        frame_end_line: end_line,
-                        ast,
-                    });
-                }
+                // Skip native AST parsing for Python operations; visitor will emit raw target regions.
             }
         } else {
             // TypeScript: textual closer only if backticks are present; otherwise token-depth fast path

@@ -103,6 +103,31 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
             }
         };
 
+        // Fast path: if not inside any string state and the first non-whitespace
+        // character cannot begin a Frame directive, and the line contains no
+        // quotes or comment markers, treat the whole line as native without
+        // per-character scanning.
+        if !(in_squote || in_dquote || in_tsquote || in_tdquote) {
+            if let Some(col0) = line.find(|c: char| !c.is_whitespace()) {
+                let head = &line[col0..];
+                let starts_ok = !(head.starts_with("->")
+                    || head.starts_with("=>")
+                    || head.starts_with("$$")
+                    || head.starts_with("system.return"));
+                let has_quotes_or_comment = line.as_bytes().contains(&b'\'')
+                    || line.as_bytes().contains(&b'"')
+                    || line.as_bytes().contains(&b'#');
+                if starts_ok && !has_quotes_or_comment {
+                    if native_start.is_none() { native_start = Some(frame_ln); }
+                    continue;
+                }
+            } else {
+                // blank line – count as native to preserve spacing
+                if native_start.is_none() { native_start = Some(frame_ln); }
+                continue;
+            }
+        }
+
         // scan characters
         while j < bytes.len() {
             let ch = bytes[j] as char;
