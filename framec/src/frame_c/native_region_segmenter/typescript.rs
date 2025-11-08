@@ -168,12 +168,8 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                                 let prefix: String = region_lines[i][..].chars().take(end_col_chars).collect();
                                 j = prefix.as_bytes().len();
                             } else {
-                                // Move i to end line and set j accordingly
-                                i = new_i;
-                                // Compute byte index at end_col_chars on new line
-                                let target_line = region_lines.get(i).copied().unwrap_or("");
-                                let prefix: String = target_line.chars().take(end_col_chars).collect();
-                                j = prefix.as_bytes().len();
+                                // Different line: finish this line; outer loop will proceed to next line
+                                j = bytes.len();
                             }
                             // Continue scanning after skipped template
                             continue;

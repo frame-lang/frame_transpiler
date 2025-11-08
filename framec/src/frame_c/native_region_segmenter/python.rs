@@ -113,6 +113,31 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                     in_line_comment = true;
                     break;
                 }
+                // f"..." or f'...'
+                if j + 1 < bytes.len() {
+                    let c0 = bytes[j] as char;
+                    let c1 = bytes[j + 1] as char;
+                    if (c0 == 'f' || c0 == 'F') && (c1 == '"' || c1 == '\'') {
+                        let scanner = crate::frame_c::region_scanner::PyFStringScanner::new(c1, false);
+                        let abs = char_offset_of(frame_ln, j, region_lines, &char_line_offsets);
+                        match scanner.scan(source, abs, frame_ln) {
+                            crate::frame_c::region_scanner::ScanResult::Ok(env) => {
+                                let (l1, col_chars) = line_col_from_char_offset(&char_line_offsets, env.end_offset + 1, source);
+                                let new_i = l1.saturating_sub(start_line);
+                                if new_i == i {
+                                    let prefix: String = region_lines[i].chars().take(col_chars).collect();
+                                    j = prefix.as_bytes().len();
+                                } else {
+                                    j = bytes.len();
+                                }
+                                continue;
+                            }
+                            crate::frame_c::region_scanner::ScanResult::Failure(_) => {
+                                // fallback to string state
+                            }
+                        }
+                    }
+                }
                 // Triple quotes start
                 if j + 2 < bytes.len() && bytes[j] == b'\'' && bytes[j + 1] == b'\'' && bytes[j + 2] == b'\'' {
                     // Use RegionScanner to skip triple single-quoted string
@@ -126,10 +151,7 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                                 let prefix: String = region_lines[i].chars().take(col_chars).collect();
                                 j = prefix.as_bytes().len();
                             } else {
-                                i = new_i;
-                                let target_line = region_lines.get(i).copied().unwrap_or("");
-                                let prefix: String = target_line.chars().take(col_chars).collect();
-                                j = prefix.as_bytes().len();
+                                j = bytes.len();
                             }
                             continue;
                         }
@@ -149,10 +171,7 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                                 let prefix: String = region_lines[i].chars().take(col_chars).collect();
                                 j = prefix.as_bytes().len();
                             } else {
-                                i = new_i;
-                                let target_line = region_lines.get(i).copied().unwrap_or("");
-                                let prefix: String = target_line.chars().take(col_chars).collect();
-                                j = prefix.as_bytes().len();
+                                j = bytes.len();
                             }
                             continue;
                         }
