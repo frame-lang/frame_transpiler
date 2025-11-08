@@ -7895,10 +7895,15 @@ impl<'a> Parser<'a> {
                 }
             }
         } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
-            // Python handlers: segment for Frame statements; native-only -> parse
+            // Python handlers:
+            // - If body looks native (parse_frame_statements == false), build MixedBody/native parse
+            // - Otherwise, rely on Frame statements and do not attach MixedBody
             let start_line = body_start_line.saturating_add(1);
             let end_line_inclusive = body_end_line.saturating_sub(1);
             if end_line_inclusive >= start_line {
+                if parse_frame_statements {
+                    // Frame-style body: do not generate MixedBody/segments
+                } else {
                 // Build raw slice
                 let mut raw = String::new();
                 for ln in start_line..=end_line_inclusive {
@@ -7909,7 +7914,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
-                // Segment the body for Frame statements
+                // Segment the body for Frame statements (directives) within native text
                 let segs = crate::frame_c::native_region_segmenter::python::segment_py_body(
                     &self.source_text(),
                     start_line,
@@ -7955,6 +7960,7 @@ impl<'a> Parser<'a> {
                         }]);
                         event_handler.body = ActionBody::Mixed;
                     }
+                }
                 }
             }
         }
