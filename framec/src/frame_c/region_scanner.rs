@@ -151,19 +151,34 @@ impl PyFStringScanner {
 
 impl RegionScanner for PyFStringScanner {
     fn try_open(&self, chars: &[char], idx: usize) -> bool {
-        // naive opener: f" or f'
+        // opener: f" or f' or rf"/fr"
         if idx + 1 >= chars.len() { return false; }
         let c0 = chars[idx];
         let c1 = chars[idx + 1];
-        (c0 == 'f' || c0 == 'F' || c0 == 'r' || c0 == 'R') && (c1 == '"' || c1 == '\'')
+        if (c0 == 'f' || c0 == 'F') && (c1 == '"' || c1 == '\'') { return true; }
+        if (c0 == 'r' || c0 == 'R') && (c1 == '"' || c1 == '\'') { return true; }
+        if (c0 == 'r' || c0 == 'R' || c0 == 'f' || c0 == 'F') && (idx + 2 < chars.len()) {
+            let c2 = chars[idx + 1];
+            let c3 = chars[idx + 2];
+            if (c2 == 'f' || c2 == 'F' || c2 == 'r' || c2 == 'R') && (c3 == '"' || c3 == '\'') {
+                return true;
+            }
+        }
+        false
     }
 
     fn scan(&self, source: &str, start_idx: usize, start_line: usize) -> ScanResult {
-        // Minimal f-string scanner: handle escapes, doubled braces, and {expr} with simple depth.
+        // Minimal f-string scanner: handle optional rf/fr prefixes, escapes, doubled braces, and {expr} with simple depth.
         let chars: Vec<char> = source.chars().collect();
-        let mut i = start_idx + 1; // at quote char position
-        // Detect quote
-        if i >= chars.len() { return ScanResult::Failure(RegionFailure::UnterminatedFStringExpr { start_line: start_line }); }
+        let mut i = start_idx;
+        // Consume possible one or two-letter prefix
+        if i < chars.len() && (chars[i] == 'r' || chars[i] == 'R' || chars[i] == 'f' || chars[i] == 'F') {
+            i += 1;
+            if i < chars.len() && (chars[i] == 'r' || chars[i] == 'R' || chars[i] == 'f' || chars[i] == 'F') {
+                i += 1;
+            }
+        }
+        if i >= chars.len() { return ScanResult::Failure(RegionFailure::UnterminatedFStringExpr { start_line }); }
         let quote = chars[i];
         i += 1;
         let mut line = start_line;
@@ -195,4 +210,3 @@ impl RegionScanner for PyFStringScanner {
     fn kind(&self) -> RegionKind { RegionKind::PyFString }
     fn language(&self) -> TargetLanguage { TargetLanguage::Python3 }
 }
-

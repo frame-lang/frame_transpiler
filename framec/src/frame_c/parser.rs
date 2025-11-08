@@ -4585,19 +4585,25 @@ impl<'a> Parser<'a> {
                 close_tok_line = self.consume_close_brace_at_line(close_line)?;
                 (close_line.saturating_sub(1), true)
             } else {
-                // Python path: always use textual DPDA closer to find exact end line
-                let close_line = self.scan_py_closing_brace_line(body_start_line);
-                // Advance tokens up to just before '}' at close_line
-                while !self.is_at_end() {
-                    let tk = self.peek();
-                    if tk.line < close_line { self.advance(); continue; }
-                    if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
-                    break;
+                // Python path: textual closer with failure characterization
+                match self.detect_py_close_or_failure(body_start_line) {
+                    DetectionResult::Ok { close_line } => {
+                        // Advance tokens up to just before '}' at close_line
+                        while !self.is_at_end() {
+                            let tk = self.peek();
+                            if tk.line < close_line { self.advance(); continue; }
+                            if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
+                            break;
+                        }
+                        // Consume closing '}' for Python action body
+                        let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+                        close_tok_line = tok.line;
+                        (close_line.saturating_sub(1), true)
+                    }
+                    DetectionResult::Failure(f) => {
+                        return Err(self.map_py_detection_failure(&f, body_start_line));
+                    }
                 }
-                // Consume closing '}' for Python action body
-                let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
-                close_tok_line = tok.line;
-                (close_line.saturating_sub(1), true)
             };
             // Assign consumed close-brace line once
             body_end_line = close_tok_line;
@@ -7691,36 +7697,39 @@ impl<'a> Parser<'a> {
                     }
                 }
                 if looks_native {
-                    let close_line = self.scan_py_closing_brace_line(body_start_line);
-                    // Only advance if a CloseBrace token exists at that line; otherwise fallback
-                    let mut has_close_token = false;
-                    let mut idx = self.current;
-                    while idx < self.tokens.len() {
-                        let tk = &self.tokens[idx];
-                        if tk.line < close_line { idx += 1; continue; }
-                        if tk.line == close_line {
-                            if matches!(tk.token_type, TokenType::CloseBrace) { has_close_token = true; }
-                            break;
+                    match self.detect_py_close_or_failure(body_start_line) {
+                        DetectionResult::Ok { close_line } => {
+                            // Only advance if a CloseBrace token exists at that line; otherwise fallback
+                            let mut has_close_token = false;
+                            let mut idx = self.current;
+                            while idx < self.tokens.len() {
+                                let tk = &self.tokens[idx];
+                                if tk.line < close_line { idx += 1; continue; }
+                                if tk.line == close_line { if matches!(tk.token_type, TokenType::CloseBrace) { has_close_token = true; } break; }
+                                if tk.line > close_line { break; }
+                                idx += 1;
+                            }
+                            if has_close_token {
+                                while !self.is_at_end() {
+                                    let tk = self.peek();
+                                    if tk.line < close_line { self.advance(); continue; }
+                                    if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
+                                    break;
+                                }
+                            } else {
+                                // Fallback to token-depth skip
+                                let mut depth: i32 = 1; let mut last_line = body_start_line;
+                                while !self.is_at_end() && depth > 0 {
+                                    let tk = self.peek().clone();
+                                    match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
+                                    last_line = tk.line; self.advance();
+                                }
+                                let _ = last_line;
+                            }
                         }
-                        if tk.line > close_line { break; }
-                        idx += 1;
-                    }
-                    if has_close_token {
-                        while !self.is_at_end() {
-                            let tk = self.peek();
-                            if tk.line < close_line { self.advance(); continue; }
-                            if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
-                            break;
+                        DetectionResult::Failure(f) => {
+                            return Err(self.map_py_detection_failure(&f, body_start_line));
                         }
-                    } else {
-                        // Fallback to token-depth skip
-                        let mut depth: i32 = 1; let mut last_line = body_start_line;
-                        while !self.is_at_end() && depth > 0 {
-                            let tk = self.peek().clone();
-                            match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
-                            last_line = tk.line; self.advance();
-                        }
-                        let _ = last_line;
                     }
                 }
             }
