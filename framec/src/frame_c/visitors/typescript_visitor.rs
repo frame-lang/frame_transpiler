@@ -116,6 +116,14 @@ struct NodeApiActionMapping {
 }
 
 impl TypeScriptVisitor {
+    fn state_param_names_for(&self, raw_state_name: &str) -> Vec<String> {
+        if let Some(v) = self.state_param_names.get(raw_state_name) { return v.clone(); }
+        let prefixed = format!("${}", raw_state_name);
+        if let Some(v) = self.state_param_names.get(&prefixed) { return v.clone(); }
+        let formatted = self.format_state_name(raw_state_name);
+        if let Some(v) = self.state_param_names.get(&formatted) { return v.clone(); }
+        Vec::new()
+    }
     pub fn new(arcanum: Vec<Arcanum>, symbol_config: SymbolConfig) -> Self {
         let runtime_imports: BTreeSet<String> = DEFAULT_RUNTIME_IMPORTS
             .iter()
@@ -8938,10 +8946,21 @@ impl TypeScriptVisitor {
 
     fn emit_mir_statement_as_swc(&self, mir: &MirStatement) -> String {
         match mir {
-            MirStatement::Transition { state, .. } => {
+            MirStatement::Transition { state, args } => {
+                // Build stateArgs object if args are present; use recorded param names when available
+                let mut state_args_code = String::from("{}");
+                if !args.is_empty() {
+                    let param_names = self.state_param_names_for(state);
+                    let mut entries: Vec<String> = Vec::new();
+                    for (i, a) in args.iter().enumerate() {
+                        let key = param_names.get(i).cloned().unwrap_or_else(|| format!("arg_{}", i));
+                        entries.push(format!("'{}': {}", key, a));
+                    }
+                    state_args_code = format!("{{ {} }}", entries.join(", "));
+                }
                 format!(
-                    "this._frame_transition(new FrameCompartment(\"{}\", null, null, {{}}, {{}}));\nreturn;\n",
-                    state
+                    "this._frame_transition(new FrameCompartment(\"{}\", null, null, {}, {{}}));\nreturn;\n",
+                    state, state_args_code
                 )
             }
             MirStatement::ParentForward => {
