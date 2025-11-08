@@ -19,40 +19,27 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
 
     // Precompute char-offsets for each line start to allow RegionScanner (char-based)
     // to map offsets back to (line, column).
-    fn build_char_line_offsets(src: &str) -> Vec<usize> {
-        let mut offsets = Vec::new();
-        let mut acc = 0usize;
-        for part in src.split_inclusive('\n') {
-            offsets.push(acc);
-            acc += part.chars().count();
-        }
-        if !src.ends_with('\n') {
-            offsets.push(acc);
-        }
-        offsets
+    fn build_byte_line_offsets(src: &str) -> Vec<usize> {
+        let mut v = Vec::new();
+        v.push(0);
+        for (i, b) in src.as_bytes().iter().enumerate() { if *b == b'\n' { v.push(i + 1); } }
+        v
     }
-    fn char_offset_of(line_1: usize, col_bytes: usize, lines: &[&str], char_line_offsets: &[usize]) -> usize {
-        let idx = line_1.saturating_sub(1);
-        let base = *char_line_offsets.get(idx).unwrap_or(&0);
-        let slice = lines.get(idx).copied().unwrap_or("");
-        let chars_before = slice.get(0..col_bytes).unwrap_or("").chars().count();
-        base + chars_before
+    fn byte_offset_of(line_1: usize, col_bytes: usize, byte_line_offsets: &[usize]) -> usize {
+        let base = *byte_line_offsets.get(line_1.saturating_sub(1)).unwrap_or(&0);
+        base + col_bytes
     }
-    fn line_col_from_char_offset(char_line_offsets: &[usize], target: usize, all_src: &str) -> (usize, usize) {
-        // Binary search last offset <= target
-        let mut lo = 0usize;
-        let mut hi = if all_src.ends_with('\n') { char_line_offsets.len().saturating_sub(1) } else { char_line_offsets.len().saturating_sub(1) };
+    fn line_col_from_byte_offset(byte_line_offsets: &[usize], target: usize) -> (usize, usize) {
+        let mut lo = 0usize; let mut hi = byte_line_offsets.len();
         while lo + 1 < hi {
             let mid = (lo + hi) / 2;
-            if char_line_offsets[mid] <= target { lo = mid; } else { hi = mid; }
+            if byte_line_offsets[mid] <= target { lo = mid; } else { hi = mid; }
         }
-        let line_1 = lo + 1;
-        let start_off = char_line_offsets[lo];
-        let col_chars = target.saturating_sub(start_off);
-        (line_1, col_chars)
+        let line_1 = lo + 1; let start = byte_line_offsets[lo];
+        (line_1, target.saturating_sub(start))
     }
 
-    let char_line_offsets = build_char_line_offsets(source);
+    let byte_line_offsets = build_byte_line_offsets(source);
 
     // State flags
     let mut in_squote = false;
@@ -150,11 +137,11 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                 if ch == '`' {
                     // Use RegionScanner to skip template literal including nested ${...}
                     let scanner = TsTemplateScanner::new();
-                    let abs_char_off = char_offset_of(frame_ln, j, &all_lines, &char_line_offsets);
-                    match scanner.scan(source, abs_char_off, frame_ln) {
+                    let abs_byte_off = byte_offset_of(frame_ln, j, &byte_line_offsets);
+                    match scanner.scan(source, abs_byte_off, frame_ln) {
                         ScanResult::Ok(env) => {
                             // Jump to just after the closing backtick
-                            let (end_l1, end_col_chars) = line_col_from_char_offset(&char_line_offsets, env.end_offset + 1, source);
+                            let (end_l1, end_col_bytes) = line_col_from_byte_offset(&byte_line_offsets, env.end_offset + 1);
                             // Map to region indices
                             let new_i = end_l1.saturating_sub(start_line);
                             if new_i >= 1 && new_i.saturating_sub(1) < i {
@@ -164,9 +151,7 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                             // (no flush here; we are just skipping content within native)
                             // Update loop counters to new location
                             if new_i == i { // same line
-                                // Convert char col to byte index on this line
-                                let prefix: String = region_lines[i][..].chars().take(end_col_chars).collect();
-                                j = prefix.as_bytes().len();
+                                j = end_col_bytes;
                             } else {
                                 // Different line: finish this line; outer loop will proceed to next line
                                 j = bytes.len();

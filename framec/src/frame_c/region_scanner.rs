@@ -73,28 +73,26 @@ impl RegionScanner for TsTemplateScanner {
     }
 
     fn scan(&self, source: &str, start_idx: usize, start_line: usize) -> ScanResult {
-        // DPDA: inside template (backticks), track nested ${...} depth; strings/comments inside ${} are ignored at this layer.
-        let chars: Vec<char> = source.chars().collect();
-        let mut i = start_idx + 1; // skip opening backtick
+        // Byte-based DPDA: track nested ${...}
+        let bytes = source.as_bytes();
+        let mut i = start_idx + 1; // skip opening backtick (byte index)
         let mut line = start_line;
-        let mut depth: i32 = 0; // ${ ... } nesting
-        while i < chars.len() {
-            let ch = chars[i];
-            match ch {
-                '\n' => { line += 1; i += 1; }
-                '\\' => { i += 2; } // escape next char
-                '`' if depth == 0 => {
-                    let end = i;
-                    return ScanResult::Ok(RegionEnvelope { id: 0, kind: RegionKind::TsTemplateLiteral, language: TargetLanguage::TypeScript, start_offset: start_idx, end_offset: end, start_line, end_line: line, metadata: HashMap::new() });
-                }
-                '$' => {
-                    if i + 1 < chars.len() && chars[i + 1] == '{' { depth += 1; i += 2; continue; }
+        let mut depth: i32 = 0;
+        while i < bytes.len() {
+            let b = bytes[i];
+            match b {
+                b'\n' => { line += 1; i += 1; }
+                b'\\' => { i = i.saturating_add(2); }
+                b'`' => {
+                    if depth == 0 {
+                        return ScanResult::Ok(RegionEnvelope { id: 0, kind: RegionKind::TsTemplateLiteral, language: TargetLanguage::TypeScript, start_offset: start_idx, end_offset: i, start_line, end_line: line, metadata: HashMap::new() });
+                    }
                     i += 1;
                 }
-                '}' => {
-                    if depth > 0 { depth -= 1; }
-                    i += 1;
+                b'$' => {
+                    if i + 1 < bytes.len() && bytes[i + 1] == b'{' { depth += 1; i += 2; } else { i += 1; }
                 }
+                b'}' => { if depth > 0 { depth -= 1; } i += 1; }
                 _ => { i += 1; }
             }
         }
@@ -169,39 +167,38 @@ impl RegionScanner for PyFStringScanner {
 
     fn scan(&self, source: &str, start_idx: usize, start_line: usize) -> ScanResult {
         // Minimal f-string scanner: handle optional rf/fr prefixes, escapes, doubled braces, and {expr} with simple depth.
-        let chars: Vec<char> = source.chars().collect();
+        let bytes = source.as_bytes();
         let mut i = start_idx;
         // Consume possible one or two-letter prefix
-        if i < chars.len() && (chars[i] == 'r' || chars[i] == 'R' || chars[i] == 'f' || chars[i] == 'F') {
+        if i < bytes.len() && (bytes[i] == b'r' || bytes[i] == b'R' || bytes[i] == b'f' || bytes[i] == b'F') {
             i += 1;
-            if i < chars.len() && (chars[i] == 'r' || chars[i] == 'R' || chars[i] == 'f' || chars[i] == 'F') {
+            if i < bytes.len() && (bytes[i] == b'r' || bytes[i] == b'R' || bytes[i] == b'f' || bytes[i] == b'F') {
                 i += 1;
             }
         }
-        if i >= chars.len() { return ScanResult::Failure(RegionFailure::UnterminatedFStringExpr { start_line }); }
-        let quote = chars[i];
+        if i >= bytes.len() { return ScanResult::Failure(RegionFailure::UnterminatedFStringExpr { start_line }); }
+        let quote = bytes[i] as char;
         i += 1;
         let mut line = start_line;
         let mut depth: i32 = 0;
-        while i < chars.len() {
-            let ch = chars[i];
-            match ch {
-                '\n' => { line += 1; i += 1; }
-                '\\' => { i += 2; } // skip escaped char
-                '{' => {
-                    if i + 1 < chars.len() && chars[i + 1] == '{' { i += 2; continue; }
+        while i < bytes.len() {
+            let b = bytes[i];
+            match b {
+                b'\n' => { line += 1; i += 1; }
+                b'\\' => { i += 2; } // skip escaped char
+                b'{' => {
+                    if i + 1 < bytes.len() && bytes[i + 1] == b'{' { i += 2; continue; }
                     depth += 1; i += 1;
                 }
-                '}' => {
-                    if i + 1 < chars.len() && chars[i + 1] == '}' { i += 2; continue; }
+                b'}' => {
+                    if i + 1 < bytes.len() && bytes[i + 1] == b'}' { i += 2; continue; }
                     if depth > 0 { depth -= 1; i += 1; continue; }
                     i += 1; // stray }
                 }
-                c if c == quote && depth == 0 => {
-                    // close string
-                    return ScanResult::Ok(RegionEnvelope { id: 0, kind: RegionKind::PyFString, language: TargetLanguage::Python3, start_offset: start_idx, end_offset: i, start_line, end_line: line, metadata: HashMap::new() });
+                _ => {
+                    if (b as char) == quote && depth == 0 { return ScanResult::Ok(RegionEnvelope { id: 0, kind: RegionKind::PyFString, language: TargetLanguage::Python3, start_offset: start_idx, end_offset: i, start_line, end_line: line, metadata: HashMap::new() }); }
+                    i += 1;
                 }
-                _ => { i += 1; }
             }
         }
         ScanResult::Failure(RegionFailure::UnterminatedFStringExpr { start_line })
