@@ -250,19 +250,26 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
         let end = end_line;
         if end >= start {
             let start0 = (start - start_line) as usize;
-            let end0 = (end - start_line) as usize;
-            let mut text = String::new();
-            for ln in start0..=end0 {
-                text.push_str(region_lines[ln]);
-                if !region_lines[ln].ends_with('\n') {
-                    text.push('\n');
+            // Clamp end0 to the last valid index of region_lines
+            let mut end0 = (end - start_line) as usize;
+            let max_idx = region_lines.len().saturating_sub(1);
+            if end0 > max_idx { end0 = max_idx; }
+            if start0 <= end0 {
+                let mut text = String::new();
+                for ln in start0..=end0 {
+                    text.push_str(region_lines[ln]);
+                    if !region_lines[ln].ends_with('\n') {
+                        text.push('\n');
+                    }
                 }
+                // Map end_line back to frame lines consistent with clamped end0
+                let clamped_end_frame = start + end0;
+                segments.push(BodySegment::Native {
+                    text,
+                    start_line: start,
+                    end_line: clamped_end_frame,
+                });
             }
-            segments.push(BodySegment::Native {
-                text,
-                start_line: start,
-                end_line: end,
-            });
         }
     }
 

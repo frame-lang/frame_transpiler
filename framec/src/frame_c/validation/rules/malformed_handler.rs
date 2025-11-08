@@ -25,7 +25,9 @@ impl MalformedHandlerRule {
     ) -> Option<ValidationIssue> {
         // If this handler was parsed as MixedBody (native-first), rely on the parser's
         // boundary detection instead of textual brace scans to avoid false positives.
-        if handler.mixed_body.is_some() {
+        // If this handler was parsed as MixedBody or native-only blocks were captured,
+        // rely on the parser's boundary detection instead of textual brace scans.
+        if handler.mixed_body.is_some() || !handler.parsed_target_blocks.is_empty() {
             return None;
         }
         // Extract the handler's source text for analysis

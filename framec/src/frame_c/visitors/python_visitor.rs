@@ -87,6 +87,9 @@ impl PythonVisitor {
         let mut after_terminal_dir = false; // transition/forward/stack imply early return
         let mut warned_unreachable = false; // only warn once per body
         for it in items {
+            if after_terminal_dir {
+                break; // stop emitting further native code after an early-returning directive
+            }
             match it {
                 MixedBodyItem::NativeAst {
                     start_line,
@@ -95,10 +98,11 @@ impl PythonVisitor {
                     ..
                 } => {
                     let code = ast.to_source();
+                    // Do not emit unreachable-code comments in Python; a comment between
+                    // an 'if' and a following 'else:' can create a syntax error. We rely
+                    // on validation diagnostics instead of inline warnings here.
                     if after_terminal_dir && !code.trim().is_empty() && !warned_unreachable {
-                        self.builder.map_next(*start_line);
-                        self.builder.writeln("# WARNING: Unreachable code after transition/forward/stack op");
-                        warned_unreachable = true;
+                        warned_unreachable = true; // mark but do not write
                     }
                     self.emit_target_source_with_metadata(
                         code,
@@ -115,9 +119,7 @@ impl PythonVisitor {
                     ..
                 } => {
                     if after_terminal_dir && !text.trim().is_empty() && !warned_unreachable {
-                        self.builder.map_next(*start_line);
-                        self.builder.writeln("# WARNING: Unreachable code after transition/forward/stack op");
-                        warned_unreachable = true;
+                        warned_unreachable = true; // mark but do not write
                     }
                     self.emit_target_source_with_metadata(
                         text,
@@ -1547,20 +1549,25 @@ impl PythonVisitor {
             TerminatorType::Return => {
                 if let Some(expr) = &method.terminator_expr.return_expr_t_opt {
                     // If return expression is an assignment, emit it as a statement, then a bare return
-                    let mut is_assignment_expr = false;
-                    if let ExprType::AssignmentExprT { .. } = expr { is_assignment_expr = true; }
+                    let mut is_assignment_expr = matches!(expr, ExprType::AssignmentExprT { .. });
+                    let mut rendered = String::new();
+                    self.visit_expr_node_to_string(expr, &mut rendered);
+                    // Fallback guard: if it renders with a single '=' (not ==, !=, <=, >=), treat as assignment
+                    let looks_like_assign = rendered.contains('=')
+                        && !rendered.contains("==")
+                        && !rendered.contains("!=")
+                        && !rendered.contains(">=")
+                        && !rendered.contains("<=");
+                    if looks_like_assign { is_assignment_expr = true; }
+
                     if is_assignment_expr {
-                        let mut assign_line = String::new();
-                        self.visit_expr_node_to_string(expr, &mut assign_line);
                         self.builder
-                            .writeln_mapped(&assign_line, method.terminator_expr.line);
+                            .writeln_mapped(&rendered, method.terminator_expr.line);
                         self.builder
                             .writeln_mapped("return", method.terminator_expr.line);
                     } else {
-                        let mut ret_val = String::new();
-                        self.visit_expr_node_to_string(expr, &mut ret_val);
                         self.builder.writeln_mapped(
-                            &format!("return {}", ret_val),
+                            &format!("return {}", rendered),
                             method.terminator_expr.line,
                         );
                     }

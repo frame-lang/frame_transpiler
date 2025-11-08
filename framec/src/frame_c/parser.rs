@@ -7598,6 +7598,9 @@ impl<'a> Parser<'a> {
                             || t.starts_with("async with ") || t.starts_with("async for ")) && t.ends_with(':')
                         { looks_native = true; break; }
                         if t.starts_with("self.") || t.starts_with("return") { looks_native = true; break; }
+                        if (!t.is_empty() && t.chars().next().map(|c| c.is_ascii_alphabetic()).unwrap_or(false)) && t.contains('(') {
+                            looks_native = true; break;
+                        }
                         if s.contains("\"\"\"") || s.contains("'''") { looks_native = true; break; }
                     }
                 }
@@ -7659,6 +7662,7 @@ impl<'a> Parser<'a> {
                         || t.starts_with("with ") || t.starts_with("async with ") || t.starts_with("async for ")
                         || t.starts_with("from ") || t.starts_with("import ")
                         || t.starts_with("self.") || t.starts_with("return")
+                        || (!t.is_empty() && t.chars().next().map(|c| c.is_ascii_alphabetic()).unwrap_or(false) && t.contains('('))
                         || s.contains("\"\"\"") || s.contains("'''")
                     { looks_native = true; break; }
                 }

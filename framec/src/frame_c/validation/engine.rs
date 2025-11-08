@@ -31,8 +31,12 @@ impl ValidationEngine {
 
         // Add rules based on validation level
         if engine.config.level >= ValidationLevel::Basic {
-            engine =
-                engine.add_rule(crate::frame_c::validation::rules::MalformedHandlerRule::new());
+            // For Python native bodies we rely on parser/MixedBody authority for handler shape,
+            // so skip MalformedHandlerRule to avoid false positives on native islands.
+            if engine.config.target_language != Some(super::TargetLanguage::Python) {
+                engine = engine
+                    .add_rule(crate::frame_c::validation::rules::MalformedHandlerRule::new());
+            }
             engine = engine.add_rule(crate::frame_c::validation::rules::UnmatchedBracesRule::new());
         }
 
