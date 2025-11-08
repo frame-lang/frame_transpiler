@@ -3,7 +3,7 @@
 Version: 0.1 (Draft)
 Date: 2025-11-01
 
-Body grammar for TypeScript target inside Frame action/handler bodies. Core
+Body grammar for TypeScript target inside Frame event-handler bodies (MixedBody) and action/operation bodies (native-only). Core
 Frame constructs (`$State`, `$Child => $Parent`, `$>()`, `<$()`, `->`, `=> $^`,
 `$$…`) are owned by the common grammar.
 
@@ -34,11 +34,15 @@ Frame constructs (`$State`, `$Child => $Parent`, `$>()`, `<$()`, `->`, `=> $^`,
   - Dynamic `await import("./module")` allowed but may be ignored by the `.fid` generator.
 - Imported bindings are surfaced to the `.fid` generator so the compiler can validate subsequent usage.
 
-## Disambiguation with Core
+## Disambiguation with Core and Body Roles
 - Transition `->` is core only at statement start with `$State` follow; otherwise
   TypeScript treats `=>` for lambdas and never `->`.
 - Parent forward `=> $^` is a core statement (not a lambda).
 - `$` is a plain identifier char in TS bodies; `$State` headers never appear there.
+
+Body roles:
+- Event handlers: may interleave native TS with Frame statements (MixedBody). The compiler expands Frame statements (transition/forward/stack ops, return) into TS glue.
+- Actions/operations: native-only. Frame statements are prohibited. However, the pseudo-symbol `system.return` is allowed as an expression or assignment and is desugared to `this.returnStack[this.returnStack.length - 1]`.
 
 ## Initially Unsupported
 - Optional chaining `?.`, nullish coalescing `??`, ternary `?:` (pending spec).

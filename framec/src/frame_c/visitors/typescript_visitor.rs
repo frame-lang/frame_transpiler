@@ -8870,7 +8870,14 @@ impl TypeScriptVisitor {
                 .count();
             let (indent, body) = content.split_at(indent_len);
 
+            // Rewrite pseudo-symbols and runtime shims
             let transformed = body
+                // system.return (read/write) → this.returnStack[top]
+                .replace(
+                    "system.return",
+                    "this.returnStack[this.returnStack.length - 1]",
+                )
+                // Historical runtime path alias cleanup
                 .replace("runtime/socket.", "")
                 .replace("runtime_socket.", "");
 

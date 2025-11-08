@@ -11,6 +11,7 @@ use super::ast::ExprStmtType::*;
 use super::ast::ExprType;
 use super::ast::ExprType::*;
 use super::ast::TargetStateContextType;
+use crate::frame_c::native_region_segmenter::BodySegment;
 use super::ast::TerminatorType::Return;
 use super::ast::*;
 use super::scanner::*;
@@ -4570,27 +4571,26 @@ impl<'a> Parser<'a> {
                 &action_mut.target_specific_regions,
                 &action_mut.parsed_target_blocks,
             );
-            // Attach segmented native body if present; otherwise attach MixedBody with native slice
+            // Attach segmented native body if present; enforce that actions cannot contain Frame statements
             if let Some(segs) = local_segmented {
                 if !segs.is_empty() {
+                    // If any FrameStmt segment appears, error (policy: handlers only)
+                    if let Some(frame_line) = segs.iter().find_map(|seg| {
+                        if let BodySegment::FrameStmt { frame_line, .. } = seg { Some(*frame_line) } else { None }
+                    }) {
+                        return Err(ParseError::new_with_frame_line(
+                            "Frame statements are only allowed in event handlers (not in actions)",
+                            frame_line,
+                        ));
+                    }
                     action_mut.segmented_body = Some(segs.clone());
-                    // Build MixedBody from segments for downstream emission
-                    let tgt = if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                        TargetLanguage::TypeScript
-                    } else {
-                        TargetLanguage::Python3
-                    };
-                    action_mut.mixed_body = Some(self.build_mixed_body_from_segments(tgt, &segs));
-                    action_mut.body = ActionBody::Mixed;
+                    action_mut.body = ActionBody::TargetSpecific;
                 }
             } else if let Some((tgt, text, s, e)) = local_mixed_native_opt.take() {
-                action_mut.mixed_body = Some(vec![MixedBodyItem::NativeText {
-                    target: tgt,
-                    text,
-                    start_line: s,
-                    end_line: e,
-                }]);
-                action_mut.body = ActionBody::Mixed;
+                // Single native slice; set as segmented native for uniform emission
+                let _ = tgt; // target tracked by emission
+                action_mut.segmented_body = Some(vec![BodySegment::Native { text, start_line: s, end_line: e }]);
+                action_mut.body = ActionBody::TargetSpecific;
             }
         }
 
@@ -5023,7 +5023,7 @@ impl<'a> Parser<'a> {
         );
 
         operation_node.target_specific_regions = target_specific_regions;
-        // Recompute segmentation for TS operations to attach MixedBody if directives exist
+        // Recompute segmentation for TS operations; directives are not allowed in operations
         if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
             let start_line = body_start_line.saturating_add(1);
             let end_line = body_end_line.saturating_sub(1);
@@ -5033,27 +5033,16 @@ impl<'a> Parser<'a> {
                     start_line,
                     end_line,
                 );
-                let has_directive = segs.iter().any(|seg| {
-                    matches!(
-                        seg,
-                        crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
-                    )
-                });
-                if has_directive {
-                    operation_node.segmented_body = Some(segs.clone());
-                    operation_node.mixed_body = Some(
-                        self.build_mixed_body_from_segments(TargetLanguage::TypeScript, &segs),
-                    );
+                if let Some(frame_line) = segs.iter().find_map(|seg| {
+                    if let crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { frame_line, .. } = seg { Some(*frame_line) } else { None }
+                }) {
+                    return Err(ParseError::new_with_frame_line(
+                        "Frame statements are only allowed in event handlers (not in operations)",
+                        frame_line,
+                    ));
                 } else {
                     // No directives; attach MixedBody as single native span for uniform downstream handling
-                    if let Some((tgt, text, s, e)) = mixed_native_opt.take() {
-                        operation_node.mixed_body = Some(vec![MixedBodyItem::NativeText {
-                            target: tgt,
-                            text,
-                            start_line: s,
-                            end_line: e,
-                        }]);
-                    }
+                    operation_node.segmented_body = Some(segs.clone());
                     operation_node.parsed_target_blocks = parsed_target_blocks;
                 }
             } else {

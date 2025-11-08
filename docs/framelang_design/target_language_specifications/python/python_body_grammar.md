@@ -3,10 +3,7 @@
 Version: 0.1 (Draft)
 Date: 2025-11-01
 
-This document specifies the Python target body grammar used inside Frame action
-and handler bodies. Core Frame constructs (system/blocks, `$State` headers,
-`$>()`/`<$()`, `->`, `=> $^`, `$$…`) are defined in the common grammar and are
-not redefined here.
+This document specifies the Python target body grammar used inside Frame event‑handler bodies (MixedBody) and action/operation bodies (native‑only). Core Frame constructs (system/blocks, `$State` headers, `$>()`/`<$()`, `->`, `=> $^`, `$$…`) are defined in the common grammar and are not redefined here.
 
 ## Prolog
 - File begins with `@target python` (first non‑whitespace token). Comments are not permitted before the prolog.
@@ -35,9 +32,10 @@ not redefined here.
   - `from package.module import (symbol_1, symbol_2, …)`
 - Imported symbols are scanned and forwarded to the `.fid` generator so Frame can validate subsequent usage.
 
-## Body Policy (Native‑Only)
+## Body Policy (Native‑Only vs Mixed)
 
-- Inside action/operation/event handler bodies and free `fn` function bodies, use native Python syntax exclusively:
+- Event handlers: may interleave native Python with Frame statements (MixedBody). The compiler expands Frame statements (transition/forward/stack ops, return) into Python glue.
+- Actions/operations and free `fn` function bodies: use native Python syntax exclusively; Frame statements are prohibited. The pseudo‑symbol `system.return` is allowed as an expression or assignment and is desugared to `self.return_stack[-1]`.
   - No `var` declarations in bodies; use native assignments (`x = expr`).
   - No brace‑style control flow (`if { ... } else { ... }`); use colon + indentation (`if ...:\n    ...`).
 - Frame structural declarations remain Frame‑style:

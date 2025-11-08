@@ -2853,7 +2853,13 @@ impl PythonVisitor {
             } else {
                 line
             };
-            self.builder.writeln_mapped(out, mapping_line);
+            // Pseudo-symbol rewrite: system.return → self.return_stack[-1]
+            let out_rewritten = if matches!(target_language, TargetLanguage::Python3) {
+                out.replace("system.return", "self.return_stack[-1]")
+            } else {
+                out.to_string()
+            };
+            self.builder.writeln_mapped(&out_rewritten, mapping_line);
         }
     }
 
