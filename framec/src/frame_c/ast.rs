@@ -458,6 +458,7 @@ pub enum MixedBodyItem {
     /// A Frame statement occurring inside a native body
     Frame {
         frame_line: usize,
+        indent: usize, // leading whitespace count on the directive line
         stmt: MirStatement,
     },
 }

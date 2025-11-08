@@ -7,6 +7,7 @@ pub enum FrameStmtKind {
     Forward,
     StackPush,
     StackPop,
+    Return,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -170,6 +170,22 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                 let first_non_ws = line.find(|c: char| !c.is_whitespace());
                 if let Some(col0) = first_non_ws {
                     if j == col0 {
+                        // Return assignment: system.return = expr
+                        if bytes.len() >= col0 + 14 {
+                            // Fast check for 'system.return'
+                            let head = &line[col0..].as_bytes();
+                            let pat = b"system.return";
+                            if head.starts_with(pat) {
+                                flush_native(frame_ln.saturating_sub(1));
+                                native_start = None;
+                                segments.push(BodySegment::FrameStmt {
+                                    kind: FrameStmtKind::Return,
+                                    frame_line: frame_ln,
+                                    line_text: (*line).to_string(),
+                                });
+                                break;
+                            }
+                        }
                         // Transition: -> $State
                         if ch == '-' && j + 1 < bytes.len() && bytes[j + 1] as char == '>' {
                             flush_native(frame_ln.saturating_sub(1));

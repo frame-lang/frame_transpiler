@@ -944,11 +944,8 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
-                BodySegment::FrameStmt {
-                    kind,
-                    frame_line: fl,
-                    line_text,
-                } => {
+                BodySegment::FrameStmt { kind, frame_line: fl, line_text } => {
+                    let indent = line_text.chars().take_while(|c| c.is_whitespace()).count();
                     let mir = match kind {
                         FrameStmtKind::Transition => {
                             // Extract state name after "$" and any raw argument list between parentheses
@@ -983,11 +980,18 @@ impl<'a> Parser<'a> {
                         FrameStmtKind::Forward => MirStatement::ParentForward,
                         FrameStmtKind::StackPush => MirStatement::StackPush,
                         FrameStmtKind::StackPop => MirStatement::StackPop,
+                        FrameStmtKind::Return => {
+                            // Capture RHS after '=' if present; trim and store as string
+                            let rhs_opt = if let Some(eq_idx) = line_text.find('=') {
+                                let rhs = line_text[eq_idx + 1..].trim();
+                                if rhs.is_empty() { None } else { Some(rhs.to_string()) }
+                            } else {
+                                None
+                            };
+                            MirStatement::Return(rhs_opt)
+                        }
                     };
-                    items.push(MixedBodyItem::Frame {
-                        frame_line: *fl,
-                        stmt: mir,
-                    });
+                    items.push(MixedBodyItem::Frame { frame_line: *fl, indent, stmt: mir });
                 }
             }
         }
@@ -7597,10 +7601,6 @@ impl<'a> Parser<'a> {
                             || t.starts_with("except") || t.starts_with("finally:") || t.starts_with("with ")
                             || t.starts_with("async with ") || t.starts_with("async for ")) && t.ends_with(':')
                         { looks_native = true; break; }
-                        if t.starts_with("self.") || t.starts_with("return") { looks_native = true; break; }
-                        if (!t.is_empty() && t.chars().next().map(|c| c.is_ascii_alphabetic()).unwrap_or(false)) && t.contains('(') {
-                            looks_native = true; break;
-                        }
                         if s.contains("\"\"\"") || s.contains("'''") { looks_native = true; break; }
                     }
                 }
@@ -7661,8 +7661,6 @@ impl<'a> Parser<'a> {
                         || t.starts_with("try:") || t.starts_with("except") || t.starts_with("finally:")
                         || t.starts_with("with ") || t.starts_with("async with ") || t.starts_with("async for ")
                         || t.starts_with("from ") || t.starts_with("import ")
-                        || t.starts_with("self.") || t.starts_with("return")
-                        || (!t.is_empty() && t.chars().next().map(|c| c.is_ascii_alphabetic()).unwrap_or(false) && t.contains('('))
                         || s.contains("\"\"\"") || s.contains("'''")
                     { looks_native = true; break; }
                 }

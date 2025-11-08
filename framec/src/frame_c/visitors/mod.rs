@@ -73,6 +73,7 @@ impl TryFrom<String> for TargetLanguage {
 pub mod graphviz_visitor;
 pub mod python_visitor; // v0.75+: Complete implementation using CodeBuilder
 pub mod typescript_visitor; // v0.82: TypeScript support
+// pub mod ts_b2; // SWC AST emission helpers for TypeScript (planned enable after deps)
 
 use super::ast::*;
 

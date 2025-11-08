@@ -86,7 +86,32 @@ impl PythonVisitor {
         let mut generated = false;
         let mut after_terminal_dir = false; // transition/forward/stack imply early return
         let mut warned_unreachable = false; // only warn once per body
-        for it in items {
+        let mut last_native_indent_opt: Option<usize> = None; // track indentation from preceding native lines
+
+        // Helper to peek the next non-empty native line's (indent, trimmed text)
+        let next_native_line = |from: usize| -> Option<(usize, String)> {
+            for n in (from + 1)..items.len() {
+                match &items[n] {
+                    MixedBodyItem::NativeText { text, .. } => {
+                        if let Some(line) = text.lines().find(|l| !l.trim().is_empty()) {
+                            let lead = line.chars().take_while(|c| c.is_whitespace()).count();
+                            return Some((lead, line.trim_start().to_string()));
+                        }
+                    }
+                    MixedBodyItem::NativeAst { ast, .. } => {
+                        let s = ast.to_source();
+                        if let Some(line) = s.lines().find(|l| !l.trim().is_empty()) {
+                            let lead = line.chars().take_while(|c| c.is_whitespace()).count();
+                            return Some((lead, line.trim_start().to_string()));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        };
+
+        for (idx, it) in items.iter().enumerate() {
             if after_terminal_dir {
                 break; // stop emitting further native code after an early-returning directive
             }
@@ -103,6 +128,12 @@ impl PythonVisitor {
                     // on validation diagnostics instead of inline warnings here.
                     if after_terminal_dir && !code.trim().is_empty() && !warned_unreachable {
                         warned_unreachable = true; // mark but do not write
+                    }
+                    // Update last_native_indent based on the last non-empty line
+                    if let Some(last) = code.lines().rev().find(|l| !l.trim().is_empty()) {
+                        let lead = last.chars().take_while(|c| c.is_whitespace()).count();
+                        let ends_with_colon = last.trim_end().ends_with(':');
+                        last_native_indent_opt = Some(if ends_with_colon { lead + 4 } else { lead });
                     }
                     self.emit_target_source_with_metadata(
                         code,
@@ -121,6 +152,11 @@ impl PythonVisitor {
                     if after_terminal_dir && !text.trim().is_empty() && !warned_unreachable {
                         warned_unreachable = true; // mark but do not write
                     }
+                    if let Some(last) = text.lines().rev().find(|l| !l.trim().is_empty()) {
+                        let lead = last.chars().take_while(|c| c.is_whitespace()).count();
+                        let ends_with_colon = last.trim_end().ends_with(':');
+                        last_native_indent_opt = Some(if ends_with_colon { lead + 4 } else { lead });
+                    }
                     self.emit_target_source_with_metadata(
                         text,
                         *start_line,
@@ -129,7 +165,7 @@ impl PythonVisitor {
                     );
                     generated = true;
                 }
-                MixedBodyItem::Frame { frame_line, stmt } => {
+                MixedBodyItem::Frame { frame_line, indent, stmt } => {
                     // Map glue to directive's frame line
                     match stmt {
                         MirStatement::Transition { state, args } => {
@@ -171,35 +207,85 @@ impl PythonVisitor {
                                 ));
                             }
                             self.builder.map_next(*frame_line);
-                            self.builder.writeln("self._frame_transition(next_compartment)");
+                            let func_indent = 8usize;
+                            let effective = last_native_indent_opt.unwrap_or(*indent);
+                            let extra_spaces = if effective > func_indent {
+                                effective - func_indent
+                            } else {
+                                0
+                            };
+                            let prefix = " ".repeat(extra_spaces);
+                            self.builder.writeln(&format!("{}self._frame_transition(next_compartment)", prefix));
                             self.builder.map_next(*frame_line);
-                            self.builder.writeln("return");
+                            self.builder.writeln(&format!("{}return", prefix));
                         }
                         MirStatement::ParentForward => {
                             self.builder.map_next(*frame_line);
+                            let func_indent = 8usize;
+                            let effective = last_native_indent_opt.unwrap_or(*indent);
+                            let extra_spaces = if effective > func_indent { effective - func_indent } else { 0 };
+                            let prefix = " ".repeat(extra_spaces);
                             // Route to the parent compartment if available; otherwise no-op.
-                            self.builder
-                                .writeln("if compartment and getattr(compartment, 'parent_compartment', None):");
+                            self.builder.writeln(&format!("{}if compartment and getattr(compartment, 'parent_compartment', None):", prefix));
                             self.builder.indent();
-                            self.builder
-                                .writeln("self._frame_router(__e, compartment.parent_compartment)");
+                            self.builder.writeln("self._frame_router(__e, compartment.parent_compartment)");
                             self.builder.dedent();
-                            self.builder.writeln("return");
+                            self.builder.writeln(&format!("{}return", prefix));
                         }
                         MirStatement::StackPush => {
                             self.builder.map_next(*frame_line);
-                            self.builder.writeln("self.return_stack.append(None)");
-                            self.builder.writeln("return");
+                            let func_indent = 8usize;
+                            let effective = last_native_indent_opt.unwrap_or(*indent);
+                            let extra_spaces = if effective > func_indent { effective - func_indent } else { 0 };
+                            let prefix = " ".repeat(extra_spaces);
+                            self.builder.writeln(&format!("{}self.return_stack.append(None)", prefix));
+                            self.builder.writeln(&format!("{}return", prefix));
                         }
                         MirStatement::StackPop => {
                             self.builder.map_next(*frame_line);
-                            self.builder.writeln("__popped = self.return_stack.pop()");
-                            self.builder.writeln("self.return_stack[-1] = __popped");
-                            self.builder.writeln("return");
+                            let func_indent = 8usize;
+                            let effective = last_native_indent_opt.unwrap_or(*indent);
+                            let extra_spaces = if effective > func_indent { effective - func_indent } else { 0 };
+                            let prefix = " ".repeat(extra_spaces);
+                            self.builder.writeln(&format!("{}__popped = self.return_stack.pop()", prefix));
+                            self.builder.writeln(&format!("{}self.return_stack[-1] = __popped", prefix));
+                            self.builder.writeln(&format!("{}return", prefix));
                         }
-                        MirStatement::Return(_expr) => {
+                        MirStatement::Return(expr_opt) => {
                             self.builder.map_next(*frame_line);
-                            self.builder.writeln("return");
+                            // compute relative indent to the current function indent (8 spaces)
+                            let func_indent = 8usize;
+                            let mut effective = last_native_indent_opt.unwrap_or(*indent);
+                            let extra_spaces = if effective > func_indent { effective - func_indent } else { 0 };
+                            let mut prefix = " ".repeat(extra_spaces);
+                            if let Some(raw) = expr_opt {
+                                // Minimal normalization: true/false/null → True/False/None
+                                let norm = match raw.trim() {
+                                    "true" => "True".to_string(),
+                                    "false" => "False".to_string(),
+                                    "null" => "None".to_string(),
+                                    other => other.to_string(),
+                                };
+                                self.builder.writeln(&format!("{}self.return_stack[-1] = {}", prefix, norm));
+                            }
+                            // Avoid duplicate or misplaced returns:
+                            // - if the next native line starts with 'return', skip our bare return
+                            // - if next line starts with 'elif' or 'else:', adjust indent to one level deeper than that header
+                            let mut emit_bare_return = false; // rely on native 'return' where present
+                            if let Some((n_indent, t)) = next_native_line(idx) {
+                                if t.starts_with("return") {
+                                    emit_bare_return = false;
+                                } else if t.starts_with("elif ") || t.starts_with("else:") {
+                                    // one level deeper than header
+                                    effective = n_indent + 4;
+                                    let extra = if effective > func_indent { effective - func_indent } else { 0 };
+                                    prefix = " ".repeat(extra);
+                                    // keep emit_bare_return = false to avoid duplicate returns
+                                }
+                            }
+                            if emit_bare_return {
+                                self.builder.writeln(&format!("{}return", prefix));
+                            }
                         }
                     }
                     generated = true;

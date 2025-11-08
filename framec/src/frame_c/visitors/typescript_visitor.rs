@@ -21,8 +21,7 @@ use std::sync::Arc;
 
 // SWC codegen imports for B2 emission of MIR
 // (B2 planned) SWC codegen can be enabled later for MIR emission
-#[cfg(feature = "ts_b2_codegen")]
-mod ts_b2;
+// SWC B2 emission will be enabled after we pin codegen deps.
 
 #[derive(Clone, Debug)]
 struct TypeScriptNativeBinding {
@@ -8625,7 +8624,7 @@ impl TypeScriptVisitor {
                             }
                         }
                     }
-                    MixedBodyItem::Frame { frame_line, stmt } => {
+                    MixedBodyItem::Frame { frame_line, indent: _indent, stmt } => {
                         // Map directive glue to the directive's frame line
                         self.builder.map_next(*frame_line);
                         let code = self.emit_mir_statement_as_swc(stmt);
@@ -8733,6 +8732,10 @@ impl TypeScriptVisitor {
                                 self.builder.writeln(
                                     "this.returnStack[this.returnStack.length - 1] = __popped;",
                                 );
+                                self.builder.writeln("return;");
+                            }
+                            crate::frame_c::native_region_segmenter::FrameStmtKind::Return => {
+                                // Minimal fallback: treat as bare return in TS mixed bodies
                                 self.builder.writeln("return;");
                             }
                         }
@@ -8929,12 +8932,6 @@ impl TypeScriptVisitor {
     fn emit_mir_statement_as_swc(&self, mir: &MirStatement) -> String {
         match mir {
             MirStatement::Transition { state, .. } => {
-                #[cfg(feature = "ts_b2_codegen")]
-                {
-                    if let Some(code) = ts_b2::b2_emit_transition(state) {
-                        return code;
-                    }
-                }
                 format!(
                     "this._frame_transition(new FrameCompartment(\"{}\", null, null, {{}}, {{}}));\nreturn;\n",
                     state
