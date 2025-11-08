@@ -172,6 +172,10 @@ python3 runner/frame_test_runner.py --all --framec ../target/release/framec
 3. **Build System**: Package management and dependency resolution
 4. **Performance**: Optimization of transpiler performance
 5. **IDE Support**: Enhanced VSCode extension features
+6. **C Backend (Phase 1)**: Implement minimal C emitter with runtime FFI and smoke-suite parity — see `docs/framepiler_design/going_native/c_backend_plan.md` and `docs/framelang_design/target_language_specifications/c/c_body_grammar.md`
+7. **C++ Backend (Phase 1)**: Minimal C++ emitter using `extern "C"` runtime FFI — see `docs/framepiler_design/going_native/cpp_backend_plan.md` and `docs/framelang_design/target_language_specifications/cpp/cpp_body_grammar.md`
+8. **Java Backend (Phase 1)**: Java emitter + JNI shim to native runtime — see `docs/framepiler_design/going_native/java_backend_plan.md` and `docs/framelang_design/target_language_specifications/java/java_body_grammar.md`
+9. **Rust Backend (Phase 1)**: Rust emitter with safe wrappers over the native runtime — see `docs/framepiler_design/going_native/rust_backend_plan.md` and `docs/framelang_design/target_language_specifications/rust/rust_body_grammar.md`
 
 ## Contact
 

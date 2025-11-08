@@ -54,6 +54,9 @@ impl ValidationEngine {
             // Enforce simple negative patterns for TS negatives
             engine = engine
                 .add_rule(crate::frame_c::validation::rules::NegativePatternsRule::new());
+            // Ensure transitions are terminal in handler bodies
+            engine = engine
+                .add_rule(crate::frame_c::validation::rules::TransitionsTerminalRule::new());
         }
 
         if engine.config.level >= ValidationLevel::Semantic {

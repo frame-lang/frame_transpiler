@@ -220,6 +220,16 @@ impl CodeBuilder {
         self.indent_str.repeat(self.indent_level)
     }
 
+    /// Expose current indentation level (number of indent units)
+    pub fn current_indent_level(&self) -> usize {
+        self.indent_level
+    }
+
+    /// Expose width of a single indent unit in spaces (or characters)
+    pub fn indent_unit_width(&self) -> usize {
+        self.indent_str.len()
+    }
+
     fn add_mapping_with_type(
         &mut self,
         frame_line: usize,

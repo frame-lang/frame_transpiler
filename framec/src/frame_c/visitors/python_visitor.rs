@@ -84,9 +84,9 @@ pub struct PythonVisitor {
 impl PythonVisitor {
     fn emit_mixed_body(&mut self, items: &[MixedBodyItem]) -> bool {
         let mut generated = false;
-        let mut after_terminal_dir = false; // transition/forward/stack imply early return
-        let mut warned_unreachable = false; // only warn once per body
         let mut last_native_indent_opt: Option<usize> = None; // track indentation from preceding native lines
+        let mut last_header_indent_opt: Option<usize> = None; // track indent of the most recent header line ending with ':'
+        let mut after_terminal_dir = false; // after transition/forward/stack, suppress native body except headers
 
         // Helper to peek the next non-empty native line's (indent, trimmed text)
         let next_native_line = |from: usize| -> Option<(usize, String)> {
@@ -110,11 +110,32 @@ impl PythonVisitor {
             }
             None
         };
+        // Helper to peek the previous non-empty native line's absolute indent (spaces)
+        let prev_native_indent = |from: usize| -> Option<usize> {
+            let mut i = from as isize - 1;
+            while i >= 0 {
+                match &items[i as usize] {
+                    MixedBodyItem::NativeText { text, .. } => {
+                        if let Some(line) = text.lines().rev().find(|l| !l.trim().is_empty()) {
+                            let lead = line.chars().take_while(|c| c.is_whitespace()).count();
+                            return Some(lead);
+                        }
+                    }
+                    MixedBodyItem::NativeAst { ast, .. } => {
+                        let s = ast.to_source();
+                        if let Some(line) = s.lines().rev().find(|l| !l.trim().is_empty()) {
+                            let lead = line.chars().take_while(|c| c.is_whitespace()).count();
+                            return Some(lead);
+                        }
+                    }
+                    _ => {}
+                }
+                i -= 1;
+            }
+            None
+        };
 
         for (idx, it) in items.iter().enumerate() {
-            if after_terminal_dir {
-                break; // stop emitting further native code after an early-returning directive
-            }
             match it {
                 MixedBodyItem::NativeAst {
                     start_line,
@@ -123,25 +144,36 @@ impl PythonVisitor {
                     ..
                 } => {
                     let code = ast.to_source();
-                    // Do not emit unreachable-code comments in Python; a comment between
-                    // an 'if' and a following 'else:' can create a syntax error. We rely
-                    // on validation diagnostics instead of inline warnings here.
-                    if after_terminal_dir && !code.trim().is_empty() && !warned_unreachable {
-                        warned_unreachable = true; // mark but do not write
+                    if after_terminal_dir {
+                        // Emit only syntactic block headers to keep Python valid
+                        let base_cols = self.builder.current_indent_level() * self.builder.indent_unit_width();
+                        for line in code.lines() {
+                            let t = line.trim_start();
+                            if t.is_empty() { continue; }
+                            let lead = line.chars().take_while(|c| c.is_whitespace()).count();
+                            let rel = lead.saturating_sub(base_cols);
+                            if t.starts_with("except ") || t == "except:" || t == "else:" || t == "finally:" {
+                                self.builder.writeln(t);
+                                let prefix = " ".repeat(rel + 4);
+                                self.builder.writeln(&format!("{}pass", prefix));
+                            }
+                        }
+                    } else {
+                        // Update last_native_indent based on the last non-empty line
+                        if let Some(last) = code.lines().rev().find(|l| !l.trim().is_empty()) {
+                            let lead = last.chars().take_while(|c| c.is_whitespace()).count();
+                            let ends_with_colon = last.trim_end().ends_with(':');
+                            last_native_indent_opt = Some(if ends_with_colon { lead + 4 } else { lead });
+                            if ends_with_colon { last_header_indent_opt = Some(lead); }
+                        }
+                        self.emit_target_source_with_metadata(
+                            code,
+                            *start_line,
+                            *end_line,
+                            TargetLanguage::Python3,
+                        );
+                        generated = true;
                     }
-                    // Update last_native_indent based on the last non-empty line
-                    if let Some(last) = code.lines().rev().find(|l| !l.trim().is_empty()) {
-                        let lead = last.chars().take_while(|c| c.is_whitespace()).count();
-                        let ends_with_colon = last.trim_end().ends_with(':');
-                        last_native_indent_opt = Some(if ends_with_colon { lead + 4 } else { lead });
-                    }
-                    self.emit_target_source_with_metadata(
-                        code,
-                        *start_line,
-                        *end_line,
-                        TargetLanguage::Python3,
-                    );
-                    generated = true;
                 }
                 MixedBodyItem::NativeText {
                     text,
@@ -149,23 +181,37 @@ impl PythonVisitor {
                     end_line,
                     ..
                 } => {
-                    if after_terminal_dir && !text.trim().is_empty() && !warned_unreachable {
-                        warned_unreachable = true; // mark but do not write
+                    if after_terminal_dir {
+                        // Emit only syntactic block headers to keep Python valid
+                        let base_cols = self.builder.current_indent_level() * self.builder.indent_unit_width();
+                        for line in text.lines() {
+                            let t = line.trim_start();
+                            if t.is_empty() { continue; }
+                            let lead = line.chars().take_while(|c| c.is_whitespace()).count();
+                            let rel = lead.saturating_sub(base_cols);
+                            if t.starts_with("except ") || t == "except:" || t == "else:" || t == "finally:" {
+                                self.builder.writeln(t);
+                                let prefix = " ".repeat(rel + 4);
+                                self.builder.writeln(&format!("{}pass", prefix));
+                            }
+                        }
+                    } else {
+                        if let Some(last) = text.lines().rev().find(|l| !l.trim().is_empty()) {
+                            let lead = last.chars().take_while(|c| c.is_whitespace()).count();
+                            let ends_with_colon = last.trim_end().ends_with(':');
+                            last_native_indent_opt = Some(if ends_with_colon { lead + 4 } else { lead });
+                            if ends_with_colon { last_header_indent_opt = Some(lead); }
+                        }
+                        self.emit_target_source_with_metadata(
+                            text,
+                            *start_line,
+                            *end_line,
+                            TargetLanguage::Python3,
+                        );
+                        generated = true;
                     }
-                    if let Some(last) = text.lines().rev().find(|l| !l.trim().is_empty()) {
-                        let lead = last.chars().take_while(|c| c.is_whitespace()).count();
-                        let ends_with_colon = last.trim_end().ends_with(':');
-                        last_native_indent_opt = Some(if ends_with_colon { lead + 4 } else { lead });
-                    }
-                    self.emit_target_source_with_metadata(
-                        text,
-                        *start_line,
-                        *end_line,
-                        TargetLanguage::Python3,
-                    );
-                    generated = true;
                 }
-                MixedBodyItem::Frame { frame_line, indent, stmt } => {
+                MixedBodyItem::Frame { frame_line, indent: _indent, stmt } => {
                     // Map glue to directive's frame line
                     match stmt {
                         MirStatement::Transition { state, args } => {
@@ -188,6 +234,10 @@ impl PythonVisitor {
                                 let state_node = state_node_rcref.borrow();
                                 state_node.dispatch_opt.is_some()
                             } else { false };
+                            let base_cols = self.builder.current_indent_level() * self.builder.indent_unit_width();
+                            let prev_abs = prev_native_indent(idx).or(last_native_indent_opt);
+                            let in_block = prev_abs.map(|abs| abs > base_cols).unwrap_or(false);
+                            if in_block { self.builder.indent(); }
                             if has_parent {
                                 self.builder.map_next(*frame_line);
                                 self.builder.writeln(&format!(
@@ -207,57 +257,67 @@ impl PythonVisitor {
                                 ));
                             }
                             self.builder.map_next(*frame_line);
-                            let func_indent = 8usize;
-                            let effective = last_native_indent_opt.unwrap_or(*indent);
-                            let extra_spaces = if effective > func_indent {
-                                effective - func_indent
-                            } else {
-                                0
-                            };
-                            let prefix = " ".repeat(extra_spaces);
-                            self.builder.writeln(&format!("{}self._frame_transition(next_compartment)", prefix));
+                            self.builder.writeln("self._frame_transition(next_compartment)");
                             self.builder.map_next(*frame_line);
-                            self.builder.writeln(&format!("{}return", prefix));
+                            self.builder.writeln("return");
+                            if in_block { self.builder.dedent(); }
+                            after_terminal_dir = true;
                         }
                         MirStatement::ParentForward => {
                             self.builder.map_next(*frame_line);
-                            let func_indent = 8usize;
-                            let effective = last_native_indent_opt.unwrap_or(*indent);
-                            let extra_spaces = if effective > func_indent { effective - func_indent } else { 0 };
-                            let prefix = " ".repeat(extra_spaces);
+                            let base_cols = self.builder.current_indent_level() * self.builder.indent_unit_width();
+                            let prev_abs = prev_native_indent(idx).or(last_native_indent_opt);
+                            let in_block = prev_abs.map(|abs| abs > base_cols).unwrap_or(false);
+                            if in_block { self.builder.indent(); }
                             // Route to the parent compartment if available; otherwise no-op.
-                            self.builder.writeln(&format!("{}if compartment and getattr(compartment, 'parent_compartment', None):", prefix));
+                            self.builder.writeln("if compartment and getattr(compartment, 'parent_compartment', None):");
                             self.builder.indent();
                             self.builder.writeln("self._frame_router(__e, compartment.parent_compartment)");
                             self.builder.dedent();
-                            self.builder.writeln(&format!("{}return", prefix));
+                            self.builder.writeln("return");
+                            if in_block { self.builder.dedent(); }
+                            after_terminal_dir = true;
                         }
                         MirStatement::StackPush => {
                             self.builder.map_next(*frame_line);
-                            let func_indent = 8usize;
-                            let effective = last_native_indent_opt.unwrap_or(*indent);
-                            let extra_spaces = if effective > func_indent { effective - func_indent } else { 0 };
-                            let prefix = " ".repeat(extra_spaces);
-                            self.builder.writeln(&format!("{}self.return_stack.append(None)", prefix));
-                            self.builder.writeln(&format!("{}return", prefix));
+                            let base_cols = self.builder.current_indent_level() * self.builder.indent_unit_width();
+                            let prev_abs = prev_native_indent(idx).or(last_native_indent_opt);
+                            let in_block = prev_abs.map(|abs| abs > base_cols).unwrap_or(false);
+                            if in_block { self.builder.indent(); }
+                            self.builder.writeln("self.return_stack.append(None)");
+                            self.builder.writeln("return");
+                            if in_block { self.builder.dedent(); }
+                            after_terminal_dir = true;
                         }
                         MirStatement::StackPop => {
                             self.builder.map_next(*frame_line);
-                            let func_indent = 8usize;
-                            let effective = last_native_indent_opt.unwrap_or(*indent);
-                            let extra_spaces = if effective > func_indent { effective - func_indent } else { 0 };
-                            let prefix = " ".repeat(extra_spaces);
-                            self.builder.writeln(&format!("{}__popped = self.return_stack.pop()", prefix));
-                            self.builder.writeln(&format!("{}self.return_stack[-1] = __popped", prefix));
-                            self.builder.writeln(&format!("{}return", prefix));
+                            let base_cols = self.builder.current_indent_level() * self.builder.indent_unit_width();
+                            let prev_abs = prev_native_indent(idx).or(last_native_indent_opt);
+                            let in_block = prev_abs.map(|abs| abs > base_cols).unwrap_or(false);
+                            if in_block { self.builder.indent(); }
+                            self.builder.writeln("__popped = self.return_stack.pop()");
+                            self.builder.writeln("self.return_stack[-1] = __popped");
+                            self.builder.writeln("return");
+                            if in_block { self.builder.dedent(); }
+                            after_terminal_dir = true;
                         }
                         MirStatement::Return(expr_opt) => {
                             self.builder.map_next(*frame_line);
-                            // compute relative indent to the current function indent (8 spaces)
-                            let func_indent = 8usize;
-                            let mut effective = last_native_indent_opt.unwrap_or(*indent);
-                            let extra_spaces = if effective > func_indent { effective - func_indent } else { 0 };
-                            let mut prefix = " ".repeat(extra_spaces);
+                            // compute relative indent to the current builder baseline
+                            let base_cols = self.builder.current_indent_level() * self.builder.indent_unit_width();
+                            let rel_prev = prev_native_indent(idx).map(|abs| abs.saturating_sub(base_cols));
+                            let rel_last = last_native_indent_opt.map(|abs| abs.saturating_sub(base_cols));
+                            let mut rel = rel_last.or(rel_prev).unwrap_or(4);
+                            // Check if the next native line is an elif/else header; if so, emit inside the prior block
+                            let mut header_adjust_rel: Option<usize> = None;
+                            if let Some((_n_indent, t)) = next_native_line(idx) {
+                                if (t.starts_with("elif ") || t == "else:") && last_header_indent_opt.is_some() {
+                                    let h = last_header_indent_opt.unwrap();
+                                    header_adjust_rel = Some((h + 4).saturating_sub(base_cols));
+                                }
+                            }
+                            if let Some(adj) = header_adjust_rel { rel = adj; }
+                            let prefix = " ".repeat(rel);
                             if let Some(raw) = expr_opt {
                                 // Minimal normalization: true/false/null → True/False/None
                                 let norm = match raw.trim() {
@@ -271,15 +331,13 @@ impl PythonVisitor {
                             // Avoid duplicate or misplaced returns:
                             // - if the next native line starts with 'return', skip our bare return
                             // - if next line starts with 'elif' or 'else:', adjust indent to one level deeper than that header
-                            let mut emit_bare_return = false; // rely on native 'return' where present
+                            // Default to emitting a bare return; we only suppress it if the next native line is an explicit 'return'.
+                            let mut emit_bare_return = true;
                             if let Some((n_indent, t)) = next_native_line(idx) {
                                 if t.starts_with("return") {
                                     emit_bare_return = false;
                                 } else if t.starts_with("elif ") || t.starts_with("else:") {
-                                    // one level deeper than header
-                                    effective = n_indent + 4;
-                                    let extra = if effective > func_indent { effective - func_indent } else { 0 };
-                                    prefix = " ".repeat(extra);
+                                    // Emit 'return' inside the preceding if/else block
                                     // keep emit_bare_return = false to avoid duplicate returns
                                 }
                             }
@@ -289,13 +347,6 @@ impl PythonVisitor {
                         }
                     }
                     generated = true;
-                    match stmt {
-                        MirStatement::Transition { .. }
-                        | MirStatement::ParentForward
-                        | MirStatement::StackPush
-                        | MirStatement::StackPop => after_terminal_dir = true,
-                        _ => {}
-                    }
                 }
             }
         }

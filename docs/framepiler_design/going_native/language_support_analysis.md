@@ -3,6 +3,16 @@
 Status: Draft for “going_native” branch
 Last updated: 2025‑11‑05
 
+## Roadmap Links
+- C Target Plan — Going Native: `docs/framepiler_design/going_native/c_backend_plan.md`
+- C Body Grammar (target‑native mixed bodies): `docs/framelang_design/target_language_specifications/c/c_body_grammar.md`
+- C++ Target Plan — Going Native: `docs/framepiler_design/going_native/cpp_backend_plan.md`
+- C++ Body Grammar: `docs/framelang_design/target_language_specifications/cpp/cpp_body_grammar.md`
+- Java Target Plan — Going Native: `docs/framepiler_design/going_native/java_backend_plan.md`
+- Java Body Grammar: `docs/framelang_design/target_language_specifications/java/java_body_grammar.md`
+- Rust Target Plan — Going Native: `docs/framepiler_design/going_native/rust_backend_plan.md`
+- Rust Body Grammar: `docs/framelang_design/target_language_specifications/rust/rust_body_grammar.md`
+
 ## Goals
 - Make Frame maximally accommodative of target‑native syntax inside the Frame structure (modules/systems/classes/functions/actions/operations/handlers).
 - Treat native code as the host inside member bodies, and embed Frame semantics via precise inline directives (MIR) at well‑defined, deterministic boundaries.

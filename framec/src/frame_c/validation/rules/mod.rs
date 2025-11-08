@@ -11,6 +11,7 @@ pub mod async_consistency;
 pub mod python_native_policy;
 pub mod mixed_body_system_policy;
 pub mod negative_patterns;
+pub mod transitions_terminal;
 
 // Re-export all rules for easy access
 pub use event_flow_analysis::EventFlowAnalysisRule;
@@ -23,5 +24,6 @@ pub use python_native_policy::PythonNativePolicyRule;
 pub use async_consistency::AsyncConsistencyRule;
 pub use mixed_body_system_policy::MixedBodySystemPolicyRule;
 pub use negative_patterns::NegativePatternsRule;
+pub use transitions_terminal::TransitionsTerminalRule;
 
 // Module for validation rules
