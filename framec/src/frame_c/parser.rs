@@ -1900,6 +1900,38 @@ impl<'a> Parser<'a> {
             domain_block_node_opt = self.parse_domain_block()?;
         }
 
+        // Safety: In native-friendly modes, tolerate block headers appearing after the main loop
+        // (e.g., tightly concatenated one-liners). Parse any remaining block headers once more
+        // before expecting the closing '}'.
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript) | Some(TargetLanguage::Python3)) {
+            loop {
+                if self.check(TokenType::CloseBrace) || self.is_at_end() { break; }
+                // Skip line comments
+                while self.match_token(&[TokenType::PythonComment]) {}
+                if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                    if !self.is_at_end() {
+                        let tk = self.peek().clone();
+                        let line = tk.line;
+                        if let Some(text) = self.source_lines.get(line.saturating_sub(1)) {
+                            if text.trim_start().starts_with("//") {
+                                while !self.is_at_end() && self.peek().line == line { self.advance(); }
+                                continue;
+                            }
+                        }
+                    }
+                }
+                let progressed = match self.peek().token_type {
+                    TokenType::OperationsBlock => { let _ = self.parse_operations_block()?; true }
+                    TokenType::InterfaceBlock => { let _ = self.parse_interface_block()?; true }
+                    TokenType::MachineBlock => { let _ = self.parse_machine_block()?; true }
+                    TokenType::ActionsBlock => { let _ = self.parse_actions_block()?; true }
+                    TokenType::DomainBlock => { let _ = self.parse_domain_block()?; true }
+                    _ => false,
+                };
+                if !progressed { break; }
+            }
+        }
+
         if !assumed_open_brace {
             // For TypeScript, tolerate trailing // comment lines before the system-closing '}'
             if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
@@ -4578,10 +4610,16 @@ impl<'a> Parser<'a> {
                 let end_line = body_start_line;
                 (end_line, false)
             } else if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                // TypeScript actions: use textual closer for robustness with templates/comments
-                let close_line = self.scan_ts_closing_brace_line(body_start_line);
-                close_tok_line = self.consume_close_brace_at_line(close_line)?;
-                (close_line.saturating_sub(1), true)
+                // TypeScript actions: use textual closer with failure characterization
+                match self.detect_ts_close_or_failure(body_start_line) {
+                    DetectionResult::Ok { close_line } => {
+                        close_tok_line = self.consume_close_brace_at_line(close_line)?;
+                        (close_line.saturating_sub(1), true)
+                    }
+                    DetectionResult::Failure(f) => {
+                        return Err(self.map_ts_detection_failure(&f, body_start_line));
+                    }
+                }
             } else {
                 // Python path: textual closer with failure characterization
                 match self.detect_py_close_or_failure(body_start_line) {
@@ -8025,32 +8063,14 @@ impl<'a> Parser<'a> {
                     ));
                     event_handler.body = ActionBody::Mixed;
                 } else if !raw.trim().is_empty() {
-                    let region = TargetRegion {
-                        start_position: 0,
-                        end_position: None,
-                        raw_content: raw,
+                    // Fast path: attach as a single native span in MixedBody and avoid heavy rustpython AST parsing.
+                    event_handler.mixed_body = Some(vec![MixedBodyItem::NativeText {
                         target: TargetLanguage::Python3,
-                        source_map: TargetSourceMap {
-                            frame_start_line: start_line,
-                            target_line_offsets: Vec::new(),
-                        },
-                    };
-                    if let Ok(ast) = parse_target_region(TargetLanguage::Python3, &region) {
-                        event_handler.parsed_target_blocks.push(ParsedTargetBlock {
-                            region_index: 0,
-                            frame_start_line: start_line,
-                            frame_end_line: end_line_inclusive,
-                            ast,
-                        });
-                        // Also attach MixedBody with a single native span for uniform handling
-                        event_handler.mixed_body = Some(vec![MixedBodyItem::NativeText {
-                            target: TargetLanguage::Python3,
-                            text: region.raw_content.clone(),
-                            start_line,
-                            end_line: end_line_inclusive,
-                        }]);
-                        event_handler.body = ActionBody::Mixed;
-                    }
+                        text: raw,
+                        start_line,
+                        end_line: end_line_inclusive,
+                    }]);
+                    event_handler.body = ActionBody::Mixed;
                 }
                 }
             }

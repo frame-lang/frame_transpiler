@@ -27,6 +27,7 @@ Below is the living index of the most relevant specs and plans across `framelang
 
 ## Framepiler Design
 - Architecture (Authoritative): docs/framepiler_design/architecture.md
+- MixedBody FIRST‑Set Indexing: docs/framepiler_design/stages/native_mixed_body_first_set_indexing.md
 
 ### Going Native — Key Policies
 - Native bodies by default; Frame statements (->, => $^, $$[+/-], system.return) are SOL‑anchored and recognized only in handlers.
@@ -46,3 +47,6 @@ Below is the living index of the most relevant specs and plans across `framelang
 - C++ Backend Plan: docs/framepiler_design/going_native/cpp_backend_plan.md
 - Rust Backend Plan: docs/framepiler_design/going_native/rust_backend_plan.md
 - Java Backend Plan: docs/framepiler_design/going_native/java_backend_plan.md
+
+## Release Notes
+ - Root changelog (current): CHANGELOG.md

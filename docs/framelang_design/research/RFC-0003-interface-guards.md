@@ -236,3 +236,36 @@ Return mapping examples:
 ## References
 - RFC‑0001 — Nested HSM Syntax (lifecycle/LCA foundation)
 - RFC‑0002 — Event Phases (Capture/Target/Bubble)
+- RFC‑0004 — CEL Policy Integration for Interface Guards and Capture
+  (policy registry, compile‑time validation, and per‑target codegen):
+  docs/framelang_design/research/RFC-0004-cel-policy-integration.md
+
+## Appendix: CEL Examples
+
+### Registry + Guards
+```
+cel policy allow_purchase: "resource.owner == subject.id && amount < 1000"
+cel policy allow_admin:    "'admin' in subject.roles"
+
+interface:
+  * {
+    if cel("validateHeaders(headers)") => $ else { fail() }
+  }
+
+  buy(amount: int) {
+    if cel_policy("allow_purchase") => $ else { fail() }
+  }
+
+capture buy(amount: int) {
+  if cel_policy("allow_admin") {
+    // attach an audit tag; no transitions in capture
+  } else {
+    $@.stop_propagation()
+  }
+}
+```
+
+### Deny Mapping Across Targets (Conceptual)
+- Python: `fail()` → `raise FrameDeny("policy denied")` or `return Denied("policy denied")` (generated wrapper chooses policy per return type).
+- TypeScript: `fail()` → `return { ok: false, err: "policy denied" }` or throw a typed error per project convention.
+- Native: `fail()` → `Result<T, E>::Err(E::Denied)` or a status code mapped by the wrapper.
