@@ -42,6 +42,11 @@ Enable a first‑class C target that generates portable C99 code and links again
 - Types
   - Map Frame types: `int→int`, `float→double`, `bool→bool`, `string→char*` (copy/ownership via runtime where needed), opaque handles as `void*`/`char*` by convention until declarations land.
 
+## Linking Notes (Runner)
+- Compile with `clang`:
+  - `clang -I <include_dir> -L <runtime_dir> -lframe_runtime_llvm generated.c -o a.out`
+- Ensure rpath or `DYLD_LIBRARY_PATH`/`LD_LIBRARY_PATH` is set so the loader finds `libframe_runtime_llvm` at runtime.
+
 ## Phase 2 — Test Runner + Fixtures (2–3 days)
 - Runner
   - Add `c` as a language option; compile C with `clang` into an executable next to the generated code.
@@ -101,4 +106,3 @@ Enable a first‑class C target that generates portable C99 code and links again
 - Do we want a dedicated C runtime shim later (smaller ABI) or keep the single Rust runtime for all native targets?
 - Should the visitor emit one TU per system or a combined TU for multifile projects initially?
 - How far do we push validation for C native blocks without adding a real C parser?
-

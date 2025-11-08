@@ -24,6 +24,40 @@ Provide a Java target that generates portable Java code and bridges to the nativ
 - CLI/docs
   - Ensure help lists `java`; document JDK/JNI requirements.
 
+## JNI Surface (Initial)
+- Java class `org.frame.runtime.FrameRuntime` (package tbd) exposing:
+  - `static native long eventNew(String message);`
+  - `static native void eventFree(long eventPtr);`
+  - `static native void eventPushI32(long eventPtr, int v);`
+  - `static native void eventPushDouble(long eventPtr, double v);`
+  - `static native void eventPushBool(long eventPtr, boolean v);`
+  - `static native void eventPushCString(long eventPtr, String s);`
+  - `static native int eventGetI32(long eventPtr, int index);` (and Double/Bool/String variants)
+  - `static native long compartmentNew(String stateName);`
+  - `static native void compartmentFree(long compPtr);`
+  - `static native void compartmentEnterSetI32(long compPtr, String key, int v);` (and Double/Bool/String)
+  - `static native int compartmentEnterGetI32(long compPtr, String key);` (and Double/Bool/String)
+  - `static native void compartmentEnterClear(long compPtr);`
+  - `static native long kernelNew(long compPtr);`
+  - `static native void kernelFree(long kernelPtr);`
+  - `static native int kernelDispatch(long kernelPtr, long eventPtr); // 0=Continue, 1=Halt`
+  - `static native void kernelSetState(long kernelPtr, String stateName);`
+  - `static native long kernelNextEvent(long kernelPtr); // returns event handle or 0`
+  - `static native void compartmentSetForwardEvent(long compPtr, long eventPtrOr0);`
+  - `static native void kernelStateStackPush(long kernelPtr, int stateIndex);`
+  - `static native long kernelStateStackPop(long kernelPtr, int[] stateIndexOut);`
+  - `static native void printLine(String s);`
+  - `static native void printInt(int v);`
+  - `static native void printDouble(double v);`
+  - `static native void printBool(boolean v);`
+- Native side maps 1:1 to `frame_runtime_llvm` C API; strings are copied into runtime‑owned storage; return values are safe for the call lifetime or explicitly freed by the JNI stub when needed.
+
+## Packaging and Loading
+- Build native lib `libframe_runtime_jni.{so|dylib|dll}` that links `-lframe_runtime_llvm`.
+- Load via `static { System.loadLibrary("frame_runtime_jni"); }` in the Java class.
+- Runner sets `-Djava.library.path=` or `jna.library.path` as needed.
+- Provide Gradle/Maven snippets and OS‑specific notes (rpath/loader_path/ORIGIN, Windows PATH).
+
 ## Phase 1 — Minimal Java Emitter (~1 week)
 - Compiler wiring
   - Route `TargetLanguage::Java` in `compiler.rs` to `JavaVisitor`.
@@ -57,6 +91,7 @@ Provide a Java target that generates portable Java code and bridges to the nativ
 ## Risks & Mitigations
 - JNI portability: test Linux/macOS; ship prebuilt JNI for CI.
 - GC vs native lifetimes: centralize lifetimes in JNI glue and avoid sharing raw pointers with user code.
+- Exceptions: never throw across the ABI; return status codes and rethrow Java exceptions at the boundary when desired.
 
 ## Milestones & DOD
 - M1: JNI shim + minimal emitter; smoke parity green.
@@ -69,4 +104,3 @@ Provide a Java target that generates portable Java code and bridges to the nativ
 - `runtime/llvm`: reuse C ABI under JNI shim.
 - `framec_tests/runner/frame_test_runner.py`: add java compile/run path.
 - Docs: Java body grammar + this plan.
-

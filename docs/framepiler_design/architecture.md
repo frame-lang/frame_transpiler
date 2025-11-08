@@ -206,8 +206,8 @@ Scope
 Data Model
 - MixedBodyItem (ordered):
   - `NativeText { target, text, start_line, end_line }`
-  - `Frame(MirDirective)`
-- MirDirective:
+  - `Frame(MirStatement)`
+- MirStatement:
   - `Transition { state: String, args: Vec<String> }`
   - `ParentForward`
   - `StackPush`
@@ -241,16 +241,16 @@ Semantics
 - Purity: MIR nodes carry only what is needed to generate correct target glue; evaluation of arguments (when present in the future) is deferred to target codegen.
 
 Construction
-- Native‑only body: parser attaches native target AST; MixedBody contains a single `NativeText` spanning the body.
-- Mixed body: NativeRegionSegmenter produces `BodySegment::{Native,Directive}`; parser converts segments to MixedBody by mapping directives to MirDirective and aggregating adjacent native lines into `NativeText` slices.
+ - Native‑only body: parser attaches native target AST; MixedBody contains a single `NativeText` spanning the body.
+ - Mixed body: NativeRegionSegmenter produces `BodySegment::{Native,FrameStmt}`; parser converts segments to MixedBody by mapping Frame statements to MirStatement and aggregating adjacent native lines into `NativeText` slices.
 
 Mapping to Codegen
 - Visitors iterate MixedBody and:
   - Emit `NativeText` verbatim.
-  - Expand `MirDirective` to target‑native glue (custom visitor logic keeps emission deterministic).
+  - Expand `MirStatement` to target‑native glue (custom visitor logic keeps emission deterministic).
 - Source maps:
   - `NativeText`: use recorded start/end frame lines to map target lines back to Frame.
-  - `MirDirective`: synthesize mapping anchored at the directive’s frame line.
+  - `MirStatement`: synthesize mapping anchored at the statement’s frame line.
 
 Examples
 ```

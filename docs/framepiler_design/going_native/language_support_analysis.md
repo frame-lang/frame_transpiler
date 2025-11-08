@@ -12,10 +12,37 @@ Last updated: 2025‑11‑05
 - Java Body Grammar: `docs/framelang_design/target_language_specifications/java/java_body_grammar.md`
 - Rust Target Plan — Going Native: `docs/framepiler_design/going_native/rust_backend_plan.md`
 - Rust Body Grammar: `docs/framelang_design/target_language_specifications/rust/rust_body_grammar.md`
+ - Source Map Spec: `docs/framepiler_design/going_native/source_map_spec.md`
+ - AST Dump Spec: `docs/framepiler_design/going_native/ast_dump_spec.md`
+
+## Runtime ABI and Shims (Cross‑Target)
+- Single C ABI: reuse `frame_runtime_llvm` exported `extern "C"` symbols for events, compartments, kernel loop, stack ops, and prints to guarantee identical semantics across native targets.
+- Per‑language shims:
+  - Rust: safe wrapper module/crate with newtypes for opaque pointers, `CString` conversions, and panic‑free calls returning `Result`.
+  - C++: header‑only RAII helpers (unique_ptr‑style deleters) and `std::string` conversion helpers; noexcept wrappers around C calls.
+  - Java: JNI class that holds native pointers as `long`/`ByteBuffer`, implements `AutoCloseable`, forwards calls to the C ABI.
+- ABI requirements:
+  - Stable signatures (no varargs), opaque pointers for handles, copy‑in/copy‑out string policy, status codes (no unwinding across the boundary), and an `abi_version()` function for early mismatch detection.
+- Packaging:
+  - Ship `include/frame_runtime_c.h` (canonical header), optional `frame_runtime_cpp.hpp`, optional `frame_runtime_rs`, and `frame_runtime_jni` (class + native lib) with examples for macOS/Linux/Windows.
+- Build/linking:
+  - Prefer dynamic libs; provide guidance for rpath/loader_path/ORIGIN and Windows import libs; sample `clang/clang++/rustc/javac` commands.
+- Testing/CI:
+  - ABI conformance tests on each OS; per‑language smoke runs (enter/exit, parent forward, stack multi‑pop, typed params); leak checks via ASan/Valgrind.
+- Risks/mitigations:
+  - String/handle leaks (hide alloc/free in shims), ABI drift (versioning + tests), platform linking (packaged examples).
+
+## Implementation Difficulty and Priorities
+- Easiest → Hardest: C → C++ → Rust → Java.
+- Java is hardest due to:
+  - JNI layer requirement, cross‑platform packaging of native libs, `java.library.path` management.
+  - GC vs native lifetime rules (pointers as `long`/`ByteBuffer`, ensuring deterministic frees).
+  - String/array bridging cost and pinning semantics, exception mapping (no throw across ABI).
+  - Tooling friction in the runner (JDK + JNI toolchain).
 
 ## Goals
 - Make Frame maximally accommodative of target‑native syntax inside the Frame structure (modules/systems/classes/functions/actions/operations/handlers).
-- Treat native code as the host inside member bodies, and embed Frame semantics via precise inline directives (MIR) at well‑defined, deterministic boundaries.
+- Treat native code as the host inside member bodies, and embed Frame semantics via precise inline Frame statements (MIR) at well‑defined, deterministic boundaries.
 - Preserve excellent diagnostics (dual mapping), deterministic codegen, and predictable runtime behavior.
 
 ## Architecture Recap (authoritative for going_native)
@@ -48,7 +75,7 @@ Last updated: 2025‑11‑05
 
 ### Lexing/Parsing
 - Indentation‑sensitive; OutlineScanner must compute body ranges using indent/dedent stacks.
-- Strings: single/double/triple quotes; f‑strings; raw strings; bytes. Segmenter ignores directive‑like tokens inside these.
+- Strings: single/double/triple quotes; f‑strings; raw strings; bytes. Segmenter ignores Frame‑statement‑like tokens inside these.
 - Comments: `#` single line; ignore Frame tokens in comments.
 
 ### Embedding in Frame
@@ -168,7 +195,7 @@ Last updated: 2025‑11‑05
 - Macros: segmentation must ignore Frame tokens inside macro bodies.
 
 ### Tests to Add
-- Matches with many arms (`=>`), raw strings with braces, macro invocations containing directive‑like tokens.
+- Matches with many arms (`=>`), raw strings with braces, macro invocations containing Frame‑statement‑like tokens.
 
 ---
 
@@ -199,7 +226,7 @@ Last updated: 2025‑11‑05
 
 ### Lexing/Parsing
 - C# has `//` and `/* */` comments; verbatim/interpolated strings: `@"…"`, `$"…{expr}…"`, raw string literals (`"""…"""` in C# 11). Lambdas use `=>` (like TS/Java); require `=> $^` for Frame parent forward to avoid conflicts.
-- OutlineScanner: brace depth for bodies; segmenter must ignore directive tokens inside strings and comments; handle `$"…{ … }…"` interpolation blocks.
+- OutlineScanner: brace depth for bodies; segmenter must ignore Frame tokens inside strings and comments; handle `$"…{ … }…"` interpolation blocks.
 
 ### Embedding in Frame
 - Functions/actions/operations/handlers: MixedBody; start with segmentation + RegionGraph boundaries; later integrate a C# parser (Roslyn via subprocess or a Rust binding) for AST slices if needed.
@@ -253,7 +280,7 @@ Last updated: 2025‑11‑05
 ### TypeScript Fixtures
 - Islands directory: `framec_tests/language_specific/typescript/islands/`
   - 10_template_literals.frm
-  - 16_comments_with_directive_tokens.frm
+  - 16_comments_with_frame_statement_tokens.frm
   - 17_template_literals_nested.frm
   - 22_typescript_island_mega_syntax.frm (comprehensive, no Node deps)
   - 23_indented_transition_and_unreachable.frm
@@ -265,9 +292,9 @@ Last updated: 2025‑11‑05
 Note: A deeper nested template case with backticks inside backticks is deferred until the TS textual body-closer helper is unified.
 
 TypeScript Segmenter Acceptance Checklist
-- [x] Template literals with nested `${}` do not confuse directive detection
-- [x] Comments containing directive-like tokens are ignored
-- [x] Mixed native+Frame lines are split only at SOL directives
+- [x] Template literals with nested `${}` do not confuse Frame-statement detection
+- [x] Comments containing Frame‑statement‑like tokens are ignored
+- [x] Mixed native+Frame lines are split only at SOL Frame statements
 - [x] Brace depth and string states do not leak across lines
 
 ### Python Fixtures
@@ -301,11 +328,11 @@ These sections capture what the segmenters must support and propose a comprehens
 - Generics/Bounds: List<Map<String, List<Integer>>>; wildcards; method refs.
 - Interop: package/import; nested classes/interfaces; enums.
 - Acceptance checklist (apply Cross‑Language list with Java specifics):
-  - [ ] Multi-line block comments containing directive-like tokens do not segment
+  - [ ] Multi-line block comments containing Frame-statement-like tokens do not segment
   - [ ] Annotations before methods/classes do not segment
   - [ ] String/char escapes do not break SOL detection
 - Proposed mega fixture (not added):
-  - operations: body with imports, class-with-generic methods, streams/lamdas, try-with-resources, annotations, and SOL directives on their own lines.
+  - operations: body with imports, class-with-generic methods, streams/lamdas, try-with-resources, annotations, and SOL Frame statements on their own lines.
 
 ### Rust
 - Strings: normal, byte, raw strings r#"…"# with variable hashes; format! macros.
@@ -314,7 +341,7 @@ These sections capture what the segmenters must support and propose a comprehens
 - Lifetimes/generics/where-clauses; modules/use; nested blocks.
 - Acceptance notes:
   - [ ] Raw strings with # counts do not confuse scanning
-  - [ ] Macro bodies do not segment even if they contain directive-like tokens
+  - [ ] Macro bodies do not segment even if they contain Frame-statement-like tokens
 - Proposed mega fixture (not added):
   - operations: body with struct/enum impl blocks, generics, iterator adapters, format!/println!, attributes, and SOL directives.
 
@@ -326,13 +353,13 @@ These sections capture what the segmenters must support and propose a comprehens
   - [ ] No detection inside preprocessor, macros, or raw strings
   - [ ] Template angle brackets do not affect brace depth
 - Proposed mega fixture (not added):
-  - operations: body with macros (#define), templates, namespaces, try/catch (C++), and SOL directives.
+  - operations: body with macros (#define), templates, namespaces, try/catch (C++), and SOL Frame statements.
 
 ### Go
 - Strings: " ", raw backtick strings; comments // and /* */; package/import; short var :=.
 - Defer/panic/recover; interfaces; goroutines/channels (syntax only, no runtime needed in tests).
 - Acceptance notes:
-  - [ ] Backtick raw strings may contain directive-like tokens without segmentation
+  - [ ] Backtick raw strings may contain Frame-statement-like tokens without segmentation
   - [ ] Short var declarations at SOL do not clash with directive detection
 - Proposed mega fixture (not added):
   - operations: body with multiple funcs, methods on types, interface impl patterns, and SOL directives.
@@ -344,5 +371,5 @@ These sections capture what the segmenters must support and propose a comprehens
   - [ ] Multiline strings with interpolation are ignored by detector
   - [ ] Annotations/attributes do not trigger segmentation
 - Proposed mega fixtures (not added):
-  - Swift: body using extensions, protocols, generics, optionals, and SOL directives.
-  - Kotlin: body with data classes, sealed classes, coroutines syntax (no runtime), and SOL directives.
+  - Swift: body using extensions, protocols, generics, optionals, and SOL Frame statements.
+  - Kotlin: body with data classes, sealed classes, coroutines syntax (no runtime), and SOL Frame statements.

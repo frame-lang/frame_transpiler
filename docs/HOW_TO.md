@@ -19,14 +19,18 @@ This document captures every process, tool, and workflow used in the Frame Trans
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.25 and migrating from v0.11 to v0.20 syntax.
+Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.25 and in the “Going Native” phase (native bodies with SOL‑anchored Frame statements in handlers).
 
 ### Current Status
 - **Version**: v0.86.25
-- **Branch**: `dev`
-- **Test Success Rate**: 100% execution (913 total specs: 462 Python + 433 TypeScript + 18 LLVM smoke tests)
-- **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz. LLVM target is on indefinite hold.
-- **Recent Achievement**: LLVM backend now transports typed interface arguments through queues/parent forwards, main-function interface calls accept domain expressions, and stack multi-pop semantics are covered by new smoke fixtures.
+- **Branch**: `going_native`
+- **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz.
+- **LLVM**: on indefinite hold — do not develop or maintain LLVM until further notice.
+- **Core policies**:
+  - Native bodies by default; MixedBody permitted only in event handlers (actions/operations are native‑only).
+  - SOL‑anchored Frame statements (->, => $^, $$[+/-], system.return) recognized only at start‑of‑line (ignoring strings/comments/templates).
+  - Transitions are terminal: a terminal MIR directive must be the last statement in a handler body (validator enforced).
+  - Per‑language boundary detection uses DPDAs (TS template/backtick‑aware; Py triple‑quote/f‑string‑aware).
 
 ## Architecture
 
@@ -81,24 +85,20 @@ cargo update
 ### Test Organization
 ```
 framec_tests/
-├── common/tests/           # Cross-language test specifications (.frm files)
-├── language_specific/      # Language-specific tests and external API tests
-│   ├── python/            # Python-specific Frame tests
-│   │   └── external_apis/ # Python external API integration tests
-│   ├── typescript/        # TypeScript-specific Frame tests
-│   │   └── external_apis/ # TypeScript external API integration tests
-│   └── llvm/              # LLVM smoke tests + manual harness
-├── generated/python/       # Generated Python code
-├── generated/typescript/   # Generated TypeScript code
-├── runner/                 # Test runner framework (frame_test_runner.py)
-└── configs/               # Test configuration files
+├── common/tests/           # Legacy shared tests (not default in going_native)
+├── language_specific/
+│   ├── python/             # Python-native fixtures (primary)
+│   └── typescript/         # TypeScript-native fixtures (primary)
+├── generated/{python,typescript}/
+├── runner/                 # Test runner (frame_test_runner.py)
+└── configs/
 ```
 
 ### Running Tests
 
 **Comprehensive Test Suite:**
 ```bash
-# All tests (both languages, all categories including language-specific)
+# All tests (both languages, language-specific included by default)
 python3 framec_tests/runner/frame_test_runner.py --languages python typescript --framec ./target/release/framec
 
 # All Python tests (including Python-specific external API tests)
@@ -110,8 +110,8 @@ python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec
 # LLVM on hold
 > LLVM backend work is paused. Do not run or maintain LLVM smoke tests. The backend and runtime remain in the tree but are not an active target for development.
 
-# Specific categories (common tests only)
-python3 framec_tests/runner/frame_test_runner.py --languages python --categories regression --framec ./target/release/framec
+# Specific categories
+python3 framec_tests/runner/frame_test_runner.py --languages python --categories language_specific_python --framec ./target/release/framec
 
 # Language-specific tests only
 python3 framec_tests/runner/frame_test_runner.py --languages python --categories language_specific_python --framec ./target/release/framec
@@ -123,7 +123,7 @@ python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec
 python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec --transpile-only
 
 # Validator-verified runs (default)
-# The runner now validates every fixture after transpilation using framec's validator.
+# The runner validates every fixture after transpilation using framec's validator.
 # To adjust or disable validation:
 python3 framec_tests/runner/frame_test_runner.py \
   --languages python typescript \
@@ -135,7 +135,7 @@ python3 framec_tests/runner/frame_test_runner.py \
 python3 framec_tests/runner/frame_test_runner.py --no-validate --languages python --framec ./target/release/framec
 ```
 
-**Single File Testing:**
+**Single File Testing (transpile):**
 ```bash
 # Python target
 ./target/release/framec -l python_3 path/to/test.frm
@@ -149,20 +149,9 @@ python3 framec_tests/runner/frame_test_runner.py --no-validate --languages pytho
 
 ### Test Categories
 
-**Common Tests (Cross-Language):**
-- **systems**: Core state machine functionality (200+ tests)
-- **data_types**: Collections, dictionaries, lists (66+ tests)
-- **control_flow**: Conditionals, loops, multifile (49+ tests)
-- **scoping**: Variable scoping and resolution (45+ tests)
-- **core**: State management and transitions (31+ tests)
-- **operators**: Language operators and expressions (16+ tests)
-- **negative**: Error handling and validation (13+ tests)
-- **regression**: Bug prevention tests (7+ tests)
-
-**Language-Specific Tests:**
+**Language-Specific Tests (primary):**
 - **language_specific_python**: Python-specific features and external APIs
 - **language_specific_typescript**: TypeScript-specific features and external APIs
-- **language_specific_llvm**: LLVM backend smoke tests (runtime wiring, struct layout, basic dispatch)
 
 **External API Test Structure:**
 - Language-specific external API tests demonstrate proper Frame integration with:
@@ -198,6 +187,16 @@ cargo build --release
 ```
 
 ## Code Patterns
+
+### Going Native (Bodies + Directives)
+- Actions/operations: native‑only; use `system.return` for return assignment.
+- Event handlers: native bodies with SOL‑anchored Frame statements interleaved (MixedBody); MIR glue emits deterministic returns and transitions.
+- No inline `#[target: …]` annotations in source (scanner errors); per-target segmentation handles native islands.
+
+### Validation
+- Structural rules include transitions_terminal: terminal directives must be last in a handler body.
+- PythonNativePolicy prevents legacy brace-style control and `var` inside Python bodies.
+- Negative patterns exist for nested function declarations and other intentionally bad constructs.
 
 ### Parser Patterns
 ```rust

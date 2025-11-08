@@ -103,7 +103,7 @@ Normalization invariants to keep across targets:
 ## 7) Operations vs Actions
 
 7.1 Semantics
-- Actions: side‑effecting helpers intended to be called from handlers/operations; may contain transitions/forward/stack directives.
+- Actions: side‑effecting helpers intended to be called from handlers/operations; may contain transitions/forward/stack Frame statements.
 - Operations: logically pure (recommended), but we won’t enforce purity; may call actions; transitions here are allowed but discouraged (warn).
 
 7.2 MixedBody policy
@@ -201,14 +201,14 @@ Normalization invariants to keep across targets:
 - C++ `->` pointer deref vs Frame `-> $`.
 
 15.5 Preprocessor/macros (C/C++)
-- Do not segment Frame directives inside macro bodies; SOL detection under macro expansions should be disabled.
+- Do not segment Frame statements inside macro bodies; SOL detection under macro expansions should be disabled.
 
 ## 16) Validation Matrix (TCK‑style)
 
 - Handler lifecycle: run‑to‑completion, transitions, returns, forward, push/pop
 - Interface returns (default vs set by handler)
 - Nested transitions/forwards
-- MixedBody with multiple segments and directives
+- MixedBody with multiple segments and Frame statements
 - Async handler behavior (Py/TS)
 - Multi‑file TS linking (shared runtime import)
 - Error propagation from native exceptions
@@ -232,4 +232,3 @@ Normalization invariants to keep across targets:
 - Make MixedBody authoritative; remove residual handler “statements” path
 - Replace TS MIR glue with SWC AST recipes (B2); keep Python builder but maintain strict mapping
 - Add TCK tests per matrix above; run full Py/TS suites on each change
-

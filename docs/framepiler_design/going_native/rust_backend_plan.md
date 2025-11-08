@@ -19,6 +19,22 @@ Deliver a first‑class Rust target that generates idiomatic Rust code while pre
   - Option B (longer‑term): factor a Rust‑native runtime crate used directly by generated code.
 - Mirror LLVM smoke coverage first to validate semantics.
 
+## Safe Wrapper Design
+- Types
+  - Opaque handles: `pub struct Event(NonNull<c_void>);`, `pub struct Compartment(NonNull<c_void>);`, `pub struct Kernel(NonNull<c_void>);`
+  - Strings: `&str` → `CString` (copy in); getters return `&CStr` or copy to `String`.
+- API shape (examples)
+  - `impl Event { fn new(msg: &str) -> Result<Self, Error>; fn push_i32(&mut self, v: i32); /* push_double/bool/cstring */ }`
+  - `impl Compartment { fn set_enter_i32(&mut self, key: &str, v: i32); fn clear_enter(&mut self); }`
+  - `impl Kernel { fn dispatch(&mut self, ev: &Event) -> KernelResult; fn set_state(&mut self, name: &str); }`
+- Safety rules
+  - No panics across FFI; map to `Result`.
+  - Enforce drop order (`Drop` impls calling frees); `Send/Sync` not implemented unless proven safe.
+
+## Linking Notes (Runner)
+- `rustc` single‑file: pass `-L <runtime_dir> -l frame_runtime_llvm` and set rpath via `-C link-args` for portability.
+- `cargo` multifile: use `build.rs` with `cargo:rustc-link-search`, `cargo:rustc-link-lib`, and platform rpath flags.
+
 ## Phase 0 — Prerequisites (1–2 days)
 - Support module
   - Add a tiny `frame_runtime_rs` shim (or inline module) that provides safe Rust wrappers over the C ABI (events, compartments, kernel, stack, prints).
@@ -80,4 +96,3 @@ Deliver a first‑class Rust target that generates idiomatic Rust code while pre
 - `runtime/llvm`: confirm C ABI sufficiency or add a thin Rust crate.
 - `framec_tests/runner/frame_test_runner.py`: add rust compile/execute path.
 - Docs: Rust body grammar + this plan.
-

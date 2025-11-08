@@ -121,6 +121,9 @@
 - **Grammar**: `grammar.md` - Complete BNF specification (v0.56)
 - **Dev Notes**: `dev_notes.md` - Version history and features
 
+### Going Native Roadmap
+- **Roadmap**: `docs/framepiler_design/going_native/roadmap.md` — phased plan for native targets and shared debug infrastructure
+
 ### Achievement Documents
 - **Location**: `docs/`
 - **Files**: `v0.30_achievements.md` through `v0.56_achievements.md`

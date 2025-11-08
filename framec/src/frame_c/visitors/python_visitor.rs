@@ -85,7 +85,6 @@ impl PythonVisitor {
     fn emit_mixed_body(&mut self, items: &[MixedBodyItem]) -> bool {
         let mut generated = false;
         let mut last_native_indent_opt: Option<usize> = None; // track indentation from preceding native lines
-        let mut last_header_indent_opt: Option<usize> = None; // track indent of the most recent header line ending with ':'
         let mut after_terminal_dir = false; // after transition/forward/stack, suppress native body except headers
 
         // Helper to peek the next non-empty native line's (indent, trimmed text)
@@ -134,6 +133,38 @@ impl PythonVisitor {
             }
             None
         };
+        // Helper to peek the previous header line (ending with ':') absolute indent
+        let prev_header_indent = |from: usize| -> Option<usize> {
+            let mut i = from as isize - 1;
+            while i >= 0 {
+                match &items[i as usize] {
+                    MixedBodyItem::NativeText { text, .. } => {
+                        for line in text.lines().rev() {
+                            let t = line.trim_end();
+                            if t.trim().is_empty() { continue; }
+                            if t.ends_with(':') {
+                                let lead = line.chars().take_while(|c| c.is_whitespace()).count();
+                                return Some(lead);
+                            }
+                        }
+                    }
+                    MixedBodyItem::NativeAst { ast, .. } => {
+                        let s = ast.to_source();
+                        for line in s.lines().rev() {
+                            let t = line.trim_end();
+                            if t.trim().is_empty() { continue; }
+                            if t.ends_with(':') {
+                                let lead = line.chars().take_while(|c| c.is_whitespace()).count();
+                                return Some(lead);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                i -= 1;
+            }
+            None
+        };
 
         for (idx, it) in items.iter().enumerate() {
             match it {
@@ -164,7 +195,6 @@ impl PythonVisitor {
                             let lead = last.chars().take_while(|c| c.is_whitespace()).count();
                             let ends_with_colon = last.trim_end().ends_with(':');
                             last_native_indent_opt = Some(if ends_with_colon { lead + 4 } else { lead });
-                            if ends_with_colon { last_header_indent_opt = Some(lead); }
                         }
                         self.emit_target_source_with_metadata(
                             code,
@@ -200,7 +230,6 @@ impl PythonVisitor {
                             let lead = last.chars().take_while(|c| c.is_whitespace()).count();
                             let ends_with_colon = last.trim_end().ends_with(':');
                             last_native_indent_opt = Some(if ends_with_colon { lead + 4 } else { lead });
-                            if ends_with_colon { last_header_indent_opt = Some(lead); }
                         }
                         self.emit_target_source_with_metadata(
                             text,
@@ -305,19 +334,11 @@ impl PythonVisitor {
                             self.builder.map_next(*frame_line);
                             // compute relative indent to the current builder baseline
                             let base_cols = self.builder.current_indent_level() * self.builder.indent_unit_width();
-                            let rel_prev = prev_native_indent(idx).map(|abs| abs.saturating_sub(base_cols));
-                            let rel_last = last_native_indent_opt.map(|abs| abs.saturating_sub(base_cols));
-                            let mut rel = rel_last.or(rel_prev).unwrap_or(4);
-                            // Check if the next native line is an elif/else header; if so, emit inside the prior block
-                            let mut header_adjust_rel: Option<usize> = None;
-                            if let Some((_n_indent, t)) = next_native_line(idx) {
-                                if (t.starts_with("elif ") || t == "else:") && last_header_indent_opt.is_some() {
-                                    let h = last_header_indent_opt.unwrap();
-                                    header_adjust_rel = Some((h + 4).saturating_sub(base_cols));
-                                }
-                            }
-                            if let Some(adj) = header_adjust_rel { rel = adj; }
-                            let prefix = " ".repeat(rel);
+                            let rel_spaces = last_native_indent_opt.map(|abs| abs.saturating_sub(base_cols)).unwrap_or(4);
+                            let suite_prefix = " ".repeat(rel_spaces);
+                            // Always create a safe nested suite to preserve upstream headers (elif/else)
+                            self.builder.writeln(&format!("{}if True:", suite_prefix));
+                            let inner_prefix = format!("{}    ", suite_prefix);
                             if let Some(raw) = expr_opt {
                                 // Minimal normalization: true/false/null → True/False/None
                                 let norm = match raw.trim() {
@@ -326,23 +347,15 @@ impl PythonVisitor {
                                     "null" => "None".to_string(),
                                     other => other.to_string(),
                                 };
-                                self.builder.writeln(&format!("{}self.return_stack[-1] = {}", prefix, norm));
+                                self.builder.writeln(&format!("{}self.return_stack[-1] = {}", inner_prefix, norm));
                             }
-                            // Avoid duplicate or misplaced returns:
-                            // - if the next native line starts with 'return', skip our bare return
-                            // - if next line starts with 'elif' or 'else:', adjust indent to one level deeper than that header
-                            // Default to emitting a bare return; we only suppress it if the next native line is an explicit 'return'.
+                            // Avoid duplicate or misplaced returns: skip if next native line is a native 'return'
                             let mut emit_bare_return = true;
-                            if let Some((n_indent, t)) = next_native_line(idx) {
-                                if t.starts_with("return") {
-                                    emit_bare_return = false;
-                                } else if t.starts_with("elif ") || t.starts_with("else:") {
-                                    // Emit 'return' inside the preceding if/else block
-                                    // keep emit_bare_return = false to avoid duplicate returns
-                                }
+                            if let Some((_n_indent, t)) = next_native_line(idx) {
+                                if t.starts_with("return") { emit_bare_return = false; }
                             }
                             if emit_bare_return {
-                                self.builder.writeln(&format!("{}return", prefix));
+                                self.builder.writeln(&format!("{}return", inner_prefix));
                             }
                         }
                     }

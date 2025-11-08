@@ -34,6 +34,13 @@ Enable a C++ target that generates portable C++ (baseline C++14/C++17) and links
 - Mixed bodies
   - Interleave C++ native statements with Frame MIR expansions; preserve ordering.
 
+## RAII Wrapper Helpers
+- Create lightweight wrappers in `frame_runtime_cpp.hpp`:
+  - `struct Event { Event(const char* msg); ~Event(); void push(int32_t); void push(double); void push(bool); void push(const std::string&); /* getters */ void* raw() const; };`
+  - `struct Compartment { explicit Compartment(const char* state); ~Compartment(); void set_enter(const char* key, int32_t); void clear_enter(); void* raw() const; };`
+  - `struct Kernel { explicit Kernel(Compartment&&); ~Kernel(); int dispatch(const Event&); void set_state(const std::string&); /* next_event, stack ops */ void* raw() const; };`
+- Keep wrappers `noexcept`; map C API status codes to integers/enums; do not throw across the C boundary.
+
 ## Phase 2 — Runner + Fixtures (2–3 days)
 - Runner
   - Add `cpp` language option; compile with `clang++` linking `frame_runtime_llvm`.
@@ -72,4 +79,3 @@ Enable a C++ target that generates portable C++ (baseline C++14/C++17) and links
 - `runtime/llvm`: headers and stable C API.
 - `framec_tests/runner/frame_test_runner.py`: add `cpp` compile/execute path.
 - Docs: C++ body grammar + this plan.
-

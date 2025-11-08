@@ -1,14 +1,15 @@
 # Frame Language Transpiler
 
-This project contains the code for building the Frame Language Transpiler - the **Framepiler**. The Framepiler is written in Rust and transpiles Frame specification documents into Python, TypeScript, Graphviz (DOT), and LLVM IR (native backend scaffolding).
+The Framepiler compiles Frame state machines to native targets (Python, TypeScript, GraphViz). It is written in Rust.
 
-**Current Version**: v0.86.25  
-**Test Framework**: Unified multi-language testing (913 total tests, enforced in CI)  
-**Python Tests**: 98.5% execution (latest full run)  
-**TypeScript Tests**: 100% transpile+validate (execution in progress)  
-**LLVM Smoke Tests**: 100% execution (18/18)  
-**Rust Version**: 1.89.0 (2025-08-04)  
-**Last Updated**: 2025-10-28
+Start here:
+- Developer guide: docs/HOW_TO.md
+- Architecture: docs/framepiler_design/architecture.md
+- Documentation index: docs/README.md
+
+**Current Version**: v0.86.25
+**Branch**: going_native
+**Focus**: Native‑first bodies, SOL‑anchored Frame statements in handlers, strong validation. LLVM is on indefinite hold.
 
 ## Runtime & Interfaces
 
@@ -28,7 +29,12 @@ Keep language behavior in the runtime, and use FID + native modules for capabili
 | Python | `frame_runtime_py` | Generated Python files import `from frame_runtime_py import FrameEvent, FrameCompartment`; `framec` and `frame_build` drop the package automatically next to emitted code (single-file CLI runs embed a minimal fallback). |
 | TypeScript | `frame_runtime_ts` | Multi-file TypeScript builds emit `import { … } from "./frame_runtime_ts"`; the CLI and `frame_build` copy `frame_runtime_ts/index.ts` into the output directory, while single-file generation still embeds the bundle for convenience. |
 
-## Current Focus (v0.86.25) 🛠️ Native Backend Readiness
+## Current Focus — Going Native
+- Native bodies by default; MixedBody is authoritative only in event handlers.
+- Actions/operations are native‑only; `system.return` is supported for return assignment.
+- SOL‑anchored directives in handlers: `->`, `=> $^`, `$$[+/-]`, `system.return`.
+- Per‑language body boundary via DPDAs (TS template/backtick‑aware, Py triple‑quote/f‑string‑aware).
+- Validation: transitions must be terminal (enforced), Python native policy, negative pattern checks.
 - LLVM runtime stores event payloads as typed `StateValue`s so queue replay, parent forwarding, and enter hooks preserve interface arguments.
 - Builder surfaces interface metadata to `SystemSummary`, enabling both handler generation and main-function calls to coerce arguments correctly.
 - LLVM smoke suite expanded to 18 fixtures covering state/enter args, parent forwarding, event parameters, and multi-pop stack semantics.
@@ -45,7 +51,20 @@ Keep language behavior in the runtime, and use FID + native modules for capabili
 - **LLVM Backend (Phase 1 preview):** `framec -l llvm` emits LLVM IR with system structs, event dispatch, print lowering, and state transitions, providing a foundation for the native backend roadmap.
 - **LLVM Runtime (Week 8 scaffold):** `runtime/llvm` now ships the minimal FrameRuntime ABI (`frame_runtime_llvm`) so the backend can link against shared event/compartment helpers while the kernel evolves.
 
-## Previous Features (v0.85.4) ✅ BUG #50 PARSER ERROR HANDLING COMPLETE!
+## Roadmap
+
+- Going Native Roadmap: docs/framepiler_design/going_native/roadmap.md
+
+## Quick Tests
+
+```bash
+cargo build --release
+python3 framec_tests/runner/frame_test_runner.py --languages python typescript --framec ./target/release/framec
+```
+
+---
+
+## Previous Features (archive)
 
 ### Critical Parser Error Handling Fix
 - **Bug #50 Resolution**: Fixed misleading error messages that masked real parsing problems.
