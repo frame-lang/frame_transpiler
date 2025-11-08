@@ -433,8 +433,11 @@ impl Scanner {
             }
             '&' => {
                 if self.match_char('&') {
-                    // && is no longer supported - use 'and' keyword instead
-                    self.error(self.line, "Use 'and' keyword instead of '&&' operator");
+                    // In TypeScript targets, '&&' is valid inside native regions. Do not error here.
+                    if !matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                        self.error(self.line, "Use 'and' keyword instead of '&&' operator");
+                    }
+                    // No token emission needed; native region handling will own this content.
                 } else if self.match_char('|') {
                     // &| operator has been removed - use '^' operator instead
                     self.error(

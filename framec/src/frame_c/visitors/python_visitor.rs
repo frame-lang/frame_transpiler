@@ -2819,15 +2819,17 @@ impl PythonVisitor {
                 target_language, line_count, frame_start_line, frame_end_line
             )
         };
-        self.builder.write_comment(&comment);
+        if !matches!(target_language, TargetLanguage::Python3) {
+            self.builder.write_comment(&comment);
+        }
 
-        // Compute minimal common indentation across non-empty lines
-        let mut min_indent: Option<usize> = None;
+        // Compute baseline indentation from the first non-empty line only (preserve relative indents)
+        let mut base_indent: Option<usize> = None;
         for l in &lines {
-            let trimmed = l.trim_end();
-            if trimmed.trim().is_empty() { continue; }
+            if l.trim().is_empty() { continue; }
             let count = l.chars().take_while(|c| c.is_whitespace()).count();
-            min_indent = Some(match min_indent { Some(v) => v.min(count), None => count });
+            base_indent = Some(count);
+            break;
         }
 
         for (offset, line) in lines.iter().enumerate() {
@@ -2837,29 +2839,26 @@ impl PythonVisitor {
                 self.builder.newline();
                 continue;
             }
-            let out = if let Some(indent) = min_indent {
-                // Slice away 'indent' leading whitespace characters (by char count)
-                let mut ch_count = 0usize;
-                let mut start_idx = 0usize;
-                for (i, ch) in line.char_indices() {
-                    if ch.is_whitespace() && ch_count < indent {
-                        ch_count += 1;
-                        continue;
-                    }
-                    start_idx = i;
-                    break;
-                }
-                &line[start_idx..]
-            } else {
-                line
-            };
+            // Preserve relative indentation: compute additional spaces beyond the baseline
+            let (additional_spaces, body_start_idx) = if let Some(bi) = base_indent {
+                let mut lead = 0usize; let mut idx = 0usize;
+                for (i, ch) in line.char_indices() { if ch.is_whitespace() { lead += 1; continue; } idx = i; break; }
+                (lead.saturating_sub(bi), idx)
+            } else { (0usize, 0usize) };
+            let body = &line[body_start_idx..];
             // Pseudo-symbol rewrite: system.return → self.return_stack[-1]
-            let out_rewritten = if matches!(target_language, TargetLanguage::Python3) {
-                out.replace("system.return", "self.return_stack[-1]")
+            let body_rewritten = if matches!(target_language, TargetLanguage::Python3) {
+                body.replace("system.return", "self.return_stack[-1]")
             } else {
-                out.to_string()
+                body.to_string()
             };
-            self.builder.writeln_mapped(&out_rewritten, mapping_line);
+            if matches!(target_language, TargetLanguage::Python3) {
+                // Avoid per-line mapping comments; write with preserved relative indentation
+                let prefix = " ".repeat(additional_spaces);
+                self.builder.writeln(&format!("{}{}", prefix, body_rewritten));
+            } else {
+                self.builder.writeln_mapped(&body_rewritten, mapping_line);
+            }
         }
     }
 

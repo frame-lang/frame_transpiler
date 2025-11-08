@@ -4835,7 +4835,8 @@ impl<'a> Parser<'a> {
         // For Python target bodies, avoid parsing native lines as Frame; TypeScript uses statements() skip path.
         let mut statements = Vec::new();
         let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
-        let mut mixed_native_opt: Option<(TargetLanguage, String, usize, usize)> = None;
+        // Note: reserved for potential MixedBody assembly in this context; currently unused.
+        let mut _mixed_native_opt: Option<(TargetLanguage, String, usize, usize)> = None;
         if matches!(self.target_language, Some(TargetLanguage::Python3)) {
             // Skip tokens until matching '}' without consuming the closing brace
             let mut depth: i32 = 1; // already consumed '{'
@@ -4878,8 +4879,8 @@ impl<'a> Parser<'a> {
                         target_line_offsets: Vec::new(),
                     },
                 };
-                // Remember native slice to build MixedBody if not segmented
-                mixed_native_opt = Some((region.target.clone(), region.raw_content.clone(), start_line, end_line));
+                // Remember native slice to build MixedBody if not segmented (currently unused in this context)
+                _mixed_native_opt = Some((region.target.clone(), region.raw_content.clone(), start_line, end_line));
                 // For Python operations, parse native-only region for validation
                 if let Ok(ast) = parse_target_region(region.target, &region) {
                     parsed_target_blocks.push(ParsedTargetBlock {
@@ -6856,7 +6857,9 @@ impl<'a> Parser<'a> {
                 }
             }
             Err(eh_error) => {
-                eprintln!("Warning: First event handler parsing failed: {}", eh_error);
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("Warning: First event handler parsing failed: {}", eh_error);
+                }
                 // Use improved error recovery but don't abort
             }
         }
@@ -6981,10 +6984,14 @@ impl<'a> Parser<'a> {
                 }
                 Err(eh_error) => {
                     if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                        eprintln!("DEBUG: Event handler parsing failed: {}", eh_error);
+                        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                            eprintln!("DEBUG: Event handler parsing failed: {}", eh_error);
+                        }
                     }
 
-                    eprintln!("Warning: Event handler parsing failed: {}", eh_error);
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("Warning: Event handler parsing failed: {}", eh_error);
+                    }
                     error_count += 1;
 
                     // PHASE 4 FIX: Improved error recovery with counter to prevent infinite loops
@@ -16253,11 +16260,15 @@ impl<'a> Parser<'a> {
                 if self.arcanum.has_expected_native_function(name)
                     && !self.arcanum.has_registered_native_function(name)
                 {
-                    let message = format!(
-                        "Native helper '{}' is imported for this target but no declaration was loaded. Run `framec fid import` for the active target and retry.",
-                        name
-                    );
-                    self.error_at(&call_expr_node.identifier.name, &message);
+                    // Do not require FID for Python standard/native imports; allow calling imported helpers.
+                    let is_python = matches!(self.target_language, Some(TargetLanguage::Python3));
+                    if !is_python {
+                        let message = format!(
+                            "Native helper '{}' is imported for this target but no declaration was loaded. Run `framec fid import` for the active target and retry.",
+                            name
+                        );
+                        self.error_at(&call_expr_node.identifier.name, &message);
+                    }
                 }
             }
         }
@@ -16475,7 +16486,9 @@ impl<'a> Parser<'a> {
         }
 
         // Report the original error but continue parsing
-        eprintln!("Warning: Event handler parsing failed: {}", error);
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("Warning: Event handler parsing failed: {}", error);
+        }
 
         // Look for the next event handler or state boundary
         // We want to find: next event handler, state end, actions/domain blocks, or system end
