@@ -332,6 +332,48 @@ enum CallType {
 }
 
 impl<'a> Parser<'a> {
+    fn map_ts_detection_failure(&self, failure: &DetectionFailure, body_start_line: usize) -> ParseError {
+        match failure {
+            DetectionFailure::UnterminatedTemplateLiteral { start_line } => {
+                ParseError::new("Unterminated template literal in TypeScript body")
+                    .with_frame_line(body_start_line)
+                    .with_target_context(TargetLanguage::TypeScript, *start_line, None, None)
+            }
+            DetectionFailure::UnterminatedBlockComment { start_line } => {
+                ParseError::new("Unterminated block comment (/* ... */) in TypeScript body")
+                    .with_frame_line(body_start_line)
+                    .with_target_context(TargetLanguage::TypeScript, *start_line, None, None)
+            }
+            DetectionFailure::UnterminatedString { kind, start_line } => {
+                let msg = format!("Unterminated string literal {} in TypeScript body", kind);
+                ParseError::new(&msg)
+                    .with_frame_line(body_start_line)
+                    .with_target_context(TargetLanguage::TypeScript, *start_line, None, None)
+            }
+        }
+    }
+
+    fn map_py_detection_failure(&self, failure: &DetectionFailure, body_start_line: usize) -> ParseError {
+        match failure {
+            DetectionFailure::UnterminatedTemplateLiteral { start_line } => {
+                // Not applicable to Python; treat as generic unterminated construct
+                ParseError::new("Unterminated construct in Python body")
+                    .with_frame_line(body_start_line)
+                    .with_target_context(TargetLanguage::Python3, *start_line, None, None)
+            }
+            DetectionFailure::UnterminatedBlockComment { start_line } => {
+                ParseError::new("Unterminated block comment in Python body")
+                    .with_frame_line(body_start_line)
+                    .with_target_context(TargetLanguage::Python3, *start_line, None, None)
+            }
+            DetectionFailure::UnterminatedString { kind, start_line } => {
+                let msg = format!("Unterminated string literal {} in Python body", kind);
+                ParseError::new(&msg)
+                    .with_frame_line(body_start_line)
+                    .with_target_context(TargetLanguage::Python3, *start_line, None, None)
+            }
+        }
+    }
     pub(crate) fn new(
         tokens: &'a [Token],
         comments: &'a mut Vec<Token>,
@@ -5008,8 +5050,10 @@ impl<'a> Parser<'a> {
                     }
                 }
                 if has_backtick {
-                    let close_line = self.scan_ts_closing_brace_line(body_start_line);
-                    let _ = self.consume_close_brace_at_line(close_line)?;
+                    match self.detect_ts_close_or_failure(body_start_line) {
+                        DetectionResult::Ok { close_line } => { let _ = self.consume_close_brace_at_line(close_line)?; }
+                        DetectionResult::Failure(f) => { return Err(self.map_ts_detection_failure(&f, body_start_line)); }
+                    }
                 } else {
                     // token-depth skip to matching '}', then consume it (tolerate trailing // on same line)
                     let mut depth: i32 = 1;
@@ -7605,8 +7649,10 @@ impl<'a> Parser<'a> {
                     }
                 }
                 if has_backtick {
-                    let close_line = self.scan_ts_closing_brace_line(body_start_line);
-                    let _ = self.consume_close_brace_at_line(close_line)?;
+                    match self.detect_ts_close_or_failure(body_start_line) {
+                        DetectionResult::Ok { close_line } => { let _ = self.consume_close_brace_at_line(close_line)?; }
+                        DetectionResult::Failure(f) => { return Err(self.map_ts_detection_failure(&f, body_start_line)); }
+                    }
                 } else {
                     // Fallback: token-depth skip to matching '}'
                     let mut depth: i32 = 1;
