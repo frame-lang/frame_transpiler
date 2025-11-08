@@ -1029,6 +1029,8 @@ def main():
                        choices=['human','json','junit'],
                        help='Validator output format')
     parser.add_argument('--output', '-o', help='Output JSON report to file')
+    parser.add_argument('--index', dest='index_path', default=str(Path(__file__).parent.parent / 'TEST_INDEX.json'), help='Path to test index JSON')
+    parser.add_argument('--update-index', dest='update_index', action='store_true', help='Update the test index with actual results')
     parser.add_argument('--timeout', type=int, default=10,
                        help='Timeout for each test in seconds')
     
@@ -1057,6 +1059,61 @@ def main():
         with open(args.output, 'w') as f:
             json.dump(report, f, indent=2)
         print(f"\nReport saved to {args.output}")
+
+    # Compare/update index
+    try:
+        index_path = Path(args.index_path) if args.index_path else None
+        if index_path:
+            if index_path.exists():
+                with index_path.open('r') as f:
+                    index = json.load(f)
+            else:
+                index = {"metadata": {"version": 1, "active_languages": config.languages, "on_hold": ["llvm"], "policy": "All fixtures are target‑native; LLVM on hold."}, "tests": {}}
+
+            # Fold actuals by category/filename key
+            actuals = {}
+            for r in results:
+                p = Path(r.file)
+                if runner.common_tests_dir in p.parents:
+                    rel_key = f"{p.parent.name}/{p.name}"
+                elif runner.language_specific_dir in p.parents:
+                    rel_key = f"{p.parts[-2]}/{p.name}"
+                else:
+                    rel_key = p.name
+                actuals.setdefault(rel_key, {})[r.language] = {
+                    "transpile": r.transpile_success,
+                    "validate": r.validation_success if config.validate else True,
+                    "execute": r.execute_success if config.execute and not runner.is_infinite_loop_test(p) else True,
+                    "negative": r.is_negative_test,
+                    "infinite": runner.is_infinite_loop_test(p),
+                }
+
+            diffs = []
+            for key, langs in actuals.items():
+                exp_entry = index.get('tests', {}).get(key, {})
+                for lang, vals in langs.items():
+                    exp_vals = exp_entry.get(lang)
+                    if exp_vals != vals:
+                        diffs.append((key, lang, exp_vals, vals))
+
+            if diffs:
+                print(f"\nIndex comparison: {len(diffs)} differences")
+                if args.verbose:
+                    for key, lang, exp, got in diffs[:50]:
+                        print(f"  - {key} [{lang}] expected={exp} actual={got}")
+            else:
+                print("\nIndex comparison: no differences")
+
+            if args.update_index:
+                idx_tests = index.setdefault('tests', {})
+                for key, langs in actuals.items():
+                    entry = idx_tests.setdefault(key, {})
+                    entry.update(langs)
+                with index_path.open('w') as f:
+                    json.dump(index, f, indent=2)
+                print(f"Updated index: {index_path}")
+    except Exception as e:
+        print(f"Warning: index processing failed: {e}")
     
     # Exit with error if any tests failed (didn't behave as expected)
     all_success = all((not r.is_negative_test and not runner.is_infinite_loop_test(Path(r.file)) and r.transpile_success and (not config.execute or r.execute_success)) or

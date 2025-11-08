@@ -1,0 +1,10 @@
+{
+  "metadata": {
+    "version": 1,
+    "active_languages": ["python", "typescript"],
+    "on_hold": ["llvm"],
+    "policy": "All fixtures are target‑native; LLVM target on indefinite hold."
+  },
+  "tests": {}
+}
+

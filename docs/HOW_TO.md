@@ -25,7 +25,7 @@ Frame is a state machine language that transpiles to multiple target languages (
 - **Version**: v0.86.25
 - **Branch**: `dev`
 - **Test Success Rate**: 100% execution (913 total specs: 462 Python + 433 TypeScript + 18 LLVM smoke tests)
-- **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz, experimental LLVM IR emitter
+- **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz. LLVM target is on indefinite hold.
 - **Recent Achievement**: LLVM backend now transports typed interface arguments through queues/parent forwards, main-function interface calls accept domain expressions, and stack multi-pop semantics are covered by new smoke fixtures.
 
 ## Architecture
@@ -107,12 +107,8 @@ python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./t
 # All TypeScript tests (including TypeScript-specific external API tests)
 python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec
 
-# LLVM smoke tests (links against runtime/llvm)
-python3 framec_tests/runner/frame_test_runner.py --languages llvm --categories language_specific_llvm --framec ./target/release/framec
-
-> **Note:** LLVM validation requires `clang` in `PATH` and the `frame_runtime_llvm` crate. The test runner will build the runtime automatically if the shared library is missing.
-
-> **CI**: GitHub Actions installs `clang` (Ubuntu runners) and runs the LLVM smoke suite in addition to Python/TypeScript categories to guard native backend regressions.
+# LLVM on hold
+> LLVM backend work is paused. Do not run or maintain LLVM smoke tests. The backend and runtime remain in the tree but are not an active target for development.
 
 # Specific categories (common tests only)
 python3 framec_tests/runner/frame_test_runner.py --languages python --categories regression --framec ./target/release/framec

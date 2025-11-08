@@ -1,6 +1,8 @@
 # Frame Transpiler Architecture (Authoritative)
 
-Status: Authoritative design reference for the current and in‑flight architecture (MixedBody/MIR — “B2”).  
+Status: Authoritative design reference for the current and in‑flight architecture (MixedBody/MIR — “B2”).
+
+Note on targets: LLVM is on indefinite hold. Do not plan new work on the LLVM target or runtime. All current focus is on Python and TypeScript with native bodies and SOL‑anchored Frame statements.
 Last updated: 2025‑11‑06
 
 This document is the single source of truth for the Frame compiler pipeline, terminology, and component responsibilities. Older sections below are retained as legacy context; the “Authoritative Architecture” sections supersede them.
