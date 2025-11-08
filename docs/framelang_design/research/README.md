@@ -45,3 +45,5 @@ This folder hosts design RFCs for Frame language and semantics.
 
 ## Index
 - RFC‑0001 — Nested HSM Syntax (this repo): RFC-0001-nested-hsm-syntax.md
+- RFC‑0002 — Event Phases (Capture/Target/Bubble) and Propagation: RFC-0002-event-phases.md
+- RFC‑0003 — Interface Guards, Deny Semantics, and Explicit Dispatch: RFC-0003-interface-guards.md

@@ -1,4 +1,5 @@
 use super::{BodySegment, FrameStmtKind};
+use crate::frame_c::region_scanner::{RegionScanner, ScanResult, TsTemplateScanner};
 
 /// Segment a TypeScript native region into Native and Directive segments.
 /// Top-level detection uses a small state machine for strings/comments/template literals.
@@ -16,13 +17,49 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
     }
     let region_lines = &all_lines[s_idx..=e_idx];
 
+    // Precompute char-offsets for each line start to allow RegionScanner (char-based)
+    // to map offsets back to (line, column).
+    fn build_char_line_offsets(src: &str) -> Vec<usize> {
+        let mut offsets = Vec::new();
+        let mut acc = 0usize;
+        for part in src.split_inclusive('\n') {
+            offsets.push(acc);
+            acc += part.chars().count();
+        }
+        if !src.ends_with('\n') {
+            offsets.push(acc);
+        }
+        offsets
+    }
+    fn char_offset_of(line_1: usize, col_bytes: usize, lines: &[&str], char_line_offsets: &[usize]) -> usize {
+        let idx = line_1.saturating_sub(1);
+        let base = *char_line_offsets.get(idx).unwrap_or(&0);
+        let slice = lines.get(idx).copied().unwrap_or("");
+        let chars_before = slice.get(0..col_bytes).unwrap_or("").chars().count();
+        base + chars_before
+    }
+    fn line_col_from_char_offset(char_line_offsets: &[usize], target: usize, all_src: &str) -> (usize, usize) {
+        // Binary search last offset <= target
+        let mut lo = 0usize;
+        let mut hi = if all_src.ends_with('\n') { char_line_offsets.len().saturating_sub(1) } else { char_line_offsets.len().saturating_sub(1) };
+        while lo + 1 < hi {
+            let mid = (lo + hi) / 2;
+            if char_line_offsets[mid] <= target { lo = mid; } else { hi = mid; }
+        }
+        let line_1 = lo + 1;
+        let start_off = char_line_offsets[lo];
+        let col_chars = target.saturating_sub(start_off);
+        (line_1, col_chars)
+    }
+
+    let char_line_offsets = build_char_line_offsets(source);
+
     // State flags
     let mut in_squote = false;
     let mut in_dquote = false;
     // line-comment flag is scoped per line
     let mut in_block_comment = false;
-    let mut in_template = false; // inside backtick string
-    let mut tpl_expr_depth = 0; // ${ ... } nesting
+    let mut in_template = false; // inside backtick string (skipped via TsTemplateScanner)
     let mut brace_depth: i32 = 0; // top-level within region when 0
 
     let mut segments: Vec<BodySegment> = Vec::new();
@@ -59,7 +96,7 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
         }
     }
 
-    for i in 0..region_lines.len() {
+    for mut i in 0..region_lines.len() {
         let frame_ln = start_line + i; // actual frame line for this region line
         let line = region_lines[i];
 
@@ -111,9 +148,43 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                     continue;
                 }
                 if ch == '`' {
-                    in_template = true;
-                    j += 1;
-                    continue;
+                    // Use RegionScanner to skip template literal including nested ${...}
+                    let scanner = TsTemplateScanner::new();
+                    let abs_char_off = char_offset_of(frame_ln, j, &all_lines, &char_line_offsets);
+                    match scanner.scan(source, abs_char_off, frame_ln) {
+                        ScanResult::Ok(env) => {
+                            // Jump to just after the closing backtick
+                            let (end_l1, end_col_chars) = line_col_from_char_offset(&char_line_offsets, env.end_offset + 1, source);
+                            // Map to region indices
+                            let new_i = end_l1.saturating_sub(start_line);
+                            if new_i >= 1 && new_i.saturating_sub(1) < i {
+                                // no-op safeguard
+                            }
+                            // Flush any native run up to current line-1 if needed before jumping lines
+                            // (no flush here; we are just skipping content within native)
+                            // Update loop counters to new location
+                            if new_i == i { // same line
+                                // Convert char col to byte index on this line
+                                let prefix: String = region_lines[i][..].chars().take(end_col_chars).collect();
+                                j = prefix.as_bytes().len();
+                            } else {
+                                // Move i to end line and set j accordingly
+                                i = new_i;
+                                // Compute byte index at end_col_chars on new line
+                                let target_line = region_lines.get(i).copied().unwrap_or("");
+                                let prefix: String = target_line.chars().take(end_col_chars).collect();
+                                j = prefix.as_bytes().len();
+                            }
+                            // Continue scanning after skipped template
+                            continue;
+                        }
+                        ScanResult::Failure(_) => {
+                            // Fall back: treat remaining as native and break this line
+                            in_template = true;
+                            j += 1;
+                            continue;
+                        }
+                    }
                 }
             } else {
                 if in_squote {
@@ -143,21 +214,8 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                     continue;
                 }
                 if in_template {
-                    if ch == '$' && j + 1 < bytes.len() && bytes[j + 1] as char == '{' {
-                        tpl_expr_depth += 1;
-                        j += 2;
-                        continue;
-                    }
-                    if ch == '}' && tpl_expr_depth > 0 {
-                        tpl_expr_depth -= 1;
-                        j += 1;
-                        continue;
-                    }
-                    if ch == '`' && tpl_expr_depth == 0 {
-                        in_template = false;
-                        j += 1;
-                        continue;
-                    }
+                    // Should not be reached when RegionScanner is used; but keep as safety net
+                    if ch == '`' { in_template = false; j += 1; continue; }
                     j += 1;
                     continue;
                 }

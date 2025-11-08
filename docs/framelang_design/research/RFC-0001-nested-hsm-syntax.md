@@ -136,6 +136,7 @@ Leaf‑only vs Sugar‑only:
 ## References
 - Core Contract: docs/framelang_design/target_language_specifications/common/core_frame_contract.md
 - Architecture (MixedBody/MIR): docs/framepiler_design/architecture.md
+ - RFC‑0002 — Event Phases (Capture/Target/Bubble) and Propagation: docs/framelang_design/research/RFC-0002-event-phases.md
 
 ### Related Guidance (v1 out of scope but compatible)
 - Orthogonal Regions: model as multiple child machines owned by a parent orchestrator (deterministic routing order). No special runtime needed; each machine keeps its own active configuration.

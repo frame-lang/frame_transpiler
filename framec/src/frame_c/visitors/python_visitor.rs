@@ -339,10 +339,7 @@ impl PythonVisitor {
                             // compute relative indent to the current builder baseline
                             let base_cols = self.builder.current_indent_level() * self.builder.indent_unit_width();
                             let rel_spaces = last_native_indent_opt.map(|abs| abs.saturating_sub(base_cols)).unwrap_or(4);
-                            let suite_prefix = " ".repeat(rel_spaces);
-                            // Always create a safe nested suite to preserve upstream headers (elif/else)
-                            self.builder.writeln(&format!("{}if True:", suite_prefix));
-                            let inner_prefix = format!("{}    ", suite_prefix);
+                            let prefix = " ".repeat(rel_spaces);
                             if let Some(raw) = expr_opt {
                                 // Minimal normalization: true/false/null → True/False/None
                                 let norm = match raw.trim() {
@@ -351,7 +348,7 @@ impl PythonVisitor {
                                     "null" => "None".to_string(),
                                     other => other.to_string(),
                                 };
-                                self.builder.writeln(&format!("{}self.return_stack[-1] = {}", inner_prefix, norm));
+                                self.builder.writeln(&format!("{}self.return_stack[-1] = {}", prefix, norm));
                             }
                             // Avoid duplicate or misplaced returns: skip if next native line is a native 'return'
                             let mut emit_bare_return = true;
@@ -359,9 +356,8 @@ impl PythonVisitor {
                                 if t.starts_with("return") { emit_bare_return = false; }
                             }
                             if emit_bare_return {
-                                self.builder.writeln(&format!("{}return", inner_prefix));
+                                self.builder.writeln(&format!("{}return", prefix));
                             }
-                            after_terminal_dir = true;
                         }
                     }
                     generated = true;

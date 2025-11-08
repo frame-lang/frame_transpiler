@@ -504,6 +504,29 @@ impl<'a> Parser<'a> {
         Err(ParseError::new("Expected '}'"))
     }
 
+    /// Try to consume a CloseBrace '}' at or after the current position, tolerating
+    /// TypeScript-style line comments starting with '//' that may precede it on the same line.
+    /// Returns true if a '}' was consumed.
+    fn try_consume_close_brace_relaxed(&mut self) -> bool {
+        loop {
+            if self.is_at_end() { return false; }
+            if matches!(self.peek().token_type, TokenType::CloseBrace) {
+                let _ = self.consume(TokenType::CloseBrace, "Expected '}'");
+                return true;
+            }
+            // If the current source line begins with //, advance to next line and retry
+            let tk = self.peek().clone();
+            let line = tk.line;
+            if let Some(text) = self.source_lines.get(line.saturating_sub(1)) {
+                if text.trim_start().starts_with("//") {
+                    while !self.is_at_end() && self.peek().line == line { self.advance(); }
+                    continue;
+                }
+            }
+            return false;
+        }
+    }
+
     // Failure characterization for textual closers (module scope)
 
     /// TypeScript: textual detection with failure characterization.
@@ -1748,8 +1771,22 @@ impl<'a> Parser<'a> {
             let mut domain_opt: Option<DomainBlockNode> = None;
 
             while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
-                // Skip line comments that may appear between blocks (Python target)
+                // Skip line comments that may appear between blocks
                 while self.match_token(&[TokenType::PythonComment]) {}
+                if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                    if !self.is_at_end() {
+                        let tk = self.peek().clone();
+                        let line = tk.line;
+                        if let Some(text) = self.source_lines.get(line.saturating_sub(1)) {
+                            if text.trim_start().starts_with("//") {
+                                while !self.is_at_end() && self.peek().line == line {
+                                    self.advance();
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                }
                 match self.peek().token_type {
                     TokenType::OperationsBlock => {
                         if ops_opt.is_none() {
@@ -1821,16 +1858,27 @@ impl<'a> Parser<'a> {
             domain_block_node_opt = self.parse_domain_block()?;
         }
 
-        if !assumed_open_brace && !self.match_token(&[TokenType::CloseBrace]) {
-            if self.peek().lexeme == "$" {
-                let err_msg = &format!(
-                    "Found {} token. Possible missing machine block.",
-                    self.peek().lexeme
-                );
-                self.error_at_current(err_msg);
-            } else {
-                let err_msg = &format!("Expected '}}' - found '{}'. Missing closing brace for previous block or handler.", self.peek().lexeme);
-                self.error_at_current(err_msg);
+        if !assumed_open_brace {
+            // For TypeScript, tolerate trailing // comment lines before the system-closing '}'
+            if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                if !self.try_consume_close_brace_relaxed() {
+                    let err_msg = &format!(
+                        "Expected '}}' - found '{}'. Missing closing brace for previous block or handler.",
+                        self.peek().lexeme
+                    );
+                    self.error_at_current(err_msg);
+                }
+            } else if !self.match_token(&[TokenType::CloseBrace]) {
+                if self.peek().lexeme == "$" {
+                    let err_msg = &format!(
+                        "Found {} token. Possible missing machine block.",
+                        self.peek().lexeme
+                    );
+                    self.error_at_current(err_msg);
+                } else {
+                    let err_msg = &format!("Expected '}}' - found '{}'. Missing closing brace for previous block or handler.", self.peek().lexeme);
+                    self.error_at_current(err_msg);
+                }
             }
         }
 
@@ -4050,6 +4098,26 @@ impl<'a> Parser<'a> {
         let mut actions = Vec::new();
 
         loop {
+            // Skip comments between action declarations
+            // Consume Frame-style and doc comments
+            let _ = self.match_token(&[TokenType::PythonComment, TokenType::MultiLineComment]);
+            // For TypeScript fixtures, treat lines starting with '//' as comments at block level
+            if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                if !self.is_at_end() {
+                    let tk = self.peek().clone();
+                    let line = tk.line;
+                    if let Some(text) = self.source_lines.get(line.saturating_sub(1)) {
+                        if text.trim_start().starts_with("//") {
+                            // Advance tokens until the line changes
+                            while !self.is_at_end() && self.peek().line == line {
+                                self.advance();
+                            }
+                            // Continue skipping on next iteration
+                            continue;
+                        }
+                    }
+                }
+            }
             // v0.37: Check for async keyword before action identifier
             let is_async = self.match_token(&[TokenType::Async]);
 
@@ -4470,7 +4538,7 @@ impl<'a> Parser<'a> {
                 let end_line = body_start_line;
                 (end_line, false)
             } else if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                // Always use textual closer for TS to avoid template/brace ambiguities
+                // TypeScript actions: use textual closer for robustness with templates/comments
                 let close_line = self.scan_ts_closing_brace_line(body_start_line);
                 close_tok_line = self.consume_close_brace_at_line(close_line)?;
                 (close_line.saturating_sub(1), true)
@@ -4660,6 +4728,21 @@ impl<'a> Parser<'a> {
             // As we do peek() checks next we need to consume any
             // comments that preceed them.
             self.match_token(&[TokenType::PythonComment, TokenType::MultiLineComment]);
+            // Additionally, for TypeScript, treat lines starting with '//' as comments at block level
+            if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                if !self.is_at_end() {
+                    let tk = self.peek().clone();
+                    let line = tk.line;
+                    if let Some(text) = self.source_lines.get(line.saturating_sub(1)) {
+                        if text.trim_start().starts_with("//") {
+                            while !self.is_at_end() && self.peek().line == line {
+                                self.advance();
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }
 
             if matches!(
                 self.peek().token_type,
@@ -4913,83 +4996,37 @@ impl<'a> Parser<'a> {
                 }
             }
         } else {
-            // TypeScript: advance cursor to matching '}' using a textual scan to avoid
-            // mistaking template literal braces for block delimiters.
+            // TypeScript: textual closer only if backticks are present; otherwise token-depth fast path
             if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                let source = self.source_text();
-                let all_lines: Vec<&str> = source.lines().collect();
-                let mut in_squote = false;
-                let mut in_dquote = false;
-                let mut in_block_comment = false;
-                let mut in_template = false;
-                let mut tpl_expr_depth = 0i32;
-                let mut brace_depth = 1i32; // already consumed '{'
-                let start = body_start_line.saturating_add(1);
-                let mut close_line = body_start_line; // default to same line for one-liners
-                for idx in (start.saturating_sub(1))..all_lines.len() {
-                    let frame_ln = idx + 1;
-                    let line = all_lines[idx].as_bytes();
-                    let mut j = 0usize;
-                    let mut in_line_comment = false;
-                    while j < line.len() {
-                        let ch = line[j] as char;
-                        if !in_template && !in_squote && !in_dquote && !in_block_comment {
-                            if ch == '/' && j + 1 < line.len() && line[j + 1] as char == '/' {
-                                in_line_comment = true;
-                                break;
-                            }
-                            if ch == '/' && j + 1 < line.len() && line[j + 1] as char == '*' {
-                                in_block_comment = true;
-                                j += 2;
-                                continue;
-                            }
-                            if ch == '\'' { in_squote = true; j += 1; continue; }
-                            if ch == '"' { in_dquote = true; j += 1; continue; }
-                            if ch == '`' { in_template = true; j += 1; continue; }
-                        } else {
-                            if in_block_comment {
-                                if ch == '*' && j + 1 < line.len() && line[j + 1] as char == '/' {
-                                    in_block_comment = false; j += 2; continue;
-                                }
-                                j += 1; continue;
-                            }
-                            if in_squote {
-                                if ch == '\\' { j += 2; continue; }
-                                if ch == '\'' { in_squote = false; j += 1; continue; }
-                                j += 1; continue;
-                            }
-                            if in_dquote {
-                                if ch == '\\' { j += 2; continue; }
-                                if ch == '"' { in_dquote = false; j += 1; continue; }
-                                j += 1; continue;
-                            }
-                            if in_template {
-                                if ch == '$' && j + 1 < line.len() && line[j + 1] as char == '{' { tpl_expr_depth += 1; j += 2; continue; }
-                                if ch == '}' && tpl_expr_depth > 0 { tpl_expr_depth -= 1; j += 1; continue; }
-                                if ch == '`' && tpl_expr_depth == 0 { in_template = false; j += 1; continue; }
-                                j += 1; continue;
-                            }
-                        }
-                        // Outside strings/comments/templates
-                        if ch == '{' { brace_depth += 1; j += 1; continue; }
-                        if ch == '}' { brace_depth -= 1; if brace_depth == 0 { close_line = frame_ln; break; } j += 1; continue; }
-                        j += 1;
+                let look_start = body_start_line.saturating_add(1);
+                let mut has_backtick = false;
+                for ln in look_start..(look_start + 64).min(self.source_lines.len() + 1) {
+                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                        let t = s.trim_start();
+                        if t.starts_with('}') { break; }
+                        if s.contains('`') { has_backtick = true; break; }
                     }
-                    if in_line_comment { /* skip rest of line */ }
-                    if brace_depth == 0 { break; }
                 }
-                // Advance token cursor to just before the computed closing '}' token.
-                while !self.is_at_end() {
-                    let tk = self.peek();
-                    if tk.line < close_line {
+                if has_backtick {
+                    let close_line = self.scan_ts_closing_brace_line(body_start_line);
+                    let _ = self.consume_close_brace_at_line(close_line)?;
+                } else {
+                    // token-depth skip to matching '}', then consume it (tolerate trailing // on same line)
+                    let mut depth: i32 = 1;
+                    let mut last_line = body_start_line;
+                    let mut close_line = body_start_line;
+                    while !self.is_at_end() && depth > 0 {
+                        let tk = self.peek().clone();
+                        match tk.token_type {
+                            TokenType::OpenBrace => depth += 1,
+                            TokenType::CloseBrace => { depth -= 1; if depth == 0 { close_line = tk.line; break; } },
+                            _ => {}
+                        }
+                        last_line = tk.line;
                         self.advance();
-                        continue;
                     }
-                    if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) {
-                        self.advance();
-                        continue;
-                    }
-                    break; // at the closing '}' or beyond
+                    let _ = self.consume_close_brace_at_line(close_line)?;
+                    let _ = last_line;
                 }
                 // leave statements empty for TS native bodies
             } else {

@@ -12,6 +12,7 @@ pub mod marker_linter; // Marker file linting for validation (v0.74)
 mod module_partitioner; // ModulePartitioner: partitions module into Blocks + Regions
 pub mod modules; // Multi-file module system (v0.57)
 mod native_region_segmenter; // NativeRegionSegmenter: segments native regions into Native/Directive slices
+mod region_scanner; // DFA/DPDA region scanners + queue for specialized native parsing
 mod parser;
 pub mod runtime_assets; // Shared runtime helpers (v0.87)
 mod scanner; // Scanner (tokens) + NativeRegion (alias)

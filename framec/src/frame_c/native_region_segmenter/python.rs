@@ -1,4 +1,5 @@
 use super::{BodySegment, FrameStmtKind};
+use crate::frame_c::region_scanner::{RegionScanner, ScanResult, PyTripleQuoteScanner};
 
 /// Segment a Python native region into Native and FrameStmt segments.
 /// Top-level detection ignores strings and comments, and recognizes:
@@ -38,7 +39,40 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
     let mut in_tsquote = false; // '''
     let mut in_tdquote = false; // """
 
-    for (i, line) in region_lines.iter().enumerate() {
+    // Helpers for mapping offsets
+    fn build_char_line_offsets(src: &str) -> Vec<usize> {
+        let mut offsets = Vec::new();
+        let mut acc = 0usize;
+        for part in src.split_inclusive('\n') {
+            offsets.push(acc);
+            acc += part.chars().count();
+        }
+        if !src.ends_with('\n') { offsets.push(acc); }
+        offsets
+    }
+    fn char_offset_of(line_1: usize, col_bytes: usize, lines: &[&str], char_line_offsets: &[usize]) -> usize {
+        let idx = line_1.saturating_sub(1);
+        let base = *char_line_offsets.get(idx).unwrap_or(&0);
+        let slice = lines.get(idx).copied().unwrap_or("");
+        let chars_before = slice.get(0..col_bytes).unwrap_or("").chars().count();
+        base + chars_before
+    }
+    fn line_col_from_char_offset(char_line_offsets: &[usize], target: usize, all_src: &str) -> (usize, usize) {
+        let mut lo = 0usize;
+        let mut hi = if all_src.ends_with('\n') { char_line_offsets.len().saturating_sub(1) } else { char_line_offsets.len().saturating_sub(1) };
+        while lo + 1 < hi {
+            let mid = (lo + hi) / 2;
+            if char_line_offsets[mid] <= target { lo = mid; } else { hi = mid; }
+        }
+        let line_1 = lo + 1;
+        let start_off = char_line_offsets[lo];
+        let col_chars = target.saturating_sub(start_off);
+        (line_1, col_chars)
+    }
+
+    let char_line_offsets = build_char_line_offsets(source);
+
+    for (mut i, line) in region_lines.iter().enumerate() {
         let frame_ln = start_line + i;
         let bytes = line.as_bytes();
         let mut j = 0;
@@ -80,23 +114,50 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                     break;
                 }
                 // Triple quotes start
-                if j + 2 < bytes.len()
-                    && bytes[j] == b'\''
-                    && bytes[j + 1] == b'\''
-                    && bytes[j + 2] == b'\''
-                {
-                    in_tsquote = true;
-                    j += 3;
-                    continue;
+                if j + 2 < bytes.len() && bytes[j] == b'\'' && bytes[j + 1] == b'\'' && bytes[j + 2] == b'\'' {
+                    // Use RegionScanner to skip triple single-quoted string
+                    let scanner = PyTripleQuoteScanner::new_single();
+                    let abs = char_offset_of(frame_ln, j, region_lines, &char_line_offsets);
+                    match scanner.scan(source, abs, frame_ln) {
+                        ScanResult::Ok(env) => {
+                            let (l1, col_chars) = line_col_from_char_offset(&char_line_offsets, env.end_offset + 1, source);
+                            let new_i = l1.saturating_sub(start_line);
+                            if new_i == i {
+                                let prefix: String = region_lines[i].chars().take(col_chars).collect();
+                                j = prefix.as_bytes().len();
+                            } else {
+                                i = new_i;
+                                let target_line = region_lines.get(i).copied().unwrap_or("");
+                                let prefix: String = target_line.chars().take(col_chars).collect();
+                                j = prefix.as_bytes().len();
+                            }
+                            continue;
+                        }
+                        ScanResult::Failure(_) => {
+                            in_tsquote = true; j += 3; continue;
+                        }
+                    }
                 }
-                if j + 2 < bytes.len()
-                    && bytes[j] == b'"'
-                    && bytes[j + 1] == b'"'
-                    && bytes[j + 2] == b'"'
-                {
-                    in_tdquote = true;
-                    j += 3;
-                    continue;
+                if j + 2 < bytes.len() && bytes[j] == b'"' && bytes[j + 1] == b'"' && bytes[j + 2] == b'"' {
+                    let scanner = PyTripleQuoteScanner::new_double();
+                    let abs = char_offset_of(frame_ln, j, region_lines, &char_line_offsets);
+                    match scanner.scan(source, abs, frame_ln) {
+                        ScanResult::Ok(env) => {
+                            let (l1, col_chars) = line_col_from_char_offset(&char_line_offsets, env.end_offset + 1, source);
+                            let new_i = l1.saturating_sub(start_line);
+                            if new_i == i {
+                                let prefix: String = region_lines[i].chars().take(col_chars).collect();
+                                j = prefix.as_bytes().len();
+                            } else {
+                                i = new_i;
+                                let target_line = region_lines.get(i).copied().unwrap_or("");
+                                let prefix: String = target_line.chars().take(col_chars).collect();
+                                j = prefix.as_bytes().len();
+                            }
+                            continue;
+                        }
+                        ScanResult::Failure(_) => { in_tdquote = true; j += 3; continue; }
+                    }
                 }
                 if ch == '\'' {
                     in_squote = true;

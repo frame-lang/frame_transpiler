@@ -8599,9 +8599,7 @@ impl TypeScriptVisitor {
             let mut warned_unreachable = false; // emit warning once per body
             for it in items {
                 match it {
-                    MixedBodyItem::NativeText {
-                        text, start_line, ..
-                    } => {
+                    MixedBodyItem::NativeText { text, start_line, .. } => {
                         // Map the first output position of this native span to its frame line
                         self.builder.map_next(*start_line);
                         if !text.trim().is_empty() {
@@ -8610,8 +8608,9 @@ impl TypeScriptVisitor {
                                 self.builder.writeln("// WARNING: Unreachable code after transition/forward/stack op");
                                 warned_unreachable = true;
                             }
-                            self.builder.write(text);
-                            if !text.ends_with('\n') {
+                            let rewritten = self.rewrite_typescript_target_source(text);
+                            self.builder.write(&rewritten);
+                            if !rewritten.ends_with('\n') {
                                 self.builder.newline();
                             }
                         }
@@ -8620,13 +8619,14 @@ impl TypeScriptVisitor {
                         start_line, ast, ..
                     } => {
                         self.builder.map_next(*start_line);
-                        let code = ast.to_source();
+                        let code_src = ast.to_source();
+                        let code = self.rewrite_typescript_target_source(&code_src);
                         if !code.trim().is_empty() {
                             if after_terminal_dir && !warned_unreachable {
                                 self.builder.writeln("// WARNING: Unreachable code after transition/forward/stack op");
                                 warned_unreachable = true;
                             }
-                            self.builder.write(code);
+                            self.builder.write(&code);
                             if !code.ends_with('\n') {
                                 self.builder.newline();
                             }
