@@ -338,8 +338,6 @@ actions:
 ## Example: Complete Async System
 
 ```frame
-from fsl import str
-
 system WebCrawler {
     domain:
         var urls: list = []

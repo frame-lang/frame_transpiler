@@ -130,12 +130,46 @@ impl PythonVisitor {
                 MixedBodyItem::Frame { frame_line, stmt } => {
                     // Map glue to directive's frame line
                     match stmt {
-                        MirStatement::Transition { state, .. } => {
+                        MirStatement::Transition { state, args } => {
+                            // Build state_args dict by mapping positional args to state param names (if available)
+                            let mut param_names: Vec<String> = Vec::new();
+                            if let Some(state_node_rcref) = self.get_state_node(state) {
+                                let state_node = state_node_rcref.borrow();
+                                if let Some(params) = &state_node.params_opt {
+                                    for p in params { param_names.push(p.param_name.clone()); }
+                                }
+                            }
+                            let mut entries: Vec<String> = Vec::new();
+                            for (i, a) in args.iter().enumerate() {
+                                let key = if i < param_names.len() { param_names[i].clone() } else { format!("arg_{}", i) };
+                                entries.push(format!("'{}': {}", key, a));
+                            }
+                            let state_args_dict = if entries.is_empty() { "{}".to_string() } else { format!("{{{}}}", entries.join(", ")) };
+                            // Parent detection for hierarchical states
+                            let has_parent = if let Some(state_node_rcref) = self.get_state_node(state) {
+                                let state_node = state_node_rcref.borrow();
+                                state_node.dispatch_opt.is_some()
+                            } else { false };
+                            if has_parent {
+                                self.builder.map_next(*frame_line);
+                                self.builder.writeln(&format!(
+                                    "parent_compartment = FrameCompartment('{}', None, None, None, None, {{}}, {{}})",
+                                    state
+                                ));
+                                self.builder.map_next(*frame_line);
+                                self.builder.writeln(&format!(
+                                    "next_compartment = FrameCompartment('{}', None, None, {{}}, parent_compartment, {{}}, {})",
+                                    state, state_args_dict
+                                ));
+                            } else {
+                                self.builder.map_next(*frame_line);
+                                self.builder.writeln(&format!(
+                                    "next_compartment = FrameCompartment('{}', None, None, {{}}, None, {{}}, {})",
+                                    state, state_args_dict
+                                ));
+                            }
                             self.builder.map_next(*frame_line);
-                            self.builder.writeln(&format!(
-                                "self._frame_transition(FrameCompartment('{}', None, None, {{}}, {{}}))",
-                                state
-                            ));
+                            self.builder.writeln("self._frame_transition(next_compartment)");
                             self.builder.map_next(*frame_line);
                             self.builder.writeln("return");
                         }

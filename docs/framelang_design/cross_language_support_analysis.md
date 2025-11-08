@@ -456,13 +456,13 @@ impl Scanner {
 
 ## 🔧 Implementation Strategy
 
-### Runtime & FSL Direction
+### Runtime & Capability Direction
 
 ### Native Import & `.fid` Generation (Draft)
 - See `docs/framelang_design/native_imports_and_fid.md` for the native-import workflow and automatic `.fid` (Frame Interface Definition) generation.
-- This integrates with the runtime/FSL approach above; Python, TypeScript, LLVM, C/C++, Rust, and Java now lean on their native libraries (asyncio streams, Node `net`, POSIX sockets, etc.) while Frame auto-generates interface contracts for validation.
+- This integrates with the runtime + FID approach above; Python, TypeScript, LLVM, C/C++, Rust, and Java now lean on their native libraries (asyncio streams, Node `net`, POSIX sockets, etc.) while Frame auto-generates interface contracts for validation.
 - Treat the existing per-target runtimes (`frame_runtime_py`, `frame_runtime_ts`, `runtime/llvm`) as the canonical home for core semantics (kernel loop, state stack, forwarded events), but keep them thin wrappers around native libraries rather than re-implementations.
-- Define a target-neutral Frame Standard Library surface (FSL) and provide per-target implementations instead of mirroring Python helper modules. Pragmas/native blocks should call into these FSL shims rather than re-implementing platform APIs inline.
+- Define capability surfaces via FID and provide per-target native implementations instead of mirroring Python helper modules. Pragmas/native blocks should call into these native modules rather than re-implementing platform APIs inline.
 - Document capability matrices per target (async, try/catch, state stack, etc.) so visitors can reject unsupported constructs during code generation.
 
 ### Phase 1: Target Declaration Parsing (Week 1)

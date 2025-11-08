@@ -693,13 +693,13 @@ export namespace AsyncCapabilities {
   - Generated automatically for every target.
   - Owns state-machine scheduling, Frame collections, truthiness helpers, and other core language mechanics.
   - Users should not call `FrameRuntime` directly; the visitors insert these helpers as needed.
-- **Frame Standard Library (FSL)**
-  - Collection of capability modules (networking, filesystem, process control, timers, etc.).
-  - Imported from Frame source just like any other module.
-  - Each target ships its own FSL implementation backed by native APIs while preserving a consistent Frame-facing API.
+- **FID + Native Modules (Capabilities)**
+  - Frame Interface Definitions (FID) declare capability surfaces (networking, filesystem, process control, timers, etc.).
+  - Implementations live in native code inside MixedBody regions for each target (e.g., Python, TypeScript).
+  - FID replaces the historical FSL abstraction; prefer native imports and MixedBody over pseudo-standard libraries.
 - **Separation of Concerns**
-  - Keep language behavior in the runtime and capability behavior in the FSL.
-  - When adding a new feature, define the portable API in the FSL and have each backend map it to the local platform.
+  - Keep language behavior in the runtime; keep capabilities in FID + native modules.
+  - When adding a capability, define it in FID and implement it natively per target.
 
 ## Error Patterns and Solutions
 

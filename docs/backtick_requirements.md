@@ -13,9 +13,7 @@ This document outlines which Python-specific syntax requires backticks in Frame 
 ### 2. Dictionary Literals
 - `{}` - Empty dictionary
 - `{"key": "value"}` - Dictionary with key-value pairs
-While Frame's FSL has Map operations (get, set, delete, has) internally,
-Frame doesn't have dictionary literal syntax or a dict() constructor.
-The Map operations exist but can't be used without a way to create dictionaries.
+While historical docs referenced FSL Map operations, current releases use FID + native modules. Frame doesn't have dictionary literal syntax or a dict() constructor; prefer native `dict` usage inside MixedBody when needed.
 
 ### 3. Python Time Functions
 - `time()` - Getting current time
@@ -50,10 +48,8 @@ async with aiohttp.ClientSession() as session:
 
 ## Backticks That CAN Be Removed (Frame Supports)
 
-### 1. FSL Functions (when imported)
-- `str(x)` → use native when `from fsl import str`
-- `int(x)` → use native when `from fsl import int`
-- `float(x)` → use native when `from fsl import float`
+### 1. Builtins
+- `str(x)`, `int(x)`, `float(x)` → use native builtins directly in MixedBody
 
 ### 2. List Operations
 - `list.append(x)` → Frame supports natively

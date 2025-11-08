@@ -221,7 +221,7 @@ var d = {}            // Empty dictionary
 
 - **Python**: Full compatibility with Python 3.x
 - **Backward Compatibility**: Breaking change with logical operators requires code migration
-- **Frame Standard Library**: FSL continues to work with explicit imports
+- (Historical) Frame Standard Library: At the time, FSL continued to work with explicit imports. In current releases, FSL has been removed in favor of FID + native modules.
 
 ## Post-Release Fixes (2025-09-07)
 

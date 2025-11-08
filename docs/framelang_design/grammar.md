@@ -87,8 +87,7 @@ module Math {
 
 // Module with Python imports
 module DataProcessor {
-    from fsl import str, int
-    
+    // Historical FSL import removed; use native builtins
     fn process(data) {
         var result = str(data)
         return "Processed: " + result
@@ -3280,10 +3279,8 @@ fn noImport() {
 }
 ```
 
-### Type Conversion Operations
+### Type Conversion Operations (modern)
 ```frame
-from fsl import str, int, float  // Required import
-
 fn example() {
     var x = 42
     var s = str(x)      // Convert to string: "42"

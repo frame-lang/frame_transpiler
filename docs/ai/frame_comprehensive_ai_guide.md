@@ -1004,7 +1004,7 @@ python3 runner/frame_test_runner.py --all --matrix --json --verbose
 - v0.30: Multi-entity support
 - v0.31: Import statements, self expression
 - v0.32: Advanced enums
-- v0.33: Frame Standard Library (FSL)
+- v0.33: Frame Standard Library (FSL) [historical; removed in favor of FID + native modules]
 - v0.34: Module system, list comprehensions
 - v0.35: Async/await foundation
 - v0.36: Event-handlers-as-functions

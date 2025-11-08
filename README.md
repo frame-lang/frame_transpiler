@@ -4,22 +4,22 @@ This project contains the code for building the Frame Language Transpiler - the 
 
 **Current Version**: v0.86.25  
 **Test Framework**: Unified multi-language testing (913 total tests, enforced in CI)  
-**Python Tests**: 100% execution (462/462)  
-**TypeScript Tests**: 100% execution (433/433)  
+**Python Tests**: 98.5% execution (latest full run)  
+**TypeScript Tests**: 100% transpile+validate (execution in progress)  
 **LLVM Smoke Tests**: 100% execution (18/18)  
 **Rust Version**: 1.89.0 (2025-08-04)  
 **Last Updated**: 2025-10-28
 
-## Runtime & Standard Library
+## Runtime & Interfaces
 
 Frame programs run atop two generated layers:
 
 | Layer | Purpose |
 | --- | --- |
 | **FrameRuntime** | Implements language semantics (state machine scheduling, Frame collections, truthiness helpers). Emitted automatically per target; user code should never reference it directly. |
-| **Frame Standard Library (FSL)** | Target-agnostic capability modules (networking, filesystem, process control, timers, etc.). Developers import FSL modules in Frame source; each backend provides its implementation. |
+| **FID + Native Modules** | Frame Interface Definitions (FID) describe external capabilities (networking, filesystem, process control, timers, etc.), which are fulfilled by native modules in MixedBody regions for each target. |
 
-Keep capability work in the FSL so Frame specs stay portable while the runtime focuses purely on language behavior.
+Keep language behavior in the runtime, and use FID + native modules for capabilities. The historical FSL abstraction has been removed.
 
 ### Shared Runtime Packages
 

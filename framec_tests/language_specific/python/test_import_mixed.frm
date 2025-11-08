@@ -1,24 +1,24 @@
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
-# Test mixed FSL and Python imports - v0.34
-# Expected: Both FSL and Python imports work together
+# Test mixed native imports - post-FSL
+# Expected: Python imports and built-ins work together inside Frame bodies
 
-# Mix of FSL and regular Python imports
+# Regular Python imports
 import math
 from datetime import datetime
 
 fn test_mixed_usage() {
-    print("=== Testing Mixed FSL and Python Imports ===")
+    print("=== Testing Mixed Python Imports ===")
     
-    # Use FSL operations
+    # Use Python builtins
     num = 42
     text = "999"
-    fsl_str = str(num)          # FSL str()
-    fsl_int = int(text)         # FSL int()
+    s = str(num)
+    n = int(text)
     
-    print("FSL str(42): " + fsl_str)
-    print("FSL int('999'): " + str(fsl_int))
+    print("str(42): " + s)
+    print("int('999'): " + str(n))
     
-    # Use Python modules (need backticks for module access)
+    # Use Python modules
     pi = 3.14159
     sqrt = 5.0
     now = 2025
@@ -27,9 +27,9 @@ fn test_mixed_usage() {
     print("Python math.sqrt(25): " + str(sqrt))
     print("Current year: " + str(now))
     
-    # Combine FSL and Python
-    combined = str(sqrt)  # FSL str() on Python result
-    print("FSL str() on Python sqrt: " + combined)
+    # Combine builtins and module values
+    combined = str(sqrt)
+    print("str() on Python sqrt: " + combined)
 }
 
 fn main() {

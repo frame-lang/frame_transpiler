@@ -1356,7 +1356,7 @@ Without backticks, Frame currently cannot express:
 - **List Comprehensions**: Full support for `[expr for var in iter if cond]` syntax
 - **Unpacking Operator**: Working `*` operator for list unpacking in literals
 - **Import System**: Comprehensive import support for Python and native Python operations
-- **native Python operations Imports**: Explicit import requirement (`from fsl import ...`)
+- (Historical) native Python operation imports: earlier versions required `from fsl import …`. Current releases prefer FID + native modules and MixedBody; no special imports are needed.
 
 ### List Comprehensions (v0.34) ✅
 - **Basic Syntax**: `[x * x for x in range(10)]`
@@ -1384,7 +1384,7 @@ Without backticks, Frame currently cannot express:
 
 ### Import System Coverage
 - **Python Imports**: Simple, aliased, from, and wildcard imports
-- **native Python operations Imports**: Individual and wildcard native Python operations imports with validation
+- (Historical) native Python operation imports: individual and wildcard imports were validated. Modern guidance is to use native imports in MixedBody and define capability surfaces via FID.
 - **Mixed Imports**: Python and native Python operations imports work together seamlessly
 - **Error Handling**: Proper behavior when native Python operations not imported
 - **Edge Cases**: User functions with native Python operations names handled correctly
