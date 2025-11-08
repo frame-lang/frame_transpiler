@@ -7659,6 +7659,56 @@ impl<'a> Parser<'a> {
         } else {
             true
         };
+        if matches!(self.target_language, Some(TargetLanguage::Python3)) {
+            // Conservatively detect native-looking Python bodies
+            let start_line = body_start_line.saturating_add(1);
+            let mut looks_native = false;
+            for ln in start_line..(start_line + 96).min(self.source_lines.len() + 1) {
+                if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                    let t = s.trim_start();
+                    if t.starts_with('}') { break; }
+                    if ((t.starts_with("if ") || t.starts_with("elif ") || t.starts_with("else:")) && t.ends_with(':'))
+                        || ((t.starts_with("for ") || t.starts_with("while ")) && t.ends_with(':'))
+                        || t.starts_with("try:") || t.starts_with("except") || t.starts_with("finally:")
+                        || t.starts_with("with ") || t.starts_with("async with ") || t.starts_with("async for ")
+                        || t.starts_with("from ") || t.starts_with("import ")
+                        || t.starts_with("self.") || t.starts_with("return")
+                        || s.contains("\"\"\"") || s.contains("'''")
+                    { looks_native = true; break; }
+                }
+            }
+            parse_frame_statements = !looks_native;
+            if !parse_frame_statements {
+                // Fast-forward token stream to just before the matching '}' so we can consume it once below.
+                let close_line = self.scan_py_closing_brace_line(body_start_line);
+                let mut has_close_token = false;
+                let mut idx = self.current;
+                while idx < self.tokens.len() {
+                    let tk = &self.tokens[idx];
+                    if tk.line < close_line { idx += 1; continue; }
+                    if tk.line == close_line { if matches!(tk.token_type, TokenType::CloseBrace) { has_close_token = true; } break; }
+                    if tk.line > close_line { break; }
+                    idx += 1;
+                }
+                if has_close_token {
+                    while !self.is_at_end() {
+                        let tk = self.peek();
+                        if tk.line < close_line { self.advance(); continue; }
+                        if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
+                        break;
+                    }
+                } else {
+                    // Fallback to token-depth skip
+                    let mut depth: i32 = 1; let mut last_line = body_start_line;
+                    while !self.is_at_end() && depth > 0 {
+                        let tk = self.peek().clone();
+                        match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
+                        last_line = tk.line; self.advance();
+                    }
+                    let _ = last_line;
+                }
+            }
+        }
 
         // Parse Frame statements for event handler bodies if not native-only
         let statements: Vec<DeclOrStmtType> = if parse_frame_statements {

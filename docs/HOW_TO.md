@@ -697,6 +697,7 @@ export namespace AsyncCapabilities {
   - Frame Interface Definitions (FID) declare capability surfaces (networking, filesystem, process control, timers, etc.).
   - Implementations live in native code inside MixedBody regions for each target (e.g., Python, TypeScript).
   - FID replaces the historical FSL abstraction; prefer native imports and MixedBody over pseudo-standard libraries.
+  - See also: docs/framelang_design/native_imports_and_fid.md
 - **Separation of Concerns**
   - Keep language behavior in the runtime; keep capabilities in FID + native modules.
   - When adding a capability, define it in FID and implement it natively per target.

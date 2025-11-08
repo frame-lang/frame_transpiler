@@ -158,6 +158,15 @@ class FrameTestRunner:
         parts = [p.lower() for p in test_file.parts]
         return "torture" in parts
     
+    def has_language_override(self, test_file: Path, language: str) -> bool:
+        """Return True if a language-specific override exists for this common test."""
+        # Only applicable to common tests
+        if self.common_tests_dir not in Path(test_file).parents:
+            return False
+        category = Path(test_file).parent.name
+        override_path = self.language_specific_dir / language / category / Path(test_file).name
+        return override_path.exists()
+    
     def transpile(self, test_file: Path, language: str) -> Tuple[bool, str, str]:
         """
         Transpile a Frame file to target language.
@@ -879,6 +888,9 @@ class FrameTestRunner:
                 else:
                     # Run common test for all configured languages
                     for language in self.config.languages:
+                        # Prefer language-specific override: if present, skip common for that language
+                        if self.has_language_override(test_file, language):
+                            continue
                         result = self.run_test(test_file, category, language)
                         self.results.append(result)
         

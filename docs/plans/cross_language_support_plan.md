@@ -49,6 +49,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [ ] Source‑map composer finalized for MixedBody spans (TS/Py)
 - [ ] Re‑implement FID integration (manifest + importer) after single‑file parity
 - [ ] Documentation cleanup pass (architecture is authoritative); audit changes from last branches (new_parsers, going_native) to improve organization
+- [ ] Purge remaining FSL references across docs (leave brief historical notes only); add/expand FID + native modules overview and link from HOW_TO
 
 
 ## ▶️ Next Steps (High‑Level)

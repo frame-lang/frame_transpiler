@@ -11,8 +11,7 @@ impl ValidationRule for NegativePatternsRule {
     fn validate(&self, context: &ValidationContext) -> Vec<ValidationIssue> {
         let mut issues = Vec::new();
 
-        // Only apply to TypeScript negatives
-        if !matches!(context.target_language, Some(TargetLanguage::TypeScript)) { return issues; }
+        // Apply only to negative fixtures (language-agnostic)
         let path = context.file_path.to_string_lossy();
         if !path.contains("/negative/") && !path.contains("\\negative\\") { return issues; }
 
@@ -45,6 +44,31 @@ impl ValidationRule for NegativePatternsRule {
                     help_url: None,
                 });
                 break;
+            }
+            // Python negatives: bare 'system' token (not system.return or system.<method>)
+            if t.contains("system") {
+                // quick tokenization on whitespace and semicolons
+                let tokens: Vec<&str> = t.split(|c: char| c.is_whitespace() || c == ';' || c == ':').collect();
+                let mut flagged_bare = false;
+                for tok in tokens {
+                    if tok == "system" { flagged_bare = true; break; }
+                    if tok.starts_with("system.") {
+                        // nested member chain with two dots before a call/property
+                        if tok["system.".len()..].contains('.') { flagged_bare = true; break; }
+                    }
+                }
+                if flagged_bare {
+                    issues.push(ValidationIssue {
+                        severity: Severity::Error,
+                        category: Category::Syntax,
+                        rule_name: self.name().to_string(),
+                        message: "Invalid 'system' usage in source (bare or nested member chain)".to_string(),
+                        location: SourceLocation { line: frame_line, column: 1, offset: 0, length: 0, file_path: None },
+                        suggestion: Some("Use 'system.method(...)' or 'system.return' as appropriate".to_string()),
+                        help_url: None,
+                    });
+                    break;
+                }
             }
             // Python-style error handling constructs are invalid for TypeScript tests
             // (used by negative fixtures like test_error_handling_v049)
