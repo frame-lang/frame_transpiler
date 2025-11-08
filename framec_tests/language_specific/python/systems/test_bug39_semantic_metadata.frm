@@ -3,8 +3,8 @@
 
 system SemanticMetadataTest {
     interface:
-        start() -> Bool
-        process() -> Bool
+        start(): bool
+        process(): bool
         finish()
     
     machine:
@@ -19,7 +19,6 @@ system SemanticMetadataTest {
                     return True
                 else:
                     return False
-                }
             }
             
             $<() {
@@ -40,7 +39,6 @@ system SemanticMetadataTest {
                 else:
                     -> $Error
                     return False
-                }
             }
             
             $<() {
@@ -71,8 +69,8 @@ system SemanticMetadataTest {
         }
     
     actions:
-        initialize() -> Bool
-        performWork() -> Bool
+        initialize(): bool
+        performWork(): bool
         cleanup()
     
     domain:

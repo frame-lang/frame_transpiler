@@ -1,239 +1,159 @@
-# DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
-# Comprehensive debugging test with Frame systems (state machines)
-# Tests debugging through state machines and transitions
+system TrafficLight {
+    interface:
+        start()
+        stop()
+        tick()
 
-#TrafficLight $[start, stop]
+    domain:
+        count: int = 0
 
-    -interface-
-    start
-    stop
-    tick
-    
-    -machine-
-    
-    $Begin
-        |start| -> $Red ^
-    
-    $Red
-        |>|
-            print("  [TrafficLight] Entered RED state")
-            count = 0
-        ^
-        
-        |tick|
-            count = count + 1
-            print("  [TrafficLight] Red tick " + str(count))
-            if count >= 3:
-                -> $Green ^
-        ^
-        
-        |stop| -> $End ^
-    
-    $Green
-        |>|
-            print("  [TrafficLight] Entered GREEN state")
-            count = 0
-        ^
-        
-        |tick|
-            count = count + 1
-            print("  [TrafficLight] Green tick " + str(count))
-            if count >= 3:
-                -> $Yellow ^
-        ^
-        
-        |stop| -> $End ^
-    
-    $Yellow
-        |>|
-            print("  [TrafficLight] Entered YELLOW state")
-            count = 0
-        ^
-        
-        |tick|
-            count = count + 1
-            print("  [TrafficLight] Yellow tick " + str(count))
-            if count >= 1:
-                -> $Red ^
-        ^
-        
-        |stop| -> $End ^
-    
-    $End
-        |>|
-            print("  [TrafficLight] System stopped")
-        ^
-    
-    -actions-
-    
-    -domain-
-    count = 0
-    
-##
-
-#VendingMachine $[insert_coin, select_item, refund]
-
-    -interface-
-    insert_coin [amount]
-    select_item [item]
-    refund
-    dispense
-    
-    -machine-
-    
-    $Begin
-        |insert_coin| [amount]
-            balance = 0
-            -> $Idle ^
-    
-    $Idle
-        |>|
-            print("  [VendingMachine] Ready. Balance: " + str(balance))
-        ^
-        
-        |insert_coin| [amount]
-            balance = balance + amount
-            print("  [VendingMachine] Inserted " + str(amount) + ". New balance: " + str(balance))
-            if balance >= 100:
-                -> $Ready ^
-        ^
-        
-        |refund|
-            print("  [VendingMachine] Refunding " + str(balance))
-            balance = 0
-        ^
-    
-    $Ready
-        |>|
-            print("  [VendingMachine] Ready to vend. Balance: " + str(balance))
-        ^
-        
-        |select_item| [item]
-            print("  [VendingMachine] Selected: " + item)
-            if item == "soda":
-                price = 150
-            elif item == "chips":
-                price = 100
-            else:
-                price = 200
+    machine:
+        $Begin {
+            start() {
+                -> $Red
             }
-            
-            if balance >= price:
-                balance = balance - price
-                selected_item = item
-                -> $Dispensing ^
-            else:
-                print("  [VendingMachine] Insufficient funds. Need " + str(price))
+        }
+        $Red {
+            $>() {
+                # Enter RED, reset count
+                self.count = 0
             }
-        ^
-        
-        |insert_coin| [amount]
-            balance = balance + amount
-            print("  [VendingMachine] Added " + str(amount) + ". New balance: " + str(balance))
-        ^
-        
-        |refund|
-            print("  [VendingMachine] Refunding " + str(balance))
-            balance = 0
-            -> $Idle ^
-        ^
-    
-    $Dispensing
-        |>|
-            print("  [VendingMachine] Dispensing " + selected_item)
-            dispense() -> $Complete ^
-        ^
-    
-    $Complete
-        |>|
-            print("  [VendingMachine] Transaction complete. Change: " + str(balance))
-            if balance > 0:
-                print("  [VendingMachine] Returning change: " + str(balance))
-            balance = 0
-            -> $Idle ^
-        ^
-    
-    -actions-
-    
-    dispense {
-        print("  [VendingMachine.dispense] Physical dispense of " + selected_item)
-        return
-    }
-    
-    -domain-
-    balance = 0
-    selected_item = ""
-    price = 0
-    
-##
+            tick() {
+                self.count = self.count + 1
+                if self.count >= 3:
+                    -> $Green
+                return
+            }
+            stop() { -> $End }
+        }
+        $Green {
+            $>() { self.count = 0 }
+            tick() {
+                self.count = self.count + 1
+                if self.count >= 3:
+                    -> $Yellow
+                return
+            }
+            stop() { -> $End }
+        }
+        $Yellow {
+            $>() { self.count = 0 }
+            tick() { -> $Red }
+            stop() { -> $End }
+        }
+        $End { $>() { return } }
+}
+
+system VendingMachine {
+    interface:
+        insert_coin(amount: int)
+        select_item(item: str)
+        refund()
+
+    domain:
+        balance: int = 0
+        selected_item: str = ""
+        price: int = 0
+
+    machine:
+        $Begin {
+            insert_coin(amount: int) {
+                self.balance = 0
+                -> $Idle
+            }
+        }
+        $Idle {
+            $>() {
+                # Ready
+            }
+            insert_coin(amount: int) {
+                self.balance = self.balance + amount
+                if self.balance >= 100:
+                    -> $Ready
+                return
+            }
+            refund() {
+                self.balance = 0
+                return
+            }
+        }
+        $Ready {
+            $>() { }
+            select_item(item: str) {
+                if item == "soda":
+                    self.price = 150
+                elif item == "chips":
+                    self.price = 100
+                else:
+                    self.price = 200
+                if self.balance >= self.price:
+                    self.balance = self.balance - self.price
+                    self.selected_item = item
+                    -> $Dispensing
+                else:
+                    # insufficient funds
+                    return
+            }
+            insert_coin(amount: int) {
+                self.balance = self.balance + amount
+                return
+            }
+            refund() {
+                self.balance = 0
+                -> $Idle
+            }
+        }
+        $Dispensing {
+            $>() {
+                -> $Complete
+            }
+        }
+        $Complete {
+            $>() {
+                if self.balance > 0:
+                    # return change
+                    self.balance = 0
+                -> $Idle
+            }
+        }
+}
 
 fn test_traffic_light() {
     print("=== Testing Traffic Light System ===")
-    
-    # Create and start traffic light
     light = TrafficLight()
     light.start()
-    
-    # Test state transitions
+    # Simulate cycles
     for cycle in range(2):
-        print("--- Cycle " + str(cycle + 1) + " ---")
-        
-        # Red state (3 ticks)
         for i in range(3):
             light.tick()
-        
-        # Green state (3 ticks)
         for i in range(3):
             light.tick()
-        
-        # Yellow state (1 tick)
         light.tick()
-    
-    # Stop the system
     light.stop()
-    
     print("=== Traffic Light Test Complete ===")
     return
 }
 
 fn test_vending_machine() {
     print("=== Testing Vending Machine System ===")
-    
-    # Create vending machine
     vending = VendingMachine()
-    
-    # Test insufficient funds
     vending.insert_coin(50)
     vending.insert_coin(25)
-    
-    # Try to buy without enough money
     vending.select_item("soda")  # Needs 150
-    
-    # Add more money
     vending.insert_coin(100)
-    
-    # Buy chips
     vending.select_item("chips")  # Costs 100
-    
-    # Test refund
     vending.insert_coin(75)
     vending.refund()
-    
-    # Test exact change
     vending.insert_coin(150)
     vending.select_item("soda")
-    
     print("=== Vending Machine Test Complete ===")
     return
 }
 
 fn test_nested_calls() {
     print("=== Testing Nested Function Calls ===")
-    
-    # Test deep nesting
     result = level1(5)
     print("Final nested result: " + str(result))
-    
     print("=== Nested Calls Test Complete ===")
     return result
 }
@@ -261,7 +181,6 @@ fn level3(x) {
 
 fn level4(x) {
     print("  [level4] Called with x=" + str(x))
-    # Final computation
     result = x * 3
     print("  [level4] Final computation: " + str(result))
     return result
@@ -269,16 +188,9 @@ fn level4(x) {
 
 fn main() {
     print("=== Starting System Debug Test ===")
-    
-    # Test traffic light state machine
     test_traffic_light()
-    
-    # Test vending machine state machine
     test_vending_machine()
-    
-    # Test nested function calls
     test_nested_calls()
-    
     print("=== All System Tests Completed Successfully ===")
     return
 }

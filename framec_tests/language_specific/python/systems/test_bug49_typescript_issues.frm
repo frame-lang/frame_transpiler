@@ -3,12 +3,12 @@
 
 system DebugAdapter {
     interface:
-        initialize() -> Bool
-        launch() -> Bool
-        setBreakpoints() -> Bool
+        initialize(): bool
+        launch(): bool
+        setBreakpoints(): bool
         continue()
         step()
-        evaluate(expression: string) -> string
+        evaluate(expression: str): str
         disconnect()
     
     machine:
@@ -18,7 +18,6 @@ system DebugAdapter {
                     -> $Configuring
                 else:
                     return False
-                }
                 return True
             }
         }
@@ -37,7 +36,6 @@ system DebugAdapter {
                     return True
                 else:
                     return False
-                }
             }
             
             continue() {
@@ -48,7 +46,7 @@ system DebugAdapter {
                 self.stepExecution()
             }
             
-            evaluate(expression: string) {
+            evaluate(expression: str) {
                 result = self.evaluateExpression(expression)
                 return result
             }
@@ -60,12 +58,12 @@ system DebugAdapter {
         }
     
     actions:
-        checkConfiguration() -> Bool
-        startServer() -> Bool  
-        validateBreakpoints() -> Bool
+        checkConfiguration(): bool
+        startServer(): bool  
+        validateBreakpoints(): bool
         resumeExecution()
         stepExecution()
-        evaluateExpression(expr: string) -> string
+        evaluateExpression(expr: str): str
         cleanup()
     
     domain:

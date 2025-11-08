@@ -32,6 +32,15 @@ impl ValidationRule for PythonNativePolicyRule {
 
         let mut issues = Vec::new();
 
+        // Apply this policy strictly only to Python language-specific fixtures/sources.
+        // Common cross-language tests may use legacy Frame syntax in handlers, which is valid
+        // for Frame bodies and should not be flagged here.
+        let path_lc = context.file_path.to_string_lossy().to_lowercase();
+        let enforce = path_lc.contains("/language_specific/python/") || path_lc.contains("\\language_specific\\python\\");
+        if !enforce {
+            return issues;
+        }
+
         let var_decl = Regex::new(r"^\s*var\b").unwrap();
         // Legacy braced control-flow in Python bodies (must use ':')
         let braced_cf = Regex::new(

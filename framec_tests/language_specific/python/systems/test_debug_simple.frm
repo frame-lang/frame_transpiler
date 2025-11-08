@@ -161,7 +161,6 @@ fn main() {
         print("IF: x > y is true")
     else:
         print("IF: x > y is false")
-    }
     
     # Nested if
     if x > 0:
@@ -179,7 +178,6 @@ fn main() {
         print("ELIF: x < 100")
     else:
         print("ELIF: x >= 100")
-    }
     
     # ========== LOOPS - WHILE ==========
     i = 0
@@ -252,9 +250,9 @@ fn main() {
         print("TRY: Attempting division")
         result1 = safe_divide(10, 2)
         print("TRY: Division result = " + str(result1))
-    } except {
+    except:
         print("EXCEPT: Division failed")
-    } finally {
+    finally:
         print("FINALLY: Cleanup after division")
     
     # Try with actual exception
@@ -262,9 +260,9 @@ fn main() {
         print("TRY: Attempting risky operation")
         result2 = safe_divide(10, 0)  # Will throw
         print("TRY: This should not print")
-    } except {
+    except:
         print("EXCEPT: Caught division by zero")
-    } finally {
+    finally:
         print("FINALLY: Cleanup after risky operation")
     
     # Nested try
@@ -273,12 +271,12 @@ fn main() {
         try:
             print("INNER TRY: Starting")
             throw_if_negative(-1)
-        } except {
+        except:
             print("INNER EXCEPT: Caught inner exception")
         print("OUTER TRY: Continuing after inner")
-    } except {
+    except:
         print("OUTER EXCEPT: Should not reach here")
-    } finally {
+    finally:
         print("OUTER FINALLY: Done with nested try")
     
     # ========== FUNCTION CALLS ==========
@@ -311,7 +309,7 @@ fn main() {
         print("Testing exception from function")
         test_exception_thrower(true)
         print("This line should not execute")
-    } except {
+    except:
         print("Caught exception from function")
     
     # Test no exception case

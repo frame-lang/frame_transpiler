@@ -3,8 +3,8 @@
 
 system ConditionalTransitionTest {
     interface:
-        configure(stopOnEntry: bool) -> Bool
-        onRuntimeReady() -> Bool
+        configure(stopOnEntry: bool): bool
+        onRuntimeReady(): bool
         start()
         stop()
     
@@ -28,7 +28,6 @@ system ConditionalTransitionTest {
                     -> $WaitingForEntry  # Bug #37: This transition missing from diagram
                 else:
                     -> $Running
-                }
                 return True
             }
         }
@@ -66,7 +65,7 @@ system ConditionalTransitionTest {
         }
     
     actions:
-        initializeRuntime() -> Bool
+        initializeRuntime(): bool
         shutdownRuntime()
     
     domain:
