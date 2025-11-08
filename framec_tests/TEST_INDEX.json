@@ -1,10 +1,7803 @@
 {
   "metadata": {
     "version": 1,
-    "active_languages": ["python", "typescript"],
-    "on_hold": ["llvm"],
-    "policy": "All fixtures are target‑native; LLVM target on indefinite hold."
+    "active_languages": [
+      "python",
+      "typescript"
+    ],
+    "on_hold": [
+      "llvm"
+    ],
+    "policy": "All fixtures are target\u2011native; LLVM target on indefinite hold."
   },
-  "tests": {}
+  "tests": {
+    "control_flow/test_access_modifiers_v048.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_bug35_specific.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_class_method_return.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_controlled_hsm_loop.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_controlled_hsm_loop_verbose.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_elif_with_return.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_force_syntactic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_forward_event.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_if_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_if_with_simple_stmt.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_just_return_assign.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_loop_else.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_match_case.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_match_patterns_advanced.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_mixed_returns.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_module_qualified_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_multifile_calculator.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_multifile_complex.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_multifile_formatters.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_multifile_large.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_multifile_main.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_multifile_math.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_multifile_performance.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_multifile_strings.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_multifile_utils.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_perf_module1.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_perf_module2.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_perf_module3.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_perf_module4.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_perf_module5.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_qualified_names.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_return_assign.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_return_assign_actions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_return_assign_event_handler.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_services_looper.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      }
+    },
+    "control_flow/test_services_looper_small.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      }
+    },
+    "control_flow/test_simple_elif.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_simple_hsm_loop.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_single_lifecycle.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_system_return.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_system_return_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_system_return_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_v030_lifecycle_demo.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_v030_simple_lifecycle.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_v030_system_lifecycle.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_v030_system_lifecycle_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_history.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_history101.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_history102.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_history103.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_history104.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_history105.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_interface_debug_flow.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_interface_source_mapping.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_interface_type_annotation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_operations.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_operations_call_bug.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_operations_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_operations_single_entity.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_parameters.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_var.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_vars.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_vars_complex.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_vars_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_vars_transition.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_transition_return.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_transition_with_return.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_all_8_collection_patterns.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_all_constructors.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_collection_constructors.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_collection_literals_v041.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_collections.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_collections_all.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_constructors.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_advanced_patterns.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_advanced_patterns_fixed.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_comp_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_comp_patterns.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_comp_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_comprehensions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_conditional.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_constructor_patterns.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_from_sequences.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_fromkeys.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_in_system.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_lambda.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_lambda2.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_lambda3.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_merge.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_merge_complete.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_nested_indexing_workaround.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_setdefault.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_simple2.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_support.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_switch.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_union.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_unpacking.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_update.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dynamic_dict_creation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_empty_set_literal.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_enum_string_values.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_lambda_simple_collections.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_list_comprehensions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_list_comprehensions_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_list_features.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_list_native_methods.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_list_operations_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_list_ops_native_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_multi_systems_with_interface.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_native_print.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_nested_dict_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_safe_dict_parsing.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_set_comprehensions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_set_literal.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_simple_print.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_special_dicts.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_special_dicts_fixed.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_special_dicts_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_string_operations_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_string_slicing_phase1.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_string_slicing_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_tuple_literal.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_two_systems_print.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_v040_string_features.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_v040_strings_simple.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_v053_collection_fixes.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_v053_list_fix.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_v054_collection_constructors.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_forward_events.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_if_elif_returns.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "control_flow/test_protocol_v0804_verify.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_event_handler.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_event_handlers_poc.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_hierarchical.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_context.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_parameters_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_params.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_state_stack.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_transition.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "core/test_transition_params.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "data_types/test_dict_literal.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "external_apis/test_file_io.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "external_apis/test_network.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "external_apis/test_process_control.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/test_unterminated_single_quote.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_unterminated_triple_quote.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "operators/test_python_logical_operators.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug29_31_exact_repro.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug29_missing_routing.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug30_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug31_spurious_calls.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_comprehensive_scope_validation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_domain_assignment.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_domain_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_domain_type_debug.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_explicit_self_syntax.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_explicit_self_system_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_function_scope_isolation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_legb_scope_resolution.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_scope_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_multi_entity_scopes.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_self_domain_vars.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_self_variable_exhaustive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_system_scope_isolation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_ActionsBlockTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_DomainBlockTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_DomainTypedTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_FullSystemParamsTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_HelloWorldSystem.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_LampCompleteTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_MachineDocTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_MainOldReturnTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_MainParamsTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_MainReturnTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_ReturnTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_ReturnValueTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_SimpleSystemParamsTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_SystemBlocksTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_SystemParametersTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_SystemsTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TestContinue.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TestHSM.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TestHSMBasic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TestMinimal.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TestOneParam.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TestStateVariables.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TestStateVariablesDoc.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TestSystemBasic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TestSystemParams.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_TransitionsTest.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_all_blocks_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_assert_v047.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_backtick_removal.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_basic_transition_demo.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_blocks_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_bug37_conditional_transitions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_bug39_semantic_metadata.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_bug49_typescript_issues.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_bug50_typescript_action_implementation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_bugs_29_31_combined.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_bugs_29_31_minimal_works.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_builtin_access.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_call_chain_debug.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_chaining.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_class_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_class_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_class_simple_v046.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_class_v046.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_comprehensive_frame_features.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_comprehensive_v0_20_features.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_const.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_correct_transition.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_current_limitations.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_debug.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_debug_entry.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_debug_main.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_debug_nil.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_debug_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_debug_system.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_debug_systems.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_del_statement.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_empty_params.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enum_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enum_case.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enum_compliance.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enum_custom_values.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enum_iteration.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enums.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enums_doc_calendar.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enums_doc_fruitsystem.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enums_doc_function.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enums_doc_grocery_demo.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enums_doc_grocery_full.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enums_doc_values.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enums_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_enums_terminator.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_exceptions_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_external_loading.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_external_loading_fixed.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_features.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_first_plus_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_first_system_only.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_func_ref_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_func_ref_use.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_function_call.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_function_refs_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_function_refs_complete.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_functions_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_functions_event_handler.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_functions_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_functions_with_system.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_generators_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_handlers_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_hierarchy.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_instantiation_debug.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_instantiation_fix.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_json_file.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_json_file_fixed.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_json_loading.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_just_transition.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_just_transition_v2.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_keyword.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_lambda.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_lambda_complete.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_lambda_complete_fixed.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_lambda_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_lambda_working.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_legb_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_legb_resolution.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_mapping_types_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_matrix_multiplication.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_method_call_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_method_resolution_policy_valid.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_minimal_call.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_minimal_syntax.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_minimal_transition.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_minimal_transition_single.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_minimal_two_systems.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_missing_features.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_mixed_entities.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_mixed_function_system.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_mixed_system_states.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_multi_entity_demo.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_multi_entity_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_multi_systems_with_main.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_multi_systems_with_transitions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_multiple_assignment_v052.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_multiple_systems_valid.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_negative_indexing.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_nested_index.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_none_keyword.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_os_path.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_parent_dispatch.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_parent_dispatch_complete.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_parent_transition_detection.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_python_style.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_remaining_mappings.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_scratch.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_seat_booking_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_seat_booking_simple_working.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_seat_booking_workflow.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_services_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      }
+    },
+    "systems/test_services_clean_exit.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      }
+    },
+    "systems/test_services_signal_machine.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": true
+      }
+    },
+    "systems/test_simple_call.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_call_chain_debug.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_complete_test.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_condition.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_handler_calls.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_hierarchy.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_multi.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_operation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_seat.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_system.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_test.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_valid.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_simple_validation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_single_system.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_single_system_only.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_single_system_transitions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_single_transition.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_slicing.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_slicing_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_slicing_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_slicing_simple2.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_source_mapping_validation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_states_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_static_calls.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_static_comprehensive_v062.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_static_method_bug.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_static_operations.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_system_no_function.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_system_only_operations.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_system_operation_calls.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_traffic_light_persist.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_traffic_light_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_try_except.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_try_except_javascript.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_try_except_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_two_systems_no_function.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_type_annotation_fix.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_type_annotations.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_type_fix.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_underscore_actions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v030_edge_cases.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v030_functions_only.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v030_hierarchical_systems.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v030_mixed_entities.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v030_multi_system_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v030_system_with_functions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v030_three_systems.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v031_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v039_features.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v040_comments_floor_div.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v053_multi_var.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v054_star_expressions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_v056_features.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_validation_bug29_31_fixed.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_validation_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_validation_with_main.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_watch_expressions_validation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_working_features.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "systems/test_your_example.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_debug.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_generators.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_handler.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_interface.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_minimal.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_stress.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_stress_fixed.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_stress_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_validate.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_with_proper.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_async_with_real.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_c_style_comments.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_c_style_comments_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_class_decorators.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_class_decorators_args.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_class_decorators_property.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_class_decorators_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_import_conflicts.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_import_mixed.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_import_python_comprehensive.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_import_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_import_statements.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_import_validation_summary.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_mixed_body_nbsp_indentation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_mixed_body_strings_comments.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_mixed_body_triple_quotes.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_mixed_body_triple_quotes_multiline.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_mixed_body_whitespace_tabs_spaces.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_module_imports_no_backticks.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_python_fstring_nested_directive_tokens.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_python_indented_directive_and_unreachable.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_python_island_mega_syntax.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_python_triple_quote_with_directives.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_target_native_block.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_v056_walrus_and_literals.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_with_statement.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "python/test_with_statement_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/python_torture_negative.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "torture/python_torture.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "declarations/test_runtime_socket_decl.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/01_empty_system.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/02_empty_operation.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/03_empty_action.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/04_empty_machine.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/05_empty_domain.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/06_native_single_line.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/07_native_if_else.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/08_native_comments.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/09_strings_escapes.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/10_template_literals.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/11_transition_basic.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/12_forward_parent.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/13_stack_push_pop.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/14_nested_two_levels_parent_forward.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/15_nested_three_levels_push_pop.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/16_comments_with_directive_tokens.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/17_template_literals_nested.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/18_whitespace_tabs_spaces.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/19_nbsp_indentation.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/20_arrow_fn_not_segmented.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/21_directive_tokens_in_strings.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/22_typescript_island_mega_syntax.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/23_indented_transition_and_unreachable.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/24_multiple_directives_interleaved.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/25_directives_in_block_comments.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "islands/26_directives_in_strings_escaped.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_typescript_logical_operators.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug52_typescript_node_api_mapping.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "runtime/test_runtime_protocol_native.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/typescript_torture_negative.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "torture/typescript_torture.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/test_circular_a.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_circular_b.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_circular_main.frm": {
+      "python": {
+        "transpile": false,
+        "validate": true,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": true,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_error_handling_v049.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_inline_target_directive_python.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_inline_target_directive_typescript.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_method_resolution_action_operation_conflict.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_method_resolution_interface_only_error.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_module_level_call_main.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_module_level_call_other_func.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_module_level_multiple_calls.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_module_level_system_call.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_nested_function_disallowed.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_smart_quotes.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_syntax_error_messages.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_system_bare_keyword_error.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_system_nested_member_error.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_system_unknown_interface_method_error.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_transition_in_action.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_transition_in_operation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_unterminated_py_single_quote.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_unterminated_py_triple_quote.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_unterminated_ts_block_comment.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_unterminated_ts_template_literal.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_validation_malformed_syntax.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "operators/test_bitwise_xor.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_compound.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_exponent_operator.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_exponent_operator_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_in_operator.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_matmul_syntax_only.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_matmul_transpile.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_matmul_transpile_only.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_matmul_with_numpy.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_not_in_operator.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_python_logical_keywords.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_python_logical_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_unpacking_operator.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_xor_operator.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "operators/test_xor_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug35_minimal.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug35_source_mapping.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug50_large_file_parser.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug52_interface_method_calls.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug53_exception_variable_handling.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug53_typescript_property_declarations.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "regression/test_bug54_typescript_boolean_literals.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_basic_scope.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_basic_scope_working.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_call_chain_scope.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_class_self_method_calls.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_debug_self_call.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_empty_module.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_enum_module_scope.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_function_isolation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_minimal_scope.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_access.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_declaration.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_function_calls.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_level_allowed.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_scope_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_scope_variables.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_syntax.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_system.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_var_access.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_module_var_simple.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_nested_modules.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_perf_module1.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_perf_module2.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_perf_module3.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_perf_module4.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_perf_module5.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_scope_isolation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_scope_operations.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_self_call.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_self_call_debug.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_simple_module.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_simple_scope.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "scoping/test_system_isolation.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    }
+  }
 }
-
