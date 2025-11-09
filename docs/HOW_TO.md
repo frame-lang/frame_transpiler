@@ -195,7 +195,7 @@ cargo build --release
 
 ### Validation
 - Structural rules include transitions_terminal: terminal Frame statements must be last in a handler body.
-- PythonNativePolicy prevents legacy brace-style control and `var` inside Python bodies.
+- PythonNativePolicy prevents brace-style control and `var` inside Python bodies.
 - Negative patterns exist for nested function declarations and other intentionally bad constructs.
 
 ### Parser Patterns

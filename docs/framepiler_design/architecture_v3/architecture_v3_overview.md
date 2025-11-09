@@ -2,7 +2,7 @@ Python Parsing — Interim Status and Plan (Going Native)
 
 Context
 - Branch: going_native
-- Scope: single‑file Python target with native bodies and SOL‑anchored Frame statements inside event handlers only.
+- Scope: single‑file targets with native bodies and SOL‑anchored Frame statements inside event handlers only. Initial MVP languages: Python, TypeScript, and C# (with C/C++/Rust/Java following through the same scanners/closers interface).
 - Model: MixedBody/MIR is authoritative in handlers; actions/operations are native‑only. Pseudo‑symbol `system.return` is allowed in actions/ops/handlers and rewritten in visitors.
 
 Current Implementation (Parser)
@@ -31,6 +31,9 @@ Observed Problems
 - Line‑based segmentation:
   - Current Python segmenter walks line‑by‑line for SOL checks. This complicates precise region slicing and remapping; a streaming region scanner by byte offsets is preferable for correctness and performance symmetry with TS.
 
+- C# string/interpolation complexity:
+  - Verbatim/interpolated/raw strings and SOL preprocessor lines can mask directive tokens; early implementation of a DPDA scanner and closer for C# eliminates false positives and drives a shared profile‑based design for other languages.
+
 Outstanding Work (Ordered)
 1) Reinstate guarded closer policy for Python handlers
    - Pre‑scan for triple‑quotes/f‑string markers within the candidate body; if present, use the textual DPDA closer; otherwise prefer token‑depth close to avoid over/under‑consumption. Always consume the final `}` via `consume_close_brace_at_line` to keep ownership precise.
@@ -38,8 +41,10 @@ Outstanding Work (Ordered)
 2) Fix Python visitor indentation and post‑terminal suppression
    - Compute indent from the nearest native sibling; insert MIR `return` at the correct depth; suppress our bare `return` if the next native line is an explicit `return`. Preserve `elif/else/except/finally` chains.
 
-3) Streaming region scanner (Python)
+3) Streaming region scanner (Python/TypeScript/C#)
    - Add `native_partition_scanner/python.rs` with a DPDA that tracks quotes/triple‑quotes/f‑strings and a single brace counter. Produce region spans by byte offsets with FIRST‑set detection at SOL, ignoring protected regions. Precompute byte→line offsets so MixedBody carries accurate line info. Replace the line‑based segmenter.
+   - Add `native_partition_scanner/typescript.rs` with template literal handling and nested `${…}`.
+   - Add `native_partition_scanner/csharp.rs` with verbatim/interpolated/raw strings (with `$` arity) and preprocessor line handling.
 
 4) Frame‑statement mini‑parsers (FIRST‑set)
    - Implement minimal DFAs for: `-> $State(args)`, `=> $^`, `$$[+/-]`, and `system.return = expr`. Integrate with the region scanner so MixedBody contains MIR directly (not `FrameStmt` placeholders).
@@ -48,10 +53,10 @@ Outstanding Work (Ordered)
    - Ensure all handler continuation and post‑handler loops advance on no‑progress; add SOL fast‑path/early‑out when no FIRST‑set tokens are present in a region.
 
 6) Tests and fixtures
-   - Keep language‑specific Python fixtures fully native and validator‑verified. Add incremental handler fixtures (00→10) and torture cases (strings/triple‑quotes/f‑strings, Unicode). Lock negatives for legacy constructs in Python bodies.
+  - Keep language‑specific Python fixtures fully native and validator‑verified. Add incremental handler fixtures (00→10) and torture cases (strings/triple‑quotes/f‑strings, Unicode). Lock negatives for disallowed constructs in Python bodies.
 
-7) Cleanup and legacy removal
-   - Remove/dead‑code legacy handler parsing once Python suite is green. Keep docs and test index consistent with “handlers only” MixedBody policy and “actions/ops native‑only”.
+7) Cleanup
+  - Keep docs and test index consistent with “handlers only” MixedBody policy and “actions/ops native‑only”.
 
 Architectural Notes
 - DFA vs DPDA: A pure DFA cannot count braces; the closer uses a deterministic pushdown scan (single counter) plus protected‑region flags to work in O(n). FIRST‑set detection for Frame statements is DFA‑like at SOL and combined with the DPDA’s protected‑region state.
@@ -96,7 +101,7 @@ Architecture Update — Region-Based Partitioning (No Line Slicing)
 
 - Action items
   - Implement `native_partition_scanner/python.rs` (streaming DPDA + FIRST-set detection) and remove the line-based segmenter.
-  - Integrate scanner output into `event_handler_mixed(..)` and retire legacy handler-body parsing paths.
+  - Integrate scanner output into `event_handler_mixed(..)`.
   - Keep diagnostics stable by mapping byte offsets to lines for messages and source maps.
 
 Mini‑Report — Review and Plan (2025‑11‑09)

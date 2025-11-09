@@ -3,21 +3,21 @@
 Purpose
 - Produce a deterministic outline of a `.frm` source file and exact byte ranges for every `{ … }` body, using per‑target textual body closers.
 - Eliminate downstream “brace ownership” ambiguity; all later stages trust the recorded body bounds.
+- Record prolog and language‑specific import partitions using SOL‑anchored, DPDA scanners (no regex).
 
 Inputs
-- Source bytes (`&[u8]`), file path, inferred or declared `Target` (from `@target` prolog).
+- Source bytes (`&[u8]`), file path, declared `Target` (from `@target` prolog). Prolog is required to be the first non‑whitespace token.
 
 Outputs
 - `ModulePartitions` with:
-  - `prolog`: span of `@target` and related metadata
+  - `prolog`: span of `@target` line
   - `imports`: one or more contiguous native import partitions (target‑specific text)
-  - `outline`: Frame outline partition (systems, blocks, headers)
   - `bodies: Vec<BodyPartition>`
 - `BodyPartition`:
-  - `owner_id` (system/member identity for linking)
+  - `owner_id` (module artifact name; e.g., handler/action/operation)
+  - `kind` (Handler | Action | Operation | Unknown)
+  - `header_span` (SOL line preceding `{`)
   - `open_byte`, `close_byte` (inclusive `{` / matching `}` positions)
-  - `target`
-  - `byte_to_line_index` (optional precomputed index for diagnostics; lines unused in algorithms)
 
 Invariants
 - Single source of truth for body end: per‑target textual closers (DPDA) determine `close_byte`.
@@ -25,11 +25,13 @@ Invariants
 - The `@target` prolog is the first non‑whitespace token; comments before prolog are disallowed by policy.
 
 Algorithm
-- Scan the file once to locate prolog and outline tokens.
-- When encountering a member header with `{`, dispatch to the per‑target BodyCloser to find the matching `}`:
-  - Python closer: see `01_body_closers_python.md`.
-  - TypeScript closer: see `01_body_closers_typescript.md`.
-- Record the `BodyPartition` with exact byte offsets.
+- PrologScannerV3 (SOL): ensure `@target <lang>` occurs as the first non‑whitespace line; record span.
+- ImportScannerV3 (per‑language, SOL; DPDA; comment/string aware): record contiguous import partitions.
+- OutlineScannerV3 (SOL):
+  - Recognize module artifacts by keyword at SOL (e.g., `handler`, `action`, `operation`/`op`, `on`).
+  - Read the artifact identifier deterministically.
+  - On `{`, dispatch to per‑language BodyCloser to find the matching `}`.
+  - Record `BodyPartition` with `owner_id`, `kind`, `header_span`, `open_byte`, `close_byte`.
 
 Per‑Target Body Closers
 - Python: triple‑quote/f‑string aware DPDA; tracks `'`, `"`, `'''`, `"""`, `#` comments; counts top‑level `{`/`}` inside the Frame shell.
@@ -45,8 +47,8 @@ Complexity
 
 Interfaces (proposed)
 - `struct ModulePartitionerV3;`
-- `impl ModulePartitionerV3 { fn partition(src: &[u8], path: &Path) -> Result<ModulePartitions> }`
-- `trait BodyCloser { fn close(src: &[u8], open_idx: usize) -> Result<usize>; }`
+- `impl ModulePartitionerV3 { fn partition(src: &[u8], lang: TargetLanguage) -> Result<ModulePartitionsV3> }`
+- `trait BodyCloserV3 { fn close_byte(&mut self, src: &[u8], open_idx: usize) -> Result<usize>; }`
 
 Test Hooks
 - Golden outlines for files with nested modules, multiple bodies, and complex strings/templates in bodies.
@@ -54,4 +56,3 @@ Test Hooks
 
 Integration
 - Downstream scanners receive `BodyPartition` and operate only within `[open_byte+1, close_byte)`.
-

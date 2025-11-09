@@ -11,12 +11,12 @@ Conventions
 Stage 01 — Module Partitioning & Body Closers
 - Trait: `BodyCloserV3`
   - fn `close(&self, src: &[u8], open_idx: usize) -> Result<usize, CloseError>`
-- Structs: `BodyCloserPyV3`, `BodyCloserTsV3`
+- Structs: `BodyCloserPyV3`, `BodyCloserTsV3`, `BodyCloserCsV3`
 
 Stage 02 — Native Region Scanners (Streaming, Protected‑Region Aware)
 - Trait: `NativeRegionScannerV3`
   - fn `scan(&self, src: &[u8], open_idx: usize) -> Result<ScanResultV3, ScanError>`
-- Structs: `NativeRegionScannerPyV3`, `NativeRegionScannerTsV3`
+- Structs: `NativeRegionScannerPyV3`, `NativeRegionScannerTsV3`, `NativeRegionScannerCsV3`
 - Data: `ScanResultV3 { close_byte: usize, regions: Vec<RegionV3> }`
 - Data: `RegionV3::{ NativeText{ start, end }, FrameSegment{ start, end, kind_hint: FrameStmtKindV3, indent: usize } }`
 - Data: `FrameStmtKindV3::{ Transition, Forward, StackOp }`

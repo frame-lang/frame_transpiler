@@ -23,3 +23,14 @@ Complexity
 
 Test Hooks
 - Negative fixtures per rule and per language.
+
+Interfaces
+- `ValidatorV3::validate_regions_mir(regions, mir) -> ValidationResultV3` — structural checks (terminal‑last).
+- `ValidatorV3::validate_regions_mir_with_policy(regions, mir, ValidatorPolicyV3) -> ValidationResultV3` — expanded checks using body kind.
+- `ValidatorPolicyV3 { body_kind: Option<BodyKindV3> }`, `BodyKindV3 = Handler | Action | Operation | Unknown`.
+
+CLI Integration (demo)
+- Global flags `--validate` and `--validation-only` apply to demo commands:
+  - `demo-multi` validates each provided single‑body file prior to transpile.
+  - `demo-project` walks the directory, validates eligible single‑body files, then (unless `--validation-only`) transpiles.
+  - Validation prints human messages to stderr; non‑zero exit on failure in `--validation-only` mode.

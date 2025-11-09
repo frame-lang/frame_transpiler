@@ -10,7 +10,8 @@ Start Here
 How To Use These Docs
 - For each stage: read the dedicated spec, implement the named struct(s) in `framec/src/frame_c/v3/…`, and satisfy the Inputs/Outputs/Invariants/Errors/Test Hooks described.
 - Keep passes linear and deterministic. Do not re‑close bodies after partitioning. Operate on byte offsets; lines are diagnostics‐only.
- - MixedBody/MIR is authoritative for embedded Frame semantics. Only three Frame statements exist in native regions: `-> $State(args)`, `=> $^`, `$$+/-`. `system.return` remains native and is rewritten by visitors.
+- MixedBody/MIR is authoritative for embedded Frame semantics. Only three Frame statements exist in native regions: `-> $State(args)`, `=> $^`, `$$+/-`. `system.return` remains native and is rewritten by visitors.
+- Languages in scope from Stage 01: Python, TypeScript, C#, C, C++, Java, Rust. C# is prioritized early due to unique verbatim/interpolated/raw string forms and SOL preprocessor lines.
 
 Implementation Roadmap (Stages)
 - 01 Module Partitioning
@@ -20,7 +21,7 @@ Implementation Roadmap (Stages)
 - 02 Native Region Scanner (per target)
   - Implement streaming scanners (`NativeRegionScannerV3`) with protected‑region states and SOL detection.
   - Exit criteria: Segments match fixtures; no false positives in strings/comments/templates.
- - 03 Frame Statement Parser
+- 03 Frame Statement Parser
   - Implement tiny parser for `-> $State(args?)`, `=> $^`, `$$+/-` only.
   - Exit criteria: Balanced paren handling; malformed Frame statements produce E30x errors.
 - 04 MIR Assembly

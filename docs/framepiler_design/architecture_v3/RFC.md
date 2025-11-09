@@ -16,7 +16,7 @@ Each RFC follows standard conventions with sections for motivation, detailed des
 
 ---
 
-## RFC-001: DPDA-Based Streaming Native Region Scanner
+## RFC-001: DPDA-Based Streaming Native Region Scanner (incl. C#)
 
 **Status:** ACCEPTED  
 **Date:** 2025-11-09  
@@ -178,6 +178,9 @@ pub enum FrameSegmentKind {
 - **Cons**: Overkill for 10-15 states, harder to maintain, less readable code
 
 #### Regex-Based Scanning
+
+#### C# Notes
+- Verbatim/interpolated/raw strings and preprocessor lines require additional states. Raw string openers are `($+)?("{3,})`; closers must match the opener’s quote count, typically on a SOL line. Interpolation brace arity equals the leading `$` count. The scanner maintains `dollar_count`, `quote_count`, and a brace depth within raw/interpolated contexts.
 - **Pros**: Concise, well-understood
 - **Cons**: Cannot handle nested constructs (f-strings, templates), backtracking performance issues
 
@@ -675,6 +678,7 @@ impl ProtectedRegionHandler for CppRegionScanner {
 |------------|------------|---------|--------------|----------|------------------|
 | Python     | `-> $`     | `=> $^` | single/double/triple/f-strings | `#` | f-string brace nesting |
 | TypeScript | `-> $`     | `=> $^` | single/double/template | `//` `/* */` | template `${}` nesting |
+| C#         | `-> $`     | `=> $^` | normal, verbatim, interpolated, raw (with `$` arity) | `//` `/* */` | interpolation braces, preprocessor lines |
 | C          | `-> $`     | `=> $^` | single/double | `//` `/* */` | preprocessor lines |
 | C++        | `-> $`     | `=> $^` | single/double/raw | `//` `/* */` | templates, macros |
 | Rust       | `-> $`     | `=> $^` | single/double/raw | `//` `/* */` | macro bodies |

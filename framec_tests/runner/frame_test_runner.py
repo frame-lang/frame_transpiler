@@ -49,7 +49,8 @@ class TestConfig:
     
     def __post_init__(self):
         if self.languages is None:
-            self.languages = ["python", "typescript"]
+            # Include all configured V3 demo languages by default; execution for v3_demos is skipped
+            self.languages = ["python", "typescript", "csharp", "c", "cpp", "java", "rust"]
         if self.categories is None:
             self.categories = ["all"]
 
@@ -133,6 +134,25 @@ class FrameTestRunner:
                         if "all" in self.config.categories or category in self.config.categories:
                             tests[category] = list(category_dir.glob("*.frm"))
         
+        # V3 demo tests (explicit category)
+        if "v3_demos" in self.config.categories:
+            for lang in self.config.languages:
+                lang_dir = self.language_specific_dir / lang / "v3_demos"
+                if lang_dir.exists():
+                    demo_tests = list(lang_dir.glob("*.frm"))
+                    if demo_tests:
+                        tests[f"language_specific_{lang}_v3_demos"] = demo_tests
+        else:
+            # Per-language v3 demo categories: v3_demos_<lang>
+            for lang in self.config.languages:
+                cat = f"v3_demos_{lang}"
+                if cat in self.config.categories:
+                    lang_dir = self.language_specific_dir / lang / "v3_demos"
+                    if lang_dir.exists():
+                        demo_tests = list(lang_dir.glob("*.frm"))
+                        if demo_tests:
+                            tests[f"language_specific_{lang}_v3_demos"] = demo_tests
+
         # Language-specific tests - only include if explicitly requested or "all" is specified
         if "all" in self.config.categories:
             # When running "all", include language-specific tests for configured languages
@@ -206,8 +226,16 @@ class FrameTestRunner:
         # Generate output filename
         output_file = output_dir / (test_file.stem + extension)
         
+        # Special handling for V3 demo tests (module partitioner demo path)
+        parts_lower = [p.lower() for p in test_file.parts]
+        is_v3_demo = "v3_demos" in parts_lower
         # Run transpiler - check if multifile test
-        if self.is_multifile_test(test_file):
+        if is_v3_demo:
+            cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+            # Use neutral extension for demo outputs
+            extension = ".txt"
+            output_file = output_dir / (test_file.stem + extension)
+        elif self.is_multifile_test(test_file):
             # Use multifile flag for tests with Frame imports
             cmd = [self.config.framec_path, "-m", str(test_file), "-l", lang_flag]
         else:
@@ -842,6 +870,12 @@ class FrameTestRunner:
                 # Fail early on validation errors; do not execute
                 result.error_message = f"Validation failed: {validation_output[:500]}"
             elif self.config.execute:
+                # Skip execution for V3 demo tests (transpile-only checks)
+                if "v3_demos" in [p.lower() for p in test_file.parts]:
+                    result.execute_success = True
+                    result.output = "V3 demo test: transpile-only"
+                    result.execution_time = time.time() - start_time
+                    return result
                 # Execute based on language
                 if language == "python":
                     exec_success, output = self.execute_python(output_file)
@@ -912,7 +946,11 @@ class FrameTestRunner:
             for test_file in sorted(test_files):
                 # Skip language-specific tests for other languages
                 if category.startswith("language_specific_"):
-                    lang = category.split("_")[-1]
+                    # Patterns:
+                    #  - language_specific_<lang>
+                    #  - language_specific_<lang>_v3_demos
+                    parts = category.split("_")
+                    lang = parts[2] if (len(parts) >= 3 and parts[0]=="language" and parts[1]=="specific") else parts[-1]
                     if lang in self.config.languages:
                         result = self.run_test(test_file, category, lang)
                         self.results.append(result)
@@ -1041,7 +1079,7 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description='Frame Test Runner')
     parser.add_argument('--languages', '-l', nargs='+', default=['python', 'typescript'],
-                       choices=['python', 'typescript', 'rust', 'golang', 'javascript', 'llvm'],
+                       choices=['python', 'typescript', 'csharp', 'c', 'cpp', 'java', 'rust', 'golang', 'javascript', 'llvm'],
                        help='Languages to test')
     parser.add_argument('--categories', '-c', nargs='+', default=['all'],
                        help='Test categories to run')
