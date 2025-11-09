@@ -106,14 +106,14 @@ CompilationUnit (.frm file)
  - More: stages/target_parsers.md
 
 6) NativeRegionSegmenter (per target)
-- Classifies native body lines into `BodySegment::{Native,Directive}` using a brace/string/comment/template‑aware state machine. See stages/native_region_segmenter.md
+- Classifies native body lines into `BodySegment::{Native,Frame Statement}` using a brace/string/comment/template‑aware state machine. See stages/native_region_segmenter.md
 
 7) MixedBody / MIR Assembly
 - Converts to `[MixedBodyItem::{NativeText,NativeAst,Frame(MirStatement)}]` for stable codegen and source mapping. See stages/mixed_body_mir.md
 
 Parsers & Mixed AST Linkage
 - Target parsers (SWC for TypeScript; rustpython for Python) validate native‑only bodies and supply structured spans, but do not own Frame semantics or codegen.
-- Mixed bodies skip target parsing and instead use the NativeRegionSegmenter + MixedBody/MIR. Visitors emit native spans verbatim and expand directives with deterministic glue.
+- Mixed bodies skip target parsing and instead use the NativeRegionSegmenter + MixedBody/MIR. Visitors emit native spans verbatim and expand Frame statements with deterministic glue.
 - Frame symbols are maintained by Arcanum; native symbol information (when collected) is kept in a sidecar index for diagnostics only. No merging into Arcanum.
 - Further details: stages/mixed_asts_and_symbols.md
 
@@ -174,7 +174,7 @@ In short: we partition Frame blocks; we segment native blocks.
 
 - NativeRegionSegmenter (per target native region)
   - Implementation (TS scaffold): `framec/src/frame_c/native_region_segmenter/typescript.rs`
-  - Role: For each NativeBody partition, classify top‑level lines into Native vs Directive segments (brace/string/template/comment aware). No reordering and no full native parsing.
+  - Role: For each NativeBody partition, classify top‑level lines into Native vs Frame Statement segments (brace/string/template/comment aware). No reordering and no full native parsing.
 
 - Semantic analysis
   - Current: performed during Parser pass 2.
@@ -182,11 +182,11 @@ In short: we partition Frame blocks; we segment native blocks.
 
 - Visitors (code generation)
   - Implementations: `framec/src/frame_c/visitors/*`
-  - Role: Emit Native segments verbatim; emit glue for Directive segments (transition, forward, stack operations).
+  - Role: Emit Native segments verbatim; emit glue for Frame Statement segments (transition, forward, stack operations).
 
 - Diagnostics & Source Maps
   - Implementations: `framec/src/frame_c/source_map.rs`, `framec/src/frame_c/source_mapping.rs`
-  - Policy: Partitions choose diagnostic domain (Frame vs native). Segments carry dual locations (frame_line for directives; start/end target lines for native).
+  - Policy: Partitions choose diagnostic domain (Frame vs native). Segments carry dual locations (frame_line for Frame statements; start/end target lines for native).
 
 ### MixedBody + MIR (Authoritative)
 
@@ -214,9 +214,9 @@ Data Model
   - `StackPop`
   - `Return(Option<String>)`
 
-### Directive Detection Invariants (All Targets)
+### Frame Statement Detection Invariants (All Targets)
 
-- SOL-anchored: A line is classified as a Frame directive only if the directive tokens begin at the first non-whitespace column. No mid-line detection.
+- SOL-anchored: A line is classified as a Frame statement only if the statement tokens begin at the first non-whitespace column. No mid-line detection.
 - Full token patterns:
   - Transition: `-> $State` (require `$` after optional whitespace following `->`).
   - Parent forward: `=> $^` (require `$^` after optional whitespace following `=>`).
@@ -231,7 +231,7 @@ Data Model
 - Python: Handles single/double/triple-quoted strings and `#` comments; SOL detection applies; triple-quoted literals are respected inside native bodies.
 - TypeScript: Handles single/double quotes, `//`, `/* */`, and backtick template literals with nested `${…}`; SOL detection applies; braces inside template expressions do not affect top-level detection.
 - C/C++: Recognizes `//`, `/* */`, and raw strings; SOL detection requires `-> $` to avoid `ptr->field` false positives.
-- Rust/Java/Kotlin/C#: Apply the same SOL + pattern rules; treat native arrow (`=>`) or lambdas as non-directives unless followed by `$^` at SOL.
+- Rust/Java/Kotlin/C#: Apply the same SOL + pattern rules; treat native arrow (`=>`) or lambdas as non-Frame statements unless followed by `$^` at SOL.
 
 These invariants are enforced in segmenters and mirrored in the FrameCommon scanner to treat space-like characters as whitespace. Negative fixtures exist for common false positives.
 
@@ -270,10 +270,10 @@ Examples
 Constraints & Invariants
 - No reformatting of native text in MixedBody assembly.
 - MIR carries names and (later) argument string forms only; it does not own type information (that remains in Arcanum / analyzer).
-- MixedBody must be present or derivable for all bodies that contain directives inside native code.
+- MixedBody must be present or derivable for all bodies that contain Frame statements inside native code.
 
 Extensibility
-- New Frame control semantics can be added as new MirDirective variants with a corresponding visitor emission rule.
+- New Frame control semantics can be added as new MirFrame Statement variants with a corresponding visitor emission rule.
 
 Further Reading
 - Stage doc: stages/mixed_body_mir.md (assembly rules and validation).
@@ -287,12 +287,12 @@ Further Reading
 - Naming cleanup (in code)
   - `TargetRegion` → `NativeRegion`
   - `interleaver` modules → `native_region_segmenter`
-  - `FrameStmtKind` → `DirectiveKind`
+  - `FrameStmtKind` → `Frame StatementKind`
   - `ActionBody::Interleaved` → `ActionBody::Segmented`
 
 - MixedBody/B2 implementation
   - Populate `mixed_body` for all target bodies that are native or segmented.
-  - Translate `MirDirective` into target-native AST (SWC for TypeScript), then delegate emission to native printers.
+  - Translate `MirFrame Statement` into target-native AST (SWC for TypeScript), then delegate emission to native printers.
   - Compose Frame/native source maps for precise diagnostics across mixed content.
 
 ---

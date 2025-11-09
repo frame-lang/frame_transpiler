@@ -1361,28 +1361,28 @@ impl Scanner {
 
         // Enter attribute parsing
         self.advance(); // consume '['
-        let mut directive = String::new();
+        let mut annot = String::new();
         while !self.is_at_end() {
             let c = self.advance();
             if c == ']' {
                 break;
             }
-            directive.push(c);
+            annot.push(c);
         }
 
-        let trimmed = directive.trim();
+        let trimmed = annot.trim();
 
         if let Some(rest) = trimmed.strip_prefix("target") {
             let lang_part = rest.trim_start_matches(|c: char| c == ':' || c.is_whitespace());
             let lang_name = lang_part.trim();
             let msg = format!(
-                "Inline #[target: {}] directives are no longer supported",
+                "Inline #[target: {}] annotations are no longer supported",
                 lang_name
             );
             self.error(self.line, &msg);
         }
 
-        // Skip rest of the line after directive
+        // Skip rest of the line after the inline annotation
         while !self.is_at_end() && self.peek() != '\n' {
             self.advance();
         }
@@ -2053,7 +2053,7 @@ system Example {
             "expected scanner error for inline target directive"
         );
         assert!(
-            errors.contains("Inline #[target: typescript] directives are no longer supported"),
+            errors.contains("Inline #[target: typescript] annotations are no longer supported"),
             "unexpected error text: {}",
             errors
         );
@@ -2077,7 +2077,7 @@ fn helper() {
             "expected scanner error for inline target directive"
         );
         assert!(
-            errors.contains("Inline #[target: python] directives are no longer supported"),
+            errors.contains("Inline #[target: python] annotations are no longer supported"),
             "unexpected error text: {}",
             errors
         );

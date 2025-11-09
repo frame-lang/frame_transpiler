@@ -23,7 +23,7 @@ Linking strategy
    - Certain cross‑target conveniences like `system.return` or `self` shorthands can be rewritten in an early pass:
      - TS: `system.return` → `this.returnStack[this.returnStack.length - 1]`
      - Py: `system.return` → `self.return_stack[-1]`
-   - Rewrites happen before MixedBody/MIR emission to keep directive args target‑native and avoid Frame‑specific leakage in native code.
+   - Rewrites happen before MixedBody/MIR emission to keep Frame‑statement args target‑native and avoid Frame‑specific leakage in native code.
 
 4) MixedBody drives emission; target AST validates
    - Mixed bodies: visitors emit `NativeText` verbatim (or `NativeAst` when available) and expand `MirStatement` using deterministic glue; we do not need a native code printer for glue.
@@ -31,7 +31,7 @@ Linking strategy
 
 5) Diagnostics and source maps
    - Native parser spans map to Frame via `TargetSourceMap`.
-   - Mixed bodies synthesize spans for directives at their Frame lines; native text spans record start/end Frame lines.
+   - Mixed bodies synthesize spans for Frame statements at their Frame lines; native text spans record start/end Frame lines.
    - Error messages include both domains where useful (Frame+target).
 
 Resolution rules for statement arguments [future]

@@ -1,7 +1,7 @@
 use super::{BodySegment, FrameStmtKind};
 use crate::frame_c::region_scanner::{RegionScanner, ScanResult, TsTemplateScanner};
 
-/// Segment a TypeScript native region into Native and Directive segments.
+/// Segment a TypeScript native region into Native and Frame-statement segments.
 /// Top-level detection uses a small state machine for strings/comments/template literals.
 pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<BodySegment> {
     if start_line == 0 || end_line == 0 || end_line < start_line {
@@ -88,7 +88,7 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
         let line = region_lines[i];
 
         // Fast path: if not inside any state and the first non-whitespace
-        // character cannot begin a Frame directive, and the line contains no
+        // character cannot begin a Frame statement, and the line contains no
         // quotes/backticks or comment markers, treat the whole line as native.
         if !in_template && !in_squote && !in_dquote {
             if let Some(col0) = line.find(|c: char| !c.is_whitespace()) {
@@ -238,7 +238,7 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
                 continue;
             }
 
-            // Detect directives at top level and only at first non-whitespace column
+        // Detect Frame statements at top level and only at first non-whitespace column
             if brace_depth == 0 {
                 if let Some(col0) = line.find(|c: char| !c.is_whitespace()) {
                     if j == col0 {
@@ -327,7 +327,7 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
             j += 1;
         }
 
-        // If we didn't emit a directive on this line, ensure a native run is open
+        // If we didn't emit a Frame statement on this line, ensure a native run is open
         if !segments
             .last()
             .map(|s| match s {

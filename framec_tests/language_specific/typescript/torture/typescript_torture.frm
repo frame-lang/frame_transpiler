@@ -28,7 +28,7 @@ system TortureTS {
             const [a,b] = [x,y];
             const s = `sum=${'$'}{`${'$'}{a}+${'$'}{b}`}`;
             this.counter = add(a,b);
-            // Frame directive at SOL
+            // Frame statement at SOL
             -> $Processing(this.counter, this.name)
         }
 
@@ -65,7 +65,7 @@ system TortureTS {
 
         $Processing(count: number, label: string) {
             $>() {
-                // interleave directives
+                // interleave Frame statements
                 if (count > 10) {
                     $$[-]
                     -> $Done(count)
@@ -84,4 +84,3 @@ system TortureTS {
         }
     }
 }
-

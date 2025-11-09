@@ -4,7 +4,7 @@ Status: Draft (actively used), replaces historical FSL references
 
 Purpose
 - Define how Frame specs call into target‑native code in a portable way using FID (Frame Interface Definitions) + native modules.
-- Explain how this integrates with MixedBody, SOL‑anchored directives, and validation.
+- Explain how this integrates with MixedBody, SOL‑anchored Frame statements, and validation.
 - Provide examples for Python and TypeScript.
 
 What Is FID?
@@ -126,4 +126,3 @@ FAQ
   A: In the MixedBody native code for each target. Keep imports idempotent or rely on the emitter to hoist shared imports in multi‑file builds (planned).
 - Q: Is FSL still supported?
   A: No. FSL is historical. Use FID + native modules with MixedBody.
-

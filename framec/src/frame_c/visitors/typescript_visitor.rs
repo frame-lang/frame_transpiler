@@ -17,7 +17,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
-// B2 MixedBody/MIR directive emission (offline fallback: textual composition)
+// B2 MixedBody/MIR Frame-statement emission (offline fallback: textual composition)
 
 // SWC codegen imports for B2 emission of MIR
 // (B2 planned) SWC codegen can be enabled later for MIR emission
@@ -1660,7 +1660,7 @@ impl TypeScriptVisitor {
     }
 
     fn generate_runtime_support(&mut self) {
-        // TypeScript compilation directives (always needed)
+        // TypeScript compilation pragmas (always needed)
         self.builder
             .writeln("// TypeScript compilation target - ensures Promise support");
         self.builder
@@ -1929,7 +1929,7 @@ mod tests {
     #[test]
     fn mixedbody_maps_directive_line() {
         let mut v = TypeScriptVisitor::new(Vec::new(), SymbolConfig::default());
-        // Simulate a simple mixed body with one native line and one directive at Frame line 123
+        // Simulate a simple mixed body with one native line and one Frame statement at Frame line 123
         let items = vec![
             MixedBodyItem::NativeText {
                 target: TargetLanguage::TypeScript,
@@ -1949,7 +1949,7 @@ mod tests {
         let has_directive_mapping = mappings.iter().any(|m| m.frame_line == 123);
         assert!(
             has_directive_mapping,
-            "expected mapping for directive frame line 123"
+            "expected mapping for Frame statement frame line 123"
         );
     }
 
@@ -8633,7 +8633,7 @@ impl TypeScriptVisitor {
                         }
                     }
                     MixedBodyItem::Frame { frame_line, indent: _indent, stmt } => {
-                        // Map directive glue to the directive's frame line
+                        // Map MIR glue to the Frame statement's frame line
                         self.builder.map_next(*frame_line);
                         let code = self.emit_mir_statement_as_swc(stmt);
                         if !code.is_empty() {
@@ -8642,7 +8642,7 @@ impl TypeScriptVisitor {
                                 self.builder.newline();
                             }
                         }
-                        // Mark terminal directives to warn on following code
+                        // Mark terminal Frame statements to warn on following code
                         match stmt {
                             MirStatement::Transition { .. }
                             | MirStatement::ParentForward

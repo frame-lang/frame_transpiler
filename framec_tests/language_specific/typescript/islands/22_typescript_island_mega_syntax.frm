@@ -30,11 +30,11 @@ system MegaTSIsland {
         const arr: Array<number> = [1, 2, 3];
         const doubled = arr.map(n => n * 2);
 
-        // Comments containing directive-like tokens must not segment
+        // Comments containing Frame-statement-like tokens must not segment
         // -> $ShouldNotSegment
         /* $$[+] */
 
-        // Frame directives at SOL
+        // Frame statements at SOL
         -> $Next
         $$[+]
         $$[-]

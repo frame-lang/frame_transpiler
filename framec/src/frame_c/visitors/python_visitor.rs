@@ -242,10 +242,10 @@ impl PythonVisitor {
                 }
                 MixedBodyItem::Frame { frame_line, indent: _indent, stmt } => {
                     if after_terminal_dir {
-                        // After a terminal directive, ignore any further MIR glue
+                        // After a terminal Frame statement, ignore any further MIR glue
                         continue;
                     }
-                    // Map glue to directive's frame line
+                    // Map glue to the Frame statement's frame line
                     match stmt {
                         MirStatement::Transition { state, args } => {
                             // Build state_args dict by mapping positional args to state param names (if available)

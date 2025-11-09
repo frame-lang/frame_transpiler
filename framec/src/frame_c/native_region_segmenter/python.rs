@@ -104,7 +104,7 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
         };
 
         // Fast path: if not inside any string state and the first non-whitespace
-        // character cannot begin a Frame directive, and the line contains no
+        // character cannot begin a Frame statement, and the line contains no
         // quotes or comment markers, treat the whole line as native without
         // per-character scanning.
         if !(in_squote || in_dquote || in_tsquote || in_tdquote) {

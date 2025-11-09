@@ -6,7 +6,7 @@ system CommentsWithDirectiveTokens {
     machine:
         $Init {
             start() {
-                // This line contains a directive-like token: -> $Fake but is a comment
+                // This line contains a Frame-statement-like token: -> $Fake but is a comment
                 const a = 1; // -> $NotADirective
                 /* Multi-line comment with tokens
                    => $^

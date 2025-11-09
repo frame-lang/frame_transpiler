@@ -9,7 +9,7 @@ system TorturePyNegative {
             if True {
                 pass
             }
-            # directive not at SOL (should not be recognized)
+            # Frame statement not at SOL (should not be recognized)
               -> $Init()
             return
 

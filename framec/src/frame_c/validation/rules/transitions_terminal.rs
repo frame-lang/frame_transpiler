@@ -26,12 +26,26 @@ impl TransitionsTerminalRule {
         match item {
             MixedBodyItem::Frame { .. } => false, // another MIR after terminal is invalid
             MixedBodyItem::NativeText { text, .. } => {
-                // Permit only structural headers (except/else/finally) and blank/comment lines
+                // Permit only structural headers and blank/comment/brace-only lines.
+                // Python: except/else/finally headers
+                // TypeScript: else { .. }, catch (...) { .. }, finally { .. }, and bare '}' lines
                 for line in text.lines() {
                     let trimmed = line.trim_start();
                     if trimmed.is_empty() { continue; }
                     if trimmed.starts_with('#') { continue; }
                     if trimmed.starts_with("except ") || trimmed == "except:" || trimmed == "else:" || trimmed == "finally:" {
+                        continue;
+                    }
+                    // TS/JS-friendly allowances
+                    if trimmed.starts_with("//") { continue; }
+                    if trimmed == "}" || trimmed.starts_with("}") { continue; }
+                    if trimmed.starts_with("else") { // else or else { ..
+                        continue;
+                    }
+                    if trimmed.starts_with("catch") { // catch (...) {
+                        continue;
+                    }
+                    if trimmed.starts_with("finally") { // finally {
                         continue;
                     }
                     // Any other native content is not permitted after terminal
@@ -48,6 +62,11 @@ impl TransitionsTerminalRule {
                     if trimmed.is_empty() { continue; }
                     if trimmed.starts_with('#') { continue; }
                     if trimmed.starts_with("except ") || trimmed == "except:" || trimmed == "else:" || trimmed == "finally:" {
+                        continue;
+                    }
+                    if trimmed.starts_with("//") { continue; }
+                    if trimmed == "}" || trimmed.starts_with("}") { continue; }
+                    if trimmed.starts_with("else") || trimmed.starts_with("catch") || trimmed.starts_with("finally") {
                         continue;
                     }
                     return false;
@@ -72,7 +91,7 @@ impl ValidationRule for TransitionsTerminalRule {
                 for handler_rcref in &state.evt_handlers_rcref {
                     let handler = handler_rcref.borrow();
                     if let Some(mixed) = &handler.mixed_body {
-                        // Find first terminal directive position
+                        // Find first terminal Frame-statement position
                         let mut terminal_index: Option<usize> = None;
                         for (i, item) in mixed.iter().enumerate() {
                             if let MixedBodyItem::Frame { stmt, .. } = item {
@@ -97,9 +116,9 @@ impl ValidationRule for TransitionsTerminalRule {
                                         severity: Severity::Error,
                                         category: Category::Semantic,
                                         rule_name: self.name().to_string(),
-                                        message: "Frame transition/terminal directive must be the last statement in a handler block".to_string(),
+                                        message: "Frame transition/terminal statement must be the last statement in a handler block".to_string(),
                                         location: SourceLocation { line, column: 1, offset: 0, length: 0, file_path },
-                                        suggestion: Some("Move additional code before the transition, or wrap it in separate control-flow prior to the terminal directive".to_string()),
+                                        suggestion: Some("Move additional code before the transition, or wrap it in separate control-flow prior to the terminal Frame statement".to_string()),
                                         help_url: None,
                                     });
                                     break;

@@ -12,9 +12,8 @@ system UnicodeStringsPy {
 spanning
 several
 lines"""
-                # Ensure parser tolerates heavy unicode without directives
+                # Ensure parser tolerates heavy unicode without Frame statements
                 return
             }
         }
 }
-

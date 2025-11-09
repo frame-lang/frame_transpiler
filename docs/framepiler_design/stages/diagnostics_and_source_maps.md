@@ -6,14 +6,14 @@ Goals
 Sources of Spans
 - Frame tokens/statements → direct Frame spans.
 - Target parser spans → `TargetSourceMap` back to frame lines.
-- MIR expansions → synthesized spans (directive frame lines).
+- MIR expansions → synthesized spans (Frame statement frame lines).
 
 Composition
 - For each emission site, choose domain (Frame or target) and attach span metadata.
 - When printing native AST (B2), leverage native printers’ source map output and compose with `TargetSourceMap`.
 
 Examples
-- Transition in native body: MIR(Transition) synthesized at the directive’s frame line.
+- Transition in native body: MIR(Transition) synthesized at the Frame statement’s frame line.
 - Native block verbatim: start/end frame lines from `NativeText` item guide mapping.
 
 Validation

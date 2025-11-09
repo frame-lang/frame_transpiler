@@ -418,7 +418,7 @@ pub enum ActionBody {
 }
 
 /// Frame MIR (minimal intermediate representation) used inside mixed bodies
-/// to capture Frame directives alongside native target code.
+/// to capture Frame statements alongside native target code.
 #[derive(Debug, Clone)]
 pub enum MirStatement {
     /// -> $StateName(args...)
@@ -438,7 +438,7 @@ pub enum MirStatement {
 }
 
 /// MixedBodyItem captures an ordered sequence of native target code and
-/// embedded Frame directives (as MIR). This is target-agnostic at the AST level.
+/// embedded Frame statements (as MIR). This is target-agnostic at the AST level.
 #[derive(Clone)]
 pub enum MixedBodyItem {
     /// Verbatim native text for the active target with source span
@@ -458,7 +458,7 @@ pub enum MixedBodyItem {
     /// A Frame statement occurring inside a native body
     Frame {
         frame_line: usize,
-        indent: usize, // leading whitespace count on the directive line
+        indent: usize, // leading whitespace count on the Frame-statement line
         stmt: MirStatement,
     },
 }
@@ -1223,7 +1223,7 @@ pub struct ActionNode {
     pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
     pub body: ActionBody,
     pub segmented_body: Option<Vec<BodySegment>>, // NativeRegion segments for native bodies
-    pub mixed_body: Option<Vec<MixedBodyItem>>,   // Unified sequence (native + MIR directives)
+    pub mixed_body: Option<Vec<MixedBodyItem>>,   // Unified sequence (native + MIR Frame statements)
 }
 
 impl ActionNode {
@@ -1291,7 +1291,7 @@ pub struct OperationNode {
     pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
     pub body: ActionBody,
     pub segmented_body: Option<Vec<BodySegment>>, // NativeRegion segments for native bodies
-    pub mixed_body: Option<Vec<MixedBodyItem>>,   // Unified sequence (native + MIR directives)
+    pub mixed_body: Option<Vec<MixedBodyItem>>,   // Unified sequence (native + MIR Frame statements)
 }
 
 impl OperationNode {
@@ -1854,7 +1854,7 @@ pub struct EventHandlerNode {
     pub unrecognized_statements: Vec<UnrecognizedStatementNode>,
     pub body: ActionBody,
     pub segmented_body: Option<Vec<crate::frame_c::native_region_segmenter::BodySegment>>, // NativeRegion segments for native TS bodies
-    pub mixed_body: Option<Vec<MixedBodyItem>>, // Unified sequence (native + MIR directives)
+    pub mixed_body: Option<Vec<MixedBodyItem>>, // Unified sequence (native + MIR Frame statements)
 }
 
 impl EventHandlerNode {

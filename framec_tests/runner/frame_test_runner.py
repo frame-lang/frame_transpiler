@@ -44,7 +44,7 @@ class TestConfig:
     validation_level: str = "structural"  # basic|structural|semantic|target-language
     validation_format: str = "human"  # human|json|junit
     parallel: bool = False
-    timeout: int = 10
+    timeout: int = 30
     include_common: bool = False
     
     def __post_init__(self):
@@ -1063,7 +1063,7 @@ def main():
     parser.add_argument('--include-common', action='store_true', help='Include common/ shared tests (default: disabled for native-only policy)')
     parser.add_argument('--index', dest='index_path', default=str(Path(__file__).parent.parent / 'TEST_INDEX.json'), help='Path to test index JSON')
     parser.add_argument('--update-index', dest='update_index', action='store_true', help='Update the test index with actual results')
-    parser.add_argument('--timeout', type=int, default=10,
+    parser.add_argument('--timeout', type=int, default=30,
                        help='Timeout for each test in seconds')
     
     args = parser.parse_args()

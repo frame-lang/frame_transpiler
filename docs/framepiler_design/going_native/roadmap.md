@@ -53,10 +53,10 @@ Owner: native backend track
 - AST Dump Spec: docs/framepiler_design/going_native/ast_dump_spec.md
 - Backend Plans: C / C++ / Rust / Java (going_native directory)
 9) MixedBody Parser Normalization (TS/Py)
-- Implement FIRST‑set SOLIndex + directive mini‑parsers in segmenters:
+- Implement FIRST‑set SOLIndex + Frame‑statement mini‑parsers in segmenters:
   - FIRST set: `->`, `=>` `$^`, `$$[+/-]`, `system.return =`.
-  - Streaming DPDA‑protected pass builds directive entries; per‑entry mini‑parsers return MIR with precise failures.
-- Replace per‑char directive checks with SOLIndex; keep DPDA closers authoritative.
+  - Streaming DPDA‑protected pass builds Frame‑statement entries; per‑entry mini‑parsers return MIR with precise failures.
+- Replace per‑char Frame‑statement checks with SOLIndex; keep DPDA closers authoritative.
 - Add Unicode torture fixtures (NBSP indents, emoji in strings/templates/f‑strings) and negative fixtures (unterminated constructs).
 - Acceptance:
-  - Single‑file TS/Py suites green; directive detection strictly SOL; no triggers inside strings/comments/templates; errors are specific.
+  - Single‑file TS/Py suites green; Frame‑statement detection strictly SOL; no triggers inside strings/comments/templates; errors are specific.

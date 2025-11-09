@@ -620,6 +620,9 @@ impl Exe {
                 TargetLanguage::Python3 => {
                     use crate::frame_c::symbol_table::SymbolConfig;
                     use crate::frame_c::visitors::python_visitor::PythonVisitor;
+                    use crate::frame_c::source_map::SourceMapBuilder;
+                    use std::cell::RefCell;
+                    use std::rc::Rc;
 
                     let arcanum = semantic_parser.get_arcanum();
                     let arcanum_vec = vec![arcanum];
@@ -629,6 +632,19 @@ impl Exe {
                         config.clone(),
                         comments,
                     );
+                    // Align normal run path with debug path: attach a source map builder to
+                    // ensure identical code paths and avoid divergence in emission behavior.
+                    let source_file = input_path_str
+                        .and_then(|p| std::path::Path::new(p).file_name())
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown.frm")
+                        .to_string();
+                    let target_file = source_file.replace(".frm", ".py");
+                    let sm_builder = Rc::new(RefCell::new(SourceMapBuilder::new(
+                        source_file,
+                        target_file,
+                    )));
+                    visitor.set_source_map_builder(sm_builder);
                     output = visitor.run(&frame_module);
                 }
                 TargetLanguage::C

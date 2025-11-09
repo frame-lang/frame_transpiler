@@ -29,7 +29,7 @@ Frame is a state machine language that transpiles to multiple target languages (
 - **Core policies**:
   - Native bodies by default; MixedBody permitted only in event handlers (actions/operations are native‑only).
   - SOL‑anchored Frame statements (->, => $^, $$[+/-], system.return) recognized only at start‑of‑line (ignoring strings/comments/templates).
-  - Transitions are terminal: a terminal MIR directive must be the last statement in a handler body (validator enforced).
+  - Transitions are terminal: a terminal MIR statement must be the last statement in a handler body (validator enforced).
   - Per‑language boundary detection uses DPDAs (TS template/backtick‑aware; Py triple‑quote/f‑string‑aware).
 
 ## Architecture
@@ -194,7 +194,7 @@ cargo build --release
 - No inline `#[target: …]` annotations in source (scanner errors); per-target segmentation handles native islands.
 
 ### Validation
-- Structural rules include transitions_terminal: terminal directives must be last in a handler body.
+- Structural rules include transitions_terminal: terminal Frame statements must be last in a handler body.
 - PythonNativePolicy prevents legacy brace-style control and `var` inside Python bodies.
 - Negative patterns exist for nested function declarations and other intentionally bad constructs.
 

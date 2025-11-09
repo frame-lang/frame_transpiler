@@ -38,7 +38,7 @@ system TorturePy {
                 self.counter = -1
             finally:
                 self.history = [] if self.counter < 0 else squares
-            # Frame directive at SOL
+            # Frame statement at SOL
             -> $Processing(self.counter, self.name)
         }
 

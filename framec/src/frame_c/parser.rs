@@ -551,6 +551,11 @@ impl<'a> Parser<'a> {
     /// Returns true if a '}' was consumed.
     fn try_consume_close_brace_relaxed(&mut self) -> bool {
         loop {
+            let __prev_cursor = self.current;
+            let __prev_cursor = self.current;
+            let __prev_cursor = self.current;
+            let __prev_cursor = self.current;
+            let __prev_cursor: usize = self.current;
             if self.is_at_end() { return false; }
             if matches!(self.peek().token_type, TokenType::CloseBrace) {
                 let _ = self.consume(TokenType::CloseBrace, "Expected '}'");
@@ -1939,7 +1944,7 @@ impl<'a> Parser<'a> {
                                 // Implicit interface block fallback: if we encounter an identifier followed by '(' at
                                 // system scope before any block header and no interface has been parsed yet, treat this
                                 // as interface method(s) and parse an implicit interface block.
-                                if matches!(self.target_language, Some(TargetLanguage::TypeScript)) && iface_opt.is_none() {
+                                if iface_opt.is_none() {
                                     let idx = self.current + 1;
                                     if idx < self.tokens.len() && matches!(self.tokens[idx].token_type, TokenType::LParen) {
                                         let iface_node = self.interface_block();
@@ -1999,7 +2004,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
-                let progressed = match self.peek().token_type {
+                let mut progressed = match self.peek().token_type {
                     TokenType::OperationsBlock => { let _ = self.parse_operations_block()?; true }
                     TokenType::InterfaceBlock => { let _ = self.parse_interface_block()?; true }
                     TokenType::MachineBlock => { let _ = self.parse_machine_block()?; true }
@@ -2007,6 +2012,25 @@ impl<'a> Parser<'a> {
                     TokenType::DomainBlock => { let _ = self.parse_domain_block()?; true }
                     _ => false,
                 };
+                if !progressed {
+                    // Fallback: accept plain identifier headers and implicit interface
+                    if self.check(TokenType::Identifier) {
+                        let name = self.peek().lexeme.clone();
+                        if name == "interface" { self.advance(); let _ = self.match_token(&[TokenType::Colon]); let _ = self.interface_block(); progressed = true; }
+                        else if name == "machine" { self.advance(); let _ = self.match_token(&[TokenType::Colon]); let _ = self.machine_block(); progressed = true; }
+                        else if name == "actions" { self.advance(); let _ = self.match_token(&[TokenType::Colon]); let _ = self.actions_block(); progressed = true; }
+                        else if name == "operations" { self.advance(); let _ = self.match_token(&[TokenType::Colon]); let _ = self.operations_block(); progressed = true; }
+                        else if name == "domain" { self.advance(); let _ = self.match_token(&[TokenType::Colon]); let _ = self.domain_block(); progressed = true; }
+                        else {
+                            // Implicit interface: identifier followed by '('
+                            let idx = self.current + 1;
+                            if idx < self.tokens.len() && matches!(self.tokens[idx].token_type, TokenType::LParen) {
+                                let _ = self.interface_block();
+                                progressed = true;
+                            }
+                        }
+                    }
+                }
                 if !progressed { break; }
             }
         }
@@ -4181,32 +4205,50 @@ impl<'a> Parser<'a> {
 
         let mut states = Vec::new();
 
-        while self.match_token(&[TokenType::State]) {
-            match self.state() {
-                Ok(state_rcref) => {
-                    states.push(state_rcref);
-                    // Collect any nested states parsed within this state
-                    if !self.nested_states_accum.is_empty() {
-                        for child in self.nested_states_accum.drain(..) {
-                            states.push(child);
+        loop {
+            // Skip comments and TS '//' lines between state declarations
+            let _ = self.match_token(&[TokenType::PythonComment, TokenType::MultiLineComment]);
+            if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                if !self.is_at_end() {
+                    let tk = self.peek().clone();
+                    let line = tk.line;
+                    if let Some(text) = self.source_lines.get(line.saturating_sub(1)) {
+                        if text.trim_start().starts_with("//") {
+                            while !self.is_at_end() && self.peek().line == line { self.advance(); }
+                            continue;
                         }
                     }
                 }
-                Err(_) => {
-                    self.error_at_current("Error parsing Machine Block.");
-                    let sync_tokens = vec![TokenType::State];
-                    if self.synchronize(&sync_tokens) {
-                        continue;
-                    } else {
-                        let sync_tokens = vec![
-                            TokenType::ActionsBlock,
-                            TokenType::DomainBlock,
-                            TokenType::CloseBrace,
-                        ];
-                        self.synchronize(&sync_tokens);
-                        break;
+            }
+
+            if self.match_token(&[TokenType::State]) {
+                match self.state() {
+                    Ok(state_rcref) => {
+                        states.push(state_rcref);
+                        if !self.nested_states_accum.is_empty() {
+                            for child in self.nested_states_accum.drain(..) {
+                                states.push(child);
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        self.error_at_current("Error parsing Machine Block.");
+                        let sync_tokens = vec![TokenType::State];
+                        if self.synchronize(&sync_tokens) {
+                            continue;
+                        } else {
+                            let sync_tokens = vec![
+                                TokenType::ActionsBlock,
+                                TokenType::DomainBlock,
+                                TokenType::CloseBrace,
+                            ];
+                            self.synchronize(&sync_tokens);
+                            break;
+                        }
                     }
                 }
+            } else {
+                break;
             }
         }
 
@@ -5166,14 +5208,14 @@ impl<'a> Parser<'a> {
                     );
                     let _ = self.consume_close_brace_at_line(close_line)?;
                     ts_close_line_opt = Some(close_line);
-                    // If any directives were found, this is invalid in operations (native-only policy)
+                    // If any Frame statements were found, this is invalid in operations (native-only policy)
                     let has_directive = segs.iter().any(|s| matches!(s, crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }));
                     if has_directive {
                         return Err(ParseError::new(
                             "Frame statements (->, => $^, $$[+/-], system.return) are not allowed inside operations; use native code only"
                         ).with_frame_line(start_line));
                     } else {
-                        // No directives: build raw slice for potential native AST/region capture
+                        // No Frame statements: build raw slice for potential native AST/region capture
                         let end_line = close_line.saturating_sub(1);
                         if end_line >= start_line {
                             let mut raw = String::new();
@@ -5242,7 +5284,7 @@ impl<'a> Parser<'a> {
         );
 
         operation_node.target_specific_regions = target_specific_regions;
-        // Recompute segmentation for TS operations; directives are not allowed in operations
+        // Recompute segmentation for TS operations; Frame statements are not allowed in operations
         if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
             let start_line = body_start_line.saturating_add(1);
             let end_line = body_end_line.saturating_sub(1);
@@ -5260,7 +5302,7 @@ impl<'a> Parser<'a> {
                         frame_line,
                     ));
                 } else {
-                    // No directives; attach MixedBody as single native span for uniform downstream handling
+                    // No Frame statements; attach MixedBody as single native span for uniform downstream handling
                     operation_node.segmented_body = Some(segs.clone());
                     operation_node.parsed_target_blocks = parsed_target_blocks;
                 }
@@ -6847,6 +6889,24 @@ impl<'a> Parser<'a> {
         // Parse state calls (currently unused)
         let calls_opt = self.parse_state_calls()?;
 
+        // Skip leading comments in state body (including TS '//' lines)
+        loop {
+            if self.match_token(&[TokenType::PythonComment, TokenType::MultiLineComment]) { continue; }
+            if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                if !self.is_at_end() {
+                    let tk = self.peek().clone();
+                    let line = tk.line;
+                    if let Some(text) = self.source_lines.get(line.saturating_sub(1)) {
+                        if text.trim_start().starts_with("//") {
+                            while !self.is_at_end() && self.peek().line == line { self.advance(); }
+                            continue;
+                        }
+                    }
+                }
+            }
+            break;
+        }
+
         // Parse event handlers
         let state_event_handlers = self.parse_state_event_handlers(&state_name)?;
 
@@ -6882,7 +6942,14 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let _ = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+        // Consume closing brace for state body; tolerate trailing '//' comment lines on same/preceding lines for TS
+        if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+            if !self.try_consume_close_brace_relaxed() {
+                let _ = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+            }
+        } else {
+            let _ = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+        }
 
         // Create state node and update symbol table
         let state_node_rcref = self.create_and_register_state_node(
@@ -7061,7 +7128,7 @@ impl<'a> Parser<'a> {
 
         // PHASE 4 FIX: Hybrid approach - keep original logic but add better error recovery
         // Parse the first event handler (token already consumed by caller)
-        match self.event_handler(is_async) {
+        match self.event_handler_mixed(is_async) {
             Ok(eh_opt) => {
                 if let Some(eh) = eh_opt {
                     self.process_event_handler(
@@ -7162,6 +7229,21 @@ impl<'a> Parser<'a> {
         const MAX_ERRORS: usize = 10; // Prevent infinite error loops
 
         loop {
+            let __prev_cursor = self.current;
+            // Skip comments and TS '//' lines between event handlers
+            while self.match_token(&[TokenType::PythonComment, TokenType::MultiLineComment]) {}
+            if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                if !self.is_at_end() {
+                    let tk = self.peek().clone();
+                    let line = tk.line;
+                    if let Some(text) = self.source_lines.get(line.saturating_sub(1)) {
+                        if text.trim_start().starts_with("//") {
+                            while !self.is_at_end() && self.peek().line == line { self.advance(); }
+                        }
+                    }
+                }
+            }
+
             // Check for async keyword before event handler
             let next_is_async = self.match_token(&[TokenType::Async]);
 
@@ -7185,7 +7267,7 @@ impl<'a> Parser<'a> {
             self.advance();
 
             // Parse current event handler
-            match self.event_handler(next_is_async) {
+            match self.event_handler_mixed(next_is_async) {
                 Ok(eh_opt) => {
                     if let Some(eh) = eh_opt {
                         self.process_event_handler(
@@ -7221,6 +7303,11 @@ impl<'a> Parser<'a> {
                     // Try to recover by finding next event handler boundary
                     self.recover_from_event_handler_error(&eh_error)?;
                 }
+            }
+
+            // Must-advance guard: prevent stalls if no tokens were consumed
+            if self.current == __prev_cursor {
+                if !self.is_at_end() { self.advance(); }
             }
         }
 
@@ -7363,6 +7450,10 @@ impl<'a> Parser<'a> {
                 }
                 Ok(None) => {}
                 Err(parse_error) => return Err(parse_error),
+            }
+            // Always require a closing ')' after an opening '('
+            if let Err(parse_error) = self.consume(TokenType::RParen, "Expected ')'") {
+                return Err(parse_error);
             }
         } else {
             // no parameter list - validate no parameters expected
@@ -7651,242 +7742,132 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn event_handler(&mut self, is_async: bool) -> Result<Option<EventHandlerNode>, ParseError> {
-        // Variables initialized at point of use - see line 3632-3635
-        self.interface_method_called = false;
-        self.event_handler_has_transition = false;
-
-        // consume single line comments
-        self.consume_event_handler_comments();
-
-        //    let a = self.message();
-
-        //        let message_node;
-        //        let tt = self.previous().token_type;
-        //        match tt {
-        //            TokenType::Identifier
-        //  //          | TokenType::String
-        //            | TokenType::GT
-        //            | TokenType::LT
-        //  //          | TokenType::SuperString
-        //            // | TokenType::GTx2
-        //            // | TokenType::GTx3
-        //            // | TokenType::LTx2
-        //            // | TokenType::LTx3
-        //
-        //            => {
-        // //               message_node = self.create_message_node(tt)
-        //                let id = self.previous();
-        //                msg = id.lexeme.clone();
-        //
-        //            },
-        //            _ => {
-        //                let token_str = self.peek().lexeme.clone();
-        //                let err_msg = &format!("Invalid event handler name {}. ", token_str);
-        //                self.error_at_current(err_msg);
-        //    //            return Err(ParseError::new(err_msg));
-        //            }
-        //        }
-
-        // match self.message_selector() {
-        //     Ok(MessageType::CustomMessage { message_node }) => {
-        //         line_number = message_node.line;
-        //         msg = message_node.name.clone();
-        //
-        //         message_type = CustomMessage { message_node };
-        //     }
-        //     Ok(MessageType::None) => {
-        //         let err_msg = "Unknown message type.";
-        //         self.error_at_current(err_msg);
-        //         return Err(ParseError::new(err_msg));
-        //     }
-        //     Err(parse_error) => {
-        //         // I don't think I need this:
-        //         // self.error_at_current("Error parsing event handler message.");
-        //         //return Err(parse_error);
-        //         let sync_tokens = vec![TokenType::Caret];
-        //         if !self.synchronize(&sync_tokens) {
-        //             return Err(parse_error);
-        //         }
-        //     }
-        // }
-        // Parse and validate the event message
+    // New minimal MixedBody-only event handler parser used by event_handlers() loops
+    fn event_handler_mixed(&mut self, is_async: bool) -> Result<Option<EventHandlerNode>, ParseError> {
+        // Message has already been matched by caller (Identifier | EnterStateMsg | ExitStateMsg)
         let (message_type, msg, line_number) = self.parse_event_message()?;
-        // Set up event symbol and scope
-        let is_declaring_event = self.setup_event_handler_scope(&msg)?;
 
-        // Parse event handler parameters and handle scoping
+        // Establish handler scope and parameters scope
+        let is_declaring_event = self.setup_event_handler_scope(&msg)?;
         let pop_params_scope = self.parse_event_handler_parameters(&msg, is_declaring_event)?;
 
-        // Consume closing paren and handle return type
-        self.consume_rparen_with_sync()?;
-        self.parse_event_handler_return_type(&msg, is_declaring_event)?;
-
-        // Parse default return value for event handler: = value
+        // Optional return type and default return initializer on header
+        let mut return_type_opt = None;
+        if self.match_token(&[TokenType::Colon]) {
+            match self.type_decl() { Ok(tn) => return_type_opt = Some(tn), Err(e) => return Err(e) }
+            if let Some(ev) = self.arcanum.get_event(&msg, &self.state_name_opt) {
+                ev.borrow_mut().ret_type_opt = return_type_opt.clone();
+            }
+        }
         let event_handler_return_init_expr_opt = self.parse_event_handler_return_init()?;
 
-        let body_start_line = {
-            let token = self.consume(TokenType::OpenBrace, "Expected '{'")?;
-            token.line
-        };
-
-        // Set up local scope and parse body
+        // Local scope and body bounds
         self.enter_event_handler_local_scope()?;
+        let body_start_line = { let tok = self.consume(TokenType::OpenBrace, "Expected '{'")?; tok.line };
+        let body_end_line = match self.target_language {
+            Some(TargetLanguage::TypeScript) => match self.detect_ts_close_or_failure(body_start_line) {
+                DetectionResult::Ok { close_line } => { let _ = self.consume_close_brace_at_line(close_line)?; close_line }
+                DetectionResult::Failure(f) => return Err(self.map_ts_detection_failure(&f, body_start_line)),
+            },
+            Some(TargetLanguage::Python3) | _ => match self.detect_py_close_or_failure(body_start_line) {
+                DetectionResult::Ok { close_line } => { let _ = self.consume_close_brace_at_line(close_line)?; close_line }
+                DetectionResult::Failure(f) => return Err(self.map_py_detection_failure(&f, body_start_line)),
+            },
+        };
 
-        let event_symbol_rcref = match self.arcanum.get_event(&*msg, &self.state_name_opt) {
+        // Resolve event symbol and enclosing state
+        let ret_event_symbol_rcref = match self.arcanum.get_event(&msg, &self.state_name_opt) {
             Some(ev) => ev,
-            None => {
-                return Err(ParseError::new(&format!(
-                    "Unknown event '{}' in handler return type.",
-                    msg
-                ))
-                .with_frame_line(self.previous().line));
-            }
+            None => return Err(ParseError::new(&format!(
+                "Unknown event '{}' in handler; ensure it is declared in the interface.", msg
+            )).with_frame_line(line_number)),
         };
-        self.current_event_symbol_opt = Some(event_symbol_rcref);
+        let st_name = match &self.state_name_opt { Some(s) => s.clone(), None => {
+            return Err(ParseError::new(&format!(
+                "[line {}] Fatal error - event handler {} missing enclosing state context.",
+                line_number, msg
+            )))
+        }};
 
-        // Locate handler body end. For TS, prefer token-depth to avoid textual mis-detection.
-        {
-            if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                let mut depth: i32 = 1; // already consumed '{'
-                while !self.is_at_end() && depth > 0 {
-                    let tk = self.peek().clone();
-                    match tk.token_type {
-                        TokenType::OpenBrace => { depth += 1; self.advance(); }
-                        TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } self.advance(); }
-                        _ => { self.advance(); }
-                    }
-                }
-            } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
-                // Python: only apply textual closer if body appears native.
-                let start_line = body_start_line.saturating_add(1);
-                let mut looks_native = false;
-                for ln in start_line..(start_line + 96).min(self.source_lines.len() + 1) {
-                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                        let t = s.trim_start();
-                        if t.starts_with('}') { break; }
-                        if (t.starts_with("if ") || t.starts_with("elif ") || t.starts_with("else:")
-                            || t.starts_with("for ") || t.starts_with("while ") || t.starts_with("try:")
-                            || t.starts_with("except") || t.starts_with("finally:") || t.starts_with("with ")
-                            || t.starts_with("async with ") || t.starts_with("async for ")) && t.ends_with(':')
-                        { looks_native = true; break; }
-                        if s.contains("\"\"\"") || s.contains("'''") { looks_native = true; break; }
-                    }
-                }
-                if looks_native {
-                    match self.detect_py_close_or_failure(body_start_line) {
-                        DetectionResult::Ok { close_line } => {
-                            // Only advance if a CloseBrace token exists at that line; otherwise fallback
-                            let mut has_close_token = false;
-                            let mut idx = self.current;
-                            while idx < self.tokens.len() {
-                                let tk = &self.tokens[idx];
-                                if tk.line < close_line { idx += 1; continue; }
-                                if tk.line == close_line { if matches!(tk.token_type, TokenType::CloseBrace) { has_close_token = true; } break; }
-                                if tk.line > close_line { break; }
-                                idx += 1;
-                            }
-                            if has_close_token {
-                                while !self.is_at_end() {
-                                    let tk = self.peek();
-                                    if tk.line < close_line { self.advance(); continue; }
-                                    if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
-                                    break;
-                                }
-                            } else {
-                                // Fallback to token-depth skip
-                                let mut depth: i32 = 1; let mut last_line = body_start_line;
-                                while !self.is_at_end() && depth > 0 {
-                                    let tk = self.peek().clone();
-                                    match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
-                                    last_line = tk.line; self.advance();
-                                }
-                                let _ = last_line;
-                            }
-                        }
-                        DetectionResult::Failure(f) => {
-                            return Err(self.map_py_detection_failure(&f, body_start_line));
-                        }
-                    }
-                }
-            }
-        }
+        // Construct node with MixedBody to be attached below
+        let statements: Vec<DeclOrStmtType> = Vec::new();
+        let final_terminator_opt: Option<TerminatorExpr> = None;
+        let mut event_handler = EventHandlerNode::new(
+            st_name, message_type, statements, final_terminator_opt,
+            ret_event_symbol_rcref, /*has_transition*/ false, line_number,
+            event_handler_return_init_expr_opt, is_async,
+        );
 
-        // Decide whether to parse Frame statements based on body style
-        // Default: do NOT parse Frame statements for TypeScript; TS bodies are native/MixedBody
-        // Python: detect native-style (colon/indent) vs Frame-style (braces)
-        let mut parse_frame_statements = if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-            false
-        } else {
-            true
-        };
-        if matches!(self.target_language, Some(TargetLanguage::Python3)) {
-            // Conservatively detect native-looking Python bodies
-            let start_line = body_start_line.saturating_add(1);
-            let mut looks_native = false;
-            for ln in start_line..(start_line + 96).min(self.source_lines.len() + 1) {
+        // Segment body and attach MixedBody
+        let start_line = body_start_line.saturating_add(1);
+        let end_line_inclusive = body_end_line.saturating_sub(1);
+        if end_line_inclusive >= start_line {
+            let mut raw = String::new();
+            for ln in start_line..=end_line_inclusive {
                 if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                    let t = s.trim_start();
-                    if t.starts_with('}') { break; }
-                    if ((t.starts_with("if ") || t.starts_with("elif ") || t.starts_with("else:")) && t.ends_with(':'))
-                        || ((t.starts_with("for ") || t.starts_with("while ")) && t.ends_with(':'))
-                        || t.starts_with("try:") || t.starts_with("except") || t.starts_with("finally:")
-                        || t.starts_with("with ") || t.starts_with("async with ") || t.starts_with("async for ")
-                        || t.starts_with("from ") || t.starts_with("import ")
-                        || s.contains("\"\"\"") || s.contains("'''")
-                    { looks_native = true; break; }
+                    raw.push_str(s);
+                    if !s.ends_with('\n') { raw.push('\n'); }
                 }
             }
-            parse_frame_statements = !looks_native;
-            if !parse_frame_statements {
-                // Fast-forward token stream to just before the matching '}' so we can consume it once below.
-                let close_line = self.scan_py_closing_brace_line(body_start_line);
-                let mut has_close_token = false;
-                let mut idx = self.current;
-                while idx < self.tokens.len() {
-                    let tk = &self.tokens[idx];
-                    if tk.line < close_line { idx += 1; continue; }
-                    if tk.line == close_line { if matches!(tk.token_type, TokenType::CloseBrace) { has_close_token = true; } break; }
-                    if tk.line > close_line { break; }
-                    idx += 1;
-                }
-                if has_close_token {
-                    while !self.is_at_end() {
-                        let tk = self.peek();
-                        if tk.line < close_line { self.advance(); continue; }
-                        if tk.line == close_line && !matches!(tk.token_type, TokenType::CloseBrace) { self.advance(); continue; }
-                        break;
+            match self.target_language.unwrap_or(TargetLanguage::Python3) {
+                TargetLanguage::Python3 => {
+                    let segs = crate::frame_c::native_region_segmenter::python::segment_py_body(
+                        &self.source_text(), start_line, end_line_inclusive);
+                    let has_stmt = segs.iter().any(|seg| matches!(
+                        seg, crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
+                    ));
+                    if has_stmt {
+                        event_handler.segmented_body = Some(segs.clone());
+                        event_handler.mixed_body = Some(self.build_mixed_body_from_segments(
+                            TargetLanguage::Python3, &segs));
+                        event_handler.body = ActionBody::Mixed;
+                    } else if !raw.trim().is_empty() {
+                        event_handler.mixed_body = Some(vec![MixedBodyItem::NativeText {
+                            target: TargetLanguage::Python3,
+                            text: raw,
+                            start_line,
+                            end_line: end_line_inclusive,
+                        }]);
+                        event_handler.body = ActionBody::Mixed;
                     }
-                } else {
-                    // Fallback to token-depth skip
-                    let mut depth: i32 = 1; let mut last_line = body_start_line;
-                    while !self.is_at_end() && depth > 0 {
-                        let tk = self.peek().clone();
-                        match tk.token_type { TokenType::OpenBrace => depth += 1, TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } }, _ => {} }
-                        last_line = tk.line; self.advance();
-                    }
-                    let _ = last_line;
                 }
+                TargetLanguage::TypeScript => {
+                    let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
+                        &self.source_text(), start_line, end_line_inclusive);
+                    let has_stmt = segs.iter().any(|seg| matches!(
+                        seg, crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }
+                    ));
+                    if has_stmt {
+                        event_handler.segmented_body = Some(segs.clone());
+                        event_handler.mixed_body = Some(self.build_mixed_body_from_segments(
+                            TargetLanguage::TypeScript, &segs));
+                        event_handler.body = ActionBody::Mixed;
+                    } else if !raw.trim().is_empty() {
+                        event_handler.mixed_body = Some(vec![MixedBodyItem::NativeText {
+                            target: TargetLanguage::TypeScript,
+                            text: raw,
+                            start_line,
+                            end_line: end_line_inclusive,
+                        }]);
+                        event_handler.body = ActionBody::Mixed;
+                    }
+                }
+                _ => {}
             }
         }
 
-        // Parse Frame statements for event handler bodies if not native-only
-        let statements: Vec<DeclOrStmtType> = if parse_frame_statements {
-            self.statements(IdentifierDeclScope::EventHandlerVarScope)
-        } else {
-            Vec::new()
-        };
-        let event_symbol_rcref = match self.arcanum.get_event(&msg, &self.state_name_opt) {
-            Some(ev) => ev,
-            None => {
-                return Err(ParseError::new(&format!(
-                    "Unknown event '{}' in handler return initialization.",
-                    msg
-                ))
-                .with_frame_line(self.previous().line));
-            }
-        };
-        let ret_event_symbol_rcref = Rc::clone(&event_symbol_rcref);
+        // Exit scopes
+        self.arcanum.exit_scope(); // local
+        if pop_params_scope { self.arcanum.exit_scope(); } // params
+        self.arcanum.exit_scope(); // handler
+        self.current_event_symbol_opt = None;
+
+        Ok(Some(event_handler))
+    }
+
+    fn event_handler(&mut self, _is_async: bool) -> Result<Option<EventHandlerNode>, ParseError> {
+        return Err(ParseError::new("event_handler() legacy path disabled; use event_handler_mixed"));
+        /*
         // TODO v.20: update sync for new syntax
         // let terminator_node = match self.event_handler_terminator(event_symbol_rcref) {
         //     Ok(terminator_node) => terminator_node,
@@ -7907,16 +7888,8 @@ impl<'a> Parser<'a> {
         //     }
         // };
 
-        // Parse optional terminator (Frame-level). For Python target-native bodies,
-        // do not attempt to parse a Frame 'return' terminator inside the native block.
-        let terminator_node_opt: Option<TerminatorExpr> = if matches!(
-            self.target_language,
-            Some(TargetLanguage::Python3)
-        ) {
-            None
-        } else {
-            self.parse_event_handler_terminator()?
-        };
+        // MixedBody/MIR handles returns; skip parser-level terminator for handlers
+        let terminator_node_opt: Option<TerminatorExpr> = None;
 
         let body_end_line = {
             let token = self.consume(TokenType::CloseBrace, "Expected '}'")?;
@@ -7997,7 +7970,7 @@ impl<'a> Parser<'a> {
             &event_handler.target_specific_regions,
             &event_handler.parsed_target_blocks,
         );
-        // TypeScript handlers: prefer SWC parse if no directives; otherwise attach segmentation
+        // TypeScript handlers: prefer SWC parse if no Frame statements; otherwise attach segmentation
         if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
             let start_line = body_start_line.saturating_add(1);
             let end_line_inclusive = body_end_line.saturating_sub(1);
@@ -8041,7 +8014,7 @@ impl<'a> Parser<'a> {
                         },
                     };
                     if let Ok(ast) = parse_target_region(TargetLanguage::TypeScript, &region) {
-                        // Prefer SWC AST for native handlers without directives
+                        // Prefer SWC AST for native handlers without Frame statements
                         event_handler.parsed_target_blocks.push(ParsedTargetBlock {
                             region_index: 0,
                             frame_start_line: start_line,
@@ -8072,14 +8045,10 @@ impl<'a> Parser<'a> {
             }
         } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
             // Python handlers:
-            // - If body looks native (parse_frame_statements == false), build MixedBody/native parse
-            // - Otherwise, rely on Frame statements and do not attach MixedBody
+            // Always build MixedBody by segmenting the full body; no parser-time Frame statement parsing.
             let start_line = body_start_line.saturating_add(1);
             let end_line_inclusive = body_end_line.saturating_sub(1);
             if end_line_inclusive >= start_line {
-                if parse_frame_statements {
-                    // Frame-style body: do not generate MixedBody/segments
-                } else {
                 // Build raw slice
                 let mut raw = String::new();
                 for ln in start_line..=end_line_inclusive {
@@ -8090,7 +8059,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
-                // Segment the body for Frame statements (directives) within native text
+                // Segment the body for Frame statements within native text
                 let segs = crate::frame_c::native_region_segmenter::python::segment_py_body(
                     &self.source_text(),
                     start_line,
@@ -8119,11 +8088,10 @@ impl<'a> Parser<'a> {
                     }]);
                     event_handler.body = ActionBody::Mixed;
                 }
-                }
             }
         }
 
-        Ok(Some(event_handler))
+        */
     }
 
     /* --------------------------------------------------------------------- */
@@ -19180,6 +19148,105 @@ mod py_textual_scan_tests {
     }
 }
 
+#[cfg(test)]
+mod mixed_body_stmt_tests {
+    use super::*;
+    use crate::frame_c::native_region_segmenter::{BodySegment, FrameStmtKind};
+
+    #[test]
+    fn mixed_body_no_directives_python() {
+        // Build MixedBody from a single native segment: expect exactly one native item
+        let parser = {
+            let scanner = Scanner::new("".to_string());
+            let (_e, _s, tokens, target_regions) = scanner.scan_tokens();
+            let mut comments: Vec<Token> = Vec::new();
+            let arcanum = Arcanum::new();
+            Parser::new(&tokens, &mut comments, true, arcanum, Arc::new(target_regions), Arc::new(Vec::new()))
+        };
+        let segs = vec![BodySegment::Native { text: "print('ok')\n".to_string(), start_line: 10, end_line: 10 }];
+        let items = parser.build_mixed_body_from_segments(TargetLanguage::Python3, &segs);
+        assert_eq!(items.len(), 1);
+        match &items[0] {
+            MixedBodyItem::NativeText { .. } | MixedBodyItem::NativeAst { .. } => {}
+            _ => panic!("expected native item"),
+        }
+    }
+
+    #[test]
+    fn mixed_body_transition_python() {
+        let parser = {
+            let scanner = Scanner::new("".to_string());
+            let (_e, _s, tokens, target_regions) = scanner.scan_tokens();
+            let mut comments: Vec<Token> = Vec::new();
+            let arcanum = Arcanum::new();
+            Parser::new(&tokens, &mut comments, true, arcanum, Arc::new(target_regions), Arc::new(Vec::new()))
+        };
+        let segs = vec![BodySegment::FrameStmt { kind: FrameStmtKind::Transition, frame_line: 20, line_text: "    -> $Running(x, y)".to_string() }];
+        let items = parser.build_mixed_body_from_segments(TargetLanguage::Python3, &segs);
+        assert_eq!(items.len(), 1);
+        match &items[0] {
+            MixedBodyItem::Frame { stmt: MirStatement::Transition { state, args }, frame_line, .. } => {
+                assert_eq!(state, "Running");
+                assert_eq!(args, &vec!["x".to_string(), "y".to_string()]);
+                assert_eq!(*frame_line, 20);
+            }
+            other => panic!("unexpected item: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn mixed_body_forward_python() {
+        let parser = {
+            let scanner = Scanner::new("".to_string());
+            let (_e, _s, tokens, target_regions) = scanner.scan_tokens();
+            let mut comments: Vec<Token> = Vec::new();
+            let arcanum = Arcanum::new();
+            Parser::new(&tokens, &mut comments, true, arcanum, Arc::new(target_regions), Arc::new(Vec::new()))
+        };
+        let segs = vec![BodySegment::FrameStmt { kind: FrameStmtKind::Forward, frame_line: 21, line_text: "=> $^".to_string() }];
+        let items = parser.build_mixed_body_from_segments(TargetLanguage::Python3, &segs);
+        match &items[0] {
+            MixedBodyItem::Frame { stmt: MirStatement::ParentForward, frame_line, .. } => assert_eq!(*frame_line, 21),
+            _ => panic!("expected ParentForward"),
+        }
+    }
+
+    #[test]
+    fn mixed_body_stack_ops_python() {
+        let parser = {
+            let scanner = Scanner::new("".to_string());
+            let (_e, _s, tokens, target_regions) = scanner.scan_tokens();
+            let mut comments: Vec<Token> = Vec::new();
+            let arcanum = Arcanum::new();
+            Parser::new(&tokens, &mut comments, true, arcanum, Arc::new(target_regions), Arc::new(Vec::new()))
+        };
+        let segs = vec![
+            BodySegment::FrameStmt { kind: FrameStmtKind::StackPush, frame_line: 30, line_text: "$$[+]".to_string() },
+            BodySegment::FrameStmt { kind: FrameStmtKind::StackPop, frame_line: 31, line_text: "$$[-]".to_string() },
+        ];
+        let items = parser.build_mixed_body_from_segments(TargetLanguage::Python3, &segs);
+        assert_eq!(items.len(), 2);
+        match &items[0] { MixedBodyItem::Frame { stmt: MirStatement::StackPush, .. } => {}, _ => panic!("push") }
+        match &items[1] { MixedBodyItem::Frame { stmt: MirStatement::StackPop, .. } => {}, _ => panic!("pop") }
+    }
+
+    #[test]
+    fn mixed_body_return_assign_python() {
+        let parser = {
+            let scanner = Scanner::new("".to_string());
+            let (_e, _s, tokens, target_regions) = scanner.scan_tokens();
+            let mut comments: Vec<Token> = Vec::new();
+            let arcanum = Arcanum::new();
+            Parser::new(&tokens, &mut comments, true, arcanum, Arc::new(target_regions), Arc::new(Vec::new()))
+        };
+        let segs = vec![BodySegment::FrameStmt { kind: FrameStmtKind::Return, frame_line: 40, line_text: "system.return = 42".to_string() }];
+        let items = parser.build_mixed_body_from_segments(TargetLanguage::Python3, &segs);
+        match &items[0] {
+            MixedBodyItem::Frame { stmt: MirStatement::Return(Some(rhs)), .. } => assert_eq!(rhs, "42"),
+            _ => panic!("expected Return(Some)"),
+        }
+    }
+}
 // Helper enum for bracket expression parsing
 enum BracketExpressionType {
     Index(ExprType),

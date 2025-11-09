@@ -126,7 +126,7 @@ Last updated: 2025‑11‑05
 - Target libs (DOM/node): tests need lib assumptions clear (node vs browser).
 
 ### Tests to Add
-- Mixed bodies with complex templates `${{ a: () => ..}}`, nested braces, multi‑directive bodies, unreachable code after transitions.
+- Mixed bodies with complex templates `${{ a: () => ..}}`, nested braces, multi‑Frame‑statement bodies, unreachable code after transitions.
 - Multi‑file linking with shared runtime and relative imports.
 
 ---
@@ -245,7 +245,7 @@ Last updated: 2025‑11‑05
 - `using` statement vs `using` directives: keep both intact and in order; do not interleave with Frame glue.
 
 ### Tests to Add
-- Bodies with `$"…{ expr with braces }…"`, raw strings `"""…"""`, nested lambdas, and directive‑like tokens inside strings/comments.
+- Bodies with `$"…{ expr with braces }…"`, raw strings `"""…"""`, nested lambdas, and Frame‑statement‑like tokens inside strings/comments.
 - MixedBody with transitions/forward/stack ops interleaved.
 - Async handler with `await` and transitions.
 
@@ -302,7 +302,7 @@ TypeScript Segmenter Acceptance Checklist
 
 Python Segmenter Acceptance Checklist
 - [x] Triple-quoted strings (''' and """) handled without false positives
-- [x] f-strings ignore directive-like tokens inside expressions
+- [x] f-strings ignore Frame-statement-like tokens inside expressions
 - [x] Comments starting with `#` suppress detection on the line
 - [x] Indent/dedent boundaries produce correct body ranges
 
@@ -312,7 +312,7 @@ Python Segmenter Acceptance Checklist
 - [ ] Raw/multiline strings (e.g., Python triple quotes, Rust raw, Swift multi-line)
 - [ ] Interpolation (C#, Kotlin, Swift, JS templates)
 - [ ] Preprocessor/macros/annotations handling (C/C++/Rust/Java/C#)
-- [ ] SOL directive tokens recognized only at first non-whitespace column
+- [ ] SOL Frame-statement tokens recognized only at first non-whitespace column
 - [ ] No detection inside strings/comments/templates/macros
 - [ ] Brace/indent depth tracking stable across lines
 
@@ -324,7 +324,7 @@ These sections capture what the segmenters must support and propose a comprehens
 
 ### Java
 - Strings/Comments: " ", character literals with escapes; // and /* */ comments; Javadoc.
-- Annotations: @Annotation on classes/methods/params; ignore directive tokens inside annotations.
+- Annotations: @Annotation on classes/methods/params; ignore Frame-statement tokens inside annotations.
 - Generics/Bounds: List<Map<String, List<Integer>>>; wildcards; method refs.
 - Interop: package/import; nested classes/interfaces; enums.
 - Acceptance checklist (apply Cross‑Language list with Java specifics):
@@ -343,7 +343,7 @@ These sections capture what the segmenters must support and propose a comprehens
   - [ ] Raw strings with # counts do not confuse scanning
   - [ ] Macro bodies do not segment even if they contain Frame-statement-like tokens
 - Proposed mega fixture (not added):
-  - operations: body with struct/enum impl blocks, generics, iterator adapters, format!/println!, attributes, and SOL directives.
+  - operations: body with struct/enum impl blocks, generics, iterator adapters, format!/println!, attributes, and SOL Frame statements.
 
 ### C / C++
 - Strings: normal and raw (C++11 R"(…)"); comments // and /* */; preprocessor lines starting with #.
@@ -360,9 +360,9 @@ These sections capture what the segmenters must support and propose a comprehens
 - Defer/panic/recover; interfaces; goroutines/channels (syntax only, no runtime needed in tests).
 - Acceptance notes:
   - [ ] Backtick raw strings may contain Frame-statement-like tokens without segmentation
-  - [ ] Short var declarations at SOL do not clash with directive detection
+  - [ ] Short var declarations at SOL do not clash with Frame‑statement detection
 - Proposed mega fixture (not added):
-  - operations: body with multiple funcs, methods on types, interface impl patterns, and SOL directives.
+  - operations: body with multiple funcs, methods on types, interface impl patterns, and SOL Frame statements.
 
 ### Swift / Kotlin
 - Swift: multiline triple-quote strings, interpolation \(…); // and /* */; attributes @.

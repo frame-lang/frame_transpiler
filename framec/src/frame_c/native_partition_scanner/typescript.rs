@@ -46,7 +46,7 @@ pub fn scan_body_to_segments(source: &str, body_start_line: usize) -> (Vec<BodyS
         let mut j = 0usize;
         let mut in_line_comment = false;
 
-        // Quick fast path: if line has no quotes/backticks and SOL cannot start a directive,
+        // Quick fast path: if line has no quotes/backticks and SOL cannot start a Frame statement,
         // treat it as native without per-char scanning.
         if !in_template && !in_squote && !in_dquote && !in_block_comment {
             if let Some(col0) = line.find(|c: char| !c.is_whitespace()) {
@@ -119,7 +119,7 @@ pub fn scan_body_to_segments(source: &str, body_start_line: usize) -> (Vec<BodyS
                 j += 1; continue;
             }
 
-            // Detect directives at SOL (first non-whitespace)
+            // Detect Frame statements at SOL (first non-whitespace)
             if brace_depth == 1 {
                 if let Some(col0) = line.find(|c: char| !c.is_whitespace()) {
                     if j == col0 {
@@ -162,7 +162,7 @@ pub fn scan_body_to_segments(source: &str, body_start_line: usize) -> (Vec<BodyS
             j += 1;
         }
 
-        // Reached end of line without pushing a directive; open native run if needed
+        // Reached end of line without pushing a Frame statement; open native run if needed
         if !in_line_comment && brace_depth > 0 {
             let line_has_stmt = segments.last().map(|s| matches!(s, BodySegment::FrameStmt { frame_line, .. } if *frame_line == frame_ln)).unwrap_or(false);
             if !line_has_stmt {

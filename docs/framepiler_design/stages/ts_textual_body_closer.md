@@ -44,7 +44,7 @@ In short, it “knows” about template strings (and other literal/comment forms
 ## Tested behaviors
 
 - Nested template literals with `${ ... }` expressions.
-- Directive‑like tokens inside block/line comments are ignored.
+- Frame‑statement‑like tokens inside block/line comments are ignored.
 - CRLF newlines do not affect detection.
 - NBSP and tabs do not affect detection.
 
@@ -58,4 +58,4 @@ See unit tests: `framec/src/frame_c/parser.rs` (module `ts_textual_scan_tests`).
 ## Limitations and future work
 
 - This is a boundary detector, not a parser; it does not build AST. For mixed bodies we still rely on the NativeRegionSegmenter + MixedBody.
-- Eventually, directive expansions (MIR) will be emitted via SWC AST (B2 codegen) for deterministic formatting and precise source maps.
+- Eventually, Frame‑statement expansions (MIR) will be emitted via SWC AST (B2 codegen) for deterministic formatting and precise source maps.

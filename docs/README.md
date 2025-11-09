@@ -33,7 +33,7 @@ Below is the living index of the most relevant specs and plans across `framelang
 - Native bodies by default; Frame statements (->, => $^, $$[+/-], system.return) are SOL‑anchored and recognized only in handlers.
 - Actions/operations are native‑only; use `system.return` for returns as needed.
 - Per‑language boundary detection via DPDAs (TS template/backtick‑aware; Py triple‑quote/f‑string‑aware).
-- Transitions are terminal: a terminal MIR directive must be last in a handler body (validator enforced).
+- Transitions are terminal: a terminal MIR statement must be last in a handler body (validator enforced).
 
 ### Going Native (Authoritative Specs)
 - Roadmap: docs/framepiler_design/going_native/roadmap.md

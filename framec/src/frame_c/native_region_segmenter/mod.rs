@@ -1,6 +1,6 @@
 /// NativeRegionSegmenter: splits a native region into ordered segments without reordering.
 /// - Native segments are emitted verbatim by visitors.
-/// - Directive segments represent Frame control directives recognized at top level.
+/// - Frame-statement segments represent Frame control statements recognized at top level.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FrameStmtKind {
     Transition,
