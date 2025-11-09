@@ -7926,10 +7926,9 @@ impl<'a> Parser<'a> {
                     }
                 }
                 // Policy applies only to Python target; do not check in TypeScript path
-                let segs = crate::frame_c::native_region_segmenter::typescript::segment_ts_body(
+                let (segs, _close_line2) = crate::frame_c::native_partition_scanner::typescript::scan_body_to_segments(
                     &self.source_text(),
-                    start_line,
-                    end_line_inclusive,
+                    body_start_line,
                 );
                 let has_directive = segs.iter().any(|seg| {
                     matches!(
