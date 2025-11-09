@@ -72,7 +72,7 @@ pub fn segment_py_body(source: &str, start_line: usize, end_line: usize) -> Vec<
 
     let char_line_offsets = build_char_line_offsets(source);
 
-    for (mut i, line) in region_lines.iter().enumerate() {
+    for (i, line) in region_lines.iter().enumerate() {
         let frame_ln = start_line + i;
         let bytes = line.as_bytes();
         let mut j = 0;

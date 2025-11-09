@@ -5025,6 +5025,7 @@ impl<'a> Parser<'a> {
         let mut parsed_target_blocks: Vec<ParsedTargetBlock> = Vec::new();
         // Note: reserved for potential MixedBody assembly in this context; currently unused.
         let mut _mixed_native_opt: Option<(TargetLanguage, String, usize, usize)> = None;
+        let mut ts_close_line_opt: Option<usize> = None;
         if matches!(self.target_language, Some(TargetLanguage::Python3)) {
             // Skip tokens until matching '}' without consuming the closing brace
             let mut depth: i32 = 1; // already consumed '{'
@@ -5073,41 +5074,35 @@ impl<'a> Parser<'a> {
                 // Skip native AST parsing for Python operations; visitor will emit raw target regions.
             }
         } else {
-            // TypeScript: textual closer only if backticks are present; otherwise token-depth fast path
+            // TypeScript: unified streaming scan to collect segments and locate closing '}'
             if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                let look_start = body_start_line.saturating_add(1);
-                let mut has_backtick = false;
-                for ln in look_start..(look_start + 64).min(self.source_lines.len() + 1) {
-                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                        let t = s.trim_start();
-                        if t.starts_with('}') { break; }
-                        if s.contains('`') { has_backtick = true; break; }
-                    }
-                }
-                if has_backtick {
-                    match self.detect_ts_close_or_failure(body_start_line) {
-                        DetectionResult::Ok { close_line } => { let _ = self.consume_close_brace_at_line(close_line)?; }
-                        DetectionResult::Failure(f) => { return Err(self.map_ts_detection_failure(&f, body_start_line)); }
-                    }
+                let start_line = body_start_line.saturating_add(1);
+                let (segs, close_line) = crate::frame_c::native_partition_scanner::typescript::scan_body_to_segments(
+                    &self.source_text(),
+                    body_start_line,
+                );
+                let _ = self.consume_close_brace_at_line(close_line)?;
+                ts_close_line_opt = Some(close_line);
+                // If any directives were found, this is invalid in operations (native-only policy)
+                let has_directive = segs.iter().any(|s| matches!(s, crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }));
+                if has_directive {
+                    return Err(ParseError::new(
+                        "Frame statements (->, => $^, $$[+/-], system.return) are not allowed inside operations; use native code only"
+                    ).with_frame_line(start_line));
                 } else {
-                    // token-depth skip to matching '}', then consume it (tolerate trailing // on same line)
-                    let mut depth: i32 = 1;
-                    let mut last_line = body_start_line;
-                    let mut close_line = body_start_line;
-                    while !self.is_at_end() && depth > 0 {
-                        let tk = self.peek().clone();
-                        match tk.token_type {
-                            TokenType::OpenBrace => depth += 1,
-                            TokenType::CloseBrace => { depth -= 1; if depth == 0 { close_line = tk.line; break; } },
-                            _ => {}
+                    // No directives: build raw slice for potential native AST/region capture
+                    let end_line = close_line.saturating_sub(1);
+                    if end_line >= start_line {
+                        let mut raw = String::new();
+                        for ln in start_line..=end_line {
+                            if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                                raw.push_str(s);
+                                if !s.ends_with('\n') { raw.push('\n'); }
+                            }
                         }
-                        last_line = tk.line;
-                        self.advance();
+                        _mixed_native_opt = Some((TargetLanguage::TypeScript, raw, start_line, end_line));
                     }
-                    let _ = self.consume_close_brace_at_line(close_line)?;
-                    let _ = last_line;
                 }
-                // leave statements empty for TS native bodies
             } else {
                 statements = self.statements(IdentifierDeclScope::BlockVarScope);
             }
@@ -5129,8 +5124,10 @@ impl<'a> Parser<'a> {
             terminator_node = TerminatorExpr::new(Return, expr_t_opt, self.previous().line);
         }
 
-        // foo(...) : type { ... return True }
-        let body_end_line = {
+        // foo(...) : type { ... }
+        let body_end_line = if let Some(close_line) = ts_close_line_opt {
+            close_line
+        } else {
             let token = self.consume(
                 TokenType::CloseBrace,
                 &format!("Expected '}}' - found '{}'", self.current_token),
@@ -7664,51 +7661,15 @@ impl<'a> Parser<'a> {
         };
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
-        // Guarded textual closer for TS/Py native-heavy bodies: advance to just before the
-        // computed close '}' when template literals (TS) or triple quotes/f-strings (Py)
-        // are detected. This prevents the statements() walker from mis-parsing native code
-        // as Frame statements. MixedBody/segmentation below remains authoritative.
+        // Unified streaming scan for TS native-heavy bodies to locate '}' and avoid misparsing native code
         {
             let start_line = body_start_line.saturating_add(1);
             if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                // Quick lookahead for backticks; if found, use textual scan
-                let mut has_backtick = false;
-                for ln in start_line..(start_line + 64).min(self.source_lines.len() + 1) {
-                    if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                        let trimmed = s.trim_start();
-                        if trimmed.starts_with('}') { break; }
-                        if s.contains('`') {
-                            has_backtick = true;
-                            break;
-                        }
-                    }
-                }
-                if has_backtick {
-                    match self.detect_ts_close_or_failure(body_start_line) {
-                        DetectionResult::Ok { close_line } => { let _ = self.consume_close_brace_at_line(close_line)?; }
-                        DetectionResult::Failure(f) => { return Err(self.map_ts_detection_failure(&f, body_start_line)); }
-                    }
-                } else {
-                    // Fallback: token-depth skip to matching '}'
-                    let mut depth: i32 = 1;
-                    let mut last_line = body_start_line;
-                    while !self.is_at_end() && depth > 0 {
-                        let tk = self.peek().clone();
-                        match tk.token_type {
-                            TokenType::OpenBrace => depth += 1,
-                            TokenType::CloseBrace => {
-                                depth -= 1;
-                                if depth == 0 {
-                                    break;
-                                }
-                            }
-                            _ => {}
-                        }
-                        last_line = tk.line;
-                        self.advance();
-                    }
-                    let _ = last_line;
-                }
+                let (_segs, close_line) = crate::frame_c::native_partition_scanner::typescript::scan_body_to_segments(
+                    &self.source_text(),
+                    body_start_line,
+                );
+                let _ = self.consume_close_brace_at_line(close_line)?;
             } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
                 // Python: only apply textual closer if body appears native.
                 let start_line = body_start_line.saturating_add(1);

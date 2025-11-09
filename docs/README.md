@@ -47,6 +47,3 @@ Below is the living index of the most relevant specs and plans across `framelang
 - C++ Backend Plan: docs/framepiler_design/going_native/cpp_backend_plan.md
 - Rust Backend Plan: docs/framepiler_design/going_native/rust_backend_plan.md
 - Java Backend Plan: docs/framepiler_design/going_native/java_backend_plan.md
-
-## Release Notes
- - Root changelog (current): CHANGELOG.md

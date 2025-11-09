@@ -83,7 +83,7 @@ pub fn segment_ts_body(source: &str, start_line: usize, end_line: usize) -> Vec<
         }
     }
 
-    for mut i in 0..region_lines.len() {
+    for i in 0..region_lines.len() {
         let frame_ln = start_line + i; // actual frame line for this region line
         let line = region_lines[i];
 

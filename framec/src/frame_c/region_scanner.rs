@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_variables)]
 use std::collections::{HashMap, VecDeque};
 
 use super::visitors::TargetLanguage;

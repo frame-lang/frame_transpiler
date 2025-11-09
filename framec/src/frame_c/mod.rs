@@ -13,6 +13,7 @@ mod module_partitioner; // ModulePartitioner: partitions module into Blocks + Re
 pub mod modules; // Multi-file module system (v0.57)
 mod native_region_segmenter; // NativeRegionSegmenter: segments native regions into Native/Directive slices
 mod region_scanner; // DFA/DPDA region scanners + queue for specialized native parsing
+mod native_partition_scanner; // Unified streaming scanners (DPDA + FIRST) for MixedBody/segments
 mod parser;
 pub mod runtime_assets; // Shared runtime helpers (v0.87)
 mod scanner; // Scanner (tokens) + NativeRegion (alias)
