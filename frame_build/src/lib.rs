@@ -87,7 +87,7 @@
 
 use anyhow::{Error, Result};
 use framec::frame_c::compiler::{detect_header_target_annotation, Exe};
-use framec::frame_c::runtime_assets;
+use framec::frame_c::v3::CompilerV3;
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
@@ -238,8 +238,8 @@ impl FrameBuild {
             .min_depth(self.min_depth)
             .follow_links(self.follow_links);
 
-        let mut emitted_python_runtime = false;
-        let mut emitted_typescript_runtime_dirs: HashSet<PathBuf> = HashSet::new();
+        let mut _emitted_python_runtime = false; // disabled during V3 rebuild
+        let mut _emitted_typescript_runtime_dirs: HashSet<PathBuf> = HashSet::new();
 
         for entry in walk_dir {
             let entry = entry?;
@@ -276,32 +276,14 @@ impl FrameBuild {
                     let content_clone = file_content.clone();
                     let path_clone = input_path_str.clone();
                     let framec_result = std::panic::catch_unwind(move || {
-                        let exe = Exe::new();
-                        exe.run(path_clone.as_deref(), content_clone, Some(target))
+                        CompilerV3::compile_single_file(path_clone.as_deref(), &content_clone, Some(target), false)
                     });
 
                     match framec_result {
                         Ok(Ok(output_content)) => {
                             // success, write the file
                             fs::write(&target_output_path, output_content)?;
-                            match target {
-                                TargetLanguage::Python3 => {
-                                    emitted_python_runtime = true;
-                                }
-                                TargetLanguage::TypeScript => {
-                                    if let Some(parent_dir) = target_output_path.parent() {
-                                        let parent_dir = parent_dir.to_path_buf();
-                                        if emitted_typescript_runtime_dirs
-                                            .insert(parent_dir.clone())
-                                        {
-                                            runtime_assets::emit_typescript_runtime_package(
-                                                &parent_dir,
-                                            )?;
-                                        }
-                                    }
-                                }
-                                _ => {}
-                            }
+                            // Runtime emission disabled during V3 rebuild
                             generated_files.push(target_output_path);
                         }
                         Ok(Err(err)) => {
@@ -333,9 +315,7 @@ impl FrameBuild {
             }
         }
 
-        if emitted_python_runtime {
-            runtime_assets::emit_python_runtime_package(&self.output_dir)?;
-        }
+        // Runtime emission disabled during V3 rebuild
 
         Ok(generated_files)
     }

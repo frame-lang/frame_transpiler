@@ -1,6 +1,7 @@
 pub mod frame_c;
 use crate::compiler::{Exe, TargetLanguage};
 use crate::frame_c::*;
+use crate::frame_c::v3::CompilerV3;
 use std::convert::TryFrom;
 use wasm_bindgen::prelude::*;
 
@@ -11,7 +12,7 @@ pub fn run(frame_code: &str, format: &str) -> String {
     let exe = Exe::new();
     match TargetLanguage::try_from(format) {
         Ok(target) => {
-            let result = exe.run(None, frame_code.to_string(), Some(target));
+            let result = CompilerV3::compile_single_file(None, frame_code, Some(target), false);
             match result {
                 Ok(code) => code,
                 Err(run_error) => {
