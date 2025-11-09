@@ -126,20 +126,20 @@ Checklist
 - [x] Trailer builder (debug) present
 - [ ] CLI gating via env flags for map output
 
-07 — Native Parse Facades (optional)
-- Objects: `NativeParseFacadePyV3/TsV3`, `IndentationAnalyzerPyV3/TsV3`.
-- Deliverable: parse spliced body for diagnostics/formatting; refine indentation when present.
-- Acceptance: off by default; no regressions when on.
-- Tests: formatting/diagnostics mapping samples; off by default in CI.
+07 — Native Parse Facades (pluggable; runtime‑optional — required to implement for all languages)
+- Objects: `NativeParseFacade*V3` per language; optional `IndentationAnalyzer*V3`.
+- Deliverable: parse spliced body for diagnostics/formatting; validate native arg expressions; map diagnostics to Frame spans via `splice_map`.
+- Acceptance: off by default (hermetic core); when enabled (e.g., `--validate-native`), surfaces native syntax errors in args and provides formatting/indent hints; no semantic regressions.
+- Tests: `v3_facade_*` categories (runner) with positive/negative fixtures per language; diagnostics correctly mapped to Frame arg spans when enabled.
 
 Checklist
-- [ ] Python facade (off by default)
-- [ ] TypeScript facade (off by default)
-- [ ] C# facade adapter (off by default; Roslyn integration optional)
-- [ ] C facade (off by default)
-- [ ] C++ facade (off by default)
-- [ ] Java facade (off by default)
-- [ ] Rust facade (off by default)
+- [ ] Python facade (implemented; off by default)
+- [ ] TypeScript facade (implemented; off by default)
+- [ ] C# facade adapter (implemented; off by default; Roslyn integration optional)
+- [ ] C facade (implemented; off by default)
+- [ ] C++ facade (implemented; off by default)
+- [ ] Java facade (implemented; off by default)
+- [ ] Rust facade (implemented; off by default)
 
 08 — Codegen (adapters, optional)
 - Objects: `TsB2CodegenV3`, `PyB2CodegenV3` (future polish).

@@ -10,6 +10,10 @@ Start Here
 How To Use These Docs
 - For each stage: read the dedicated spec, implement the named struct(s) in `framec/src/frame_c/v3/…`, and satisfy the Inputs/Outputs/Invariants/Errors/Test Hooks described.
 - Keep passes linear and deterministic. Do not re‑close bodies after partitioning. Operate on byte offsets; lines are diagnostics‐only.
+- SOL policy: “SOL‑anchored (indentation allowed)” — scanners accept leading spaces/tabs before Frame directives.
+- Two‑pass pipeline: segment→MIR→validate→expand→splice once for deterministic formatting and stable `splice_map`.
+- Native parse adapters (Stage 07) are pluggable (runtime‑optional) and implemented for all languages; enable strict validation to parse the patched native body and surface mapped diagnostics for arg expressions. Default remains hermetic.
+- All behavioral tests run via the Python runner under `framec_tests/` (per‑phase, per‑language positive and negative fixtures).
 - MixedBody/MIR is authoritative for embedded Frame semantics. Only three Frame statements exist in native regions: `-> $State(args)`, `=> $^`, `$$+/-`. `system.return` remains native and is rewritten by visitors.
 - Languages in scope from Stage 01: Python, TypeScript, C#, C, C++, Java, Rust. C# is prioritized early due to unique verbatim/interpolated/raw string forms and SOL preprocessor lines.
 

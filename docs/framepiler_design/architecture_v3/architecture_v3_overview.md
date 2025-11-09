@@ -57,6 +57,9 @@ Outstanding Work (Ordered)
 
 7) Cleanup
   - Keep docs and test index consistent with “handlers only” MixedBody policy and “actions/ops native‑only”.
+  - SOL policy is “SOL‑anchored (indentation allowed)”: scanners accept leading spaces/tabs before Frame directives.
+  - Two‑pass emission: segment→MIR→validate→expand→splice (single splice) for deterministic formatting/mapping.
+  - Native parse adapters are pluggable and runtime‑optional; enable with strict validation to check native arg expressions and map diagnostics via `splice_map`.
 
 Architectural Notes
 - DFA vs DPDA: A pure DFA cannot count braces; the closer uses a deterministic pushdown scan (single counter) plus protected‑region flags to work in O(n). FIRST‑set detection for Frame statements is DFA‑like at SOL and combined with the DPDA’s protected‑region state.
@@ -101,7 +104,7 @@ Architecture Update — Region-Based Partitioning (No Line Slicing)
 
 - Action items
   - Implement `native_partition_scanner/python.rs` (streaming DPDA + FIRST-set detection) and remove the line-based segmenter.
-  - Integrate scanner output into `event_handler_mixed(..)`.
+  - Integrate scanner output into `event_handler_mixed(..)`; unify Frame head detection via a shared core + per‑language protected‑region adapters.
   - Keep diagnostics stable by mapping byte offsets to lines for messages and source maps.
 
 Mini‑Report — Review and Plan (2025‑11‑09)

@@ -20,6 +20,7 @@ pub mod multifile_demo;
 pub mod module_partitioner;
 pub mod prolog_scanner;
 pub mod import_scanner;
+pub mod outline_scanner;
 
 /// V3 compiler entrypoint (MVP scaffold).
 ///

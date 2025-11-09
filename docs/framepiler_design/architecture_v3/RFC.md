@@ -11,8 +11,53 @@ This document contains RFCs for design decisions, implementation approaches, and
 - `REJECTED` - Not proceeding with this approach
 - `IMPLEMENTED` - Completed and verified
 
-**Format:**
-Each RFC follows standard conventions with sections for motivation, detailed design, alternatives considered, and unresolved questions.
+**Format:** Each RFC follows standard conventions with sections for motivation, detailed design, alternatives considered, and unresolved questions.
+
+---
+
+## Architecture Review & Resolutions (2025‑11‑09)
+
+This section consolidates concerns raised in the architectural analysis and the concrete resolutions adopted in plan and code. It is normative and supersedes earlier notes.
+
+1) Code Duplication in Scanners
+- Concern: Seven scanners duplicate Frame head detection logic.
+- Resolution: Introduce a `UnifiedFrameScanner` core (single SOL head detector), with per‑language `LanguageSpecifics` trait for protected‑region handling (strings/comments/raw/preprocessor). Minimizes duplication; improves maintenance.
+
+2) SOL Policy (Start‑of‑Line)
+- Concern: SOL disallows indentation.
+- Resolution: Clarify as “SOL‑anchored (indentation allowed)”. Scanners accept leading spaces/tabs before Frame directives. Add fixtures proving indented directives are detected.
+
+3) Stage 07 Optionality
+- Concern: Two paths diverge behavior.
+- Resolution: Stage 07 is runtime‑optional (hermetic core default) but required to implement for all languages. `--validate-native/--strict` enables native parse adapters to validate arg expressions and provide mapped diagnostics via `splice_map`.
+
+4) MIR Scope
+- Concern: MIR too small for control flow/expressions.
+- Resolution: By policy, V3 keeps logic in native code; MIR models Frame statements only. Extensions require separate RFCs if policy changes.
+
+5) Error Attribution Across Stages
+- Concern: Mapping lost across scan→MIR→expand→splice→native parse.
+- Resolution: Keep a single `splice_map` from final target spans to origin Frame/native spans; Stage 07 diagnostics remap through it. Trailer printing is gated; mapping composition is always on. Fixtures verify anchors/diagnostics mapping.
+
+6) Multi‑Language Sustainability
+- Concern: 7× languages × 8× stages → maintenance/test explosion.
+- Resolution: Reduce duplication with `UnifiedFrameScanner`/trait adapters and similar boundaries for outline scanning. Share test patterns via matrix fixtures; prioritize Py/TS strict suites while advancing others for core.
+
+7) Performance vs Correctness
+- Concern: Multiple linear passes and allocations.
+- Resolution: Favor clear O(n) passes and determinism; add content‑hash caches for incremental builds. Fuse passes only when it doesn’t harm determinism.
+
+8) Language‑Agnostic vs Specific Boundaries
+- Concern: Excessive `match lang` in high‑level code.
+- Resolution: Push specifics behind traits (protected regions, closers, native policies). Keep high‑level flows language‑agnostic.
+
+9) Native Expression Correctness
+- Concern: Without native parsing, malformed arg expressions slip through.
+- Resolution: Implement Stage 07 adapters for all languages. In strict mode, expand Frame statements to wrapper calls, splice once, parse with native parser, and map diagnostics back to Frame arg spans via `splice_map`.
+
+10) Testing Strategy
+- Concern: Fragmented/duplicate tests.
+- Resolution: All behavior tests live in the Python runner. Add per‑phase, per‑language positive and negative fixtures (`v3_prolog`, `v3_imports`, `v3_outline`, `v3_mir`, `v3_mapping`, `v3_validator`, `v3_project`, `v3_facade_*`). Keep crate‑side tests for tiny invariants only.
 
 ---
 
