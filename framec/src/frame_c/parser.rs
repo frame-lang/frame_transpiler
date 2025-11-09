@@ -1778,6 +1778,24 @@ impl<'a> Parser<'a> {
 
         let mut assumed_open_brace = false;
         if self.consume(TokenType::OpenBrace, "Expected '{'").is_err() {
+            // Skip comments/whitespace lines between 'system Name' and first block header
+            loop {
+                if self.match_token(&[TokenType::PythonComment, TokenType::MultiLineComment]) { continue; }
+                // For TypeScript, also treat '//' line as a comment line
+                if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
+                    if !self.is_at_end() {
+                        let tk = self.peek().clone();
+                        let line = tk.line;
+                        if let Some(text) = self.source_lines.get(line.saturating_sub(1)) {
+                            if text.trim_start().starts_with("//") {
+                                while !self.is_at_end() && self.peek().line == line { self.advance(); }
+                                continue;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
             // If the next token begins a valid system block, proceed as if '{' was present.
             match self.peek().token_type {
                 TokenType::OperationsBlock
@@ -1871,7 +1889,68 @@ impl<'a> Parser<'a> {
                             let _ = self.parse_domain_block()?;
                         }
                     }
-                    _ => break,
+                    _ => {
+                        // Fallback: tolerate plain identifier headers like "interface:"
+                        if self.check(TokenType::Identifier) {
+                            let name = self.peek().lexeme.clone();
+                            if name == "interface" {
+                                // Consume 'interface' and optional ':' then parse block
+                                self.advance();
+                                let _ = self.match_token(&[TokenType::Colon]);
+                                if iface_opt.is_none() {
+                                    // Directly invoke block parser without the match_token guard
+                                    let iface_node = self.interface_block();
+                                    iface_opt = Some(iface_node);
+                                    continue;
+                                }
+                            } else if name == "machine" {
+                                self.advance();
+                                let _ = self.match_token(&[TokenType::Colon]);
+                                if machine_opt.is_none() {
+                                    let machine_node = self.machine_block();
+                                    machine_opt = Some(machine_node);
+                                    continue;
+                                }
+                            } else if name == "actions" {
+                                self.advance();
+                                let _ = self.match_token(&[TokenType::Colon]);
+                                if actions_opt.is_none() {
+                                    let actions_node = self.actions_block();
+                                    actions_opt = Some(actions_node);
+                                    continue;
+                                }
+                            } else if name == "operations" {
+                                self.advance();
+                                let _ = self.match_token(&[TokenType::Colon]);
+                                if ops_opt.is_none() {
+                                    let ops_node = self.operations_block();
+                                    ops_opt = Some(ops_node);
+                                    continue;
+                                }
+                            } else if name == "domain" {
+                                self.advance();
+                                let _ = self.match_token(&[TokenType::Colon]);
+                                if domain_opt.is_none() {
+                                    let domain_node = self.domain_block();
+                                    domain_opt = Some(domain_node);
+                                    continue;
+                                }
+                            } else {
+                                // Implicit interface block fallback: if we encounter an identifier followed by '(' at
+                                // system scope before any block header and no interface has been parsed yet, treat this
+                                // as interface method(s) and parse an implicit interface block.
+                                if matches!(self.target_language, Some(TargetLanguage::TypeScript)) && iface_opt.is_none() {
+                                    let idx = self.current + 1;
+                                    if idx < self.tokens.len() && matches!(self.tokens[idx].token_type, TokenType::LParen) {
+                                        let iface_node = self.interface_block();
+                                        iface_opt = Some(iface_node);
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                        break
+                    },
                 }
             }
 
@@ -5074,30 +5153,38 @@ impl<'a> Parser<'a> {
             // TypeScript: unified streaming scan to collect segments and locate closing '}'
             if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
                 let start_line = body_start_line.saturating_add(1);
-                let (segs, close_line) = crate::frame_c::native_partition_scanner::typescript::scan_body_to_segments(
-                    &self.source_text(),
-                    body_start_line,
-                );
-                let _ = self.consume_close_brace_at_line(close_line)?;
-                ts_close_line_opt = Some(close_line);
-                // If any directives were found, this is invalid in operations (native-only policy)
-                let has_directive = segs.iter().any(|s| matches!(s, crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }));
-                if has_directive {
-                    return Err(ParseError::new(
-                        "Frame statements (->, => $^, $$[+/-], system.return) are not allowed inside operations; use native code only"
-                    ).with_frame_line(start_line));
+                // Fast path: empty body on same line: op() {}
+                if matches!(self.peek().token_type, TokenType::CloseBrace)
+                    && self.peek().line == body_start_line
+                {
+                    let tok = self.consume(TokenType::CloseBrace, "Expected '}'")?;
+                    ts_close_line_opt = Some(tok.line);
                 } else {
-                    // No directives: build raw slice for potential native AST/region capture
-                    let end_line = close_line.saturating_sub(1);
-                    if end_line >= start_line {
-                        let mut raw = String::new();
-                        for ln in start_line..=end_line {
-                            if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
-                                raw.push_str(s);
-                                if !s.ends_with('\n') { raw.push('\n'); }
+                    let (segs, close_line) = crate::frame_c::native_partition_scanner::typescript::scan_body_to_segments(
+                        &self.source_text(),
+                        body_start_line,
+                    );
+                    let _ = self.consume_close_brace_at_line(close_line)?;
+                    ts_close_line_opt = Some(close_line);
+                    // If any directives were found, this is invalid in operations (native-only policy)
+                    let has_directive = segs.iter().any(|s| matches!(s, crate::frame_c::native_region_segmenter::BodySegment::FrameStmt { .. }));
+                    if has_directive {
+                        return Err(ParseError::new(
+                            "Frame statements (->, => $^, $$[+/-], system.return) are not allowed inside operations; use native code only"
+                        ).with_frame_line(start_line));
+                    } else {
+                        // No directives: build raw slice for potential native AST/region capture
+                        let end_line = close_line.saturating_sub(1);
+                        if end_line >= start_line {
+                            let mut raw = String::new();
+                            for ln in start_line..=end_line {
+                                if let Some(s) = self.source_lines.get(ln.saturating_sub(1)) {
+                                    raw.push_str(s);
+                                    if !s.ends_with('\n') { raw.push('\n'); }
+                                }
                             }
+                            _mixed_native_opt = Some((TargetLanguage::TypeScript, raw, start_line, end_line));
                         }
-                        _mixed_native_opt = Some((TargetLanguage::TypeScript, raw, start_line, end_line));
                     }
                 }
             } else {
