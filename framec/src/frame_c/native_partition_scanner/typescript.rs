@@ -38,7 +38,7 @@ pub fn scan_body_to_segments(source: &str, body_start_line: usize) -> (Vec<BodyS
     }
 
     // Iterate lines starting from the next line after '{'
-    let mut i = body_start_line; // 1-based
+    let mut i = body_start_line.saturating_add(1); // 1-based
     while i <= all_lines.len() {
         let frame_ln = i;
         let line = match all_lines.get(i.saturating_sub(1)) { Some(s) => *s, None => break };

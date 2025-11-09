@@ -4610,16 +4610,13 @@ impl<'a> Parser<'a> {
                 let end_line = body_start_line;
                 (end_line, false)
             } else if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                // TypeScript actions: use textual closer with failure characterization
-                match self.detect_ts_close_or_failure(body_start_line) {
-                    DetectionResult::Ok { close_line } => {
-                        close_tok_line = self.consume_close_brace_at_line(close_line)?;
-                        (close_line.saturating_sub(1), true)
-                    }
-                    DetectionResult::Failure(f) => {
-                        return Err(self.map_ts_detection_failure(&f, body_start_line));
-                    }
-                }
+                // TypeScript actions: use unified streaming scanner to find matching '}'
+                let (_segs, close_line) = crate::frame_c::native_partition_scanner::typescript::scan_body_to_segments(
+                    &self.source_text(),
+                    body_start_line,
+                );
+                close_tok_line = self.consume_close_brace_at_line(close_line)?;
+                (close_line.saturating_sub(1), true)
             } else {
                 // Python path: textual closer with failure characterization
                 match self.detect_py_close_or_failure(body_start_line) {
@@ -7661,15 +7658,18 @@ impl<'a> Parser<'a> {
         };
         self.current_event_symbol_opt = Some(event_symbol_rcref);
 
-        // Unified streaming scan for TS native-heavy bodies to locate '}' and avoid misparsing native code
+        // Locate handler body end. For TS, prefer token-depth to avoid textual mis-detection.
         {
-            let start_line = body_start_line.saturating_add(1);
             if matches!(self.target_language, Some(TargetLanguage::TypeScript)) {
-                let (_segs, close_line) = crate::frame_c::native_partition_scanner::typescript::scan_body_to_segments(
-                    &self.source_text(),
-                    body_start_line,
-                );
-                let _ = self.consume_close_brace_at_line(close_line)?;
+                let mut depth: i32 = 1; // already consumed '{'
+                while !self.is_at_end() && depth > 0 {
+                    let tk = self.peek().clone();
+                    match tk.token_type {
+                        TokenType::OpenBrace => { depth += 1; self.advance(); }
+                        TokenType::CloseBrace => { depth -= 1; if depth == 0 { break; } self.advance(); }
+                        _ => { self.advance(); }
+                    }
+                }
             } else if matches!(self.target_language, Some(TargetLanguage::Python3)) {
                 // Python: only apply textual closer if body appears native.
                 let start_line = body_start_line.saturating_add(1);
