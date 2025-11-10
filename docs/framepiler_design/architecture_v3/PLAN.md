@@ -22,8 +22,8 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_prolog fixtures integrated in runner (positive/negative)
 - [x] v3_imports fixtures integrated with validation (negatives enforced)
 - [x] v3_outline positives integrated
-- [ ] v3_outline negatives (missing '{' detection) — pending enforcement via OutlineScannerV3 + BodyCloser per language
-- [ ] v3_mapping fixtures (splice map round‑trip) — pending
+ - [x] v3_outline negatives (missing '{' detection) — enforced via OutlineScannerV3 + validator
+ - [x] v3_mapping fixtures (splice map round‑trip)
 - [ ] v3_mir parser negatives (malformed heads/args) — pending
 - [ ] v3_expansion indentation chain fixtures — pending
 
@@ -77,37 +77,37 @@ Per‑Language Test Matrix (01–03 early focus)
   - [x] Prolog: positive/negative
   - [x] Imports: positive/negative (unterminated paren)
   - [x] Outline: positive
-  - [ ] Outline: negative (missing '{')
+  - [x] Outline: negative (missing '{')
 - TypeScript
   - [x] Prolog: positive/negative
   - [x] Imports: positive/negative (missing brace/semicolon)
   - [x] Outline: positive
-  - [ ] Outline: negative (missing '{')
+  - [x] Outline: negative (missing '{')
 - C#
   - [x] Prolog: positive/negative
   - [x] Imports: positive/negative (unterminated using)
   - [x] Outline: positive
-  - [ ] Outline: negative (missing '{')
+  - [x] Outline: negative (missing '{')
 - C
   - [x] Prolog: positive/negative
   - [x] Imports: positive/negative (unterminated #include)
   - [x] Outline: positive
-  - [ ] Outline: negative (missing '{')
+  - [x] Outline: negative (missing '{')
 - C++
   - [x] Prolog: positive/negative
   - [x] Imports: positive/negative (unterminated #include)
   - [x] Outline: positive
-  - [ ] Outline: negative (missing '{')
+  - [x] Outline: negative (missing '{')
 - Java
   - [x] Prolog: positive/negative
   - [x] Imports: positive/negative (missing semicolon)
   - [x] Outline: positive
-  - [ ] Outline: negative (missing '{')
+  - [x] Outline: negative (missing '{')
 - Rust
   - [x] Prolog: positive/negative
   - [x] Imports: positive/negative (missing semicolon)
   - [x] Outline: positive
-  - [ ] Outline: negative (missing '{')
+  - [x] Outline: negative (missing '{')
 
 02 — Native Region Scanners (streaming)
 - Objects: `NativeRegionScannerPyV3`, `NativeRegionScannerTsV3`, `NativeRegionScannerCsV3` (trait `NativeRegionScannerV3`)
@@ -213,7 +213,7 @@ Checklist
 Checklist
 - [x] Terminal‑last rule
 - [x] Demo CLI `--validate/--validation-only` paths
-- [ ] No Frame statements in actions/ops (module outline kinds authoritative)
+- [x] No Frame statements in actions/ops (module outline kinds authoritative)
 - [ ] Python/TypeScript native policy checks
 - [ ] State/target existence checks
 
@@ -416,10 +416,11 @@ Per‑Phase Testing Plan (Must Be In Python Runner)
 
 Testing Status (Initial)
 - [x] `v3_demos` added for all 7 languages (prolog + imports + simple body; transpile‑only via `demo-frame`).
-- [ ] `v3_prolog` positives/negatives per language.
-- [ ] `v3_imports` negatives per language (protected‑region masking, malformed cases).
-- [ ] `v3_outline` positives/negatives with owner_id/kind checks.
-- [ ] `v3_mir`, `v3_mapping`, `v3_validator`, `v3_project` suites.
+- [x] `v3_prolog` positives/negatives per language.
+- [x] `v3_imports` negatives per language (protected‑region masking, malformed cases).
+- [x] `v3_outline` positives/negatives with owner_id/kind checks.
+- [x] `v3_mir`, `v3_mapping` suites.
+- [ ] `v3_validator`, `v3_project` suites.
 
 Test Inventory (existing to reuse)
 - Python: event_handler_incremental, if_elif_returns, try/except*, async*, forward events, stack ops, triple‑quotes/f‑strings, torture unicode.

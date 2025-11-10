@@ -1,7 +1,11 @@
 # Stage 7 — Native Parse Facade (Python)
 
 Purpose
-- Optionally parse the spliced Python body with a native parser (e.g., RustPython) to improve diagnostics, enable formatting, and validate that expansions form syntactically coherent Python.
+- Parse the spliced Python body with a native parser (e.g., RustPython) to improve diagnostics, enable formatting, and validate that expansions form syntactically coherent Python.
+
+Runtime Optionality
+- Execution of Stage 07 is runtime-optional (gated by a CLI flag such as `--validate-native/--strict`).
+- Implementation is required for all languages to ensure consistent strict validation capability.
 
 Inputs
 - `SplicedBody { bytes, splice_map }`

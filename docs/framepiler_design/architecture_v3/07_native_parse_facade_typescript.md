@@ -1,7 +1,11 @@
 # Stage 7b — Native Parse Facade (TypeScript)
 
 Purpose
-- Optionally parse the spliced TypeScript body with SWC (or similar) to improve diagnostics, formatting, and policy enforcement (e.g., disallow `==`/`!=`).
+- Parse the spliced TypeScript body with SWC (or similar) to improve diagnostics, formatting, and policy enforcement (e.g., disallow `==`/`!=`).
+
+Runtime Optionality
+- Execution is runtime-optional (gated by `--validate-native/--strict`).
+- Implementation is required to provide strict validation capability across all languages.
 
 Inputs
 - `SplicedBody { bytes, splice_map }`
@@ -21,4 +25,3 @@ Complexity
 
 Test Hooks
 - Policy violation mapping; template literal edge cases preserved in AST.
-

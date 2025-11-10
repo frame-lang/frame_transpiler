@@ -1,7 +1,11 @@
 # Stage 07 — Native Parse Facade (Java)
 
 Purpose
-- Optional parsing of spliced Java bodies for diagnostics/formatting; not required for core V3 pipeline.
+- Parse spliced Java bodies for diagnostics/formatting.
+
+Runtime Optionality
+- Execution is runtime-optional (gated by `--validate-native/--strict`).
+- Implementation is required to provide strict validation capability across languages.
 
 Design
 - `NativeParseFacadeJavaV3` trait; pluggable adapter to a Java parser when available.

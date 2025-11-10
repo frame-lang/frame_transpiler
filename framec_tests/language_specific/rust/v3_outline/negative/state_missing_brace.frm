@@ -1,0 +1,7 @@
+@target rust
+
+system S {
+    machine:
+        $A 
+}
+

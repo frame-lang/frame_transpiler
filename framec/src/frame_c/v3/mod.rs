@@ -177,6 +177,9 @@ pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<V
         Ok(items) => {
             let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
             all_issues.extend(outer_issues);
+            // machine section: simple state header check for '{'
+            let state_issues = validator.validate_machine_state_headers(bytes, outline_start);
+            all_issues.extend(state_issues);
         }
         Err(e) => { all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: e.message }); }
     }

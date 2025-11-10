@@ -1,7 +1,11 @@
 # Stage 07 — Native Parse Facade (C#)
 
 Purpose
-- Optionally parse the spliced C# body for diagnostics/formatting and indentation derivation; off by default and gated behind a feature flag.
+- Parse the spliced C# body for diagnostics/formatting and indentation derivation.
+
+Runtime Optionality
+- Execution is runtime-optional (gated by `--validate-native/--strict`).
+- Implementation is required so strict validation is available across languages.
 
 Inputs
 - Spliced C# body text + splice_map

@@ -1,7 +1,11 @@
 # Stage 07 — Native Parse Facade (C++)
 
 Purpose
-- Optional parsing of spliced C++ bodies for diagnostics/formatting; not in critical path.
+- Parse spliced C++ bodies for diagnostics/formatting.
+
+Runtime Optionality
+- Execution is runtime-optional (gated by `--validate-native/--strict`).
+- Implementation is required to provide strict validation capability across languages.
 
 Design
 - `NativeParseFacadeCppV3` trait; pluggable adapters (e.g., clang-based) permitted behind feature flags.

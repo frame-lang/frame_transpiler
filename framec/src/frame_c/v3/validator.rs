@@ -103,6 +103,58 @@ impl ValidatorV3 {
         }
         issues
     }
+
+    pub fn validate_machine_state_headers(&self, bytes: &[u8], start: usize) -> Vec<ValidationIssueV3> {
+        // Find machine: sections and ensure any '$State' header has a following '{'
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum Sec { Machine, Other }
+        let n = bytes.len();
+        let mut i = start;
+        let mut marks: Vec<(usize, Sec)> = Vec::new();
+        while i < n {
+            while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+            if i >= n { break; }
+            let line_start = i;
+            let mut j = i; while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+            let kw_start = j; while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+            if kw_start < j && j < n && bytes[j] == b':' {
+                let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
+                if kw.as_str() == "machine" { marks.push((line_start, Sec::Machine)); }
+                else { marks.push((line_start, Sec::Other)); }
+            }
+            while i < n && bytes[i] != b'\n' { i += 1; }
+        }
+        // Build section ranges
+        let mut secs: Vec<(usize, usize, Sec)> = Vec::new();
+        for idx in 0..marks.len() {
+            let (spos, sec) = marks[idx];
+            let epos = if idx + 1 < marks.len() { marks[idx+1].0 } else { n };
+            secs.push((spos, epos, sec));
+        }
+        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        for (s, e, sec) in secs {
+            if sec != Sec::Machine { continue; }
+            let mut p = s;
+            while p < e {
+                // next SOL
+                while p < e && (bytes[p] == b' ' || bytes[p] == b'\t' || bytes[p] == b'\r' || bytes[p] == b'\n') { p += 1; }
+                if p >= e { break; }
+                // check for state header starting with '$'
+                if bytes[p] == b'$' {
+                    // scan to end of physical line or first '{'
+                    let mut q = p;
+                    let mut seen_lbrace = false;
+                    while q < e && bytes[q] != b'\n' {
+                        if bytes[q] == b'{' { seen_lbrace = true; break; }
+                        q += 1;
+                    }
+                    if !seen_lbrace { issues.push(ValidationIssueV3{ message: "missing '{' after state header in machine: section".into() }); }
+                }
+                while p < e && bytes[p] != b'\n' { p += 1; }
+            }
+        }
+        issues
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

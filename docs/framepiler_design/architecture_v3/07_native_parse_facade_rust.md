@@ -1,7 +1,11 @@
 # Stage 07 — Native Parse Facade (Rust)
 
 Purpose
-- Optional parsing of spliced Rust bodies to improve diagnostics/formatting/indent analysis; not required in the critical path.
+- Parse spliced Rust bodies to improve diagnostics/formatting/indent analysis.
+
+Runtime Optionality
+- Execution is runtime-optional (gated by `--validate-native/--strict`).
+- Implementation is required to provide strict validation capability across languages.
 
 Design
 - `NativeParseFacadeRustV3` trait; adapters to rustc/syn/rust-analyzer are optional and must be gated.
