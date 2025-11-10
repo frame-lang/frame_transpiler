@@ -329,11 +329,17 @@ class FrameTestRunner:
                     except Exception as e:
                         return False, str(output_file), f"Invalid mapping JSON: {e}"
                 # Write output to file
-                output_file.write_text(result.stdout)
+                out = result.stdout or ""
+                output_file.write_text(out)
                 if is_v3_facade_smoke:
-                    out = result.stdout or ""
+                    # Ensure wrappers were inserted
                     if "__frame_transition" not in out and "__frame_forward" not in out and "__frame_stack_" not in out:
                         return False, str(output_file), "Facade wrappers not found in output"
+                    # Optional execution harness for TypeScript strict facade runs
+                    if language == "typescript" and self.config.execute:
+                        ts_ok, ts_err = self._execute_ts_facade_harness(test_file.stem, out)
+                        if not ts_ok:
+                            return False, str(output_file), ts_err
                 return True, str(output_file), None
             else:
                 error = result.stderr or result.stdout
@@ -539,6 +545,39 @@ class FrameTestRunner:
             if self.config.verbose:
                 import traceback
                 print(f"Full traceback:\n{traceback.format_exc()}")
+    
+    def _execute_ts_facade_harness(self, test_name: str, spliced_output: str) -> Tuple[bool, str]:
+        """
+        Build and execute a minimal TypeScript harness for facade strict tests by extracting
+        wrapper-call lines from the spliced output and running them inside a main() function.
+        """
+        # Extract wrapper lines from spliced output
+        wrappers: List[str] = []
+        for line in spliced_output.splitlines():
+            s = line.strip()
+            if s.startswith("__frame_transition(") or s.startswith("__frame_forward(") or s.startswith("__frame_stack_"):
+                if not s.endswith(";"):
+                    s = s + ";"
+                wrappers.append(s)
+        if not wrappers:
+            # Nothing to execute; treat as success for exec path
+            return True, ""
+        prelude = "\n".join([
+            "function __frame_transition(state: string, ...args: any[]) {}",
+            "function __frame_forward() {}",
+            "function __frame_stack_push() {}",
+            "function __frame_stack_pop() {}",
+        ])
+        body = "\n".join(wrappers)
+        program = f"{prelude}\nfunction main() {{\n{body}\n}}\nmain();\n"
+        # Write TS file to generated directory
+        out_dir = self.generated_dir / "typescript"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        ts_path = out_dir / f"{test_name}__facade.ts"
+        ts_path.write_text(program)
+        # Compile and run
+        ok, output = self.execute_typescript(str(ts_path))
+        return ok, output
     
     def _get_typescript_output_path(self, test_file: str) -> Optional[str]:
         """Get the expected TypeScript output path for a Frame test file."""
