@@ -153,7 +153,47 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
     for b in parts.bodies {
         if b.open_byte > cursor { out.push_str(&content_str[cursor..b.open_byte]); }
         let body_src = &content_str[b.open_byte..b.close_byte+1];
-        let body_out = CompilerV3::compile_single_file(None, body_src, Some(lang), false)?;
+        // Allow facade-mode expansions in compile path for smoke testing via env flag
+        let facade_mode = std::env::var("FRAME_FACADE_EXPANSION").ok().as_deref() == Some("1");
+        let body_out = if facade_mode {
+            // Re-scan/assemble to build wrapper-call expansions and splice
+            let scan = match lang {
+                TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(body_src.as_bytes(), 0),
+                _ => nscan::python::NativeRegionScannerPyV3.scan(body_src.as_bytes(), 0)
+            }.map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e)))?;
+            let mir = MirAssemblerV3.assemble(body_src.as_bytes(), &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
+            let exps: Vec<String> = {
+                use crate::frame_c::v3::expander::*;
+                let mut v = Vec::new();
+                let mut mi = 0usize;
+                for r in &scan.regions {
+                    if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
+                        let m = &mir[mi]; mi += 1;
+                        let s = match lang {
+                            TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Cpp => CppFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Java => JavaFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent),
+                            _ => String::new(),
+                        };
+                        v.push(s);
+                    }
+                }
+                v
+            };
+            SplicerV3.splice(body_src.as_bytes(), &scan.regions, &exps).text
+        } else {
+            CompilerV3::compile_single_file(None, body_src, Some(lang), false)?
+        };
         out.push_str(&body_out);
         cursor = b.close_byte + 1;
     }
@@ -162,6 +202,10 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
 }
 
 pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<ValidationResultV3, RunError> {
+    validate_module_demo_with_mode(content_str, lang, false)
+}
+
+pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, strict_native: bool) -> Result<ValidationResultV3, RunError> {
     let bytes = content_str.as_bytes();
     let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
         Ok(p) => p,
@@ -201,6 +245,35 @@ pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<V
         let policy = ValidatorPolicyV3 { body_kind: Some(b.kind) };
         let res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
         all_issues.extend(res.issues);
+
+        // Stage 07 (strict facade mode): build spliced body with wrapper-call expansions
+        if strict_native {
+            let exps: Vec<String> = {
+                use crate::frame_c::v3::expander::*;
+                let mut v = Vec::new();
+                let mut mi = 0usize;
+                for r in &scan.regions {
+                    if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
+                        let m = &mir[mi];
+                        mi += 1;
+                        let s = match lang {
+                            TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Cpp => CppFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Java => JavaFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent),
+                            _ => String::new(),
+                        };
+                        v.push(s);
+                    }
+                }
+                v
+            };
+            let _spliced = SplicerV3.splice(body_bytes, &scan.regions, &exps);
+            // Note: actual native parsing is pluggable and not invoked by default in hermetic mode
+        }
     }
     Ok(ValidationResultV3 { ok: all_issues.is_empty(), issues: all_issues })
 }

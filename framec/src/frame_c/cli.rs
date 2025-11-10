@@ -16,6 +16,8 @@ pub struct Cli {
     validate_only: bool,
     /// Validate (structural) and continue
     validate: bool,
+    /// Enable strict/native validation (facade mode)
+    validate_native: bool,
     command: CliCommand,
 }
 
@@ -45,6 +47,7 @@ impl Cli {
             .arg(Arg::new("validate-syntax").long("validate-syntax").help("Alias for --validate (compat) ").action(clap::ArgAction::SetTrue))
             .arg(Arg::new("validation-only").long("validation-only").help("Run validation only and exit with status").action(clap::ArgAction::SetTrue))
             .arg(Arg::new("validation-level").long("validation-level").help("Validation level (compat)").num_args(1))
+            .arg(Arg::new("validate-native").long("validate-native").help("Enable strict/native validation (facade mode)").action(clap::ArgAction::SetTrue))
             .arg(Arg::new("validation-format").long("validation-format").help("Validation output format (compat)").num_args(1))
             .subcommand(
                 Command::new("demo-multi")
@@ -138,6 +141,7 @@ impl Cli {
         let debug_output = matches.get_flag("debug-output");
         let validate_only = matches.get_flag("validation-only");
         let validate = matches.get_flag("validate") || matches.get_flag("validate-syntax");
+        let validate_native = matches.get_flag("validate-native");
 
         Cli {
             stdin_flag: stdin,
@@ -148,6 +152,7 @@ impl Cli {
             debug_output,
             validate_only,
             validate,
+            validate_native,
             command,
         }
     }
@@ -253,7 +258,7 @@ pub fn run_with(args: Cli) {
             match std::fs::read_to_string(&file) {
                 Ok(content) => {
                     if args.validate || args.validate_only {
-                        match crate::frame_c::v3::validate_module_demo(&content, lang) {
+                        match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
                             Ok(res) => {
                                 for issue in res.issues { eprintln!("{}: validation: {}", file.display(), issue.message); }
                                 if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
@@ -293,7 +298,7 @@ pub fn run_with(args: Cli) {
             if is_module {
                 // Require target language
                 let lang = target_language.unwrap_or(TargetLanguage::Python3);
-                match super::v3::validate_module_demo(&content, lang) {
+                match super::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
                     Ok(res) => {
                         for issue in res.issues { eprintln!("validation: {}", issue.message); }
                         if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }

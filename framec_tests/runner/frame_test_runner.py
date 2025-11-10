@@ -157,7 +157,7 @@ class FrameTestRunner:
                             tests[f"language_specific_{lang}_v3_demos"] = demo_tests
 
         # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
-        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project"]):
+        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke"]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
             if "v3_prolog" in self.config.categories:
@@ -176,6 +176,8 @@ class FrameTestRunner:
                 collect_v3_category("v3_validator")
             if "v3_project" in self.config.categories:
                 collect_v3_category("v3_project")
+            if "v3_facade_smoke" in self.config.categories:
+                collect_v3_category("v3_facade_smoke")
 
         # Language-specific tests - only include if explicitly requested or "all" is specified
         if "all" in self.config.categories:
@@ -253,13 +255,14 @@ class FrameTestRunner:
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
         # Treat all v3_* categories as module demo path; v3_closers uses single-body demo
-        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project"}
+        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke"}
         is_v3 = any(seg in v3_categories for seg in parts_lower)
         is_v3_closers = "v3_closers" in parts_lower
         is_v3_mapping = "v3_mapping" in parts_lower
         is_v3_expansion = "v3_expansion" in parts_lower
         # Run transpiler - check if multifile test
         if is_v3:
+            is_v3_facade_smoke = "v3_facade_smoke" in parts_lower
             if is_v3_closers or is_v3_mapping or is_v3_expansion:
                 cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
                 extension = ".txt"
@@ -284,6 +287,9 @@ class FrameTestRunner:
             # For mapping fixtures, request trailer
             if is_v3_mapping:
                 env["FRAME_MAP_TRAILER"] = "1"
+            # For facade smoke fixtures, request facade expansion output
+            if is_v3_facade_smoke:
+                env["FRAME_FACADE_EXPANSION"] = "1"
             
             result = subprocess.run(
                 cmd,
@@ -316,6 +322,10 @@ class FrameTestRunner:
                         return False, str(output_file), f"Invalid mapping JSON: {e}"
                 # Write output to file
                 output_file.write_text(result.stdout)
+                if is_v3_facade_smoke:
+                    out = result.stdout or ""
+                    if "__frame_transition" not in out and "__frame_forward" not in out and "__frame_stack_" not in out:
+                        return False, str(output_file), "Facade wrappers not found in output"
                 return True, str(output_file), None
             else:
                 error = result.stderr or result.stdout
