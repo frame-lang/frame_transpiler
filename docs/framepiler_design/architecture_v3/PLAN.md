@@ -18,6 +18,15 @@ Scaffold brought up (demo‑level; not production‑ready):
 - [x] Validator (terminal‑last rule) in demo path
 - [x] Demo CLI paths (single‑body; directory; frame‑like multi‑body)
 
+Status Summary — Fixtures and Validation (All Languages)
+- [x] v3_prolog fixtures integrated in runner (positive/negative)
+- [x] v3_imports fixtures integrated with validation (negatives enforced)
+- [x] v3_outline positives integrated
+- [ ] v3_outline negatives (missing '{' detection) — pending enforcement via OutlineScannerV3 + BodyCloser per language
+- [ ] v3_mapping fixtures (splice map round‑trip) — pending
+- [ ] v3_mir parser negatives (malformed heads/args) — pending
+- [ ] v3_expansion indentation chain fixtures — pending
+
 Production‑ready criteria (not done unless explicitly checked):
 - [ ] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
 - [ ] ImportScannerV3 (DPDA) per language:
@@ -63,6 +72,43 @@ Checklist
 - [x] Rust closer
 - [ ] Negative fixtures complete (all languages)
 
+Per‑Language Test Matrix (01–03 early focus)
+- Python
+  - [x] Prolog: positive/negative
+  - [x] Imports: positive/negative (unterminated paren)
+  - [x] Outline: positive
+  - [ ] Outline: negative (missing '{')
+- TypeScript
+  - [x] Prolog: positive/negative
+  - [x] Imports: positive/negative (missing brace/semicolon)
+  - [x] Outline: positive
+  - [ ] Outline: negative (missing '{')
+- C#
+  - [x] Prolog: positive/negative
+  - [x] Imports: positive/negative (unterminated using)
+  - [x] Outline: positive
+  - [ ] Outline: negative (missing '{')
+- C
+  - [x] Prolog: positive/negative
+  - [x] Imports: positive/negative (unterminated #include)
+  - [x] Outline: positive
+  - [ ] Outline: negative (missing '{')
+- C++
+  - [x] Prolog: positive/negative
+  - [x] Imports: positive/negative (unterminated #include)
+  - [x] Outline: positive
+  - [ ] Outline: negative (missing '{')
+- Java
+  - [x] Prolog: positive/negative
+  - [x] Imports: positive/negative (missing semicolon)
+  - [x] Outline: positive
+  - [ ] Outline: negative (missing '{')
+- Rust
+  - [x] Prolog: positive/negative
+  - [x] Imports: positive/negative (missing semicolon)
+  - [x] Outline: positive
+  - [ ] Outline: negative (missing '{')
+
 02 — Native Region Scanners (streaming)
 - Objects: `NativeRegionScannerPyV3`, `NativeRegionScannerTsV3`, `NativeRegionScannerCsV3` (trait `NativeRegionScannerV3`)
 - Deliverable: one pass → `ScanResultV3 { close_byte, regions }`; regions are `RegionV3::{NativeText, FrameSegment}` with byte spans and `kind_hint`.
@@ -88,6 +134,11 @@ Checklist
 Checklist
 - [x] Parser implemented (heads/args/balanced parens)
 - [ ] Negative fixtures (malformed heads/args) expanded
+
+04–06 — MIR/Expansion/Splice Test Coverage
+- [ ] MIR Assembly terminal‑last negatives (runner category v3_mir)
+- [ ] Expansion indentation chain fixtures (Py/TS; generalize for C#/Java/C/C++/Rust comments)
+- [ ] Mapping round‑trip (runner category v3_mapping)
 
 04 — MIR Assembly
 - Objects: `MirAssemblerV3` → `[MirItemV3]` from `RegionV3`.

@@ -65,9 +65,10 @@ impl OutlineScannerV3 {
                 items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: j }, owner_id, kind, open_byte: open, close_byte: close });
                 i = close + 1;
                 continue;
-            } else { /* no body opener follows header; skip line */ }
-            // No '{' found; move to next line
-            while i < n && bytes[i] != b'\n' { i += 1; }
+            } else {
+                // No '{' after a recognized header keyword => malformed outline
+                return Err(OutlineErrorV3{ message: "missing '{' after module artifact header".into() });
+            }
         }
         Ok(items)
     }
