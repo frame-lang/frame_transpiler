@@ -1,12 +1,10 @@
-@target typescript
+@target rust
 
 system S {
     machine:
         $A {
             e() {
-                -> $B()
+                -> $ (1)
             }
-        }
-        $B {
         }
 }
