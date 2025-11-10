@@ -18,7 +18,8 @@ impl NativeFacadeRegistryV3 {
         match lang {
             TargetLanguage::Python3 => Some(&PY_FACADE),
             TargetLanguage::TypeScript => Some(&TS_FACADE),
-            TargetLanguage::CSharp | TargetLanguage::C | TargetLanguage::Cpp | TargetLanguage::Java | TargetLanguage::Rust => Some(&C_FACADE),
+            TargetLanguage::Rust => Some(&RUST_FACADE),
+            TargetLanguage::CSharp | TargetLanguage::C | TargetLanguage::Cpp | TargetLanguage::Java => Some(&C_FACADE),
             _ => None,
         }
     }
@@ -29,10 +30,12 @@ impl NativeFacadeRegistryV3 {
 struct PyWrapperFacade;
 struct TsWrapperFacade;
 struct CWrapperFacade;
+struct RustWrapperFacade;
 
 static PY_FACADE: PyWrapperFacade = PyWrapperFacade;
 static TS_FACADE: TsWrapperFacade = TsWrapperFacade;
 static C_FACADE: CWrapperFacade = CWrapperFacade;
+static RUST_FACADE: RustWrapperFacade = RustWrapperFacade;
 
 impl NativeParseFacadeV3 for PyWrapperFacade {
     fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
@@ -109,6 +112,8 @@ impl NativeParseFacadeV3 for TsWrapperFacade {
                 }
             }
         }
+        // Optional native parser diagnostics (SWC) — feature-gated
+        if let Some(mut extra) = run_ts_adapter(spliced_text) { diags.append(&mut extra); }
         Ok(diags)
     }
 }
@@ -117,6 +122,15 @@ impl NativeParseFacadeV3 for CWrapperFacade {
     fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
         // Same minimal checks as TS for C-like languages
         TsWrapperFacade.parse(spliced_text)
+    }
+}
+
+impl NativeParseFacadeV3 for RustWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+        // Reuse C-like wrapper checks, then append Rust parser diagnostics when enabled
+        let mut diags = C_FACADE.parse(spliced_text)?;
+        if let Some(mut extra) = run_rust_adapter(spliced_text) { diags.append(&mut extra); }
+        Ok(diags)
     }
 }
 
@@ -167,3 +181,50 @@ fn check_transition_first_arg(hay: &[u8], arg_start: usize, arg_end: usize, _req
     // ok; remaining can be optional comma and other args
     Some((true, String::new()))
 }
+
+// --- Optional native parser adapters ---
+
+#[cfg(feature = "native-ts")]
+fn run_ts_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+    use swc_common::{FileName, SourceMap, Span, sync::Lrc};
+    use swc_ecma_parser::{lexer::Lexer, EsVersion, Parser, StringInput, Syntax, TsConfig};
+    let cm: Lrc<SourceMap> = Lrc::new(SourceMap::default());
+    let fm = cm.new_source_file(FileName::Custom("spliced.ts".into()), text.into());
+    let lexer = Lexer::new(
+        Syntax::Typescript(TsConfig { tsx: false, ..Default::default() }),
+        EsVersion::Es2020,
+        StringInput::from(&*fm),
+        None,
+    );
+    let mut parser = Parser::new_from(lexer);
+    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    for e in parser.take_errors() {
+        let span: Span = e.span();
+        let start = span.lo.0 as usize; let end = span.hi.0 as usize;
+        out.push(NativeDiagnosticV3 { start, end, message: format!("{}", e) });
+    }
+    match parser.parse_script() {
+        Ok(_) => {}
+        Err(e) => {
+            let span: Span = e.span();
+            let start = span.lo.0 as usize; let end = span.hi.0 as usize;
+            out.push(NativeDiagnosticV3 { start, end, message: format!("{}", e) });
+        }
+    }
+    Some(out)
+}
+
+#[cfg(not(feature = "native-ts"))]
+fn run_ts_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+
+#[cfg(feature = "native-rs")]
+fn run_rust_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    if let Err(e) = syn::parse_str::<syn::Block>(text) {
+        out.push(NativeDiagnosticV3 { start: 0, end: 0, message: format!("{}", e) });
+    }
+    Some(out)
+}
+
+#[cfg(not(feature = "native-rs"))]
+fn run_rust_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }

@@ -37,4 +37,5 @@ Test Hooks
 - Verify mapping across splice boundaries; ensure nested block comments/raw strings do not break spans.
 
 Native parser integration (optional)
-- Structural Rust parsing (e.g., via `syn`) can be added as an optional adapter behind cargo features and `--validate-native`. Current state is wrapper-only; no parser crate compiled by default.
+- Structural Rust parsing can be enabled as an optional adapter behind cargo features and `--validate-native`.
+- Feature flag: `native-rs` (uses the `syn` crate to parse the spliced body as a block). Default build keeps this disabled; facades remain wrapper-only.

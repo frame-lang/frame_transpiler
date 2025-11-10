@@ -37,4 +37,5 @@ Notes
 - Policy checks like `==`/`!=` remain in Stage 09 visitors; facade exists to improve developer feedback without compromising hermeticity.
 
 Native parser integration (optional)
-- Real native parsing can be enabled via optional adapters (e.g., SWC) behind cargo features and `--validate-native`. In the current state, the facade is wrapper-only; no SWC dependency is compiled by default.
+- Real native parsing can be enabled via optional adapters behind cargo features and `--validate-native`.
+- Feature flag: `native-ts` (uses SWC `swc_ecma_parser`). Default build keeps this disabled; facades remain wrapper-only.
