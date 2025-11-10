@@ -1,11 +1,11 @@
 # Stage 07 — Native Parse Facade (C)
 
 Purpose (V3 minimal)
-- Provide hermetic validation of wrapper calls in strict mode. No general C parsing; wrapper lines only.
+- Provide hermetic validation of wrapper calls in strict mode. Wrapper lines are always validated; optional structural C parsing is available behind a feature flag.
 
 Runtime Optionality
 - Gated by `--validate-native` (strict). Off by default.
-- Implemented uniformly across all languages with wrapper-only checks.
+- Wrapper-only checks are always available; structural C parsing uses Tree-sitter when the `native-c` cargo feature is enabled.
 
 Inputs
 - `SplicedBody { text, splice_map }` with wrapper calls inserted when `FRAME_FACADE_EXPANSION=1`.
@@ -37,4 +37,6 @@ Test Hooks
 - Mapping accuracy back to Frame-statement lines; negative wrappers validate as expected.
 
 Native parser integration (optional)
-- Structural C parsing (e.g., via Tree-sitter) can be added as an optional adapter behind cargo features and `--validate-native`. Current state is wrapper-only; no external parser compiled by default.
+- Structural C parsing via Tree-sitter is available behind cargo feature `native-c` and `--validate-native`.
+- Implementation detail: the spliced body is wrapped in a minimal function `void __framec_facade(){ ... }` to parse statement lists. Diagnostics from error nodes are remapped to spliced offsets.
+- Default builds do not enable this feature; CI and local runs can opt in with `cargo build --features native-c`.

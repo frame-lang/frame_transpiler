@@ -10,7 +10,9 @@ ts_b2_codegen = []
 
 # Optional native parser adapters (off by default)
 native-ts = ["swc_common", "swc_ecma_parser", "swc_ecma_ast"]
-native-rs = ["syn"]
+native-rs = ["syn/full"]
+native-c = ["tree-sitter", "tree-sitter-c"]
+native-cpp = ["tree-sitter", "tree-sitter-cpp"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
@@ -36,10 +38,13 @@ petgraph = "0.6"
 regex = "1.10"
 toml = "0.9.5"
 # Parser crates are optional and only used when corresponding features are enabled
-syn = { version = "2", optional = true }
+syn = { version = "2", optional = true, features = ["full"] }
 swc_common = { version = "16", features = ["tty-emitter"], optional = true }
 swc_ecma_parser = { version = "26", features = ["typescript"], optional = true }
 swc_ecma_ast = { version = "17", optional = true }
+tree-sitter = { version = "0.20", optional = true }
+tree-sitter-c = { version = "0.20", optional = true }
+tree-sitter-cpp = { version = "0.20", optional = true }
 
 # Note: rustpython-parser intentionally omitted here for now; Python adapter will be added later.
 
