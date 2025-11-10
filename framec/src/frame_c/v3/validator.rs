@@ -2,6 +2,7 @@ use crate::frame_c::v3::mir::MirItemV3;
 use crate::frame_c::v3::native_region_scanner::RegionV3;
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v3::outline_scanner::{OutlineScannerV3, OutlineItemV3};
+use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
 pub struct ValidationIssueV3 { pub message: String }
@@ -187,6 +188,71 @@ impl ValidatorV3 {
                     }
                 }
                 while p < e && bytes[p] != b'\n' { p += 1; }
+            }
+        }
+        issues
+    }
+
+    // Collect all state names declared inside machine: sections as "$Name {".
+    pub fn collect_machine_state_names(&self, bytes: &[u8], start: usize) -> HashSet<String> {
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum Sec { Machine, Other }
+        let n = bytes.len();
+        let mut i = start;
+        let mut marks: Vec<(usize, Sec)> = Vec::new();
+        while i < n {
+            // SOL skip
+            while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+            if i >= n { break; }
+            let line_start = i;
+            // read ident and ':'
+            let mut j = i; while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+            let kw_start = j; while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+            if kw_start < j && j < n && bytes[j] == b':' {
+                let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
+                if kw.as_str() == "machine" { marks.push((line_start, Sec::Machine)); } else { marks.push((line_start, Sec::Other)); }
+            }
+            while i < n && bytes[i] != b'\n' { i += 1; }
+        }
+        // Build section ranges
+        let mut secs: Vec<(usize, usize, Sec)> = Vec::new();
+        for idx in 0..marks.len() {
+            let (spos, sec) = marks[idx];
+            let epos = if idx + 1 < marks.len() { marks[idx+1].0 } else { n };
+            secs.push((spos, epos, sec));
+        }
+        let mut names = HashSet::new();
+        for (s, e, sec) in secs {
+            if sec != Sec::Machine { continue; }
+            let mut p = s;
+            while p < e {
+                // skip ws
+                while p < e && (bytes[p] == b' ' || bytes[p] == b'\t' || bytes[p] == b'\r' || bytes[p] == b'\n') { p += 1; }
+                if p >= e { break; }
+                if bytes[p] == b'$' {
+                    let mut k = p + 1;
+                    if k < e && (bytes[k].is_ascii_alphabetic() || bytes[k] == b'_') {
+                        k += 1;
+                        while k < e && (bytes[k].is_ascii_alphanumeric() || bytes[k] == b'_') { k += 1; }
+                        let name = String::from_utf8_lossy(&bytes[p+1..k]).to_string();
+                        // ensure this looks like a state header line (has '{' before EOL)
+                        let mut q = k; let mut has_lbrace = false; while q < e && bytes[q] != b'\n' { if bytes[q] == b'{' { has_lbrace = true; break; } q += 1; }
+                        if has_lbrace { names.insert(name); }
+                    }
+                }
+                while p < e && bytes[p] != b'\n' { p += 1; }
+            }
+        }
+        names
+    }
+
+    pub fn validate_transition_targets(&self, mir: &[MirItemV3], known_states: &HashSet<String>) -> Vec<ValidationIssueV3> {
+        let mut issues = Vec::new();
+        for m in mir {
+            if let MirItemV3::Transition{ target, .. } = m {
+                if !known_states.contains(target) {
+                    issues.push(ValidationIssueV3{ message: format!("unknown state '{}'", target) });
+                }
             }
         }
         issues

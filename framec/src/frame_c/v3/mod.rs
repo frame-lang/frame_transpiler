@@ -246,6 +246,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     all_issues.extend(parts.import_issues.into_iter());
     // Outer grammar: re-scan outline and enforce section placement
     let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
+    let mut known_states = std::collections::HashSet::new();
     match crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan(bytes, outline_start, lang) {
         Ok(items) => {
             let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
@@ -253,6 +254,8 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
             // machine section: simple state header check for '{'
             let state_issues = validator.validate_machine_state_headers(bytes, outline_start);
             all_issues.extend(state_issues);
+            // Collect known state names from machine sections
+            known_states = validator.collect_machine_state_names(bytes, outline_start);
         }
         Err(e) => { all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: e.message }); }
     }
@@ -273,6 +276,10 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         let mir = MirAssemblerV3.assemble(body_bytes, &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
         let policy = ValidatorPolicyV3 { body_kind: Some(b.kind) };
         let mut res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
+        // Validate that transition targets refer to known states (coarse file-level set)
+        if !known_states.is_empty() {
+            res.issues.extend(validator.validate_transition_targets(&mir, &known_states));
+        }
         // Enforce no native after terminal MIR at body level
         let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
         res.issues.extend(extra);
