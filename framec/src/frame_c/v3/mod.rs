@@ -171,6 +171,15 @@ pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<V
     let mut all_issues = Vec::new();
     // include import scanning issues
     all_issues.extend(parts.import_issues.into_iter());
+    // Outer grammar: re-scan outline and enforce section placement
+    let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
+    match crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan(bytes, outline_start, lang) {
+        Ok(items) => {
+            let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
+            all_issues.extend(outer_issues);
+        }
+        Err(e) => { all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: e.message }); }
+    }
     for b in parts.bodies {
         let body_bytes = &bytes[b.open_byte..=b.close_byte];
         // scan and assemble

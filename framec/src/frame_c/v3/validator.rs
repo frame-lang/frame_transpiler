@@ -1,5 +1,7 @@
 use crate::frame_c::v3::mir::MirItemV3;
 use crate::frame_c::v3::native_region_scanner::RegionV3;
+use crate::frame_c::visitors::TargetLanguage;
+use crate::frame_c::v3::outline_scanner::{OutlineScannerV3, OutlineItemV3};
 
 #[derive(Debug, Clone)]
 pub struct ValidationIssueV3 { pub message: String }
@@ -40,6 +42,66 @@ impl ValidatorV3 {
         }
         res.ok = res.issues.is_empty();
         res
+    }
+
+    // Outer grammar structural checks (headers inside sections)
+    pub fn validate_outer_grammar(&self, bytes: &[u8], start: usize, lang: TargetLanguage, outline: &[OutlineItemV3]) -> Vec<ValidationIssueV3> {
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum Sec { Actions, Operations, Interface, Machine }
+        // Collect section spans: [start,end)
+        let mut secs: Vec<(usize, usize, Sec)> = Vec::new();
+        // Single pass to record section line starts
+        let n = bytes.len();
+        let mut i = start;
+        let mut marks: Vec<(usize, Sec)> = Vec::new();
+        while i < n {
+            // skip to SOL non-space
+            while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+            if i >= n { break; }
+            let line_start = i;
+            // read ident
+            let mut j = i; while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+            let kw_start = j; while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+            if kw_start < j && j < n && bytes[j] == b':' {
+                let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
+                let sec = match kw.as_str() {
+                    "actions" => Some(Sec::Actions),
+                    "operations" => Some(Sec::Operations),
+                    "interface" => Some(Sec::Interface),
+                    "machine" => Some(Sec::Machine),
+                    _ => None,
+                };
+                if let Some(s) = sec { marks.push((line_start, s)); }
+            }
+            while i < n && bytes[i] != b'\n' { i += 1; }
+        }
+        // Build ranges
+        for idx in 0..marks.len() {
+            let (spos, sec) = marks[idx];
+            let epos = if idx + 1 < marks.len() { marks[idx+1].0 } else { n };
+            secs.push((spos, epos, sec));
+        }
+        // Validate each outline item header lies within an appropriate section
+        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        for it in outline {
+            let hs = it.header_span.start;
+            // find containing section
+            let mut sec_kind: Option<Sec> = None;
+            for (s,e,sec) in &secs { if hs >= *s && hs < *e { sec_kind = Some(*sec); break; } }
+            match it.kind {
+                super::validator::BodyKindV3::Action => {
+                    if sec_kind != Some(Sec::Actions) { issues.push(ValidationIssueV3{ message: "action body outside actions: section".into() }); }
+                }
+                super::validator::BodyKindV3::Operation => {
+                    if sec_kind != Some(Sec::Operations) { issues.push(ValidationIssueV3{ message: "operation body outside operations: section".into() }); }
+                }
+                super::validator::BodyKindV3::Handler => {
+                    if sec_kind != Some(Sec::Machine) { issues.push(ValidationIssueV3{ message: "handler body outside machine: section".into() }); }
+                }
+                super::validator::BodyKindV3::Unknown => {}
+            }
+        }
+        issues
     }
 }
 
