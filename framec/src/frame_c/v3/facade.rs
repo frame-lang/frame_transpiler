@@ -186,12 +186,13 @@ fn check_transition_first_arg(hay: &[u8], arg_start: usize, arg_end: usize, _req
 
 #[cfg(feature = "native-ts")]
 fn run_ts_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
-    use swc_common::{FileName, SourceMap, Span, sync::Lrc};
-    use swc_ecma_parser::{lexer::Lexer, EsVersion, Parser, StringInput, Syntax, TsConfig};
+    use swc_common::{sync::Lrc, FileName, SourceMap, Span, Spanned};
+    use swc_ecma_ast::EsVersion;
+    use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax};
     let cm: Lrc<SourceMap> = Lrc::new(SourceMap::default());
-    let fm = cm.new_source_file(FileName::Custom("spliced.ts".into()), text.into());
+    let fm = cm.new_source_file(FileName::Custom("spliced.ts".into()).into(), text.to_string());
     let lexer = Lexer::new(
-        Syntax::Typescript(TsConfig { tsx: false, ..Default::default() }),
+        Syntax::Typescript(Default::default()),
         EsVersion::Es2020,
         StringInput::from(&*fm),
         None,
@@ -201,14 +202,14 @@ fn run_ts_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     for e in parser.take_errors() {
         let span: Span = e.span();
         let start = span.lo.0 as usize; let end = span.hi.0 as usize;
-        out.push(NativeDiagnosticV3 { start, end, message: format!("{}", e) });
+        out.push(NativeDiagnosticV3 { start, end, message: format!("{:?}", e) });
     }
     match parser.parse_script() {
         Ok(_) => {}
         Err(e) => {
             let span: Span = e.span();
             let start = span.lo.0 as usize; let end = span.hi.0 as usize;
-            out.push(NativeDiagnosticV3 { start, end, message: format!("{}", e) });
+            out.push(NativeDiagnosticV3 { start, end, message: format!("{:?}", e) });
         }
     }
     Some(out)
@@ -220,7 +221,8 @@ fn run_ts_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
 #[cfg(feature = "native-rs")]
 fn run_rust_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     let mut out: Vec<NativeDiagnosticV3> = Vec::new();
-    if let Err(e) = syn::parse_str::<syn::Block>(text) {
+    let wrapped = format!("{{\n{}\n}}", text);
+    if let Err(e) = syn::parse_str::<syn::Block>(&wrapped) {
         out.push(NativeDiagnosticV3 { start: 0, end: 0, message: format!("{}", e) });
     }
     Some(out)
