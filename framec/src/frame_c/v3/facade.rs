@@ -147,13 +147,17 @@ impl NativeParseFacadeV3 for CppWrapperFacade {
 
 impl NativeParseFacadeV3 for JavaWrapperFacade {
     fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
-        TsWrapperFacade.parse(spliced_text)
+        let mut diags = TsWrapperFacade.parse(spliced_text)?;
+        if let Some(mut extra) = run_java_adapter(spliced_text) { diags.append(&mut extra); }
+        Ok(diags)
     }
 }
 
 impl NativeParseFacadeV3 for CsWrapperFacade {
     fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
-        TsWrapperFacade.parse(spliced_text)
+        let mut diags = TsWrapperFacade.parse(spliced_text)?;
+        if let Some(mut extra) = run_csharp_adapter(spliced_text) { diags.append(&mut extra); }
+        Ok(diags)
     }
 }
 
@@ -331,3 +335,71 @@ fn run_cpp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
 
 #[cfg(not(feature = "native-cpp"))]
 fn run_cpp_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+
+#[cfg(feature = "native-java")]
+fn run_java_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+    use tree_sitter::{Parser, Node};
+    fn collect_errors(node: Node, out: &mut Vec<(usize, usize)>) {
+        if node.is_error() || node.is_missing() { out.push((node.start_byte(), node.end_byte())); }
+        for i in 0..node.child_count() {
+            if let Some(ch) = node.child(i) { collect_errors(ch, out); }
+        }
+    }
+    let prefix = "class __framec_facade{ void __m(){\n";
+    let suffix = "\n}}";
+    let wrapped = format!("{}{}{}", prefix, text, suffix);
+    let mut parser = Parser::new();
+    parser.set_language(tree_sitter_java::language()).ok()?;
+    let tree = parser.parse(&wrapped, None)?;
+    let root = tree.root_node();
+    let mut errs = Vec::new();
+    collect_errors(root, &mut errs);
+    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    for (mut s, mut e) in errs {
+        let pre = prefix.len();
+        if s < pre { s = pre; }
+        if e < pre { e = pre; }
+        s -= pre; e -= pre;
+        if s > text.len() { s = text.len(); }
+        if e > text.len() { e = text.len(); }
+        out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (Java): parse error".into() });
+    }
+    Some(out)
+}
+
+#[cfg(not(feature = "native-java"))]
+fn run_java_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+
+#[cfg(feature = "native-csharp")]
+fn run_csharp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+    use tree_sitter::{Parser, Node};
+    fn collect_errors(node: Node, out: &mut Vec<(usize, usize)>) {
+        if node.is_error() || node.is_missing() { out.push((node.start_byte(), node.end_byte())); }
+        for i in 0..node.child_count() {
+            if let Some(ch) = node.child(i) { collect_errors(ch, out); }
+        }
+    }
+    let prefix = "class __FramecFacade{ void M(){\n";
+    let suffix = "\n}}";
+    let wrapped = format!("{}{}{}", prefix, text, suffix);
+    let mut parser = Parser::new();
+    parser.set_language(tree_sitter_c_sharp::language()).ok()?;
+    let tree = parser.parse(&wrapped, None)?;
+    let root = tree.root_node();
+    let mut errs = Vec::new();
+    collect_errors(root, &mut errs);
+    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    for (mut s, mut e) in errs {
+        let pre = prefix.len();
+        if s < pre { s = pre; }
+        if e < pre { e = pre; }
+        s -= pre; e -= pre;
+        if s > text.len() { s = text.len(); }
+        if e > text.len() { e = text.len(); }
+        out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (C#): parse error".into() });
+    }
+    Some(out)
+}
+
+#[cfg(not(feature = "native-csharp"))]
+fn run_csharp_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }

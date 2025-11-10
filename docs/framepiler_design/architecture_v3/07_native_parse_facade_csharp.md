@@ -1,11 +1,11 @@
 # Stage 07 — Native Parse Facade (C#)
 
 Purpose (V3 minimal)
-- Provide hermetic validation of facade wrapper calls in strict mode. No general C# parsing; wrapper lines only.
+- Provide hermetic validation of facade wrapper calls in strict mode. Wrapper lines are always validated; optional structural C# parsing is available behind a feature flag.
 
 Runtime Optionality
 - Gated by `--validate-native` (strict). Off by default.
-- Present across all languages with wrapper-only checks.
+- Wrapper-only checks are always available; structural C# parsing uses Tree-sitter when the `native-csharp` cargo feature is enabled.
 
 Inputs
 - Spliced body text + `splice_map` with wrapper calls inserted when `FRAME_FACADE_EXPANSION=1`.
@@ -47,4 +47,6 @@ Tests
 - v3_facade_smoke negatives (wrapper-only) produce expected failures; diagnostics map through `splice_map`.
 
 Native parser integration (optional)
-- Structural C# parsing (e.g., via Tree-sitter or a Roslyn-backed local adapter) can be added behind cargo features and `--validate-native`. Current state is wrapper-only; no external parser compiled by default.
+- Structural C# parsing via Tree-sitter is available behind cargo feature `native-csharp` and `--validate-native`.
+- Implementation detail: the spliced body is wrapped in a minimal `class __FramecFacade { void M(){ ... } }` to parse statement lists. Diagnostics from error nodes are remapped to spliced offsets.
+- Default builds do not enable this feature; CI and local runs can opt in with `cargo build --features native-csharp`.

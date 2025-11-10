@@ -13,6 +13,8 @@ native-ts = ["swc_common", "swc_ecma_parser", "swc_ecma_ast"]
 native-rs = ["syn/full"]
 native-c = ["tree-sitter", "tree-sitter-c"]
 native-cpp = ["tree-sitter", "tree-sitter-cpp"]
+native-java = ["tree-sitter", "tree-sitter-java"]
+native-csharp = ["tree-sitter", "tree-sitter-c-sharp"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
@@ -45,6 +47,8 @@ swc_ecma_ast = { version = "17", optional = true }
 tree-sitter = { version = "0.20", optional = true }
 tree-sitter-c = { version = "0.20", optional = true }
 tree-sitter-cpp = { version = "0.20", optional = true }
+tree-sitter-java = { version = "0.20", optional = true }
+tree-sitter-c-sharp = { version = "0.20", optional = true }
 
 # Note: rustpython-parser intentionally omitted here for now; Python adapter will be added later.
 
