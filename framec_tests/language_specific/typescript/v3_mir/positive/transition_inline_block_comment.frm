@@ -7,5 +7,6 @@ system S {
                 -> $B() /* comment ok */
             }
         }
+        $B {
+        }
 }
-
