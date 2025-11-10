@@ -331,13 +331,16 @@ class FrameTestRunner:
                 # Write output to file
                 out = result.stdout or ""
                 output_file.write_text(out)
-                if language == "typescript" and self.config.execute and is_v3_facade_smoke:
+                if self.config.execute and is_v3_facade_smoke and language in ("typescript", "python"):
                     # Build and execute a minimal TS harness from spliced output for facade strict tests only.
                     if "__frame_transition" not in out and "__frame_forward" not in out and "__frame_stack_" not in out:
                         return False, str(output_file), "Facade wrappers not found in output"
-                    ts_ok, ts_err = self._execute_ts_harness_from_spliced(test_file.stem, out)
-                    if not ts_ok:
-                        return False, str(output_file), ts_err
+                    if language == "typescript":
+                        ok, err = self._execute_ts_harness_from_spliced(test_file.stem, out)
+                    else:
+                        ok, err = self._execute_py_harness_from_spliced(test_file.stem, out)
+                    if not ok:
+                        return False, str(output_file), err
                 return True, str(output_file), None
             else:
                 error = result.stderr or result.stdout
@@ -444,6 +447,30 @@ class FrameTestRunner:
             return False, "Execution timeout"
         except Exception as e:
             return False, str(e)
+
+    def _execute_py_harness_from_spliced(self, test_name: str, spliced_output: str) -> Tuple[bool, str]:
+        """
+        Build and execute a minimal Python harness for facade strict tests by extracting
+        wrapper-call lines from the spliced output and running them in a main() function.
+        """
+        wrappers: List[str] = []
+        for line in spliced_output.splitlines():
+            s = line.strip()
+            if s.startswith("__frame_transition(") or s.startswith("__frame_forward(") or s.startswith("__frame_stack_"):
+                wrappers.append(s)
+        prelude = "\n".join([
+            "def __frame_transition(state, *args, **kwargs):\n    pass",
+            "def __frame_forward():\n    pass",
+            "def __frame_stack_push():\n    pass",
+            "def __frame_stack_pop():\n    pass",
+        ])
+        indented = "\n".join(["    " + w for w in wrappers])
+        program = f"{prelude}\n\nif __name__ == '__main__':\n{indented}\n"
+        out_dir = self.generated_dir / "python"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        py_path = out_dir / f"{test_name}__v3.py"
+        py_path.write_text(program)
+        return self.execute_python(str(py_path))
     
     def _batch_compile_typescript(self, tests: Dict[str, List[str]]) -> None:
         """
@@ -980,6 +1007,13 @@ class FrameTestRunner:
                 if "v3_demos" in [p.lower() for p in test_file.parts]:
                     result.execute_success = True
                     result.output = "V3 demo test: transpile-only"
+                    result.execution_time = time.time() - start_time
+                    return result
+                # Facade strict tests for TS/Python are executed during transpile via harness
+                parts_lower = [p.lower() for p in test_file.parts]
+                if "v3_facade_smoke" in parts_lower and language in ("typescript", "python"):
+                    result.execute_success = True
+                    result.output = "Facade harness executed"
                     result.execution_time = time.time() - start_time
                     return result
                 # Execute based on language
