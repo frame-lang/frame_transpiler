@@ -13,4 +13,4 @@ Rules
 - Ignore tokens within comments/strings/raw; emit NativeText and FrameSegment as in C.
 
 Tests
-- `ptr->field` at SOL not a transition; directives in comments/strings/raw ignored.
+- `ptr->field` at SOL not a transition; Frame-statement-like tokens in comments/strings/raw are ignored.

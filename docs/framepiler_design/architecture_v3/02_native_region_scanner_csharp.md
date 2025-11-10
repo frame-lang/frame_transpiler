@@ -12,7 +12,7 @@ Outputs
 - Each `RegionV3` carries precise byte spans and, for Frame segments, computed indent
 
 SOL Detection (C#)
-- Recognize directives only at start-of-line (Unicode whitespace allowed)
+- Recognize Frame statements only at start-of-line (Unicode whitespace allowed)
 - Patterns:
   - Transition: `-> $State(args?)`
   - Forward: `=> $^`
@@ -35,12 +35,12 @@ Rules
 - Ignore `=>` lambda unless followed by `$^` at SOL
 
 Errors
-- Malformed Frame head at SOL (E30x): looks like Frame directive but missing required tokens
+- Malformed Frame head at SOL (E30x): looks like a Frame statement but is missing required tokens
 - Unterminated protected regions (carried through from Stage 01 if present)
 
 Fixtures
 - `framec_tests/v3/02_scanner/csharp/*` covering:
-  - Directives in comments/strings/preprocessor
+  - Frame-statement-like tokens in comments/strings/preprocessor
   - Lambdas `() => expr` at SOL (no match)
   - Interpolated raw strings with nested braces
   - Verbatim and normal strings with escaped quotes

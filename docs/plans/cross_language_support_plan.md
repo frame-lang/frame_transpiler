@@ -2,7 +2,7 @@
 
 **Document Version**: 1.0  
 **Date**: 2025-11-05  
-**Status**: Implementation Plan (inline target directives removed; TS/Py textual closers active for actions/handlers)  
+**Status**: Implementation Plan (inline target annotations removed; TS/Py textual closers active for actions/handlers)  
 **Priority**: High  
 **Related Issues**: Bug #055 - TypeScript async runtime lacks socket helpers
 
@@ -130,7 +130,7 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - Body classification now flows through the AST (`ActionBody`), and nodes capture unsupported target regions as `UnrecognizedStatementNode`s for downstream diagnostics.
 - Python visitor centralizes native emission through the new body metadata, producing deterministic ignore notes when other targets are present.
 - Parse errors now surface both frame and target locations (with snippets) throughout CLI and module compiler flows, giving users consistent dual-line diagnostics.
-- CLI and build tooling respect module-level `@target` declarations only. Inline `#[target: ...]` directives are rejected by the scanner with a clear diagnostic.
+- CLI and build tooling respect module-level `@target` declarations only. Inline `#[target: ...]` annotations are rejected by the scanner with a clear diagnostic.
 
 **Deliverables**:
 - **Integrated diagnostics system** with dual line number support
@@ -312,8 +312,8 @@ This plan implements target-specific syntax support in Frame using `@target` dec
 - [x] Implement scanner multi-mode state machine (Frame vs target body) with proper boundary detection (nested braces, strings, comments).
 - [x] Capture target-specific regions as structured data (`TargetRegion`, `TargetSourceMap`) and persist across AST/diagnostics. *(Implemented multi-mode extraction in `scanner.rs`; regions now carry `TargetSourceMap` metadata referenced by parser + visitors.)*
 - [x] Update parser to consume target regions, emit `TargetSpecific` action bodies, and record `native module` references without falling back to string tokens. *(TypeScript target parser now relies on SWC AST instead of raw strings; Python path already wired.)*
-- [x] Remove support for inline `#[target: ...]` directives; add negative tests and error messaging in scanner.
-- [x] Enforce directive detection invariants (SOL-anchored, full-token patterns) in TS and Py segmenters.
+- [x] Remove support for inline `#[target: ...]` annotations; add negative tests and error messaging in scanner.
+- [x] Enforce Frame-statement head detection invariants (SOL-anchored, full-token patterns) in TS and Py segmenters.
 - [x] Make FrameCommon scanner Unicode-whitespace aware (spaces, tabs, NBSP, U+2000–U+200A, U+202F, U+205F, U+3000) for robust SOL detection and token skipping.
 
 ## Week 7: Target Body Parsers & Visitor Integration
@@ -687,7 +687,7 @@ Tasks
 - [x] Populate `mixed_body` for operations/actions where applicable (segmenter → MIR/native text; native-only → `NativeText`).
 - [x] Replace ad‑hoc glue with custom visitor emission based on MixedBody/MIR (no new crates).
 - [ ] Compose source maps for MIR expansions and native spans; surface dual line numbers in diagnostics.
-- [ ] Add golden tests for directive expansions (transition/forward/stack) using SWC printer; verify formatting stability.
+- [ ] Add golden tests for Frame statement expansions (transition/forward/stack) using SWC printer; verify formatting stability.
 
 Validation
 - [x] Transpile-only: Full TypeScript suite remains green.
@@ -729,11 +729,11 @@ Acceptance criteria (SWC parser)
 - The net.Socket spec compiles after the SWC body parser tolerates arrow callbacks and object literal connect options.
 
 ## Week 9: Python Boundary + Diagnostics
-Goal: Enable native-only islands in Python handlers while keeping directives in Frame.
+Goal: Enable native-only islands in Python handlers while keeping statements in Frame.
 
 Tasks
-- [ ] Extend scanner boundary detection for Python to terminate native islands at line-start directives (`->`, `=> $^`, `$$[+/-]`).
-- [ ] Use rustpython_parser for native-only bodies; keep Frame parsing for directive bodies.
+- [ ] Extend scanner boundary detection for Python to terminate native islands at line-start Frame statements (`->`, `=> $^`, `$$[+/-]`).
+- [ ] Use rustpython_parser for native-only bodies; keep Frame parsing for statement bodies.
 - [ ] Populate `mixed_body` for Python (NativeText only initially); no printer swap yet.
 - [ ] Dual-line diagnostics for mixed bodies in Python.
 
@@ -742,7 +742,7 @@ Validation
 - [ ] Verify boundary detection with strings/comments/indentation edge cases.
 
 ## Finalization: Source Maps and AST Dump
-- [ ] Add “source-map composer” unit tests for directive expansions.
+- [ ] Add “source-map composer” unit tests for Frame statement expansions.
 - [ ] Ensure `framec --ast-dump` includes mixed-body items and spans.
 - [ ] Update HOW_TO to document mixed-body behavior and diagnostics.
 
@@ -763,14 +763,14 @@ Goal: Land all single-file improvements before multi-file.
 Checklist
 - [x] MixedBody + MIR across handlers, actions, operations (TS)
 - [x] Custom visitor emission from MixedBody (deterministic glue)
-- [x] Mapping hooks for native spans and directives (TS)
+- [x] Mapping hooks for native spans and Frame statements (TS)
 - [ ] Finalize source-map composition and add unit tests (TS)
 - [ ] DesugarPass: pseudo-symbol translation
   - TS: `system.return` → `this.returnStack[this.returnStack.length - 1]`
   - Py: `system.return` → `self.return_stack[-1]`
 - [ ] Python single-file mixed bodies
   - Directive boundary detection at line start (`->`, `=> $^`, `$$[+/-]`)
-  - rustpython for native-only; MixedBody for directive bodies
+  - rustpython for native-only; MixedBody for Frame-statement bodies
 - [ ] Segmenter robustness tests: comments, escapes, nested templates (TS)
 - [ ] Naming cleanup: `TargetRegion` → `NativeRegion` (drop alias)
 - [ ] AST dump improvements: include MixedBody and per-item spans

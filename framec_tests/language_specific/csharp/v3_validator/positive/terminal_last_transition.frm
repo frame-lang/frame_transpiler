@@ -1,0 +1,12 @@
+@target csharp
+
+system S {
+    machine:
+        $A {
+            e() {
+                // native prelude
+                -> $B()
+            }
+        }
+}
+

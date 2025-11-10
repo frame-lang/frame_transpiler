@@ -157,7 +157,7 @@ class FrameTestRunner:
                             tests[f"language_specific_{lang}_v3_demos"] = demo_tests
 
         # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
-        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion"]):
+        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project"]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
             if "v3_prolog" in self.config.categories:
@@ -172,6 +172,10 @@ class FrameTestRunner:
                 collect_v3_category("v3_mapping")
             if "v3_expansion" in self.config.categories:
                 collect_v3_category("v3_expansion")
+            if "v3_validator" in self.config.categories:
+                collect_v3_category("v3_validator")
+            if "v3_project" in self.config.categories:
+                collect_v3_category("v3_project")
 
         # Language-specific tests - only include if explicitly requested or "all" is specified
         if "all" in self.config.categories:

@@ -32,7 +32,7 @@ Keep language behavior in the runtime, and use FID + native modules for capabili
 ## Current Focus — Going Native
 - Native bodies by default; MixedBody is authoritative only in event handlers.
 - Actions/operations are native‑only; `system.return` is supported for return assignment.
-- SOL‑anchored directives in handlers: `->`, `=> $^`, `$$[+/-]`, `system.return`.
+- SOL‑anchored Frame statements in handlers: `->`, `=> $^`, `$$[+/-]`, `system.return`.
 - Per‑language body boundary via DPDAs (TS template/backtick‑aware, Py triple‑quote/f‑string‑aware).
 - Validation: transitions must be terminal (enforced), Python native policy, negative pattern checks.
 - LLVM runtime stores event payloads as typed `StateValue`s so queue replay, parent forwarding, and enter hooks preserve interface arguments.

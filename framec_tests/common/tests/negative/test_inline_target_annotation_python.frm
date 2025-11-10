@@ -1,4 +1,4 @@
-# Negative: inline #[target: python] directives must error
+# Negative: inline #[target: python] annotations must error
 
 system InlineTargetDirectivePython {
     interface:
@@ -13,4 +13,3 @@ system InlineTargetDirectivePython {
             }
         }
 }
-

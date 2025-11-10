@@ -386,7 +386,7 @@ Per‑Phase Testing Plan (Must Be In Python Runner)
 
 - Stage 02a — Import Scanners (DPDA per language)
   - Positives: SOL imports (`import`, `export`, `using`, `#include`, `package`/`import`, `use`/`extern`) including multi‑line forms.
-  - Negatives: directive tokens inside protected regions (strings/comments/templates) must not be matched; malformed/unterminated continuations.
+  - Negatives: import/include/using tokens inside protected regions (strings/comments/templates) must not be matched; malformed/unterminated continuations.
   - Location: `language_specific/<lang>/v3_imports/{positive,negative}/*.frm`
 
 - Stage 02b — Outline Scanner (SOL artifacts)

@@ -25,7 +25,7 @@ This section consolidates concerns raised in the architectural analysis and the 
 
 2) SOL Policy (Start‑of‑Line)
 - Concern: SOL disallows indentation.
-- Resolution: Clarify as “SOL‑anchored (indentation allowed)”. Scanners accept leading spaces/tabs before Frame directives. Add fixtures proving indented directives are detected.
+- Resolution: Clarify as “SOL‑anchored (indentation allowed)”. Scanners accept leading spaces/tabs before Frame statements. Add fixtures proving indented statements are detected.
 
 3) Stage 07 Optionality
 - Concern: Two paths diverge behavior.
@@ -290,7 +290,7 @@ fn test_transition_detection() {
 
 ### Summary
 
-Support full native expression parsing within Frame statement arguments (e.g., `-> $State(complex_expr)`) and implement AST-aware indentation derivation for directive expansion.
+Support full native expression parsing within Frame statement arguments (e.g., `-> $State(complex_expr)`) and implement AST-aware indentation derivation for statement expansion.
 
 ### Motivation
 
@@ -391,7 +391,7 @@ pub struct PythonIndentationAnalyzer;
 
 impl IndentationAnalyzer for PythonIndentationAnalyzer {
     fn derive_indent(&self, frame_stmt_span: ByteSpan, context: &NativeAst) -> String {
-        // 1. Find the AST node containing the directive
+        // 1. Find the AST node containing the Frame statement head
         // 2. Determine the expected indentation for that syntactic context
         // 3. Handle special cases: elif/else/except/finally continuation
         // 4. Return computed indent string
@@ -399,7 +399,7 @@ impl IndentationAnalyzer for PythonIndentationAnalyzer {
 }
 ```
 
-#### Integration with Directive Expansion
+#### Integration with Frame Statement Expansion
 
 ```rust
 pub struct FrameStatementExpanderPyV3 {
@@ -1069,7 +1069,7 @@ pub enum MixedBodyItem {
 
 #### MIR Scope Limitations
 
-**By policy**, V3 keeps business logic in native code; MIR models only Frame state machine directives:
+**By policy**, V3 keeps business logic in native code; MIR models only Frame state machine statements:
 
 - **No control flow**: No if/else, loops, or conditionals in MIR
 - **No expressions**: Native expressions remain as string args, not parsed into MIR

@@ -107,7 +107,7 @@ Normalization invariants to keep across targets:
 - Operations: logically pure (recommended), but we won’t enforce purity; may call actions; transitions here are allowed but discouraged (warn).
 
 7.2 MixedBody policy
-- Both are MixedBody. Directive presence is allowed and expands via MIR.
+- Both are MixedBody. Frame statement presence is allowed and expands via MIR.
 
 ## 8) Domain Block & Enums
 

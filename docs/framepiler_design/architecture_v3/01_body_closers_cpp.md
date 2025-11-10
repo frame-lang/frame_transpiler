@@ -16,4 +16,4 @@ Failures
 - Unterminated block comment or raw string; unmatched braces.
 
 Tests
-- Raw strings with embedded braces; comment-embedded directive tokens.
+- Raw strings with embedded braces; comment-embedded Frame-statement-like tokens.

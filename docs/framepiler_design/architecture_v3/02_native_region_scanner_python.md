@@ -38,6 +38,6 @@ Complexity
 - O(n) over body length.
 
 Test Hooks
-- Directives inside strings/comments are ignored.
+- Frame-statement-like tokens inside strings/comments are ignored.
 - Unicode whitespace before Frame statements is accepted at SOL.
 - Mixed native/Frame-statement lines produce correct segment boundaries.

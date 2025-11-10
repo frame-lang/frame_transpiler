@@ -1,4 +1,4 @@
-# Negative: inline #[target: typescript] directives must error
+# Negative: inline #[target: typescript] annotations must error
 
 system InlineTargetDirectiveTS {
     interface:
@@ -13,4 +13,3 @@ system InlineTargetDirectiveTS {
             }
         }
 }
-

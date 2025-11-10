@@ -3,7 +3,7 @@
 Scope
 - Branch: going_native (V3 architecture)
 - Languages: Python, TypeScript, C#, C, C++, Java, Rust — developed in lockstep.
-- Model: MixedBody/MIR is authoritative in handlers; actions/operations are native‑only. Frame directives are SOL‑anchored (indentation allowed) and ignored inside strings/comments/templates.
+- Model: MixedBody/MIR is authoritative in handlers; actions/operations are native‑only. Frame statements are SOL‑anchored (indentation allowed) and ignored inside strings/comments/templates.
 
 Guiding Principles
 - Deterministic, linear‑time passes (O(n)): DPDA‑based body closers and region scanners. No regex for language syntax.
@@ -26,7 +26,7 @@ Stages
 - 04 MIR Assembly
   - `MirAssemblerV3` builds `MixedBody` preserving origin spans. Validator enforces “terminal‑last”.
 
-- 05 Directive Expansion (per target)
+- 05 Frame Statement Expansion (per target)
   - `*ExpanderV3` per language emits minimal native glue with correct indentation; no reformatting beyond what native parsers/formatters later do.
 
 - 06 Splice & Mapping
@@ -39,7 +39,7 @@ Stages
   - Compose final maps from AST/text spans + `splice_map`; emit deterministic code.
 
 - 09 Validation
-  - `ValidatorV3` rules: terminal‑last; no Frame directives in actions/ops; per‑language native policies.
+  - `ValidatorV3` rules: terminal‑last; no Frame statements in actions/ops; per‑language native policies.
 
 Notes on C# Specifics
 - C# scanners/closers must handle: verbatim strings (`@"…"`), interpolated strings (`$"…{"expr"}…"`), interpolated‑verbatim (`$@"…"`), raw triple/long quotes (`"""…"""`), character literals, and SOL preprocessor lines (`#if`, `#endif`, etc.). The V3 C# DPDA implementations model these states to avoid false SOL detections.

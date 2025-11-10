@@ -8,7 +8,7 @@ Scope (What remains Frame)
 - System and state outline (declarations and headers only)
 - Action/Operation headers (bodies are native)
 - Special state handlers ($>() and <$()) — headers only; bodies are native
-- SOL‑anchored Frame directives embedded in native bodies:
+- SOL‑anchored Frame statements embedded in native bodies:
   - Transition: `-> $State(args?)`
   - Parent forward: `=> $^`
   - Stack ops: `$$[+]` and `$$[-]`
@@ -69,7 +69,7 @@ interface_block  ::= 'interface:' interface_decl*
 interface_decl   ::= IDENT '(' param_list? ')' ( type_and_default? ) native_body
 ```
 
-Embedded Frame Directives inside Native Bodies (SOL‑anchored)
+Embedded Frame Statements inside Native Bodies (SOL‑anchored)
 - Recognized only at start‑of‑line (indentation allowed), outside strings/comments/templates per target.
 - No Frame tokenization occurs inside protected regions.
 ```
@@ -95,7 +95,7 @@ Lexical/Scanning Policy
 Reserved Terms (Frame)
 - Keywords (outline): `@target`, `system`, `machine:`, `interface:`, `actions:`, `operations:`
 - Header symbols (states/handlers): `$` (state), `$>`, `<$`, `=>` (state inheritance)
-- Directives (embedded ops): `->` (transition), `=> $^` (parent forward), `$$[+]`, `$$[-]` (stack ops)
+- Statements (embedded ops): `->` (transition), `=> $^` (parent forward), `$$[+]`, `$$[-]` (stack ops)
 - Note: “handler” is a concept only; there is no `handler` keyword in the grammar
 
 Decision: Classes/Structs Are Native
@@ -103,12 +103,10 @@ Decision: Classes/Structs Are Native
 - Rationale: preserves idiomatic target usage, avoids semantic duplication, and aligns with Going Native where bodies and expressions are native.
 - Implication: any class/struct definitions should appear as native items inside system blocks or in separate native modules/files according to project conventions.
 
-Validation
-- Structural: terminal‑last; no Frame directives in actions/ops
+- Structural: terminal‑last; no Frame statements in actions/ops
 - Optional strict/native: Stage 07 can parse the spliced native body to validate argument expressions and surface mapped diagnostics
 
-Interoperability
-- MixedBody/MIR is authoritative for embedded Frame directives and mapping
+- MixedBody/MIR is authoritative for embedded Frame statements and mapping
 - `splice_map` provides dual‑origin mapping for diagnostics; source maps are composed in Stage 08
 
 Status

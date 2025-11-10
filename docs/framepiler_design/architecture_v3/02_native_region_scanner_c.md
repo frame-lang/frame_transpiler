@@ -14,7 +14,7 @@ Protected Regions
 
 Rules
 - O(n), must-advance. Emissions:
-  - NativeText spans between directives
+  - NativeText spans between Frame statements
   - FrameSegment spans for heads through EOL with captured indent
 
 Tests

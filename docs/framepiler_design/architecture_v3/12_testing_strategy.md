@@ -9,11 +9,11 @@ Per‑Stage Tests (all 7 languages)
 - Segmentation: SOL‑lexeme negatives inside strings/comments; unicode whitespace at SOL; mixed native/Frame‑statement sequences.
 - Frame Statement Parser: transitions with nested parentheses and strings; invalid/malformed Frame statements.
 - MIR Assembly: terminal Frame statement enforcement; mapping preservation.
-- Directive Expansion: nested conditionals; ensure expansions do not break `elif/else/except/finally` (Py) or `else if` (TS/Java/C#) chains.
+- Frame Statement Expansion: nested conditionals; ensure expansions do not break `elif/else/except/finally` (Py) or `else if` (TS/Java/C#) chains.
 - Splice & Mapping: round‑trip mapping checks; consecutive Frame statements; boundary at body start/end.
 - Native Parse (runtime‑optional): syntax errors mapping back to Frame spans; indentation/format diagnostics.
 - Source Maps & Codegen: breakpoint alignment and golden maps for representative fixtures.
-- Validation: negatives per rule (terminal‑last; no Frame directives in actions/ops; per‑language native policies).
+- Validation: negatives per rule (terminal‑last; no Frame statements in actions/ops; per‑language native policies).
 
 End‑to‑End
 - Use `framec_tests` language‑specific suites in transpile‑only mode as the validation gate.

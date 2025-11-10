@@ -42,7 +42,7 @@ Test Hooks
   - Interpolated with nested braces and nested strings
   - Interpolated+verbatim with path/backslash content
   - Raw strings with/without interpolation; different `$` counts; SOL closer
-  - Comments containing directive-like tokens
+  - Comments containing Frame-statement-like tokens
   - Preprocessor at SOL
 
 Exit Criteria

@@ -13,4 +13,4 @@ Rules
 - Must-advance; ignore tokens inside comments/strings/raw; emit NativeText and FrameSegment with indent.
 
 Tests
-- Ignore directive-like tokens in comments/strings/raw; detect transitions/forwards/stacks at SOL.
+- Ignore Frame-statement-like tokens in comments/strings/raw; detect transitions/forwards/stacks at SOL.

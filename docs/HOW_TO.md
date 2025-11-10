@@ -28,7 +28,7 @@ Frame is a state machine language that transpiles to multiple target languages (
 - **LLVM**: on indefinite hold — do not develop or maintain LLVM until further notice.
 - **Core policies**:
   - Native bodies by default; MixedBody permitted only in event handlers (actions/operations are native‑only).
-  - SOL‑anchored Frame directives (`-> $State(args)`, `=> $^`, `$$+/-`) recognized at start‑of‑line (indentation allowed), ignored in strings/comments/templates.
+  - SOL‑anchored Frame statements (`-> $State(args)`, `=> $^`, `$$+/-`) recognized at start‑of‑line (indentation allowed), ignored in strings/comments/templates.
   - Transitions are terminal: a terminal MIR statement must be the last statement in a handler body (validator enforced).
   - Per‑language boundary detection uses DPDA scanners/closers (e.g., TS template/backtick‑aware; Py triple‑quote/f‑string‑aware; C# verbatim/interpolated/raw strings and preprocessor lines).
 
@@ -195,7 +195,7 @@ cargo build --release
 
 ## Code Patterns
 
-### Going Native (Bodies + Directives)
+### Going Native (Bodies + Frame Statements)
 - Actions/operations: native‑only; use `system.return` for return assignment.
 - Event handlers: native bodies with SOL‑anchored Frame statements interleaved (MixedBody); MIR glue emits deterministic returns and transitions.
 - No inline `#[target: …]` annotations in source (scanner errors); per-target segmentation handles native islands.
