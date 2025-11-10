@@ -290,6 +290,26 @@ class FrameTestRunner:
             )
             
             if result.returncode == 0:
+                # Optional mapping trailer validation for v3_mapping
+                if is_v3_mapping:
+                    out = result.stdout or ""
+                    start = out.find("/*#frame-map#")
+                    end = out.find("#frame-map#*/")
+                    if start == -1 or end == -1 or end <= start:
+                        return False, str(output_file), "Missing frame-map trailer in output"
+                    trailer_text = out[start+len("/*#frame-map#"):end]
+                    try:
+                        import json as _json
+                        payload = _json.loads(trailer_text.strip())
+                        m = payload.get("map", [])
+                        if not m:
+                            return False, str(output_file), "Empty mapping payload"
+                        # At least one origin should be frame
+                        has_frame = any(item.get("origin") == "frame" for item in m if isinstance(item, dict))
+                        if not has_frame:
+                            return False, str(output_file), "No frame-origin entries in mapping"
+                    except Exception as e:
+                        return False, str(output_file), f"Invalid mapping JSON: {e}"
                 # Write output to file
                 output_file.write_text(result.stdout)
                 return True, str(output_file), None
