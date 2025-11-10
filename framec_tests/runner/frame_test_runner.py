@@ -331,14 +331,16 @@ class FrameTestRunner:
                 # Write output to file
                 out = result.stdout or ""
                 output_file.write_text(out)
-                if self.config.execute and is_v3_facade_smoke and language in ("typescript", "python"):
+                if self.config.execute and is_v3_facade_smoke and language in ("typescript", "python", "rust"):
                     # Build and execute a minimal TS harness from spliced output for facade strict tests only.
                     if "__frame_transition" not in out and "__frame_forward" not in out and "__frame_stack_" not in out:
                         return False, str(output_file), "Facade wrappers not found in output"
                     if language == "typescript":
                         ok, err = self._execute_ts_harness_from_spliced(test_file.stem, out)
-                    else:
+                    elif language == "python":
                         ok, err = self._execute_py_harness_from_spliced(test_file.stem, out)
+                    else:  # rust
+                        ok, err = self._execute_rust_harness_from_spliced(test_file.stem, out)
                     if not ok:
                         return False, str(output_file), err
                 return True, str(output_file), None
@@ -765,6 +767,53 @@ class FrameTestRunner:
         except Exception as e:
             return False, str(e)
 
+    def _execute_rust_harness_from_spliced(self, test_name: str, spliced_output: str) -> Tuple[bool, str]:
+        """
+        Build and execute a minimal Rust harness for facade strict tests by extracting
+        wrapper-call lines and rewriting them to match no-op wrapper signatures.
+        """
+        wrappers: List[str] = []
+        for line in spliced_output.splitlines():
+            s = line.strip()
+            if s.startswith("__frame_transition("):
+                # Expect __frame_transition("State" ...);
+                try:
+                    start = s.find('("')
+                    if start == -1:
+                        start = s.find('(\'')
+                    if start != -1:
+                        q = '"' if s.find('("') != -1 else '\''
+                        # find end quote
+                        endq = s.find(q, start+2)
+                        if endq != -1:
+                            state = s[start+2:endq]
+                            s = f"__frame_transition(\"{state}\");"
+                        else:
+                            s = "// skipped malformed transition"
+                    else:
+                        s = "// skipped malformed transition"
+                except Exception:
+                    s = "// skipped malformed transition"
+                wrappers.append(s)
+            elif s.startswith("__frame_forward(") or s.startswith("__frame_stack_"):
+                # Keep as-is
+                if not s.endswith(";"):
+                    s += ";"
+                wrappers.append(s)
+        prelude = "\n".join([
+            "fn __frame_transition(_state: &str) {}",
+            "fn __frame_forward() {}",
+            "fn __frame_stack_push() {}",
+            "fn __frame_stack_pop() {}",
+        ])
+        body = "\n    ".join(wrappers)
+        program = f"{prelude}\nfn main() {{\n    {body}\n}}\n"
+        out_dir = self.generated_dir / "rust"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        rs_path = out_dir / f"{test_name}__v3.rs"
+        rs_path.write_text(program)
+        return self.execute_rust(str(rs_path))
+
     def _ensure_llvm_runtime(self) -> Tuple[bool, str]:
         """Make sure the LLVM runtime library is built and discoverable."""
         if self._llvm_runtime_ready and self._llvm_runtime_dir:
@@ -1011,7 +1060,7 @@ class FrameTestRunner:
                     return result
                 # Facade strict tests for TS/Python are executed during transpile via harness
                 parts_lower = [p.lower() for p in test_file.parts]
-                if "v3_facade_smoke" in parts_lower and language in ("typescript", "python"):
+                if "v3_facade_smoke" in parts_lower and language in ("typescript", "python", "rust"):
                     result.execute_success = True
                     result.output = "Facade harness executed"
                     result.execution_time = time.time() - start_time

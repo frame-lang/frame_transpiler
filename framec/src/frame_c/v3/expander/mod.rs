@@ -113,7 +113,8 @@ impl FrameStatementExpanderV3 for CFacadeExpanderV3 {
         match mir {
             MirItemV3::Transition{ target, args, .. } => {
                 let arglist = if args.is_empty() { String::new() } else { format!(", {}", args.join(", ")) };
-                format!("{}__frame_transition('{}'{});\n", pad, target, arglist)
+                // Use double quotes for string literal in C-like languages
+                format!("{}__frame_transition(\"{}\"{});\n", pad, target, arglist)
             }
             MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
             MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
@@ -131,7 +132,8 @@ impl FrameStatementExpanderV3 for RustFacadeExpanderV3 {
         match mir {
             MirItemV3::Transition{ target, args, .. } => {
                 let arglist = if args.is_empty() { String::new() } else { format!(", {}", args.join(", ")) };
-                format!("{}__frame_transition('{}'{});\n", pad, target, arglist)
+                // Use double quotes as Rust char literals use single quotes
+                format!("{}__frame_transition(\"{}\"{});\n", pad, target, arglist)
             }
             MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
             MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),

@@ -171,13 +171,14 @@ fn paren_payload(hay: &[u8], start: usize, end: usize) -> Option<(usize, usize)>
 }
 
 fn check_transition_first_arg(hay: &[u8], arg_start: usize, arg_end: usize, _require_semicolon: bool, _allow_semicolon: bool) -> Option<(bool, String)> {
-    // First non-ws must be '\'', then state ident, then closing '\''
+    // First non-ws must be quote (' or "), then state ident, then matching closing quote
     let mut i = arg_start; while i < arg_end && (hay[i] == b' ' || hay[i] == b'\t') { i += 1; }
-    if i >= arg_end || hay[i] != b'\'' { return Some((false, "transition wrapper: first argument must be quoted state".into())); }
+    if i >= arg_end || (hay[i] != b'\'' && hay[i] != b'\"') { return Some((false, "transition wrapper: first argument must be quoted state".into())); }
+    let q = hay[i];
     i += 1; let name_start = i; while i < arg_end && (hay[i].is_ascii_alphanumeric() || hay[i] == b'_') { i += 1; }
     if i == name_start { return Some((false, "transition wrapper: empty state name".into())); }
     let first = hay[name_start]; if !(first.is_ascii_alphabetic() || first == b'_') { return Some((false, "transition wrapper: invalid state identifier".into())); }
-    if i >= arg_end || hay[i] != b'\'' { return Some((false, "transition wrapper: first argument must be quoted state".into())); }
+    if i >= arg_end || hay[i] != q { return Some((false, "transition wrapper: first argument must be quoted state".into())); }
     // ok; remaining can be optional comma and other args
     Some((true, String::new()))
 }

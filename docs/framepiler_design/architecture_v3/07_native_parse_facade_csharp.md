@@ -18,8 +18,8 @@ Checks (wrapper-only)
 - Require trailing semicolon `;` on wrapper lines.
 
 Wrapper arguments (policy)
-- Transition wrapper `__frame_transition('<State>'[, <args>...]);`
-  - First argument must be a single-quoted state identifier matching `[A-Za-z_][A-Za-z0-9_]*`.
+- Transition wrapper `__frame_transition("<State>"[, <args>...]);`
+  - First argument must be a quoted state identifier matching `[A-Za-z_][A-Za-z0-9_]*` (single or double quotes accepted; double quotes shown here).
   - Additional arguments are allowed and left uninterpreted (count/shape validated later in Stage 09).
 - `__frame_forward();` and `__frame_stack_{push|pop}();` take no arguments.
 
