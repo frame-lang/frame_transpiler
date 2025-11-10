@@ -32,6 +32,9 @@ Stages
 - 06 Splice & Mapping
   - `SplicerV3` produces `SplicedBody { bytes, splice_map }` for dual‑origin mapping (Frame/native).
 
+- 06.5 Structural Validation (early)
+  - `ValidatorV3` enforces terminal‑last, disallows Frame statements in actions/ops, and checks state header '{' in machine:.
+
 - 07 Native Parse Facade (runtime‑optional)
   - `NativeParseFacade*V3` parses spliced native bodies to surface native syntax/indent diagnostics; diagnostics remap through `splice_map` to Frame spans. Implemented for all languages; disabled by default.
 

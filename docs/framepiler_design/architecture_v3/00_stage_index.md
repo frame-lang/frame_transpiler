@@ -27,6 +27,7 @@ This index links to the detailed, authoritative design documents for each stage 
  - 05f — Frame Statement Expansion (Java): `05_frame_statement_expansion_java.md`
  - 05g — Frame Statement Expansion (Rust): `05_frame_statement_expansion_rust.md`
 - 06 — Splice & Mapping: `06_splice_and_mapping.md`
+- 06.5 — Structural Validation (early): `06_5_structural_validation.md`
 - 07 — Native Parse Facade (Python): `07_native_parse_facade_python.md`
 - 07b — Native Parse Facade (TypeScript): `07_native_parse_facade_typescript.md`
 - 07c — Native Parse Facade (C#): `07_native_parse_facade_csharp.md`

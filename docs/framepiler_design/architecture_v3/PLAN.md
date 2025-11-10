@@ -22,10 +22,11 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_prolog fixtures integrated in runner (positive/negative)
 - [x] v3_imports fixtures integrated with validation (negatives enforced)
 - [x] v3_outline positives integrated
- - [x] v3_outline negatives (missing '{' detection) — enforced via OutlineScannerV3 + validator
- - [x] v3_mapping fixtures (splice map round‑trip)
+- [x] v3_outline negatives (missing '{' detection) — enforced via OutlineScannerV3 + validator
+- [x] v3_mapping fixtures (splice map round‑trip)
 - [ ] v3_mir parser negatives (malformed heads/args) — pending
 - [ ] v3_expansion indentation chain fixtures — pending
+ - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check
 
 Production‑ready criteria (not done unless explicitly checked):
 - [ ] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
@@ -136,8 +137,22 @@ Checklist
 - [ ] Negative fixtures (malformed heads/args) expanded
 
 04–06 — MIR/Expansion/Splice Test Coverage
-- [ ] MIR Assembly terminal‑last negatives (runner category v3_mir)
-- [ ] Expansion indentation chain fixtures (Py/TS; generalize for C#/Java/C/C++/Rust comments)
+  - [ ] MIR Assembly terminal‑last negatives (runner category v3_mir)
+  - [ ] Expansion indentation chain fixtures (Py/TS; generalize for C#/Java/C/C++/Rust comments)
+
+- 06.5 — Structural Validation (early)
+- Objects: `ValidatorV3` (early rules)
+- Deliverable: lightweight, hermetic checks before facades (Stage 07).
+- Rules:
+  - Terminal‑last on MIR items (Transition/Forward/Stack*).
+  - No Frame statements in actions/operations (Outline kinds authoritative).
+  - Machine state header must include '{' on same logical line.
+- Tests: `v3_validator/{positive,negative}` per language in Python runner.
+
+Checklist
+- [x] Terminal‑last rule
+- [x] No Frame statements in actions/ops
+- [x] Machine state header '{' check
 - [ ] Mapping round‑trip (runner category v3_mapping)
 
 04 — MIR Assembly
@@ -206,14 +221,12 @@ Checklist
 - [ ] Rust codegen adapter (optional)
 
 09 — Validation
-- Objects: `ValidatorV3`, rules: `TerminalLastRuleV3`, `NoFrameStatementsInActionsOpsRuleV3`, `PythonNativePolicyRuleV3`, etc.
-- Deliverable: clear diagnostics and rule coverage at MixedBody/MIR level.
-- Tests (existing): negatives and policy suites; ensure runner invokes validator post‑transpile.
+- Objects: `ValidatorV3`, rules: policy‑level and semantic checks (beyond 06.5), e.g., `PythonNativePolicyRuleV3`, `TypeScriptPolicyRuleV3`, state/target existence.
+- Deliverable: clear diagnostics and rule coverage for native policies and cross‑artifact checks.
+- Tests: negatives and policy suites; ensure runner invokes validator post‑transpile.
 
 Checklist
-- [x] Terminal‑last rule
 - [x] Demo CLI `--validate/--validation-only` paths
-- [x] No Frame statements in actions/ops (module outline kinds authoritative)
 - [ ] Python/TypeScript native policy checks
 - [ ] State/target existence checks
 
@@ -399,13 +412,18 @@ Per‑Phase Testing Plan (Must Be In Python Runner)
   - Negatives: malformed heads, unmatched parens, trailing tokens.
   - Location: `language_specific/<lang>/v3_mir/{positive,negative}/*.frm`
 
+- Stage 06.5 — Structural Validation (early)
+  - Positives: terminal‑last in handlers; actions/ops without Frame statements.
+  - Negatives: multiple Frame statements after terminal; Frame statements in actions/ops; missing '{' after state header.
+  - Location: `language_specific/<lang>/v3_validator/{positive,negative}/*.frm`
+
 - Stage 06 — Splice & Mapping
   - Positives: mapping anchors present; comment‑only expansions spliced at correct indent.
   - Negatives: inconsistent spans should be detected in tests comparing anchors; ensure debug trailer gating via env only affects printing.
   - Location: `language_specific/<lang>/v3_mapping/{positive,negative}/*.frm`
 
 - Stage 09 — Validator (Policies)
-  - Positives: terminal‑last in handlers; no Frame in actions/ops (using Outline kinds); per‑language native policies.
+  - Positives: per‑language native policies and cross‑artifact checks.
   - Negatives: violations for each rule with precise diagnostics.
   - Location: `language_specific/<lang>/v3_validator/{positive,negative}/*.frm`
 
@@ -420,7 +438,8 @@ Testing Status (Initial)
 - [x] `v3_imports` negatives per language (protected‑region masking, malformed cases).
 - [x] `v3_outline` positives/negatives with owner_id/kind checks.
 - [x] `v3_mir`, `v3_mapping` suites.
-- [ ] `v3_validator`, `v3_project` suites.
+- [x] `v3_validator` early structural suite.
+- [ ] `v3_project` suites.
 
 Test Inventory (existing to reuse)
 - Python: event_handler_incremental, if_elif_returns, try/except*, async*, forward events, stack ops, triple‑quotes/f‑strings, torture unicode.
