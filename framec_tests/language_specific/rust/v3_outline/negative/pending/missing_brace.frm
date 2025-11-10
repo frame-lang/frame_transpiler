@@ -1,4 +1,6 @@
 @target rust
 
-handler H 
-
+system S {
+    actions:
+        do_it() 
+}

@@ -1,4 +1,6 @@
 @target csharp
 
-handler H 
-
+system S {
+    actions:
+        DoIt() 
+}

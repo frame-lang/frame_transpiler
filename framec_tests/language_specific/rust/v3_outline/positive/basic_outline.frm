@@ -1,6 +1,8 @@
 @target rust
 
-handler H {
-    // native body
+system S {
+    actions:
+        do_it() {
+            // native body
+        }
 }
-

@@ -32,7 +32,7 @@ module       ::= prolog module_item*
 module_item  ::= system_decl | (native items – ignored by Frame)
 
 system_decl  ::= 'system' IDENT '{' system_item* '}'
-system_item  ::= states_block | actions_block | operations_block | (native items)
+system_item  ::= states_block | interface_block | actions_block | operations_block | (native items)
 ```
 
 States and Handlers (headers are Frame; bodies are native)
@@ -63,6 +63,12 @@ type_and_default ::= ':' IDENT ( '=' expr_stub )?
 expr_stub        ::= /* raw substring until matching brace depth; not Frame‑parsed */
 ```
 
+Interface Methods (headers only)
+```
+interface_block  ::= 'interface:' interface_decl*
+interface_decl   ::= IDENT '(' param_list? ')' ( type_and_default? ) native_body
+```
+
 Embedded Frame Directives inside Native Bodies (SOL‑anchored)
 - Recognized only at start‑of‑line (indentation allowed), outside strings/comments/templates per target.
 - No Frame tokenization occurs inside protected regions.
@@ -87,8 +93,10 @@ Lexical/Scanning Policy
 - Body closers are DPDA‑based per language; downstream stages never “re‑close” bodies
 
 Reserved Terms (Frame)
-- `@target`, `system`, `machine:`, `$`, `=>$`, `$>`, `<$`, `actions:`, `operations:`, `->`, `=> $^`, `$$[+]`, `$$[-]`
-- “handler” is a concept only; there is no `handler` keyword in the grammar
+- Keywords (outline): `@target`, `system`, `machine:`, `interface:`, `actions:`, `operations:`
+- Header symbols (states/handlers): `$` (state), `$>`, `<$`, `=>` (state inheritance)
+- Directives (embedded ops): `->` (transition), `=> $^` (parent forward), `$$[+]`, `$$[-]` (stack ops)
+- Note: “handler” is a concept only; there is no `handler` keyword in the grammar
 
 Decision: Classes/Structs Are Native
 - V3 keeps classes/structs/type definitions as native. Frame does not introduce a separate class/type grammar.

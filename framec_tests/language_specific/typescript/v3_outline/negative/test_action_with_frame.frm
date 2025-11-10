@@ -1,7 +1,8 @@
 @target typescript
 
-action B
-{
--> $Go(1)
+system S {
+    actions:
+        doIt() {
+            -> $Go(1)
+        }
 }
-

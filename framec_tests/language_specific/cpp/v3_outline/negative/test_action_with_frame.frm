@@ -1,7 +1,8 @@
 @target cpp
 
-action X
-{
--> $Y
+system S {
+    actions:
+        doIt() {
+            -> $Y
+        }
 }
-

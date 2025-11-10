@@ -1,4 +1,6 @@
 @target java
 
-handler H 
-
+system S {
+    actions:
+        doIt() 
+}

@@ -242,15 +242,21 @@ class FrameTestRunner:
         
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
-        # Treat all v3_* categories as module demo path for transpile
+        # Treat all v3_* categories as module demo path; v3_closers uses single-body demo
         v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project"}
-        is_v3_module = any(seg in v3_categories for seg in parts_lower)
+        is_v3 = any(seg in v3_categories for seg in parts_lower)
+        is_v3_closers = "v3_closers" in parts_lower
         # Run transpiler - check if multifile test
-        if is_v3_module:
-            cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
-            # Use neutral extension for demo outputs
-            extension = ".txt"
-            output_file = output_dir / (test_file.stem + extension)
+        if is_v3:
+            if is_v3_closers:
+                cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
+                extension = ".txt"
+                output_file = output_dir / (test_file.stem + extension)
+            else:
+                cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+                # Use neutral extension for demo outputs
+                extension = ".txt"
+                output_file = output_dir / (test_file.stem + extension)
         elif self.is_multifile_test(test_file):
             # Use multifile flag for tests with Frame imports
             cmd = [self.config.framec_path, "-m", str(test_file), "-l", lang_flag]

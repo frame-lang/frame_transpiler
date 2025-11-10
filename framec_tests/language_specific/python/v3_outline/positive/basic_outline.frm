@@ -1,6 +1,8 @@
 @target python
 
-handler H {
-    # native body
+system S {
+    actions:
+        do_it() {
+            # native body
+        }
 }
-

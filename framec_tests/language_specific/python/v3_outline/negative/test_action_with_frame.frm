@@ -1,7 +1,8 @@
-@target python_3
+@target python
 
-action A
-{
--> $Bad()
+system S {
+    actions:
+        do_it() {
+            -> $Bad()
+        }
 }
-

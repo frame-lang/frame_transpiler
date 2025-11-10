@@ -1,4 +1,6 @@
 @target c
 
-handler H 
-
+system S {
+    actions:
+        doIt() 
+}

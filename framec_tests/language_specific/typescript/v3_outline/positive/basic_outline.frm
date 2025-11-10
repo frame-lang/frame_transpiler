@@ -1,6 +1,8 @@
 @target typescript
 
-handler H {
-    // native body
+system S {
+    actions:
+        doIt() {
+            // native body
+        }
 }
-

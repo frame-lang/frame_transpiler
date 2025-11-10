@@ -1,6 +1,8 @@
 @target java
 
-handler H {
-    // native body
+system S {
+    actions:
+        doIt() {
+            // native body
+        }
 }
-

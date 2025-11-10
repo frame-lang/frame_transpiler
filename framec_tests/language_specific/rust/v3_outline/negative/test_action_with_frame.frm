@@ -1,7 +1,8 @@
 @target rust
 
-action X
-{
--> $Y
+system S {
+    actions:
+        do_it() {
+            -> $Y
+        }
 }
-

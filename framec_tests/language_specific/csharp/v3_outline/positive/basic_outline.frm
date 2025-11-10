@@ -1,6 +1,8 @@
 @target csharp
 
-handler H {
-    // native body
+system S {
+    actions:
+        DoIt() {
+            // native body
+        }
 }
-

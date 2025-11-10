@@ -1,7 +1,8 @@
 @target csharp
 
-action DoStuff
-{
--> $Next
+system S {
+    actions:
+        DoStuff() {
+            -> $Next
+        }
 }
-

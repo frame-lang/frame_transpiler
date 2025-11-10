@@ -1,6 +1,8 @@
 @target c
 
-handler H {
-    // native body
+system S {
+    actions:
+        doIt() {
+            // native body
+        }
 }
-

@@ -1,4 +1,6 @@
 @target cpp
 
-handler H 
-
+system S {
+    actions:
+        doIt() 
+}

@@ -1,4 +1,6 @@
 @target typescript
 
-handler H 
-
+system S {
+    actions:
+        doIt() 
+}

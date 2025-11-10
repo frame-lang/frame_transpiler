@@ -1,6 +1,8 @@
 @target cpp
 
-handler H {
-    // native body
+system S {
+    actions:
+        doIt() {
+            // native body
+        }
 }
-
