@@ -1,8 +1,8 @@
 {
     if (x) {
         // body
+        -> $B()
     }
-    -> $B()
     else if (y) {
         // body
     }

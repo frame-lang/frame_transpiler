@@ -5,7 +5,8 @@ Goal
 
 Scope (MVP → Plus)
 - MVP: Stages 01–06 (closers, streaming scanners, Frame Statement parser, MIR assembly, expansion, splice/mapping), per‑file TS/Py. Validation rules enforced. No native parse facades in the critical path.
-- Plus: Stage 07 (optional native parse facades for diagnostics/formatting), Stage 08 polish, Project layer (FID, linking/packaging), incremental build.
+- Plus: Stage 07 (optional native parse facades for diagnostics/formatting), Stage 08 polish, Stage 09 policies.
+- Optional Final: Stage 13 — Project Layer (FID/linking/packaging) is explicitly optional and disabled by default in core V3 flows.
 
 Progress Snapshot
 Scaffold brought up (demo‑level; not production‑ready):
@@ -24,12 +25,14 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_outline positives integrated
 - [x] v3_outline negatives (missing '{' detection) — enforced via OutlineScannerV3 + validator
 - [x] v3_mapping fixtures (splice map round‑trip)
-- [ ] v3_mir parser negatives (malformed heads/args) — pending
-- [ ] v3_expansion indentation chain fixtures — pending
+- [x] v3_mir parser negatives (malformed heads/args) — extended across Transition/Forward/Stack
+- [x] v3_expansion indentation chain fixtures — completed
  - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check
+ - [x] Docs: inline separators and multi‑statement policy per language
+ - [x] Docs: facade wrapper‑only checks and transition‑arg policy across languages
 
 Production‑ready criteria (not done unless explicitly checked):
-- [ ] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
+- [x] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
 - [ ] ImportScannerV3 (DPDA) per language:
   - [x] Python
   - [x] TypeScript
@@ -39,8 +42,8 @@ Production‑ready criteria (not done unless explicitly checked):
   - [x] Java
   - [x] Rust
 - [ ] Extensive negative fixtures (closers/scanners) per language
-- [ ] Validator policies (no Frame in actions/ops; per‑language native policies)
-- [ ] Mapping trailer gating/polish and docs
+- [x] Validator policies (structural only by default; no Frame in actions/ops). Per‑language native policies are optional and provided via Stage 07 facades when enabled.
+- [x] Mapping trailer gating/polish and docs
 - [ ] Real project build: FID/linking/packaging (TS/Py first), then others
 - [ ] Beyond‑comment expansions/glue per language (gated by flags)
 
@@ -134,11 +137,16 @@ Checklist
 
 Checklist
 - [x] Parser implemented (heads/args/balanced parens)
-- [ ] Negative fixtures (malformed heads/args) expanded
+- [x] Negative fixtures (malformed heads/args) expanded
 
 04–06 — MIR/Expansion/Splice Test Coverage
-  - [ ] MIR Assembly terminal‑last negatives (runner category v3_mir)
-  - [ ] Expansion indentation chain fixtures (Py/TS; generalize for C#/Java/C/C++/Rust comments)
+  - [x] MIR Assembly terminal‑last negatives (runner category v3_mir)
+  - [x] Expansion indentation chain fixtures (Py/TS; generalize for C#/Java/C/C++/Rust comments)
+  - [ ] Inline separators for Frame statements (multi‑statement line support)
+    - [ ] Scanners split at `;` / comment start (per language specifics)
+    - [ ] Parser tolerates optional trailing `;` and ignores inline comment markers
+    - [ ] Positive fixtures: `=> $^; native()` (TS/C#/C/CPP/Java/Rust), `=> $^; x = 1  #` (Py)
+    - [ ] Negative fixtures: `=> $^ native()` (no separator)
 
 - 06.5 — Structural Validation (early)
 - Objects: `ValidatorV3` (early rules)
@@ -150,7 +158,7 @@ Checklist
 - Tests: `v3_validator/{positive,negative}` per language in Python runner.
 
 Checklist
-- [x] Terminal‑last rule
+- [x] Transition‑as‑terminal rule
 - [x] No Frame statements in actions/ops
 - [x] Machine state header '{' check
 - [ ] Mapping round‑trip (runner category v3_mapping)
@@ -286,7 +294,8 @@ Milestones & Gating
 - M1: Stages 01–03 green with micro‑fixtures; scanners return identical close/segment boundaries as sampled expectations.
 - M2: Stage 04/05: Python language_specific 100% validate + execution ≥95%; TS language_specific 100% validate.
 - M3: Stage 06 mapping debug anchors verified on samples.
-- M4: Project layer minimum viable linking (TS/Py) + FID round‑trip; multi‑file suites pass.
+- Next: Stage 07 (optional) — Native parser adapter scaffolding behind cargo features (`native-ts`, `native-py`, `native-rs`, etc.) and `--validate-native`.
+- M4 (Optional): Project layer minimum viable linking (TS/Py) + FID round‑trip; multi‑file suites pass when enabled.
 - M5: Legacy retirement; V3 default.
 
 Milestone Checklist

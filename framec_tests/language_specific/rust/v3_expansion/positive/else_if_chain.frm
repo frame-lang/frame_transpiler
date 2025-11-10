@@ -1,10 +1,9 @@
 {
     if x {
         // body
+        -> $Next()
     }
-    -> $Next()
     else if y {
         // body
     }
 }
-

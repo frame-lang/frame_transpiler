@@ -17,10 +17,10 @@ Segmentation
 Frame Segment Parser
 - E300: Transition missing `$State` — "expected $State after '->'".
 - E301: Unbalanced parentheses in transition args — "unbalanced '(' in transition arguments".
-- E302: Trailing tokens after Frame statement — "unexpected trailing tokens after Frame statement".
+- E302: Trailing tokens after Frame statement — "unexpected trailing tokens after Frame statement" (only when no inline separator is present; `;` or comment start ends the Frame segment for eligible languages).
 
 MIR Assembly / Validation
-- E400: Non‑terminal Frame statement followed by statements — "terminal Frame statement must be last in a handler".
+- E400: Transition not terminal within its block — "Transition must be last statement in its containing block".
 - E401: Frame statement not allowed in actions/ops — "Frame statements are not allowed in native bodies (actions/ops)".
 - E402: Unknown state in transition — "unknown state '$Name'".
 

@@ -28,6 +28,12 @@ Complexity
 Test Hooks
 - Round‑trip mapping checks: given an inserted byte index, map to originating Frame span.
 - Edge: consecutive Frame statements; Frame statements at body start/end; empty native runs.
+
+Gating & Debug Trailer
+- Mapping trailer emission is gated behind `FRAME_MAP_TRAILER=1` for demos/tests.
+- When enabled, the compiler appends a C‑style comment trailer containing a small JSON payload with the splice map:
+  `/*#frame-map#{...}#frame-map#*/`.
+- The Python test runner enables this only for the `v3_mapping` category and verifies the trailer shape; normal runs do not emit the trailer.
 ## Mapping Model (Addendum)
 
 - Spliced body and mapping

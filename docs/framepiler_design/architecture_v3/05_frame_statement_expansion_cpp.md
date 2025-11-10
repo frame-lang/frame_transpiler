@@ -18,8 +18,10 @@ Indentation
 - Use exactly the leading whitespace from the Frame-statement line.
 
 Terminal Semantics
-- All Frame statements are terminal in handlers; validator enforces terminal-last. Comment-only markers are placeholders until full codegen.
+- Transitions are terminal within their containing block; forwards/stack ops are not mandated terminal and may be followed by native statements. Validator enforces only transition-as-terminal.
+
+Inline forms
+- Support `;` separated single-line forms; expansion precedes the semicolon; trailing native text (or `//` comment) remains native.
 
 Tests
 - Indentation and comment text golden files; verify splice mapping attributes to Frame origin.
-

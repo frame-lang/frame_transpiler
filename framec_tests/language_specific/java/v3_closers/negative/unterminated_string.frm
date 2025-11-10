@@ -1,0 +1,4 @@
+{
+    String s = "no close;
+}
+

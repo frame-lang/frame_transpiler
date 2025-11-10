@@ -1,7 +1,7 @@
 # Stage 7 — Native Parse Facade (Python)
 
-Purpose
-- Parse the spliced Python body with a native parser (e.g., RustPython) to improve diagnostics, enable formatting, and validate that expansions form syntactically coherent Python.
+Purpose (V3 minimal)
+- Provide hermetic validation of facade wrapper calls in strict mode. No general Python parsing; wrapper lines only.
 
 Runtime Optionality
 - Execution of Stage 07 is runtime-optional (gated by a CLI flag such as `--validate-native/--strict`).
@@ -11,17 +11,30 @@ Inputs
 - `SplicedBody { bytes, splice_map }`
 
 Outputs
-- `NativeAstPy { root, node_spans }` where `node_spans` are byte spans in spliced coordinate space.
+- Diagnostics on wrapper lines (spliced spans), remapped to Frame/native via `splice_map`.
 
-Invariants
-- Native AST is advisory: Frame semantics remain in MixedBody/MIR; errors in native AST are surfaced for developer feedback but do not change MIR.
-- Spans are preserved for later remap to original Frame/native origins using `splice_map`.
+Checks (wrapper-only)
+- Balanced parentheses on wrapper calls.
+- Forbid trailing semicolon `;` on Python wrapper lines.
+
+Wrapper arguments (policy)
+- Transition wrapper `__frame_transition('<State>'[, <args>...])`
+  - First argument must be a single-quoted state identifier matching `[A-Za-z_][A-Za-z0-9_]*`.
+  - Additional arguments are allowed and left uninterpreted (count/shape validated later in Stage 09).
+- `__frame_forward()` and `__frame_stack_{push|pop}()` take no arguments.
 
 Errors
-- Syntax errors: include native parser diagnostics; remap locations back through `splice_map` and byte→(line,col).
+- `unbalanced parentheses in wrapper`
+- `semicolon not allowed in Python wrapper`
+- `transition wrapper: first argument must be quoted state`
+- `transition wrapper: invalid state identifier`
+- `wrapper takes no arguments` (for forward/stack wrappers)
 
 Complexity
-- Linear in body size; dependent on native parser performance characteristics.
+- O(n) over spliced body; no external tooling.
 
 Test Hooks
 - Syntax error injection; mapping accuracy back to Frame-statement lines.
+
+Native parser integration (optional)
+- Real Python parsing (e.g., rustpython_parser) may be added as an optional adapter behind cargo features and `--validate-native`. Current state is wrapper-only; no parser crate compiled by default.

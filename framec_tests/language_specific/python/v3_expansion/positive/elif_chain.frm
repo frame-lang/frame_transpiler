@@ -1,7 +1,7 @@
 {
     if x:
         pass
-    -> $B()
+        -> $B()
     elif y:
         pass
 }

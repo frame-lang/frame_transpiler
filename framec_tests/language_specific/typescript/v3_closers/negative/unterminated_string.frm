@@ -1,0 +1,4 @@
+{
+    const s = "no close;
+}
+

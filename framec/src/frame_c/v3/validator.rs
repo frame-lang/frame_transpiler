@@ -15,15 +15,43 @@ impl ValidatorV3 {
     // Minimal structural rule: once a terminal MIR is seen, no further MIR items may follow.
     pub fn validate_regions_mir(&self, regions: &[RegionV3], mir: &[MirItemV3]) -> ValidationResultV3 {
         let mut issues: Vec<ValidationIssueV3> = Vec::new();
-        // terminal kinds: Transition, Forward, StackPush, StackPop
-        let is_terminal = |m: &MirItemV3| match m { MirItemV3::Transition{..} | MirItemV3::Forward{..} | MirItemV3::StackPush{..} | MirItemV3::StackPop{..} => true };
+        // terminal kinds: Transition only (forward/stack ops are not mandated terminal)
+        let is_terminal = |m: &MirItemV3| matches!(m, MirItemV3::Transition{..});
         // ensure no MIR after terminal
         if let Some((idx, _)) = mir.iter().enumerate().find(|(_, m)| is_terminal(m)) {
             if idx + 1 < mir.len() {
-                issues.push(ValidationIssueV3 { message: "Terminal Frame statement must be last MIR item".to_string() });
+                issues.push(ValidationIssueV3 { message: "Transition must be last statement in its containing block".to_string() });
             }
         }
         ValidationResultV3 { ok: issues.is_empty(), issues }
+    }
+
+    // Strict terminal check: Transition must be last statement in its containing block
+    pub fn validate_terminal_last_native(&self, bytes: &[u8], regions: &[RegionV3], mir: &[MirItemV3], lang: crate::frame_c::visitors::TargetLanguage) -> Vec<ValidationIssueV3> {
+        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        let mut mi = 0usize;
+        let mut idx = 0usize;
+        while idx < regions.len() {
+            match &regions[idx] {
+                RegionV3::FrameSegment{ span, .. } => {
+                    let m = &mir[mi];
+                    mi += 1;
+                    if let MirItemV3::Transition{..} = m {
+                        // Enforce block-scope terminal: from end of this segment forward, allow only comment/whitespace
+                        // until the containing block closes; first non-comment token before that is a violation.
+                        let start = span.end;
+                        if let Some(_) = find_violation_before_block_close(bytes, regions, idx+1, start, lang) {
+                            issues.push(ValidationIssueV3 { message: "Transition must be last statement in its containing block".to_string() });
+                            // continue scanning to report only one issue per handler for now
+                            break;
+                        }
+                    }
+                    idx += 1;
+                }
+                RegionV3::NativeText{ .. } => { idx += 1; }
+            }
+        }
+        issues
     }
 
     // Expanded API with body-kind policy (not yet wired with full module context).
@@ -141,20 +169,161 @@ impl ValidatorV3 {
                 if p >= e { break; }
                 // check for state header starting with '$'
                 if bytes[p] == b'$' {
-                    // scan to end of physical line or first '{'
-                    let mut q = p;
-                    let mut seen_lbrace = false;
-                    while q < e && bytes[q] != b'\n' {
-                        if bytes[q] == b'{' { seen_lbrace = true; break; }
-                        q += 1;
+                    // Distinguish state headers ("$Name {") from Frame statements ("$$[+]", "=> $^", etc.).
+                    // State header requires an identifier start after '$'.
+                    let next = if p + 1 < e { bytes[p+1] } else { b'\n' };
+                    let is_ident_start = next.is_ascii_alphabetic() || next == b'_';
+                    if is_ident_start {
+                        // scan to end of physical line or first '{'
+                        let mut q = p;
+                        let mut seen_lbrace = false;
+                        while q < e && bytes[q] != b'\n' {
+                            if bytes[q] == b'{' { seen_lbrace = true; break; }
+                            q += 1;
+                        }
+                        if !seen_lbrace { issues.push(ValidationIssueV3{ message: "missing '{' after state header in machine: section".into() }); }
+                    } else {
+                        // It's a Frame statement at SOL inside machine; skip for state-header validation.
                     }
-                    if !seen_lbrace { issues.push(ValidationIssueV3{ message: "missing '{' after state header in machine: section".into() }); }
                 }
                 while p < e && bytes[p] != b'\n' { p += 1; }
             }
         }
         issues
     }
+}
+
+fn trailing_is_effectively_comment_only(slice: &[u8], lang: crate::frame_c::visitors::TargetLanguage) -> bool {
+    // Allow whitespace only
+    let mut i = 0usize; let n = slice.len();
+    while i<n && (slice[i].is_ascii_whitespace()) { i+=1; }
+    // Optional semicolon before comment for C-like and Python
+    if i<n && slice[i]==b';' {
+        i+=1; while i<n && (slice[i].is_ascii_whitespace()) { i+=1; }
+    }
+    if i>=n { return true; }
+    match lang {
+        crate::frame_c::visitors::TargetLanguage::Python3 => slice[i]==b'#',
+        _ => {
+            if i+1<n && slice[i]==b'/' && slice[i+1]==b'/' { return true; }
+            if i+1<n && slice[i]==b'/' && slice[i+1]==b'*' {
+                // ensure that after closing */ there is nothing non-whitespace on this line
+                let mut j = i + 2;
+                while j + 1 < n {
+                    if slice[j]==b'*' && slice[j+1]==b'/' { j += 2; break; }
+                    j += 1;
+                }
+                // if never closed, treat as comment-only for this slice
+                while j < n && (slice[j].is_ascii_whitespace()) { j += 1; }
+                return j >= n;
+            }
+            false
+        }
+    }
+}
+
+// Scan forward from the end of a Transition up to the close of its containing block.
+// Returns Some(()) if a non-comment/non-whitespace token is found before the block closes.
+fn find_violation_before_block_close(bytes: &[u8], regions: &[RegionV3], mut ridx: usize, mut pos: usize, lang: crate::frame_c::visitors::TargetLanguage) -> Option<()> {
+    match lang {
+        crate::frame_c::visitors::TargetLanguage::Python3 => scan_python_block(bytes, regions, &mut ridx, &mut pos, |violate| if violate { Some(()) } else { None }),
+        _ => scan_c_like_block(bytes, regions, &mut ridx, &mut pos, lang, |violate| if violate { Some(()) } else { None }),
+    }
+}
+
+fn scan_c_like_block<F, T>(bytes: &[u8], regions: &[RegionV3], ridx: &mut usize, pos: &mut usize, lang: crate::frame_c::visitors::TargetLanguage, mut out: F) -> Option<T>
+where F: FnMut(bool) -> Option<T> {
+    // Simple DPDA: skip whitespace/comments/strings; stop OK at first top-level '}' encountered; any other token => violation.
+    let mut i = *pos;
+    // scanning spans across regions; treat region boundaries as contiguous
+    let mut in_line = false; let mut in_block = false; let mut in_str: Option<u8> = None; let mut in_tpl = false; let mut tmpl_brace: i32 = 0;
+    let mut end = current_region_end(regions, *ridx).unwrap_or(bytes.len());
+    // First, allow a comment-only tail on the same physical line (optional leading ';').
+    let mut j = i; while j < end && bytes[j] != b'\n' { j += 1; }
+    if trailing_is_effectively_comment_only(&bytes[i..j], lang) { i = j; }
+    loop {
+        if i >= end {
+            // advance to next region's NativeText; if FrameSegment appears before block close, that is a violation inside same block
+            *ridx += 1;
+            if *ridx >= regions.len() { return None; }
+            match &regions[*ridx] {
+                RegionV3::NativeText{ span } => { i = span.start; end = span.end; }
+                RegionV3::FrameSegment{ .. } => { return out(true); }
+            }
+        }
+        let b = bytes[i];
+        if in_line {
+            if b == b'\n' { in_line = false; }
+            i += 1; continue;
+        }
+        if in_block {
+            if i+1 < end && b == b'*' && bytes[i+1] == b'/' { in_block = false; i += 2; continue; }
+            i += 1; continue;
+        }
+        if let Some(q) = in_str { // string literal
+            if b == b'\\' { i += 2; continue; }
+            if b == q { in_str = None; i += 1; continue; }
+            i += 1; continue;
+        }
+        if in_tpl {
+            if b == b'`' { in_tpl = false; i += 1; continue; }
+            if b == b'\\' { i += 2; continue; }
+            if b == b'$' && i+1<end && bytes[i+1]==b'{' { tmpl_brace += 1; i += 2; continue; }
+            if b == b'}' && tmpl_brace > 0 { tmpl_brace -= 1; i += 1; continue; }
+            i += 1; continue;
+        }
+        // not in protected region
+        if b.is_ascii_whitespace() { i += 1; continue; }
+        if b == b'/' && i+1<end && bytes[i+1]==b'/' { in_line = true; i += 2; continue; }
+        if b == b'/' && i+1<end && bytes[i+1]==b'*' { in_block = true; i += 2; continue; }
+        if b == b'\'' || b == b'"' { in_str = Some(b); i += 1; continue; }
+        if let crate::frame_c::visitors::TargetLanguage::TypeScript = lang { if b == b'`' { in_tpl = true; i += 1; continue; } }
+        if b == b'}' { return out(false); }
+        // any other token before close brace => violation
+        return out(true);
+    }
+}
+
+fn scan_python_block<F, T>(bytes: &[u8], regions: &[RegionV3], ridx: &mut usize, pos: &mut usize, mut out: F) -> Option<T>
+where F: FnMut(bool) -> Option<T> {
+    // Determine indent of containing block from preceding FrameSegment
+    let mut t_indent: Option<usize> = None;
+    if *ridx > 0 { for back in (0..*ridx).rev() { if let RegionV3::FrameSegment{ indent, .. } = regions[back] { t_indent = Some(indent); break; } } }
+    let base = t_indent.unwrap_or(0);
+    let mut i = *pos;
+    let mut end = current_region_end(regions, *ridx).unwrap_or(bytes.len());
+    // Same line tail: allow optional ';' then comment-only, else violation
+    let mut line_end = i; while line_end < end && bytes[line_end] != b'\n' { line_end += 1; }
+    if !trailing_is_effectively_comment_only(&bytes[i..line_end], crate::frame_c::visitors::TargetLanguage::Python3) {
+        // Any non-comment tail on same line is a violation
+        // Detect non-whitespace non-';' content
+        let tail = &bytes[i..line_end];
+        let mut k = 0; while k < tail.len() && (tail[k].is_ascii_whitespace() || tail[k]==b';') { k+=1; }
+        if k < tail.len() && tail[k] != b'#' { return out(true); }
+    }
+    // After the newline: any content within the same block is a violation
+    i = line_end;
+    loop {
+        if i >= end {
+            *ridx += 1; if *ridx >= regions.len() { return None; }
+            match &regions[*ridx] { RegionV3::NativeText{ span } => { i = span.start; end = span.end; }, RegionV3::FrameSegment{ .. } => { return out(true); } }
+        }
+        // consume newline
+        if i < end && bytes[i] == b'\n' { i += 1; }
+        // compute indent
+        let mut col = 0usize; while i < end && (bytes[i]==b' ' || bytes[i]==b'\t') { col += 1; i += 1; }
+        // blank or comment-only line
+        if i >= end || bytes[i] == b'\n' { continue; }
+        if bytes[i] == b'#' { while i < end && bytes[i] != b'\n' { i += 1; } continue; }
+        // if dedented, block ended OK
+        if col < base { return out(false); }
+        // still inside block and found content => violation
+        return out(true);
+    }
+}
+
+fn current_region_end(regions: &[RegionV3], ridx: usize) -> Option<usize> {
+    regions.get(ridx).map(|r| match r { RegionV3::NativeText{ span } => span.end, RegionV3::FrameSegment{ span, .. } => span.end })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

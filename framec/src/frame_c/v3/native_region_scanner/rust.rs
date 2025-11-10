@@ -15,20 +15,20 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
             let b=bytes[i]; if at_sol { if b==b' '||b==b'\t' { indent+=1; i+=1; continue; }
                 if b == b'-' && i+3<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
                     if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
-                    let mut j=i; while j<end && bytes[j]!=b'\n' { j+=1; }
+                    let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::Transition, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
                 }
-                if b == b'=' && i+4<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' && bytes[i+4]==b'^' {
+                if b == b'=' && i+3<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
                     if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
-                    let mut j=i; while j<end && bytes[j]!=b'\n' { j+=1; }
+                    let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::Forward, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
                 }
-                if b == b'$' && i+4<end && bytes[i+1]==b'$' && bytes[i+2]==b'[' && (bytes[i+3]==b'+' || bytes[i+3]==b'-') && bytes[i+4]==b']' {
+                if b == b'$' && i+2<end && bytes[i+1]==b'$' && bytes[i+2]==b'[' {
                     if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
-                    let mut j=i; while j<end && bytes[j]!=b'\n' { j+=1; }
-                    let kind = if bytes[i+3]==b'+' { FrameSegmentKindV3::StackPush } else { FrameSegmentKindV3::StackPop };
+                    let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
+                    let kind = if i+3<end && bytes[i+3]==b'+' { FrameSegmentKindV3::StackPush } else { FrameSegmentKindV3::StackPop };
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
                 }
@@ -49,3 +49,34 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
     }
 }
 
+fn find_frame_line_end_rust(bytes: &[u8], mut j: usize, end: usize) -> usize {
+    let mut in_s: Option<u8> = None;
+    let mut raw_hashes: usize = 0;
+    while j < end {
+        let b = bytes[j];
+        if b == b'\n' { break; }
+        if raw_hashes > 0 {
+            if b == b'"' {
+                let mut k = j + 1; let mut m = 0usize; while k < end && m < raw_hashes && bytes[k] == b'#' { k += 1; m += 1; }
+                if m == raw_hashes { j = k; raw_hashes = 0; continue; }
+            }
+            j += 1; continue;
+        }
+        if let Some(q) = in_s {
+            if b == b'\\' { j += 2; continue; }
+            if b == q { in_s = None; j += 1; continue; }
+            j += 1; continue;
+        }
+        if b == b';' { break; }
+        if b == b'/' && j+1 < end && bytes[j+1] == b'/' { break; }
+        if b == b'/' && j+1 < end && bytes[j+1] == b'*' { break; }
+        if b == b'\'' || b == b'"' { in_s = Some(b); j += 1; continue; }
+        if b == b'r' { // possible raw string r#####" ... "#####
+            let mut k = j + 1; let mut hashes = 0usize;
+            if k < end && bytes[k] == b'#' { while k < end && bytes[k] == b'#' { hashes += 1; k += 1; } }
+            if k < end && bytes[k] == b'"' { raw_hashes = hashes; j = k + 1; continue; }
+        }
+        j += 1;
+    }
+    j
+}

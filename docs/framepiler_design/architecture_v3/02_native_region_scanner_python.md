@@ -20,6 +20,18 @@ Invariants
 - Unicode whitespace at SOL is accepted: tabs, ASCII space, NBSP (U+00A0), Zs block (U+2000..U+200B, U+202F, U+205F, U+3000). A BOM at body start is skipped.
 - `system.return` is not recognized as a Frame statement.
 
+Inline end markers
+- A Frame segment ends at the earliest of:
+  - end of line (LF/CRLF), or
+  - the first top‑level semicolon `;`, or
+  - the start of a `#` comment.
+- The scanner emits the left `FrameSegment` and then a `NativeText` segment for the remainder on the same line.
+
+Multi‑statement on a line
+- Python allows `;` to separate multiple statements on one physical line; Frame statements follow this rule. A top‑level `;` or `#` delimits the Frame segment and the remainder of the line is native.
+- Examples (valid): `=> $^; # trailing comment`, `=> $^; native()`
+- Without a separator, non‑whitespace tokens after a Frame statement are invalid (parser error).
+
 Algorithm
 - Initialize `i = open+1`, `region_start = i`, states for strings (`'`, `\"`, triple quotes), f‑strings, and comments.
 - Maintain `at_sol` flag:

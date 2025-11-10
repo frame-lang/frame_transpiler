@@ -8,7 +8,7 @@ Inputs
 - MixedBody MIR per handler (from `MirAssemblerV3`)
 
 Rules (Early)
-- Terminal‑last: Transition/Forward/Stack ops must be last MIR items in handler bodies.
+- Transition-in-block terminal: A Transition must be the last statement in its containing block. Forward and Stack operations are not mandated terminal and may be followed by additional native statements.
 - No Frame statements in actions/operations (Outline kinds authoritative).
 - Machine state header must include '{' following `$State …` on the same logical line.
 
@@ -25,4 +25,3 @@ Testing
 
 Notes
 - Stage 06.5 does not perform policy/semantic validation (e.g., Python native policy). Those live in Stage 09.
-

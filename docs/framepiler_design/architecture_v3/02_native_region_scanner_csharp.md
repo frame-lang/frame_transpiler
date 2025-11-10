@@ -34,6 +34,18 @@ Rules
 - Record NativeText segments between Frame segments; compute indent as leading whitespace at the Frame line
 - Ignore `=>` lambda unless followed by `$^` at SOL
 
+Inline end markers
+- A Frame segment ends at the earliest of:
+  - end of line, or
+  - the first top‑level semicolon `;`, or
+  - the start of a `//` line comment.
+- The scanner splits the line accordingly and emits `FrameSegment` then trailing `NativeText`.
+
+Multi‑statement on a line
+- Frame statements may share a line with native C# statements when separated by a top‑level `;` or `//` (a `/* ... */` block opens a native region and may span lines). Preprocessor lines are SOL but do not affect scanning inside bodies.
+- Examples (valid): `=> $^; native();`, `=> $^ // trailing comment`, `=> $^ /* block */ native();`
+- Without a separator, non‑whitespace tokens after a Frame statement are invalid (parser error).
+
 Errors
 - Malformed Frame head at SOL (E30x): looks like a Frame statement but is missing required tokens
 - Unterminated protected regions (carried through from Stage 01 if present)

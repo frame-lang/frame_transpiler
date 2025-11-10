@@ -260,6 +260,8 @@ class FrameTestRunner:
         is_v3_closers = "v3_closers" in parts_lower
         is_v3_mapping = "v3_mapping" in parts_lower
         is_v3_expansion = "v3_expansion" in parts_lower
+        # Initialize optional flags to avoid UnboundLocalError
+        is_v3_facade_smoke = False
         # Run transpiler - check if multifile test
         if is_v3:
             is_v3_facade_smoke = "v3_facade_smoke" in parts_lower
@@ -272,6 +274,12 @@ class FrameTestRunner:
                 # Use neutral extension for demo outputs
                 extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
+            # Include validation flag for V3 flows when enabled
+            if self.config.validate:
+                cmd.insert(2, "--validate")
+                # Enable native validation for facade smoke fixtures
+                if is_v3_facade_smoke:
+                    cmd.insert(3, "--validate-native")
         elif self.is_multifile_test(test_file):
             # Use multifile flag for tests with Frame imports
             cmd = [self.config.framec_path, "-m", str(test_file), "-l", lang_flag]

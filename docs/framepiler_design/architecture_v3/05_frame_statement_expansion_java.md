@@ -18,8 +18,10 @@ Indentation
 - Use exactly the leading whitespace from the Frame-statement line.
 
 Terminal Semantics
-- Frame statements are terminal in handlers and must be last (validator). Comment-only markers are placeholders.
+- Transitions are terminal within their containing block; forwards/stack ops are not mandated terminal. Validator enforces only transition-as-terminal.
+
+Inline forms
+- Support `;` separated single-line forms; expansion precedes the semicolon; trailing native text (or `//` comment) remains native.
 
 Tests
 - Indentation and mapping anchors within `if`/`else`/`try`/`catch`/`finally` structures.
-

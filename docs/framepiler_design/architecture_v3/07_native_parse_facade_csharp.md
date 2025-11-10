@@ -1,22 +1,27 @@
 # Stage 07 — Native Parse Facade (C#)
 
-Purpose
-- Parse the spliced C# body for diagnostics/formatting and indentation derivation.
+Purpose (V3 minimal)
+- Provide hermetic validation of facade wrapper calls in strict mode. No general C# parsing; wrapper lines only.
 
 Runtime Optionality
-- Execution is runtime-optional (gated by `--validate-native/--strict`).
-- Implementation is required so strict validation is available across languages.
+- Gated by `--validate-native` (strict). Off by default.
+- Present across all languages with wrapper-only checks.
 
 Inputs
-- Spliced C# body text + splice_map
+- Spliced body text + `splice_map` with wrapper calls inserted when `FRAME_FACADE_EXPANSION=1`.
 
 Outputs
-- NativeAst (opaque C# AST) for advisory use (errors/formatting/indent), not authoritative for Frame semantics
+- Diagnostics for wrapper lines only (spliced spans), remapped to Frame/native via `splice_map`.
 
-Design
-- Implement `NativeParseFacadeCsV3` trait with `parse(&str) -> Result<NativeAst, NativeParseError>`.
-- Keep integration optional; no network/toolchain dependency in core build. If integrated, use a pluggable adapter to Roslyn/Source Generators in environments where available.
-- Map diagnostics positions back through `splice_map` to Frame origin lines.
+Checks (wrapper-only)
+- Balanced parentheses on wrapper calls.
+- Require trailing semicolon `;` on wrapper lines.
+
+Wrapper arguments (policy)
+- Transition wrapper `__frame_transition('<State>'[, <args>...]);`
+  - First argument must be a single-quoted state identifier matching `[A-Za-z_][A-Za-z0-9_]*`.
+  - Additional arguments are allowed and left uninterpreted (count/shape validated later in Stage 09).
+- `__frame_forward();` and `__frame_stack_{push|pop}();` take no arguments.
 
 Scanner/Closer Constraints (inputs to facade)
 - DPDA body closer and region scanner must handle:
@@ -28,15 +33,18 @@ Scanner/Closer Constraints (inputs to facade)
   - SOL preprocessor lines: `#if`, `#elif`, `#endif`, `#define`, etc. (treated as part of the imports/outline when at SOL).
 
 Diagnostics
-- When enabled via `--validate-native` (or equivalent), parse the fully spliced C# body and surface:
-  - Syntax errors mapped to Frame segments (via `splice_map`).
-  - Indentation/formatting hints for control structures (if/else/try/catch/finally, switch), without altering semantics.
-  - Optional advisory binding (namespaces/usings) for improved error clarity; does not affect Frame semantics.
+- `unbalanced parentheses in wrapper`
+- `missing semicolon terminator`
+- `transition wrapper: first argument must be quoted state`
+- `transition wrapper: invalid state identifier`
+- `wrapper takes no arguments` (for forward/stack wrappers)
 
 Acceptance
-- Disabled by default; zero impact on pipeline when off.
-- When enabled, produces stable indentation hints and surfaces syntax errors with correct attribution.
+- Disabled by default; zero impact when off.
+- When enabled, surfaces wrapper-line errors with correct attribution.
 
 Tests
-- Mapping of diagnostics through splice_map; indentation hints on `if/else/try/catch/finally` blocks.
- - Negative fixtures including tricky string forms and preprocessor lines (expected failures) in `v3_facade_csharp` (runner category to be added when Stage 07 is enabled).
+- v3_facade_smoke negatives (wrapper-only) produce expected failures; diagnostics map through `splice_map`.
+
+Native parser integration (optional)
+- Structural C# parsing (e.g., via Tree-sitter or a Roslyn-backed local adapter) can be added behind cargo features and `--validate-native`. Current state is wrapper-only; no external parser compiled by default.

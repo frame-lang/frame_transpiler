@@ -19,6 +19,7 @@ Stages
 - 02 Native Region Segmentation
   - `NativeRegionScannerV3<{python,typescript,csharp,c,cpp,java,rust}>` scans body byte slices.
   - Output: `[RegionV3::NativeText | RegionV3::FrameSegment]` with spans; SOL‑only detection.
+  - Inline rule: for eligible languages, a Frame segment ends at the first top‑level semicolon `;` or comment start (Python: `;`/`#`; TS/C#/C/CPP/Java/Rust: `;`/`//`). The remainder of the line is emitted as a trailing native segment.
 
 - 03 Frame Segment Parser
   - `FrameStatementParserV3` parses `-> $State(args)`, `=> $^`, `$$[+]`/`$$[-]` with balanced‑paren, string‑aware arg splitting.
@@ -32,17 +33,21 @@ Stages
 - 06 Splice & Mapping
   - `SplicerV3` produces `SplicedBody { bytes, splice_map }` for dual‑origin mapping (Frame/native).
 
-- 06.5 Structural Validation (early)
-  - `ValidatorV3` enforces terminal‑last, disallows Frame statements in actions/ops, and checks state header '{' in machine:.
+ - 06.5 Structural Validation (early)
+  - `ValidatorV3` enforces transition-as-terminal, disallows Frame statements in actions/ops, and checks state header '{' in machine:.
 
 - 07 Native Parse Facade (runtime‑optional)
   - `NativeParseFacade*V3` parses spliced native bodies to surface native syntax/indent diagnostics; diagnostics remap through `splice_map` to Frame spans. Implemented for all languages; disabled by default.
+  - Current state is wrapper-only (validates wrapper lines). Optional native parser adapters (e.g., SWC, rustpython_parser, syn, Tree‑sitter) can be added behind cargo features and `--validate-native`.
 
 - 08 Source Maps & Codegen
   - Compose final maps from AST/text spans + `splice_map`; emit deterministic code.
 
 - 09 Validation
   - `ValidatorV3` rules: terminal‑last; no Frame statements in actions/ops; per‑language native policies.
+ 
+ - 13 Project Layer (Optional — FID/Linking/Packaging)
+  - Optional, gated stage for symbol discovery and typed linking; not required for core V3. Provides `.fid` cache generation and project packaging when enabled.
 
 Notes on C# Specifics
 - C# scanners/closers must handle: verbatim strings (`@"…"`), interpolated strings (`$"…{"expr"}…"`), interpolated‑verbatim (`$@"…"`), raw triple/long quotes (`"""…"""`), character literals, and SOL preprocessor lines (`#if`, `#endif`, etc.). The V3 C# DPDA implementations model these states to avoid false SOL detections.

@@ -21,6 +21,7 @@ pub mod module_partitioner;
 pub mod prolog_scanner;
 pub mod import_scanner;
 pub mod outline_scanner;
+pub mod facade;
 // future: pub mod import_validator;
 
 /// V3 compiler entrypoint (MVP scaffold).
@@ -137,7 +138,11 @@ pub fn validate_single_body(content_str: &str, target_language: Option<TargetLan
     };
     let scan = match scan_res { Ok(s) => s, Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e))) };
     let asm = MirAssemblerV3; let mir = asm.assemble(content, &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
-    let res = ValidatorV3.validate_regions_mir(&scan.regions, &mir);
+    let mut res = ValidatorV3.validate_regions_mir(&scan.regions, &mir);
+    // Also enforce no native text after terminal MIR
+    let extra = ValidatorV3.validate_terminal_last_native(content, &scan.regions, &mir, target_language.unwrap_or(TargetLanguage::Python3));
+    res.issues.extend(extra);
+    res.ok = res.issues.is_empty();
     Ok(res)
 }
 
@@ -156,6 +161,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         // Allow facade-mode expansions in compile path for smoke testing via env flag
         let facade_mode = std::env::var("FRAME_FACADE_EXPANSION").ok().as_deref() == Some("1");
         let body_out = if facade_mode {
+            if std::env::var("FRAME_DEBUG_FACADE").ok().as_deref() == Some("1") { eprintln!("[facade-compile] lang={:?}", lang); }
             // Re-scan/assemble to build wrapper-call expansions and splice
             let scan = match lang {
                 TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_src.as_bytes(), 0),
@@ -180,17 +186,40 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent),
                             TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent),
                             TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Cpp => CppFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Java => JavaFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent),
                             TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent),
                             _ => String::new(),
                         };
+                        if std::env::var("FRAME_DEBUG_FACADE").ok().as_deref() == Some("1") {
+                            let kind = match m { crate::frame_c::v3::mir::MirItemV3::Transition{..} => "Transition", crate::frame_c::v3::mir::MirItemV3::Forward{..} => "Forward", crate::frame_c::v3::mir::MirItemV3::StackPush{..} => "StackPush", crate::frame_c::v3::mir::MirItemV3::StackPop{..} => "StackPop" };
+                            eprintln!("[facade-compile] MIR -> {} exp_len={} preview={:?}", kind, s.len(), if s.len()>60 { &s[..60] } else { &s });
+                        }
                         v.push(s);
+                    }
+                }
+                if std::env::var("FRAME_DEBUG_FACADE").ok().as_deref() == Some("1") {
+                    eprintln!("[facade-compile] regions={} mir={} exps={}", scan.regions.len(), mir.len(), v.len());
+                    for (idx, r) in scan.regions.iter().enumerate() {
+                        match r { crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ kind, .. } => eprintln!("[facade-compile] region[{idx}] = Frame({:?})", kind), _ => {} }
+                    }
+                    for (i, s) in v.iter().enumerate() {
+                        let preview = if s.len() > 60 { &s[..60] } else { &s }; eprintln!("[facade-compile] exp[{i}] = {:?}", preview);
                     }
                 }
                 v
             };
-            SplicerV3.splice(body_src.as_bytes(), &scan.regions, &exps).text
+            let spliced = SplicerV3.splice(body_src.as_bytes(), &scan.regions, &exps);
+            if std::env::var("FRAME_DEBUG_FACADE").ok().as_deref() == Some("1") {
+                eprintln!(
+                    "[facade-compile] spliced_len={} has_transition={} has_forward={} has_stack={}",
+                    spliced.text.len(),
+                    spliced.text.contains("__frame_transition"),
+                    spliced.text.contains("__frame_forward"),
+                    spliced.text.contains("__frame_stack_")
+                );
+            }
+            spliced.text
         } else {
             CompilerV3::compile_single_file(None, body_src, Some(lang), false)?
         };
@@ -243,7 +272,11 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         let scan = match scan_res { Ok(s) => s, Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e))) };
         let mir = MirAssemblerV3.assemble(body_bytes, &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
         let policy = ValidatorPolicyV3 { body_kind: Some(b.kind) };
-        let res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
+        let mut res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
+        // Enforce no native after terminal MIR at body level
+        let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
+        res.issues.extend(extra);
+        res.ok = res.issues.is_empty();
         all_issues.extend(res.issues);
 
         // Stage 07 (strict facade mode): build spliced body with wrapper-call expansions
@@ -261,8 +294,8 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                             TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent),
                             TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent),
                             TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Cpp => CppFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Java => JavaFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent),
                             TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent),
                             _ => String::new(),
                         };
@@ -271,9 +304,26 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                 }
                 v
             };
-            let _spliced = SplicerV3.splice(body_bytes, &scan.regions, &exps);
-            // Note: actual native parsing is pluggable and not invoked by default in hermetic mode
+            let spliced = SplicerV3.splice(body_bytes, &scan.regions, &exps);
+            // Optional native parsing via facades (none registered by default)
+            if let Some(facade) = crate::frame_c::v3::facade::NativeFacadeRegistryV3::get(lang) {
+                if let Ok(diags) = facade.parse(&spliced.text) {
+                    for d in diags {
+                        if let Some((origin, src)) = spliced.map_spliced_range_to_origin(d.start, d.end) {
+                            let origin_str = match origin { crate::frame_c::v3::splice::OriginV3::Frame{..} => "frame", crate::frame_c::v3::splice::OriginV3::Native{..} => "native" };
+                            all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: format!("native syntax ({}:{}-{}): {}", origin_str, src.start, src.end, d.message) });
+                        } else {
+                            all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: format!("native syntax: {}", d.message) });
+                        }
+                    }
+                }
+            }
         }
     }
-    Ok(ValidationResultV3 { ok: all_issues.is_empty(), issues: all_issues })
+    let ok = all_issues.is_empty();
+    if strict_native && !ok {
+        // In strict/native mode, surface native diagnostics as a failing status for callers that want to gate on facades
+        return Err(RunError::new(exitcode::DATAERR, "native facade validation failed"));
+    }
+    Ok(ValidationResultV3 { ok, issues: all_issues })
 }

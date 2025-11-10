@@ -19,6 +19,21 @@ Invariants
 - `at_sol` computed only outside protected regions.
 - `system.return` is not recognized as a Frame statement.
 
+Inline end markers
+- A Frame segment ends at the earliest of:
+  - end of line (LF/CRLF), or
+  - the first top‑level semicolon `;`, or
+  - the start of a `//` line comment (top‑level).
+- The scanner emits `FrameSegment` for the left portion and a following `NativeText` segment for the remainder on the same line, preserving order.
+
+Multi‑statement on a line
+- Frame statements follow TypeScript’s multi‑statement rules. When multiple statements share a physical line, a top‑level `;` or `//` comment boundary delimits the Frame segment and the remainder of the line is treated as native.
+- Examples (valid):
+  - `=> $^; native();`
+  - `=> $^ // trailing comment`
+  - `=> $^ /* block comment */ native();`
+- Without a separator (no `;` or comment start), non‑whitespace tokens after a Frame statement are invalid and surface as a parser error.
+
 Algorithm
 - Initialize `i = open+1`, `region_start = i`, protected‑region states for `'`, `\"`, `` `…` ``, `/*…*/`, `//`.
 - Maintain `at_sol` and test FIRST‑set at SOL:

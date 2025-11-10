@@ -40,4 +40,5 @@ This index links to the detailed, authoritative design documents for each stage 
 - 10 — AST & Symbol Integration: `10_ast_and_symbol_integration.md`
 - 11 — Error Taxonomy: `11_error_taxonomy.md`
 - 12 — Testing Strategy: `12_testing_strategy.md`
+- 13 — Project Layer (Optional — FID/Linking/Packaging): `13_project_layer_fid_linking.md`
 - 99 — Naming Index (Objects/Traits): `99_naming_index.md`

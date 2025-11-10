@@ -37,18 +37,19 @@ impl Cli {
             .about("Frame language transpiler (V3 architecture rebuild in progress)")
             .subcommand_required(false)
             .arg_required_else_help(false)
+            .subcommand_precedence_over_arg(true)
             .subcommand(Command::new("init").about("Initialize a new Frame project with frame.toml").arg(Arg::new("name").help("Project name").value_name("NAME").index(1)))
             .arg(Arg::new("FILE-PATH").help("File path").value_name("FILE").index(1))
             .arg(Arg::new("language").value_name("LANG").long("language").short('l').help("Target language (python_3, typescript, graphviz, llvm)").num_args(1))
             .arg(Arg::new("multifile").long("multifile").short('m').help("Enable multi-file project compilation").action(clap::ArgAction::SetTrue))
             .arg(Arg::new("output-dir").long("output-dir").short('o').help("Output directory for generated files (multi-file mode)").value_name("DIR").num_args(1))
-            .arg(Arg::new("debug-output").long("debug-output").help("Generate JSON output with transpiled code and source map").action(clap::ArgAction::SetTrue))
-            .arg(Arg::new("validate").long("validate").help("Run V3 validation before transpile").action(clap::ArgAction::SetTrue))
-            .arg(Arg::new("validate-syntax").long("validate-syntax").help("Alias for --validate (compat) ").action(clap::ArgAction::SetTrue))
-            .arg(Arg::new("validation-only").long("validation-only").help("Run validation only and exit with status").action(clap::ArgAction::SetTrue))
-            .arg(Arg::new("validation-level").long("validation-level").help("Validation level (compat)").num_args(1))
-            .arg(Arg::new("validate-native").long("validate-native").help("Enable strict/native validation (facade mode)").action(clap::ArgAction::SetTrue))
-            .arg(Arg::new("validation-format").long("validation-format").help("Validation output format (compat)").num_args(1))
+            .arg(Arg::new("debug-output").long("debug-output").help("Generate JSON output with transpiled code and source map").action(clap::ArgAction::SetTrue).global(true))
+            .arg(Arg::new("validate").long("validate").help("Run V3 validation before transpile").action(clap::ArgAction::SetTrue).global(true))
+            .arg(Arg::new("validate-syntax").long("validate-syntax").help("Alias for --validate (compat) ").action(clap::ArgAction::SetTrue).global(true))
+            .arg(Arg::new("validation-only").long("validation-only").help("Run validation only and exit with status").action(clap::ArgAction::SetTrue).global(true))
+            .arg(Arg::new("validation-level").long("validation-level").help("Validation level (compat)").num_args(1).global(true))
+            .arg(Arg::new("validate-native").long("validate-native").help("Enable strict/native validation (facade mode)").action(clap::ArgAction::SetTrue).global(true))
+            .arg(Arg::new("validation-format").long("validation-format").help("Validation output format (compat)").num_args(1).global(true))
             .subcommand(
                 Command::new("demo-multi")
                     .about("V3 demo: compile multiple single-body files (transpile-only)")
@@ -262,8 +263,10 @@ pub fn run_with(args: Cli) {
                             Ok(res) => {
                                 for issue in res.issues { eprintln!("{}: validation: {}", file.display(), issue.message); }
                                 if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
+                                // When native validation is requested, fail fast on validation errors (used by facade-smoke tests)
+                                if args.validate_native && !res.ok { std::process::exit(exitcode::DATAERR); }
                             }
-                            Err(e) => { eprintln!("{}: validation error: {}", file.display(), e.error); if args.validate_only { std::process::exit(e.code); } }
+                            Err(e) => { eprintln!("{}: validation error: {}", file.display(), e.error); if args.validate_only || args.validate_native { std::process::exit(e.code); } }
                         }
                     }
                     match crate::frame_c::v3::compile_module_demo(&content, lang) {

@@ -19,9 +19,9 @@ impl FrameStatementParserV3 {
         let text = &bytes[span.start..span.end];
         match kind {
             FrameSegmentKindV3::Transition => self.parse_transition(text, span),
-            FrameSegmentKindV3::Forward => Ok(MirItemV3::Forward{ span }),
-            FrameSegmentKindV3::StackPush => Ok(MirItemV3::StackPush{ span }),
-            FrameSegmentKindV3::StackPop => Ok(MirItemV3::StackPop{ span }),
+            FrameSegmentKindV3::Forward => self.parse_forward(text, span),
+            FrameSegmentKindV3::StackPush => self.parse_stack(text, span, true),
+            FrameSegmentKindV3::StackPop => self.parse_stack(text, span, false),
         }
     }
 
@@ -33,8 +33,10 @@ impl FrameStatementParserV3 {
         if !(i+2<=line.len() && line[i]==b'-' && line[i+1]==b'>') { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing ->")); }
         i+=2; while i<line.len() && line[i].is_ascii_whitespace() { i+=1; }
         if i>=line.len() || line[i]!=b'$' { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing $")); }
-        i+=1; let name_start=i; while i<line.len() && is_ident(line[i]) { i+=1; }
-        if i==name_start { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing state name")); }
+        i+=1; let name_start=i;
+        // first char of state ident must be letter or underscore
+        if i>=line.len() || !is_ident_start(line[i]) { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "invalid state name start")); }
+        i+=1; while i<line.len() && is_ident(line[i]) { i+=1; }
         let target = String::from_utf8_lossy(&line[name_start..i]).to_string();
         while i<line.len() && line[i].is_ascii_whitespace() { i+=1; }
         let mut args: Vec<String> = Vec::new();
@@ -49,6 +51,30 @@ impl FrameStatementParserV3 {
             return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "trailing tokens after transition"));
         }
         Ok(MirItemV3::Transition{ target, args, span })
+    }
+
+    fn parse_forward(&self, line: &[u8], span: RegionSpan) -> Result<MirItemV3, ParseErrorV3> {
+        // Expect: => $^
+        let mut i = 0usize; let n = line.len();
+        while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        if !(i+2<=n && line[i]==b'=' && line[i+1]==b'>') { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing =>")); }
+        i+=2; while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        if !(i+2<=n && line[i]==b'$' && line[i+1]==b'^') { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing $^")); }
+        i+=2; while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        if i < n { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "trailing tokens after forward")); }
+        Ok(MirItemV3::Forward{ span })
+    }
+
+    fn parse_stack(&self, line: &[u8], span: RegionSpan, is_push: bool) -> Result<MirItemV3, ParseErrorV3> {
+        // Expect: $$[+] or $$[-]
+        let mut i = 0usize; let n = line.len();
+        while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        if !(i+5<=n && line[i]==b'$' && line[i+1]==b'$' && line[i+2]==b'[' && (line[i+3]==b'+' || line[i+3]==b'-') && line[i+4]==b']') {
+            return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "malformed stack op"));
+        }
+        i+=5; while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        if i < n { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "trailing tokens after stack op")); }
+        Ok(if is_push { MirItemV3::StackPush{ span } } else { MirItemV3::StackPop{ span } })
     }
 
     fn balanced_paren_block<'a>(&self, line: &'a [u8], open_idx: usize) -> Result<(&'a [u8], usize), ParseErrorV3> {
@@ -92,4 +118,5 @@ impl FrameStatementParserV3 {
     }
 }
 
+fn is_ident_start(b: u8) -> bool { b.is_ascii_alphabetic() || b==b'_' }
 fn is_ident(b: u8) -> bool { b.is_ascii_alphanumeric() || b==b'_' }

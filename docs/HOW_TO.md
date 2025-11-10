@@ -202,8 +202,8 @@ cargo build --release
 
 ### Validation
 - Structural rules include transitions_terminal: terminal Frame statements must be last in a handler body.
-- PythonNativePolicy prevents brace-style control and `var` inside Python bodies.
-- Negative patterns exist for nested function declarations and other intentionally bad constructs.
+- No built-in native policy enforcement in V3: native bodies are owned by the target language. Optional native facades validate wrapper lines only when enabled.
+- Negative patterns exist for malformed Frame statement heads/args and outline errors.
 
 ### Validation & Policies
 - Runner invokes V3 validation by default (structural); `--validation-level` is tolerated for compatibility.

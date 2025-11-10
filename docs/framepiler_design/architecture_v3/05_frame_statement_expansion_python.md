@@ -12,19 +12,23 @@ Outputs
 Expansions
 - Transition `-> $State(args?)`:
   - Emit glue to set next state and perform return/exit semantics.
-  - Terminal Frame statement; ensure no further statements execute.
+  - Terminal within its containing block (validator enforced).
 - Forward `=> $^`:
   - Emit parent forward glue (dispatch to parent with current event).
-  - Terminal Frame statement.
+  - Not mandated terminal; native statements may follow when separated by a valid inline separator.
 - Stack ops `$$+` / `$$-`:
-  - Emit push/pop glue for state stack; both are terminal.
+  - Emit push/pop glue for state stack.
+  - Not mandated terminal; native statements may follow when separated by a valid inline separator.
 
 Indentation Rules
 - Derive indent from the Frame-statement line’s indent span; preserve block structure.
 - Do not break `elif/else/except/finally` chains: expansions should be placed as statements inside the current block without adding superfluous blank lines or mismatched indents.
 
+Inline forms
+- Python allows multiple statements on one physical line when separated by `;`. If a Frame statement is followed by a semicolon and native code (e.g., `=> $^; x = 1  # note`), the scanner splits the line and the expansion appears before the semicolon. Trailing text, including `#` comments, remains in the native segment.
+
 system.return
-- Remains native; perform a protected‑region aware rewrite to `self.return_stack[-1]` in handlers and actions/ops.
+- Remains native; perform a protected‑region aware rewrite to `self.return_stack[-1]` in handlers and actions/ops. Native `return` is terminal by Python semantics; validator’s terminal rule concerns Frame Transitions.
 
 Errors
 - Resolution failures (unknown state) are reported with the Frame statement’s Frame span.

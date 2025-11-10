@@ -1,27 +1,40 @@
 # Stage 7b — Native Parse Facade (TypeScript)
 
-Purpose
-- Parse the spliced TypeScript body with SWC (or similar) to improve diagnostics, formatting, and policy enforcement (e.g., disallow `==`/`!=`).
+Purpose (V3 minimal)
+- Provide hermetic validation of facade wrapper calls in strict mode. No general TS parsing; wrapper lines only.
 
 Runtime Optionality
-- Execution is runtime-optional (gated by `--validate-native/--strict`).
-- Implementation is required to provide strict validation capability across all languages.
+- Gated by `--validate-native` (strict). Off by default.
+- Present across all languages with wrapper-only checks.
 
 Inputs
-- `SplicedBody { bytes, splice_map }`
+- `SplicedBody { text, splice_map }` with wrapper calls inserted when `FRAME_FACADE_EXPANSION=1`.
 
 Outputs
-- `NativeAstTs { root, node_spans }` with spans in spliced coordinate space.
+- Diagnostics on wrapper lines (spliced spans), remapped to Frame/native via `splice_map` in the validator.
 
-Invariants
-- Native AST is advisory; Frame semantics remain in MixedBody/MIR.
-- Spans preserved for remap to original origins via `splice_map`.
+Checks
+- Balanced parentheses on wrapper calls.
+- Require trailing semicolon `;` on TS wrapper lines.
+
+Wrapper arguments (policy)
+- Transition wrapper `__frame_transition('<State>'[, <args>...]);`
+  - First argument must be a single-quoted state identifier matching `[A-Za-z_][A-Za-z0-9_]*`.
+  - Additional arguments are allowed and left uninterpreted (count/shape validated later in Stage 09).
+- `__frame_forward()` and `__frame_stack_{push|pop}()` take no arguments.
 
 Errors
-- Syntax errors: report with mapped locations and policy notes (e.g., usage of `==`).
+- `unbalanced parentheses in wrapper`
+- `missing semicolon terminator`
+- `transition wrapper: first argument must be quoted state`
+- `transition wrapper: invalid state identifier`
+- `wrapper takes no arguments` (for forward/stack wrappers)
 
 Complexity
-- Linear in body size; native parser dependent.
+- O(n) over spliced body; no external tooling.
 
-Test Hooks
-- Policy violation mapping; template literal edge cases preserved in AST.
+Notes
+- Policy checks like `==`/`!=` remain in Stage 09 visitors; facade exists to improve developer feedback without compromising hermeticity.
+
+Native parser integration (optional)
+- Real native parsing can be enabled via optional adapters (e.g., SWC) behind cargo features and `--validate-native`. In the current state, the facade is wrapper-only; no SWC dependency is compiled by default.

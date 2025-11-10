@@ -1,0 +1,169 @@
+use crate::frame_c::visitors::TargetLanguage;
+
+#[derive(Debug, Clone)]
+pub struct NativeDiagnosticV3 {
+    pub start: usize,
+    pub end: usize,
+    pub message: String,
+}
+
+pub trait NativeParseFacadeV3: Send + Sync {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String>;
+}
+
+pub struct NativeFacadeRegistryV3;
+
+impl NativeFacadeRegistryV3 {
+    pub fn get(lang: TargetLanguage) -> Option<&'static dyn NativeParseFacadeV3> {
+        match lang {
+            TargetLanguage::Python3 => Some(&PY_FACADE),
+            TargetLanguage::TypeScript => Some(&TS_FACADE),
+            TargetLanguage::CSharp | TargetLanguage::C | TargetLanguage::Cpp | TargetLanguage::Java | TargetLanguage::Rust => Some(&C_FACADE),
+            _ => None,
+        }
+    }
+}
+
+// Simple, hermetic facades that validate our wrapper-call syntax only.
+
+struct PyWrapperFacade;
+struct TsWrapperFacade;
+struct CWrapperFacade;
+
+static PY_FACADE: PyWrapperFacade = PyWrapperFacade;
+static TS_FACADE: TsWrapperFacade = TsWrapperFacade;
+static C_FACADE: CWrapperFacade = CWrapperFacade;
+
+impl NativeParseFacadeV3 for PyWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+        let mut diags = Vec::new();
+        let bytes = spliced_text.as_bytes();
+        let mut i = 0usize; let n = bytes.len();
+        while i < n {
+            let line_start = i; while i < n && bytes[i] != b'\n' { i += 1; }
+            let line_end = i; if i < n { i += 1; } // skip newline
+            // trim leading spaces
+            let mut s = line_start; while s < line_end && (bytes[s] == b' ' || bytes[s] == b'\t') { s += 1; }
+            if s >= line_end { continue; }
+            // Check wrapper calls
+            if starts_with(bytes, s, b"__frame_transition") {
+                // Must contain balanced parens and NOT end with ';'
+                if !has_balanced_parens(bytes, s, line_end) {
+                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "unbalanced parentheses in wrapper".into() });
+                } else {
+                    if let Some((arg_start, arg_end)) = paren_payload(bytes, s, line_end) {
+                        if let Some((state_ok, msg)) = check_transition_first_arg(bytes, arg_start, arg_end, /*require_semicolon*/ false, /*allow_semicolon*/ false) {
+                            if !state_ok { diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: msg }); }
+                        }
+                    }
+                }
+                if ends_with_semicolon(bytes, s, line_end) {
+                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "semicolon not allowed in Python wrapper".into() });
+                }
+            } else if starts_with(bytes, s, b"__frame_forward") || starts_with(bytes, s, b"__frame_stack_") {
+                // forward/stack wrappers: no semicolon; check balanced parens and zero-arg
+                if !has_balanced_parens(bytes, s, line_end) {
+                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "unbalanced parentheses in wrapper".into() });
+                } else if let Some((arg_start, arg_end)) = paren_payload(bytes, s, line_end) {
+                    if has_non_ws(bytes, arg_start, arg_end) {
+                        diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "wrapper takes no arguments".into() });
+                    }
+                }
+                if ends_with_semicolon(bytes, s, line_end) {
+                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "semicolon not allowed in Python wrapper".into() });
+                }
+            }
+        }
+        Ok(diags)
+    }
+}
+
+impl NativeParseFacadeV3 for TsWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+        let mut diags = Vec::new();
+        let bytes = spliced_text.as_bytes();
+        let mut i = 0usize; let n = bytes.len();
+        while i < n {
+            let line_start = i; while i < n && bytes[i] != b'\n' { i += 1; }
+            let line_end = i; if i < n { i += 1; }
+            let mut s = line_start; while s < line_end && (bytes[s] == b' ' || bytes[s] == b'\t') { s += 1; }
+            if s >= line_end { continue; }
+            if starts_with(bytes, s, b"__frame_transition") || starts_with(bytes, s, b"__frame_forward") || starts_with(bytes, s, b"__frame_stack_") {
+                if !has_balanced_parens(bytes, s, line_end) {
+                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "unbalanced parentheses in wrapper".into() });
+                } else {
+                    if starts_with(bytes, s, b"__frame_transition") {
+                        if let Some((arg_start, arg_end)) = paren_payload(bytes, s, line_end) {
+                            if let Some((state_ok, msg)) = check_transition_first_arg(bytes, arg_start, arg_end, /*require_semicolon*/ true, /*allow_semicolon*/ true) {
+                                if !state_ok { diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: msg }); }
+                            }
+                        }
+                    } else if let Some((arg_start, arg_end)) = paren_payload(bytes, s, line_end) {
+                        if has_non_ws(bytes, arg_start, arg_end) {
+                            diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "wrapper takes no arguments".into() });
+                        }
+                    }
+                }
+                if !ends_with_semicolon(bytes, s, line_end) {
+                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "missing semicolon terminator".into() });
+                }
+            }
+        }
+        Ok(diags)
+    }
+}
+
+impl NativeParseFacadeV3 for CWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+        // Same minimal checks as TS for C-like languages
+        TsWrapperFacade.parse(spliced_text)
+    }
+}
+
+fn starts_with(hay: &[u8], start: usize, needle: &[u8]) -> bool {
+    let m = start + needle.len();
+    m <= hay.len() && &hay[start..m] == needle
+}
+
+fn has_balanced_parens(hay: &[u8], start: usize, end: usize) -> bool {
+    let mut seen_open = false; let mut depth = 0i32; let mut i = start;
+    while i < end {
+        let b = hay[i];
+        if b == b'(' { seen_open = true; depth += 1; }
+        if b == b')' { depth -= 1; }
+        i += 1;
+    }
+    (!seen_open) || depth == 0
+}
+
+fn ends_with_semicolon(hay: &[u8], start: usize, end: usize) -> bool {
+    let mut i = end; while i > start { i -= 1; let b = hay[i]; if b == b'\n' || b == b'\r' { continue; } if b == b' ' || b == b'\t' { continue; } return b == b';'; }
+    false
+}
+
+fn has_non_ws(hay: &[u8], mut start: usize, mut end: usize) -> bool {
+    while start < end && (hay[start] == b' ' || hay[start] == b'\t') { start += 1; }
+    while end > start && (hay[end-1] == b' ' || hay[end-1] == b'\t') { end -= 1; }
+    start < end
+}
+
+fn paren_payload(hay: &[u8], start: usize, end: usize) -> Option<(usize, usize)> {
+    // find first '(' after start, match to corresponding ')'
+    let mut i = start; while i < end && hay[i] != b'(' { i += 1; }
+    if i >= end { return None; }
+    let mut depth = 0i32; let open = i; i += 1; depth += 1;
+    while i < end { let b = hay[i]; if b == b'(' { depth += 1; } else if b == b')' { depth -= 1; if depth == 0 { return Some((open+1, i)); } } i += 1; }
+    None
+}
+
+fn check_transition_first_arg(hay: &[u8], arg_start: usize, arg_end: usize, _require_semicolon: bool, _allow_semicolon: bool) -> Option<(bool, String)> {
+    // First non-ws must be '\'', then state ident, then closing '\''
+    let mut i = arg_start; while i < arg_end && (hay[i] == b' ' || hay[i] == b'\t') { i += 1; }
+    if i >= arg_end || hay[i] != b'\'' { return Some((false, "transition wrapper: first argument must be quoted state".into())); }
+    i += 1; let name_start = i; while i < arg_end && (hay[i].is_ascii_alphanumeric() || hay[i] == b'_') { i += 1; }
+    if i == name_start { return Some((false, "transition wrapper: empty state name".into())); }
+    let first = hay[name_start]; if !(first.is_ascii_alphabetic() || first == b'_') { return Some((false, "transition wrapper: invalid state identifier".into())); }
+    if i >= arg_end || hay[i] != b'\'' { return Some((false, "transition wrapper: first argument must be quoted state".into())); }
+    // ok; remaining can be optional comma and other args
+    Some((true, String::new()))
+}

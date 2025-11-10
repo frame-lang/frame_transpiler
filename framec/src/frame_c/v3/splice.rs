@@ -61,4 +61,27 @@ impl SplicedBodyV3 {
         s.push_str("],\"version\":1}");
         s
     }
+
+    pub fn map_spliced_range_to_origin(&self, start: usize, end: usize) -> Option<(OriginV3, RegionSpan)> {
+        for (tgt, origin) in &self.splice_map {
+            if start >= tgt.start && start < tgt.end {
+                // compute offset within target segment
+                let mut off_start = start - tgt.start;
+                let mut off_end = if end <= tgt.end { end - tgt.start } else { tgt.end - tgt.start };
+                match origin {
+                    OriginV3::Frame { source } => {
+                        let src_start = source.start + off_start.min(source.end.saturating_sub(source.start));
+                        let src_end = source.start + off_end.min(source.end.saturating_sub(source.start));
+                        return Some((OriginV3::Frame { source: *source }, RegionSpan { start: src_start, end: src_end }));
+                    }
+                    OriginV3::Native { source } => {
+                        let src_start = source.start + off_start.min(source.end.saturating_sub(source.start));
+                        let src_end = source.start + off_end.min(source.end.saturating_sub(source.start));
+                        return Some((OriginV3::Native { source: *source }, RegionSpan { start: src_start, end: src_end }));
+                    }
+                }
+            }
+        }
+        None
+    }
 }
