@@ -156,14 +156,16 @@ class FrameTestRunner:
                         if demo_tests:
                             tests[f"language_specific_{lang}_v3_demos"] = demo_tests
 
-        # v3_outline, v3_prolog, v3_imports
-        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports"]):
+        # v3_outline, v3_prolog, v3_imports, v3_closers
+        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports", "v3_closers"]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
             if "v3_prolog" in self.config.categories:
                 collect_v3_category("v3_prolog")
             if "v3_imports" in self.config.categories:
                 collect_v3_category("v3_imports")
+            if "v3_closers" in self.config.categories:
+                collect_v3_category("v3_closers")
 
         # Language-specific tests - only include if explicitly requested or "all" is specified
         if "all" in self.config.categories:
@@ -241,7 +243,7 @@ class FrameTestRunner:
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
         # Treat all v3_* categories as module demo path for transpile
-        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_mir", "v3_mapping", "v3_validator", "v3_project"}
+        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project"}
         is_v3_module = any(seg in v3_categories for seg in parts_lower)
         # Run transpiler - check if multifile test
         if is_v3_module:

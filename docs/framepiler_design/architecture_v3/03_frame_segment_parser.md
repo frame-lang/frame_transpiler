@@ -4,7 +4,7 @@ Purpose
 - Parse SOL‑anchored Frame statement slices into MIR items. Only three Frame statements are supported in native regions:
   - Transition: `-> $State(args?)`
   - Parent forward: `=> $^`
-  - Stack ops: `$$+` / `$$-`
+  - Stack ops: `$$[+]` / `$$[-]`
 
 Out of scope
 - `system.return` is native‑only and rewritten by visitors; it is not parsed here.
@@ -20,8 +20,8 @@ Grammar (BNF‑ish)
 transition  ::= "-" ">" WS+ "$" state_ident args_opt
 args_opt     ::= /* empty */ | "(" arg_text ")"
 forward      ::= "=" ">" WS+ "$" "^"
-stackpush    ::= "$" "$" "+"
-stackpop     ::= "$" "$" "-"
+stackpush    ::= "$" "$" "[" "+" "]"
+stackpop     ::= "$" "$" "[" "-" "]"
 state_ident  ::= [A-Za-z_][A-Za-z0-9_]*  /* align with common grammar for $State */
 WS           ::= space | tab
 ```

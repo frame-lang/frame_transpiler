@@ -949,6 +949,613 @@ impl V3Pipeline {
 
 ---
 
+## RFC-005: Frame vs Native Symbol Separation Strategy
+
+**Status:** ACCEPTED (Inherited from Architecture Analysis)  
+**Date:** 2025-11-10
+
+### Summary
+
+Establish clear boundaries between Frame symbols (Arcanum) and native symbols (sidecar indices) to maintain architectural separation while enabling cross-domain diagnostics.
+
+### Motivation
+
+The V3 architecture must handle symbols from both Frame (systems, states, actions) and native languages (variables, functions, imports) without creating tight coupling or semantic conflicts. This separation is critical for maintaining clean abstraction boundaries and avoiding architectural complexity.
+
+### Detailed Design
+
+#### Core Principles
+
+1. **Frame symbols remain Frame-owned**: Arcanum holds system/state/action/operation/domain symbols and call chains. We do not merge native symbols into Arcanum.
+
+2. **Native symbols live in sidecar index (optional)**: When target AST is available (native-only bodies), index top-level names and imports for advisory diagnostics only. This index is separate from Arcanum and never blocks codegen.
+
+3. **MixedBody drives emission**: Visitors emit `NativeText` verbatim (or `NativeAst` when available) and expand `MirStatement` using deterministic glue. We do not need a native code printer for glue.
+
+4. **No semantic merging**: Frame and native type systems remain separate. No cross-domain type checking or semantic binding between Frame and native symbols.
+
+#### Symbol Resolution Rules
+
+```rust
+// Frame statements inside native bodies reference Frame symbols only
+// Arguments are captured as strings; future work may associate parsed target expressions
+MirItem::Transition { 
+    target: String,        // Frame state name (resolved via Arcanum)
+    args: Vec<String>,     // Raw native expressions (not parsed in core)
+    span: RegionSpan,
+}
+
+// Native symbol index (optional, for diagnostics only)
+pub struct NativeSymbolIndex {
+    top_level_names: HashMap<String, Span>,
+    imports: Vec<ImportDecl>,
+    // Advisory only - never used for codegen
+}
+```
+
+#### Pseudo-symbol Translation (Early Rewrite)
+
+Certain cross-target conveniences are rewritten in an early pass before MIR emission:
+- **TypeScript**: `system.return` → `this.returnStack[this.returnStack.length - 1]`  
+- **Python**: `system.return` → `self.return_stack[-1]`
+- **C#**: `system.return` → `this.ReturnStack[this.ReturnStack.Count - 1]`
+
+Rewrites happen before MixedBody/MIR emission to keep Frame-statement args target-native and avoid Frame-specific leakage in native code.
+
+#### Diagnostics Integration
+
+- Native parser spans map to Frame via `TargetSourceMap`
+- Mixed bodies synthesize spans for Frame statements at their Frame lines
+- Error messages include both domains where useful (Frame+target)
+- Native symbol index provides "undefined native name" warnings without blocking compilation
+
+### Benefits
+
+1. **Clean Separation**: Frame and native concerns remain orthogonal
+2. **Maintainable**: No complex cross-domain type systems to maintain
+3. **Deterministic**: Symbol resolution is predictable and isolated
+4. **Optional Enhancement**: Native symbol indexing is purely advisory
+5. **Stable Emission**: No dependence on external printers for Frame statement glue
+
+### Implementation Status
+
+- **Arcanum**: Frame symbol table implemented in V3
+- **MixedBody/MIR**: Preserves Frame/native separation
+- **Native Symbol Index**: Planned for Stage 7 optional native parse facades
+- **Pseudo-symbol Translation**: Deferred pending early rewrite pass design
+
+---
+
+## RFC-006: MIR Design Principles and Terminal Statement Policy
+
+**Status:** ACCEPTED (Implemented in ValidatorV3)  
+**Date:** 2025-11-10
+
+### Summary
+
+Establish MIR as a minimal representation focused exclusively on Frame statements, with strict terminal statement validation and ordered preservation of source structure.
+
+### Motivation
+
+The V3 architecture requires a clear, minimal intermediate representation for Frame statements that preserves source order while enforcing Frame semantics. MIR must remain focused and avoid scope creep into general-purpose intermediate representation.
+
+### Detailed Design
+
+#### Core MIR Structure
+
+```rust
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MirItemV3 {
+    Transition { target: String, args: Vec<String>, span: RegionSpan },
+    Forward { span: RegionSpan },
+    StackPush { span: RegionSpan },
+    StackPop { span: RegionSpan },
+}
+
+// MIR is embedded in MixedBody alongside native text
+pub enum MixedBodyItem {
+    NativeText { text: String, start_line: usize, end_line: usize },
+    NativeAst { start_line: usize, end_line: usize, ast: Box<dyn Any> },
+    Frame(MirItemV3),
+}
+```
+
+#### Core Invariants
+
+1. **Item order reflects source order**: MIR preserves the exact sequence of native text and Frame statements as they appear in source
+2. **Terminal statements end handlers**: Transition, Forward, and StackPop must be the last statement in handler bodies (enforced by ValidatorV3)
+3. **Native logic stays native**: MIR does not model control flow, expressions, or native language constructs
+4. **Span preservation**: Every MIR item maintains its original source location for mapping and diagnostics
+
+#### MIR Scope Limitations
+
+**By policy**, V3 keeps business logic in native code; MIR models only Frame state machine directives:
+
+- **No control flow**: No if/else, loops, or conditionals in MIR
+- **No expressions**: Native expressions remain as string args, not parsed into MIR
+- **No native constructs**: Function calls, variable assignments, etc. stay in native text
+- **No type system**: MIR does not model or validate native types
+
+#### Terminal Statement Validation
+
+```rust
+// ValidatorV3 enforces terminal-last rule
+pub struct TerminalLastRuleV3;
+
+impl ValidationRuleV3 for TerminalLastRuleV3 {
+    fn validate(&self, mir: &[MirItemV3]) -> Vec<ValidationIssueV3> {
+        // Find terminal statements (Transition, Forward, StackPop)
+        // Ensure no MIR statements follow terminal statements
+        // Report violations with precise span information
+    }
+}
+```
+
+#### Assembly Strategy
+
+MIR is assembled from segmented regions by `MirAssemblerV3`:
+1. **Frame segments** → parse into `MirItemV3` with span preservation
+2. **Native segments** → preserve as `MixedBodyItem::NativeText`
+3. **Order preservation** → maintain exact source sequence
+4. **Validation** → apply terminal-last rule during assembly
+
+#### B2 Emission Strategy (Future)
+
+- Expand `MirItemV3` into target AST nodes (e.g., SWC for TypeScript) rather than string glue
+- Print via native code generators for formatting determinism
+- Attach synthesized spans mapped to Frame statement lines
+- Preserve terminal statement semantics in target code
+
+### Benefits
+
+1. **Minimal Scope**: MIR stays focused on Frame semantics only
+2. **Source Fidelity**: Preserves exact order and spans from source
+3. **Terminal Safety**: Validates Frame state machine invariants
+4. **Emission Flexibility**: Supports both textual and AST-based code generation
+5. **Debuggable**: Clear mapping from Frame statements to generated code
+
+### Limitations by Design
+
+- **No native parsing**: Arguments remain as strings in core pipeline
+- **No cross-domain validation**: MIR doesn't validate native expressions
+- **No optimization**: MIR preserves source structure without transformation
+- **Extensions require RFCs**: Any scope expansion needs architectural review
+
+### Implementation Status
+
+- **Core MIR types**: Implemented in `framec/src/frame_c/v3/mir.rs`
+- **Terminal validation**: Implemented in `ValidatorV3`
+- **Assembly**: Implemented in `MirAssemblerV3`
+- **B2 emission**: Future enhancement for AST-based code generation
+
+---
+
+## RFC-007: Enhanced Source Mapping and Debug Output Strategy
+
+**Status:** DRAFT (Extends RFC-004)  
+**Date:** 2025-11-10
+
+### Summary
+
+Implement comprehensive source mapping with multiple debug output formats, cross-domain diagnostic mapping, and enhanced debugging capabilities beyond the basic trailer approach.
+
+### Motivation
+
+The current RFC-004 provides basic source mapping, but analysis of legacy documentation reveals more sophisticated mapping requirements for effective debugging, IDE integration, and cross-domain error attribution.
+
+### Detailed Design
+
+#### Enhanced Debug Output Formats
+
+Beyond the current `FRAME_MAP_TRAILER=1` approach, add support for multiple debug modes:
+
+##### TypeScript Enhanced Debug Modes
+```bash
+# Comment-based mapping trailer
+FRAME_TS_MAP_COMMENTS=1
+
+# Generates:
+// __frame_map_begin__
+// map frame:123 -> ts:210
+// map frame:124 -> ts:225  
+// __frame_map_end__
+
+# JSON-based mapping with metadata
+FRAME_TS_MAP_JSON=1
+
+# Generates:
+// __frame_map_json_begin__
+// [{"frameLine":123,"tsLine":210,"type":"transition"},{"frameLine":124,"tsLine":225,"type":"native"}]
+// __frame_map_json_end__
+```
+
+##### Python Enhanced Debug Modes
+```bash
+# Python comment mapping
+FRAME_PY_MAP_COMMENTS=1
+
+# Generates:
+# __frame_map_begin__
+# map frame:123 -> py:210
+# map frame:124 -> py:225
+# __frame_map_end__
+```
+
+#### Mapping Policy for MixedBody
+
+Detailed mapping rules for different content types:
+
+```rust
+#[derive(Debug, Clone)]
+pub enum MappingOrigin {
+    FrameStatement { frame_line: usize, kind: MirKind },
+    NativeText { start_line: usize, end_line: usize },
+    PreservedHeader { frame_line: usize }, // Headers after terminal statements
+}
+
+impl SourceMapComposerV3 {
+    // Map first generated line of segment to segment start_line
+    fn map_native_segment(&mut self, target_span: ByteSpan, native_span: RegionSpan);
+    
+    // Map entire expansion to statement's frame_line
+    fn map_frame_statement(&mut self, target_span: ByteSpan, frame_line: usize, kind: MirKind);
+    
+    // Headers that remain syntactically valid after terminal statements
+    fn map_preserved_header(&mut self, target_span: ByteSpan, frame_line: usize);
+}
+```
+
+#### Cross-Domain Error Attribution
+
+Enhanced error mapping between Frame and native domains:
+
+```rust
+pub struct CrossDomainDiagnostic {
+    pub frame_location: FrameLocation,
+    pub target_location: Option<TargetLocation>,
+    pub error_kind: DiagnosticKind,
+    pub context: String,
+}
+
+pub enum DiagnosticKind {
+    FrameValidation,     // Pure Frame errors (state doesn't exist)
+    NativeSyntax,        // Native parser errors mapped back to Frame
+    CrossDomain,         // Errors spanning both domains
+}
+```
+
+##### Error Mapping Examples
+- **Target parser errors**: Map back via `TargetSourceMap` (frame_start_line + offsets)
+- **Native symbol errors**: "Undefined variable 'foo' in Frame statement args (frame line 42, python line 156)"
+- **Frame validation errors**: Include original Frame line context with native code snippet
+
+#### Source Map Composition Pipeline
+
+Enhanced Stage 6 integration:
+
+```rust
+impl SplicerV3 {
+    pub fn splice_with_enhanced_mapping(&self, 
+        content: &[u8],
+        regions: &[RegionV3],
+        expansions: &[String],
+        debug_policy: DebugMapPolicyV3,
+    ) -> SplicedBodyV3 {
+        let mut splice_map = Vec::new();
+        let mut composed_text = String::new();
+        
+        // Build detailed splice map with origin tracking
+        for (region, expansion) in regions.iter().zip(expansions) {
+            match region {
+                RegionV3::NativeText { span } => {
+                    let origin = MappingOrigin::NativeText { 
+                        start_line: span.start_line, 
+                        end_line: span.end_line 
+                    };
+                    splice_map.push((composed_text.len()..composed_text.len() + expansion.len(), origin));
+                }
+                RegionV3::FrameSegment { span, kind, frame_line } => {
+                    let origin = MappingOrigin::FrameStatement { 
+                        frame_line: *frame_line, 
+                        kind: kind.clone() 
+                    };
+                    splice_map.push((composed_text.len()..composed_text.len() + expansion.len(), origin));
+                }
+            }
+            composed_text.push_str(expansion);
+        }
+        
+        // Apply debug output formatting based on policy
+        if debug_policy.enhanced_comments {
+            self.inject_comment_mapping(&mut composed_text, &splice_map);
+        }
+        if debug_policy.json_trailer {
+            self.inject_json_trailer(&mut composed_text, &splice_map);
+        }
+        
+        SplicedBodyV3 { text: composed_text, splice_map }
+    }
+}
+```
+
+#### Integration with Native Parse Facades (Stage 7)
+
+When native parsing is enabled, enhance diagnostics:
+
+```rust
+impl NativeParseFacadeV3 {
+    fn validate_with_mapping(&self, 
+        spliced_body: &SplicedBodyV3
+    ) -> Result<ValidationResult, Vec<CrossDomainDiagnostic>> {
+        // Parse spliced native body
+        let native_ast = self.parse_spliced_body(&spliced_body.text)?;
+        
+        // Map any native errors back to Frame spans via splice_map
+        let diagnostics = native_ast.errors().into_iter()
+            .map(|err| self.map_native_error_to_frame(err, &spliced_body.splice_map))
+            .collect();
+            
+        if diagnostics.is_empty() {
+            Ok(ValidationResult::Success)
+        } else {
+            Err(diagnostics)
+        }
+    }
+}
+```
+
+### Benefits
+
+1. **Rich Debug Information**: Multiple output formats for different debugging needs
+2. **IDE Integration**: Comment-based maps enable IDE breakpoint mapping
+3. **Cross-Domain Attribution**: Precise error mapping between Frame and native code
+4. **Flexible Output**: Configurable debug modes via environment variables
+5. **Preserved Context**: Headers after terminal statements maintain syntactic validity
+
+### Implementation Plan
+
+1. **Phase 1**: Implement enhanced mapping origins and splice map composition
+2. **Phase 2**: Add TypeScript/Python comment-based debug modes
+3. **Phase 3**: Integrate with Stage 7 native parse facades for cross-domain diagnostics
+4. **Phase 4**: Add JSON trailer format with rich metadata
+5. **Phase 5**: IDE integration and tooling support
+
+### Testing Strategy
+
+- **Golden mapping tests**: Compare debug output format consistency across runs
+- **Cross-domain error tests**: Verify native errors map correctly to Frame locations  
+- **Mixed body mapping**: Test Native→MIR→Native sequences with expected origins
+- **Terminal preservation**: Ensure preserved headers map to correct Frame statements
+
+---
+
+## RFC-008: Native Parser Integration Boundaries and Contracts
+
+**Status:** ACCEPTED (Implemented in Stage 7)  
+**Date:** 2025-11-10
+
+### Summary
+
+Define clear boundaries between Frame scanning/MIR and native parser responsibilities to avoid semantic coupling while enabling optional enhanced validation and diagnostics.
+
+### Motivation
+
+The V3 architecture must maintain clean separation between Frame semantics and native language processing. Native parsers serve as optional validators and structure providers, but must not interfere with Frame's core compilation pipeline or introduce semantic dependencies.
+
+### Detailed Design
+
+#### Boundary Contract Definitions
+
+1. **Scanner Authority**: Native region scanners ensure Frame statements (`-> $State`, `=> $^`, `$$+/-`) are never passed to target parsers. The scanning phase has complete authority over Frame/native boundary detection.
+
+2. **Mixed Body Priority**: Bodies containing Frame statements use NativeRegionSegmenter + MIR path exclusively. Target parsers are never invoked on mixed content.
+
+3. **Native-Only Bodies**: Target parsers handle pure native code for validation, AST structure, and optional enhanced diagnostics only.
+
+4. **No Semantic Binding**: Target parsers do not resolve external modules, perform symbol binding, or execute semantic analysis beyond syntax validation.
+
+#### Native Parser Responsibilities
+
+```rust
+pub trait NativeParseFacadeV3 {
+    type Ast;
+    type Error;
+    
+    // Core responsibility: syntax validation only
+    fn parse_native_body(&self, text: &str) -> Result<Self::Ast, Vec<Self::Error>>;
+    
+    // Optional: enhanced diagnostics with Frame context
+    fn parse_with_frame_context(&self, 
+        text: &str, 
+        frame_context: &FrameContext
+    ) -> Result<ValidationResult, Vec<CrossDomainError>>;
+    
+    // Optional: indentation analysis for Frame statement expansion
+    fn analyze_indentation(&self, ast: &Self::Ast, frame_stmt_location: ByteSpan) -> String;
+}
+```
+
+#### Integration Points and Limitations
+
+##### Stage 2: Native Region Scanner Boundary
+```rust
+// Scanner ensures clean separation - Frame statements never reach parser
+impl NativeRegionScannerV3 {
+    fn scan(&self, body_bytes: &[u8]) -> Result<ScanResultV3, ScanError> {
+        // Frame statements detected at SOL → FrameSegment
+        // Everything else → NativeText  
+        // Mixed bodies: multiple regions, parser handles NativeText only
+        // Native-only bodies: single NativeText region, full parser validation available
+    }
+}
+```
+
+##### Stage 7: Optional Native Parse Facade
+```rust
+// Native parsing is runtime-optional and hermetic
+impl CompilerV3 {
+    fn compile_with_native_validation(&self, 
+        source: &str,
+        enable_native_parsing: bool
+    ) -> Result<CompileOutput, CompileError> {
+        // Standard pipeline: Scan → Parse → MIR → Expand → Splice
+        let spliced_body = self.standard_pipeline(source)?;
+        
+        if enable_native_parsing {
+            // Optional: validate spliced native code and map diagnostics
+            let validation = self.native_facade.validate_spliced(&spliced_body)?;
+            // Map any errors back to Frame locations via splice_map
+        }
+        
+        Ok(spliced_body)
+    }
+}
+```
+
+#### Native Parser Scope Limitations
+
+**Explicit Non-Responsibilities**:
+
+1. **No External Resolution**: Runtime imports, modules, and external libraries are not resolved during parsing
+2. **No Frame Semantics**: Target parsers never handle Frame statements - that's exclusively MIR's responsibility
+3. **No Code Generation**: Primary purpose is validation and error mapping, not native code emission
+4. **No Symbol Binding**: Variable resolution, type checking, and semantic analysis are out of scope
+5. **No Cross-Domain Validation**: No validation of Frame statement arguments as native expressions
+
+#### Contract Enforcement
+
+```rust
+// Compile-time contract enforcement
+pub struct ParserContractValidator;
+
+impl ParserContractValidator {
+    // Ensure Frame statements never reach target parsers
+    fn validate_scanner_separation(&self, regions: &[RegionV3]) {
+        for region in regions {
+            match region {
+                RegionV3::FrameSegment { .. } => {
+                    // Frame segments must be handled by MIR, not parser
+                    assert!(!self.would_reach_parser(region));
+                }
+                RegionV3::NativeText { .. } => {
+                    // Native text may reach parser for validation
+                    assert!(!self.contains_frame_statements(region));
+                }
+            }
+        }
+    }
+}
+```
+
+#### Error Handling and Diagnostics
+
+Native parser errors are mapped back to Frame context without semantic interpretation:
+
+```rust
+pub struct NativeParserError {
+    pub native_location: SourceLocation,     // Location in generated code
+    pub frame_location: Option<SourceLocation>, // Mapped back to Frame source
+    pub error_kind: NativeErrorKind,
+    pub suggestion: Option<String>,
+}
+
+pub enum NativeErrorKind {
+    SyntaxError,        // Pure syntax issues
+    IndentationError,   // Python-specific indentation problems  
+    UnterminatedConstruct, // Unclosed strings, comments, etc.
+}
+```
+
+#### Implementation Status and Integration
+
+##### Current Implementation (V3)
+- **Stage 2**: Native region scanners enforce clean Frame/native separation
+- **Stage 4**: MIR assembler handles Frame statements exclusively
+- **Stage 6**: Splicer produces native-only text for optional parser validation
+- **Stage 7**: Native parse facades implemented for major targets (off by default)
+
+##### Integration with Validation
+```rust
+// ValidatorV3 coordinates Frame and native validation
+impl ValidatorV3 {
+    fn validate_with_native_parsing(&self, 
+        mixed_body: &MixedBody,
+        enable_native: bool
+    ) -> ValidationResult {
+        // Always: Frame validation (terminal-last, state existence, etc.)
+        let frame_issues = self.validate_frame_semantics(mixed_body);
+        
+        // Optional: Native validation if enabled
+        let native_issues = if enable_native {
+            self.validate_native_syntax(mixed_body)
+        } else {
+            Vec::new()
+        };
+        
+        ValidationResult::from_issues(frame_issues, native_issues)
+    }
+}
+```
+
+### Benefits
+
+1. **Clean Architecture**: Frame and native concerns remain orthogonal with clear contracts
+2. **Optional Enhancement**: Native parsing provides value without blocking core compilation
+3. **Maintainable**: Clear responsibilities prevent scope creep and coupling
+4. **Extensible**: Additional languages can be supported without architectural changes
+5. **Debuggable**: Clear error attribution between Frame and native domains
+
+### Testing Strategy
+
+#### Contract Validation Tests
+```rust
+#[test]
+fn test_frame_statements_never_reach_parser() {
+    let mixed_source = r#"{
+        native_code();
+        -> $NextState
+        more_native();
+    }"#;
+    
+    let regions = scanner.scan(mixed_source);
+    for region in regions {
+        if let RegionV3::NativeText { text } = region {
+            // Native text regions must never contain Frame statements
+            assert!(!text.contains("-> $"));
+            assert!(!text.contains("=> $^"));
+            assert!(!text.contains("$$"));
+        }
+    }
+}
+
+#[test] 
+fn test_native_only_body_can_use_parser() {
+    let native_only = r#"{
+        const result = calculateValue(x, y);
+        console.log(result);
+    }"#;
+    
+    let regions = scanner.scan(native_only);
+    assert_eq!(regions.len(), 1);
+    
+    // Native-only body can be parsed for validation
+    let parse_result = typescript_parser.parse_native_body(&regions[0].text);
+    assert!(parse_result.is_ok());
+}
+```
+
+#### Boundary Enforcement Tests
+- **Mixed body separation**: Ensure Frame statements are properly segmented
+- **Native-only validation**: Verify pure native bodies can be parsed successfully
+- **Error mapping**: Test that native errors map correctly to Frame locations
+- **Contract violations**: Negative tests ensuring Frame statements don't reach parsers
+
+### Implementation Notes
+
+Native parsers are implemented as pluggable components with consistent interfaces across languages. The boundary contracts are enforced at compile-time through type system constraints and runtime through validation assertions.
+
+---
+
 ## RFC Template
 
 ```markdown

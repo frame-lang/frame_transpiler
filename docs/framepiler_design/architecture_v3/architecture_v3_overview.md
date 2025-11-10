@@ -21,7 +21,7 @@ Stages
   - Output: `[RegionV3::NativeText | RegionV3::FrameSegment]` with spans; SOL‑only detection.
 
 - 03 Frame Segment Parser
-  - `FrameStatementParserV3` parses `-> $State(args)`, `=> $^`, `$$+/-` with balanced‑paren, string‑aware arg splitting.
+  - `FrameStatementParserV3` parses `-> $State(args)`, `=> $^`, `$$[+]`/`$$[-]` with balanced‑paren, string‑aware arg splitting.
 
 - 04 MIR Assembly
   - `MirAssemblerV3` builds `MixedBody` preserving origin spans. Validator enforces “terminal‑last”.
@@ -64,4 +64,3 @@ Testing
 
 Performance
 - All scanners/closers/segmenters are O(n) in input size with must‑advance guarantees. Mapping and splicing are O(n) in combined body length.
-
