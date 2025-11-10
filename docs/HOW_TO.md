@@ -109,6 +109,24 @@ framec_tests/
 
 ### Running Tests
 
+Build vs Validate/Run semantics
+- Build: transpile fixtures only. The runner calls framec and writes spliced/demo output.
+- Validate/Run: actually execute generated programs (where supported) or perform native parsing (strict mode). Execution is opt‑in and provided via small per‑language harnesses for facade strict tests.
+
+Facade strict execution (v3_facade_smoke)
+- TypeScript: requires native parser feature `native-ts` (SWC) to be compiled and `--validate-native`; runner extracts wrapper calls, builds a tiny TS program with no‑op wrappers, compiles (tsc) and runs (node).
+- Python: runner extracts wrapper calls and executes them with no‑op wrappers in `if __name__ == '__main__'`.
+- Rust: runner extracts wrapper calls, rewrites `__frame_transition("State", ...)` to `__frame_transition("State")`, compiles with `rustc`, and runs.
+- C/C++: runner extracts wrapper calls, compiles a TU with no‑op wrappers using `clang`/`gcc` or `clang++`/`g++`, and runs.
+- Java/C#: runner attempts to compile/run a tiny main (javac/java, csc/mcs+mono). If toolchain is missing, execution is cleanly skipped for those fixtures.
+
+Enable strict native parsing
+- Compile with features and run v3_facade_smoke:
+  - TypeScript: `cargo build --release --features native-ts`
+  - Rust (optional adapter): `cargo build --release --features native-rs`
+  - Run: `python3 framec_tests/runner/frame_test_runner.py --languages typescript rust --categories v3_facade_smoke --framec ./target/release/framec -v`
+
+
 **V3 Suites (transpile‑only; validation on):**
 ```bash
 # Prolog/Imports/Outline/Demos for all languages

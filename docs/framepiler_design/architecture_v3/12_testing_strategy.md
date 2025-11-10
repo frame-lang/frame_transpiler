@@ -16,8 +16,14 @@ Per‑Stage Tests (all 7 languages)
 - Validation: negatives per rule (terminal‑last; no Frame statements in actions/ops; per‑language native policies).
 
 End‑to‑End
-- Use `framec_tests` language‑specific suites in transpile‑only mode as the validation gate.
-- V3 fixtures per language live under `language_specific/<lang>/{v3_prolog,v3_imports,v3_outline,v3_demos}` with positive and negative cases.
+- Use `framec_tests` language‑specific suites as the primary gate. By default, most V3 suites are build/validate‑only (transpile‑only + structural checks).
+- Executable facade strict tests: `v3_facade_smoke` includes per‑language harnesses that extract wrapper calls from spliced output and run them with no‑op wrappers. Supported languages and tools:
+  - TypeScript: tsc + node; optional SWC adapter (`native-ts`) for strict native parsing.
+  - Python: direct execution with Python; no‑op wrappers injected.
+  - Rust: rustc; wrapper calls rewritten to match no‑op signatures.
+  - C/C++: clang/gcc or clang++/g++.
+  - Java/C#: javac/java and csc/mcs (+mono) when available; execution cleanly skipped if toolchains are missing.
+- Other V3 suites (prolog/imports/outline/closers/mir/mapping/expansion/validator) remain build/validate‑only; these demos do not emit full runnable programs.
 
 Performance
 - Add budget checks for worst‑case fixtures (large triple‑quotes/templates) to guarantee O(n) behavior and no stalls.
