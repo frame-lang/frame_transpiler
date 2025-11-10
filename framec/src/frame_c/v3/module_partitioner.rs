@@ -6,7 +6,7 @@ use super::native_region_scanner::RegionSpan;
 use super::prolog_scanner::PrologScannerV3;
 use super::outline_scanner::OutlineScannerV3;
 use super::outline_scanner::OutlineItemV3;
-use super::import_scanner::{ImportScannerV3};
+use super::import_scanner::{ImportScannerV3, ImportScanResultV3};
 use super::import_scanner::python::ImportScannerPyV3;
 use super::import_scanner::typescript::ImportScannerTsV3;
 use super::import_scanner::csharp::ImportScannerCsV3;
@@ -24,10 +24,11 @@ pub struct BodyPartitionV3 {
     pub header_span: Option<RegionSpan>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ModulePartitionsV3 {
     pub prolog: Option<RegionSpan>,
     pub imports: Vec<RegionSpan>,
+    pub import_issues: Vec<super::validator::ValidationIssueV3>,
     pub bodies: Vec<BodyPartitionV3>,
 }
 
@@ -48,40 +49,48 @@ impl ModulePartitionerV3 {
         i = prolog.as_ref().map(|p| p.end).unwrap_or(0);
         let mut imports: Vec<RegionSpan> = Vec::new();
         // Import scanning (language-specific). For now, Python only in this step.
+        let mut import_issues = Vec::new();
         match lang {
             crate::frame_c::visitors::TargetLanguage::Python3 => {
                 let scanner = ImportScannerPyV3;
-                imports = scanner.scan(bytes, i);
+                let res: ImportScanResultV3 = scanner.scan(bytes, i);
+                imports = res.spans; import_issues.extend(res.issues);
                 if let Some(last) = imports.last() { i = last.end; }
             }
             crate::frame_c::visitors::TargetLanguage::TypeScript => {
                 let scanner = ImportScannerTsV3;
-                imports = scanner.scan(bytes, i);
+                let res = scanner.scan(bytes, i);
+                imports = res.spans; import_issues.extend(res.issues);
                 if let Some(last) = imports.last() { i = last.end; }
             }
             crate::frame_c::visitors::TargetLanguage::CSharp => {
                 let scanner = ImportScannerCsV3;
-                imports = scanner.scan(bytes, i);
+                let res = scanner.scan(bytes, i);
+                imports = res.spans; import_issues.extend(res.issues);
                 if let Some(last) = imports.last() { i = last.end; }
             }
             crate::frame_c::visitors::TargetLanguage::C => {
                 let scanner = ImportScannerCV3;
-                imports = scanner.scan(bytes, i);
+                let res = scanner.scan(bytes, i);
+                imports = res.spans; import_issues.extend(res.issues);
                 if let Some(last) = imports.last() { i = last.end; }
             }
             crate::frame_c::visitors::TargetLanguage::Cpp => {
                 let scanner = ImportScannerCppV3;
-                imports = scanner.scan(bytes, i);
+                let res = scanner.scan(bytes, i);
+                imports = res.spans; import_issues.extend(res.issues);
                 if let Some(last) = imports.last() { i = last.end; }
             }
             crate::frame_c::visitors::TargetLanguage::Java => {
                 let scanner = ImportScannerJavaV3;
-                imports = scanner.scan(bytes, i);
+                let res = scanner.scan(bytes, i);
+                imports = res.spans; import_issues.extend(res.issues);
                 if let Some(last) = imports.last() { i = last.end; }
             }
             crate::frame_c::visitors::TargetLanguage::Rust => {
                 let scanner = ImportScannerRustV3;
-                imports = scanner.scan(bytes, i);
+                let res = scanner.scan(bytes, i);
+                imports = res.spans; import_issues.extend(res.issues);
                 if let Some(last) = imports.last() { i = last.end; }
             }
             _ => {}
@@ -96,7 +105,7 @@ impl ModulePartitionerV3 {
             owner_id: it.owner_id,
             header_span: Some(it.header_span),
         }).collect();
-        Ok(ModulePartitionsV3 { prolog, imports, bodies })
+        Ok(ModulePartitionsV3 { prolog, imports, import_issues, bodies })
     }
 }
 

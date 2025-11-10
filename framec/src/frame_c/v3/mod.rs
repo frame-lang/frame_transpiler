@@ -21,6 +21,7 @@ pub mod module_partitioner;
 pub mod prolog_scanner;
 pub mod import_scanner;
 pub mod outline_scanner;
+// future: pub mod import_validator;
 
 /// V3 compiler entrypoint (MVP scaffold).
 ///
@@ -189,6 +190,8 @@ pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<V
     };
     let validator = ValidatorV3;
     let mut all_issues = Vec::new();
+    // include import scanning issues
+    all_issues.extend(parts.import_issues.into_iter());
     for b in parts.bodies {
         let body_bytes = &bytes[b.open_byte..=b.close_byte];
         // scan and assemble

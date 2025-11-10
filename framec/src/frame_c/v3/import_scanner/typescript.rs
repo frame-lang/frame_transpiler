@@ -1,11 +1,13 @@
 use super::super::native_region_scanner::RegionSpan;
-use super::ImportScannerV3;
+use super::{ImportScannerV3, ImportScanResultV3};
+use super::super::validator::ValidationIssueV3;
 
 pub struct ImportScannerTsV3;
 
 impl ImportScannerV3 for ImportScannerTsV3 {
-    fn scan(&self, bytes: &[u8], start: usize) -> Vec<RegionSpan> {
+    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResultV3 {
         let mut spans: Vec<RegionSpan> = Vec::new();
+        let mut issues: Vec<ValidationIssueV3> = Vec::new();
         let n = bytes.len();
         let mut i = start;
         let mut at_sol = true;
@@ -24,6 +26,7 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                     let mut depth_brace: i32 = 0;
                     let mut tmpl_depth: i32 = 0; // `${` nesting inside backticks
                     let mut in_s: u8 = 0; // 1 ', 2 ", 3 backtick
+                    let mut found_semicolon = false;
                     while k < n {
                         let b = bytes[k];
                         // handle comments outside strings/templates
@@ -57,6 +60,7 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                             b'}' if in_s == 0 && in_s != 3 => { depth_brace -= 1; k += 1; }
                             b';' if in_s == 0 && depth_paren == 0 && depth_brace == 0 => {
                                 spans.push(RegionSpan { start: stmt_start, end: k });
+                                found_semicolon = true;
                                 k += 1; i = k; at_sol = true; break;
                             }
                             b'\n' => { k += 1; }
@@ -64,6 +68,9 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                         }
                     }
                     if k >= n {
+                        if !found_semicolon || in_s != 0 || depth_paren != 0 || depth_brace != 0 || (in_s == 3 && tmpl_depth != 0) {
+                            issues.push(ValidationIssueV3{ message: "unterminated TypeScript import/export".into() });
+                        }
                         spans.push(RegionSpan { start: stmt_start, end: n });
                         i = n; break;
                     }
@@ -78,7 +85,7 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                 if bytes[i] == b'\n' { at_sol = true; i += 1; } else { i += 1; }
             }
         }
-        spans
+        ImportScanResultV3 { spans, issues }
     }
 }
 
@@ -91,4 +98,3 @@ fn starts_kw(bytes: &[u8], i: usize, kw: &[u8]) -> bool {
     if j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { return false; }
     true
 }
-

@@ -1,11 +1,13 @@
 use super::super::native_region_scanner::RegionSpan;
-use super::ImportScannerV3;
+use super::{ImportScannerV3, ImportScanResultV3};
+use super::super::validator::ValidationIssueV3;
 
 pub struct ImportScannerCsV3;
 
 impl ImportScannerV3 for ImportScannerCsV3 {
-    fn scan(&self, bytes: &[u8], start: usize) -> Vec<RegionSpan> {
+    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResultV3 {
         let mut spans: Vec<RegionSpan> = Vec::new();
+        let mut issues: Vec<ValidationIssueV3> = Vec::new();
         let n = bytes.len();
         let mut i = start;
         let mut at_sol = true;
@@ -31,6 +33,7 @@ impl ImportScannerV3 for ImportScannerCsV3 {
                     let mut in_s: u8 = 0; // 1 '"', 2 verbatim, 3 interp normal, 4 interp verbatim, 5 raw ("""), braces tracked
                     let mut raw_quotes: usize = 0; let mut interp_brace: i32 = 0;
                     // consume until ';' at top level
+                    let mut found_semicolon = false;
                     while k < n {
                         let b = bytes[k];
                         match b {
@@ -61,13 +64,17 @@ impl ImportScannerV3 for ImportScannerCsV3 {
                             }
                             b';' if in_s == 0 => {
                                 spans.push(RegionSpan{ start: stmt_start, end: k });
+                                found_semicolon = true;
                                 k+=1; i = k; at_sol = true; continue 'outer;
                             }
                             b'\n' => { k+=1; }
                             _ => { k+=1; }
                         }
                     }
-                    // EOF without semicolon — still record import up to EOF
+                    // EOF without semicolon — still record import up to EOF and report issue
+                    if !found_semicolon || in_s != 0 || (in_s == 3 || in_s == 4) && interp_brace != 0 || in_s == 5 {
+                        issues.push(ValidationIssueV3{ message: "unterminated C# using directive".into() });
+                    }
                     spans.push(RegionSpan{ start: stmt_start, end: n });
                     i = n; break;
                 }
@@ -77,7 +84,7 @@ impl ImportScannerV3 for ImportScannerCsV3 {
                 if bytes[i] == b'\n' { at_sol = true; i+=1; } else { i+=1; }
             }
         }
-        spans
+        ImportScanResultV3 { spans, issues }
     }
 }
 

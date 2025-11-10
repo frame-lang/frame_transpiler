@@ -1,11 +1,13 @@
 use super::super::native_region_scanner::RegionSpan;
-use super::ImportScannerV3;
+use super::{ImportScannerV3, ImportScanResultV3};
+use super::super::validator::ValidationIssueV3;
 
 pub struct ImportScannerPyV3;
 
 impl ImportScannerV3 for ImportScannerPyV3 {
-    fn scan(&self, bytes: &[u8], start: usize) -> Vec<RegionSpan> {
+    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResultV3 {
         let mut spans: Vec<RegionSpan> = Vec::new();
+        let mut issues: Vec<ValidationIssueV3> = Vec::new();
         let n = bytes.len();
         let mut i = start;
         let mut at_sol = true;
@@ -67,7 +69,12 @@ impl ImportScannerV3 for ImportScannerPyV3 {
                             _ => { k += 1; continue; }
                         }
                     }
-                    if k >= n { spans.push(RegionSpan { start: stmt_start, end: n }); i = n; break; }
+                    if k >= n {
+                        // EOF while inside an import logical line: report issue if open paren/string
+                        if paren > 0 || in_s != 0 || in_triple != 0 {
+                            issues.push(ValidationIssueV3{ message: "unterminated Python import statement".into() });
+                        }
+                        spans.push(RegionSpan { start: stmt_start, end: n }); i = n; break; }
                     continue;
                 }
                 // Not an import line; advance to end of line
@@ -80,7 +87,7 @@ impl ImportScannerV3 for ImportScannerPyV3 {
                 if bytes[i] == b'\n' { at_sol = true; i += 1; } else { i += 1; }
             }
         }
-        spans
+        ImportScanResultV3 { spans, issues }
     }
 }
 
@@ -93,4 +100,3 @@ fn starts_kw(bytes: &[u8], i: usize, kw: &[u8]) -> bool {
     if j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { return false; }
     true
 }
-
