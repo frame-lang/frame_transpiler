@@ -65,52 +65,31 @@ impl CompilerV3 {
         // Assemble MIR
         let asm = MirAssemblerV3;
         let mir = asm.assemble(content, &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
-        // Select expander
-        let mut out_text = match lang {
-            TargetLanguage::Python3 => {
-                let exp = PyExpanderV3;
-                let exps: Vec<String> = mir.iter().map(|m| exp.expand(m, 0)).collect();
-                SplicerV3.splice(content, &scan.regions, &exps)
-                    .text
+        // Build expansions aligned with region indents
+        let mut out_text = String::new();
+        let exps: Vec<String> = {
+            let mut v = Vec::new();
+            let mut mi = 0usize;
+            for r in &scan.regions {
+                if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
+                    let m = &mir[mi];
+                    mi += 1;
+                    let s = match lang {
+                        TargetLanguage::Python3 => PyExpanderV3.expand(m, *indent),
+                        TargetLanguage::TypeScript => TsExpanderV3.expand(m, *indent),
+                        TargetLanguage::CSharp => CExpanderV3.expand(m, *indent),
+                        TargetLanguage::C => CExpanderV3.expand(m, *indent),
+                        TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent),
+                        TargetLanguage::Java => JavaExpanderV3.expand(m, *indent),
+                        TargetLanguage::Rust => RustExpanderV3.expand(m, *indent),
+                        _ => String::new(),
+                    };
+                    v.push(s);
+                }
             }
-            TargetLanguage::TypeScript => {
-                let exp = TsExpanderV3;
-                let exps: Vec<String> = mir.iter().map(|m| exp.expand(m, 0)).collect();
-                SplicerV3.splice(content, &scan.regions, &exps)
-                    .text
-            }
-            TargetLanguage::CSharp => {
-                let exp = CExpanderV3;
-                let exps: Vec<String> = mir.iter().map(|m| exp.expand(m, 0)).collect();
-                SplicerV3.splice(content, &scan.regions, &exps)
-                    .text
-            }
-            TargetLanguage::C => {
-                let exp = CExpanderV3;
-                let exps: Vec<String> = mir.iter().map(|m| exp.expand(m, 0)).collect();
-                SplicerV3.splice(content, &scan.regions, &exps)
-                    .text
-            }
-            TargetLanguage::Cpp => {
-                let exp = CppExpanderV3;
-                let exps: Vec<String> = mir.iter().map(|m| exp.expand(m, 0)).collect();
-                SplicerV3.splice(content, &scan.regions, &exps)
-                    .text
-            }
-            TargetLanguage::Java => {
-                let exp = JavaExpanderV3;
-                let exps: Vec<String> = mir.iter().map(|m| exp.expand(m, 0)).collect();
-                SplicerV3.splice(content, &scan.regions, &exps)
-                    .text
-            }
-            TargetLanguage::Rust => {
-                let exp = RustExpanderV3;
-                let exps: Vec<String> = mir.iter().map(|m| exp.expand(m, 0)).collect();
-                SplicerV3.splice(content, &scan.regions, &exps)
-                    .text
-            }
-            _ => unreachable!(),
+            v
         };
+        out_text = SplicerV3.splice(content, &scan.regions, &exps).text;
         if std::env::var("FRAME_MAP_TRAILER").ok().as_deref() == Some("1") {
             // rebuild splice to include map
             let exps: Vec<String> = match lang {

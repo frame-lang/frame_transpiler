@@ -156,8 +156,8 @@ class FrameTestRunner:
                         if demo_tests:
                             tests[f"language_specific_{lang}_v3_demos"] = demo_tests
 
-        # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping
-        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping"]):
+        # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
+        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion"]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
             if "v3_prolog" in self.config.categories:
@@ -170,6 +170,8 @@ class FrameTestRunner:
                 collect_v3_category("v3_mir")
             if "v3_mapping" in self.config.categories:
                 collect_v3_category("v3_mapping")
+            if "v3_expansion" in self.config.categories:
+                collect_v3_category("v3_expansion")
 
         # Language-specific tests - only include if explicitly requested or "all" is specified
         if "all" in self.config.categories:
@@ -251,9 +253,10 @@ class FrameTestRunner:
         is_v3 = any(seg in v3_categories for seg in parts_lower)
         is_v3_closers = "v3_closers" in parts_lower
         is_v3_mapping = "v3_mapping" in parts_lower
+        is_v3_expansion = "v3_expansion" in parts_lower
         # Run transpiler - check if multifile test
         if is_v3:
-            if is_v3_closers or is_v3_mapping:
+            if is_v3_closers or is_v3_mapping or is_v3_expansion:
                 cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
                 extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
