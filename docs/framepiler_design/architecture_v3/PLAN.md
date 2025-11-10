@@ -179,13 +179,39 @@ Checklist
 - [ ] Linking/packaging per language
 - [ ] Incremental build caches
 
+V3 Fixtures (runner; all languages)
+- v3_prolog:
+  - [x] Python  - seeds added
+  - [x] TypeScript - seeds added
+  - [x] C# - seeds added
+  - [x] C - seeds added
+  - [x] C++ - seeds added
+  - [x] Java - seeds added
+  - [x] Rust - seeds added
+- v3_imports:
+  - [x] Python  - seeds added (± negatives)
+  - [x] TypeScript - seeds added (± negatives)
+  - [x] C# - seeds added (± negatives)
+  - [x] C - seeds added (± negatives)
+  - [x] C++ - seeds added (± negatives)
+  - [x] Java - seeds added (± negatives)
+  - [x] Rust - seeds added (± negatives)
+- v3_outline:
+  - [x] Python  - seeds added (+/−)
+  - [x] TypeScript - seeds added (+/−)
+  - [x] C# - seeds added (+/−)
+  - [x] C - seeds added (+/−)
+  - [x] C++ - seeds added (+/−)
+  - [x] Java - seeds added (+/−)
+  - [x] Rust - seeds added (+/−)
+
 Legacy References Cleanup
 - Purge remaining documentation pointing at any non‑V3 paths.
 
 Checklist
 - [x] V3 is the default for demos
 - [x] Legacy pipeline deleted from code
-- [ ] Remaining docs scrubbed of legacy references
+- [x] Remaining docs scrubbed of legacy references
 
 CI & Tooling
 - Gate each stage with per‑stage tests and full language_specific suites.

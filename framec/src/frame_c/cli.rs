@@ -41,8 +41,11 @@ impl Cli {
             .arg(Arg::new("multifile").long("multifile").short('m').help("Enable multi-file project compilation").action(clap::ArgAction::SetTrue))
             .arg(Arg::new("output-dir").long("output-dir").short('o').help("Output directory for generated files (multi-file mode)").value_name("DIR").num_args(1))
             .arg(Arg::new("debug-output").long("debug-output").help("Generate JSON output with transpiled code and source map").action(clap::ArgAction::SetTrue))
-            .arg(Arg::new("validate").long("validate").help("Run V3 structural validation (terminal-last) before transpile").action(clap::ArgAction::SetTrue))
+            .arg(Arg::new("validate").long("validate").help("Run V3 validation before transpile").action(clap::ArgAction::SetTrue))
+            .arg(Arg::new("validate-syntax").long("validate-syntax").help("Alias for --validate (compat) ").action(clap::ArgAction::SetTrue))
             .arg(Arg::new("validation-only").long("validation-only").help("Run validation only and exit with status").action(clap::ArgAction::SetTrue))
+            .arg(Arg::new("validation-level").long("validation-level").help("Validation level (compat)").num_args(1))
+            .arg(Arg::new("validation-format").long("validation-format").help("Validation output format (compat)").num_args(1))
             .subcommand(
                 Command::new("demo-multi")
                     .about("V3 demo: compile multiple single-body files (transpile-only)")
@@ -134,7 +137,7 @@ impl Cli {
         let output_dir_opt = matches.get_one::<String>("output-dir").map(|s| PathBuf::from(s.clone()));
         let debug_output = matches.get_flag("debug-output");
         let validate_only = matches.get_flag("validation-only");
-        let validate = matches.get_flag("validate");
+        let validate = matches.get_flag("validate") || matches.get_flag("validate-syntax");
 
         Cli {
             stdin_flag: stdin,
@@ -285,14 +288,31 @@ pub fn run_with(args: Cli) {
     if args.validate_only || args.validate {
         let path = args.path.clone().expect("file path required");
         if let Ok(content) = std::fs::read_to_string(&path) {
-            match super::v3::validate_single_body(&content, target_language) {
-                Ok(res) => {
-                    for issue in res.issues { eprintln!("validation: {}", issue.message); }
-                    if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
+            // If this appears to be a module file (@target present), run module validation; otherwise single-body demo
+            let is_module = content.contains("@target ");
+            if is_module {
+                // Require target language
+                let lang = target_language.unwrap_or(TargetLanguage::Python3);
+                match super::v3::validate_module_demo(&content, lang) {
+                    Ok(res) => {
+                        for issue in res.issues { eprintln!("validation: {}", issue.message); }
+                        if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
+                    }
+                    Err(e) => {
+                        eprintln!("validation error: {}", e.error);
+                        if args.validate_only { std::process::exit(e.code); }
+                    }
                 }
-                Err(e) => {
-                    eprintln!("validation error: {}", e.error);
-                    if args.validate_only { std::process::exit(e.code); }
+            } else {
+                match super::v3::validate_single_body(&content, target_language) {
+                    Ok(res) => {
+                        for issue in res.issues { eprintln!("validation: {}", issue.message); }
+                        if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
+                    }
+                    Err(e) => {
+                        eprintln!("validation error: {}", e.error);
+                        if args.validate_only { std::process::exit(e.code); }
+                    }
                 }
             }
         }

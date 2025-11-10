@@ -24,38 +24,42 @@ Frame is a state machine language that transpiles to multiple target languages (
 ### Current Status
 - **Version**: v0.86.25
 - **Branch**: `going_native`
-- **Supported Targets**: Python 3, TypeScript (with runtime library), GraphViz.
+- **Supported Targets (V3 work focus)**: Python 3, TypeScript, C#, C, C++, Java, Rust. (GraphViz remains available but is not V3‑gated.)
 - **LLVM**: on indefinite hold — do not develop or maintain LLVM until further notice.
 - **Core policies**:
   - Native bodies by default; MixedBody permitted only in event handlers (actions/operations are native‑only).
-  - SOL‑anchored Frame statements (->, => $^, $$[+/-], system.return) recognized only at start‑of‑line (ignoring strings/comments/templates).
+  - SOL‑anchored Frame directives (`-> $State(args)`, `=> $^`, `$$+/-`) recognized at start‑of‑line (indentation allowed), ignored in strings/comments/templates.
   - Transitions are terminal: a terminal MIR statement must be the last statement in a handler body (validator enforced).
-  - Per‑language boundary detection uses DPDAs (TS template/backtick‑aware; Py triple‑quote/f‑string‑aware).
+  - Per‑language boundary detection uses DPDA scanners/closers (e.g., TS template/backtick‑aware; Py triple‑quote/f‑string‑aware; C# verbatim/interpolated/raw strings and preprocessor lines).
 
-## Architecture
+## Architecture (V3)
 
 ```
-Frame Source (.frm) 
+Frame module file (.frm with @target <lang>)
     ↓
-Scanner (Tokenizer) → framec/src/frame_c/scanner.rs
-    ↓  
-Parser → framec/src/frame_c/parser.rs
+01 ModulePartitionerV3 (DPDA body closers; prolog/imports/bodies)
     ↓
-AST → framec/src/frame_c/ast.rs
+02 NativeRegionScannerV3 (streaming, SOL‑only Frame head detection)
     ↓
-Visitors (Code Generation) → framec/src/frame_c/visitors/
+03 FrameStatementParserV3 (tiny, balanced‑paren args)
     ↓
-Target Code (Python, TypeScript, etc.)
+04 MIR Assembly (MixedBody; terminal‑last enforcement via ValidatorV3)
+    ↓
+05 Expanders (per‑language minimal native glue)
+    ↓
+06 Splice & Mapping (SplicedBody + splice_map)
+    ↓
+07 Native Parse Facade (runtime‑optional; mapped diagnostics)
+    ↓
+08 Source Maps & Codegen (deterministic)
 ```
 
-### Core Components
-
-1. **Scanner (`scanner.rs`)**: Tokenizes Frame source code
-2. **Parser (`parser.rs`)**: Builds AST from tokens using recursive descent parsing
-3. **AST (`ast.rs`)**: Abstract syntax tree definitions
-4. **Visitors**: Code generators for each target language
-5. **Symbol Table (`symbol_table.rs`)**: Manages scoping and symbol resolution
-6. **Compiler (`compiler.rs`)**: Orchestrates the compilation pipeline
+### Core V3 Components (module root `framec/src/frame_c/v3/`)
+- `body_closer/{python,typescript,csharp,c,cpp,java,rust}.rs`
+- `native_region_scanner/{python,typescript,csharp,c,cpp,java,rust}.rs`
+- `frame_statement_parser.rs`, `mir.rs`, `mir_assembler.rs`
+- `expander/`, `splice.rs`, `validator.rs`
+- `module_partitioner.rs`, `prolog_scanner.rs`, `import_scanner/`, `outline_scanner.rs`
 
 ## Development Environment
 
@@ -85,10 +89,19 @@ cargo update
 ### Test Organization
 ```
 framec_tests/
-├── common/tests/           # Legacy shared tests (not default in going_native)
+├── common/tests/           # Legacy shared tests (opt-in)
 ├── language_specific/
-│   ├── python/             # Python-native fixtures (primary)
-│   └── typescript/         # TypeScript-native fixtures (primary)
+│   ├── python/
+│   ├── typescript/
+│   ├── csharp/
+│   ├── c/
+│   ├── cpp/
+│   ├── java/
+│   └── rust/
+│       ├── v3_prolog/{positive,negative}/
+│       ├── v3_imports/{positive,negative}/
+│       ├── v3_outline/{positive,negative}/
+│       └── v3_demos/
 ├── generated/{python,typescript}/
 ├── runner/                 # Test runner (frame_test_runner.py)
 └── configs/
@@ -96,25 +109,19 @@ framec_tests/
 
 ### Running Tests
 
-**Comprehensive Test Suite:**
+**V3 Suites (transpile‑only; validation on):**
 ```bash
-# All tests (both languages, language-specific included by default)
-python3 framec_tests/runner/frame_test_runner.py --languages python typescript --framec ./target/release/framec
-
-# All Python tests (including Python-specific external API tests)
-python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./target/release/framec
-
-# All TypeScript tests (including TypeScript-specific external API tests)
-python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec
+# Prolog/Imports/Outline/Demos for all languages
+python3 framec_tests/runner/frame_test_runner.py \
+  --languages python typescript csharp c cpp java rust \
+  --categories v3_prolog v3_imports v3_outline v3_demos \
+  --framec ./target/release/framec --transpile-only -v
 
 # LLVM on hold
 > LLVM backend work is paused. Do not run or maintain LLVM smoke tests. The backend and runtime remain in the tree but are not an active target for development.
 
-# Specific categories
-python3 framec_tests/runner/frame_test_runner.py --languages python --categories language_specific_python --framec ./target/release/framec
-
-# Language-specific tests only
-python3 framec_tests/runner/frame_test_runner.py --languages python --categories language_specific_python --framec ./target/release/framec
+# Language-specific categories (legacy/common still supported via --include-common)
+python3 framec_tests/runner/frame_test_runner.py --languages python --categories v3_outline --framec ./target/release/framec --transpile-only
 
 # Verbose output with batch TypeScript compilation
 python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec --verbose
@@ -198,26 +205,10 @@ cargo build --release
 - PythonNativePolicy prevents brace-style control and `var` inside Python bodies.
 - Negative patterns exist for nested function declarations and other intentionally bad constructs.
 
-### Parser Patterns
-```rust
-// Event handler parsing with proper token synchronization
-if !self.check(TokenType::Identifier) && 
-   !self.check(TokenType::EnterStateMsg) && 
-   !self.check(TokenType::ExitStateMsg) {
-    break;
-}
-// Use check() instead of match_token() to avoid consuming tokens
-```
+### Validation & Policies
+- Runner invokes V3 validation by default (structural); `--validation-level` is tolerated for compatibility.
+- Negative fixtures (directories named `negative/`) are expected failures and counted as passing when validation/transpile fails.
 
-### Error Handling
-```rust
-// Always provide context in error messages
-let run_error = RunError::new(frame_exitcode::PARSE_ERR, &format!(
-    "Parser error at line {}: {}", line_number, error_details
-));
-```
-
-### Symbol Table Usage
 ```rust
 // Two-pass parsing architecture
 // Pass 1: Build symbol table (is_building_symbol_table = true)

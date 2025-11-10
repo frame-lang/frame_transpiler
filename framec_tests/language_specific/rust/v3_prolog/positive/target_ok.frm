@@ -1,0 +1,4 @@
+@target rust
+
+handler H { }
+

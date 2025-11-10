@@ -1,0 +1,4 @@
+@target typescript
+
+handler H 
+

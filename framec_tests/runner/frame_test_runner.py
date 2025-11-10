@@ -134,16 +134,19 @@ class FrameTestRunner:
                         if "all" in self.config.categories or category in self.config.categories:
                             tests[category] = list(category_dir.glob("*.frm"))
         
-        # V3 demo tests (explicit category)
-        if "v3_demos" in self.config.categories:
+        # V3 category helpers: demos, outline, prolog, imports
+        def collect_v3_category(cat_name: str):
             for lang in self.config.languages:
-                lang_dir = self.language_specific_dir / lang / "v3_demos"
+                lang_dir = self.language_specific_dir / lang / cat_name
                 if lang_dir.exists():
-                    demo_tests = list(lang_dir.glob("*.frm"))
-                    if demo_tests:
-                        tests[f"language_specific_{lang}_v3_demos"] = demo_tests
+                    test_files = list(lang_dir.rglob("*.frm"))
+                    if test_files:
+                        tests[f"language_specific_{lang}_{cat_name}"] = test_files
+
+        # v3_demos (explicit or per-lang)
+        if "v3_demos" in self.config.categories:
+            collect_v3_category("v3_demos")
         else:
-            # Per-language v3 demo categories: v3_demos_<lang>
             for lang in self.config.languages:
                 cat = f"v3_demos_{lang}"
                 if cat in self.config.categories:
@@ -152,6 +155,15 @@ class FrameTestRunner:
                         demo_tests = list(lang_dir.glob("*.frm"))
                         if demo_tests:
                             tests[f"language_specific_{lang}_v3_demos"] = demo_tests
+
+        # v3_outline, v3_prolog, v3_imports
+        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports"]):
+            if "v3_outline" in self.config.categories:
+                collect_v3_category("v3_outline")
+            if "v3_prolog" in self.config.categories:
+                collect_v3_category("v3_prolog")
+            if "v3_imports" in self.config.categories:
+                collect_v3_category("v3_imports")
 
         # Language-specific tests - only include if explicitly requested or "all" is specified
         if "all" in self.config.categories:
@@ -228,9 +240,11 @@ class FrameTestRunner:
         
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
-        is_v3_demo = "v3_demos" in parts_lower
+        # Treat all v3_* categories as module demo path for transpile
+        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_mir", "v3_mapping", "v3_validator", "v3_project"}
+        is_v3_module = any(seg in v3_categories for seg in parts_lower)
         # Run transpiler - check if multifile test
-        if is_v3_demo:
+        if is_v3_module:
             cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
             # Use neutral extension for demo outputs
             extension = ".txt"

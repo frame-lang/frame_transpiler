@@ -1,0 +1,4 @@
+@target c
+
+handler H { }
+

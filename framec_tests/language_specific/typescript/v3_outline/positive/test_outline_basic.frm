@@ -1,0 +1,7 @@
+@target typescript
+
+handler A
+{
+=> $^
+}
+

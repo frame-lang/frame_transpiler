@@ -1,0 +1,7 @@
+@target cpp
+
+handler H
+{
+=> $^
+}
+
