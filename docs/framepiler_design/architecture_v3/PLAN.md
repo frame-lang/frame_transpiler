@@ -18,6 +18,7 @@ Scaffold brought up (demo‑level; not production‑ready):
 - [x] Stage 06 — Splice + origin mapping (debug trailer builder present)
 - [x] Validator (terminal‑last rule) in demo path
 - [x] Demo CLI paths (single‑body; directory; frame‑like multi‑body)
+ - [x] Stage 07 — Native parse facades (wrapper‑only everywhere; strict native adapters feature‑gated for TS/Rust/C/C++/Java/C#)
 
 Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_prolog fixtures integrated in runner (positive/negative)
@@ -44,6 +45,7 @@ Production‑ready criteria (not done unless explicitly checked):
 - [ ] Extensive negative fixtures (closers/scanners) per language
 - [x] Validator policies (structural only by default; no Frame in actions/ops). Per‑language native policies are optional and provided via Stage 07 facades when enabled.
 - [x] Mapping trailer gating/polish and docs
+- [x] Optional native parser adapters (facade strict): TS/Rust/C/C++/Java/C# behind `native-*` features
 - [ ] Real project build: FID/linking/packaging (TS/Py first), then others
 - [ ] Beyond‑comment expansions/glue per language (gated by flags)
 

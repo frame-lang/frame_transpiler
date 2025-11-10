@@ -120,11 +120,16 @@ Facade strict execution (v3_facade_smoke)
 - C/C++: runner extracts wrapper calls, compiles a TU with no‑op wrappers using `clang`/`gcc` or `clang++`/`g++`, and runs.
 - Java/C#: runner attempts to compile/run a tiny main (javac/java, csc/mcs+mono). If toolchain is missing, execution is cleanly skipped for those fixtures.
 
-Enable strict native parsing
-- Compile with features and run v3_facade_smoke:
-  - TypeScript: `cargo build --release --features native-ts`
-  - Rust (optional adapter): `cargo build --release --features native-rs`
-  - Run: `python3 framec_tests/runner/frame_test_runner.py --languages typescript rust --categories v3_facade_smoke --framec ./target/release/framec -v`
+Enable strict native parsing (Stage 07 facades)
+- Strict/native parsing is runtime-optional and feature-gated. Build with the desired adapters and run the facade smoke tests; the runner will add `--validate-native` automatically for `v3_facade_smoke`.
+  - TypeScript (SWC): `cargo build --release --features native-ts`
+  - Rust (syn): `cargo build --release --features native-rs`
+  - C (Tree-sitter): `cargo build --release --features native-c`
+  - C++ (Tree-sitter): `cargo build --release --features native-cpp`
+  - Java (Tree-sitter): `cargo build --release --features native-java`
+  - C# (Tree-sitter): `cargo build --release --features native-csharp`
+- Example run (all languages; facade strict):
+  `python3 framec_tests/runner/frame_test_runner.py --languages python typescript csharp c cpp java rust --categories v3_facade_smoke --framec ./target/release/framec -v`
 
 
 **V3 Suites (transpile‑only; validation on):**

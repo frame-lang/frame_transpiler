@@ -12,17 +12,18 @@ Per‑Stage Tests (all 7 languages)
 - Frame Statement Expansion: nested conditionals; ensure expansions do not break `elif/else/except/finally` (Py) or `else if` (TS/Java/C#) chains.
 - Splice & Mapping: round‑trip mapping checks; consecutive Frame statements; boundary at body start/end.
 - Native Parse (runtime‑optional): syntax errors mapping back to Frame spans; indentation/format diagnostics.
+  - Adapters (feature‑gated): `native-ts`, `native-rs`, `native-c`, `native-cpp`, `native-java`, `native-csharp`.
 - Source Maps & Codegen: breakpoint alignment and golden maps for representative fixtures.
 - Validation: negatives per rule (terminal‑last; no Frame statements in actions/ops; per‑language native policies).
 
 End‑to‑End
 - Use `framec_tests` language‑specific suites as the primary gate. By default, most V3 suites are build/validate‑only (transpile‑only + structural checks).
-- Executable facade strict tests: `v3_facade_smoke` includes per‑language harnesses that extract wrapper calls from spliced output and run them with no‑op wrappers. Supported languages and tools:
+- Executable facade strict tests: `v3_facade_smoke` includes per‑language harnesses that extract wrapper calls from spliced output and run them with no‑op wrappers. The runner sets `--validate-native` for this category and surfaces native diagnostics when adapters are enabled. Supported languages and tools:
   - TypeScript: tsc + node; optional SWC adapter (`native-ts`) for strict native parsing.
-  - Python: direct execution with Python; no‑op wrappers injected.
-  - Rust: rustc; wrapper calls rewritten to match no‑op signatures.
-  - C/C++: clang/gcc or clang++/g++.
-  - Java/C#: javac/java and csc/mcs (+mono) when available; execution cleanly skipped if toolchains are missing.
+  - Python: direct execution with Python; no‑op wrappers injected (no external parser).
+  - Rust: rustc; optional syn adapter (`native-rs`).
+  - C/C++: clang/gcc or clang++/g++; optional Tree‑sitter adapters (`native-c`, `native-cpp`).
+  - Java/C#: javac/java and csc/mcs (+mono); optional Tree‑sitter adapters (`native-java`, `native-csharp`). If toolchains are missing, execution is cleanly skipped.
 - Other V3 suites (prolog/imports/outline/closers/mir/mapping/expansion/validator) remain build/validate‑only; these demos do not emit full runnable programs.
 
 Performance
