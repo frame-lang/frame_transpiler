@@ -43,6 +43,11 @@ impl FrameStatementParserV3 {
             args = self.split_top_level_commas(arg_text);
             i = next;
         }
+        // After args, ensure only whitespace remains
+        while i < line.len() && line[i].is_ascii_whitespace() { i += 1; }
+        if i < line.len() {
+            return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "trailing tokens after transition"));
+        }
         Ok(MirItemV3::Transition{ target, args, span })
     }
 
