@@ -12,6 +12,7 @@ Rules (non‑exhaustive)
 - Forwards and stack ops are not mandated terminal; native lines may follow (subject to target language syntax).
 - No Frame statements in actions/operations (native‑only).
 - State/target existence: transition targets must resolve to known states.
+- Parent forward availability: a parent forward (=> $^) requires that the current state's machine section declares a parent (e.g., `$A => $Parent { … }`). If no parent is declared anywhere in the machine:, validation fails with “Cannot forward to parent: no parent available.” This rule applies to module demos (files with machine: sections). Single‑body demo fixtures without a machine: section are exempt because no parent relationship can be declared in that form.
 
 Diagnostics
 - Report policy violations with precise Frame spans (for MIR) or native spans (for native policy).
