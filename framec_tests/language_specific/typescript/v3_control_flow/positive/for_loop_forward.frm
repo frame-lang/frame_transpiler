@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 for (let i = 0; i < 3; i++) {
                     => $^; step(i);
@@ -10,5 +10,5 @@ system S {
                 done();
             }
         }
+        $P { }
 }
-

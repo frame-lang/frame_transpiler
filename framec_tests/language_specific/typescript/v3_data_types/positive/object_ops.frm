@@ -2,12 +2,12 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 let o = { a: 1, b: "x" };
                 o.a = 2;
                 => $^; o.b.toUpperCase();
             }
         }
+        $P { }
 }
-

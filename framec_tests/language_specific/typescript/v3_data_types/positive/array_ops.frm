@@ -2,12 +2,12 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 let a = [1,2];
                 a.push(3);
                 => $^; a.length;
             }
         }
+        $P { }
 }
-
