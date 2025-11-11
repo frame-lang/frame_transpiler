@@ -4,8 +4,7 @@ system S {
     machine:
         $A {
             e() {
-                => $^ /* multiline
-                         comment */ nativeAfter();
+                -> $1Bad()
             }
         }
 }

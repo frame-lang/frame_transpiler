@@ -5,7 +5,7 @@ system S {
         $A {
             e() {
                 => $^ /* multiline
-                         comment */ native_after();
+                         comment */ nativeAfter();
             }
         }
 }

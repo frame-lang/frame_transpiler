@@ -280,6 +280,15 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         if !known_states.is_empty() {
             res.issues.extend(validator.validate_transition_targets(&mir, &known_states));
         }
+        // If no parent relationship exists anywhere in the machine, flag any use of parent forward.
+        if std::env::var("FRAME_ENFORCE_PARENT_FORWARD").ok().as_deref() == Some("1") {
+            let has_parent = validator.has_any_parent_relationship(bytes, outline_start);
+            if !has_parent {
+                if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
+                    all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "Cannot forward to parent: no parent available".into() });
+                }
+            }
+        }
         // Enforce no native after terminal MIR at body level
         let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
         res.issues.extend(extra);
@@ -294,6 +303,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                 let mut mi = 0usize;
                 for r in &scan.regions {
                     if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
+                        if mi >= mir.len() { break; }
                         let m = &mir[mi];
                         mi += 1;
                         let s = match lang {
