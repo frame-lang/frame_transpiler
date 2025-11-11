@@ -8121,7 +8121,7 @@
       },
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -9168,7 +9168,7 @@
       },
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -9219,7 +9219,7 @@
       },
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -9270,7 +9270,7 @@
       },
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -11192,6 +11192,57 @@
         "validate": true,
         "execute": true,
         "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/forward_without_parent.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
         "infinite": false
       }
     }
