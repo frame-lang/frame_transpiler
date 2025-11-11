@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 
 # Simple async validation test for Frame v0.37

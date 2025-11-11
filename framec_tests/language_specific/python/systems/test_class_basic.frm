@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test basic class features in Frame v0.45
 

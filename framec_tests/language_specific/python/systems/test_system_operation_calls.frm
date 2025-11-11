@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test system operation-to-operation calls to verify scope resolution
 # This should test if the missing self. prefix bug is fixed

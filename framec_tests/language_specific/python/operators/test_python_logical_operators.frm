@@ -1,3 +1,5 @@
+@target python
+
 # Python logical operators — native bodies
 
 fn test_and_operator() {

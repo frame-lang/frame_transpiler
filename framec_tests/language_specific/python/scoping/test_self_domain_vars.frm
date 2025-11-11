@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test explicit self.domainVar syntax
 fn main() {

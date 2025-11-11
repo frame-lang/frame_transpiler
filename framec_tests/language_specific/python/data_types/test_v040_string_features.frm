@@ -1,3 +1,5 @@
+@target python
+
 # Python-specific override for v0.40 string features using native bodies
 
 system PyStringFeaturesV040 {

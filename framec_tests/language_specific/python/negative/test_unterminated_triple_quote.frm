@@ -1,3 +1,5 @@
+@target python
+
 # Negative: unterminated triple-quoted string in Python native body
 
 system BadTripleQuote {

@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # First system plus simple second system
 

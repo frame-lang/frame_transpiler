@@ -1,3 +1,5 @@
+@target python
+
 # Minimal test showing that simple files work CORRECTLY
 # This proves the bugs are triggered by file complexity, not syntax
 

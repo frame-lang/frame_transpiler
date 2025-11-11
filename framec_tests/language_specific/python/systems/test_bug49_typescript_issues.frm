@@ -1,3 +1,5 @@
+@target python
+
 // Test case for Bug #49: TypeScript Generation Issues
 // This test reproduces the issues described in the bug report
 

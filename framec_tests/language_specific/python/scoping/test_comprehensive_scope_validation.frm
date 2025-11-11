@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive scope validation test
 # Tests all scope types and variable resolution

@@ -1,10 +1,12 @@
+@target python
+
 # Negative Torture: intentionally invalid patterns to test diagnostics
 system TorturePyNegative {
     interface:
         run()
 
     actions:
-        bad():
+        bad(){
             # legacy braced control flow (should be rejected by Python native policy)
             if True {
                 pass
@@ -15,5 +17,6 @@ system TorturePyNegative {
 
     machine:
         $Init { run(): return }
+        }
     }
 }

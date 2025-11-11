@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # CultureTicks Backend Testing Plan Implementation
 # Seat Business Logic Rules - State Management and Lock Business Rules

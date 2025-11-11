@@ -1,3 +1,5 @@
+@target python
+
 # Simple valid Frame file for testing validation
 system SimpleSystem {
     interface:

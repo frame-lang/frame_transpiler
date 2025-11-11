@@ -1,3 +1,5 @@
+@target python
+
 # Test case for Bug #29: Missing interface method event routing
 # This test demonstrates that getCurrentState handlers are missing 
 # from the generated Python code for certain states in complex files

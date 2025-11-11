@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 system A {
 
@@ -16,9 +18,9 @@ system A {
             else:
                 c()
 
-            if (x):
+            if (x){
                 y()
-            elif (a):
+            elif (a){
                 b()
             else:
                 c()
@@ -32,6 +34,8 @@ system A {
             else:
                 c()
                 c()
+            }
+            }
         }
 
 }

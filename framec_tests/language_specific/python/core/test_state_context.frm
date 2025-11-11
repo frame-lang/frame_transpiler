@@ -1,3 +1,5 @@
+@target python
+
 # Python-specific version: native domain assignments
 
 system StateContextSm {

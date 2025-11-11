@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test file for debugging Frame systems (state machines)
 # Tests state transitions, enter/exit events, interface calls, and event handlers

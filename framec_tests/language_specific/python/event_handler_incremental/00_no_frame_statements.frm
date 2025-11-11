@@ -1,3 +1,5 @@
+@target python
+
 # Python incremental: handler with no Frame statements
 
 system IncEv0 {

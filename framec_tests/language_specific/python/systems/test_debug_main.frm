@@ -1,3 +1,5 @@
+@target python
+
 
 fn main() {
     print("Starting main function")  

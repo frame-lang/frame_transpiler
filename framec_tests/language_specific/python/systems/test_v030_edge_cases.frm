@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: Edge cases for v0.30 multi-entity support
 # Empty systems, minimal functions, various combinations

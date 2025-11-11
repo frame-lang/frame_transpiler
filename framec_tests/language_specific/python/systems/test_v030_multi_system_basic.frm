@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: Basic multi-system support (v0.30)
 # Validates that multiple systems can be defined and transpiled

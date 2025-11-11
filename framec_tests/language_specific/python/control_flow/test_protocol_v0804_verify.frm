@@ -1,3 +1,5 @@
+@target python
+
 # Minimal Debug Protocol — Python native bodies
 
 system MinimalDebugProtocol {

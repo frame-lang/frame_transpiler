@@ -1,3 +1,5 @@
+@target python
+
 
 system PyIndentedDirective {
     actions:

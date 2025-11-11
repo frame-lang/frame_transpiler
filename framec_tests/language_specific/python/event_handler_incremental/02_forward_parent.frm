@@ -1,3 +1,5 @@
+@target python
+
 # Python incremental: parent forward Frame statement
 
 system IncEv2 {

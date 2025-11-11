@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive test for static method calls in Frame v0.62
 # Tests all patterns of @staticmethod usage on both classes and systems

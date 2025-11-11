@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test mixed native imports - post-FSL
 # Expected: Python imports and built-ins work together inside Frame bodies

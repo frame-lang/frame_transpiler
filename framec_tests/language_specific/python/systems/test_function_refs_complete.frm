@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test complete function references (first-class functions)
 # This tests the new FunctionRefT support added in v0.38

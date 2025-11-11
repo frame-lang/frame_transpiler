@@ -1,3 +1,5 @@
+@target python
+
 # Validation system test — Python native bodies
 
 system DebuggerValidationTest {

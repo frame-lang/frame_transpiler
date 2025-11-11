@@ -2,7 +2,7 @@
 
 system S {
     actions:
-        bad() {
+        fn bad() {
             => $^
         }
     machine:
@@ -10,4 +10,3 @@ system S {
             e() { x() }
         }
 }
-

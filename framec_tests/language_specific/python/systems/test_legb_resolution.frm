@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test file for LEGB (Local, Enclosing, Global, Built-in) scope resolution
 # Tests proper symbol lookup order and shadowing

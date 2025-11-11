@@ -1,3 +1,5 @@
+@target python
+
 # Combined test case for Bug #29 and Bug #31
 # This demonstrates that the SAME methods that are:
 # 1. Missing their handlers (Bug #29)

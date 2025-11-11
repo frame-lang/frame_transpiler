@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Simple test for event-handlers-as-functions architecture
 system SimpleHandlers {

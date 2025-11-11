@@ -1,3 +1,5 @@
+@target python
+
 # Test Method Call Resolution Policy - Valid Cases
 # Tests all valid method call patterns with proper resolution
 

@@ -11,10 +11,10 @@ Outputs
 
 Expansions
 - Transition `-> $State(args?)`:
-  - Emit glue to set next state and perform return/exit semantics in the TS runtime.
-  - Terminal within its containing block (validator enforced).
+  - Production glue: construct a `FrameCompartment` for the target state, call `this._frame_transition(<compartment>)`, then emit a native `return;` to exit the handler immediately. This mirrors the kernel contract and the terminal rule.
+  - Terminal within its containing block (validator enforced). The emitted `return;` makes control‑flow explicit even in deeply nested blocks.
 - Forward `=> $^`:
-  - Emit parent forward glue (dispatch to parent with current event).
+  - Emit parent forward glue (dispatch to parent with current event) via `this._frame_router(__e, compartment.parentCompartment)` and then `return;` when required by the surrounding control flow.
   - Not mandated terminal; native statements may follow when separated by a valid inline separator.
 - Stack ops `$$+` / `$$-`:
   - Emit push/pop glue for state stack.
@@ -29,6 +29,9 @@ Inline forms
 Policy Notes
 - Prefer `===`/`!==`; disallow `==`/`!=` in generated code.
 - Optional chaining/nullish coalescing remain gated by policy and are not emitted by expansions.
+
+Runtime Imports (production)
+- Insert once at file top: `import { FrameEvent, FrameCompartment } from 'frame_runtime_ts/index'` (workspace local; no network dependency). The expander uses these types to construct transition compartments.
 
 Notes
 - Native `return` is terminal by TypeScript semantics; the validator’s terminal rule concerns Frame Transitions. Native-return enforcement is delegated to native parse facades or host compilers.

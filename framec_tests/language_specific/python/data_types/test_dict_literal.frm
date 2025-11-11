@@ -1,3 +1,5 @@
+@target python
+
 # Python-specific: domain native assignment
 
 fn test_dict_literals() {

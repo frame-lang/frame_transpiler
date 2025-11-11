@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test JSON-like data handling - Fixed version
 # Working around nested dict indexing limitations

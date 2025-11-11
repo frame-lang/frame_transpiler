@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.20 allows only main function. 
 # Function-like behavior is implemented via system actions.

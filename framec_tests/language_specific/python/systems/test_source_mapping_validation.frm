@@ -1,3 +1,5 @@
+@target python
+
 fn main() {
     # Test basic constructs to validate source mapping coverage
     

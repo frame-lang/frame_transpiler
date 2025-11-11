@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test that systems are properly isolated from each other
 # Systems should NOT be able to access each other's internals (actions/operations/domain)

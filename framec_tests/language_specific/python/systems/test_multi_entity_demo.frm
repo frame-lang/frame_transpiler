@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.30 Multi-Entity Demo
 # This demonstrates multiple functions and systems working together

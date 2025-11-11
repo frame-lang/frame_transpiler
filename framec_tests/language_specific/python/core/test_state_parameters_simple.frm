@@ -1,3 +1,5 @@
+@target python
+
 # Python native bodies — State parameters
 
 system SimpleStateParams {

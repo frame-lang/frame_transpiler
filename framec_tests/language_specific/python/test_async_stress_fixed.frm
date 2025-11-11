@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive async stress test for Frame v0.37 - Fixed version
 # Tests parallel processing, error handling, timeouts with mock functions

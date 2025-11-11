@@ -18,6 +18,10 @@ pub struct Cli {
     validate: bool,
     /// Enable strict/native validation (facade mode)
     validate_native: bool,
+    /// Emit only spliced handler body text (demo helper)
+    emit_body_only: bool,
+    /// Emit a minimal standalone executable (demo helper)
+    emit_exec: bool,
     command: CliCommand,
 }
 
@@ -50,6 +54,8 @@ impl Cli {
             .arg(Arg::new("validation-level").long("validation-level").help("Validation level (compat)").num_args(1).global(true))
             .arg(Arg::new("validate-native").long("validate-native").help("Enable strict/native validation (facade mode)").action(clap::ArgAction::SetTrue).global(true))
             .arg(Arg::new("validation-format").long("validation-format").help("Validation output format (compat)").num_args(1).global(true))
+            .arg(Arg::new("emit-body-only").long("emit-body-only").help("Emit only spliced handler body text (demo)").action(clap::ArgAction::SetTrue).global(true))
+            .arg(Arg::new("emit-exec").long("emit-exec").help("Emit a minimal standalone executable for supported languages (demo)").action(clap::ArgAction::SetTrue).global(true))
             .subcommand(
                 Command::new("demo-multi")
                     .about("V3 demo: compile multiple single-body files (transpile-only)")
@@ -143,6 +149,8 @@ impl Cli {
         let validate_only = matches.get_flag("validation-only");
         let validate = matches.get_flag("validate") || matches.get_flag("validate-syntax");
         let validate_native = matches.get_flag("validate-native");
+        let emit_body_only = matches.get_flag("emit-body-only");
+        let emit_exec = matches.get_flag("emit-exec");
 
         Cli {
             stdin_flag: stdin,
@@ -154,6 +162,8 @@ impl Cli {
             validate_only,
             validate,
             validate_native,
+            emit_body_only,
+            emit_exec,
             command,
         }
     }
@@ -258,6 +268,9 @@ pub fn run_with(args: Cli) {
             };
             match std::fs::read_to_string(&file) {
                 Ok(content) => {
+                    // Set optional demo emission flags
+                    if args.emit_body_only { std::env::set_var("FRAME_EMIT_BODY_ONLY", "1"); }
+                    if args.emit_exec { std::env::set_var("FRAME_EMIT_EXEC", "1"); }
                     if args.validate || args.validate_only {
                         match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
                             Ok(res) => {

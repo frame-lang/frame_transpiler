@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test: Multiple simple systems for v0.30 validation
 # Systems with basic state transitions

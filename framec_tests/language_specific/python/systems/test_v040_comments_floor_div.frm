@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.40 Test - Python-style comments and floor division
 # This file demonstrates the new comment syntax and floor division operator

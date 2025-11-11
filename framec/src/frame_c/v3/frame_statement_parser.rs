@@ -26,29 +26,55 @@ impl FrameStatementParserV3 {
     }
 
     fn parse_transition(&self, line: &[u8], span: RegionSpan) -> Result<MirItemV3, ParseErrorV3> {
-        // Expect: -> $State(args?)
-        // Find "$" then identifier
+        // Expect: (exit_args)? -> (enter_args)? [$label?] $State(state_params?)
+        let n = line.len();
         let mut i=0usize;
-        while i<line.len() && line[i].is_ascii_whitespace() { i+=1; }
-        if !(i+2<=line.len() && line[i]==b'-' && line[i+1]==b'>') { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing ->")); }
-        i+=2; while i<line.len() && line[i].is_ascii_whitespace() { i+=1; }
-        if i>=line.len() || line[i]!=b'$' { return Err(ParseErrorV3::err(ParseErrorV3Kind::MissingState, "expected $State after '->'")); }
+        while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        // Optional (exit_args)
+        let mut exit_args: Vec<String> = Vec::new();
+        if i<n && line[i]==b'(' {
+            let (arg_text, next) = self.balanced_paren_block(line, i)?;
+            exit_args = self.split_top_level_commas(arg_text);
+            i = next;
+            while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        }
+        // Required '->'
+        if !(i+2<=n && line[i]==b'-' && line[i+1]==b'>') { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing ->")); }
+        i+=2; while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        // Optional (enter_args)
+        let mut enter_args: Vec<String> = Vec::new();
+        if i<n && line[i]==b'(' {
+            let (arg_text, next) = self.balanced_paren_block(line, i)?;
+            enter_args = self.split_top_level_commas(arg_text);
+            i = next;
+            while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        }
+        // Optional label: read an identifier if present, but ignore it for now
+        if i<n && (line[i].is_ascii_alphabetic() || line[i]==b'_') {
+            let mut j=i+1; while j<n && (line[j].is_ascii_alphanumeric() || line[j]==b'_') { j+=1; }
+            // Only treat as label if next non-space isn't '$'
+            let mut k=j; while k<n && line[k].is_ascii_whitespace() { k+=1; }
+            if k<n && line[k]!=b'$' {
+                i = k; // skip label
+            }
+        }
+        // '$' State
+        if i>=n || line[i]!=b'$' { return Err(ParseErrorV3::err(ParseErrorV3Kind::MissingState, "expected $State after '->'")); }
         i+=1; let name_start=i;
-        // first char of state ident must be letter or underscore
-        if i>=line.len() || !is_ident_start(line[i]) { return Err(ParseErrorV3::err(ParseErrorV3Kind::MissingState, "invalid state name start")); }
-        i+=1; while i<line.len() && is_ident(line[i]) { i+=1; }
+        if i>=n || !is_ident_start(line[i]) { return Err(ParseErrorV3::err(ParseErrorV3Kind::MissingState, "invalid state name start")); }
+        i+=1; while i<n && is_ident(line[i]) { i+=1; }
         let target = String::from_utf8_lossy(&line[name_start..i]).to_string();
-        while i<line.len() && line[i].is_ascii_whitespace() { i+=1; }
-        let mut args: Vec<String> = Vec::new();
-        if i<line.len() && line[i]==b'(' {
-            let (arg_text, next) = self.balanced_paren_block(line, i)?; // returns content inside parens
-            args = self.split_top_level_commas(arg_text);
+        while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        // Optional (state_params)
+        let mut state_args: Vec<String> = Vec::new();
+        if i<n && line[i]==b'(' {
+            let (arg_text, next) = self.balanced_paren_block(line, i)?;
+            state_args = self.split_top_level_commas(arg_text);
             i = next;
         }
-        // After args, ensure only whitespace remains
-        while i < line.len() && line[i].is_ascii_whitespace() { i += 1; }
-        if i < line.len() { return Err(ParseErrorV3::err(ParseErrorV3Kind::TrailingTokens, "unexpected trailing tokens after Frame statement")); }
-        Ok(MirItemV3::Transition{ target, args, span })
+        while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        if i<n { return Err(ParseErrorV3::err(ParseErrorV3Kind::TrailingTokens, "unexpected trailing tokens after Frame statement")); }
+        Ok(MirItemV3::Transition{ target, exit_args, enter_args, state_args, span })
     }
 
     fn parse_forward(&self, line: &[u8], span: RegionSpan) -> Result<MirItemV3, ParseErrorV3> {

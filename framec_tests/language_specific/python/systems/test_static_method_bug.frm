@@ -1,3 +1,5 @@
+@target python
+
 # Test for Bug #10: Static method call incorrectly generates with "self"
 fn main() {
     print("Testing static method bug #10")

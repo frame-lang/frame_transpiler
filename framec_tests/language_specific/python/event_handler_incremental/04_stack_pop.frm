@@ -1,3 +1,5 @@
+@target python
+
 # Python incremental: stack pop
 
 system IncEv4 {

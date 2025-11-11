@@ -2,7 +2,7 @@
 
 Purpose
 - Parse SOL‑anchored Frame statement slices into MIR items. Only three Frame statements are supported in native regions:
-  - Transition: `-> $State(args?)`
+  - Transition: `(exit_args)? -> (enter_args)? $State(state_params?)`
   - Parent forward: `=> $^`
   - Stack ops: `$$[+]` / `$$[-]`
   
@@ -20,12 +20,15 @@ Inputs
 - `FrameSegment { start, end, kind_hint, indent }` and source bytes.
 
 Outputs
-- `MirItem::{ Transition{ target: StateRef, args: Option<Vec<ExprText>>, span }, Forward{ span }, StackPush{ span }, StackPop{ span } }`
+- `MirItem::{ Transition{ target: StateRef, exit_args: Vec<ExprText>, enter_args: Vec<ExprText>, state_args: Vec<ExprText>, span }, Forward{ span }, StackPush{ span }, StackPop{ span } }`
 
 Grammar (BNF‑ish)
 ```
-transition  ::= "-" ">" WS+ "$" state_ident args_opt
-args_opt     ::= /* empty */ | "(" arg_text ")"
+transition   ::= exit_opt "-" ">" enter_opt label_opt? "$" state_ident state_params_opt
+exit_opt     ::= /* empty */ | "(" arg_text ")"
+enter_opt    ::= /* empty */ | "(" arg_text ")"
+state_params_opt ::= /* empty */ | "(" arg_text ")"
+label_opt    ::= /* empty */ | ident WS*
 forward      ::= "=" ">" WS+ "$" "^"
 stackpush    ::= "$" "$" "[" "+" "]"
 stackpop     ::= "$" "$" "[" "-" "]"
@@ -34,7 +37,7 @@ WS           ::= space | tab
 ```
 
 Arg Text Handling
-- The parser does not parse Python/TS expressions; it slices the raw text between the balanced parentheses for later visitor consumption.
+- The parser does not parse Python/TS expressions; it slices the raw text between the balanced parentheses for later visitor consumption. All three buckets (exit/enter/state) are balanced and string‑aware.
 - Parentheses are balanced and string‑aware (respect quotes inside arg list to avoid early close).
 - An optional trailing semicolon is tolerated for languages that use `;` as a statement terminator.
 

@@ -1,3 +1,5 @@
+@target python
+
 # Python-specific: convert domain var to native assignment
 
 system StateContextStack {

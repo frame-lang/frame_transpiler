@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 fn main() {
     sys = SystemInitializationDemo("a", "b", "c", "d", "e", "f")

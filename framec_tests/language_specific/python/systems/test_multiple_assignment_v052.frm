@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.52 - Multiple Assignment and Tuple Unpacking
 # This test demonstrates the new multiple assignment and tuple unpacking features

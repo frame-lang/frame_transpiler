@@ -1,3 +1,5 @@
+@target python
+
 # Test Stop on Entry - Line 41 should be the first executable line in main
 
 fn testFunction(value) {

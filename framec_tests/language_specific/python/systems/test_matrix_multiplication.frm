@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test matrix multiplication operator @ (v0.40)
 # Tests both the @ operator and @= compound assignment

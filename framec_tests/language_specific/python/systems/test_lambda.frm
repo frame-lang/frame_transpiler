@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test lambda patterns in Frame v0.38
 # NOTE: Lambda expressions ARE SUPPORTED - see test_lambda_simple.frm

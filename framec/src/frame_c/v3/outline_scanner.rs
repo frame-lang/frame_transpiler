@@ -53,33 +53,32 @@ impl OutlineScannerV3 {
             }
             // Skip state lines starting with '$'
             if bytes[kw_start] == b'$' { while i<n && bytes[i]!=b'\n' { i+=1; } continue; }
-            // Recognize headers only when starting with 'fn' or 'async fn'
-            // Adjust j to point to the identifier that precedes '('
+            // Recognize headers:
+            // - In machine: section → IDENT '(' ... ')' '{' (handler), allowing bare names (no 'fn')
+            // - Elsewhere → 'fn' or 'async fn' NAME '(' ... ')' '{'
             let mut name_start = kw_start;
             let mut name_end = j;
             let first_tok = to_lower_ascii(&bytes[name_start..name_end]);
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
             let mut is_func_header = false;
-            if first_tok == "fn" || first_tok == "async" {
+            if matches!(section, Section::Machine) {
+                // Bare IDENT '(' … ')' is allowed for handler headers
+                if k < n && bytes[k] == b'(' {
+                    is_func_header = true;
+                }
+            } else if first_tok == "fn" || first_tok == "async" {
                 // If 'async', require 'fn' next; otherwise require IDENT after 'fn'
-                let mut t = kw_start;
-                let mut u = j;
-                // first_tok already captured; compute next token start
-                let mut next = u; while next < n && is_space(bytes[next]) { next += 1; }
-                // If first token is 'async', ensure a following 'fn'
+                let mut next = j; while next < n && is_space(bytes[next]) { next += 1; }
                 if first_tok == "async" {
                     let mut w = next; while w < n && is_ident(bytes[w]) { w += 1; }
                     let maybe_fn = to_lower_ascii(&bytes[next..w]);
-                    if maybe_fn != "fn" { is_func_header = false; }
-                    else {
-                        // move to name token after 'fn'
+                    if maybe_fn == "fn" {
                         k = w; while k < n && is_space(bytes[k]) { k += 1; }
                         let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
                         if p > k { name_start = k; name_end = p; j = p; k = p; while k < n && is_space(bytes[k]) { k += 1; } is_func_header = true; }
                     }
                 } else {
                     // first token is 'fn'
-                    // next token must be IDENT (name)
                     let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
                     if p > k { name_start = k; name_end = p; j = p; k = p; while k < n && is_space(bytes[k]) { k += 1; } is_func_header = true; }
                 }
@@ -142,12 +141,14 @@ impl OutlineScannerV3 {
             }
             if bytes[kw_start] == b'$' { while i<n && bytes[i]!=b'\n' { i+=1; } continue; }
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
-            // Recognize headers only when starting with 'fn' or 'async fn'
+            // Recognize handler headers in machine: section without 'fn'; elsewhere require 'fn'/'async fn'
             let first_tok = to_lower_ascii(&bytes[kw_start..j]);
             let mut is_func_header = false;
             let mut name_start = kw_start;
             let mut name_end = j;
-            if first_tok == "fn" || first_tok == "async" {
+            if matches!(section, Section::Machine) {
+                if k < n && bytes[k] == b'(' { is_func_header = true; }
+            } else if first_tok == "fn" || first_tok == "async" {
                 if first_tok == "async" {
                     let mut next = k; while next < n && is_space(bytes[next]) { next += 1; }
                     let mut w = next; while w < n && is_ident(bytes[w]) { w += 1; }
@@ -158,7 +159,6 @@ impl OutlineScannerV3 {
                         if p > k { name_start = k; name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
                     }
                 } else {
-                    // first token is 'fn'
                     let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
                     if p > k { name_start = k; name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
                 }
@@ -191,7 +191,7 @@ impl OutlineScannerV3 {
                     while i<n && bytes[i]!=b'\n' { i+=1; }
                     continue;
                 }
-                // malformed header: 'fn name(' ... ')' but no '{'
+                // malformed header: header '(' ... ')' but no '{'
                 issues.push(ValidationIssueV3{ message: "missing '{' after module artifact header".into() });
                 while i<n && bytes[i]!=b'\n' { i+=1; }
                 continue;

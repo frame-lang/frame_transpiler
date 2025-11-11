@@ -1,3 +1,5 @@
+@target python
+
 # Frame Protocol - Minimal Proof of Concept
 # This will be transpiled to Python to test the approach
 

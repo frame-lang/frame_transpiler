@@ -1,3 +1,5 @@
+@target python
+
 # Test case for Bug #31: Spurious interface method calls in event handlers
 # This demonstrates unreachable getCurrentState() calls appearing in the
 # wrong handlers (canExecuteCommand) after all return statements

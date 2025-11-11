@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test for => $^ parent dispatch with transition detection
 # This test specifically validates that code after => $^ doesn't execute

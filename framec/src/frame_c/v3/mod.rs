@@ -76,13 +76,13 @@ impl CompilerV3 {
                     let m = &mir[mi];
                     mi += 1;
                     let s = match lang {
-                        TargetLanguage::Python3 => PyExpanderV3.expand(m, *indent),
-                        TargetLanguage::TypeScript => TsExpanderV3.expand(m, *indent),
-                        TargetLanguage::CSharp => CExpanderV3.expand(m, *indent),
-                        TargetLanguage::C => CExpanderV3.expand(m, *indent),
-                        TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent),
-                        TargetLanguage::Java => JavaExpanderV3.expand(m, *indent),
-                        TargetLanguage::Rust => RustExpanderV3.expand(m, *indent),
+                        TargetLanguage::Python3 => PyExpanderV3.expand(m, *indent, None),
+                        TargetLanguage::TypeScript => TsExpanderV3.expand(m, *indent, None),
+                        TargetLanguage::CSharp => CExpanderV3.expand(m, *indent, None),
+                        TargetLanguage::C => CExpanderV3.expand(m, *indent, None),
+                        TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent, None),
+                        TargetLanguage::Java => JavaExpanderV3.expand(m, *indent, None),
+                        TargetLanguage::Rust => RustExpanderV3.expand(m, *indent, None),
                         _ => String::new(),
                     };
                     v.push(s);
@@ -94,13 +94,13 @@ impl CompilerV3 {
         if std::env::var("FRAME_MAP_TRAILER").ok().as_deref() == Some("1") {
             // rebuild splice to include map
             let exps: Vec<String> = match lang {
-                TargetLanguage::Python3 => mir.iter().map(|m| PyExpanderV3.expand(m, 0)).collect(),
-                TargetLanguage::TypeScript => mir.iter().map(|m| TsExpanderV3.expand(m, 0)).collect(),
-                TargetLanguage::CSharp => mir.iter().map(|m| CExpanderV3.expand(m, 0)).collect(),
-                TargetLanguage::C => mir.iter().map(|m| CExpanderV3.expand(m, 0)).collect(),
-                TargetLanguage::Cpp => mir.iter().map(|m| CppExpanderV3.expand(m, 0)).collect(),
-                TargetLanguage::Java => mir.iter().map(|m| JavaExpanderV3.expand(m, 0)).collect(),
-                TargetLanguage::Rust => mir.iter().map(|m| RustExpanderV3.expand(m, 0)).collect(),
+                TargetLanguage::Python3 => mir.iter().map(|m| PyExpanderV3.expand(m, 0, None)).collect(),
+                TargetLanguage::TypeScript => mir.iter().map(|m| TsExpanderV3.expand(m, 0, None)).collect(),
+                TargetLanguage::CSharp => mir.iter().map(|m| CExpanderV3.expand(m, 0, None)).collect(),
+                TargetLanguage::C => mir.iter().map(|m| CExpanderV3.expand(m, 0, None)).collect(),
+                TargetLanguage::Cpp => mir.iter().map(|m| CppExpanderV3.expand(m, 0, None)).collect(),
+                TargetLanguage::Java => mir.iter().map(|m| JavaExpanderV3.expand(m, 0, None)).collect(),
+                TargetLanguage::Rust => mir.iter().map(|m| RustExpanderV3.expand(m, 0, None)).collect(),
                 _ => vec![],
             };
             let sp = SplicerV3.splice(content, &scan.regions, &exps);
@@ -153,7 +153,11 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         Ok(p) => p,
         Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &e.0)),
     };
+    let system_name = find_system_name(bytes, 0);
+    let emit_body_only = std::env::var("FRAME_EMIT_BODY_ONLY").ok().as_deref() == Some("1");
+    let emit_exec = std::env::var("FRAME_EMIT_EXEC").ok().as_deref() == Some("1");
     let mut out = String::new();
+    let mut body_chunks: Vec<String> = Vec::new();
     let mut cursor = 0usize;
     for b in parts.bodies {
         if b.open_byte > cursor { out.push_str(&content_str[cursor..b.open_byte]); }
@@ -182,13 +186,13 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
                         let m = &mir[mi]; mi += 1;
                         let s = match lang {
-                            TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent, None),
                             _ => String::new(),
                         };
                         if std::env::var("FRAME_DEBUG_FACADE").ok().as_deref() == Some("1") {
@@ -221,13 +225,97 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             }
             spliced.text
         } else {
-            CompilerV3::compile_single_file(None, body_src, Some(lang), false)?
+            // Production-style expansions for Python/TypeScript; comment-only for others
+            let scan = match lang {
+                TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(body_src.as_bytes(), 0),
+                TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(body_src.as_bytes(), 0),
+                _ => nscan::python::NativeRegionScannerPyV3.scan(body_src.as_bytes(), 0)
+            }.map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e)))?;
+            let mir = MirAssemblerV3.assemble(body_src.as_bytes(), &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
+            let sys_ctx = system_name.as_deref();
+            let exps: Vec<String> = {
+                use crate::frame_c::v3::expander::*;
+                let mut v = Vec::new();
+                let mut mi = 0usize;
+                for r in &scan.regions {
+                    if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
+                        if mi >= mir.len() { break; }
+                        let m = &mir[mi]; mi += 1;
+                        let s = match lang {
+                            TargetLanguage::Python3 => PyExpanderV3.expand(m, *indent, sys_ctx),
+                            TargetLanguage::TypeScript => TsExpanderV3.expand(m, *indent, sys_ctx),
+                            TargetLanguage::CSharp => CExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::C => CExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Java => JavaExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Rust => RustExpanderV3.expand(m, *indent, None),
+                            _ => String::new(),
+                        };
+                        v.push(s);
+                    }
+                }
+                v
+            };
+            SplicerV3.splice(body_src.as_bytes(), &scan.regions, &exps).text
         };
-        out.push_str(&body_out);
+        if emit_body_only || emit_exec {
+            body_chunks.push(body_out);
+        } else {
+            out.push_str(&body_out);
+        }
         cursor = b.close_byte + 1;
     }
-    if cursor < bytes.len() { out.push_str(&content_str[cursor..]); }
-    Ok(out)
+    if emit_exec {
+        // Build a minimal executable wrapper for Python/TypeScript using the first body
+        let body = body_chunks.get(0).cloned().unwrap_or_default();
+        let program = match lang {
+            TargetLanguage::Python3 => {
+                let mut p = String::new();
+                // Use repository runtime rather than inlining primitives
+                p.push_str("from frame_runtime_py import FrameEvent, FrameCompartment\n\n");
+                p.push_str("class M:\n    def __init__(self):\n        self._compartment = FrameCompartment('__S_state_A')\n    def _frame_transition(self, next_compartment):\n        self._compartment = next_compartment\n    def _frame_router(self, __e, compartment=None):\n        pass\n    def _frame_stack_push(self):\n        pass\n    def _frame_stack_pop(self):\n        pass\n");
+                p.push_str("def native():\n    pass\n\n");
+                p.push_str("def handler(self, __e, compartment):\n");
+                for line in body.lines() {
+                    let trimmed = line.trim_start();
+                    if trimmed.is_empty() { continue; }
+                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                }
+                p.push_str("\nif __name__ == '__main__':\n    m=M()\n    handler(m, FrameEvent('e'), m._compartment)\n");
+                p
+            }
+            TargetLanguage::TypeScript => {
+                let mut p = String::new();
+                p.push_str("class FrameEvent { constructor(public message: string, public parameters: any|null) {} }\n");
+                p.push_str("class FrameCompartment { constructor(public state: string) {} public forwardEvent: FrameEvent|null=null; public exitArgs: any=null; public enterArgs: any=null; public parentCompartment: FrameCompartment|null=null; public stateArgs: any=null; }\n");
+                p.push_str("class M { public _compartment: FrameCompartment = new FrameCompartment('__S_state_A'); _frame_transition(n: FrameCompartment){ this._compartment=n; } _frame_router(__e: FrameEvent, c?: FrameCompartment){ } _frame_stack_push(){} _frame_stack_pop(){} }\n");
+                p.push_str("function native(): void {}\n\n");
+                p.push_str("function handler(self: M, __e: FrameEvent, compartment: FrameCompartment) {\n");
+                for line in body.lines() {
+                    let mut s = line.to_string();
+                    if !(s.ends_with(';') || s.ends_with('{') || s.ends_with('}')) { s.push(';'); }
+                    p.push_str("    "); p.push_str(&s); p.push('\n');
+                }
+                p.push_str("}\n(function(){ const m=new M(); handler(m, new FrameEvent('e', null), m._compartment); })();\n");
+                p
+            }
+            _ => body,
+        };
+        return Ok(program);
+    }
+    if emit_body_only {
+        // Concatenate only the spliced/expanded bodies
+        let joined = body_chunks.join("\n");
+        Ok(joined)
+    } else {
+        if cursor < bytes.len() { out.push_str(&content_str[cursor..]); }
+        Ok(out)
+    }
 }
 
 pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<ValidationResultV3, RunError> {
@@ -247,6 +335,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     // Outer grammar: re-scan outline and enforce section placement
     let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
     let mut known_states = std::collections::HashSet::new();
+    let mut system_name: Option<String> = None;
     {
         let (items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
         all_issues.extend(outline_issues);
@@ -257,6 +346,8 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         all_issues.extend(state_issues);
         // Collect known state names from machine sections
         known_states = validator.collect_machine_state_names(bytes, outline_start);
+        // Best-effort scan for system name
+        system_name = find_system_name(bytes, 0);
     }
     for b in parts.bodies {
         let body_bytes = &bytes[b.open_byte..=b.close_byte];
@@ -308,13 +399,13 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                         let m = &mir[mi];
                         mi += 1;
                         let s = match lang {
-                            TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent),
-                            TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent),
+                            TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent, None),
                             _ => String::new(),
                         };
                         v.push(s);
@@ -344,4 +435,38 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         return Err(RunError::new(exitcode::DATAERR, "native facade validation failed"));
     }
     Ok(ValidationResultV3 { ok, issues: all_issues })
+}
+
+// SOL-anchored scan for `system <Ident> {` ignoring common comments
+fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
+    let n = bytes.len();
+    let mut i = start;
+    while i < n {
+        // skip whitespace
+        while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+        if i >= n { break; }
+        // skip line comments
+        if bytes[i] == b'/' && i+1 < n && bytes[i+1] == b'/' { while i < n && bytes[i] != b'\n' { i += 1; } continue; }
+        if bytes[i] == b'#' { while i < n && bytes[i] != b'\n' { i += 1; } continue; }
+        // skip block comments
+        if bytes[i] == b'/' && i+1 < n && bytes[i+1] == b'*' {
+            i += 2; while i+1 < n && !(bytes[i] == b'*' && bytes[i+1] == b'/') { i += 1; } if i+1 < n { i += 2; } continue;
+        }
+        // read ident
+        let mut j = i;
+        while j < n && ((bytes[j] as char).is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+        if j > i {
+            let kw = String::from_utf8_lossy(&bytes[i..j]).to_ascii_lowercase();
+            if kw == "system" {
+                while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+                let name_start = j;
+                while j < n && ((bytes[j] as char).is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+                if j > name_start {
+                    return Some(String::from_utf8_lossy(&bytes[name_start..j]).to_string());
+                }
+            }
+        }
+        while i < n && bytes[i] != b'\n' { i += 1; }
+    }
+    None
 }

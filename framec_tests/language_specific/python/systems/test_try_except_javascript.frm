@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test exception handling - JavaScript target simulation using Python
 # Since JavaScript visitor is not enabled, this tests the concepts

@@ -1,3 +1,5 @@
+@target python
+
 // Test case for Bug #37: State Diagram Generation Missing Conditional Transitions
 // Verifies that conditional transitions appear in generated state diagrams
 

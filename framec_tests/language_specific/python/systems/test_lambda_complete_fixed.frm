@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Complete lambda test suite for Frame v0.38 - Fixed version
 # Works around lambda-in-collection limitations

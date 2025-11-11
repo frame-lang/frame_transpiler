@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive Frame Language Test - All Features in One File
 # Tests: systems, functions, variables, operations, actions, domain vars, 

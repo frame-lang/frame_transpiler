@@ -1,3 +1,5 @@
+@target python
+
 # Python-specific override for simplified v0.40 string features using native bodies
 
 system PyStringSimpleV040 {

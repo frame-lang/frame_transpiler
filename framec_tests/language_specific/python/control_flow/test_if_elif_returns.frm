@@ -1,3 +1,5 @@
+@target python
+
 # Language-specific (Python) version of the complex if/elif/else chains test
 
 fn main() {

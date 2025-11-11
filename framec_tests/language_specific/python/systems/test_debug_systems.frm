@@ -1,3 +1,5 @@
+@target python
+
 system TrafficLight {
     interface:
         start()

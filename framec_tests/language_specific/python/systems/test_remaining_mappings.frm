@@ -1,3 +1,5 @@
+@target python
+
 import json
 
 fn main() {

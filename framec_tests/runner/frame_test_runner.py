@@ -158,7 +158,7 @@ class FrameTestRunner:
 
         # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
         if any(cat in self.config.categories for cat in [
-            "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke",
+            "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke", "v3_exec_smoke",
             "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems"
         ]):
             if "v3_outline" in self.config.categories:
@@ -181,6 +181,8 @@ class FrameTestRunner:
                 collect_v3_category("v3_project")
             if "v3_facade_smoke" in self.config.categories:
                 collect_v3_category("v3_facade_smoke")
+            if "v3_exec_smoke" in self.config.categories:
+                collect_v3_category("v3_exec_smoke")
             if "v3_core" in self.config.categories:
                 collect_v3_category("v3_core")
             if "v3_control_flow" in self.config.categories:
@@ -270,7 +272,7 @@ class FrameTestRunner:
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
         # Treat all v3_* categories as module demo path; v3_closers uses single-body demo
-        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems"}
+        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_exec_smoke"}
         is_v3 = any(seg in v3_categories for seg in parts_lower)
         is_v3_closers = "v3_closers" in parts_lower
         is_v3_mapping = "v3_mapping" in parts_lower
@@ -299,8 +301,39 @@ class FrameTestRunner:
             # Use multifile flag for tests with Frame imports
             cmd = [self.config.framec_path, "-m", str(test_file), "-l", lang_flag]
         else:
-            # Standard single-file compilation
-            cmd = [self.config.framec_path, "-l", lang_flag, str(test_file)]
+            # Detect module-style files with @target and route via V3 demo-frame
+            is_module_file = False
+            try:
+                with open(test_file, 'r') as f:
+                    for line in f:
+                        if line.strip().startswith('@target '):
+                            is_module_file = True
+                            break
+            except Exception:
+                is_module_file = False
+            # For Python legacy fixtures without @target, synthesize a module prolog on the fly
+            synthesized_path = None
+            if (not is_module_file) and language == 'python':
+                try:
+                    content = Path(test_file).read_text()
+                    if '@target ' not in content:
+                        synth_dir = self.generated_dir / 'python' / 'tmp_modules'
+                        synth_dir.mkdir(parents=True, exist_ok=True)
+                        synthesized_path = synth_dir / (Path(test_file).stem + '__module.frm')
+                        synthesized_path.write_text('@target python\n' + content)
+                        is_module_file = True
+                except Exception:
+                    pass
+
+            if is_module_file:
+                cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+                if synthesized_path is not None:
+                    cmd[-1] = str(synthesized_path)
+                extension = ".py" if language == "python" else (".ts" if language == "typescript" else extension)
+                output_file = output_dir / (test_file.stem + extension)
+            else:
+                # Standard single-file compilation (legacy pipeline)
+                cmd = [self.config.framec_path, "-l", lang_flag, str(test_file)]
         
         try:
             # Set environment variables for Rust main function generation
@@ -313,6 +346,15 @@ class FrameTestRunner:
             # For facade smoke fixtures, request facade expansion output
             if is_v3_facade_smoke:
                 env["FRAME_FACADE_EXPANSION"] = "1"
+            # For exec smoke, emit body-only text to simplify harness execution
+            if "v3_exec_smoke" in parts_lower and language in ("python", "typescript"):
+                env["FRAME_EMIT_BODY_ONLY"] = "1"
+            # For general V3 categories in Python/TS, emit a minimal executable when running
+            if any(seg.startswith("v3_") for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript") and self.config.execute:
+                env["FRAME_EMIT_EXEC"] = "1"
+            # For module files in Python/TS routed via demo-frame, also emit exec when executing
+            if 'demo-frame' in cmd and language in ("python", "typescript") and self.config.execute:
+                env["FRAME_EMIT_EXEC"] = "1"
             
             result = subprocess.run(
                 cmd,
@@ -346,6 +388,16 @@ class FrameTestRunner:
                 # Write output to file
                 out = result.stdout or ""
                 output_file.write_text(out)
+                # Execute production Py/TS harness when production glue present
+                if self.config.execute and not is_v3_facade_smoke and language in ("python", "typescript"):
+                    has_prod = ("self._frame_transition(" in out) or ("this._frame_transition(" in out)
+                    if has_prod:
+                        if language == "python":
+                            ok, err = self._execute_py_prod_from_spliced(test_file.stem, out)
+                        else:
+                            ok, err = self._execute_ts_prod_from_spliced(test_file.stem, out)
+                        if not ok:
+                            return False, str(output_file), err
                 if self.config.execute and is_v3_facade_smoke and language in ("typescript", "python", "rust", "c", "cpp", "java", "csharp"):
                     # Build and execute a minimal TS harness from spliced output for facade strict tests only.
                     if "__frame_transition" not in out and "__frame_forward" not in out and "__frame_stack_" not in out:
@@ -496,6 +548,38 @@ class FrameTestRunner:
         py_path = out_dir / f"{test_name}__v3.py"
         py_path.write_text(program)
         return self.execute_python(str(py_path))
+
+    def _execute_py_prod_from_spliced(self, test_name: str, spliced_output: str) -> Tuple[bool, str]:
+        """Execute production-style Python expansions by wrapping the spliced body in a minimal runtime shell."""
+        prelude = "\n".join([
+            "class FrameEvent:\n    def __init__(self, message, parameters=None):\n        self.message=message; self.parameters=parameters",
+            "class FrameCompartment:\n    def __init__(self, state):\n        self.state=state; self.forward_event=None; self.exit_args=None; self.enter_args=None; self.parent_compartment=None; self.state_args=None",
+            "class M:\n    def __init__(self):\n        self._compartment = FrameCompartment('__S_state_A')\n    def _frame_transition(self, next_compartment):\n        self._compartment = next_compartment\n    def _frame_router(self, __e, compartment=None):\n        pass\n    def _frame_stack_push(self):\n        pass\n    def _frame_stack_pop(self):\n        pass",
+            "def native():\n    pass",
+        ])
+        # Keep only production-glue lines for execution
+        keep_tokens_py = [
+            "FrameCompartment(",
+            "compartment.exit_args",
+            "next_compartment.enter_args",
+            "next_compartment.state_args",
+            "self._frame_transition(",
+            "self._frame_router(",
+            "self._frame_stack_push(",
+            "self._frame_stack_pop("
+        ]
+        kept_py: List[str] = []
+        for line in spliced_output.splitlines():
+            s = line.strip()
+            if any(tok in s for tok in keep_tokens_py):
+                kept_py.append("    "+s)
+        body = "\n".join(kept_py)
+        program = f"{prelude}\n\ndef handler(self, __e, compartment):\n{body}\n\nif __name__ == '__main__':\n    m=M()\n    handler(m, FrameEvent('e'), m._compartment)\n"
+        out_dir = self.generated_dir / "python"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        py_path = out_dir / f"{test_name}__v3_prod.py"
+        py_path.write_text(program)
+        return self.execute_python(str(py_path))
     
     def _batch_compile_typescript(self, tests: Dict[str, List[str]]) -> None:
         """
@@ -620,6 +704,42 @@ class FrameTestRunner:
         out_dir = self.generated_dir / "typescript"
         out_dir.mkdir(parents=True, exist_ok=True)
         ts_path = out_dir / f"{test_name}__v3.ts"
+        ts_path.write_text(program)
+        return self.execute_typescript(str(ts_path))
+
+    def _execute_ts_prod_from_spliced(self, test_name: str, spliced_output: str) -> Tuple[bool, str]:
+        """Execute production-style TypeScript expansions by wrapping the spliced body in a minimal runtime shell."""
+        prelude = "\n".join([
+            "class FrameEvent { constructor(public message: string, public parameters: any|null) {} }",
+            "class FrameCompartment { constructor(public state: string) {} public forwardEvent: FrameEvent|null=null; public exitArgs: any=null; public enterArgs: any=null; public parentCompartment: FrameCompartment|null=null; public stateArgs: any=null; }",
+            "class M { public _compartment: FrameCompartment = new FrameCompartment('__S_state_A'); _frame_transition(n: FrameCompartment){ this._compartment=n; } _frame_router(__e: FrameEvent, c?: FrameCompartment){ } _frame_stack_push(){} _frame_stack_pop(){} }",
+            "function native(): void {}",
+        ])
+        keep_tokens = [
+            "new FrameCompartment(",
+            "compartment.exitArgs",
+            "nextCompartment.enterArgs",
+            "nextCompartment.stateArgs",
+            "this._frame_transition(",
+            "this._frame_router(",
+            "this._frame_stack_push(",
+            "this._frame_stack_pop("
+        ]
+        kept: List[str] = []
+        for line in spliced_output.splitlines():
+            s = line.strip()
+            if any(tok in s for tok in keep_tokens):
+                if not s.endswith(";") and not s.endswith("{") and not s.endswith("}"):
+                    s = s + ";"
+                kept.append("    "+s)
+        body = "\n".join(kept)
+        program = prelude + "\n" \
+            + "function handler(self: M, __e: FrameEvent, compartment: FrameCompartment) {\n" \
+            + body + "\n}" \
+            + "\n(function(){ const m=new M(); handler.call(m, m, new FrameEvent('e', null), m._compartment); })();\n"
+        out_dir = self.generated_dir / "typescript"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        ts_path = out_dir / f"{test_name}__v3_prod.ts"
         ts_path.write_text(program)
         return self.execute_typescript(str(ts_path))
     
@@ -1233,14 +1353,15 @@ class FrameTestRunner:
                 # Fail early on validation errors; do not execute
                 result.error_message = f"Validation failed: {validation_output[:500]}"
             elif self.config.execute:
-                # Skip execution for V3 demo tests (transpile-only checks)
-                if "v3_demos" in [p.lower() for p in test_file.parts]:
-                    result.execute_success = True
-                    result.output = "V3 demo test: transpile-only"
+                # For V3 categories in Python/TS, attempt to execute when we emitted an exec wrapper
+                parts_lower = [p.lower() for p in test_file.parts]
+                if any(seg.startswith("v3_") for seg in parts_lower) and "v3_facade_smoke" not in parts_lower and language in ("python", "typescript"):
+                    exec_success, output = (self.execute_python(output_file) if language == "python" else self.execute_typescript(output_file))
+                    result.execute_success = exec_success
+                    result.output = output
                     result.execution_time = time.time() - start_time
                     return result
                 # Facade strict tests for TS/Python are executed during transpile via harness
-                parts_lower = [p.lower() for p in test_file.parts]
                 if "v3_facade_smoke" in parts_lower and language in ("typescript", "python", "rust", "c", "cpp"):
                     result.execute_success = True
                     result.output = "Facade harness executed"

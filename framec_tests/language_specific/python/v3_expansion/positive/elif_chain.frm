@@ -1,3 +1,5 @@
+@target python
+
 {
     if x:
         pass

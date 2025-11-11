@@ -1,3 +1,5 @@
+@target python
+
 # Python incremental: single transition Frame statement
 
 system IncEv1 {

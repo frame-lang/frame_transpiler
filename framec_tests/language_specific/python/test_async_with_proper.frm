@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Proper test for async with statement in Frame v0.37
 # This test actually validates async context manager functionality

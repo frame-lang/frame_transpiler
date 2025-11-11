@@ -1,3 +1,5 @@
+@target python
+
 # Python native bodies — self.variable exhaustive tests
 
 system SelfVariableExhaustive {

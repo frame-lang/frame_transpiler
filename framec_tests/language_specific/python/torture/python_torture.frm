@@ -1,3 +1,5 @@
+@target python
+
 # Torture test: maximally complex Python MixedBody + Frame semantics
 
 module Alpha {

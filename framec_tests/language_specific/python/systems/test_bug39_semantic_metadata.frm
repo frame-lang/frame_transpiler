@@ -1,3 +1,5 @@
+@target python
+
 // Test case for Bug #39: Missing Frame Semantic Metadata for Debugger Integration
 // Verifies that --debug-output includes semantic metadata about Frame constructs
 

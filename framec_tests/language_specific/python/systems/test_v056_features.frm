@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Test v0.56 features: walrus operator, numeric underscores, complex numbers, type aliases
 

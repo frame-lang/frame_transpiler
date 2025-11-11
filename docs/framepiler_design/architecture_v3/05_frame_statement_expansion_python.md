@@ -11,10 +11,10 @@ Outputs
 
 Expansions
 - Transition `-> $State(args?)`:
-  - Emit glue to set next state and perform return/exit semantics.
-  - Terminal within its containing block (validator enforced).
+  - Production glue: construct a `FrameCompartment` for the target state, call `self._frame_transition(<compartment>)`, then emit a native `return` to exit the handler immediately. This mirrors the kernel contract and the terminal rule.
+  - Terminal within its containing block (validator enforced). The emitted `return` makes control‑flow explicit even in deeply nested blocks.
 - Forward `=> $^`:
-  - Emit parent forward glue (dispatch to parent with current event).
+  - Emit parent forward glue (dispatch to parent with current event) via `self._frame_router(__e, compartment.parent_compartment)` and then `return` when required by the surrounding control flow.
   - Not mandated terminal; native statements may follow when separated by a valid inline separator.
 - Stack ops `$$+` / `$$-`:
   - Emit push/pop glue for state stack.
@@ -32,6 +32,9 @@ system.return
 
 Errors
 - Resolution failures (unknown state) are reported with the Frame statement’s Frame span.
+
+Runtime Imports (production)
+- Insert once at file top: `from frame_runtime_py import FrameEvent, FrameCompartment` (workspace local). The expander uses these types to construct transition compartments.
 
 Test Hooks
 - Nested conditionals with transitions; ensure no `elif` chain breaks.

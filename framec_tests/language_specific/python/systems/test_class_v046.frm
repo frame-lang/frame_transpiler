@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Frame v0.46 Class Enhancements Test
 # Test inheritance, properties, class methods, and special methods

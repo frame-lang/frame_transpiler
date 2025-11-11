@@ -1,3 +1,5 @@
+@target python
+
 # Python incremental: system.return assignment
 
 system IncEv5 {

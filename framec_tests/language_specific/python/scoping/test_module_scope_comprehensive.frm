@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Comprehensive test of module scope variables in Frame v0.30
 # Tests all permutations of module variable access and modification
@@ -81,11 +83,12 @@ fn create_module_system() {
 
 fn use_module_system() {
     print("=== use_module_system ===")
-    if (module_system != None):
+    if (module_system != None){
         module_system.test()
         print("System method called successfully")
     else:
         print("System is null")
+    }
 }
 
 # Test function that only reads (no global declaration needed)

@@ -1,3 +1,5 @@
+@target python
+
 # Python-specific: domain native assignment
 system DomainTest {
     interface:

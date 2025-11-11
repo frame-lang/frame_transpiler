@@ -2,8 +2,7 @@
 
 system S {
     actions:
-        bad() {
+        fn bad() {
             -> $B()
         }
 }
-

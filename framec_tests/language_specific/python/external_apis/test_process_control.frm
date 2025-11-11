@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Python-specific Process Control external API test
 # Must produce identical output to TypeScript version

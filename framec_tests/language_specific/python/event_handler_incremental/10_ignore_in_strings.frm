@@ -1,3 +1,5 @@
+@target python
+
 # Python incremental: Frame-statement tokens inside strings must be ignored
 
 system IncEv10 {

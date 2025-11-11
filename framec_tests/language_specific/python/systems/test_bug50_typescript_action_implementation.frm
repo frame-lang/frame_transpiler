@@ -1,3 +1,5 @@
+@target python
+
 # Test case for Bug #50: TypeScript Action Implementation Missing
 # Reproduces the issue where complex actions generate TODO placeholders
 

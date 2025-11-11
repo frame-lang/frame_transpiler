@@ -1,3 +1,5 @@
+@target python
+
 # DO NOT MODIFY THIS TEST WITHOUT EXPLICIT PERMISSION
 # Watch Expressions and Conditional Breakpoints Validation Test
 # This file tests Frame expression evaluation, watch expressions, and conditional breakpoints
