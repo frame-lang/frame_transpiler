@@ -241,15 +241,21 @@ fn run_ts_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     for e in parser.take_errors() {
         let span: Span = e.span();
         let start = span.lo.0 as usize; let end = span.hi.0 as usize;
-        out.push(NativeDiagnosticV3 { start, end, message: format!("{:?}", e) });
+        out.push(NativeDiagnosticV3 { start, end, message: format!("native facade (TypeScript): {:?}", e) });
     }
     match parser.parse_script() {
         Ok(_) => {}
         Err(e) => {
             let span: Span = e.span();
             let start = span.lo.0 as usize; let end = span.hi.0 as usize;
-            out.push(NativeDiagnosticV3 { start, end, message: format!("{:?}", e) });
+            out.push(NativeDiagnosticV3 { start, end, message: format!("native facade (TypeScript): {:?}", e) });
         }
+    }
+    // Collect any additional errors produced during/after parse
+    for e in parser.take_errors() {
+        let span: Span = e.span();
+        let start = span.lo.0 as usize; let end = span.hi.0 as usize;
+        out.push(NativeDiagnosticV3 { start, end, message: format!("native facade (TypeScript): {:?}", e) });
     }
     Some(out)
 }
@@ -262,7 +268,7 @@ fn run_rust_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     let mut out: Vec<NativeDiagnosticV3> = Vec::new();
     let wrapped = format!("{{\n{}\n}}", text);
     if let Err(e) = syn::parse_str::<syn::Block>(&wrapped) {
-        out.push(NativeDiagnosticV3 { start: 0, end: 0, message: format!("{}", e) });
+        out.push(NativeDiagnosticV3 { start: 0, end: 0, message: format!("native facade (Rust): {}", e) });
     }
     Some(out)
 }
