@@ -8816,7 +8816,7 @@
       },
       "python": {
         "transpile": false,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": true,
         "infinite": false
@@ -8830,7 +8830,7 @@
       },
       "typescript": {
         "transpile": false,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": true,
         "infinite": false
@@ -11241,6 +11241,149 @@
       "typescript": {
         "transpile": true,
         "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/forward_with_args.frm": {
+      "python": {
+        "transpile": false,
+        "validate": true,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": true,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/stack_with_args.frm": {
+      "python": {
+        "transpile": false,
+        "validate": true,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": true,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/strict_bad_def_syntax.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/strict_invalid_native.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/strict_multi_errors.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/transition_unquoted_state.frm": {
+      "python": {
+        "transpile": false,
+        "validate": true,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": true,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/wrapper_semicolon.frm": {
+      "python": {
+        "transpile": false,
+        "validate": true,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "v3_facade_smoke/test_facade_wrappers.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/strict_malformed_stmt.frm": {
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/strict_return_top_level.frm": {
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/strict_unfinished_generic.frm": {
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/wrapper_missing_semicolon.frm": {
+      "typescript": {
+        "transpile": false,
+        "validate": true,
         "execute": true,
         "negative": true,
         "infinite": false
