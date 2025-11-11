@@ -7798,6 +7798,3402 @@
         "negative": false,
         "infinite": false
       }
+    },
+    "negative/unterminated_block_comment.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/unterminated_string.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/strings_and_comments_with_brace.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/transition_not_terminal.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/if_chain_forward.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/while_forward.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/forward_invalid_head.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/missing_dollar.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/transition_unbalanced_args.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/forward_parent.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/stack_ops.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/transition_basic.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/ints_strings.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/else_if_chain.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/else_if_else_chain.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/unterminated_include.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/basic_imports.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/basic_map.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/forward_trailing_tokens.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/native_after_terminal.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/stack_invalid_head.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/trailing_tokens.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/transition_block_comment_across_then_native.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/transition_inline_semicolon_native.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/transition_invalid_state_ident.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/transition_unknown_state.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/unbalanced_parens.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/forward_block_comment_across_lines.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/forward_block_comment_across_then_native.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/forward_inline_block_comment.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/forward_inline_line_comment.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/forward_inline_mixed_comments.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/forward_inline_semicolon.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/forward_inline_semicolon_multi.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/forward_trailing_whitespace.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/inside_string_tokens_ignored.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/not_at_sol_forward.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/not_at_sol_stack.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/not_at_sol_transition.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/transition_args.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/transition_inline_block_comment.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/transition_inline_line_comment.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/transition_inline_semicolon_comment.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/comparisons.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/header_outside_section.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "pending/missing_brace.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/state_missing_brace.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_action_with_frame.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/basic_outline.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/not_first_token.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/test_prolog_missing.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/target_ok.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/test_prolog_ok.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/block_scope.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/frame_in_actions.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/interface_missing_brace.frm": {
+      "c": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/multiple_handlers.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/action_has_frame.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/handler_multiple_directives.frm": {
+      "c": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/actions_without_frame.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/terminal_last_transition.frm": {
+      "c": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/if_else_forward.frm": {
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/try_catch.frm": {
+      "cpp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/unterminated_interpolated.frm": {
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/unterminated_raw_string.frm": {
+      "csharp": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/verbatim_and_raw.frm": {
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/try_catch_finally.frm": {
+      "csharp": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/unterminated_using.frm": {
+      "csharp": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/strings_with_brace_and_comment.frm": {
+      "java": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/missing_semicolon.frm": {
+      "java": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      },
+      "rust": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "negative/unterminated_triple_quote.frm": {
+      "python": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/braces_in_strings.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/for_loop_forward.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/if_chain_forwards.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/if_elif_else.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/try_except_finally_forward.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/while_forward_then_native.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/forward_multi_native.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/stack_ops_then_native.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/transition_params.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/dict_ops.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/list_ops.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/set_ops.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/tuple_ops.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/elif_chain.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/unterminated_paren.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/transition_inline_comment.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/unicode_ws_sol.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/arithmetic_ops.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/comparison_ops.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/equality.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/logical_ops.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/ternary_expr.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/test_outline_basic.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/function_scope.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/nested_functions.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/shadowing.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/interface_with_param.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/simple_interface.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/terminal_last_forward.frm": {
+      "python": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/terminal_last_stack_ops.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/raw_strings_with_brace.frm": {
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/inside_raw_string_forward_ignored.frm": {
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/inside_raw_string_transition_ignored.frm": {
+      "rust": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/unterminated_template.frm": {
+      "typescript": {
+        "transpile": false,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/template_with_brace.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/nested_if_transition_last.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/try_catch_finally_forward.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/forward_semicolon_multi_native.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/array_ops.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/map_ops.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/numbers_strings.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/object_ops.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/tuple_types.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "negative/missing_brace.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": true,
+        "infinite": false
+      }
+    },
+    "positive/inside_template_forward_ignored.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/inside_template_transition_ignored.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/strict_equality.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/ternary_ops.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/closure_scope.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/function_block_scope.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/let_const_shadowing.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": false,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/transition_between_states.frm": {
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
     }
   }
 }
