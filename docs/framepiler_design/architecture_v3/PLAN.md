@@ -26,6 +26,7 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_outline positives integrated
 - [x] v3_outline negatives (missing '{' detection) — enforced via OutlineScannerV3 + validator
 - [x] Outline header detection requires 'fn'/'async fn' for function headers; fixtures updated accordingly
+  - [x] Header grammar aligned across all 7 languages: actions/operations/interface use `fn`/`async fn`; machine handlers allow bare `IDENT()`; outline/systems/validator suites green
 - [x] v3_mapping fixtures (splice map round‑trip)
 - [x] v3_mir parser negatives (malformed heads/args) — extended across Transition/Forward/Stack
 - [x] v3_expansion indentation chain fixtures — completed

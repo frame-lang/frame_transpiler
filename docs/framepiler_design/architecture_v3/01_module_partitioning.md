@@ -27,11 +27,23 @@ Invariants
 Algorithm
 - PrologScannerV3 (SOL): ensure `@target <lang>` occurs as the first non‑whitespace line; record span.
 - ImportScannerV3 (per‑language, SOL; DPDA; comment/string aware): record contiguous import partitions.
-- OutlineScannerV3 (SOL):
-  - Recognize module artifacts by keyword at SOL (e.g., `handler`, `action`, `operation`/`op`, `on`).
-  - Read the artifact identifier deterministically.
-  - On `{`, dispatch to per‑language BodyCloser to find the matching `}`.
-  - Record `BodyPartition` with `owner_id`, `kind`, `header_span`, `open_byte`, `close_byte`.
+ - OutlineScannerV3 (SOL):
+  - Recognize section lines at SOL: `interface:`, `actions:`, `operations:`, `machine:` (case‑insensitive; SOL‑anchored).
+  - Within a section, detect function/handler headers as follows (Header Grammar by Section):
+    - machine: bare identifier headers are allowed — `IDENT '(' … ')' '{'` (e.g., `e() { … }`).
+    - actions/operations/interface: require an explicit function keyword — `fn NAME '(' … ')' '{'` or `async fn NAME '(' … ')' '{'`.
+  - Only true headers (per the above) trigger the “missing '{' after module artifact header” error. Non‑headers like `print(...)` are ignored as native.
+  - On a recognized header, dispatch to the per‑language BodyCloser to find the matching `}` and record `BodyPartition` with `owner_id`, `kind`, `header_span`, `open_byte`, `close_byte`.
+
+Header Grammar by Section (authoritative)
+- Sections: `interface:`, `actions:`, `operations:`, `machine:` drive header interpretation.
+- machine:
+  - Header: `IDENT '(' … ')' '{'` (no `fn` required)
+  - Bodies inside are handlers; Frame statements are permitted at SOL within these bodies.
+- actions / operations / interface:
+  - Header: `fn NAME '(' … ')' '{'` or `async fn NAME '(' … ')' '{'`
+  - Bodies inside are native‑only (Frame statements are disallowed by validation policy).
+  - Missing `{` after a header produces a structured outline error.
 
 Per‑Target Body Closers
 - Python: triple‑quote/f‑string aware DPDA; tracks `'`, `"`, `'''`, `"""`, `#` comments; counts top‑level `{`/`}` inside the Frame shell.
