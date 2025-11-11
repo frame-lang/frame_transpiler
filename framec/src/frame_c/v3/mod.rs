@@ -247,17 +247,16 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     // Outer grammar: re-scan outline and enforce section placement
     let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
     let mut known_states = std::collections::HashSet::new();
-    match crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan(bytes, outline_start, lang) {
-        Ok(items) => {
-            let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
-            all_issues.extend(outer_issues);
-            // machine section: simple state header check for '{'
-            let state_issues = validator.validate_machine_state_headers(bytes, outline_start);
-            all_issues.extend(state_issues);
-            // Collect known state names from machine sections
-            known_states = validator.collect_machine_state_names(bytes, outline_start);
-        }
-        Err(e) => { all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: e.message }); }
+    {
+        let (items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+        all_issues.extend(outline_issues);
+        let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
+        all_issues.extend(outer_issues);
+        // machine section: simple state header check for '{'
+        let state_issues = validator.validate_machine_state_headers(bytes, outline_start);
+        all_issues.extend(state_issues);
+        // Collect known state names from machine sections
+        known_states = validator.collect_machine_state_names(bytes, outline_start);
     }
     for b in parts.bodies {
         let body_bytes = &bytes[b.open_byte..=b.close_byte];
@@ -273,7 +272,8 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
             _ => return Err(RunError::new(frame_exitcode::PARSE_ERR, "target not supported in V3 demo")),
         };
         let scan = match scan_res { Ok(s) => s, Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e))) };
-        let mir = MirAssemblerV3.assemble(body_bytes, &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
+        let (mir, parse_issues) = MirAssemblerV3.assemble_collect(body_bytes, &scan.regions);
+        if !parse_issues.is_empty() { all_issues.extend(parse_issues); }
         let policy = ValidatorPolicyV3 { body_kind: Some(b.kind) };
         let mut res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
         // Validate that transition targets refer to known states (coarse file-level set)

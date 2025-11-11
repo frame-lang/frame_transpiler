@@ -157,7 +157,10 @@ class FrameTestRunner:
                             tests[f"language_specific_{lang}_v3_demos"] = demo_tests
 
         # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
-        if any(cat in self.config.categories for cat in ["v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke"]):
+        if any(cat in self.config.categories for cat in [
+            "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke",
+            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems"
+        ]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
             if "v3_prolog" in self.config.categories:
@@ -178,6 +181,18 @@ class FrameTestRunner:
                 collect_v3_category("v3_project")
             if "v3_facade_smoke" in self.config.categories:
                 collect_v3_category("v3_facade_smoke")
+            if "v3_core" in self.config.categories:
+                collect_v3_category("v3_core")
+            if "v3_control_flow" in self.config.categories:
+                collect_v3_category("v3_control_flow")
+            if "v3_data_types" in self.config.categories:
+                collect_v3_category("v3_data_types")
+            if "v3_operators" in self.config.categories:
+                collect_v3_category("v3_operators")
+            if "v3_scoping" in self.config.categories:
+                collect_v3_category("v3_scoping")
+            if "v3_systems" in self.config.categories:
+                collect_v3_category("v3_systems")
 
         # Language-specific tests - only include if explicitly requested or "all" is specified
         if "all" in self.config.categories:
@@ -255,7 +270,7 @@ class FrameTestRunner:
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
         # Treat all v3_* categories as module demo path; v3_closers uses single-body demo
-        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke"}
+        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems"}
         is_v3 = any(seg in v3_categories for seg in parts_lower)
         is_v3_closers = "v3_closers" in parts_lower
         is_v3_mapping = "v3_mapping" in parts_lower
@@ -1466,11 +1481,17 @@ def main():
     
     args = parser.parse_args()
     
+    # Expand pseudo-category 'all_v3'
+    categories = args.categories[:]
+    if 'all_v3' in categories:
+        base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems']
+        categories = [c for c in categories if c != 'all_v3'] + base
+
     # Create config
     config = TestConfig(
         framec_path=args.framec,
         languages=args.languages,
-        categories=args.categories,
+        categories=categories,
         verbose=args.verbose,
         execute=not args.transpile_only,
         validate=not args.no_validate,
