@@ -86,6 +86,8 @@ impl NativeParseFacadeV3 for PyWrapperFacade {
                 }
             }
         }
+        // Optional native parser diagnostics (Python) — feature-gated
+        if let Some(mut extra) = run_python_adapter(spliced_text) { diags.append(&mut extra); }
         Ok(diags)
     }
 }
@@ -335,6 +337,27 @@ fn run_cpp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
 
 #[cfg(not(feature = "native-cpp"))]
 fn run_cpp_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+
+#[cfg(feature = "native-py")]
+fn run_python_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+    use tree_sitter::{Parser, Node};
+    fn collect_errors(node: Node, out: &mut Vec<(usize, usize)>) {
+        if node.is_error() || node.is_missing() { out.push((node.start_byte(), node.end_byte())); }
+        for i in 0..node.child_count() { if let Some(ch) = node.child(i) { collect_errors(ch, out); } }
+    }
+    let mut parser = Parser::new();
+    parser.set_language(tree_sitter_python::language()).ok()?;
+    let tree = parser.parse(text, None)?;
+    let root = tree.root_node();
+    let mut errs = Vec::new();
+    collect_errors(root, &mut errs);
+    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    for (s, e) in errs { out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (Python): parse error".into() }); }
+    Some(out)
+}
+
+#[cfg(not(feature = "native-py"))]
+fn run_python_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
 
 #[cfg(feature = "native-java")]
 fn run_java_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {

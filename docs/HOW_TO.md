@@ -128,6 +128,7 @@ Enable strict native parsing (Stage 07 facades)
   - C++ (Tree-sitter): `cargo build --release --features native-cpp`
   - Java (Tree-sitter): `cargo build --release --features native-java`
   - C# (Tree-sitter): `cargo build --release --features native-csharp`
+  - Python (Tree-sitter): `cargo build --release --features native-py`
 - Example run (all languages; facade strict):
   `python3 framec_tests/runner/frame_test_runner.py --languages python typescript csharp c cpp java rust --categories v3_facade_smoke --framec ./target/release/framec -v`
 

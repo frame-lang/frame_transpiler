@@ -1,11 +1,11 @@
 # Stage 7 — Native Parse Facade (Python)
 
 Purpose (V3 minimal)
-- Provide hermetic validation of facade wrapper calls in strict mode. No general Python parsing; wrapper lines only.
+- Provide hermetic validation of facade wrapper calls in strict mode. Wrapper lines are always validated; optional structural Python parsing is available behind a feature flag.
 
 Runtime Optionality
-- Execution of Stage 07 is runtime-optional (gated by a CLI flag such as `--validate-native/--strict`).
-- Implementation is required for all languages to ensure consistent strict validation capability.
+- Execution of Stage 07 is runtime-optional (gated by `--validate-native`).
+- Wrapper-only checks are always available; structural Python parsing uses Tree-sitter when the `native-py` cargo feature is enabled.
 
 Inputs
 - `SplicedBody { bytes, splice_map }`
@@ -37,4 +37,5 @@ Test Hooks
 - Syntax error injection; mapping accuracy back to Frame-statement lines.
 
 Native parser integration (optional)
-- Real Python parsing (e.g., rustpython_parser) may be added as an optional adapter behind cargo features and `--validate-native`. Current state is wrapper-only; no parser crate compiled by default.
+- Structural Python parsing via Tree-sitter is available behind cargo feature `native-py` and `--validate-native`.
+- Implementation detail: we parse the spliced body text as a Python module and surface error/missing nodes as diagnostics; spans map directly to spliced text.

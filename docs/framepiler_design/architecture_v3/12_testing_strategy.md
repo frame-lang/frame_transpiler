@@ -20,7 +20,7 @@ End‑to‑End
 - Use `framec_tests` language‑specific suites as the primary gate. By default, most V3 suites are build/validate‑only (transpile‑only + structural checks).
 - Executable facade strict tests: `v3_facade_smoke` includes per‑language harnesses that extract wrapper calls from spliced output and run them with no‑op wrappers. The runner sets `--validate-native` for this category and surfaces native diagnostics when adapters are enabled. Supported languages and tools:
   - TypeScript: tsc + node; optional SWC adapter (`native-ts`) for strict native parsing.
-  - Python: direct execution with Python; no‑op wrappers injected (no external parser).
+  - Python: direct execution with Python; no‑op wrappers injected. Optional Tree‑sitter adapter (`native-py`) for strict native parsing.
   - Rust: rustc; optional syn adapter (`native-rs`).
   - C/C++: clang/gcc or clang++/g++; optional Tree‑sitter adapters (`native-c`, `native-cpp`).
   - Java/C#: javac/java and csc/mcs (+mono); optional Tree‑sitter adapters (`native-java`, `native-csharp`). If toolchains are missing, execution is cleanly skipped.
