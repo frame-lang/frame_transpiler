@@ -2,8 +2,8 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() { int n=1; String s="x"; => $^; s.toUpperCase(); }
         }
+        $P { }
 }
-

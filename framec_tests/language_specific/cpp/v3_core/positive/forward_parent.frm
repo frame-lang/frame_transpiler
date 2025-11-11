@@ -2,8 +2,8 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() { => $^; a(); }
         }
+        $P { }
 }
-
