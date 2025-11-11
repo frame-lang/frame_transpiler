@@ -34,7 +34,7 @@ Status Summary — Fixtures and Validation (All Languages)
 
 Production‑ready criteria (not done unless explicitly checked):
 - [x] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
-- [ ] ImportScannerV3 (DPDA) per language:
+- [x] ImportScannerV3 (DPDA) per language:
   - [x] Python
   - [x] TypeScript
   - [x] C#
@@ -144,11 +144,11 @@ Checklist
 04–06 — MIR/Expansion/Splice Test Coverage
   - [x] MIR Assembly terminal‑last negatives (runner category v3_mir)
   - [x] Expansion indentation chain fixtures (Py/TS; generalize for C#/Java/C/C++/Rust comments)
-  - [ ] Inline separators for Frame statements (multi‑statement line support)
-    - [ ] Scanners split at `;` / comment start (per language specifics)
-    - [ ] Parser tolerates optional trailing `;` and ignores inline comment markers
-    - [ ] Positive fixtures: `=> $^; native()` (TS/C#/C/CPP/Java/Rust), `=> $^; x = 1  #` (Py)
-    - [ ] Negative fixtures: `=> $^ native()` (no separator)
+  - [x] Inline separators for Frame statements (multi‑statement line support)
+    - [x] Scanners split at `;` / comment start (per language specifics)
+    - [x] Parser tolerates optional trailing `;` and ignores inline comment markers
+    - [x] Positive fixtures: `=> $^; native()` (TS/C#/C/CPP/Java/Rust), `=> $^; x = 1  #` (Py)
+    - [x] Negative fixtures: `=> $^ native()` (no separator)
 
 - 06.5 — Structural Validation (early)
 - Objects: `ValidatorV3` (early rules)
@@ -163,7 +163,7 @@ Checklist
 - [x] Transition‑as‑terminal rule
 - [x] No Frame statements in actions/ops
 - [x] Machine state header '{' check
-- [ ] Mapping round‑trip (runner category v3_mapping)
+  - [x] Mapping round‑trip (runner category v3_mapping)
 
 04 — MIR Assembly
 - Objects: `MirAssemblerV3` → `[MirItemV3]` from `RegionV3`.
@@ -238,7 +238,7 @@ Checklist
 Checklist
 - [x] Demo CLI `--validate/--validation-only` paths
 - [ ] Python/TypeScript native policy checks
-- [ ] State/target existence checks
+- [x] State/target existence checks
 
 Project / Multi‑File Layer (after MVP green)
 - Objects: `FileLoaderV3`, `ModuleResolverV3`, `ProjectGraphV3`, `FIDIndexV3`, `FIDEmitterV3`, `SemanticAnalyzerV3`, `TsModuleLinkerV3`, `PythonPackagePlannerV3`, `BuildPlannerV3`.
@@ -317,7 +317,7 @@ Python
 - [x] 05 Minimal expansions
 - [ ] 05 Full glue semantics
 - [x] 06 Splice/mapping tests
-- [ ] 07 Native parse facade (optional)
+- [x] 07 Native parse facade (optional)
 - [ ] Validation policy (native‑specific)
 
 TypeScript
@@ -329,7 +329,7 @@ TypeScript
 - [x] 05 Minimal expansions
 - [ ] 05 Full glue semantics
 - [x] 06 Splice/mapping tests
-- [ ] 07 Native parse facade (optional)
+- [x] 07 Native parse facade (optional)
 - [ ] Validation policy (native‑specific)
 
 C#
@@ -341,7 +341,7 @@ C#
 - [x] 05 Minimal expansions
 - [ ] 05 Full glue semantics
 - [x] 06 Splice/mapping tests
-- [ ] 07 Native parse facade (optional)
+- [x] 07 Native parse facade (optional)
 - [ ] Validation policy (native‑specific)
 
 C
@@ -353,7 +353,7 @@ C
 - [x] 05 Minimal expansions
 - [ ] 05 Full glue semantics
 - [x] 06 Splice/mapping tests
-- [ ] 07 Native parse facade (optional)
+- [x] 07 Native parse facade (optional)
 - [ ] Validation policy (native‑specific)
 
 C++
@@ -365,7 +365,7 @@ C++
 - [x] 05 Minimal expansions
 - [ ] 05 Full glue semantics
 - [x] 06 Splice/mapping tests
-- [ ] 07 Native parse facade (optional)
+- [x] 07 Native parse facade (optional)
 - [ ] Validation policy (native‑specific)
 
 Java
@@ -377,7 +377,7 @@ Java
 - [x] 05 Minimal expansions
 - [ ] 05 Full glue semantics
 - [x] 06 Splice/mapping tests
-- [ ] 07 Native parse facade (optional)
+- [x] 07 Native parse facade (optional)
 - [ ] Validation policy (native‑specific)
 
 Rust
@@ -389,7 +389,7 @@ Rust
 - [x] 05 Minimal expansions
 - [ ] 05 Full glue semantics
 - [x] 06 Splice/mapping tests
-- [ ] 07 Native parse facade (optional)
+- [x] 07 Native parse facade (optional)
 - [ ] Validation policy (native‑specific)
 
 Per‑Phase Testing Plan (Must Be In Python Runner)
