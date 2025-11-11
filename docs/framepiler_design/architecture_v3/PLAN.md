@@ -25,6 +25,7 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_imports fixtures integrated with validation (negatives enforced)
 - [x] v3_outline positives integrated
 - [x] v3_outline negatives (missing '{' detection) — enforced via OutlineScannerV3 + validator
+- [x] Outline header detection requires 'fn'/'async fn' for function headers; fixtures updated accordingly
 - [x] v3_mapping fixtures (splice map round‑trip)
 - [x] v3_mir parser negatives (malformed heads/args) — extended across Transition/Forward/Stack
 - [x] v3_expansion indentation chain fixtures — completed
@@ -133,7 +134,7 @@ Checklist
 
 03 — Frame Statement Parser (FIRST‑set)
 - Objects: `FrameStatementParserV3` (+ `FrameStatementParserPyV3/TsV3`), helpers `NativeArgSplitterPyV3/TsV3`.
-- Deliverable: tiny parser validates head/token, balanced parentheses; splits arg list at top‑level commas (string/nesting aware). Produces `MirItemV3::{Transition,Forward,Stack*}` with raw arg strings and byte span.
+- Deliverable: tiny parser validates head/token, balanced parentheses; supports full Transition buckets `(exit_args)? -> (enter_args)? $State(state_params?)`; splits each arg list at top‑level commas (string/nesting aware). Produces `MirItemV3::{Transition{target,exit_args,enter_args,state_args},Forward,Stack*}` with raw arg strings and byte span.
 - Acceptance: clear errors (invalid head; unmatched `)` in args; trailing tokens).
 - Tests (existing): negatives for malformed transitions and non‑terminal violations.
 - New micro‑fixtures: `framec_tests/v3/03_parser/*.frm` positive/negative per statement kind.
@@ -241,6 +242,7 @@ Checklist
 - [ ] Python/TypeScript native policy checks
 - [x] State/target existence checks
  - [x] Parent‑forward availability checks (module demos)
+ - [x] Test policy: parent‑forward fixtures only in system context (module files); do not author single‑body tests for this rule
 
 Project / Multi‑File Layer (after MVP green)
 - Objects: `FileLoaderV3`, `ModuleResolverV3`, `ProjectGraphV3`, `FIDIndexV3`, `FIDEmitterV3`, `SemanticAnalyzerV3`, `TsModuleLinkerV3`, `PythonPackagePlannerV3`, `BuildPlannerV3`.
@@ -308,6 +310,55 @@ Milestone Checklist
 - [x] M3 — Mapping anchors verified via tests (demo)
 - [ ] M4 — Project linking + FID round‑trip
 - [ ] M5 — Project layer + policies complete
+
+Production Readiness — Python & TypeScript (P‑track)
+Purpose
+- Define concrete steps to move Python and TypeScript targets from façade/demo to production use.
+
+Scope
+- Replace comment‑only expansions with real runtime glue; execute non‑façade suites; wire CI; lock runtime APIs; document and package.
+
+Checklist (Py/TS)
+- [ ] Expanders: full glue semantics
+  - [ ] Python: implement Transition/Forward/Stack expansions that call stable runtime instance methods on the machine (kernel Option B) with correct control‑flow semantics. Transitions emit native `return` after `_frame_transition(...)`.
+  - [ ] TypeScript: implement Transition/Forward/Stack expansions that call stable runtime instance methods on the machine (kernel Option B); preserve inline multi‑statement splits; avoid double semicolons. Transitions emit native `return;` after `this._frame_transition(...)`.
+- [ ] Runtime API surface (stabilize and document)
+  - [ ] Python runtime: import `FrameEvent`/`FrameCompartment`; machine provides `_frame_transition/_frame_router` methods. Version and doc in `frame_runtime_py`.
+  - [ ] TypeScript runtime: import `FrameEvent`/`FrameCompartment`; machine provides `_frame_transition/_frame_router` methods. Version and doc in `frame_runtime_ts`.
+- [ ] Executable test suites (beyond façade)
+  - [ ] Runner: enable execute/run mode for v3_core, v3_control_flow, v3_scoping, v3_systems for Python/TypeScript using real runtime (build = transpile; validate/run = execute).
+  - [ ] Fixtures: add positives/negatives that assert real behavior for Transition (terminal), Forward (non‑terminal), and Stack operations.
+  - [ ] SOL/inline multi‑statement cases executing correctly (e.g., `=> $^; native()` keeps ordering).
+- [ ] Validation rules (production)
+  - [x] Transition terminal in containing block (structural) — implemented.
+  - [x] Unknown state target diagnostics — implemented.
+  - [x] Parent forward without parent (module demos) — implemented.
+  - [ ] Forward‑to‑parent compile‑time rule refined for production modules (ensure metadata is sourced from outline; single‑body demos remain exempt).
+- [ ] Source maps & diagnostics
+  - [ ] Verify splice map quality for expansions (origin↔target for decision points) on sample programs.
+  - [ ] Ensure runtime error surfaces map to Frame lines when feasible.
+- [ ] Packaging & distribution
+  - [ ] Python: package runtime with versioning; minimal install doc; avoid network deps in build.
+  - [ ] TypeScript: package runtime as npm module (local workspace usage documented); avoid adding network deps to core build.
+- [ ] CI gating
+  - [ ] Add CI job to build and run executable Py/TS suites with real runtime (skips if toolchains missing).
+  - [ ] Keep façade strict jobs (native parsers) as an additional signal, not a blocker for production runs.
+- [ ] Documentation
+  - [ ] Update 05_frame_statement_expansion_{python,typescript}.md with concrete runtime API calls and examples (done for return‑on‑transition and imports).
+  - [ ] Update HOW_TO with "Build vs Run" for production, per‑language runtime setup, and troubleshooting.
+  - [ ] Call out multi‑statement line policy per language (already covered; ensure consistency with examples).
+
+Execution Order (recommended)
+1. TypeScript expander + runtime API stabilization
+2. Python expander + runtime API stabilization
+3. Executable suites in runner for Py/TS
+4. CI job for Py/TS executable suites
+5. Source‑map spot checks and doc polish
+6. Packaging notes (without introducing network deps to core build)
+
+Post‑P‑track (optional)
+- [ ] Codegen adapters (Stage 08) for formatting stability
+- [ ] Extend executable suites gradually to other languages as runtimes mature
 
 Per‑Language Production Readiness (matrix)
 Python

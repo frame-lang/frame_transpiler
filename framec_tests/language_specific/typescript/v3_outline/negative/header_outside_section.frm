@@ -1,8 +1,7 @@
 @target typescript
 
 system S {
-    bad() {
+    fn bad() {
         // body
     }
 }
-

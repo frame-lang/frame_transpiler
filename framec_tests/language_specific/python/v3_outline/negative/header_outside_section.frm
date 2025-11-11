@@ -1,8 +1,7 @@
 @target python
 
 system S {
-    bad() {
+    fn bad() {
         pass
     }
 }
-
