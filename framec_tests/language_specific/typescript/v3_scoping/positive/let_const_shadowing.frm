@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 let x = 1;
                 {
@@ -12,5 +12,5 @@ system S {
                 x = 4;
             }
         }
+        $P { }
 }
-

@@ -2,10 +2,11 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             ev(n:int) {
                 => $^
                 str(n)
             }
         }
+        $P { }
 }

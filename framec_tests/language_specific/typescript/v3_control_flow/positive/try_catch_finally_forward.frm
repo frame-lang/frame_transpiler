@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 try {
                     => $^; tryBlock();
@@ -13,5 +13,5 @@ system S {
                 }
             }
         }
+        $P { }
 }
-

@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 def outer():
                     v = 1
@@ -13,5 +13,5 @@ system S {
                 outer()
             }
         }
+        $P { }
 }
-

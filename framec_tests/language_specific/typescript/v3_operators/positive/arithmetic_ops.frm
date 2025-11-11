@@ -2,12 +2,12 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 let x = 1 + 2 - 3 * 4 / 5;
                 x += 2;
                 => $^; x.toString();
             }
         }
+        $P { }
 }
-

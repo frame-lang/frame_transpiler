@@ -2,11 +2,11 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 # native prelude
                 => $^
             }
         }
+        $P { }
 }
-

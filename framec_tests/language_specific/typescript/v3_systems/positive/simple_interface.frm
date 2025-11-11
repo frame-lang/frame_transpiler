@@ -2,9 +2,10 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             ev() {
                 => $^
             }
         }
+        $P { }
 }

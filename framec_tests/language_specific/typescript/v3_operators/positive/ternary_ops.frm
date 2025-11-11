@@ -2,11 +2,11 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 let x = cond ? 1 : 2;
                 => $^; x.toString();
             }
         }
+        $P { }
 }
-

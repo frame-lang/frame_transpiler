@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 if (a === b) {
                     => $^; x();
@@ -11,5 +11,5 @@ system S {
                 }
             }
         }
+        $P { }
 }
-

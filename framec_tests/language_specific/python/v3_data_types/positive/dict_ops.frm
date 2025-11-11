@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 d = {"k": 1}
                 d["k"] = 2
@@ -10,5 +10,5 @@ system S {
                 d.get("k")
             }
         }
+        $P { }
 }
-

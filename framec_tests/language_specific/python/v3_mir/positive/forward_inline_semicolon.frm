@@ -2,10 +2,10 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 => $^; x = 1  # ok
             }
         }
+        $P { }
 }
-

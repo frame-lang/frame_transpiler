@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 if a > b:
                     => $^
@@ -14,5 +14,5 @@ system S {
                     => $^
             }
         }
+        $P { }
 }
-

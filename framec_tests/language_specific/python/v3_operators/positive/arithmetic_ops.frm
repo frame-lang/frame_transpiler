@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 x = 1 + 2 - 3 * 4 / 5
                 x += 2
@@ -10,5 +10,5 @@ system S {
                 str(x)
             }
         }
+        $P { }
 }
-

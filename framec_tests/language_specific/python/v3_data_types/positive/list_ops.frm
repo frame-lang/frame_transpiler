@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 a = [1,2]
                 a.append(3)
@@ -10,5 +10,5 @@ system S {
                 len(a)
             }
         }
+        $P { }
 }
-

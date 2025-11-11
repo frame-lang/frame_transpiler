@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 function outer() {
                     let v = 1;
@@ -12,5 +12,5 @@ system S {
                 => $^; f();
             }
         }
+        $P { }
 }
-

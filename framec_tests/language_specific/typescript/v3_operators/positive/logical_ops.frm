@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 if (a && b) {
                     => $^; andCase();
@@ -13,5 +13,5 @@ system S {
                 }
             }
         }
+        $P { }
 }
-

@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 x = 1
                 if True:
@@ -11,5 +11,5 @@ system S {
                 x = 3
             }
         }
+        $P { }
 }
-

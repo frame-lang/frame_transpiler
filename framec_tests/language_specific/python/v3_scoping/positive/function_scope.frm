@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 def f():
                     return 1
@@ -10,5 +10,5 @@ system S {
                 f()
             }
         }
+        $P { }
 }
-

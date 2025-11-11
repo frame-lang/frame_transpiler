@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e1() {
                 => $^
             }
@@ -10,5 +10,5 @@ system S {
                 => $^
             }
         }
+        $P { }
 }
-

@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 n = 42
                 s = "hello"
@@ -10,5 +10,5 @@ system S {
                 s.upper()
             }
         }
+        $P { }
 }
-

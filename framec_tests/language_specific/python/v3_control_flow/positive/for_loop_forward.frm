@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 for i in range(3):
                     => $^
@@ -10,5 +10,5 @@ system S {
                 done()
             }
         }
+        $P { }
 }
-

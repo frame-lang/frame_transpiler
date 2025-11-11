@@ -2,12 +2,12 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 t = (1, "a")
                 => $^
                 str(t[1])
             }
         }
+        $P { }
 }
-

@@ -2,7 +2,7 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 try:
                     => $^
@@ -15,5 +15,5 @@ system S {
                     cleanup()
             }
         }
+        $P { }
 }
-

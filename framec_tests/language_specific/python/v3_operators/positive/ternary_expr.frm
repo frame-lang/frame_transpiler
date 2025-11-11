@@ -2,12 +2,12 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 x = 1 if cond else 2
                 => $^
                 str(x)
             }
         }
+        $P { }
 }
-
