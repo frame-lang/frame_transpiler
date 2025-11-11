@@ -281,11 +281,14 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
             res.issues.extend(validator.validate_transition_targets(&mir, &known_states));
         }
         // If no parent relationship exists anywhere in the machine, flag any use of parent forward.
+        // Only enforce when a machine: section exists (single-body demos are exempt).
         if std::env::var("FRAME_ENFORCE_PARENT_FORWARD").ok().as_deref() == Some("1") {
-            let has_parent = validator.has_any_parent_relationship(bytes, outline_start);
-            if !has_parent {
-                if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
-                    all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "Cannot forward to parent: no parent available".into() });
+            if validator.has_machine_section(bytes, outline_start) {
+                let has_parent = validator.has_any_parent_relationship(bytes, outline_start);
+                if !has_parent {
+                    if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
+                        all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "Cannot forward to parent: no parent available".into() });
+                    }
                 }
             }
         }

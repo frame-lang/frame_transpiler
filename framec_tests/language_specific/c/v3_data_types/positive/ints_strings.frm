@@ -2,12 +2,12 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 int n = 42;
                 const char* s = "hello";
                 => $^; n = n + 1;
             }
         }
+        $P { }
 }
-

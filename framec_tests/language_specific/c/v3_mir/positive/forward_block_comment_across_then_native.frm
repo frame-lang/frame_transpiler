@@ -2,11 +2,11 @@
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
                 => $^ /* multiline
                          comment */ native_after();
             }
         }
+        $P { }
 }
-

@@ -262,6 +262,23 @@ impl ValidatorV3 {
         issues
     }
 
+    pub fn has_machine_section(&self, bytes: &[u8], start: usize) -> bool {
+        let n = bytes.len();
+        let mut i = start;
+        while i < n {
+            while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+            if i >= n { break; }
+            let mut j = i; while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+            let kw_start = j; while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+            if kw_start < j && j < n && bytes[j] == b':' {
+                let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
+                if kw.as_str() == "machine" { return true; }
+            }
+            while i < n && bytes[i] != b'\n' { i += 1; }
+        }
+        false
+    }
+
     // Detect whether any state in any machine section declares a parent ("$Child => $Parent").
     pub fn has_any_parent_relationship(&self, bytes: &[u8], start: usize) -> bool {
         #[derive(Clone, Copy, PartialEq, Eq)]
