@@ -21,7 +21,7 @@ impl ValidatorV3 {
         // ensure no MIR after terminal
         if let Some((idx, _)) = mir.iter().enumerate().find(|(_, m)| is_terminal(m)) {
             if idx + 1 < mir.len() {
-                issues.push(ValidationIssueV3 { message: "Transition must be last statement in its containing block".to_string() });
+                issues.push(ValidationIssueV3 { message: "E400: Transition must be last statement in its containing block".to_string() });
             }
         }
         ValidationResultV3 { ok: issues.is_empty(), issues }
@@ -46,9 +46,8 @@ impl ValidatorV3 {
                         // until the containing block closes; first non-comment token before that is a violation.
                         let start = span.end;
                         if let Some(_) = find_violation_before_block_close(bytes, regions, idx+1, start, lang) {
-                            issues.push(ValidationIssueV3 { message: "Transition must be last statement in its containing block".to_string() });
-                            // continue scanning to report only one issue per handler for now
-                            break;
+                            issues.push(ValidationIssueV3 { message: "E400: Transition must be last statement in its containing block".to_string() });
+                            // continue scanning to report multiple violations if present
                         }
                     }
                     idx += 1;
@@ -67,7 +66,7 @@ impl ValidatorV3 {
                 BodyKindV3::Action | BodyKindV3::Operation => {
                     if !mir.is_empty() {
                         // Frame statements are disallowed in actions/ops. Only advisory for now.
-                        res.issues.push(ValidationIssueV3 { message: "Frame statements are not allowed in actions/operations".to_string() });
+                        res.issues.push(ValidationIssueV3 { message: "E401: Frame statements are not allowed in actions/operations".to_string() });
                     }
                 }
                 BodyKindV3::Handler | BodyKindV3::Unknown => {}
@@ -255,7 +254,7 @@ impl ValidatorV3 {
         for m in mir {
             if let MirItemV3::Transition{ target, .. } = m {
                 if !known_states.contains(target) {
-                    issues.push(ValidationIssueV3{ message: format!("unknown state '{}'", target) });
+                    issues.push(ValidationIssueV3{ message: format!("E402: unknown state '{}'", target) });
                 }
             }
         }

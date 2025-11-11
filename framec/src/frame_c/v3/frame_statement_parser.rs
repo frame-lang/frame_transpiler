@@ -2,7 +2,7 @@ use crate::frame_c::v3::mir::MirItemV3;
 use crate::frame_c::v3::native_region_scanner::{RegionSpan, RegionV3, FrameSegmentKindV3};
 
 #[derive(Debug)]
-pub enum ParseErrorV3Kind { InvalidHead, UnbalancedArgs }
+pub enum ParseErrorV3Kind { InvalidHead, UnbalancedArgs, MissingState, TrailingTokens }
 
 #[derive(Debug)]
 pub struct ParseErrorV3 { pub kind: ParseErrorV3Kind, pub message: String }
@@ -32,10 +32,10 @@ impl FrameStatementParserV3 {
         while i<line.len() && line[i].is_ascii_whitespace() { i+=1; }
         if !(i+2<=line.len() && line[i]==b'-' && line[i+1]==b'>') { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing ->")); }
         i+=2; while i<line.len() && line[i].is_ascii_whitespace() { i+=1; }
-        if i>=line.len() || line[i]!=b'$' { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing $")); }
+        if i>=line.len() || line[i]!=b'$' { return Err(ParseErrorV3::err(ParseErrorV3Kind::MissingState, "expected $State after '->'")); }
         i+=1; let name_start=i;
         // first char of state ident must be letter or underscore
-        if i>=line.len() || !is_ident_start(line[i]) { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "invalid state name start")); }
+        if i>=line.len() || !is_ident_start(line[i]) { return Err(ParseErrorV3::err(ParseErrorV3Kind::MissingState, "invalid state name start")); }
         i+=1; while i<line.len() && is_ident(line[i]) { i+=1; }
         let target = String::from_utf8_lossy(&line[name_start..i]).to_string();
         while i<line.len() && line[i].is_ascii_whitespace() { i+=1; }
@@ -47,9 +47,7 @@ impl FrameStatementParserV3 {
         }
         // After args, ensure only whitespace remains
         while i < line.len() && line[i].is_ascii_whitespace() { i += 1; }
-        if i < line.len() {
-            return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "trailing tokens after transition"));
-        }
+        if i < line.len() { return Err(ParseErrorV3::err(ParseErrorV3Kind::TrailingTokens, "unexpected trailing tokens after Frame statement")); }
         Ok(MirItemV3::Transition{ target, args, span })
     }
 
@@ -61,7 +59,7 @@ impl FrameStatementParserV3 {
         i+=2; while i<n && line[i].is_ascii_whitespace() { i+=1; }
         if !(i+2<=n && line[i]==b'$' && line[i+1]==b'^') { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing $^")); }
         i+=2; while i<n && line[i].is_ascii_whitespace() { i+=1; }
-        if i < n { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "trailing tokens after forward")); }
+        if i < n { return Err(ParseErrorV3::err(ParseErrorV3Kind::TrailingTokens, "unexpected trailing tokens after Frame statement")); }
         Ok(MirItemV3::Forward{ span })
     }
 
@@ -73,7 +71,7 @@ impl FrameStatementParserV3 {
             return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "malformed stack op"));
         }
         i+=5; while i<n && line[i].is_ascii_whitespace() { i+=1; }
-        if i < n { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "trailing tokens after stack op")); }
+        if i < n { return Err(ParseErrorV3::err(ParseErrorV3Kind::TrailingTokens, "unexpected trailing tokens after Frame statement")); }
         Ok(if is_push { MirItemV3::StackPush{ span } } else { MirItemV3::StackPop{ span } })
     }
 

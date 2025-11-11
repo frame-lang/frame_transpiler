@@ -286,7 +286,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
             let has_parent = validator.has_any_parent_relationship(bytes, outline_start);
             if !has_parent {
                 if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
-                    all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "Cannot forward to parent: no parent available".into() });
+                    all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E403: Cannot forward to parent: no parent available".into() });
                 }
             }
         }

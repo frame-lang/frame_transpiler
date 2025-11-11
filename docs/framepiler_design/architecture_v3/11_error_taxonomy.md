@@ -23,6 +23,7 @@ MIR Assembly / Validation
 - E400: Transition not terminal within its block — "Transition must be last statement in its containing block".
 - E401: Frame statement not allowed in actions/ops — "Frame statements are not allowed in native bodies (actions/ops)".
 - E402: Unknown state in transition — "unknown state '$Name'".
+- E403: Parent forward without declared parent — "Cannot forward to parent: no parent available" (applies to module demos with `machine:`; single‑body demos are exempt).
 
 Native Policy (Python)
 - E500: `var` in Python body — "'var' is not allowed in Python native bodies".

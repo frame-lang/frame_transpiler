@@ -25,7 +25,16 @@ impl MirAssemblerV3 {
             if let RegionV3::FrameSegment{..} = r {
                 match parser.parse_segment(bytes, r) {
                     Ok(m) => out_mir.push(m),
-                    Err(e) => issues.push(ValidationIssueV3 { message: format!("Parse error: {:?}", e) }),
+                    Err(e) => {
+                        use crate::frame_c::v3::frame_statement_parser::ParseErrorV3Kind as K;
+                        let msg = match e.kind {
+                            K::MissingState => format!("E300: {}", e.message),
+                            K::UnbalancedArgs => format!("E301: {}", e.message),
+                            K::TrailingTokens => format!("E302: {}", e.message),
+                            K::InvalidHead => "E200: invalid Frame statement at start of line".to_string(),
+                        };
+                        issues.push(ValidationIssueV3 { message: msg });
+                    },
                 }
             }
         }
