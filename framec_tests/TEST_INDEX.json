@@ -8274,7 +8274,7 @@
       },
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10148,7 +10148,7 @@
       },
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10266,14 +10266,14 @@
       },
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
       },
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10634,7 +10634,7 @@
     "positive/for_loop_forward.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10650,7 +10650,7 @@
     "positive/if_chain_forwards.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10666,7 +10666,7 @@
     "positive/if_elif_else.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10675,7 +10675,7 @@
     "positive/try_except_finally_forward.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10684,7 +10684,7 @@
     "positive/while_forward_then_native.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10700,7 +10700,7 @@
     "positive/forward_multi_native.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10741,7 +10741,7 @@
     "positive/dict_ops.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10750,7 +10750,7 @@
     "positive/list_ops.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10759,7 +10759,7 @@
     "positive/set_ops.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10775,7 +10775,7 @@
     "positive/tuple_ops.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10827,14 +10827,14 @@
     "positive/arithmetic_ops.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
       },
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10843,7 +10843,7 @@
     "positive/comparison_ops.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10859,7 +10859,7 @@
     "positive/equality.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10868,14 +10868,14 @@
     "positive/logical_ops.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
       },
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10884,7 +10884,7 @@
     "positive/ternary_expr.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10909,7 +10909,7 @@
     "positive/function_scope.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10918,7 +10918,7 @@
     "positive/nested_functions.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10927,7 +10927,7 @@
     "positive/shadowing.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10936,14 +10936,14 @@
     "positive/interface_with_param.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
       },
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10952,14 +10952,14 @@
     "positive/simple_interface.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
       },
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -10968,14 +10968,14 @@
     "positive/terminal_last_forward.frm": {
       "python": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
       },
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -11054,7 +11054,7 @@
     "positive/try_catch_finally_forward.frm": {
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -11144,7 +11144,7 @@
     "positive/strict_equality.frm": {
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -11153,7 +11153,7 @@
     "positive/ternary_ops.frm": {
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -11162,7 +11162,7 @@
     "positive/closure_scope.frm": {
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -11171,7 +11171,7 @@
     "positive/function_block_scope.frm": {
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
@@ -11180,7 +11180,7 @@
     "positive/let_const_shadowing.frm": {
       "typescript": {
         "transpile": true,
-        "validate": false,
+        "validate": true,
         "execute": true,
         "negative": false,
         "infinite": false
