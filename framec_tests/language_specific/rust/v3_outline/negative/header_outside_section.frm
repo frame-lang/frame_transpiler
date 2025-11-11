@@ -1,8 +1,7 @@
 @target rust
 
 system S {
-    bad() {
+    fn bad() {
         // body
     }
 }
-

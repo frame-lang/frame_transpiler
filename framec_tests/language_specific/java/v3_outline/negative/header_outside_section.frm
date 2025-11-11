@@ -1,8 +1,7 @@
 @target java
 
 system S {
-    bad() {
+    fn bad() {
         // body
     }
 }
-

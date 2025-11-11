@@ -2,5 +2,5 @@
 
 system S {
     actions:
-        do_it() 
+        fn do_it() 
 }

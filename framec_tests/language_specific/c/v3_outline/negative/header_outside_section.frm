@@ -1,8 +1,7 @@
 @target c
 
 system S {
-    bad() {
+    fn bad() {
         // body
     }
 }
-

@@ -1,8 +1,7 @@
 @target csharp
 
 system S {
-    Bad() {
+    fn Bad() {
         // body
     }
 }
-

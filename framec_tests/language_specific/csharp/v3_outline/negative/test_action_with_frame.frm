@@ -2,7 +2,7 @@
 
 system S {
     actions:
-        DoStuff() {
+        fn DoStuff() {
             -> $Next
         }
 }

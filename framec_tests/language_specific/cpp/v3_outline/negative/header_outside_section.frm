@@ -1,8 +1,7 @@
 @target cpp
 
 system S {
-    bad() {
+    fn bad() {
         // body
     }
 }
-

@@ -2,7 +2,7 @@
 
 system S {
     actions:
-        doIt() {
+        fn doIt() {
             -> $Y
         }
 }
