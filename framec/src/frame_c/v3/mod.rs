@@ -158,6 +158,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
     let emit_exec = std::env::var("FRAME_EMIT_EXEC").ok().as_deref() == Some("1");
     let mut out = String::new();
     let mut body_chunks: Vec<String> = Vec::new();
+    let mut frameful_chunks: Vec<(bool, String)> = Vec::new();
     let mut cursor = 0usize;
     for b in parts.bodies {
         if b.open_byte > cursor { out.push_str(&content_str[cursor..b.open_byte]); }
@@ -261,7 +262,10 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 }
                 v
             };
-            SplicerV3.splice(body_src.as_bytes(), &scan.regions, &exps).text
+            let spliced = SplicerV3.splice(body_src.as_bytes(), &scan.regions, &exps).text;
+            let has_frames = !exps.is_empty();
+            frameful_chunks.push((has_frames, spliced.clone()));
+            spliced
         };
         if emit_body_only || emit_exec {
             body_chunks.push(body_out);
@@ -272,7 +276,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
     }
     if emit_exec {
         // Build a minimal executable wrapper for Python/TypeScript using the first body
-        let body = body_chunks.get(0).cloned().unwrap_or_default();
+        let body = frameful_chunks.iter().find(|(has, _)| *has).map(|(_, s)| s.clone()).or_else(|| body_chunks.get(0).cloned()).unwrap_or_default();
         let program = match lang {
             TargetLanguage::Python3 => {
                 let mut p = String::new();
@@ -286,7 +290,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     if trimmed.is_empty() { continue; }
                     p.push_str("    "); p.push_str(trimmed); p.push('\n');
                 }
-                p.push_str("\nif __name__ == '__main__':\n    m=M()\n    handler(m, FrameEvent('e'), m._compartment)\n");
+                p.push_str("\nif __name__ == '__main__':\n    m=M()\n    handler(m, FrameEvent('e', None), m._compartment)\n");
                 p
             }
             TargetLanguage::TypeScript => {
@@ -301,7 +305,63 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     if !(s.ends_with(';') || s.ends_with('{') || s.ends_with('}')) { s.push(';'); }
                     p.push_str("    "); p.push_str(&s); p.push('\n');
                 }
-                p.push_str("}\n(function(){ const m=new M(); handler(m, new FrameEvent('e', null), m._compartment); })();\n");
+                p.push_str("}\n(function(){ const m=new M(); handler.call(m, m, new FrameEvent('e', null), m._compartment); })();\n");
+                p
+            }
+            TargetLanguage::Rust => {
+                let mut p = String::new();
+                p.push_str("fn handler() {\n");
+                for line in body.lines() {
+                    let trimmed = line.trim_start();
+                    if trimmed.is_empty() { continue; }
+                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                }
+                p.push_str("}\nfn main(){ handler(); }\n");
+                p
+            }
+            TargetLanguage::C => {
+                let mut p = String::new();
+                p.push_str("void handler(void) {\n");
+                for line in body.lines() {
+                    let trimmed = line.trim_start();
+                    if trimmed.is_empty() { continue; }
+                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                }
+                p.push_str("}\nint main(void){ handler(); return 0; }\n");
+                p
+            }
+            TargetLanguage::Cpp => {
+                let mut p = String::new();
+                p.push_str("void handler() {\n");
+                for line in body.lines() {
+                    let trimmed = line.trim_start();
+                    if trimmed.is_empty() { continue; }
+                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                }
+                p.push_str("}\nint main(){ handler(); return 0; }\n");
+                p
+            }
+            TargetLanguage::Java => {
+                let mut p = String::new();
+                p.push_str("public class ExecMain {\n");
+                p.push_str("  static void handler() {\n");
+                for line in body.lines() {
+                    let trimmed = line.trim_start();
+                    if trimmed.is_empty() { continue; }
+                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                }
+                p.push_str("  }\n  public static void main(String[] args){ handler(); }\n}\n");
+                p
+            }
+            TargetLanguage::CSharp => {
+                let mut p = String::new();
+                p.push_str("using System;\nclass ExecMain {\n  static void handler(){\n");
+                for line in body.lines() {
+                    let trimmed = line.trim_start();
+                    if trimmed.is_empty() { continue; }
+                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                }
+                p.push_str("  }\n  static void Main(string[] args){ handler(); }\n}\n");
                 p
             }
             _ => body,

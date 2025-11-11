@@ -288,8 +288,12 @@ class FrameTestRunner:
                 output_file = output_dir / (test_file.stem + extension)
             else:
                 cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
-                # Use neutral extension for demo outputs
-                extension = ".txt"
+                # For exec smoke, emit language-appropriate extension to support compilation
+                if "v3_exec_smoke" in parts_lower and self.config.execute:
+                    ext_map = {"python": ".py", "typescript": ".ts", "rust": ".rs", "c": ".c", "cpp": ".cpp", "java": ".java", "csharp": ".cs"}
+                    extension = ext_map.get(language, ".txt")
+                else:
+                    extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
             # Include validation flag for V3 flows when enabled
             if self.config.validate:
@@ -346,9 +350,9 @@ class FrameTestRunner:
             # For facade smoke fixtures, request facade expansion output
             if is_v3_facade_smoke:
                 env["FRAME_FACADE_EXPANSION"] = "1"
-            # For exec smoke, emit body-only text to simplify harness execution
-            if "v3_exec_smoke" in parts_lower and language in ("python", "typescript"):
-                env["FRAME_EMIT_BODY_ONLY"] = "1"
+            # Exec smoke should emit a minimal executable so we can run it end-to-end
+            if "v3_exec_smoke" in parts_lower and self.config.execute:
+                env["FRAME_EMIT_EXEC"] = "1"
             # For general V3 categories in Python/TS, emit a minimal executable when running
             if any(seg.startswith("v3_") for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
@@ -1012,6 +1016,93 @@ class FrameTestRunner:
         except Exception as e:
             return False, str(e)
 
+    def _execute_c_like_source(self, src_file: str, use_cpp: bool) -> Tuple[bool, str]:
+        """Compile and run a generated C/C++ source file and return status/output."""
+        import shutil
+        compiler = shutil.which("clang++" if use_cpp else "clang") or shutil.which("g++" if use_cpp else "gcc")
+        if not compiler:
+            return True, ("C++ compiler not found; skipping execution" if use_cpp else "C compiler not found; skipping execution")
+        exe_path = os.path.splitext(src_file)[0]
+        try:
+            compile_result = subprocess.run([compiler, src_file, "-o", exe_path], capture_output=True, text=True, timeout=max(self.config.timeout, 10))
+            if compile_result.returncode != 0:
+                return False, compile_result.stderr or compile_result.stdout
+            run = subprocess.run([exe_path], capture_output=True, text=True, timeout=self.config.timeout)
+            try:
+                os.remove(exe_path)
+            except Exception:
+                pass
+            if run.returncode != 0:
+                return False, run.stdout + run.stderr
+            return True, run.stdout
+        except subprocess.TimeoutExpired:
+            return False, "C/C++ execution timeout"
+        except Exception as e:
+            return False, str(e)
+
+    def _execute_java_source(self, java_file: str) -> Tuple[bool, str]:
+        """Compile and run a generated Java source file with a main class ExecMain."""
+        import shutil
+        javac = shutil.which("javac")
+        java = shutil.which("java")
+        if not javac or not java:
+            return True, "Java toolchain not found; skipping execution"
+        out_dir = os.path.dirname(java_file)
+        class_name = "ExecMain"
+        # Ensure file name matches public class name by writing a copy as ExecMain.java
+        try:
+            with open(java_file, 'r') as f:
+                src_text = f.read()
+            exec_path = os.path.join(out_dir, f"{class_name}.java")
+            with open(exec_path, 'w') as f:
+                f.write(src_text)
+            java_src = exec_path
+        except Exception:
+            java_src = java_file
+        try:
+            compile_result = subprocess.run([javac, java_src], capture_output=True, text=True, timeout=max(self.config.timeout, 10), cwd=out_dir)
+            if compile_result.returncode != 0:
+                return False, compile_result.stderr or compile_result.stdout
+            run = subprocess.run([java, "-cp", out_dir, class_name], capture_output=True, text=True, timeout=self.config.timeout)
+            if run.returncode != 0:
+                return False, run.stdout + run.stderr
+            return True, run.stdout
+        except subprocess.TimeoutExpired:
+            return False, "Java execution timeout"
+        except Exception as e:
+            return False, str(e)
+
+    def _execute_csharp_source(self, cs_file: str) -> Tuple[bool, str]:
+        """Compile and run a generated C# source file with class ExecMain."""
+        import shutil
+        csc = shutil.which("csc")
+        mcs = shutil.which("mcs")
+        mono = shutil.which("mono")
+        exe_path = os.path.splitext(cs_file)[0] + ".exe"
+        if not csc and not mcs:
+            return True, "C# compiler not found; skipping execution"
+        try:
+            if csc:
+                compile_cmd = [csc, "/nologo", f"/out:{exe_path}", cs_file]
+            else:
+                compile_cmd = [mcs, "-out:", exe_path, cs_file]
+            compile_result = subprocess.run(compile_cmd, capture_output=True, text=True, timeout=max(self.config.timeout, 10))
+            if compile_result.returncode != 0:
+                return False, compile_result.stderr or compile_result.stdout
+            run_cmd = [exe_path]
+            if mcs and not mono:
+                return True, "C# compiled (mono not found; skip run)"
+            if mono:
+                run_cmd = [mono, exe_path]
+            run = subprocess.run(run_cmd, capture_output=True, text=True, timeout=self.config.timeout)
+            if run.returncode != 0:
+                return False, run.stdout + run.stderr
+            return True, run.stdout
+        except subprocess.TimeoutExpired:
+            return False, "C# execution timeout"
+        except Exception as e:
+            return False, str(e)
+
     def _execute_java_harness_from_spliced(self, test_name: str, spliced_output: str) -> Tuple[bool, str]:
         """
         Build and execute a minimal Java harness by extracting wrapper-call lines
@@ -1386,11 +1477,15 @@ class FrameTestRunner:
                         else:
                             # Keep the compilation error
                             output = compile_output
+                elif language == "c":
+                    # Compile and run generated C program when present
+                    exec_success, output = self._execute_c_like_source(output_file, use_cpp=False)
+                elif language == "cpp":
+                    exec_success, output = self._execute_c_like_source(output_file, use_cpp=True)
                 elif language == "java":
-                    # Java v3_facade_smoke handled earlier; others not runnable in demo
-                    exec_success, output = (True, "Java execution skipped (demo)")
+                    exec_success, output = self._execute_java_source(output_file)
                 elif language == "csharp":
-                    exec_success, output = (True, "C# execution skipped (demo)")
+                    exec_success, output = self._execute_csharp_source(output_file)
                 elif language == "llvm":
                     exec_success, output = self.execute_llvm(output_file)
                 else:
