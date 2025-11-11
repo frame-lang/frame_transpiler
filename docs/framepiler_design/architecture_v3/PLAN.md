@@ -28,7 +28,8 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_mapping fixtures (splice map round‑trip)
 - [x] v3_mir parser negatives (malformed heads/args) — extended across Transition/Forward/Stack
 - [x] v3_expansion indentation chain fixtures — completed
- - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check
+- [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check
+ - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check; parent‑forward availability (module demos)
  - [x] Docs: inline separators and multi‑statement policy per language
  - [x] Docs: facade wrapper‑only checks and transition‑arg policy across languages
 
@@ -209,13 +210,13 @@ Checklist
 - Tests: `v3_facade_*` categories (runner) with positive/negative fixtures per language; diagnostics correctly mapped to Frame arg spans when enabled.
 
 Checklist
-- [ ] Python facade (implemented; off by default)
-- [ ] TypeScript facade (implemented; off by default)
-- [ ] C# facade adapter (implemented; off by default; Roslyn integration optional)
-- [ ] C facade (implemented; off by default)
-- [ ] C++ facade (implemented; off by default)
-- [ ] Java facade (implemented; off by default)
-- [ ] Rust facade (implemented; off by default)
+- [x] Python facade (implemented; off by default; tree-sitter; strict facade smoke green)
+- [x] TypeScript facade (implemented; off by default; SWC + wrapper checks; strict facade smoke green)
+- [x] C# facade adapter (implemented; off by default; tree-sitter-c-sharp)
+- [x] C facade (implemented; off by default; tree-sitter-c)
+- [x] C++ facade (implemented; off by default; tree-sitter-cpp)
+- [x] Java facade (implemented; off by default; tree-sitter-java)
+- [x] Rust facade (implemented; off by default; syn/strict checks on wrappers)
 
 08 — Codegen (adapters, optional)
 - Objects: `TsB2CodegenV3`, `PyB2CodegenV3` (future polish).
@@ -239,6 +240,7 @@ Checklist
 - [x] Demo CLI `--validate/--validation-only` paths
 - [ ] Python/TypeScript native policy checks
 - [x] State/target existence checks
+ - [x] Parent‑forward availability checks (module demos)
 
 Project / Multi‑File Layer (after MVP green)
 - Objects: `FileLoaderV3`, `ModuleResolverV3`, `ProjectGraphV3`, `FIDIndexV3`, `FIDEmitterV3`, `SemanticAnalyzerV3`, `TsModuleLinkerV3`, `PythonPackagePlannerV3`, `BuildPlannerV3`.
