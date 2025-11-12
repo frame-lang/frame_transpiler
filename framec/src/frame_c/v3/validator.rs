@@ -3,6 +3,7 @@ use crate::frame_c::v3::native_region_scanner::RegionV3;
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v3::outline_scanner::{OutlineScannerV3, OutlineItemV3};
 use std::collections::HashSet;
+use super::arcanum::Arcanum;
 
 #[derive(Debug, Clone)]
 pub struct ValidationIssueV3 { pub message: String }
@@ -213,7 +214,13 @@ impl ValidatorV3 {
             let kw_start = j; while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
             if kw_start < j && j < n && bytes[j] == b':' {
                 let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
-                if kw.as_str() == "machine" { marks.push((line_start, Sec::Machine)); } else { marks.push((line_start, Sec::Other)); }
+                match kw.as_str() {
+                    "machine" | "actions" | "operations" | "interface" => {
+                        let sec = if kw.as_str() == "machine" { Sec::Machine } else { Sec::Other };
+                        marks.push((line_start, sec));
+                    }
+                    _ => {}
+                }
             }
             while i < n && bytes[i] != b'\n' { i += 1; }
         }
@@ -261,6 +268,21 @@ impl ValidatorV3 {
         issues
     }
 
+    // Arcanum-backed variant: resolve against symbol table instead of coarse HashSet
+    pub fn validate_transition_targets_arcanum(&self, mir: &[MirItemV3], arcanum: &Arcanum, system_name: Option<&str>) -> Vec<ValidationIssueV3> {
+        let mut issues = Vec::new();
+        let sys = system_name.unwrap_or("_");
+        for m in mir {
+            if let MirItemV3::Transition{ target, .. } = m {
+                let found = arcanum.resolve_state(sys, target).or_else(|| arcanum.resolve_state("_", target)).is_some();
+                if !found {
+                    issues.push(ValidationIssueV3{ message: format!("E402: unknown state '{}'", target) });
+                }
+            }
+        }
+        issues
+    }
+
     pub fn has_machine_section(&self, bytes: &[u8], start: usize) -> bool {
         let n = bytes.len();
         let mut i = start;
@@ -296,7 +318,13 @@ impl ValidatorV3 {
             let kw_start = j; while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
             if kw_start < j && j < n && bytes[j] == b':' {
                 let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
-                if kw.as_str() == "machine" { marks.push((line_start, Sec::Machine)); } else { marks.push((line_start, Sec::Other)); }
+                match kw.as_str() {
+                    "machine" | "actions" | "operations" | "interface" => {
+                        let sec = if kw.as_str() == "machine" { Sec::Machine } else { Sec::Other };
+                        marks.push((line_start, sec));
+                    }
+                    _ => {}
+                }
             }
             while i < n && bytes[i] != b'\n' { i += 1; }
         }
@@ -328,6 +356,11 @@ impl ValidatorV3 {
             }
         }
         false
+    }
+
+    // Arcanum-backed variant: check if any state declares a parent in the module
+    pub fn any_parent_relation_arcanum(&self, arcanum: &Arcanum) -> bool {
+        arcanum.any_parent_relation()
     }
 }
 

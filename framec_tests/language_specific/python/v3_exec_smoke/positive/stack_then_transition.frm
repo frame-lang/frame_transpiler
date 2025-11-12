@@ -1,4 +1,4 @@
-@target rust
+@target python
 
 system S {
     machine:
@@ -6,6 +6,9 @@ system S {
             e() {
                 $$[+]
                 $$[-]
+                -> $B()
             }
         }
+        $B { e() { } }
 }
+

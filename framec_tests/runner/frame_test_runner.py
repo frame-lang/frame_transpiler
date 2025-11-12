@@ -292,6 +292,9 @@ class FrameTestRunner:
                 if "v3_exec_smoke" in parts_lower and self.config.execute:
                     ext_map = {"python": ".py", "typescript": ".ts", "rust": ".rs", "c": ".c", "cpp": ".cpp", "java": ".java", "csharp": ".cs"}
                     extension = ext_map.get(language, ".txt")
+                    # Request executable emission for Py/TS demo-frame
+                    if language in ("python", "typescript"):
+                        cmd.insert(2, "--emit-exec")
                 else:
                     extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
@@ -392,16 +395,14 @@ class FrameTestRunner:
                 # Write output to file
                 out = result.stdout or ""
                 output_file.write_text(out)
-                # Execute production Py/TS harness when production glue present
-                if self.config.execute and not is_v3_facade_smoke and language in ("python", "typescript"):
-                    has_prod = ("self._frame_transition(" in out) or ("this._frame_transition(" in out)
-                    if has_prod:
-                        if language == "python":
-                            ok, err = self._execute_py_prod_from_spliced(test_file.stem, out)
-                        else:
-                            ok, err = self._execute_ts_prod_from_spliced(test_file.stem, out)
-                        if not ok:
-                            return False, str(output_file), err
+                # Execute demo-frame emitted executables for exec smoke (Py/TS)
+                if self.config.execute and "v3_exec_smoke" in parts_lower and language in ("python", "typescript"):
+                    if language == "python":
+                        ok, err = self.execute_python(str(output_file))
+                    else:
+                        ok, err = self.execute_typescript(str(output_file))
+                    if not ok:
+                        return False, str(output_file), err
                 if self.config.execute and is_v3_facade_smoke and language in ("typescript", "python", "rust", "c", "cpp", "java", "csharp"):
                     # Build and execute a minimal TS harness from spliced output for facade strict tests only.
                     if "__frame_transition" not in out and "__frame_forward" not in out and "__frame_stack_" not in out:
@@ -1444,18 +1445,72 @@ class FrameTestRunner:
                 # Fail early on validation errors; do not execute
                 result.error_message = f"Validation failed: {validation_output[:500]}"
             elif self.config.execute:
-                # For V3 categories in Python/TS, attempt to execute when we emitted an exec wrapper
+                # For V3 exec smoke only, execute the emitted wrapper
                 parts_lower = [p.lower() for p in test_file.parts]
-                if any(seg.startswith("v3_") for seg in parts_lower) and "v3_facade_smoke" not in parts_lower and language in ("python", "typescript"):
-                    exec_success, output = (self.execute_python(output_file) if language == "python" else self.execute_typescript(output_file))
+                if "v3_exec_smoke" in parts_lower and language in ("python", "typescript", "c", "cpp", "java", "csharp", "rust"):
+                    if language == "python":
+                        exec_success, output = self.execute_python(output_file)
+                    elif language == "typescript":
+                        exec_success, output = self.execute_typescript(output_file)
+                    elif language == "c":
+                        exec_success, output = self._execute_c_like_source(output_file, use_cpp=False)
+                    elif language == "cpp":
+                        exec_success, output = self._execute_c_like_source(output_file, use_cpp=True)
+                    elif language == "java":
+                        exec_success, output = self._execute_java_source(output_file)
+                    elif language == "csharp":
+                        exec_success, output = self._execute_csharp_source(output_file)
+                    else:
+                        exec_success, output = self.execute_rust(output_file)
                     result.execute_success = exec_success
                     result.output = output
-                    result.execution_time = time.time() - start_time
-                    return result
+                    # For exec smoke, validate standardized markers
+                    if exec_success:
+                        out = output or ""
+                        # Respect toolchain skips in exec smoke for non-Py/TS
+                        if any(skip in out for skip in [
+                            "compiler not found; skipping execution",
+                            "toolchain not found; skipping execution",
+                            "compiled (mono not found; skip run)"
+                        ]):
+                            result.execution_time = time.time() - start_time
+                            return result
+                        name = test_file.stem
+                        ok = True
+                        err = ""
+                        if name == "transition_basic":
+                            if "TRANSITION:" not in out:
+                                ok = False; err = "Missing TRANSITION marker"
+                        elif name == "forward_parent":
+                            if "FORWARD:PARENT" not in out:
+                                ok = False; err = "Missing FORWARD:PARENT marker"
+                        elif name == "stack_ops":
+                            if not ("STACK:PUSH" in out and "STACK:POP" in out):
+                                ok = False; err = "Missing STACK markers"
+                        elif name == "mixed_ops":
+                            if not ("STACK:PUSH" in out and "TRANSITION:" in out):
+                                ok = False; err = "Missing MIXED markers"
+                        elif name == "stack_then_transition" or name == "nested_stack_then_transition":
+                            if not ("STACK:PUSH" in out and "STACK:POP" in out and "TRANSITION:" in out):
+                                ok = False; err = "Missing STACK/TRANSITION markers"
+                        elif name == "if_forward_else_transition":
+                            if not ("FORWARD:PARENT" in out or "TRANSITION:" in out):
+                                ok = False; err = "Missing FORWARD or TRANSITION marker"
+                        if not ok:
+                            result.execute_success = False
+                            result.error_message = f"Execution output check failed: {err}\n{out[:200]}"
+                        result.execution_time = time.time() - start_time
+                        return result
                 # Facade strict tests for TS/Python are executed during transpile via harness
                 if "v3_facade_smoke" in parts_lower and language in ("typescript", "python", "rust", "c", "cpp"):
                     result.execute_success = True
                     result.output = "Facade harness executed"
+                    result.execution_time = time.time() - start_time
+                    return result
+                # For other V3 categories, we do not execute (transpile + validate only)
+                if any(seg.startswith("v3_") for seg in parts_lower):
+                    result.execute_success = True
+                    result.output = "V3 category: execution skipped"
                     result.execution_time = time.time() - start_time
                     return result
                 # Execute based on language

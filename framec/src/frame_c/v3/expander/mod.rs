@@ -47,7 +47,7 @@ impl FrameStatementExpanderV3 for PyExpanderV3 {
                 out
             }
             MirItemV3::StackPush{ .. } => format!("{}self._frame_stack_push()\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}self._frame_stack_pop()\n{}return\n", pad, pad),
+            MirItemV3::StackPop{ .. } => format!("{}self._frame_stack_pop()\n", pad),
         }
     }
 }
@@ -81,39 +81,107 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
                 out
             }
             MirItemV3::StackPush{ .. } => format!("{}this._frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}this._frame_stack_pop();\n{}return;\n", pad, pad),
+            MirItemV3::StackPop{ .. } => format!("{}this._frame_stack_pop();\n", pad),
         }
     }
 }
 
 // Minimal comment-only expanders for other languages
 impl FrameStatementExpanderV3 for CExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, _system_ctx: Option<&str>) -> String {
+    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, state_args, .. } => format!("{}// frame:transition {}({})\n", pad, target, state_args.join(", ")),
-            MirItemV3::Forward{ .. } => format!("{}// frame:forward\n", pad),
-            MirItemV3::StackPush{ .. } => format!("{}// frame:stack_push\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}// frame:stack_pop\n", pad),
+            MirItemV3::Transition{ target, state_args: _, .. } => {
+                let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
+                let id = format!("\"{}\"", id_raw);
+                let mut out = String::new();
+                out.push_str(&format!("{}FrameCompartment next_compartment = frame_compartment_new({});\n", pad, id));
+                out.push_str(&format!("{}_frame_transition(&next_compartment);\n", pad));
+                out.push_str(&format!("{}return;\n", pad));
+                out
+            }
+            MirItemV3::Forward{ .. } => {
+                let mut out = String::new();
+                out.push_str(&format!("{}_frame_router(0, 0);\n", pad));
+                out.push_str(&format!("{}return;\n", pad));
+                out
+            }
+            MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
+            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
         }
     }
 }
 
 impl FrameStatementExpanderV3 for CppExpanderV3 {
     fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
-        CExpanderV3.expand(mir, indent, system_ctx)
+        let pad = " ".repeat(indent);
+        match mir {
+            MirItemV3::Transition{ target, .. } => {
+                let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
+                let id = format!("\"{}\"", id_raw);
+                let mut out = String::new();
+                out.push_str(&format!("{}FrameCompartment next_compartment = frame_compartment_new({});\n", pad, id));
+                out.push_str(&format!("{}_frame_transition(&next_compartment);\n", pad));
+                out.push_str(&format!("{}return;\n", pad));
+                out
+            }
+            MirItemV3::Forward{ .. } => {
+                let mut out = String::new();
+                out.push_str(&format!("{}_frame_router(nullptr, nullptr);\n", pad));
+                out.push_str(&format!("{}return;\n", pad));
+                out
+            }
+            MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
+            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
+        }
     }
 }
 
 impl FrameStatementExpanderV3 for JavaExpanderV3 {
     fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
-        CExpanderV3.expand(mir, indent, system_ctx)
+        let pad = " ".repeat(indent);
+        match mir {
+            MirItemV3::Transition{ target, .. } => {
+                let mut out = String::new();
+                let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
+                out.push_str(&format!("{}FrameCompartment nextCompartment = new FrameCompartment(\"{}\");\n", pad, id_raw));
+                out.push_str(&format!("{}_frame_transition(nextCompartment);\n", pad));
+                out.push_str(&format!("{}return;\n", pad));
+                out
+            }
+            MirItemV3::Forward{ .. } => {
+                let mut out = String::new();
+                out.push_str(&format!("{}_frame_router(null);\n", pad));
+                out.push_str(&format!("{}return;\n", pad));
+                out
+            }
+            MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
+            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
+        }
     }
 }
 
 impl FrameStatementExpanderV3 for RustExpanderV3 {
     fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
-        CExpanderV3.expand(mir, indent, system_ctx)
+        let pad = " ".repeat(indent);
+        match mir {
+            MirItemV3::Transition{ target, .. } => {
+                let mut out = String::new();
+                let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
+                out.push_str(&format!("{}let next_compartment = FrameCompartment {{ state: \"{}\", ..Default::default() }};\n", pad, id_raw));
+                out.push_str(&format!("{}_frame_transition(&next_compartment);\n", pad));
+                out.push_str(&format!("{}return;\n", pad));
+                out
+            }
+            MirItemV3::Forward{ .. } => {
+                let mut out = String::new();
+                out.push_str(&format!("{}_frame_router(None);\n", pad));
+                out.push_str(&format!("{}return;\n", pad));
+                out
+            }
+            MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
+            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n{}return;\n", pad, pad),
+        }
     }
 }
 

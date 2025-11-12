@@ -22,6 +22,8 @@ pub mod prolog_scanner;
 pub mod import_scanner;
 pub mod outline_scanner;
 pub mod facade;
+pub mod ast;
+pub mod arcanum;
 // future: pub mod import_validator;
 
 /// V3 compiler entrypoint (MVP scaffold).
@@ -75,16 +77,16 @@ impl CompilerV3 {
                 if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
                     let m = &mir[mi];
                     mi += 1;
-                    let s = match lang {
-                        TargetLanguage::Python3 => PyExpanderV3.expand(m, *indent, None),
-                        TargetLanguage::TypeScript => TsExpanderV3.expand(m, *indent, None),
-                        TargetLanguage::CSharp => CExpanderV3.expand(m, *indent, None),
-                        TargetLanguage::C => CExpanderV3.expand(m, *indent, None),
-                        TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent, None),
-                        TargetLanguage::Java => JavaExpanderV3.expand(m, *indent, None),
-                        TargetLanguage::Rust => RustExpanderV3.expand(m, *indent, None),
-                        _ => String::new(),
-                    };
+                        let s = match lang {
+                            TargetLanguage::Python3 => PyExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::TypeScript => TsExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::CSharp => CExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::C => CExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Java => JavaExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Rust => RustExpanderV3.expand(m, *indent, None),
+                            _ => String::new(),
+                        };
                     v.push(s);
                 }
             }
@@ -159,6 +161,8 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
     let mut out = String::new();
     let mut body_chunks: Vec<String> = Vec::new();
     let mut frameful_chunks: Vec<(bool, String)> = Vec::new();
+    let mut exec_body_src: Option<String> = None;
+    let mut exec_mir: Option<Vec<crate::frame_c::v3::mir::MirItemV3>> = None;
     let mut cursor = 0usize;
     for b in parts.bodies {
         if b.open_byte > cursor { out.push_str(&content_str[cursor..b.open_byte]); }
@@ -250,11 +254,11 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         let s = match lang {
                             TargetLanguage::Python3 => PyExpanderV3.expand(m, *indent, sys_ctx),
                             TargetLanguage::TypeScript => TsExpanderV3.expand(m, *indent, sys_ctx),
-                            TargetLanguage::CSharp => CExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::C => CExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Java => JavaExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Rust => RustExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::CSharp => CExpanderV3.expand(m, *indent, sys_ctx),
+                            TargetLanguage::C => CExpanderV3.expand(m, *indent, sys_ctx),
+                            TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent, sys_ctx),
+                            TargetLanguage::Java => JavaExpanderV3.expand(m, *indent, sys_ctx),
+                            TargetLanguage::Rust => RustExpanderV3.expand(m, *indent, sys_ctx),
                             _ => String::new(),
                         };
                         v.push(s);
@@ -264,6 +268,12 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             };
             let spliced = SplicerV3.splice(body_src.as_bytes(), &scan.regions, &exps).text;
             let has_frames = !exps.is_empty();
+            if has_frames && exec_body_src.is_none() {
+                exec_body_src = Some(body_src.to_string());
+            }
+            if has_frames && exec_mir.is_none() {
+                exec_mir = Some(mir.clone());
+            }
             frameful_chunks.push((has_frames, spliced.clone()));
             spliced
         };
@@ -275,20 +285,25 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         cursor = b.close_byte + 1;
     }
     if emit_exec {
-        // Build a minimal executable wrapper for Python/TypeScript using the first body
+        // Build a minimal executable wrapper for Python/TypeScript using the first frameful body
         let body = frameful_chunks.iter().find(|(has, _)| *has).map(|(_, s)| s.clone()).or_else(|| body_chunks.get(0).cloned()).unwrap_or_default();
         let program = match lang {
             TargetLanguage::Python3 => {
                 let mut p = String::new();
                 // Use repository runtime rather than inlining primitives
                 p.push_str("from frame_runtime_py import FrameEvent, FrameCompartment\n\n");
-                p.push_str("class M:\n    def __init__(self):\n        self._compartment = FrameCompartment('__S_state_A')\n    def _frame_transition(self, next_compartment):\n        self._compartment = next_compartment\n    def _frame_router(self, __e, compartment=None):\n        pass\n    def _frame_stack_push(self):\n        pass\n    def _frame_stack_pop(self):\n        pass\n");
+                p.push_str("class M:\n    def __init__(self):\n        self._compartment = FrameCompartment('__S_state_A')\n    def _frame_transition(self, next_compartment):\n        self._compartment = next_compartment\n        print(f'TRANSITION:{next_compartment.state}')\n    def _frame_router(self, __e, compartment=None):\n        print('FORWARD:PARENT')\n    def _frame_stack_push(self):\n        print('STACK:PUSH')\n    def _frame_stack_pop(self):\n        print('STACK:POP')\n");
                 p.push_str("def native():\n    pass\n\n");
                 p.push_str("def handler(self, __e, compartment):\n");
-                for line in body.lines() {
-                    let trimmed = line.trim_start();
-                    if trimmed.is_empty() { continue; }
-                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                // Re-emit only production glue with a consistent function indent
+                if let Some(ref mirv) = exec_mir {
+                    use crate::frame_c::v3::expander::PyExpanderV3;
+                    for m in mirv { let s = PyExpanderV3.expand(m, 4, system_name.as_deref()); p.push_str(&s); }
+                } else if let Some(src) = exec_body_src.as_ref() {
+                    let scan = match nscan::python::NativeRegionScannerPyV3.scan(src.as_bytes(), 0) { Ok(s) => s, Err(_) => crate::frame_c::v3::native_region_scanner::ScanResultV3{ close_byte: src.len().saturating_sub(1), regions: Vec::new() } };
+                    let mir = MirAssemblerV3.assemble(src.as_bytes(), &scan.regions).unwrap_or_else(|_| Vec::new());
+                    use crate::frame_c::v3::expander::PyExpanderV3;
+                    for m in &mir { let s = PyExpanderV3.expand(m, 4, system_name.as_deref()); p.push_str(&s); }
                 }
                 p.push_str("\nif __name__ == '__main__':\n    m=M()\n    handler(m, FrameEvent('e', None), m._compartment)\n");
                 p
@@ -297,7 +312,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 let mut p = String::new();
                 p.push_str("class FrameEvent { constructor(public message: string, public parameters: any|null) {} }\n");
                 p.push_str("class FrameCompartment { constructor(public state: string) {} public forwardEvent: FrameEvent|null=null; public exitArgs: any=null; public enterArgs: any=null; public parentCompartment: FrameCompartment|null=null; public stateArgs: any=null; }\n");
-                p.push_str("class M { public _compartment: FrameCompartment = new FrameCompartment('__S_state_A'); _frame_transition(n: FrameCompartment){ this._compartment=n; } _frame_router(__e: FrameEvent, c?: FrameCompartment){ } _frame_stack_push(){} _frame_stack_pop(){} }\n");
+                p.push_str("class M { public _compartment: FrameCompartment = new FrameCompartment('__S_state_A'); _frame_transition(n: FrameCompartment){ this._compartment=n; console.log('TRANSITION:'+n.state); } _frame_router(__e: FrameEvent, c?: FrameCompartment){ console.log('FORWARD:PARENT'); } _frame_stack_push(){ console.log('STACK:PUSH'); } _frame_stack_pop(){ console.log('STACK:POP'); } }\n");
                 p.push_str("function native(): void {}\n\n");
                 p.push_str("function handler(self: M, __e: FrameEvent, compartment: FrameCompartment) {\n");
                 for line in body.lines() {
@@ -310,33 +325,66 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             }
             TargetLanguage::Rust => {
                 let mut p = String::new();
+                p.push_str("#[derive(Default)] struct FrameCompartment<'a>{ state: &'a str, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<&'a FrameCompartment<'a>>, state_args: Option<()>, }\n");
+                p.push_str("fn __frame_transition(state: &str){ println!(\"TRANSITION:{}\", state); }\n");
+                p.push_str("fn __frame_forward(){ println!(\"FORWARD:PARENT\"); }\n");
+                p.push_str("fn __frame_stack_push(){ println!(\"STACK:PUSH\"); }\n");
+                p.push_str("fn __frame_stack_pop(){ println!(\"STACK:POP\"); }\n");
                 p.push_str("fn handler() {\n");
-                for line in body.lines() {
-                    let trimmed = line.trim_start();
-                    if trimmed.is_empty() { continue; }
-                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                if let Some(ref mirv) = exec_mir {
+                    use crate::frame_c::v3::expander::RustFacadeExpanderV3;
+                    for m in mirv { let s = RustFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
+                } else if let Some(src) = exec_body_src.as_ref() {
+                    let scan = match nscan::rust::NativeRegionScannerRustV3.scan(src.as_bytes(), 0) { Ok(s) => s, Err(_) => crate::frame_c::v3::native_region_scanner::ScanResultV3{ close_byte: src.len().saturating_sub(1), regions: Vec::new() } };
+                    let mir = MirAssemblerV3.assemble(src.as_bytes(), &scan.regions).unwrap_or_else(|_| Vec::new());
+                    use crate::frame_c::v3::expander::RustFacadeExpanderV3;
+                    for m in &mir { let s = RustFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
                 }
                 p.push_str("}\nfn main(){ handler(); }\n");
                 p
             }
             TargetLanguage::C => {
                 let mut p = String::new();
+                p.push_str("#include <stddef.h>\n#include <stdio.h>\n\n");
+                p.push_str("typedef struct FrameCompartment { const char* state; void* forwardEvent; void* exitArgs; void* enterArgs; struct FrameCompartment* parentCompartment; void* stateArgs; } FrameCompartment;\n");
+                p.push_str("static inline FrameCompartment frame_compartment_new(const char* state){ FrameCompartment c = { state, 0, 0, 0, 0, 0 }; return c; }\n");
+                p.push_str("void __frame_transition(const char* state) { printf(\"TRANSITION:%s\\n\", state); }\n");
+                p.push_str("void __frame_forward(void) { printf(\"FORWARD:PARENT\\n\"); }\n");
+                p.push_str("void __frame_stack_push(void) { printf(\"STACK:PUSH\\n\"); }\n");
+                p.push_str("void __frame_stack_pop(void) { printf(\"STACK:POP\\n\"); }\n\n");
                 p.push_str("void handler(void) {\n");
-                for line in body.lines() {
-                    let trimmed = line.trim_start();
-                    if trimmed.is_empty() { continue; }
-                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                p.push_str("    FrameCompartment compartment = frame_compartment_new(\"__S_state_A\");\n");
+                if let Some(ref mirv) = exec_mir {
+                    use crate::frame_c::v3::expander::CFacadeExpanderV3;
+                    for m in mirv { let s = CFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
+                } else if let Some(src) = exec_body_src.as_ref() {
+                    let scan = match nscan::c::NativeRegionScannerCV3.scan(src.as_bytes(), 0) { Ok(s) => s, Err(_) => crate::frame_c::v3::native_region_scanner::ScanResultV3{ close_byte: src.len().saturating_sub(1), regions: Vec::new() } };
+                    let mir = MirAssemblerV3.assemble(src.as_bytes(), &scan.regions).unwrap_or_else(|_| Vec::new());
+                    use crate::frame_c::v3::expander::CFacadeExpanderV3;
+                    for m in &mir { let s = CFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
                 }
                 p.push_str("}\nint main(void){ handler(); return 0; }\n");
                 p
             }
             TargetLanguage::Cpp => {
                 let mut p = String::new();
+                p.push_str("#include <cstddef>\n#include <cstdio>\n\n");
+                p.push_str("struct FrameCompartment { const char* state; void* forwardEvent; void* exitArgs; void* enterArgs; FrameCompartment* parentCompartment; void* stateArgs; };\n");
+                p.push_str("inline FrameCompartment frame_compartment_new(const char* state){ return FrameCompartment{ state, nullptr, nullptr, nullptr, nullptr, nullptr }; }\n");
+                p.push_str("void __frame_transition(const char* state) { std::printf(\"TRANSITION:%s\\n\", state); }\n");
+                p.push_str("void __frame_forward() { std::printf(\"FORWARD:PARENT\\n\"); }\n");
+                p.push_str("void __frame_stack_push() { std::printf(\"STACK:PUSH\\n\"); }\n");
+                p.push_str("void __frame_stack_pop() { std::printf(\"STACK:POP\\n\"); }\n\n");
                 p.push_str("void handler() {\n");
-                for line in body.lines() {
-                    let trimmed = line.trim_start();
-                    if trimmed.is_empty() { continue; }
-                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                p.push_str("    FrameCompartment compartment = frame_compartment_new(\"__S_state_A\");\n");
+                if let Some(ref mirv) = exec_mir {
+                    use crate::frame_c::v3::expander::CppFacadeExpanderV3;
+                    for m in mirv { let s = CppFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
+                } else if let Some(src) = exec_body_src.as_ref() {
+                    let scan = match nscan::cpp::NativeRegionScannerCppV3.scan(src.as_bytes(), 0) { Ok(s) => s, Err(_) => crate::frame_c::v3::native_region_scanner::ScanResultV3{ close_byte: src.len().saturating_sub(1), regions: Vec::new() } };
+                    let mir = MirAssemblerV3.assemble(src.as_bytes(), &scan.regions).unwrap_or_else(|_| Vec::new());
+                    use crate::frame_c::v3::expander::CppFacadeExpanderV3;
+                    for m in &mir { let s = CppFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
                 }
                 p.push_str("}\nint main(){ handler(); return 0; }\n");
                 p
@@ -344,26 +392,48 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             TargetLanguage::Java => {
                 let mut p = String::new();
                 p.push_str("public class ExecMain {\n");
-                p.push_str("  static void handler() {\n");
-                for line in body.lines() {
-                    let trimmed = line.trim_start();
-                    if trimmed.is_empty() { continue; }
-                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                p.push_str("  static class FrameCompartment { String state; Object forwardEvent, exitArgs, enterArgs, stateArgs; FrameCompartment parentCompartment; FrameCompartment(String s){ this.state=s; } }\n");
+                p.push_str("  static FrameCompartment compartment = new FrameCompartment(\"__S_state_A\");\n");
+                p.push_str("  static void __frame_transition(String state){ System.out.println(\"TRANSITION:\"+state); }\n");
+                p.push_str("  static void __frame_forward(){ System.out.println(\"FORWARD:PARENT\"); }\n");
+                p.push_str("  static void __frame_stack_push(){ System.out.println(\"STACK:PUSH\"); }\n");
+                p.push_str("  static void __frame_stack_pop(){ System.out.println(\"STACK:POP\"); }\n");
+                p.push_str("  static void handler(){\n");
+                if let Some(ref mirv) = exec_mir {
+                    use crate::frame_c::v3::expander::JavaFacadeExpanderV3;
+                    for m in mirv { let s = JavaFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
+                } else if let Some(src) = exec_body_src.as_ref() {
+                    let scan = match nscan::java::NativeRegionScannerJavaV3.scan(src.as_bytes(), 0) { Ok(s) => s, Err(_) => crate::frame_c::v3::native_region_scanner::ScanResultV3{ close_byte: src.len().saturating_sub(1), regions: Vec::new() } };
+                    let mir = MirAssemblerV3.assemble(src.as_bytes(), &scan.regions).unwrap_or_else(|_| Vec::new());
+                    use crate::frame_c::v3::expander::JavaFacadeExpanderV3;
+                    for m in &mir { let s = JavaFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
                 }
                 p.push_str("  }\n  public static void main(String[] args){ handler(); }\n}\n");
                 p
             }
             TargetLanguage::CSharp => {
                 let mut p = String::new();
-                p.push_str("using System;\nclass ExecMain {\n  static void handler(){\n");
-                for line in body.lines() {
-                    let trimmed = line.trim_start();
-                    if trimmed.is_empty() { continue; }
-                    p.push_str("    "); p.push_str(trimmed); p.push('\n');
+                p.push_str("using System;\nclass ExecMain {\n");
+                p.push_str("  class FrameCompartment { public string state; public object forwardEvent, exitArgs, enterArgs, stateArgs; public FrameCompartment parentCompartment; public FrameCompartment(string s){ state=s; } }\n");
+                p.push_str("  static FrameCompartment compartment = new FrameCompartment(\"__S_state_A\");\n");
+                p.push_str("  static void __frame_transition(string state){ Console.WriteLine(\"TRANSITION:\"+state); }\n");
+                p.push_str("  static void __frame_forward(){ Console.WriteLine(\"FORWARD:PARENT\"); }\n");
+                p.push_str("  static void __frame_stack_push(){ Console.WriteLine(\"STACK:PUSH\"); }\n");
+                p.push_str("  static void __frame_stack_pop(){ Console.WriteLine(\"STACK:POP\"); }\n");
+                p.push_str("  static void handler(){\n");
+                if let Some(ref mirv) = exec_mir {
+                    use crate::frame_c::v3::expander::CFacadeExpanderV3;
+                    for m in mirv { let s = CFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
+                } else if let Some(src) = exec_body_src.as_ref() {
+                    let scan = match nscan::csharp::NativeRegionScannerCsV3.scan(src.as_bytes(), 0) { Ok(s) => s, Err(_) => crate::frame_c::v3::native_region_scanner::ScanResultV3{ close_byte: src.len().saturating_sub(1), regions: Vec::new() } };
+                    let mir = MirAssemblerV3.assemble(src.as_bytes(), &scan.regions).unwrap_or_else(|_| Vec::new());
+                    use crate::frame_c::v3::expander::CFacadeExpanderV3;
+                    for m in &mir { let s = CFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
                 }
                 p.push_str("  }\n  static void Main(string[] args){ handler(); }\n}\n");
                 p
             }
+            
             _ => body,
         };
         return Ok(program);
@@ -396,6 +466,8 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
     let mut known_states = std::collections::HashSet::new();
     let mut system_name: Option<String> = None;
+    // Build Arcanum symbol table from outline
+    let mut arcanum_symtab: Option<crate::frame_c::v3::arcanum::Arcanum> = None;
     {
         let (items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
         all_issues.extend(outline_issues);
@@ -404,10 +476,12 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         // machine section: simple state header check for '{'
         let state_issues = validator.validate_machine_state_headers(bytes, outline_start);
         all_issues.extend(state_issues);
-        // Collect known state names from machine sections
+        // Collect known state names (coarse) and build Arcanum for symbol-precision
         known_states = validator.collect_machine_state_names(bytes, outline_start);
+        arcanum_symtab = Some(crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start));
         // Best-effort scan for system name
         system_name = find_system_name(bytes, 0);
+        // Debug hook removed: known_states reporting was temporary for triage
     }
     for b in parts.bodies {
         let body_bytes = &bytes[b.open_byte..=b.close_byte];
@@ -427,14 +501,24 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         if !parse_issues.is_empty() { all_issues.extend(parse_issues); }
         let policy = ValidatorPolicyV3 { body_kind: Some(b.kind) };
         let mut res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
-        // Validate that transition targets refer to known states (coarse file-level set)
-        if !known_states.is_empty() {
+        // Validate that transition targets refer to known states (symbol-table first, fallback to coarse set)
+        if let Some(ref arc) = arcanum_symtab {
+            if !known_states.is_empty() {
+                let sys = system_name.as_deref();
+                res.issues.extend(validator.validate_transition_targets_arcanum(&mir, arc, sys));
+            }
+        } else if !known_states.is_empty() {
             res.issues.extend(validator.validate_transition_targets(&mir, &known_states));
         }
         // If no parent relationship exists anywhere in the machine, flag any use of parent forward.
         // Only enforce when a machine: section exists (single-body demos are exempt).
         if validator.has_machine_section(bytes, outline_start) {
-            let has_parent = validator.has_any_parent_relationship(bytes, outline_start);
+            // Prefer symbol-table; fallback to coarse scan
+            let has_parent = if let Some(ref arc) = arcanum_symtab {
+                validator.any_parent_relation_arcanum(arc)
+            } else {
+                validator.has_any_parent_relationship(bytes, outline_start)
+            };
             if !has_parent {
                 if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
                     all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E403: Cannot forward to parent: no parent available".into() });

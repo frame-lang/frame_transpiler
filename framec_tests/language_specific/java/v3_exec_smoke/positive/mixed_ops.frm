@@ -1,11 +1,12 @@
-@target rust
+@target java
 
 system S {
     machine:
         $A {
             e() {
                 $$[+]
-                $$[-]
+                -> $B()
             }
         }
+        $B { e() { } }
 }

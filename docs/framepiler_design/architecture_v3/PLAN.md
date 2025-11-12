@@ -31,9 +31,11 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_mir parser negatives (malformed heads/args) — extended across Transition/Forward/Stack
 - [x] v3_expansion indentation chain fixtures — completed
 - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check
- - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check; parent‑forward availability (module demos)
+- [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check; parent‑forward availability (module demos)
+- [x] v3_validator — section marker refinement for state collection (ignore non‑section tokens like `else:`); fixes spurious E402 on valid states
  - [x] Docs: inline separators and multi‑statement policy per language
- - [x] Docs: facade wrapper‑only checks and transition‑arg policy across languages
+- [x] Docs: facade wrapper‑only checks and transition‑arg policy across languages
+- [x] Exec-smoke: all 7 languages emit and run tiny programs with standardized markers (TRANSITION, FORWARD:PARENT, STACK:PUSH/POP). Non-Py/TS use minimal wrapper stubs in exec mode; main suites remain transpile/validate-only.
 
 Production‑ready criteria (not done unless explicitly checked):
 - [x] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
@@ -242,8 +244,11 @@ Checklist
 - [x] Demo CLI `--validate/--validation-only` paths
 - [ ] Python/TypeScript native policy checks
 - [x] State/target existence checks
+ - [x] E402/E403 backed by symbol table (Arcanum) in module validation path
  - [x] Parent‑forward availability checks (module demos)
  - [x] Test policy: parent‑forward fixtures only in system context (module files); do not author single‑body tests for this rule
+ - [x] Known‑state collection honors only real sections (machine/actions/operations/interface); no interference from control‑flow labels
+ - [x] Exec-smoke parity: Python/TS real glue; C/C++/Java/C#/Rust emit wrapper calls and print markers; runner treats missing toolchains as clean skip
 
 Project / Multi‑File Layer (after MVP green)
 - Objects: `FileLoaderV3`, `ModuleResolverV3`, `ProjectGraphV3`, `FIDIndexV3`, `FIDEmitterV3`, `SemanticAnalyzerV3`, `TsModuleLinkerV3`, `PythonPackagePlannerV3`, `BuildPlannerV3`.
@@ -297,9 +302,24 @@ CI & Tooling
 - Debug flags for mapping/anchors; JSON/human outputs for map inspection.
 - Caches: content‑hash keyed `RegionScanCacheV3`/`MirCacheV3` for future incremental builds.
 
+Exec‑Smoke Parity (All Languages)
+- Goal: each language runs tiny, hermetic programs that print standardized markers for Frame statements.
+- Status: [x] Python [x] TypeScript [x] C [x] C++ [x] Java [x] C# [x] Rust
+- Coverage:
+  - [x] transition_basic, forward_parent (system context with declared parent)
+  - [x] stack_ops (PUSH/POP), mixed_ops (stack + transition)
+  - [x] if_forward_else_transition (forward or transition path)
+  - [x] stack_then_transition, nested_stack_then_transition
+
+Next Steps (Validation & CI)
+- [ ] Tolerant diagnostics parity sweep (module path): ensure multi‑issue fixtures surface all problems; codegen remains strict.
+- [ ] CI polish: ensure v3_exec_smoke runs on push/PR; keep v3_all transpile‑only suites as a separate job.
+- [x] Plan Stage 09 symbol‑table migration for E402/E403 to replace coarse known‑state collection.
+
 Milestones & Gating
 - M1: Stages 01–03 green with micro‑fixtures; scanners return identical close/segment boundaries as sampled expectations.
 - M2: Stage 04/05: Python language_specific 100% validate + execution ≥95%; TS language_specific 100% validate.
+  - Status: Python/TypeScript v3_exec_smoke 100% run/validate; C/C++/Java/C#/Rust exec-smoke 100% via wrapper markers; runner emits `--emit-exec` for Py/TS and validates markers consistently across languages.
 - M3: Stage 06 mapping debug anchors verified on samples.
 - Next: Stage 07 (optional) — Native parser adapter scaffolding behind cargo features (`native-ts`, `native-py`, `native-rs`, etc.) and `--validate-native`.
 - M4 (Optional): Project layer minimum viable linking (TS/Py) + FID round‑trip; multi‑file suites pass when enabled.
