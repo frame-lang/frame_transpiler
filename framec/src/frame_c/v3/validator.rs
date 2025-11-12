@@ -14,18 +14,9 @@ pub struct ValidationResultV3 { pub ok: bool, pub issues: Vec<ValidationIssueV3>
 pub struct ValidatorV3;
 
 impl ValidatorV3 {
-    // Minimal structural rule: once a terminal MIR is seen, no further MIR items may follow.
-    pub fn validate_regions_mir(&self, regions: &[RegionV3], mir: &[MirItemV3]) -> ValidationResultV3 {
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
-        // terminal kinds: Transition only (forward/stack ops are not mandated terminal)
-        let is_terminal = |m: &MirItemV3| matches!(m, MirItemV3::Transition{..});
-        // ensure no MIR after terminal
-        if let Some((idx, _)) = mir.iter().enumerate().find(|(_, m)| is_terminal(m)) {
-            if idx + 1 < mir.len() {
-                issues.push(ValidationIssueV3 { message: "E400: Transition must be last statement in its containing block".to_string() });
-            }
-        }
-        ValidationResultV3 { ok: issues.is_empty(), issues }
+    // Structural validation placeholder; block-scoped terminal rule enforced in validate_terminal_last_native.
+    pub fn validate_regions_mir(&self, _regions: &[RegionV3], _mir: &[MirItemV3]) -> ValidationResultV3 {
+        ValidationResultV3 { ok: true, issues: Vec::new() }
     }
 
     // Strict terminal check: Transition must be last statement in its containing block

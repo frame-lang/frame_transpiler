@@ -454,9 +454,21 @@ pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<V
 
 pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, strict_native: bool) -> Result<ValidationResultV3, RunError> {
     let bytes = content_str.as_bytes();
+    // Partition the module. If partitioning fails due to outline issues (e.g., missing '{' after a header),
+    // fall back to a tolerant outline scan to surface structured diagnostics (E-codes) instead of a hard error.
     let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
         Ok(p) => p,
-        Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &e.0)),
+        Err(_e) => {
+            // Tolerant outline scan will collect E111 and similar diagnostics.
+            let outline_start = 0usize; // tolerant scan will walk whole file
+            let (_items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+            if !outline_issues.is_empty() {
+                return Ok(ValidationResultV3 { ok: false, issues: outline_issues });
+            } else {
+                // If we couldn't recover any diagnostics, return the original partition error
+                return Err(RunError::new(frame_exitcode::PARSE_ERR, "module partition error"));
+            }
+        }
     };
     let validator = ValidatorV3;
     let mut all_issues = Vec::new();

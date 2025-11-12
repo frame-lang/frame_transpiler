@@ -10229,9 +10229,12 @@
       "python": {
         "transpile": true,
         "validate": false,
-        "execute": true,
+        "execute": false,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E401"
+        ]
       },
       "rust": {
         "transpile": true,
@@ -10243,9 +10246,12 @@
       "typescript": {
         "transpile": true,
         "validate": false,
-        "execute": true,
+        "execute": false,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E401"
+        ]
       }
     },
     "negative/interface_missing_brace.frm": {
@@ -10280,9 +10286,10 @@
       "python": {
         "transpile": false,
         "validate": false,
-        "execute": true,
+        "execute": false,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "rust": {
         "transpile": false,
@@ -10294,9 +10301,10 @@
       "typescript": {
         "transpile": false,
         "validate": false,
-        "execute": true,
+        "execute": false,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       }
     },
     "positive/multiple_handlers.frm": {
@@ -11857,6 +11865,38 @@
           "E302",
           "E400"
         ]
+      }
+    },
+    "positive/if_forward_exec.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      }
+    },
+    "positive/transition_basic_exec.frm": {
+      "python": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
+      },
+      "typescript": {
+        "transpile": true,
+        "validate": true,
+        "execute": true,
+        "negative": false,
+        "infinite": false
       }
     }
   }

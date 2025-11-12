@@ -1,0 +1,14 @@
+@target typescript
+// @run-expect: STACK:PUSH
+// @run-expect: TRANSITION:
+
+system S {
+    machine:
+        $A {
+            e() {
+                $$[+]; // inline stack push only
+                -> $B();
+            }
+        }
+        $B { }
+}

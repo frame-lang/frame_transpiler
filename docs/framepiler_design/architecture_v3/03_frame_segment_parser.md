@@ -47,6 +47,13 @@ Errors
 - Trailing non‑whitespace tokens after a Frame statement line when no inline separator is present.
 - Malformed heads for non‑transition statements: any forward head other than `$^` is invalid; any stack head other than `$$[+]` or `$$[-]` is invalid.
 
+Validation notes (negatives)
+- Identifier rule tightened: `state_ident` must begin with a letter or underscore and continue with `[A-Za-z0-9_]*`. Fixtures cover invalid starts (digits, symbols) and empty names.
+- Malformed head coverage extends to all Frame statements, not only transitions:
+  - Forward negatives such as `=> $B` (must be `=> $^`).
+  - Stack negatives for any head not exactly `$$[+]` or `$$[-]`.
+- Inline separation is enforced by the scanner; without a top‑level separator (`;` or line comment), any trailing tokens on the same line produce a trailing‑tokens error.
+
 Complexity
 - O(length of segment); overall sum O(n).
 

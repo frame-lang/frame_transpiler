@@ -41,9 +41,9 @@ impl FrameStatementExpanderV3 for PyExpanderV3 {
                 out
             }
             MirItemV3::Forward{ .. } => {
+                // Forwards are non-terminal: dispatch to parent and continue
                 let mut out = String::new();
                 out.push_str(&format!("{}self._frame_router(__e, compartment.parent_compartment)\n", pad));
-                out.push_str(&format!("{}return\n", pad));
                 out
             }
             MirItemV3::StackPush{ .. } => format!("{}self._frame_stack_push()\n", pad),
@@ -74,10 +74,9 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
                 out
             }
             MirItemV3::Forward{ .. } => {
-                // parent forward: dispatch to parent compartment and return
+                // Forwards are non-terminal: dispatch to parent and continue
                 let mut out = String::new();
                 out.push_str(&format!("{}this._frame_router(__e, compartment.parentCompartment);\n", pad));
-                out.push_str(&format!("{}return;\n", pad));
                 out
             }
             MirItemV3::StackPush{ .. } => format!("{}this._frame_stack_push();\n", pad),

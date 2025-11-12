@@ -14,8 +14,8 @@ Expansions
   - Production glue: construct a `FrameCompartment` for the target state, call `this._frame_transition(<compartment>)`, then emit a native `return;` to exit the handler immediately. This mirrors the kernel contract and the terminal rule.
   - Terminal within its containing block (validator enforced). The emitted `return;` makes control‑flow explicit even in deeply nested blocks.
 - Forward `=> $^`:
-  - Emit parent forward glue (dispatch to parent with current event) via `this._frame_router(__e, compartment.parentCompartment)` and then `return;` when required by the surrounding control flow.
-  - Not mandated terminal; native statements may follow when separated by a valid inline separator.
+  - Emit parent forward glue (dispatch to parent with current event) via `this._frame_router(__e, compartment.parentCompartment)`.
+  - Not mandated terminal; no implicit `return;` is injected. Native statements may follow (subject to TypeScript syntax and inline separators).
 - Stack ops `$$+` / `$$-`:
   - Emit push/pop glue for state stack.
   - Not mandated terminal; native statements may follow when separated by a valid inline separator.

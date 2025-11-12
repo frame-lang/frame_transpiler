@@ -31,3 +31,34 @@ Performance
 
 CI Integration
 - Run all 7 language suites for V3 categories on meaningful changes to scanning/segmentation/MIR/validator/expander. LLVM is out of scope (on hold).
+
+Curated Exec (Python/TypeScript)
+- Purpose: end-to-end execution for selected categories (`v3_core`, `v3_control_flow`, `v3_systems`) to validate production glue and control-flow insertion.
+- Enable with runner flag `--exec-v3` and author fixtures with inline expectations:
+  - Python: `# @run-expect: <regex>` lines
+  - TypeScript: `// @run-expect: <regex>` lines
+- The curated harness asserts expected markers in output (`TRANSITION:`, `FORWARD:PARENT`, `STACK:PUSH|POP`). It executes expansions only (no branch evaluation).
+- Example:
+```
+python3 framec_tests/runner/frame_test_runner.py \
+  --languages python typescript \
+  --categories v3_control_flow v3_core v3_systems \
+  --framec ./target/release/framec \
+  --exec-v3 --run -v
+```
+
+JUnit Artifacts
+- All V3 workflows upload JUnit XML reports suitable for CI dashboards and local inspection:
+  - v3_all.yml (transpile-only): `reports/v3_all_junit.xml`
+  - v3_exec_smoke.yml: `reports/v3_exec_smoke_junit.xml`
+  - v3_curated_exec.yml: `reports/v3_curated_exec_junit.xml`
+- Locally, request JUnit via:
+```
+python3 framec_tests/runner/frame_test_runner.py \
+  --languages python typescript \
+  --categories v3_control_flow \
+  --framec ./target/release/framec \
+  --exec-v3 --run \
+  --validation-format junit \
+  --junit report.xml
+```

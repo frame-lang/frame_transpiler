@@ -33,10 +33,14 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check
 - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check; parent‑forward availability (module demos)
 - [x] v3_validator — section marker refinement for state collection (ignore non‑section tokens like `else:`); fixes spurious E402 on valid states
+ - [x] Outline/validator negatives for handler scope
+   - [x] `handler_outside_state` and `handler_in_nonstate_block` added across languages; surfaces E404 alongside any E403 where applicable
  - [x] Docs: inline separators and multi‑statement policy per language
 - [x] Docs: facade wrapper‑only checks and transition‑arg policy across languages
 - [x] Exec-smoke: all 7 languages emit and run tiny programs with standardized markers (TRANSITION, FORWARD:PARENT, STACK:PUSH/POP). Non-Py/TS use minimal wrapper stubs in exec mode; main suites remain transpile/validate-only.
 - [x] Curated exec (Python/TS): runner supports `--exec-v3` with gating via `@run-expect` / `@run-exact` / `@exec-ok` for selected categories (`v3_core`, `v3_control_flow`, `v3_systems`). Seeded fixtures under control_flow.
+ - [x] Curated exec expanded (Python/TS): added nested/loops and full-bucket transition fixtures; all green.
+ - [x] CI artifacts: V3 workflows upload JUnit XML reports for v3_all, v3_exec_smoke, and curated exec.
 
 Production‑ready criteria (not done unless explicitly checked):
 - [x] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
@@ -63,6 +67,8 @@ Repository Mechanics Checklist
 - [x] V3 is authoritative in v3/ and used by demos
 - [x] Demo commands exist for exercising V3
 - [x] Validation flags `--validate/--validation-only` (demo) integrated
+- [x] Curated exec (`--exec-v3`) for Python/TypeScript with `@run-expect` assertions
+- [x] CI JUnit uploads for v3_all, v3_exec_smoke, curated exec
 
 01 — Body Closers (per target)
 - Objects: `BodyCloserPyV3`, `BodyCloserTsV3`, `BodyCloserCsV3` (trait `BodyCloserV3`)
@@ -137,6 +143,11 @@ Checklist
 - [x] Import scanner diagnostics standardized (E110)
 - [x] TS: support Transition with leading exit args at SOL `(<exit>) -> ( <enter> ) $State( <state> )`
 - [ ] Comprehensive SOL/edge fixtures per language
+  - [x] Block comments (C/C++/Java/C#/Rust): tokens inside `/* ... */` ignored
+  - [x] Raw strings (C++): tokens inside `R"(...)"` ignored
+  - [x] Interpolated strings (C#): tokens inside `$"...{...}..."` ignored
+  - [x] Java text blocks: tokens inside `""" ... """` ignored
+  - [x] TypeScript templates: tokens inside multi-line backticks with nested `${...}` ignored
 
 03 — Frame Statement Parser (FIRST‑set)
 - Objects: `FrameStatementParserV3` (+ `FrameStatementParserPyV3/TsV3`), helpers `NativeArgSplitterPyV3/TsV3`.
@@ -252,6 +263,8 @@ Checklist
   - [x] Test policy: parent‑forward fixtures only in system context (module files); do not author single‑body tests for this rule
   - [x] Known‑state collection honors only real sections (machine/actions/operations/interface); no interference from control‑flow labels
   - [x] Exec-smoke parity: Python/TS real glue; C/C++/Java/C#/Rust emit wrapper calls and print markers; runner treats missing toolchains as clean skip
+- [x] Handler scope enforcement
+  - [x] E404: handler must be inside a state (negatives added across languages: `handler_outside_state`, `handler_in_nonstate_block`)
 
 Project / Multi‑File Layer (after MVP green)
 - Objects: `FileLoaderV3`, `ModuleResolverV3`, `ProjectGraphV3`, `FIDIndexV3`, `FIDEmitterV3`, `SemanticAnalyzerV3`, `TsModuleLinkerV3`, `PythonPackagePlannerV3`, `BuildPlannerV3`.
