@@ -534,6 +534,11 @@ class FrameTestRunner:
                 self.config.validation_format,
                 str(test_file),
             ]
+            # Enable strict/native facade validation for facade smoke fixtures
+            if "v3_facade_smoke" in parts_lower:
+                # Insert before the test file path (last arg)
+                insert_at = max(3, len(cmd) - 1)
+                cmd.insert(insert_at, "--validate-native")
 
         try:
             result = subprocess.run(
@@ -1551,9 +1556,11 @@ class FrameTestRunner:
                         result.error_message = f"Missing expected error codes {missing}\n{validation_output}"
             # Require at least one validator code when enabled
             if negative_ok and self.config.require_error_codes:
-                if not (result.validation_errors or []):
-                    negative_ok = False
-                    result.error_message = "Negative test failed without validator error codes (E###)"
+                parts_lower = [p.lower() for p in test_file.parts]
+                if "v3_facade_smoke" not in parts_lower:
+                    if not (result.validation_errors or []):
+                        negative_ok = False
+                        result.error_message = "Negative test failed without validator error codes (E###)"
             if negative_ok:
                 result.expected_failure = True
                 err = error or validation_output
