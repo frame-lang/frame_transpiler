@@ -513,7 +513,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         // Parent-forward rule (module demos only): require a parent for the enclosing state
         if validator.has_machine_section(bytes, outline_start) {
             if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
-                let enclosing_state = find_enclosing_state_name(bytes, b.open_byte, outline_start);
+                let enclosing_state = b.state_id.clone().or_else(|| find_enclosing_state_name(bytes, b.open_byte, outline_start));
                 let mut ok_parent = false;
                 if let Some(state_name) = enclosing_state.as_deref() {
                     if let Some(ref arc) = arcanum_symtab {

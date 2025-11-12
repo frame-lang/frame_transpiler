@@ -21,6 +21,7 @@ pub struct BodyPartitionV3 {
     pub close_byte: usize, // index of '}'
     pub kind: BodyKindV3,
     pub owner_id: Option<String>,
+    pub state_id: Option<String>,
     pub header_span: Option<RegionSpan>,
 }
 
@@ -103,6 +104,7 @@ impl ModulePartitionerV3 {
             close_byte: it.close_byte,
             kind: it.kind,
             owner_id: it.owner_id,
+            state_id: it.state_id,
             header_span: Some(it.header_span),
         }).collect();
         Ok(ModulePartitionsV3 { prolog, imports, import_issues, bodies })
