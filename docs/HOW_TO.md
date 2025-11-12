@@ -237,6 +237,29 @@ Notes:
 - This mode inlines a tiny runtime shell (FrameEvent/FrameCompartment and a minimal machine) and calls a generated handler once. It is intended for smoke‑level verification of production glue and does not replace full codegen.
 - Use `FRAME_EMIT_BODY_ONLY=1` to emit only spliced handler body text (useful for harness execution or debugging).
 
+## Executable V3 (All Languages — Smoke)
+
+The `v3_exec_smoke` category runs tiny, standalone programs to verify that the spliced handler bodies compile and execute end‑to‑end. This is intentionally minimal and hermetic and does not replace full codegen.
+
+- Run exec smoke for all supported languages:
+```bash
+python3 framec_tests/runner/frame_test_runner.py \
+  --languages python typescript csharp c cpp java rust \
+  --categories v3_exec_smoke \
+  --framec ./target/release/framec -v
+```
+
+What happens per language
+- Python/TypeScript: framec emits a minimal executable wrapper (FRAME_EMIT_EXEC) with real production glue; the runner executes the resulting program (python3 / node+tsc).
+- Rust/C/C++/Java/C#: framec emits a minimal main() wrapper and splices bodies; the runner compiles/executes via system toolchains when present:
+  - C/C++: clang/gcc or clang++/g++ (skips cleanly if unavailable)
+  - Java: javac + java (skips cleanly if missing)
+  - C#: csc or mcs (+mono) (skips run if only mcs without mono)
+
+Scope and expectations
+- These are “smoke” checks: they verify compilation and that the tiny main() runs. Non‑Py/TS expanders currently emit comment‑only markers for Frame statements; code executes successfully but doesn’t perform runtime behavior. Python/TS use real glue.
+- Keep exec runs limited to v3_exec_smoke to avoid toolchain noise in broader suites. Transpile‑only + validation remain the default for all other categories.
+
 ## Code Patterns
 
 ### Going Native (Bodies + Frame Statements)
