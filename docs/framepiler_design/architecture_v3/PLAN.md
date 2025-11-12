@@ -39,7 +39,7 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] Docs: facade wrapper‑only checks and transition‑arg policy across languages
 - [x] Exec-smoke: all 7 languages emit and run tiny programs with standardized markers (TRANSITION, FORWARD:PARENT, STACK:PUSH/POP). Non-Py/TS use minimal wrapper stubs in exec mode; main suites remain transpile/validate-only.
 - [x] Curated exec (Python/TS): runner supports `--exec-v3` with gating via `@run-expect` / `@run-exact` / `@exec-ok` for selected categories (`v3_core`, `v3_control_flow`, `v3_systems`). Seeded fixtures under control_flow.
- - [x] Curated exec expanded (Python/TS): added nested/loops and full-bucket transition fixtures; all green.
+ - [x] Curated exec expanded (Python/TS): added nested/loops, inline-forward+transition, try/catch/finally/else chains, and full-bucket transition fixtures; all green.
  - [x] CI artifacts: V3 workflows upload JUnit XML reports for v3_all, v3_exec_smoke, and curated exec.
 
 Production‑ready criteria (not done unless explicitly checked):
@@ -230,11 +230,11 @@ Checklist
 Checklist
 - [x] Python facade (implemented; off by default; tree-sitter; strict facade smoke green)
 - [x] TypeScript facade (implemented; off by default; SWC + wrapper checks; strict facade smoke green)
-- [x] C# facade adapter (implemented; off by default; tree-sitter-c-sharp)
-- [x] C facade (implemented; off by default; tree-sitter-c)
-- [x] C++ facade (implemented; off by default; tree-sitter-cpp)
-- [x] Java facade (implemented; off by default; tree-sitter-java)
-- [x] Rust facade (implemented; off by default; syn/strict checks on wrappers)
+- [x] C# facade adapter (implemented; off by default; tree-sitter-c-sharp; strict facade smoke green)
+- [x] C facade (implemented; off by default; tree-sitter-c; strict facade smoke green)
+- [x] C++ facade (implemented; off by default; tree-sitter-cpp; strict facade smoke green)
+- [x] Java facade (implemented; off by default; tree-sitter-java; strict facade smoke green)
+- [x] Rust facade (implemented; off by default; syn/strict checks on wrappers; strict facade smoke green)
 
 08 — Codegen (adapters, optional)
 - Objects: `TsB2CodegenV3`, `PyB2CodegenV3` (future polish).
