@@ -447,11 +447,13 @@ class FrameTestRunner:
             "llvm": "llvm",
         }.get(language, language)
 
+        # Align validation path with demo-frame module validator for V3
         cmd = [
             self.config.framec_path,
+            "demo-frame",
             "--language",
             lang_flag,
-            "--validate-syntax",
+            "--validate",
             "--validation-only",
             "--validation-level",
             self.config.validation_level,
