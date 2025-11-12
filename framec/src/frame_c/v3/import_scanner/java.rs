@@ -25,7 +25,7 @@ impl ImportScannerV3 for ImportScannerJavaV3 {
                         if in_s { if esc { esc=false; k+=1; continue; } if b==b'\\' { esc=true; k+=1; continue; } if b==b'"' { in_s=false; k+=1; continue; } k+=1; continue; }
                         match b { b'"' => { in_s=true; k+=1; }, b';' => { spans.push(RegionSpan{ start: stmt_start, end: k }); found_semicolon=true; k+=1; i=k; break; }, b'\n' => { k+=1; }, _ => { k+=1; } }
                     }
-                    if k>=n { if !found_semicolon || in_s || block { issues.push(ValidationIssueV3{ message: "unterminated Java import/package".into() }); } spans.push(RegionSpan{ start: stmt_start, end: n }); i=n; }
+                    if k>=n { if !found_semicolon || in_s || block { issues.push(ValidationIssueV3{ message: "E110: unterminated package/import statement".into() }); } spans.push(RegionSpan{ start: stmt_start, end: n }); i=n; }
                     continue;
                 }
                 break;

@@ -8379,9 +8379,10 @@
       "c": {
         "transpile": true,
         "validate": false,
-        "execute": true,
+        "execute": false,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "cpp": {
         "transpile": true,

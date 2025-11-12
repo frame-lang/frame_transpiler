@@ -69,7 +69,7 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                     }
                     if k >= n {
                         if !found_semicolon || in_s != 0 || depth_paren != 0 || depth_brace != 0 || (in_s == 3 && tmpl_depth != 0) {
-                            issues.push(ValidationIssueV3{ message: "unterminated TypeScript import/export".into() });
+                            issues.push(ValidationIssueV3{ message: "E110: unterminated import/export statement".into() });
                         }
                         spans.push(RegionSpan { start: stmt_start, end: n });
                         i = n; break;

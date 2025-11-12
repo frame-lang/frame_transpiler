@@ -42,7 +42,7 @@ impl ImportScannerV3 for ImportScannerRustV3 {
                         if bytes[k]==b';' { spans.push(RegionSpan{ start: stmt_start, end: k }); found_semicolon=true; k+=1; i=k; break; }
                         if bytes[k]==b'\n' { k+=1; } else { k+=1; }
                     }
-                    if i==line_start { if !found_semicolon || in_s || block { issues.push(ValidationIssueV3{ message: "unterminated Rust use/extern".into() }); } spans.push(RegionSpan{ start: stmt_start, end: n }); i=n; }
+                    if i==line_start { if !found_semicolon || in_s || block { issues.push(ValidationIssueV3{ message: "E110: unterminated use/extern statement".into() }); } spans.push(RegionSpan{ start: stmt_start, end: n }); i=n; }
                     continue;
                 }
                 break;

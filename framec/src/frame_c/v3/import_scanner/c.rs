@@ -45,7 +45,7 @@ impl ImportScannerV3 for ImportScannerCV3 {
                                 if closed { has_closure = true; }
                             }
                         }
-                        if !has_closure { issues.push(ValidationIssueV3{ message: "unterminated C #include".into() }); }
+                        if !has_closure { issues.push(ValidationIssueV3{ message: "E110: unterminated include directive".into() }); }
                         spans.push(RegionSpan{ start: line_start, end: p.min(n) });
                         i = p.min(n); at_sol = true; continue;
                     } else {

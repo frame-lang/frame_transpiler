@@ -32,7 +32,7 @@ impl ImportScannerV3 for ImportScannerCppV3 {
                             if bytes[s]==b'<' { let mut t=s+1; let mut closed=false; while t<p { if bytes[t]==b'>' { closed=true; break; } t+=1; } if closed { has_closure=true; } }
                             else if bytes[s]==b'"' { let mut t=s+1; let mut esc=false; let mut closed=false; while t<p { let b=bytes[t]; if esc { esc=false; t+=1; continue; } if b==b'\\' { esc=true; t+=1; continue; } if b==b'"' { closed=true; break; } t+=1; } if closed { has_closure=true; } }
                         }
-                        if !has_closure { issues.push(ValidationIssueV3{ message: "unterminated C++ #include".into() }); }
+                        if !has_closure { issues.push(ValidationIssueV3{ message: "E110: unterminated include directive".into() }); }
                         spans.push(RegionSpan{ start: line_start, end: p.min(n)});
                         i=p.min(n); continue;
                     } else { break; }

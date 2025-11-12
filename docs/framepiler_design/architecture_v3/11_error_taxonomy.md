@@ -11,6 +11,9 @@ Partitioning / Body Closers
 - E104: Stray closing brace — "unexpected '}'".
 - E105: Missing/invalid prolog — "expected @target <lang> at start of file".
 
+Import Scanners
+- E110: Unterminated or malformed import/include directive — e.g., "unterminated include directive", "unterminated import/export statement", "unterminated using directive", "unterminated package/import statement", "unterminated use/extern statement".
+
 Segmentation
 - E200: Invalid Frame-statement token at SOL — "invalid Frame statement at start of line"; span: statement slice.
 

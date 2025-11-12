@@ -73,7 +73,7 @@ impl ImportScannerV3 for ImportScannerCsV3 {
                     }
                     // EOF without semicolon — still record import up to EOF and report issue
                     if !found_semicolon || in_s != 0 || (in_s == 3 || in_s == 4) && interp_brace != 0 || in_s == 5 {
-                        issues.push(ValidationIssueV3{ message: "unterminated C# using directive".into() });
+                        issues.push(ValidationIssueV3{ message: "E110: unterminated using directive".into() });
                     }
                     spans.push(RegionSpan{ start: stmt_start, end: n });
                     i = n; break;
