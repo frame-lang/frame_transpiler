@@ -36,6 +36,7 @@ Status Summary — Fixtures and Validation (All Languages)
  - [x] Docs: inline separators and multi‑statement policy per language
 - [x] Docs: facade wrapper‑only checks and transition‑arg policy across languages
 - [x] Exec-smoke: all 7 languages emit and run tiny programs with standardized markers (TRANSITION, FORWARD:PARENT, STACK:PUSH/POP). Non-Py/TS use minimal wrapper stubs in exec mode; main suites remain transpile/validate-only.
+- [x] Curated exec (Python/TS): runner supports `--exec-v3` with gating via `@run-expect` / `@run-exact` / `@exec-ok` for selected categories (`v3_core`, `v3_control_flow`, `v3_systems`). Seeded fixtures under control_flow.
 
 Production‑ready criteria (not done unless explicitly checked):
 - [x] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
@@ -134,6 +135,7 @@ Checklist
 - [x] C/C++/Java/Rust scanners
 - [x] Initial cross-language fixtures (raw strings/comments)
 - [x] Import scanner diagnostics standardized (E110)
+- [x] TS: support Transition with leading exit args at SOL `(<exit>) -> ( <enter> ) $State( <state> )`
 - [ ] Comprehensive SOL/edge fixtures per language
 
 03 — Frame Statement Parser (FIRST‑set)
