@@ -59,6 +59,8 @@ class TestConfig:
     exclude_patterns: Optional[List[str]] = None
     shuffle: bool = False
     seed: Optional[int] = None
+    # Execute selected non-smoke V3 categories (python/typescript) using demo-frame exec emission
+    exec_v3: bool = False
     
     def __post_init__(self):
         if self.languages is None:
@@ -161,6 +163,8 @@ class FrameTestRunner:
                             meta.setdefault('run_expect', []).append(pat)
                     if re.match(r"^\s*(#|//)\s*@flaky\b", line):
                         meta['flaky'] = ['1']
+                    if re.match(r"^\s*(#|//)\s*@exec-ok\b", line):
+                        meta['exec_ok'] = ['1']
                     m3 = re.match(r"^\s*(#|//)\s*@skip-if:\s*(.+)$", line)
                     if m3:
                         toks = [t.strip() for t in m3.group(2).split(',') if t.strip()]
@@ -340,11 +344,10 @@ class FrameTestRunner:
                 output_file = output_dir / (test_file.stem + extension)
             else:
                 cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
-                # For exec smoke, emit language-appropriate extension to support compilation
-                if "v3_exec_smoke" in parts_lower and self.config.execute:
+                # Choose extension when we intend to execute the output
+                if ("v3_exec_smoke" in parts_lower and self.config.execute) or (getattr(self.config, 'exec_v3', False) and self.config.execute and language in ("python", "typescript") and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower)):
                     ext_map = {"python": ".py", "typescript": ".ts", "rust": ".rs", "c": ".c", "cpp": ".cpp", "java": ".java", "csharp": ".cs"}
                     extension = ext_map.get(language, ".txt")
-                    # Request executable emission for Py/TS demo-frame
                     if language in ("python", "typescript"):
                         cmd.insert(2, "--emit-exec")
                 else:
@@ -1636,8 +1639,24 @@ class FrameTestRunner:
                     result.output = "Facade harness executed"
                     result.execution_time = time.time() - start_time
                     return result
-                # For other V3 categories, we do not execute (transpile + validate only)
+                # For other V3 categories, optionally execute selected sets for Python/TypeScript
                 if any(seg.startswith("v3_") for seg in parts_lower):
+                    if getattr(self.config, 'exec_v3', False) and language in ("python", "typescript") and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower):
+                        meta = self.parse_fixture_meta(test_file)
+                        if not (meta.get('run_expect') or meta.get('exec_ok')):
+                            result.execute_success = True
+                            result.output = "V3 exec gated: no @run-expect/@exec-ok"
+                            result.execution_time = time.time() - start_time
+                            return result
+                        if language == "python":
+                            exec_success, output = self.execute_python(output_file)
+                        else:
+                            exec_success, output = self.execute_typescript(output_file)
+                        result.execute_success = exec_success
+                        result.output = output
+                        result.execution_time = time.time() - start_time
+                        return result
+                    # Otherwise skip exec for remaining V3 categories
                     result.execute_success = True
                     result.output = "V3 category: execution skipped"
                     result.execution_time = time.time() - start_time
@@ -1951,6 +1970,7 @@ def main():
     parser.add_argument('--no-strict-negatives', dest='no_strict_negatives', action='store_true', help='Allow negatives to pass on build failure alone')
     parser.add_argument('--require-error-codes', dest='require_error_codes', action='store_true', help='Negatives must surface validator error codes (E###) (default)')
     parser.add_argument('--no-require-error-codes', dest='no_require_error_codes', action='store_true', help='Do not require E### codes in negatives')
+    parser.add_argument('--exec-v3', action='store_true', help='Execute selected non-smoke V3 categories (python/typescript: v3_core, v3_control_flow, v3_systems)')
     
     args = parser.parse_args()
     
@@ -2003,6 +2023,7 @@ def main():
         exclude_patterns=args.exclude_patterns,
         shuffle=args.shuffle,
         seed=args.seed,
+        exec_v3=getattr(args, 'exec_v3', False),
     )
     
     # Run tests
