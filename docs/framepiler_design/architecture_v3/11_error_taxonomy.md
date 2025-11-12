@@ -17,6 +17,7 @@ Import Scanners
 
 Outline / Headers
 - E111: Missing '{' after module artifact header — applies to function headers in interface/actions/operations sections.
+ - E112: Missing '{' after state header in machine: — applies to `$State` headers inside the `machine:` section.
 
 Segmentation
 - E200: Invalid Frame-statement token at SOL — "invalid Frame statement at start of line"; span: statement slice.

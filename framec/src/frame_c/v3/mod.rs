@@ -146,7 +146,7 @@ pub fn validate_single_body(content_str: &str, target_language: Option<TargetLan
             let msg = e.message.to_lowercase();
             if msg.contains("unterminated comment") {
                 issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E106: unterminated comment".into() });
-            } else if msg.contains("unterminated string") {
+            } else if (msg.contains("unterminated") && msg.contains("string")) || msg.contains("unterminated raw") || msg.contains("unterminated verbatim") || msg.contains("unterminated interp") {
                 issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E100: unterminated string".into() });
             } else if msg.contains("body not closed") {
                 issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E103: unterminated body".into() });

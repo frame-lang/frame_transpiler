@@ -177,7 +177,7 @@ impl ValidatorV3 {
                             if bytes[q] == b'{' { seen_lbrace = true; break; }
                             q += 1;
                         }
-                        if !seen_lbrace { issues.push(ValidationIssueV3{ message: "missing '{' after state header in machine: section".into() }); }
+                        if !seen_lbrace { issues.push(ValidationIssueV3{ message: "E112: missing '{' after state header in machine: section".into() }); }
                     } else {
                         // It's a Frame statement at SOL inside machine; skip for state-header validation.
                     }
