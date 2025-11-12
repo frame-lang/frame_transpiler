@@ -16,6 +16,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import re
+import random
 
 @dataclass
 class TestResult:
@@ -51,6 +53,12 @@ class TestConfig:
     include_common: bool = False
     strict_negatives: bool = True  # Negatives must fail compiler validation (not just build)
     require_error_codes: bool = True  # Negatives must include one or more E### codes
+    include_flaky: bool = False  # Skip @flaky tests unless explicitly included
+    expected_error_mode: str = 'superset'  # or 'equal'
+    include_patterns: Optional[List[str]] = None
+    exclude_patterns: Optional[List[str]] = None
+    shuffle: bool = False
+    seed: Optional[int] = None
     
     def __post_init__(self):
         if self.languages is None:
@@ -127,8 +135,13 @@ class FrameTestRunner:
             return False
 
     def parse_fixture_meta(self, test_file: Path) -> Dict[str, List[str]]:
-        """Parse inline metadata from the fixture, e.g. @expect: E403 E404 and @run-expect: pattern.
-        Supports comment prefixes '#' and '//' at SOL. Scans first 20 lines.
+        """Parse inline metadata from the fixture header.
+        Supports (first 20 lines):
+          - @expect: E403 E404 (space-separated error codes)
+          - @run-expect: <regex> (can appear multiple times)
+          - @flaky
+          - @skip-if: <token> (e.g., java-toolchain-missing)
+          - @timeout: <seconds>
         """
         meta: Dict[str, List[str]] = {}
         try:
@@ -146,25 +159,16 @@ class FrameTestRunner:
                         pat = m2.group(2).strip()
                         if pat:
                             meta.setdefault('run_expect', []).append(pat)
-        except Exception:
-            pass
-        return meta
-
-    def parse_fixture_meta(self, test_file: Path) -> Dict[str, List[str]]:
-        """Parse inline metadata from the fixture, e.g. @expect: E403 E404.
-        Supports '#' and '//' comments at SOL. Returns dict with keys like 'expect'.
-        """
-        meta: Dict[str, List[str]] = {}
-        try:
-            with open(test_file, 'r') as f:
-                for i, line in enumerate(f):
-                    if i > 20:
-                        break
-                    m = re.match(r"^\s*(#|//)\s*@expect:\s*(.+)$", line)
-                    if m:
-                        codes = re.findall(r"E\d{3}", m.group(2))
-                        if codes:
-                            meta['expect'] = [c for c in codes]
+                    if re.match(r"^\s*(#|//)\s*@flaky\b", line):
+                        meta['flaky'] = ['1']
+                    m3 = re.match(r"^\s*(#|//)\s*@skip-if:\s*(.+)$", line)
+                    if m3:
+                        toks = [t.strip() for t in m3.group(2).split(',') if t.strip()]
+                        if toks:
+                            meta.setdefault('skip_if', []).extend(toks)
+                    m4 = re.match(r"^\s*(#|//)\s*@timeout:\s*(\d+)\s*$", line)
+                    if m4:
+                        meta['timeout'] = [m4.group(2)]
         except Exception:
             pass
         return meta
@@ -285,7 +289,7 @@ class FrameTestRunner:
         override_path = self.language_specific_dir / language / category / Path(test_file).name
         return override_path.exists()
     
-    def transpile(self, test_file: Path, language: str) -> Tuple[bool, str, str]:
+    def transpile(self, test_file: Path, language: str, timeout: Optional[int] = None) -> Tuple[bool, str, str]:
         """
         Transpile a Frame file to target language.
         Returns (success, output_file, error_message)
@@ -415,7 +419,7 @@ class FrameTestRunner:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=self.config.timeout,
+                timeout=timeout or self.config.timeout,
                 env=env
             )
             
@@ -1445,7 +1449,15 @@ class FrameTestRunner:
             return result
 
         # Transpile
-        transpile_success, output_file, error = self.transpile(test_file, language)
+        meta = self.parse_fixture_meta(test_file)
+        # Per-test timeout override
+        eff_timeout = self.config.timeout
+        if meta.get('timeout'):
+            try:
+                eff_timeout = max(1, int(meta['timeout'][0]))
+            except Exception:
+                pass
+        transpile_success, output_file, error = self.transpile(test_file, language, timeout=eff_timeout)
         result.transpile_success = transpile_success
 
         # Optionally validate (after transpile to ensure parsing paths are similar)
@@ -1462,6 +1474,37 @@ class FrameTestRunner:
             except Exception:
                 result.validation_errors = []
         
+        # Handle skip metadata
+        if meta.get('flaky') and not self.config.include_flaky:
+            result.skipped = 'flaky'
+            result.transpile_success = True
+            result.validation_success = True
+            result.execute_success = True
+            result.execution_time = time.time() - start_time
+            return result
+        if meta.get('skip_if'):
+            # Very simple toolchain-based skips
+            reasons = []
+            for cond in meta['skip_if']:
+                c = cond.lower()
+                if c == 'java-toolchain-missing' and not shutil.which('javac'):
+                    reasons.append('javac missing')
+                if c == 'csharp-toolchain-missing' and not (shutil.which('csc') or shutil.which('mcs')):
+                    reasons.append('csc/mcs missing')
+                if c == 'c-toolchain-missing' and not (shutil.which('clang') or shutil.which('gcc')):
+                    reasons.append('clang/gcc missing')
+                if c == 'cpp-toolchain-missing' and not (shutil.which('clang++') or shutil.which('g++')):
+                    reasons.append('clang++/g++ missing')
+                if c == 'tsc-missing' and not shutil.which('tsc'):
+                    reasons.append('tsc missing')
+            if reasons:
+                result.skipped = ', '.join(reasons)
+                result.transpile_success = True
+                result.validation_success = True
+                result.execute_success = True
+                result.execution_time = time.time() - start_time
+                return result
+
         # Handle negative tests specially
         if is_negative:
             if self.config.strict_negatives:
@@ -1469,7 +1512,6 @@ class FrameTestRunner:
             else:
                 negative_ok = (not transpile_success) or (self.config.validate and not validation_success)
             # Inline expected error codes
-            meta = self.parse_fixture_meta(test_file)
             if 'expect' in meta:
                 expected = set(meta['expect'])
                 actual = set(result.validation_errors or [])
@@ -1670,13 +1712,30 @@ class FrameTestRunner:
         if 'typescript' in self.config.languages and self.config.execute:
             self._batch_compile_typescript(tests)
         
-        for category, test_files in sorted(tests.items()):
+        # Optionally shuffle test order
+        rng = random.Random(self.config.seed) if self.config.shuffle else None
+        items = sorted(tests.items())
+        if rng:
+            items = list(items)
+            rng.shuffle(items)
+
+        for category, test_files in items:
             if not test_files:
                 continue
                 
             print(f"\n{category}: {len(test_files)} tests")
             
-            for test_file in sorted(test_files):
+            files = sorted(test_files)
+            if rng:
+                files = list(files)
+                rng.shuffle(files)
+            for test_file in files:
+                # include/exclude filters
+                ts = str(test_file)
+                if self.config.include_patterns and not any(p in ts for p in self.config.include_patterns):
+                    continue
+                if self.config.exclude_patterns and any(p in ts for p in self.config.exclude_patterns):
+                    continue
                 # Skip language-specific tests for other languages
                 if category.startswith("language_specific_"):
                     # Patterns:
@@ -1875,6 +1934,14 @@ def main():
     parser.add_argument('--timeout', type=int, default=30,
                        help='Timeout for each test in seconds')
     parser.add_argument('--junit', dest='junit_path', help='Write JUnit XML report to this path')
+    # Presets and selection
+    parser.add_argument('--fast', action='store_true', help='Run a fast subset (outline/mir/validator + exec smoke)')
+    parser.add_argument('--full', action='store_true', help='Run all V3 categories (alias for all_v3)')
+    parser.add_argument('--include', action='append', dest='include_patterns', help='Only include tests matching this substring (can repeat)')
+    parser.add_argument('--exclude', action='append', dest='exclude_patterns', help='Exclude tests matching this substring (can repeat)')
+    parser.add_argument('--shuffle', action='store_true', help='Shuffle test order')
+    parser.add_argument('--seed', type=int, help='Seed for shuffle')
+    parser.add_argument('--include-flaky', action='store_true', help='Include @flaky tests')
     # Aliases for build/run terminology
     parser.add_argument('--build-only', dest='build_only', action='store_true', help='Build only (no run); alias for --transpile-only')
     parser.add_argument('--run', dest='run', action='store_true', help='Enable running generated programs (alias for execute on)')
@@ -1887,11 +1954,16 @@ def main():
     
     args = parser.parse_args()
     
-    # Expand pseudo-category 'all_v3'
+    # Expand pseudo-category 'all_v3' and presets
     categories = args.categories[:]
+    if args.full and 'all_v3' not in categories:
+        categories.append('all_v3')
     if 'all_v3' in categories:
         base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems']
         categories = [c for c in categories if c != 'all_v3'] + base
+    if args.fast:
+        fast = ['v3_outline','v3_mir','v3_validator','v3_exec_smoke']
+        categories = list(dict.fromkeys(fast))
 
     # Create config
     # Map build/run and policy flags
@@ -1926,6 +1998,11 @@ def main():
         include_common=args.include_common,
         strict_negatives=strict_neg,
         require_error_codes=require_codes,
+        include_flaky=args.include_flaky,
+        include_patterns=args.include_patterns,
+        exclude_patterns=args.exclude_patterns,
+        shuffle=args.shuffle,
+        seed=args.seed,
     )
     
     # Run tests
