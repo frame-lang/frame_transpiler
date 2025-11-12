@@ -477,8 +477,21 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
         Ok(p) => p,
         Err(e) => {
-            // Map body close errors from the partitioner into structured E-codes where possible.
+            // Map body close and prolog errors from the partitioner into structured E-codes where possible.
             let emsg = e.0;
+            if emsg.starts_with("prolog error:") {
+                // E105: Missing/invalid prolog; ensure a proper validator failure rather than a hard error
+                let mut issues = Vec::new();
+                let msg = if emsg.contains("NotFirstNonWhitespace") {
+                    "E105: expected @target prolog as first non-whitespace token"
+                } else if emsg.contains("Missing") {
+                    "E105: expected @target <lang> at start of file"
+                } else {
+                    "E105: invalid @target prolog"
+                };
+                issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: msg.into() });
+                return Ok(ValidationResultV3 { ok: false, issues });
+            }
             if emsg.starts_with("body close error:") {
                 let mapped = if emsg.contains("UnterminatedComment") || emsg.to_lowercase().contains("unterminated comment") {
                     vec![crate::frame_c::v3::validator::ValidationIssueV3{ message: "E106: unterminated comment".into() }]

@@ -33,6 +33,7 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check
 - [x] v3_validator (early structural) — terminal‑last; no Frame statements in actions/ops; state header '{' check; parent‑forward availability (module demos)
 - [x] v3_validator — section marker refinement for state collection (ignore non‑section tokens like `else:`); fixes spurious E402 on valid states
+ - [x] v3_prolog negatives mapped to E105 (missing/invalid/not-first @target)
  - [x] Outline/validator negatives for handler scope
    - [x] `handler_outside_state` and `handler_in_nonstate_block` added across languages; surfaces E404 alongside any E403 where applicable
  - [x] Docs: inline separators and multi‑statement policy per language
@@ -142,7 +143,7 @@ Checklist
 - [x] Initial cross-language fixtures (raw strings/comments)
 - [x] Import scanner diagnostics standardized (E110)
 - [x] TS: support Transition with leading exit args at SOL `(<exit>) -> ( <enter> ) $State( <state> )`
-- [ ] Comprehensive SOL/edge fixtures per language
+- [x] Comprehensive SOL/edge fixtures per language
   - [x] Block comments (C/C++/Java/C#/Rust): tokens inside `/* ... */` ignored
   - [x] Raw strings (C++): tokens inside `R"(...)"` ignored
   - [x] Interpolated strings (C#): tokens inside `$"...{...}..."` ignored
