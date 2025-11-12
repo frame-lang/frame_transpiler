@@ -123,6 +123,25 @@ class FrameTestRunner:
             return False
         except:
             return False
+
+    def parse_fixture_meta(self, test_file: Path) -> Dict[str, List[str]]:
+        """Parse inline metadata from the fixture, e.g. @expect: E403 E404.
+        Supports '#' and '//' comments at SOL. Returns dict with keys like 'expect'.
+        """
+        meta: Dict[str, List[str]] = {}
+        try:
+            with open(test_file, 'r') as f:
+                for i, line in enumerate(f):
+                    if i > 20:
+                        break
+                    m = re.match(r"^\s*(#|//)\s*@expect:\s*(.+)$", line)
+                    if m:
+                        codes = re.findall(r"E\d{3}", m.group(2))
+                        if codes:
+                            meta['expect'] = [c for c in codes]
+        except Exception:
+            pass
+        return meta
         
     def discover_tests(self) -> Dict[str, List[Path]]:
         """Discover all test files organized by category."""
@@ -1423,14 +1442,28 @@ class FrameTestRunner:
                 negative_ok = (self.config.validate and not validation_success)
             else:
                 negative_ok = (not transpile_success) or (self.config.validate and not validation_success)
+            # Inline expected error codes
+            meta = self.parse_fixture_meta(test_file)
+            if 'expect' in meta:
+                expected = set(meta['expect'])
+                actual = set(result.validation_errors or [])
+                mode = getattr(self.config, 'expected_error_mode', 'superset')
+                if mode == 'equal':
+                    if actual != expected:
+                        negative_ok = False
+                        result.error_message = f"Expected error codes {sorted(expected)}, got {sorted(actual)}\n{validation_output}"
+                else:
+                    if not expected.issubset(actual):
+                        negative_ok = False
+                        missing = sorted(expected - actual)
+                        result.error_message = f"Missing expected error codes {missing}\n{validation_output}"
+            # Require at least one validator code when enabled
             if negative_ok and self.config.require_error_codes:
-                codes = result.validation_errors or []
-                if not codes:
+                if not (result.validation_errors or []):
                     negative_ok = False
                     result.error_message = "Negative test failed without validator error codes (E###)"
             if negative_ok:
                 result.expected_failure = True
-                # Prefer validation output if available; include full diagnostics
                 err = error or validation_output
                 result.error_message = f"Expected failure:\n{err}" if err else "Expected failure"
             else:
