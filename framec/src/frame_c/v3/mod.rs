@@ -476,6 +476,9 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         // machine section: simple state header check for '{'
         let state_issues = validator.validate_machine_state_headers(bytes, outline_start);
         all_issues.extend(state_issues);
+        // handlers must be nested inside a state block in machine:
+        let handler_scope_issues = validator.validate_handlers_in_state(&items);
+        all_issues.extend(handler_scope_issues);
         // Collect known state names (coarse) and build Arcanum for symbol-precision
         known_states = validator.collect_machine_state_names(bytes, outline_start);
         arcanum_symtab = Some(crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start));

@@ -24,6 +24,7 @@ MIR Assembly / Validation
 - E401: Frame statement not allowed in actions/ops — "Frame statements are not allowed in native bodies (actions/ops)".
 - E402: Unknown state in transition — "unknown state '$Name'".
 - E403: Parent forward without declared parent — "Cannot forward to parent: no parent available". Triggered when a handler’s enclosing state does not declare a parent in `machine:`. Applies to module demos; single‑body demos are exempt.
+ - E404: Handler outside state block — "handler body must be inside a state block". Triggered when a handler header appears in `machine:` but is not nested within a `$State { … }` block.
 
 Native Policy (Python)
 - E500: `var` in Python body — "'var' is not allowed in Python native bodies".

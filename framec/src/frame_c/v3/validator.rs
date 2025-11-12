@@ -362,6 +362,19 @@ impl ValidatorV3 {
     pub fn any_parent_relation_arcanum(&self, arcanum: &Arcanum) -> bool {
         arcanum.any_parent_relation()
     }
+
+    // Ensure handlers in machine: are nested within a state block
+    pub fn validate_handlers_in_state(&self, outline: &[OutlineItemV3]) -> Vec<ValidationIssueV3> {
+        let mut issues = Vec::new();
+        for it in outline {
+            if let BodyKindV3::Handler = it.kind {
+                if it.state_id.is_none() {
+                    issues.push(ValidationIssueV3 { message: "E404: handler body must be inside a state block".into() });
+                }
+            }
+        }
+        issues
+    }
 }
 
 fn trailing_is_effectively_comment_only(slice: &[u8], lang: crate::frame_c::visitors::TargetLanguage) -> bool {
