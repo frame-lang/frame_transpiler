@@ -509,7 +509,25 @@ class FrameTestRunner:
         parts_lower = [p.lower() for p in test_file.parts]
         # Single-body demo categories validate via demo-multi
         use_single_body = any(seg in ("v3_closers", "v3_mapping", "v3_expansion") for seg in parts_lower)
+        synthesized_single_body: Optional[Path] = None
         if use_single_body:
+            # If a single-body fixture has a leading @target line, strip it into a temp file
+            try:
+                content = Path(test_file).read_text()
+                lines = content.splitlines()
+                # Find first non-empty line
+                first_non_empty = next((i for i, ln in enumerate(lines) if ln.strip()), None)
+                if first_non_empty is not None and lines[first_non_empty].strip().startswith('@target '):
+                    stripped = '\n'.join(lines[:first_non_empty] + lines[first_non_empty+1:])
+                    # Ensure single-body starts with '{' at byte 0
+                    stripped = stripped.lstrip()
+                    tmp_dir = self.generated_dir / language / 'tmp_single_body'
+                    tmp_dir.mkdir(parents=True, exist_ok=True)
+                    synthesized_single_body = tmp_dir / (Path(test_file).stem + '__body.frm')
+                    synthesized_single_body.write_text(stripped)
+            except Exception:
+                synthesized_single_body = None
+            target_path = str(synthesized_single_body or test_file)
             cmd = [
                 self.config.framec_path,
                 "demo-multi",
@@ -517,7 +535,7 @@ class FrameTestRunner:
                 lang_flag,
                 "--validate",
                 "--validation-only",
-                str(test_file),
+                target_path,
             ]
         else:
             # Align validation path with demo-frame module validator for V3
