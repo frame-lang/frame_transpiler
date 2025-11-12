@@ -512,21 +512,19 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         }
         // Parent-forward rule (module demos only): require a parent for the enclosing state
         if validator.has_machine_section(bytes, outline_start) {
-            if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
-                let enclosing_state = b.state_id.clone().or_else(|| find_enclosing_state_name(bytes, b.open_byte, outline_start));
-                let mut ok_parent = false;
-                if let Some(state_name) = enclosing_state.as_deref() {
-                    if let Some(ref arc) = arcanum_symtab {
-                        let sys = system_name.as_deref().unwrap_or("_");
-                        ok_parent = arc.has_parent(sys, state_name);
-                        if !ok_parent {
-                            // allow underscore fallback for symbol-table scope if system unknown
-                            ok_parent = arc.has_parent("_", state_name);
+            if matches!(b.kind, ValidatorPolicyV3BodyKind::Handler | ValidatorPolicyV3BodyKind::Unknown) {
+                if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
+                    let enclosing_state = b.state_id.as_deref();
+                    let mut ok_parent = false;
+                    if let Some(state_name) = enclosing_state {
+                        if let Some(ref arc) = arcanum_symtab {
+                            let sys = system_name.as_deref().unwrap_or("_");
+                            ok_parent = arc.has_parent(sys, state_name) || arc.has_parent("_", state_name);
                         }
                     }
-                }
-                if !ok_parent {
-                    all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E403: Cannot forward to parent: no parent available".into() });
+                    if !ok_parent {
+                        all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E403: Cannot forward to parent: no parent available".into() });
+                    }
                 }
             }
         }
@@ -616,38 +614,6 @@ fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
             }
         }
         while i < n && bytes[i] != b'\n' { i += 1; }
-    }
-    None
-}
-
-// Find the nearest enclosing state name for a handler body by scanning backwards
-// from the body's opening brace to the previous state header line "$Name {".
-// Only considers lines at SOL and requires '{' on the same line.
-fn find_enclosing_state_name(bytes: &[u8], body_open: usize, start: usize) -> Option<String> {
-    if body_open == 0 { return None; }
-    let mut i = if body_open > 0 { body_open - 1 } else { 0 };
-    while i > start {
-        // move to start of line
-        while i > start && bytes[i] != b'\n' { i -= 1; }
-        if bytes[i] == b'\n' { i = i.saturating_sub(1); }
-        // find SOL
-        let mut sol = if i == 0 { 0 } else { i }; while sol > start && bytes[sol] != b'\n' { sol -= 1; }
-        if bytes.get(sol) == Some(&b'\n') { sol = sol.saturating_add(1); }
-        // skip spaces
-        let mut p = sol; while p < body_open && (bytes[p] == b' ' || bytes[p] == b'\t') { p += 1; }
-        if p < body_open && bytes[p] == b'$' {
-            // read ident
-            let mut k = p + 1;
-            if k < body_open && (bytes[k].is_ascii_alphabetic() || bytes[k] == b'_') {
-                k += 1; while k < body_open && (bytes[k].is_ascii_alphanumeric() || bytes[k] == b'_') { k += 1; }
-                let name = String::from_utf8_lossy(&bytes[p+1..k]).to_string();
-                // does line contain '{' before EOL?
-                let mut q = k; let mut has_lbrace = false;
-                while q < body_open && bytes[q] != b'\n' { if bytes[q] == b'{' { has_lbrace = true; break; } q += 1; }
-                if has_lbrace { return Some(name); }
-            }
-        }
-        if sol == 0 { break; } else { i = sol.saturating_sub(1); }
     }
     None
 }
