@@ -138,7 +138,25 @@ pub fn validate_single_body(content_str: &str, target_language: Option<TargetLan
         TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(content, 0),
         _ => return Err(RunError::new(frame_exitcode::PARSE_ERR, "target not supported in V3 demo")),
     };
-    let scan = match scan_res { Ok(s) => s, Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e))) };
+    let scan = match scan_res {
+        Ok(s) => s,
+        Err(e) => {
+            // Map protected-region close errors to structured validation issues for single-body demo
+            let mut issues: Vec<crate::frame_c::v3::validator::ValidationIssueV3> = Vec::new();
+            let msg = e.message.to_lowercase();
+            if msg.contains("unterminated comment") {
+                issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E106: unterminated comment".into() });
+            } else if msg.contains("unterminated string") {
+                issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E100: unterminated string".into() });
+            } else if msg.contains("body not closed") {
+                issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E103: unterminated body".into() });
+            }
+            if !issues.is_empty() {
+                return Ok(crate::frame_c::v3::validator::ValidationResultV3 { ok: false, issues });
+            }
+            return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e)));
+        }
+    };
     let asm = MirAssemblerV3; let mir = asm.assemble(content, &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
     let mut res = ValidatorV3.validate_regions_mir(&scan.regions, &mir);
     // Also enforce no native text after terminal MIR
@@ -458,7 +476,23 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     // fall back to a tolerant outline scan to surface structured diagnostics (E-codes) instead of a hard error.
     let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
         Ok(p) => p,
-        Err(_e) => {
+        Err(e) => {
+            // Map body close errors from the partitioner into structured E-codes where possible.
+            let emsg = e.0;
+            if emsg.starts_with("body close error:") {
+                let mapped = if emsg.contains("UnterminatedComment") || emsg.to_lowercase().contains("unterminated comment") {
+                    vec![crate::frame_c::v3::validator::ValidationIssueV3{ message: "E106: unterminated comment".into() }]
+                } else if emsg.contains("UnterminatedString") || emsg.to_lowercase().contains("unterminated string") {
+                    vec![crate::frame_c::v3::validator::ValidationIssueV3{ message: "E100: unterminated string".into() }]
+                } else if emsg.contains("UnmatchedBraces") || emsg.to_lowercase().contains("body not closed") {
+                    vec![crate::frame_c::v3::validator::ValidationIssueV3{ message: "E103: unterminated body".into() }]
+                } else {
+                    Vec::new()
+                };
+                if !mapped.is_empty() {
+                    return Ok(ValidationResultV3 { ok: false, issues: mapped });
+                }
+            }
             // Tolerant outline scan will collect E111 and similar diagnostics.
             let outline_start = 0usize; // tolerant scan will walk whole file
             let (_items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);

@@ -493,7 +493,10 @@ class FrameTestRunner:
             return False, str(output_file), str(e)
 
     def validate(self, test_file: Path, language: str) -> Tuple[bool, str]:
-        """Run framec validation on a Frame file for a given target language."""
+        """Run framec validation on a Frame file for a given target language.
+        Routes v3_closers fixtures through the single-body validator (demo-multi)
+        so body-closer errors map to E-codes.
+        """
         lang_flag = {
             "python": "python_3",
             "typescript": "typescript",
@@ -503,20 +506,33 @@ class FrameTestRunner:
             "llvm": "llvm",
         }.get(language, language)
 
-        # Align validation path with demo-frame module validator for V3
-        cmd = [
-            self.config.framec_path,
-            "demo-frame",
-            "--language",
-            lang_flag,
-            "--validate",
-            "--validation-only",
-            "--validation-level",
-            self.config.validation_level,
-            "--validation-format",
-            self.config.validation_format,
-            str(test_file),
-        ]
+        parts_lower = [p.lower() for p in test_file.parts]
+        use_single_body = "v3_closers" in parts_lower
+        if use_single_body:
+            cmd = [
+                self.config.framec_path,
+                "demo-multi",
+                "--language",
+                lang_flag,
+                "--validate",
+                "--validation-only",
+                str(test_file),
+            ]
+        else:
+            # Align validation path with demo-frame module validator for V3
+            cmd = [
+                self.config.framec_path,
+                "demo-frame",
+                "--language",
+                lang_flag,
+                "--validate",
+                "--validation-only",
+                "--validation-level",
+                self.config.validation_level,
+                "--validation-format",
+                self.config.validation_format,
+                str(test_file),
+            ]
 
         try:
             result = subprocess.run(

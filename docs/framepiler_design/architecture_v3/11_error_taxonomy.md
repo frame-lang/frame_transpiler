@@ -10,6 +10,7 @@ Partitioning / Body Closers
 - E103: Unterminated body — "unterminated body starting at { index }".
 - E104: Stray closing brace — "unexpected '}'".
 - E105: Missing/invalid prolog — "expected @target <lang> at start of file".
+- E106: Unterminated comment — "unterminated comment starting here".
 
 Import Scanners
 - E110: Unterminated or malformed import/include directive — e.g., "unterminated include directive", "unterminated import/export statement", "unterminated using directive", "unterminated package/import statement", "unterminated use/extern statement".
