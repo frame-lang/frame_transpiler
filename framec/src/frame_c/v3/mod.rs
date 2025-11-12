@@ -6,7 +6,7 @@ use crate::frame_c::v3::body_closer::BodyCloserV3;
 use crate::frame_c::v3::mir_assembler::MirAssemblerV3;
 use crate::frame_c::v3::expander::{FrameStatementExpanderV3, PyExpanderV3, TsExpanderV3, CExpanderV3, CppExpanderV3, JavaExpanderV3, RustExpanderV3};
 use crate::frame_c::v3::splice::SplicerV3;
-use crate::frame_c::v3::validator::{ValidatorV3, ValidationResultV3, ValidatorPolicyV3};
+use crate::frame_c::v3::validator::{ValidatorV3, ValidationResultV3, ValidatorPolicyV3, BodyKindV3};
 
 pub mod body_closer;
 pub mod native_region_scanner;
@@ -515,7 +515,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         }
         // Parent-forward rule (module demos only): require a parent for the enclosing state
         if validator.has_machine_section(bytes, outline_start) {
-            if matches!(b.kind, ValidatorPolicyV3BodyKind::Handler | ValidatorPolicyV3BodyKind::Unknown) {
+            if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Unknown) {
                 if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
                     let enclosing_state = b.state_id.as_deref();
                     let mut ok_parent = false;
