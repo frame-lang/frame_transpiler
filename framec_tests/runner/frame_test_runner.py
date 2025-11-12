@@ -507,7 +507,8 @@ class FrameTestRunner:
         }.get(language, language)
 
         parts_lower = [p.lower() for p in test_file.parts]
-        use_single_body = "v3_closers" in parts_lower
+        # Single-body demo categories validate via demo-multi
+        use_single_body = any(seg in ("v3_closers", "v3_mapping", "v3_expansion") for seg in parts_lower)
         if use_single_body:
             cmd = [
                 self.config.framec_path,
