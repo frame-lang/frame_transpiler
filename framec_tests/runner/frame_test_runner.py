@@ -31,6 +31,7 @@ class TestResult:
     output: Optional[str] = None
     is_negative_test: bool = False
     expected_failure: bool = False
+    validation_errors: Optional[List[str]] = None
 
 @dataclass 
 class TestConfig:
@@ -1404,6 +1405,13 @@ class FrameTestRunner:
         if self.config.validate:
             validation_success, validation_output = self.validate(test_file, language)
             result.validation_success = validation_success
+            # Extract and attach error codes like E400, E401, etc., from validation output
+            try:
+                import re
+                codes = re.findall(r"\bE\d{3}\b", validation_output)
+                result.validation_errors = sorted(set(codes)) if codes else []
+            except Exception:
+                result.validation_errors = []
         
         # Handle negative tests specially
         if is_negative:
@@ -1803,13 +1811,16 @@ def main():
                     rel_key = f"{p.parts[-2]}/{p.name}"
                 else:
                     rel_key = p.name
-                actuals.setdefault(rel_key, {})[r.language] = {
+                entry = {
                     "transpile": r.transpile_success,
                     "validate": r.validation_success if config.validate else True,
                     "execute": r.execute_success if config.execute and not runner.is_infinite_loop_test(p) else True,
                     "negative": r.is_negative_test,
                     "infinite": runner.is_infinite_loop_test(p),
                 }
+                if r.validation_errors is not None and (r.is_negative_test or r.validation_errors):
+                    entry["errors"] = r.validation_errors
+                actuals.setdefault(rel_key, {})[r.language] = entry
 
             diffs = []
             for key, langs in actuals.items():
