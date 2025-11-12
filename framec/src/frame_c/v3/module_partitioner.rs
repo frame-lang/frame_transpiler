@@ -99,7 +99,7 @@ impl ModulePartitionerV3 {
         // OutlineScanner authoritative
         let outline_items: Vec<OutlineItemV3> = OutlineScannerV3.scan(bytes, i, lang)
             .map_err(|e| ModulePartitionErrorV3(e.message))?;
-        let bodies: Vec<BodyPartitionV3> = outline_items.into_iter().map(|it| BodyPartitionV3{
+        let mut bodies: Vec<BodyPartitionV3> = outline_items.into_iter().map(|it| BodyPartitionV3{
             open_byte: it.open_byte,
             close_byte: it.close_byte,
             kind: it.kind,
@@ -107,8 +107,45 @@ impl ModulePartitionerV3 {
             state_id: it.state_id,
             header_span: Some(it.header_span),
         }).collect();
+        // Fill missing state_id by scanning backwards to nearest "$State {" header when in machine: handlers
+        for b in &mut bodies {
+            if b.state_id.is_none() && matches!(b.kind, BodyKindV3::Handler) {
+                b.state_id = find_enclosing_state_name(bytes, b.open_byte);
+            }
+        }
         Ok(ModulePartitionsV3 { prolog, imports, import_issues, bodies })
     }
 }
 
 // outline_scanner now provides authoritative header parsing
+
+// Find the nearest enclosing state name for a handler body by scanning backwards
+// from the body's opening brace to the previous state header line "$Name {".
+fn find_enclosing_state_name(bytes: &[u8], body_open: usize) -> Option<String> {
+    if body_open == 0 { return None; }
+    let mut i = body_open.saturating_sub(1);
+    while i > 0 {
+        // move to start of line
+        while i > 0 && bytes[i] != b'\n' { i -= 1; }
+        if bytes[i] == b'\n' { i = i.saturating_sub(1); }
+        // compute SOL
+        let mut sol = i;
+        while sol > 0 && bytes[sol] != b'\n' { sol -= 1; }
+        if bytes.get(sol) == Some(&b'\n') { sol = sol.saturating_add(1); }
+        // skip indent
+        let mut p = sol; while p < body_open && (bytes[p] == b' ' || bytes[p] == b'\t') { p += 1; }
+        if p < body_open && bytes[p] == b'$' {
+            // read ident
+            let mut k = p + 1;
+            if k < body_open && (bytes[k].is_ascii_alphabetic() || bytes[k] == b'_') {
+                k += 1; while k < body_open && (bytes[k].is_ascii_alphanumeric() || bytes[k] == b'_') { k += 1; }
+                // ensure '{' on line
+                let mut q = k; let mut has_lbrace = false;
+                while q < body_open && bytes[q] != b'\n' { if bytes[q] == b'{' { has_lbrace = true; break; } q += 1; }
+                if has_lbrace { return Some(String::from_utf8_lossy(&bytes[p+1..k]).to_string()); }
+            }
+        }
+        if sol == 0 { break; } else { i = sol.saturating_sub(1); }
+    }
+    None
+}
