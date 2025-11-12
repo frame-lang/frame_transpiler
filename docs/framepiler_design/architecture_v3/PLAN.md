@@ -132,7 +132,8 @@ Checklist
 - [x] TypeScript scanner
 - [x] C# scanner (preprocessor + raw/interp strings)
 - [x] C/C++/Java/Rust scanners
-- [x] Initial cross‑language fixtures (raw strings/comments)
+- [x] Initial cross-language fixtures (raw strings/comments)
+- [x] Import scanner diagnostics standardized (E110)
 - [ ] Comprehensive SOL/edge fixtures per language
 
 03 — Frame Statement Parser (FIRST‑set)
@@ -244,11 +245,11 @@ Checklist
 - [x] Demo CLI `--validate/--validation-only` paths
 - [ ] Python/TypeScript native policy checks
 - [x] State/target existence checks
- - [x] E402/E403 backed by symbol table (Arcanum) in module validation path
- - [x] Parent‑forward availability checks (module demos)
- - [x] Test policy: parent‑forward fixtures only in system context (module files); do not author single‑body tests for this rule
- - [x] Known‑state collection honors only real sections (machine/actions/operations/interface); no interference from control‑flow labels
- - [x] Exec-smoke parity: Python/TS real glue; C/C++/Java/C#/Rust emit wrapper calls and print markers; runner treats missing toolchains as clean skip
+  - [x] E402/E403 backed by symbol table (Arcanum) in module validation path
+  - [x] Parent‑forward availability checks (module demos)
+  - [x] Test policy: parent‑forward fixtures only in system context (module files); do not author single‑body tests for this rule
+  - [x] Known‑state collection honors only real sections (machine/actions/operations/interface); no interference from control‑flow labels
+  - [x] Exec-smoke parity: Python/TS real glue; C/C++/Java/C#/Rust emit wrapper calls and print markers; runner treats missing toolchains as clean skip
 
 Project / Multi‑File Layer (after MVP green)
 - Objects: `FileLoaderV3`, `ModuleResolverV3`, `ProjectGraphV3`, `FIDIndexV3`, `FIDEmitterV3`, `SemanticAnalyzerV3`, `TsModuleLinkerV3`, `PythonPackagePlannerV3`, `BuildPlannerV3`.
