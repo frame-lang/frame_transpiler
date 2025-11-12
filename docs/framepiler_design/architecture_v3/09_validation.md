@@ -14,6 +14,10 @@ Rules (non‑exhaustive)
 - State/target existence: transition targets must resolve to known states.
 - Parent forward availability: a parent forward (=> $^) requires that the enclosing state explicitly declares a parent in the machine: section (e.g., `$A => $Parent { … }`). If the enclosing state does not declare a parent (regardless of other states), validation fails with “Cannot forward to parent: no parent available.” When no parent is declared anywhere in the machine:, all forwards to parent fail with the same diagnostic. This rule applies to module demos (files with machine: sections). Single‑body demo fixtures without a machine: section are exempt because no parent relationship can be declared in that form.
 
+Outline checks
+- E111: function header missing `{` (actions/operations/interface sections) — “missing '{' after module artifact header”.
+- E112: state header missing `{` in machine: — “missing '{' after state header in machine: section”.
+
 Diagnostics
 - Report policy violations with precise Frame spans (for MIR) or native spans (for native policy).
 - Human‑oriented and machine‑readable formats.
