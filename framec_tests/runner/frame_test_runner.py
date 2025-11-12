@@ -161,6 +161,10 @@ class FrameTestRunner:
                         pat = m2.group(2).strip()
                         if pat:
                             meta.setdefault('run_expect', []).append(pat)
+                    m2b = re.match(r"^\s*(#|//)\s*@run-exact:\s*(.+)$", line)
+                    if m2b:
+                        exact = m2b.group(2).rstrip('\n')
+                        meta['run_exact'] = [exact]
                     if re.match(r"^\s*(#|//)\s*@flaky\b", line):
                         meta['flaky'] = ['1']
                     if re.match(r"^\s*(#|//)\s*@exec-ok\b", line):
@@ -1624,13 +1628,19 @@ class FrameTestRunner:
                         if not ok:
                             result.execute_success = False
                             result.error_message = f"Execution output check failed: {err}\n{out[:200]}"
-                        # Apply @run-expect assertions
+                        # Apply @run-expect and @run-exact assertions
                         meta = self.parse_fixture_meta(test_file)
                         if result.execute_success and meta.get('run_expect'):
                             missing = [p for p in meta['run_expect'] if not re.search(p, out, re.MULTILINE)]
                             if missing:
                                 result.execute_success = False
                                 result.error_message = f"Run output expectation failed: missing patterns {missing}\n{out}"
+                        if result.execute_success and meta.get('run_exact'):
+                            want = meta['run_exact'][0]
+                            got = out.strip()
+                            if got != want.strip():
+                                result.execute_success = False
+                                result.error_message = f"Run exact mismatch.\nWanted:\n{want}\nGot:\n{out}"
                         result.execution_time = time.time() - start_time
                         return result
                 # Facade strict tests for TS/Python are executed during transpile via harness
@@ -1654,6 +1664,18 @@ class FrameTestRunner:
                             exec_success, output = self.execute_typescript(output_file)
                         result.execute_success = exec_success
                         result.output = output
+                        # Apply @run-expect/@run-exact for exec-v3
+                        if result.execute_success and meta.get('run_expect'):
+                            missing = [p for p in meta['run_expect'] if not re.search(p, output or "", re.MULTILINE)]
+                            if missing:
+                                result.execute_success = False
+                                result.error_message = f"Run output expectation failed: missing patterns {missing}\n{output}"
+                        if result.execute_success and meta.get('run_exact'):
+                            want = meta['run_exact'][0]
+                            got = (output or "").strip()
+                            if got != want.strip():
+                                result.execute_success = False
+                                result.error_message = f"Run exact mismatch.\nWanted:\n{want}\nGot:\n{output}"
                         result.execution_time = time.time() - start_time
                         return result
                     # Otherwise skip exec for remaining V3 categories
