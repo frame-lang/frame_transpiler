@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, asdict
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -32,6 +33,7 @@ class TestResult:
     is_negative_test: bool = False
     expected_failure: bool = False
     validation_errors: Optional[List[str]] = None
+    skipped: Optional[str] = None
 
 @dataclass 
 class TestConfig:
@@ -123,6 +125,30 @@ class FrameTestRunner:
             return False
         except:
             return False
+
+    def parse_fixture_meta(self, test_file: Path) -> Dict[str, List[str]]:
+        """Parse inline metadata from the fixture, e.g. @expect: E403 E404 and @run-expect: pattern.
+        Supports comment prefixes '#' and '//' at SOL. Scans first 20 lines.
+        """
+        meta: Dict[str, List[str]] = {}
+        try:
+            with open(test_file, 'r') as f:
+                for i, line in enumerate(f):
+                    if i > 20:
+                        break
+                    m = re.match(r"^\s*(#|//)\s*@expect:\s*(.+)$", line)
+                    if m:
+                        codes = re.findall(r"E\d{3}", m.group(2))
+                        if codes:
+                            meta['expect'] = [c for c in codes]
+                    m2 = re.match(r"^\s*(#|//)\s*@run-expect:\s*(.+)$", line)
+                    if m2:
+                        pat = m2.group(2).strip()
+                        if pat:
+                            meta.setdefault('run_expect', []).append(pat)
+        except Exception:
+            pass
+        return meta
 
     def parse_fixture_meta(self, test_file: Path) -> Dict[str, List[str]]:
         """Parse inline metadata from the fixture, e.g. @expect: E403 E404.
@@ -1526,6 +1552,7 @@ class FrameTestRunner:
                             "toolchain not found; skipping execution",
                             "compiled (mono not found; skip run)"
                         ]):
+                            result.skipped = "exec toolchain missing"
                             result.execution_time = time.time() - start_time
                             return result
                         name = test_file.stem
@@ -1552,6 +1579,13 @@ class FrameTestRunner:
                         if not ok:
                             result.execute_success = False
                             result.error_message = f"Execution output check failed: {err}\n{out[:200]}"
+                        # Apply @run-expect assertions
+                        meta = self.parse_fixture_meta(test_file)
+                        if result.execute_success and meta.get('run_expect'):
+                            missing = [p for p in meta['run_expect'] if not re.search(p, out, re.MULTILINE)]
+                            if missing:
+                                result.execute_success = False
+                                result.error_message = f"Run output expectation failed: missing patterns {missing}\n{out}"
                         result.execution_time = time.time() - start_time
                         return result
                 # Facade strict tests for TS/Python are executed during transpile via harness
@@ -1774,6 +1808,44 @@ class FrameTestRunner:
         
         return report
 
+def generate_junit(results: List[TestResult], runner: FrameTestRunner) -> str:
+    """Generate a minimal JUnit XML report from test results."""
+    def xml_escape(s: str) -> str:
+        return (s.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+                  .replace("'","&apos;").replace('"','&quot;'))
+    # Group by language for suites
+    suites: Dict[str, List[TestResult]] = {}
+    for r in results:
+        suites.setdefault(r.language, []).append(r)
+    xml_parts: List[str] = ["<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "<testsuites>"]
+    for lang, group in suites.items():
+        total = len(group)
+        failures = 0
+        skipped = 0
+        for r in group:
+            failed = ((not r.is_negative_test and not runner.is_infinite_loop_test(Path(r.file)) and ((not r.transpile_success) or (runner.config.validate and not r.validation_success) or (runner.config.execute and not r.execute_success))) or
+                      (r.is_negative_test and not r.expected_failure))
+            if failed:
+                failures += 1
+            if r.skipped:
+                skipped += 1
+        xml_parts.append(f"  <testsuite name=\"{xml_escape(lang)}\" tests=\"{total}\" failures=\"{failures}\" skipped=\"{skipped}\">")
+        for r in group:
+            classname = f"{Path(r.file).parent.name}.{lang}"
+            name = Path(r.file).name
+            xml_parts.append(f"    <testcase classname=\"{xml_escape(classname)}\" name=\"{xml_escape(name)}\">")
+            if r.skipped:
+                xml_parts.append(f"      <skipped message=\"{xml_escape(r.skipped)}\"/>")
+            failed = ((not r.is_negative_test and not runner.is_infinite_loop_test(Path(r.file)) and ((not r.transpile_success) or (runner.config.validate and not r.validation_success) or (runner.config.execute and not r.execute_success))) or
+                      (r.is_negative_test and not r.expected_failure))
+            if failed:
+                msg = r.error_message or "Test failed"
+                xml_parts.append(f"      <failure message=\"{xml_escape(msg[:200])}\">{xml_escape(msg)}</failure>")
+            xml_parts.append("    </testcase>")
+        xml_parts.append("  </testsuite>")
+    xml_parts.append("</testsuites>")
+    return "\n".join(xml_parts)
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description='Frame Test Runner')
@@ -1802,6 +1874,7 @@ def main():
     parser.add_argument('--update-index', dest='update_index', action='store_true', help='Update the test index with actual results')
     parser.add_argument('--timeout', type=int, default=30,
                        help='Timeout for each test in seconds')
+    parser.add_argument('--junit', dest='junit_path', help='Write JUnit XML report to this path')
     # Aliases for build/run terminology
     parser.add_argument('--build-only', dest='build_only', action='store_true', help='Build only (no run); alias for --transpile-only')
     parser.add_argument('--run', dest='run', action='store_true', help='Enable running generated programs (alias for execute on)')
@@ -1865,6 +1938,15 @@ def main():
         with open(args.output, 'w') as f:
             json.dump(report, f, indent=2)
         print(f"\nReport saved to {args.output}")
+
+    # Write JUnit report if requested
+    if args.junit_path:
+        try:
+            junit = generate_junit(results, runner)
+            Path(args.junit_path).write_text(junit)
+            print(f"\nJUnit report written to {args.junit_path}")
+        except Exception as e:
+            print(f"Warning: failed to write JUnit report: {e}")
 
     # Compare/update index
     try:
