@@ -9685,49 +9685,56 @@
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "cpp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "csharp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "java": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "python": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "rust": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "typescript": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       }
     },
     "pending/missing_brace.frm": {
@@ -9736,49 +9743,56 @@
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "cpp": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "csharp": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "java": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "python": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "rust": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "typescript": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       }
     },
     "negative/state_missing_brace.frm": {
@@ -9787,49 +9801,56 @@
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "cpp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "csharp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "java": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "python": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "rust": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       },
       "typescript": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": []
       }
     },
     "negative/test_action_with_frame.frm": {
@@ -9838,49 +9859,70 @@
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E401"
+        ]
       },
       "cpp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E401"
+        ]
       },
       "csharp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E401"
+        ]
       },
       "java": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E401"
+        ]
       },
       "python": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E401"
+        ]
       },
       "rust": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E401"
+        ]
       },
       "typescript": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E401"
+        ]
       }
     },
     "positive/basic_outline.frm": {
@@ -11599,49 +11641,70 @@
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "cpp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "csharp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "java": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "python": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "rust": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "typescript": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       }
     },
     "negative/handler_outside_state.frm": {
@@ -11650,49 +11713,70 @@
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "cpp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "csharp": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "java": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "python": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "rust": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       },
       "typescript": {
         "transpile": true,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E403"
+        ]
       }
     },
     "negative/multi_issue_outline_tolerant.frm": {
@@ -11701,49 +11785,77 @@
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E302",
+          "E400"
+        ]
       },
       "cpp": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E302",
+          "E400"
+        ]
       },
       "csharp": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E302",
+          "E400"
+        ]
       },
       "java": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E302",
+          "E400"
+        ]
       },
       "python": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E302",
+          "E400"
+        ]
       },
       "rust": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E302",
+          "E400"
+        ]
       },
       "typescript": {
         "transpile": false,
         "validate": false,
         "execute": true,
         "negative": true,
-        "infinite": false
+        "infinite": false,
+        "errors": [
+          "E302",
+          "E400"
+        ]
       }
     }
   }

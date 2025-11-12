@@ -40,13 +40,15 @@ class TestConfig:
     languages: List[str] = None
     categories: List[str] = None
     verbose: bool = False
-    execute: bool = True  # If False, only transpile
-    validate: bool = True  # Run validator after transpile
+    execute: bool = True  # If False, only build (no run)
+    validate: bool = True  # Run compiler validation after build
     validation_level: str = "structural"  # basic|structural|semantic|target-language
     validation_format: str = "human"  # human|json|junit
     parallel: bool = False
     timeout: int = 30
     include_common: bool = False
+    strict_negatives: bool = True  # Negatives must fail compiler validation (not just build)
+    require_error_codes: bool = True  # Negatives must include one or more E### codes
     
     def __post_init__(self):
         if self.languages is None:
@@ -1415,12 +1417,20 @@ class FrameTestRunner:
         
         # Handle negative tests specially
         if is_negative:
-            # Negative tests are successful if either transpilation or validation fails
-            if (not transpile_success) or (self.config.validate and not validation_success):
+            if self.config.strict_negatives:
+                negative_ok = (self.config.validate and not validation_success)
+            else:
+                negative_ok = (not transpile_success) or (self.config.validate and not validation_success)
+            if negative_ok and self.config.require_error_codes:
+                codes = result.validation_errors or []
+                if not codes:
+                    negative_ok = False
+                    result.error_message = "Negative test failed without validator error codes (E###)"
+            if negative_ok:
                 result.expected_failure = True
-                # Prefer validation output if available
+                # Prefer validation output if available; include full diagnostics
                 err = error or validation_output
-                result.error_message = f"Expected failure: {err[:200]}" if err else "Expected failure"
+                result.error_message = f"Expected failure:\n{err}" if err else "Expected failure"
             else:
                 result.expected_failure = False
                 result.error_message = (
@@ -1440,7 +1450,7 @@ class FrameTestRunner:
             if not transpile_success:
                 result.error_message = f"Transpilation failed: {error}"
             elif self.config.validate and not validation_success:
-                result.error_message = f"Validation failed: {validation_output[:500]}"
+                result.error_message = f"Validation failed:\n{validation_output}"
             else:
                 # Mark execution as skipped-success to keep summary simple
                 result.execute_success = True
@@ -1451,7 +1461,7 @@ class FrameTestRunner:
                 result.error_message = f"Transpilation failed: {error}"
             elif self.config.validate and not validation_success:
                 # Fail early on validation errors; do not execute
-                result.error_message = f"Validation failed: {validation_output[:500]}"
+                result.error_message = f"Validation failed:\n{validation_output}"
             elif self.config.execute:
                 # For V3 exec smoke only, execute the emitted wrapper
                 parts_lower = [p.lower() for p in test_file.parts]
@@ -1704,11 +1714,11 @@ class FrameTestRunner:
             print(f"\n{lang.upper()}:")
             print(f"  Total tests: {stats['total']}")
             print(f"  Overall success: {stats['overall_success']}/{stats['total']} ({stats['overall_rate']})")
-            print(f"  Transpilation: {stats['transpile_success']}/{stats['total']} ({stats['transpile_rate']})")
+            print(f"  Build: {stats['transpile_success']}/{stats['total']} ({stats['transpile_rate']})")
             if self.config.validate:
-                print(f"  Validation: {stats['validation_success']}/{stats['total']} ({stats['validation_rate']})")
+                print(f"  Compiler Validation: {stats['validation_success']}/{stats['total']} ({stats['validation_rate']})")
             if self.config.execute:
-                print(f"  Execution: {stats['execute_success']}/{stats['total']} ({stats['execute_rate']})")
+                print(f"  Run: {stats['execute_success']}/{stats['total']} ({stats['execute_rate']})")
         
         print("\nBy Category:")
         for category, stats in sorted(report["summary"]["by_category"].items()):
@@ -1757,6 +1767,15 @@ def main():
     parser.add_argument('--update-index', dest='update_index', action='store_true', help='Update the test index with actual results')
     parser.add_argument('--timeout', type=int, default=30,
                        help='Timeout for each test in seconds')
+    # Aliases for build/run terminology
+    parser.add_argument('--build-only', dest='build_only', action='store_true', help='Build only (no run); alias for --transpile-only')
+    parser.add_argument('--run', dest='run', action='store_true', help='Enable running generated programs (alias for execute on)')
+    parser.add_argument('--no-run', dest='no_run', action='store_true', help='Disable running generated programs (alias for execute off)')
+    # Negative test policies
+    parser.add_argument('--strict-negatives', dest='strict_negatives', action='store_true', help='Negatives must fail compiler validation (default)')
+    parser.add_argument('--no-strict-negatives', dest='no_strict_negatives', action='store_true', help='Allow negatives to pass on build failure alone')
+    parser.add_argument('--require-error-codes', dest='require_error_codes', action='store_true', help='Negatives must surface validator error codes (E###) (default)')
+    parser.add_argument('--no-require-error-codes', dest='no_require_error_codes', action='store_true', help='Do not require E### codes in negatives')
     
     args = parser.parse_args()
     
@@ -1767,17 +1786,38 @@ def main():
         categories = [c for c in categories if c != 'all_v3'] + base
 
     # Create config
+    # Map build/run and policy flags
+    exec_flag = True
+    if args.transpile_only or getattr(args, 'build_only', False) or getattr(args, 'no_run', False):
+        exec_flag = False
+    elif getattr(args, 'run', False):
+        exec_flag = True
+
+    strict_neg = True
+    if getattr(args, 'no_strict_negatives', False):
+        strict_neg = False
+    elif getattr(args, 'strict_negatives', False):
+        strict_neg = True
+
+    require_codes = True
+    if getattr(args, 'no_require_error_codes', False):
+        require_codes = False
+    elif getattr(args, 'require_error_codes', False):
+        require_codes = True
+
     config = TestConfig(
         framec_path=args.framec,
         languages=args.languages,
         categories=categories,
         verbose=args.verbose,
-        execute=not args.transpile_only,
+        execute=exec_flag,
         validate=not args.no_validate,
         validation_level=args.validation_level,
         validation_format=args.validation_format,
         timeout=args.timeout,
         include_common=args.include_common,
+        strict_negatives=strict_neg,
+        require_error_codes=require_codes,
     )
     
     # Run tests
@@ -1830,11 +1870,11 @@ def main():
                     if exp_vals != vals:
                         diffs.append((key, lang, exp_vals, vals))
 
-            if diffs:
-                print(f"\nIndex comparison: {len(diffs)} differences")
-                if args.verbose:
-                    for key, lang, exp, got in diffs[:50]:
-                        print(f"  - {key} [{lang}] expected={exp} actual={got}")
+        if diffs:
+            print(f"\nIndex comparison: {len(diffs)} differences")
+            if args.verbose:
+                for key, lang, exp, got in diffs[:200]:
+                    print(f"  - {key} [{lang}] expected={exp} actual={got}")
             else:
                 print("\nIndex comparison: no differences")
 
