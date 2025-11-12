@@ -14,6 +14,9 @@ Partitioning / Body Closers
 Import Scanners
 - E110: Unterminated or malformed import/include directive — e.g., "unterminated include directive", "unterminated import/export statement", "unterminated using directive", "unterminated package/import statement", "unterminated use/extern statement".
 
+Outline / Headers
+- E111: Missing '{' after module artifact header — applies to function headers in interface/actions/operations sections.
+
 Segmentation
 - E200: Invalid Frame-statement token at SOL — "invalid Frame statement at start of line"; span: statement slice.
 

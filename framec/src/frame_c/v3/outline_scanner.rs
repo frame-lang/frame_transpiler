@@ -140,7 +140,7 @@ impl OutlineScannerV3 {
                     i = close + 1; continue;
                 }
                 // found header 'fn name(' ... ')' but no '{' -> malformed header
-                return Err(OutlineErrorV3{ message: "missing '{' after module artifact header".into() });
+                return Err(OutlineErrorV3{ message: "E111: missing '{' after module artifact header".into() });
             }
             // Otherwise skip to next line
             while i<n && bytes[i]!=b'\n' { i+=1; }
@@ -248,7 +248,7 @@ impl OutlineScannerV3 {
                     continue;
                 }
                 // malformed header: header '(' ... ')' but no '{'
-                issues.push(ValidationIssueV3{ message: "missing '{' after module artifact header".into() });
+                issues.push(ValidationIssueV3{ message: "E111: missing '{' after module artifact header".into() });
                 while i<n && bytes[i]!=b'\n' { i+=1; }
                 continue;
             }
