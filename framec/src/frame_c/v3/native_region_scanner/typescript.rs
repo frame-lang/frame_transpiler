@@ -23,6 +23,25 @@ impl NativeRegionScannerV3 for NativeRegionScannerTsV3 {
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::Transition, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
                 }
+                // Transition with leading exit args: ( ... ) -> ( ... ) $State
+                if b == b'(' {
+                    if let Some(mut k) = balanced_paren_end_ts(bytes, i, end) {
+                        while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                        if k+1 < end && bytes[k] == b'-' && bytes[k+1] == b'>' {
+                            k += 2; while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                            if k < end && bytes[k] == b'(' {
+                                if let Some(k2) = balanced_paren_end_ts(bytes, k, end) { k = k2; }
+                            }
+                            while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                            if k < end && bytes[k] == b'$' {
+                                if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                                let mut j = i; j = find_frame_line_end_ts(bytes, j, end);
+                                regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::Transition, indent });
+                                i = j; seg_start = i; at_sol = true; indent = 0; continue;
+                            }
+                        }
+                    }
+                }
                 if b == b'=' && i+3<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
                     if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
                     let mut j=i; j = find_frame_line_end_ts(bytes, j, end);
@@ -76,4 +95,32 @@ fn find_frame_line_end_ts(bytes: &[u8], mut j: usize, end: usize) -> usize {
         match b { b'\'' | b'"' => { in_s = Some(b); j += 1; } , b'`' => { in_tpl = true; j += 1; }, _ => { j += 1; } }
     }
     j
+}
+
+fn balanced_paren_end_ts(bytes: &[u8], mut i: usize, end: usize) -> Option<usize> {
+    if i >= end || bytes[i] != b'(' { return None; }
+    let mut depth: i32 = 0;
+    let mut in_s: Option<u8> = None; // ' or "
+    let mut in_tpl = false;
+    while i < end {
+        let b = bytes[i];
+        if in_tpl {
+            if b == b'`' { in_tpl = false; i += 1; continue; }
+            if b == b'\\' { i += 2; continue; }
+            i += 1; continue;
+        }
+        if let Some(q) = in_s {
+            if b == b'\\' { i += 2; continue; }
+            if b == q { in_s = None; i += 1; continue; }
+            i += 1; continue;
+        }
+        match b {
+            b'\'' | b'\"' => { in_s = Some(b); i += 1; }
+            b'`' => { in_tpl = true; i += 1; }
+            b'(' => { depth += 1; i += 1; }
+            b')' => { depth -= 1; i += 1; if depth == 0 { return Some(i); } }
+            _ => { i += 1; }
+        }
+    }
+    None
 }
