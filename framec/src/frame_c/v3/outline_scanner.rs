@@ -29,11 +29,15 @@ impl OutlineScannerV3 {
         #[derive(Clone, Copy, PartialEq, Eq)]
         enum Section { None, Actions, Operations, Interface, Machine }
         let mut section = Section::None;
+        // Track active state scopes (name, close_index) inside machine:
+        let mut state_scopes: Vec<(String, usize)> = Vec::new();
         while i < n {
             // skip to SOL non-space
             while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
             if i >= n { break; }
             let line_start = i;
+            // Drop any state scopes that ended before this line
+            while let Some((_, close)) = state_scopes.last() { if *close <= line_start { state_scopes.pop(); } else { break; } }
             // first token
             let mut j = i;
             while j < n && is_space(bytes[j]) { j += 1; }
@@ -52,8 +56,33 @@ impl OutlineScannerV3 {
                 while i<n && bytes[i]!=b'\n' { i+=1; }
                 continue;
             }
-            // Skip state lines starting with '$'
-            if bytes[kw_start] == b'$' { while i<n && bytes[i]!=b'\n' { i+=1; } continue; }
+            // Track state scopes: in machine:, a line starting with '$' beginning a state block
+            if matches!(section, Section::Machine) && bytes[kw_start] == b'$' {
+                // parse state ident
+                let mut s = kw_start + 1; while s < n && is_ident(bytes[s]) { s += 1; }
+                // find '{' on this line
+                let mut p = s; while p < n && bytes[p] != b'\n' && bytes[p] != b'{' { p += 1; }
+                if p < n && bytes[p] == b'{' {
+                    let open = p;
+                    // compute close; ignore errors in this fast path
+                    let close_opt: Option<usize> = match lang {
+                        TargetLanguage::Python3 => closer::python::BodyCloserPyV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::TypeScript => closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::CSharp => closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::C => closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::Cpp => closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::Java => closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::Rust => closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        _ => None,
+                    };
+                    if let Some(close) = close_opt {
+                        let name = String::from_utf8_lossy(&bytes[kw_start+1..s]).to_string();
+                        state_scopes.push((name, close));
+                    }
+                }
+                while i<n && bytes[i]!=b'\n' { i+=1; }
+                continue;
+            }
             // Recognize headers:
             // - In machine: section → IDENT '(' ... ')' '{' (handler), allowing bare names (no 'fn')
             // - Elsewhere → 'fn' or 'async fn' NAME '(' ... ')' '{'
@@ -105,8 +134,9 @@ impl OutlineScannerV3 {
                         _ => Err(closer::CloseErrorV3{ kind: closer::CloseErrorV3Kind::Unimplemented, message: "unsupported language".into() }),
                     }.map_err(|e| OutlineErrorV3{ message: format!("body close error: {:?}", e) })?;
                     let owner_id = Some(String::from_utf8_lossy(&bytes[name_start..name_end]).to_string());
+                    let state_id = state_scopes.last().map(|(n, _)| n.clone());
                     let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler };
-                    items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id: None, kind, open_byte: open, close_byte: close });
+                    items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close });
                     i = close + 1; continue;
                 }
                 // found header 'fn name(' ... ')' but no '{' -> malformed header
@@ -127,10 +157,12 @@ impl OutlineScannerV3 {
         #[derive(Clone, Copy, PartialEq, Eq)]
         enum Section { None, Actions, Operations, Interface, Machine }
         let mut section = Section::None;
+        let mut state_scopes: Vec<(String, usize)> = Vec::new();
         while i < n {
             while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
             if i >= n { break; }
             let line_start = i;
+            while let Some((_, close)) = state_scopes.last() { if *close <= line_start { state_scopes.pop(); } else { break; } }
             let mut j = i; while j < n && is_space(bytes[j]) { j += 1; }
             let kw_start = j; while j < n && is_ident(bytes[j]) { j += 1; }
             if kw_start == j { while i<n && bytes[i]!=b'\n' { i+=1; } continue; }
@@ -140,7 +172,29 @@ impl OutlineScannerV3 {
                 while i<n && bytes[i]!=b'\n' { i+=1; }
                 continue;
             }
-            if bytes[kw_start] == b'$' { while i<n && bytes[i]!=b'\n' { i+=1; } continue; }
+            if matches!(section, Section::Machine) && bytes[kw_start] == b'$' {
+                let mut s = kw_start + 1; while s < n && is_ident(bytes[s]) { s += 1; }
+                let mut p = s; while p < n && bytes[p] != b'\n' && bytes[p] != b'{' { p += 1; }
+                if p < n && bytes[p] == b'{' {
+                    let open = p;
+                    let close_opt: Option<usize> = match lang {
+                        TargetLanguage::Python3 => closer::python::BodyCloserPyV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::TypeScript => closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::CSharp => closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::C => closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::Cpp => closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::Java => closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        TargetLanguage::Rust => closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                        _ => None,
+                    };
+                    if let Some(close) = close_opt {
+                        let name = String::from_utf8_lossy(&bytes[kw_start+1..s]).to_string();
+                        state_scopes.push((name, close));
+                    }
+                }
+                while i<n && bytes[i]!=b'\n' { i+=1; }
+                continue;
+            }
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
             // Recognize handler headers in machine: section without 'fn'; elsewhere require 'fn'/'async fn'
             let first_tok = to_lower_ascii(&bytes[kw_start..j]);
@@ -174,18 +228,19 @@ impl OutlineScannerV3 {
                         TargetLanguage::Python3 => match closer::python::BodyCloserPyV3.close_byte(&bytes[open..], 0) { Ok(c) => {
                             let close = open + c;
                             let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string());
+                            let state_id = state_scopes.last().map(|(n, _)| n.clone());
                             let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler };
-                            items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id: None, kind, open_byte: open, close_byte: close });
+                            items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close });
                             i = close + 1; continue;
                         }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
                         TargetLanguage::TypeScript => match closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0) { Ok(c) => {
-                            let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id: None, kind, open_byte: open, close_byte: close }); i = close + 1; continue;
+                            let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue;
                         }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::CSharp => match closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id: None, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::C => match closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id: None, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::Cpp => match closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id: None, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::Java => match closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id: None, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::Rust => match closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id: None, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::CSharp => match closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::C => match closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::Cpp => match closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::Java => match closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::Rust => match closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
                         _ => {}
                     }
                     // recovery: skip to next line after '{'
