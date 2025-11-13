@@ -244,10 +244,17 @@ pub fn run_with(args: Cli) {
                     Ok(files) => {
                         for f in files {
                             if let Ok(content) = std::fs::read_to_string(&f) {
-                                let bytes = content.as_bytes(); if bytes.first().copied() != Some(b'{') { continue; }
-                                match super::v3::validate_single_body(&content, Some(lang)) {
-                                    Ok(res) => { for issue in res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); } if args.validate_only && !res.ok { std::process::exit(exitcode::DATAERR); } }
-                                    Err(e) => { eprintln!("{}: validation error: {}", f.display(), e.error); if args.validate_only { std::process::exit(e.code); } }
+                                if content.contains("@target ") {
+                                    match super::v3::validate_module_demo_with_mode(&content, lang, false) {
+                                        Ok(res) => { for issue in res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); } if args.validate_only && !res.ok { std::process::exit(exitcode::DATAERR); } }
+                                        Err(e) => { eprintln!("{}: validation error: {}", f.display(), e.error); if args.validate_only { std::process::exit(e.code); } }
+                                    }
+                                } else {
+                                    let bytes = content.as_bytes(); if bytes.first().copied() != Some(b'{') { continue; }
+                                    match super::v3::validate_single_body(&content, Some(lang)) {
+                                        Ok(res) => { for issue in res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); } if args.validate_only && !res.ok { std::process::exit(exitcode::DATAERR); } }
+                                        Err(e) => { eprintln!("{}: validation error: {}", f.display(), e.error); if args.validate_only { std::process::exit(e.code); } }
+                                    }
                                 }
                             }
                         }

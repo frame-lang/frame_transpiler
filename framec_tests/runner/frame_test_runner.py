@@ -342,12 +342,18 @@ class FrameTestRunner:
         # Run transpiler - check if multifile test
         if is_v3:
             is_v3_facade_smoke = "v3_facade_smoke" in parts_lower
+            is_v3_project = "v3_project" in parts_lower
             if is_v3_closers or is_v3_mapping or is_v3_expansion:
                 cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
                 extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
             else:
-                cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+                if is_v3_project:
+                    # Run project compilation on the directory containing this file
+                    proj_dir = str(test_file.parent)
+                    cmd = [self.config.framec_path, "demo-project", "-l", lang_flag, proj_dir]
+                else:
+                    cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
                 # Choose extension when we intend to execute the output
                 if ("v3_exec_smoke" in parts_lower and self.config.execute) or (getattr(self.config, 'exec_v3', False) and self.config.execute and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower)):
                     ext_map = {"python": ".py", "typescript": ".ts", "rust": ".rs", "c": ".c", "cpp": ".cpp", "java": ".java", "csharp": ".cs"}
@@ -448,6 +454,11 @@ class FrameTestRunner:
             )
             
             if result.returncode == 0:
+                # For project compilations, write the aggregated output and mark success
+                if is_v3_project:
+                    out = result.stdout or ""
+                    output_file.write_text(out)
+                    return True, str(output_file), None
                 # Optional mapping trailer validation for v3_mapping
                 if is_v3_mapping:
                     out = result.stdout or ""

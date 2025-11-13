@@ -31,10 +31,20 @@ pub fn compile_directory_demo(dir: &Path, lang: TargetLanguage, recursive: bool)
         match std::fs::read_to_string(&file) {
             Ok(content) => {
                 let bytes = content.as_bytes();
-                if bytes.first().copied() != Some(b'{') { continue; }
-                match CompilerV3::compile_single_file(None, &content, Some(lang), false) {
-                    Ok(code) => outputs.push((file.clone(), code)),
-                    Err(e) => return Err(e),
+                if content.contains("@target ") {
+                    // Treat as module file
+                    match crate::frame_c::v3::compile_module_demo(&content, lang) {
+                        Ok(code) => outputs.push((file.clone(), code)),
+                        Err(e) => return Err(e),
+                    }
+                } else if bytes.first().copied() == Some(b'{') {
+                    // Single-body demo file
+                    match CompilerV3::compile_single_file(None, &content, Some(lang), false) {
+                        Ok(code) => outputs.push((file.clone(), code)),
+                        Err(e) => return Err(e),
+                    }
+                } else {
+                    // skip
                 }
             }
             Err(_) => { /* skip unreadable */ }
