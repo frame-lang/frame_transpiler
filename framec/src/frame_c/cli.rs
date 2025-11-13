@@ -242,10 +242,27 @@ pub fn run_with(args: Cli) {
                 }
                 match iter_files(&dir, recursive) {
                     Ok(files) => {
+                        // Build a project-level arcanum from module files (@target present)
+                        let mut module_files: Vec<(std::path::PathBuf, String)> = Vec::new();
+                        for f in &files {
+                            if let Ok(content) = std::fs::read_to_string(f) {
+                                if content.contains("@target ") { module_files.push((f.clone(), content)); }
+                            }
+                        }
+                        // Build arcanum by merging outlines from each module file
+                        let mut arc = crate::frame_c::v3::arcanum::Arcanum::new();
+                        for (_p, content) in &module_files {
+                            let bytes = content.as_bytes();
+                            // approximate outline start using prolog/imports offsets
+                            let outline_start = 0usize;
+                            let a = crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start);
+                            // merge into arc (simple overlay)
+                            for (k, v) in a.systems.into_iter() { arc.systems.entry(k).or_insert(v); }
+                        }
                         for f in files {
                             if let Ok(content) = std::fs::read_to_string(&f) {
                                 if content.contains("@target ") {
-                                    match super::v3::validate_module_demo_with_mode(&content, lang, false) {
+                                    match super::v3::validate_module_with_arcanum(&content, lang, &arc, false) {
                                         Ok(res) => { for issue in res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); } if args.validate_only && !res.ok { std::process::exit(exitcode::DATAERR); } }
                                         Err(e) => { eprintln!("{}: validation error: {}", f.display(), e.error); if args.validate_only { std::process::exit(e.code); } }
                                     }

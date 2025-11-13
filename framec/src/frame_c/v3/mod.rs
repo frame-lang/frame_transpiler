@@ -648,6 +648,119 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     Ok(ValidationResultV3 { ok, issues: all_issues })
 }
 
+/// Validate a module file using a pre-built project Arcanum (cross-file symbol table).
+/// Mirrors validate_module_demo_with_mode but uses the provided Arcanum for
+/// transition target and parent-forward checks.
+pub fn validate_module_with_arcanum(
+    content_str: &str,
+    lang: TargetLanguage,
+    arc: &crate::frame_c::v3::arcanum::Arcanum,
+    strict_native: bool,
+) -> Result<ValidationResultV3, RunError> {
+    let bytes = content_str.as_bytes();
+    let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
+        Ok(p) => p,
+        Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &e.0)),
+    };
+    let validator = ValidatorV3;
+    let mut all_issues = Vec::new();
+    // include import scanning issues
+    all_issues.extend(parts.import_issues.into_iter());
+    // Outline grammar and section checks
+    let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
+    let (items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+    all_issues.extend(outline_issues);
+    let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
+    all_issues.extend(outer_issues);
+    all_issues.extend(validator.validate_machine_state_headers(bytes, outline_start));
+    all_issues.extend(validator.validate_handlers_in_state(&items));
+
+    let system_name = find_system_name(bytes, 0);
+
+    for b in parts.bodies {
+        let body_bytes = &bytes[b.open_byte..=b.close_byte];
+        let scan_res = match lang {
+            TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_bytes, 0),
+            TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(body_bytes, 0),
+            TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(body_bytes, 0),
+            TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(body_bytes, 0),
+            TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(body_bytes, 0),
+            TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(body_bytes, 0),
+            TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(body_bytes, 0),
+            _ => return Err(RunError::new(frame_exitcode::PARSE_ERR, "target not supported in V3 demo")),
+        };
+        let scan = match scan_res { Ok(s) => s, Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e))) };
+        let (mir, parse_issues) = MirAssemblerV3.assemble_collect(body_bytes, &scan.regions);
+        if !parse_issues.is_empty() { all_issues.extend(parse_issues); }
+        let policy = ValidatorPolicyV3 { body_kind: Some(b.kind) };
+        let mut res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
+        // Cross-file transition targets
+        let sys = system_name.as_deref();
+        res.issues.extend(validator.validate_transition_targets_arcanum(&mir, arc, sys));
+        // Parent-forward availability via Arcanum
+        if validator.has_machine_section(bytes, outline_start) {
+            if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Unknown) {
+                if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
+                    let enclosing_state = b.state_id.as_deref();
+                    let mut ok_parent = false;
+                    if let Some(state_name) = enclosing_state {
+                        let sys_name = system_name.as_deref().unwrap_or("_");
+                        ok_parent = arc.has_parent(sys_name, state_name) || arc.has_parent("_", state_name);
+                    }
+                    if !ok_parent {
+                        res.issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E403: Cannot forward to parent: no parent available".into() });
+                    }
+                }
+            }
+        }
+        // No native after terminal MIR
+        let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
+        res.issues.extend(extra);
+        res.ok = res.issues.is_empty();
+        all_issues.extend(res.issues);
+
+        if strict_native {
+            let exps: Vec<String> = {
+                use crate::frame_c::v3::expander::*;
+                let mut v = Vec::new();
+                let mut mi = 0usize;
+                for r in &scan.regions {
+                    if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
+                        if mi >= mir.len() { break; }
+                        let m = &mir[mi]; mi += 1;
+                        let s = match lang {
+                            TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent, None),
+                            _ => String::new(),
+                        };
+                        v.push(s);
+                    }
+                }
+                v
+            };
+            let spliced = SplicerV3.splice(body_bytes, &scan.regions, &exps);
+            if let Some(facade) = crate::frame_c::v3::facade::NativeFacadeRegistryV3::get(lang) {
+                if let Ok(diags) = facade.parse(&spliced.text) {
+                    for d in diags {
+                        if let Some((_origin, src)) = spliced.map_spliced_range_to_origin(d.start, d.end) {
+                            all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: format!("native syntax (frame:{}-{}): {}", src.start, src.end, d.message) });
+                        } else {
+                            all_issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: format!("native syntax: {}", d.message) });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let ok = all_issues.is_empty();
+    Ok(ValidationResultV3 { ok, issues: all_issues })
+}
+
 // SOL-anchored scan for `system <Ident> {` ignoring common comments
 fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
     let n = bytes.len();
