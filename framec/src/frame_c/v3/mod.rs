@@ -752,8 +752,10 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         res.ok = res.issues.is_empty();
         all_issues.extend(res.issues);
 
-        // Stage 07 (strict facade mode): build spliced body with wrapper-call expansions
-        if strict_native {
+        // Stage 07 (native facade parsing):
+        // Enable by default for Python/TypeScript/Rust (hermetic parsers), or when strict_native is requested.
+        let enable_native = strict_native || matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript | TargetLanguage::Rust);
+        if enable_native {
             let exps: Vec<String> = {
                 use crate::frame_c::v3::expander::*;
                 let mut v = Vec::new();
@@ -779,7 +781,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                 v
             };
             let spliced = SplicerV3.splice(body_bytes, &scan.regions, &exps);
-            // Optional native parsing via facades (none registered by default)
+            // Optional native parsing via facades (adapter may no-op if feature not enabled)
             if let Some(facade) = crate::frame_c::v3::facade::NativeFacadeRegistryV3::get(lang) {
                 if let Ok(diags) = facade.parse(&spliced.text) {
                     for d in diags {
@@ -873,7 +875,9 @@ pub fn validate_module_with_arcanum(
         res.ok = res.issues.is_empty();
         all_issues.extend(res.issues);
 
-        if strict_native {
+        // Stage 07 (native facade parsing): enable by default for Python/TS/Rust, or when strict_native is set
+        let enable_native = strict_native || matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript | TargetLanguage::Rust);
+        if enable_native {
             let exps: Vec<String> = {
                 use crate::frame_c::v3::expander::*;
                 let mut v = Vec::new();

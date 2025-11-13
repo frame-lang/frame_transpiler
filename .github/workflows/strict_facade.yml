@@ -30,7 +30,7 @@ jobs:
 
       - name: Build with native adapters (strict profile)
         run: |
-          cargo build --release --features native-py,native-ts,native-rs,native-c,native-cpp,native-java,native-csharp
+          cargo build --release --features native-py-rp,native-py,native-ts,native-rs,native-c,native-cpp,native-java,native-csharp
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -52,4 +52,3 @@ jobs:
             --categories v3_facade_smoke \
             --framec ./target/release/framec \
             -v
-

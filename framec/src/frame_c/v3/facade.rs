@@ -353,7 +353,7 @@ fn run_python_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     // Prefer RustPython-based parser when available
     #[cfg(feature = "native-py-rp")]
     {
-        // rustpython_parser reports errors with line/column; convert to byte offsets best-effort
+        // rustpython-parser reports errors with line/column; convert to byte offsets best-effort
         // to integrate with splice_map remapping. We keep messages intact.
         use rustpython_parser::parser;
         use rustpython_parser::mode::Mode;
@@ -372,7 +372,7 @@ fn run_python_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
                     idx + col.saturating_sub(1)
                 }
                 let msg = format!("native facade (Python/RustPython): {}", err);
-                // Best-effort: rustpython_parser::error::ParseError may expose location()
+                // Best-effort: rustpython-parser::error::ParseError exposes location()
                 let (s, e) = match err.location() {
                     Some(loc) => {
                         let start = offset_from_line_col(text, loc.row().get(), loc.column().get());

@@ -328,6 +328,25 @@ class FrameTestRunner:
         
         # Generate output filename
         output_file = output_dir / (test_file.stem + extension)
+
+        # One-time debug JSON envelope sanity check per language (Py/TS only)
+        # Ensures --debug-output returns a structured envelope with expected keys.
+        if language in ("python", "typescript") and not hasattr(self, f"_debug_envelope_checked_{language}"):
+            try:
+                lang_flag = {"python": "python_3", "typescript": "typescript"}.get(language, language)
+                probe = "{\n    -> $Next\n}\n"
+                env = os.environ.copy()
+                cmd_probe = [self.config.framec_path, "--debug-output", "-l", lang_flag]
+                res = subprocess.run(cmd_probe, input=probe, capture_output=True, text=True, timeout=self.config.timeout)
+                ok = (res.returncode == 0)
+                payload = json.loads(res.stdout) if ok and res.stdout.strip().startswith("{") else None
+                assert ok and isinstance(payload, dict), "debug-output did not return JSON envelope"
+                for k in ("targetLanguage", "code", "sourceMap", "errors", "schemaVersion"):
+                    assert k in payload, f"missing key in debug-output envelope: {k}"
+                setattr(self, f"_debug_envelope_checked_{language}", True)
+            except Exception as e:
+                # Do not fail the whole run; record a soft failure by printing a warning
+                print(f"[warn] debug-output envelope probe failed for {language}: {e}")
         
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
