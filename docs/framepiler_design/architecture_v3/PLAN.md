@@ -43,6 +43,8 @@ Status Summary — Fixtures and Validation (All Languages)
  - [x] Curated exec expanded (Python/TS): added nested/loops, inline-forward+transition, try/catch/finally/else chains, and full-bucket transition fixtures; all green.
  - [x] TypeScript exec import stabilized: runner supplies FRAME_TS_EXEC_IMPORT and exec handler relaxes compartment type; curated exec 100%.
  - [x] Curated exec (Rust): control_flow/core/systems seeded and running under exec-v3; forward/stack non-terminal semantics fixed in expander.
+ - [x] Curated exec (Java/C#): control_flow/core/systems seeded and running under exec-v3 with toolchain skips.
+ - [x] Curated exec (C/C++): control_flow/core/systems seeded and running under exec-v3; runner compiles C++ with -std=c++11.
  - [x] CI artifacts: V3 workflows upload JUnit XML reports for v3_all, v3_exec_smoke, and curated exec.
 
 Production‑ready criteria (not done unless explicitly checked):
