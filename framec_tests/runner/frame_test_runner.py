@@ -442,6 +442,9 @@ class FrameTestRunner:
             # Always request errors-json trailer for V3 module/demo paths so we can assert debug payload shape
             if is_v3:
                 env["FRAME_ERROR_JSON"] = "1"
+                # Stage 10B: enable advisory native policy checks for validator suites (Py/TS)
+                if "v3_validator" in parts_lower and language in ("python", "typescript"):
+                    env["FRAME_VALIDATE_NATIVE_POLICY"] = "1"
             # For facade smoke fixtures, request facade expansion output
             if is_v3_facade_smoke:
                 env["FRAME_FACADE_EXPANSION"] = "1"
@@ -706,11 +709,19 @@ class FrameTestRunner:
                 cmd.insert(insert_at, "--validate-native")
 
         try:
+            # Propagate environment for validator path similarly to transpile()
+            env = os.environ.copy()
+            # Always request human format (framec prints to stderr); errors-json not needed here, but keep consistent
+            if 'v3_' in ' '.join(parts_lower):
+                env["FRAME_ERROR_JSON"] = env.get("FRAME_ERROR_JSON", "1")
+            if "v3_validator" in parts_lower and language in ("python", "typescript"):
+                env["FRAME_VALIDATE_NATIVE_POLICY"] = "1"
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=max(self.config.timeout, 10),
+                env=env,
             )
             success = result.returncode == 0
             output = (result.stdout or "") + (result.stderr or "")

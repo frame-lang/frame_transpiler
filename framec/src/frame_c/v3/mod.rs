@@ -831,6 +831,13 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         } else if !known_states.is_empty() {
             res.issues.extend(validator.validate_transition_targets(&mir, &known_states));
         }
+        // Optional advisory policy: state parameter arity (Stage 10B).
+        if std::env::var("FRAME_VALIDATE_NATIVE_POLICY").ok().as_deref() == Some("1") {
+            if let Some(ref arc) = arcanum_symtab {
+                let sys = system_name.as_deref();
+                res.issues.extend(validator.validate_transition_state_arity_arcanum(&mir, arc, sys));
+            }
+        }
         // Parent-forward rule (module demos only): require a parent for the enclosing state
         if validator.has_machine_section(bytes, outline_start) {
             if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Unknown) {
@@ -956,6 +963,10 @@ pub fn validate_module_with_arcanum(
         // Cross-file transition targets
         let sys = system_name.as_deref();
         res.issues.extend(validator.validate_transition_targets_arcanum(&mir, arc, sys));
+        // Optional advisory policy: state parameter arity (Stage 10B).
+        if std::env::var("FRAME_VALIDATE_NATIVE_POLICY").ok().as_deref() == Some("1") {
+            res.issues.extend(validator.validate_transition_state_arity_arcanum(&mir, arc, sys));
+        }
         // Parent-forward availability via Arcanum
         if validator.has_machine_section(bytes, outline_start) {
             if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Unknown) {

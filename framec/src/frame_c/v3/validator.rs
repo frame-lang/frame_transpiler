@@ -19,6 +19,24 @@ impl ValidatorV3 {
         ValidationResultV3 { ok: true, issues: Vec::new() }
     }
 
+    // Optional: check that transition state_args arity matches state parameter arity from Arcanum
+    pub fn validate_transition_state_arity_arcanum(&self, mir: &[MirItemV3], arc: &Arcanum, system: Option<&str>) -> Vec<ValidationIssueV3> {
+        let mut issues = Vec::new();
+        let sys = system.unwrap_or("_");
+        for m in mir {
+            if let MirItemV3::Transition{ target, state_args, .. } = m {
+                if let Some(state) = arc.resolve_state(sys, target) {
+                    let expected = state.params.len();
+                    let got = state_args.len();
+                    if expected != got {
+                        issues.push(ValidationIssueV3 { message: format!("E405: State '{}' expects {} param(s) but transition supplies {}", target, expected, got) });
+                    }
+                }
+            }
+        }
+        issues
+    }
+
     // Strict terminal check: Transition must be last statement in its containing block
     pub fn validate_terminal_last_native(&self, bytes: &[u8], regions: &[RegionV3], mir: &[MirItemV3], lang: crate::frame_c::visitors::TargetLanguage) -> Vec<ValidationIssueV3> {
         let mut issues: Vec<ValidationIssueV3> = Vec::new();
