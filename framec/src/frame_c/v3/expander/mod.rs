@@ -173,13 +173,11 @@ impl FrameStatementExpanderV3 for RustExpanderV3 {
                 out
             }
             MirItemV3::Forward{ .. } => {
-                let mut out = String::new();
-                out.push_str(&format!("{}_frame_router(None);\n", pad));
-                out.push_str(&format!("{}return;\n", pad));
-                out
+                // Forwards are non-terminal
+                format!("{}_frame_router(None);\n", pad)
             }
             MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n{}return;\n", pad, pad),
+            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
         }
     }
 }
