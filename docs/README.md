@@ -47,3 +47,40 @@ Below is the living index of the most relevant specs and plans across `framelang
 - C++ Backend Plan: docs/framepiler_design/going_native/cpp_backend_plan.md
 - Rust Backend Plan: docs/framepiler_design/going_native/rust_backend_plan.md
 - Java Backend Plan: docs/framepiler_design/going_native/java_backend_plan.md
+
+## Quick Reading List — Python and TypeScript
+
+Python
+- docs/framepiler_design/architecture_v3/01_body_closers_python.md:1
+- docs/framepiler_design/architecture_v3/02_native_region_scanner_python.md:1
+- docs/framepiler_design/architecture_v3/05_frame_statement_expansion_python.md:1
+- docs/framepiler_design/architecture_v3/07_native_parse_facade_python.md:1
+- frame_runtime_py/__init__.py:1
+
+TypeScript
+- docs/framepiler_design/architecture_v3/01_body_closers_typescript.md:1
+- docs/framepiler_design/architecture_v3/02_native_region_scanner_typescript.md:1
+- docs/framepiler_design/architecture_v3/05_frame_statement_expansion_typescript.md:1
+- docs/framepiler_design/architecture_v3/07_native_parse_facade_typescript.md:1
+- frame_runtime_ts/index.ts:1
+
+Shared V3 Core (applies to both; read in this order)
+- docs/framepiler_design/architecture_v3/architecture_v3_overview.md:1
+- docs/framepiler_design/architecture_v3/03_frame_segment_parser.md:1
+- docs/framepiler_design/architecture_v3/04_mir_assembly.md:1
+- docs/framepiler_design/architecture_v3/06_splice_and_mapping.md:1
+- docs/framepiler_design/architecture_v3/06_5_structural_validation.md:1
+- docs/framepiler_design/architecture_v3/09_validation.md:1
+- docs/framepiler_design/architecture_v3/10_ast_and_symbol_integration.md:1
+- docs/framepiler_design/architecture_v3/11_error_taxonomy.md:1
+- docs/framepiler_design/architecture_v3/08_source_maps_and_codegen.md:1
+- docs/framepiler_design/architecture_v3/07_runtime_api_demo.md:1
+- docs/framepiler_design/architecture_v3/00_stage_index.md:1
+- docs/framepiler_design/architecture_v3/PLAN.md:1
+
+Testing, Runner, and CI
+- docs/framepiler_design/architecture_v3/12_testing_strategy.md:1
+- framec_tests/runner/frame_test_runner.py:1
+- .github/workflows/v3_all.yml:1
+- .github/workflows/v3_curated_exec.yml:1
+- .github/workflows/v3_exec_smoke.yml:1
