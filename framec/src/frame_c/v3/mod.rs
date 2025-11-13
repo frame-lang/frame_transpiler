@@ -178,15 +178,14 @@ impl CompilerV3 {
             return Ok(json);
         }
 
-        // Optional structured error JSON trailer for tools that parse embedded comments
-        if std::env::var("FRAME_ERROR_JSON").ok().as_deref() == Some("1") {
-            let issues = ValidatorV3
-                .validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
-            let json = build_errors_json(&issues);
-            out_text.push_str("\n/*#errors-json#\n");
-            out_text.push_str(&json);
-            out_text.push_str("\n#errors-json#*/\n");
-        }
+        // Structured error JSON trailer for tools (always emitted in V3 demo paths)
+        // Note: Kept unconditional for V3 demo compiles so test infrastructure can assert shape deterministically.
+        let issues = ValidatorV3
+            .validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
+        let json = build_errors_json(&issues);
+        out_text.push_str("\n/*#errors-json#\n");
+        out_text.push_str(&json);
+        out_text.push_str("\n#errors-json#*/\n");
         if std::env::var("FRAME_MAP_TRAILER").ok().as_deref() == Some("1") {
             // rebuild splice to include map
             let exps: Vec<String> = match lang {
@@ -311,7 +310,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
     let mut exec_body_src: Option<String> = None;
     let mut exec_mir: Option<Vec<crate::frame_c::v3::mir::MirItemV3>> = None;
     let mut cursor = 0usize;
-    for b in parts.bodies {
+    for b in &parts.bodies {
         if b.open_byte > cursor { out.push_str(&content_str[cursor..b.open_byte]); }
         let body_src = &content_str[b.open_byte..b.close_byte+1];
         // Allow facade-mode expansions in compile path for smoke testing via env flag
@@ -593,15 +592,15 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         Ok(joined)
     } else {
         if cursor < bytes.len() { out.push_str(&content_str[cursor..]); }
-        // Optional errors JSON trailer for module compile
-        if std::env::var("FRAME_ERROR_JSON").ok().as_deref() == Some("1") {
+        // Structured errors JSON trailer for module compile (always for V3 demo)
+        {
             // Run validation to collect issues akin to validate_module_demo_with_mode
             let mut issues = Vec::new();
             let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
             let (items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
             for is in outline_issues { issues.push(is); }
             let validator = ValidatorV3;
-            for b in parts.bodies {
+            for b in &parts.bodies {
                 let body_bytes = &bytes[b.open_byte..=b.close_byte];
                 let scan = match lang {
                     TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_bytes, 0),
