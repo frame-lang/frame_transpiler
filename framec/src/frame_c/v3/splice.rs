@@ -87,3 +87,30 @@ impl SplicedBodyV3 {
         None
     }
 }
+
+impl SplicedBodyV3 {
+    pub fn build_line_map_json(&self, source_bytes: &[u8]) -> String {
+        fn offset_to_line(s: &str, off: usize) -> usize {
+            let bytes = s.as_bytes();
+            let mut i = 0usize; let mut line = 1usize;
+            while i < bytes.len() && i < off { if bytes[i] == b'\n' { line += 1; } i += 1; }
+            line
+        }
+        let source_str = std::str::from_utf8(source_bytes).unwrap_or("");
+        let target_str = &self.text;
+        let mut out = String::from("{\"mappings\":[");
+        let mut first = true;
+        for (tgt, origin) in &self.splice_map {
+            let tline = offset_to_line(target_str, tgt.start);
+            let (origin_str, src_start) = match origin {
+                OriginV3::Frame{ source } => ("frame", source.start),
+                OriginV3::Native{ source } => ("native", source.start),
+            };
+            let sline = offset_to_line(source_str, src_start);
+            if !first { out.push(','); } else { first = false; }
+            out.push_str(&format!("{{\"targetLine\":{},\"sourceLine\":{},\"origin\":\"{}\"}}", tline, sline, origin_str));
+        }
+        out.push_str("] ,\"schemaVersion\":1}");
+        out
+    }
+}

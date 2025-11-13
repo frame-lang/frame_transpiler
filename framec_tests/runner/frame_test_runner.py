@@ -501,6 +501,22 @@ class FrameTestRunner:
                 except Exception:
                     # Non-fatal: leave output as-is if extraction fails
                     pass
+                # Optional visitor-line map trailer: extract to sidecar and strip
+                try:
+                    vstart = out.find("/*#visitor-map#")
+                    vend = out.find("#visitor-map#*/")
+                    if vstart != -1 and vend != -1 and vend > vstart:
+                        vtext = out[vstart+len("/*#visitor-map#"):vend].strip()
+                        # Validate minimal shape
+                        payload = json.loads(vtext)
+                        if not isinstance(payload, dict) or 'mappings' not in payload:
+                            return False, str(output_file), "Invalid visitor-map payload"
+                        vside = str(output_file) + ".visitor-map.json"
+                        Path(vside).write_text(vtext)
+                        cleaned = (out[:vstart] + out[vend+len("#visitor-map#*/"):]).rstrip() + "\n"
+                        out = cleaned
+                except Exception:
+                    pass
                 # Extract and minimally assert presence/shape of errors-json trailer when requested
                 try:
                     ej_start = out.find("/*#errors-json#")
