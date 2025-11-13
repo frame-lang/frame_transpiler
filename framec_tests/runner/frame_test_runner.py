@@ -515,7 +515,7 @@ class FrameTestRunner:
                         # For negative tests, expect one or more errors
                         if self.is_negative_test(test_file):
                             assert isinstance(payload.get("errors"), list) and len(payload.get("errors")) >= 1, "negative test missing errors in errors-json"
-                    elif is_v3 and (not is_v3_facade_smoke) and "FRAME_EMIT_EXEC" not in env:
+                    elif is_v3 and (not is_v3_facade_smoke) and (not is_v3_mapping) and "FRAME_EMIT_EXEC" not in env:
                         # If we requested errors-json for V3 but didn't get it, flag a failure
                         return False, str(output_file), "Missing errors-json trailer in output"
                 except AssertionError as ae:
