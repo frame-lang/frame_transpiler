@@ -1,4 +1,4 @@
-# Frame Transpiler Bug Tracking Policy
+``# Frame Transpiler Bug Tracking Policy
 
 ## Overview
 This document defines the bug tracking process for the Frame Transpiler project. All bugs are tracked as individual markdown files in the `/docs/bugs/` directory structure.

@@ -300,6 +300,7 @@ pub fn run_with(args: Cli) {
                     // Set optional demo emission flags
                     if args.emit_body_only { std::env::set_var("FRAME_EMIT_BODY_ONLY", "1"); }
                     if args.emit_exec { std::env::set_var("FRAME_EMIT_EXEC", "1"); }
+                    if args.debug_output { std::env::set_var("FRAME_ERROR_JSON", "1"); }
                     if args.emit_map { std::env::set_var("FRAME_MAP_TRAILER", "1"); }
                     if args.validate || args.validate_only {
                         match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {

@@ -43,7 +43,7 @@ impl SplicerV3 {
 
 impl SplicedBodyV3 {
     pub fn build_trailer_json(&self) -> String {
-        // Minimal JSON trailer with span origins
+        // Minimal JSON trailer with span origins and schema version
         let mut s = String::from("{\"map\":[");
         let mut first = true;
         for (span, origin) in &self.splice_map {
@@ -58,7 +58,9 @@ impl SplicedBodyV3 {
                 }
             }
         }
-        s.push_str("],\"version\":1}");
+        s.push_str("]");
+        // Include both version and schemaVersion for compatibility
+        s.push_str(",\"version\":1,\"schemaVersion\":1}");
         s
     }
 

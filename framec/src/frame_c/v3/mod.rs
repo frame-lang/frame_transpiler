@@ -92,7 +92,18 @@ impl CompilerV3 {
             }
             v
         };
-        out_text = SplicerV3.splice(content, &scan.regions, &exps).text;
+        let spliced = SplicerV3.splice(content, &scan.regions, &exps);
+        out_text = spliced.text.clone();
+        // Optional structured error JSON in debug mode
+        if _debug_output || std::env::var("FRAME_ERROR_JSON").ok().as_deref() == Some("1") {
+            // Minimal validation: terminal-last
+            let mut issues = ValidatorV3.validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
+            // Serialize as JSON trailer
+            let json = build_errors_json(&issues);
+            out_text.push_str("\n/*#errors-json#\n");
+            out_text.push_str(&json);
+            out_text.push_str("\n#errors-json#*/\n");
+        }
         if std::env::var("FRAME_MAP_TRAILER").ok().as_deref() == Some("1") {
             // rebuild splice to include map
             let exps: Vec<String> = match lang {
@@ -120,6 +131,31 @@ impl CompilerV3 {
             "Multi-file build is temporarily unavailable during V3 rebuild",
         ))
     }
+}
+
+fn build_errors_json(issues: &[crate::frame_c::v3::validator::ValidationIssueV3]) -> String {
+    // Build { "errors": [ { "code": "E400", "message": "..." }, ... ], "schemaVersion": 1 }
+    let mut s = String::from("{\"errors\":[");
+    for (i, iss) in issues.iter().enumerate() {
+        if i > 0 { s.push(','); }
+        let msg = &iss.message;
+        // Extract leading code if present: "E###: ..."
+        let mut code = "".to_string();
+        if let Some((head, _rest)) = msg.split_once(':') {
+            if head.starts_with('E') && head.len() >= 4 && head[1..].chars().take(3).all(|c| c.is_ascii_digit()) {
+                code = head.to_string();
+            }
+        }
+        s.push_str("{\"code\":");
+        if code.is_empty() { s.push_str("null"); } else { s.push('"'); s.push_str(&code); s.push('"'); }
+        s.push_str(",\"message\":");
+        // naive JSON escape for quotes and backslashes
+        let esc = msg.replace('\\', "\\\\").replace('"', "\\\"");
+        s.push('"'); s.push_str(&esc); s.push('"');
+        s.push('}');
+    }
+    s.push_str("],\"schemaVersion\":1}");
+    s
 }
 
 // keep single import set at top of file
@@ -464,6 +500,36 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         Ok(joined)
     } else {
         if cursor < bytes.len() { out.push_str(&content_str[cursor..]); }
+        // Optional errors JSON trailer for module compile
+        if std::env::var("FRAME_ERROR_JSON").ok().as_deref() == Some("1") {
+            // Run validation to collect issues akin to validate_module_demo_with_mode
+            let mut issues = Vec::new();
+            let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
+            let (items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+            for is in outline_issues { issues.push(is); }
+            let validator = ValidatorV3;
+            for b in parts.bodies {
+                let body_bytes = &bytes[b.open_byte..=b.close_byte];
+                let scan = match lang {
+                    TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_bytes, 0),
+                    TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(body_bytes, 0),
+                    TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(body_bytes, 0),
+                    TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(body_bytes, 0),
+                    TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(body_bytes, 0),
+                    TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(body_bytes, 0),
+                    TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(body_bytes, 0),
+                    _ => Ok(crate::frame_c::v3::native_region_scanner::ScanResultV3 { close_byte: body_bytes.len().saturating_sub(1), regions: Vec::new() })
+                }.unwrap_or(crate::frame_c::v3::native_region_scanner::ScanResultV3 { close_byte: body_bytes.len().saturating_sub(1), regions: Vec::new() });
+                let (mir, parse_issues) = MirAssemblerV3.assemble_collect(body_bytes, &scan.regions);
+                for is in parse_issues { issues.push(is); }
+                let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
+                for is in extra { issues.push(is); }
+            }
+            let json = build_errors_json(&issues);
+            out.push_str("\n/*#errors-json#\n");
+            out.push_str(&json);
+            out.push_str("\n#errors-json#*/\n");
+        }
         Ok(out)
     }
 }

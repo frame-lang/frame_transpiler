@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 55
-- **Open**: 7
+- **Total Bugs**: 58
+- **Open**: 10
 - **Resolved**: 47
 - **Won't Fix**: 1
-- **Next Bug Number**: 056
+- **Next Bug Number**: 059
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -25,6 +25,9 @@
 | [#052](open/bug_052_typescript_actions_generate_stubs.md) | TypeScript Actions Generate Stubs Despite Proper Imports | Critical | CodeGen | Open | - |
 | [#055](open/bug_055_async_typescript_socket_runtime.md) | TypeScript async runtime lacks socket helpers for Frame debugger | High | CodeGen | Open | - |
 
+| [#056](open/bug_056_missing_structured_error_json_in_debug_output.md) | Missing structured error JSON in debug-output | High | Tooling | Open | - |
+| [#057](open/bug_057_inconsistent_source_map_schema_across_languages.md) | Inconsistent source map schema across languages | Medium | Tooling | Open | - |
+| [#058](open/bug_058_add_stable_code_field_in_debug_output.md) | Add stable top-level code field in debug-output | Medium | Tooling | Open | - |
 ## Recently Resolved
 
 | Bug # | Title | Priority | Category | Status | Fixed Version |
