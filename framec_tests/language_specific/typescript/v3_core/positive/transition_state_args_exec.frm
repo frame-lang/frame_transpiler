@@ -1,13 +1,13 @@
 @target typescript
-// @run-expect: TRANSITION:
+// @run-expect: TRANSITION:__S_state_B
 
 system S {
     machine:
         $A {
             e() {
-                (1) -> (2) $B(3, 4)
+                -> $B(1, 2, 3)
             }
         }
-        $B { }
+        $B(x, y, z) { }
 }
 

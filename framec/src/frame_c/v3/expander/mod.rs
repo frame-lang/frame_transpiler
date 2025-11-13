@@ -34,7 +34,11 @@ impl FrameStatementExpanderV3 for PyExpanderV3 {
                     out.push_str(&format!("{}next_compartment.enter_args = ({})\n", pad, enter_args.join(", ")));
                 }
                 if !state_args.is_empty() {
-                    out.push_str(&format!("{}next_compartment.state_args = ({})\n", pad, state_args.join(", ")));
+                    // For exec mode, avoid Python syntax errors on keyword-like tokens by stringifying any token containing '='.
+                    let rendered: Vec<String> = state_args.iter().map(|t| {
+                        if t.contains('=') && !(t.starts_with('\'') || t.starts_with('"')) { format!("'{}'", t) } else { t.clone() }
+                    }).collect();
+                    out.push_str(&format!("{}next_compartment.state_args = [{}]\n", pad, rendered.join(", ")));
                 }
                 out.push_str(&format!("{}self._frame_transition(next_compartment)\n", pad));
                 out.push_str(&format!("{}return\n", pad));
