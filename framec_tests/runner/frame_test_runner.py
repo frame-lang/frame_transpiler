@@ -329,24 +329,7 @@ class FrameTestRunner:
         # Generate output filename
         output_file = output_dir / (test_file.stem + extension)
 
-        # One-time debug JSON envelope sanity check per language (Py/TS only)
-        # Ensures --debug-output returns a structured envelope with expected keys.
-        if language in ("python", "typescript") and not hasattr(self, f"_debug_envelope_checked_{language}"):
-            try:
-                lang_flag = {"python": "python_3", "typescript": "typescript"}.get(language, language)
-                probe = "{\n    -> $Next\n}\n"
-                env = os.environ.copy()
-                cmd_probe = [self.config.framec_path, "--debug-output", "-l", lang_flag]
-                res = subprocess.run(cmd_probe, input=probe, capture_output=True, text=True, timeout=self.config.timeout)
-                ok = (res.returncode == 0)
-                payload = json.loads(res.stdout) if ok and res.stdout.strip().startswith("{") else None
-                assert ok and isinstance(payload, dict), "debug-output did not return JSON envelope"
-                for k in ("targetLanguage", "code", "sourceMap", "errors", "schemaVersion"):
-                    assert k in payload, f"missing key in debug-output envelope: {k}"
-                setattr(self, f"_debug_envelope_checked_{language}", True)
-            except Exception as e:
-                # Do not fail the whole run; record a soft failure by printing a warning
-                print(f"[warn] debug-output envelope probe failed for {language}: {e}")
+        # Note: Per-fixture errors-json trailer assertions are applied below for V3 compiles.
         
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
@@ -434,6 +417,9 @@ class FrameTestRunner:
             # For mapping fixtures, request trailer
             if is_v3_mapping:
                 env["FRAME_MAP_TRAILER"] = "1"
+            # Always request errors-json trailer for V3 module/demo paths so we can assert debug payload shape
+            if is_v3:
+                env["FRAME_ERROR_JSON"] = "1"
             # For facade smoke fixtures, request facade expansion output
             if is_v3_facade_smoke:
                 env["FRAME_FACADE_EXPANSION"] = "1"
@@ -515,6 +501,29 @@ class FrameTestRunner:
                 except Exception:
                     # Non-fatal: leave output as-is if extraction fails
                     pass
+                # Extract and minimally assert presence/shape of errors-json trailer when requested
+                try:
+                    ej_start = out.find("/*#errors-json#")
+                    ej_end = out.find("#errors-json#*/")
+                    if ej_start != -1 and ej_end != -1 and ej_end > ej_start:
+                        ej_text = out[ej_start+len("/*#errors-json#"):ej_end].strip()
+                        payload = json.loads(ej_text)
+                        # Minimal shape: keys present
+                        assert isinstance(payload, dict), "errors-json not an object"
+                        assert "errors" in payload, "errors-json missing 'errors'"
+                        assert "schemaVersion" in payload, "errors-json missing 'schemaVersion'"
+                        # For negative tests, expect one or more errors
+                        if self.is_negative_test(test_file):
+                            assert isinstance(payload.get("errors"), list) and len(payload.get("errors")) >= 1, "negative test missing errors in errors-json"
+                    elif is_v3 and "FRAME_EMIT_EXEC" not in env:
+                        # If we requested errors-json for V3 but didn't get it, flag a failure
+                        return False, str(output_file), "Missing errors-json trailer in output"
+                except AssertionError as ae:
+                    return False, str(output_file), f"errors-json assertion failed: {ae}"
+                except Exception:
+                    # Non-fatal: continue, but preserve output as-is
+                    pass
+
                 output_file.write_text(out)
                 # Execute demo-frame emitted executables for exec smoke (Py/TS)
                 if self.config.execute and "v3_exec_smoke" in parts_lower and language in ("python", "typescript"):
@@ -525,8 +534,11 @@ class FrameTestRunner:
                     if not ok:
                         return False, str(output_file), err
                 if self.config.execute and is_v3_facade_smoke and language in ("typescript", "python", "rust", "c", "cpp", "java", "csharp"):
-                    # Build and execute a minimal TS harness from spliced output for facade strict tests only.
-                    if "__frame_transition" not in out and "__frame_forward" not in out and "__frame_stack_" not in out:
+                    # Build and execute a minimal harness from spliced output for facade strict tests only.
+                    # Accept either facade wrappers or production glue (python/ts) to keep tests robust across modes.
+                    has_wrappers = ("__frame_transition" in out or "__frame_forward" in out or "__frame_stack_" in out)
+                    has_prod_glue = ("self._frame_transition" in out) or ("this._frame_transition" in out)
+                    if not (has_wrappers or has_prod_glue):
                         return False, str(output_file), "Facade wrappers not found in output"
                     if language == "typescript":
                         ok, err = self._execute_ts_harness_from_spliced(test_file.stem, out)

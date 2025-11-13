@@ -612,6 +612,46 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 for is in parse_issues { issues.push(is); }
                 let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
                 for is in extra { issues.push(is); }
+
+                // Include native parser diagnostics (facade mode) in errors-json for Py/TS/Rust by default
+                let enable_native = matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript | TargetLanguage::Rust);
+                if enable_native {
+                    let exps: Vec<String> = {
+                        use crate::frame_c::v3::expander::*;
+                        let mut v = Vec::new();
+                        let mut mi = 0usize;
+                        for r in &scan.regions {
+                            if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
+                                if mi >= mir.len() { break; }
+                                let m = &mir[mi]; mi += 1;
+                                let s = match lang {
+                                    TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent, None),
+                                    TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent, None),
+                                    TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent, None),
+                                    TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent, None),
+                                    TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent, None),
+                                    TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent, None),
+                                    TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent, None),
+                                    _ => String::new(),
+                                };
+                                v.push(s);
+                            }
+                        }
+                        v
+                    };
+                    let spliced = SplicerV3.splice(body_bytes, &scan.regions, &exps);
+                    if let Some(facade) = crate::frame_c::v3::facade::NativeFacadeRegistryV3::get(lang) {
+                        if let Ok(diags) = facade.parse(&spliced.text) {
+                            for d in diags {
+                                if let Some((_origin, src)) = spliced.map_spliced_range_to_origin(d.start, d.end) {
+                                    issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: format!("E500: native syntax (frame:{}-{}): {}", src.start, src.end, d.message) });
+                                } else {
+                                    issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: format!("E500: native syntax: {}", d.message) });
+                                }
+                            }
+                        }
+                    }
+                }
             }
             let json = build_errors_json(&issues);
             out.push_str("\n/*#errors-json#\n");
