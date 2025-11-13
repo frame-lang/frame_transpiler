@@ -51,7 +51,7 @@ Status Summary — Fixtures and Validation (All Languages)
 Milestone — Py/TS/Rust to 100%
 - [x] TypeScript: native parsing default‑on in validation (SWC); curated exec expanded across core/control_flow/systems; runner asserts errors-json trailers and runtime output markers.
 - [x] Python: strict/native adapter via RustPython parser (pure Rust) enabled in CI; curated exec breadth expanded; runner asserts errors-json trailers and runtime output markers.
-- [ ] Rust: syn default‑on validation; expand curated exec to parity with Py/TS; plan promotion from exec markers to real runtime glue after Py/TS stabilization.
+- [x] Rust: syn default‑on validation; curated exec expanded across control_flow/core/systems with markers; parity with Py/TS subsets validated; promotion to real runtime glue deferred until Py/TS stabilization.
 
 Deferred Improvements (postpone until TS/Py are 100% debugger‑ready)
 - Rust target: switch state identity from strings to an enum (StateId), add Display/FromStr, update FrameCompartment to use enum; keep facade wrappers string‑based; preserve marker text via Display.
