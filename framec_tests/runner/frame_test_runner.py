@@ -470,6 +470,21 @@ class FrameTestRunner:
                         return False, str(output_file), f"Invalid mapping JSON: {e}"
                 # Write output to file
                 out = result.stdout or ""
+                # If a frame-map trailer is present, extract to sidecar and strip from code
+                try:
+                    start = out.find("/*#frame-map#")
+                    end = out.find("#frame-map#*/")
+                    if start != -1 and end != -1 and end > start:
+                        trailer_text = out[start+len("/*#frame-map#"):end].strip()
+                        # Persist sidecar map next to generated output
+                        sidecar = str(output_file) + ".frame-map.json"
+                        Path(sidecar).write_text(trailer_text)
+                        # Strip trailer from code
+                        cleaned = (out[:start] + out[end+len("#frame-map#*/"):]).rstrip() + "\n"
+                        out = cleaned
+                except Exception:
+                    # Non-fatal: leave output as-is if extraction fails
+                    pass
                 output_file.write_text(out)
                 # Execute demo-frame emitted executables for exec smoke (Py/TS)
                 if self.config.execute and "v3_exec_smoke" in parts_lower and language in ("python", "typescript"):

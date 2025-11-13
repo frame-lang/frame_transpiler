@@ -67,3 +67,9 @@ python3 framec_tests/runner/frame_test_runner.py \
   --validation-format junit \
   --junit report.xml
 ```
+
+Mapping Sidecar (for debugger tooling)
+- The compiler can emit an inline mapping trailer when requested; the runner automatically extracts it to a sidecar next to the generated file.
+- Trigger: pass `--emit-map` to `framec` CLI or set `FRAME_MAP_TRAILER=1` in the environment.
+- Runner behavior: when a `/*#frame-map# ... #frame-map#*/` trailer is detected in compiler output, the runner writes `<output>.<ext>.frame-map.json` with the JSON payload and strips the trailer from the code file.
+- Mapping fixtures continue to sanity-check the JSON payload shape.
