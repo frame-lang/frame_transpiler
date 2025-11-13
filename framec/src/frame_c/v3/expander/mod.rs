@@ -241,9 +241,8 @@ impl FrameStatementExpanderV3 for RustFacadeExpanderV3 {
         let pad = " ".repeat(indent);
         match mir {
             MirItemV3::Transition{ target, state_args, .. } => {
-                let arglist = if state_args.is_empty() { String::new() } else { format!(", {}", state_args.join(", ")) };
-                // Use double quotes as Rust char literals use single quotes
-                format!("{}__frame_transition(\"{}\"{});\n", pad, target, arglist)
+                // For exec/facade markers we only require the state name; ignore extra args in wrapper calls
+                format!("{}__frame_transition(\"{}\");\n", pad, target)
             }
             MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
             MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),

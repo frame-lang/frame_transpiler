@@ -416,7 +416,7 @@ class FrameTestRunner:
             if "v3_exec_smoke" in parts_lower and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
             # For general V3 categories in Python/TS, emit a minimal executable when running
-            if any(seg.startswith("v3_") for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript") and self.config.execute:
+            if any(seg.startswith("v3_") for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript", "rust") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
             # For module files in Python/TS routed via demo-frame, also emit exec when executing
             if 'demo-frame' in cmd and language in ("python", "typescript") and self.config.execute:
@@ -1693,7 +1693,7 @@ class FrameTestRunner:
                     return result
                 # For other V3 categories, optionally execute selected sets for Python/TypeScript
                 if any(seg.startswith("v3_") for seg in parts_lower):
-                    if getattr(self.config, 'exec_v3', False) and language in ("python", "typescript") and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower):
+                    if getattr(self.config, 'exec_v3', False) and language in ("python", "typescript", "rust") and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower):
                         meta = self.parse_fixture_meta(test_file)
                         if not (meta.get('run_expect') or meta.get('exec_ok')):
                             result.execute_success = True
@@ -1702,8 +1702,10 @@ class FrameTestRunner:
                             return result
                         if language == "python":
                             exec_success, output = self.execute_python(output_file)
-                        else:
+                        elif language == "typescript":
                             exec_success, output = self.execute_typescript(output_file)
+                        else:  # rust
+                            exec_success, output = self.execute_rust(output_file)
                         result.execute_success = exec_success
                         result.output = output
                         # Apply @run-expect/@run-exact for exec-v3
