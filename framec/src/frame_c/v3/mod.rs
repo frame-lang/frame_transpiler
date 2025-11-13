@@ -592,6 +592,63 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         Ok(joined)
     } else {
         if cursor < bytes.len() { out.push_str(&content_str[cursor..]); }
+        // Optional mapping and visitor-map trailers for module demo path
+        if std::env::var("FRAME_MAP_TRAILER").ok().as_deref() == Some("1") {
+            use crate::frame_c::v3::splice::{SplicerV3 as _SplicerV3, OriginV3};
+            use crate::frame_c::v3::native_region_scanner::RegionSpan;
+            // Rebuild splice maps per-body and merge into module-target offsets
+            let mut module_map: Vec<(RegionSpan, OriginV3)> = Vec::new();
+            let mut visitor: Vec<(usize, usize, &'static str)> = Vec::new();
+            // Helper to compute line number from byte offset
+            fn offset_to_line(s: &str, off: usize) -> usize {
+                let bytes = s.as_bytes(); let mut i=0usize; let mut line=1usize; while i < bytes.len() && i < off { if bytes[i]==b'\n' { line+=1; } i+=1; } line
+            }
+            let mut out_offset = 0usize;
+            let mut cur = 0usize;
+            for b in &parts.bodies {
+                // account for pre-body literal text copied verbatim
+                if b.open_byte > cur { out_offset += content_str[cur..b.open_byte].len(); }
+                let body_bytes = &bytes[b.open_byte..=b.close_byte];
+                // Build expansions (production path) and splice for mapping
+                let scan = match lang {
+                    TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_bytes, 0),
+                    TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(body_bytes, 0),
+                    TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(body_bytes, 0),
+                    TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(body_bytes, 0),
+                    TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(body_bytes, 0),
+                    TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(body_bytes, 0),
+                    TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(body_bytes, 0),
+                    _ => nscan::python::NativeRegionScannerPyV3.scan(body_bytes, 0)
+                }.unwrap_or(crate::frame_c::v3::native_region_scanner::ScanResultV3 { close_byte: body_bytes.len().saturating_sub(1), regions: Vec::new() });
+                let sys_ctx = system_name.as_deref();
+                let (mir, _parse_issues) = MirAssemblerV3.assemble_collect(body_bytes, &scan.regions);
+                let exps: Vec<String> = {
+                    use crate::frame_c::v3::expander::*; let mut v=Vec::new(); let mut mi=0usize; for r in &scan.regions { if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r { if mi>=mir.len(){break;} let m=&mir[mi]; mi+=1; let s = match lang { TargetLanguage::Python3 => PyExpanderV3.expand(m, *indent, sys_ctx), TargetLanguage::TypeScript => TsExpanderV3.expand(m, *indent, sys_ctx), TargetLanguage::CSharp => CExpanderV3.expand(m, *indent, sys_ctx), TargetLanguage::C => CExpanderV3.expand(m, *indent, sys_ctx), TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent, sys_ctx), TargetLanguage::Java => JavaExpanderV3.expand(m, *indent, sys_ctx), TargetLanguage::Rust => RustExpanderV3.expand(m, *indent, sys_ctx), _ => String::new(), }; v.push(s); } } v };
+                let sp = SplicerV3.splice(body_bytes, &scan.regions, &exps);
+                // Merge mapping with module offset
+                for (tgt, origin) in &sp.splice_map {
+                    module_map.push((RegionSpan{ start: out_offset + tgt.start, end: out_offset + tgt.end }, origin.clone()));
+                    if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript) {
+                        // Visitor mapping: targetLine/sourceLine
+                        let target_line = offset_to_line(&out, out_offset + tgt.start);
+                        let source_line = match origin { OriginV3::Frame{ source } | OriginV3::Native{ source } => { let body_str = std::str::from_utf8(body_bytes).unwrap_or(""); offset_to_line(body_str, source.start) } };
+                        let origin_str: &'static str = match origin { OriginV3::Frame{..} => "frame", OriginV3::Native{..} => "native" };
+                        visitor.push((target_line, source_line, origin_str));
+                    }
+                }
+                out_offset += sp.text.len();
+                cur = b.close_byte + 1;
+            }
+            // Build trailers
+            let mut map_json = String::from("{\"map\":[");
+            let mut first=true; for (tgt, origin) in &module_map { if !first { map_json.push(','); } else { first=false; } map_json.push_str(&format!("{{\"targetStart\":{},\"targetEnd\":{},", tgt.start, tgt.end)); match origin { OriginV3::Frame{ source } => map_json.push_str(&format!("\"origin\":\"frame\",\"sourceStart\":{},\"sourceEnd\":{} }}", source.start, source.end)), OriginV3::Native{ source } => map_json.push_str(&format!("\"origin\":\"native\",\"sourceStart\":{},\"sourceEnd\":{} }}", source.start, source.end)), } }
+            map_json.push_str("] ,\"version\":1,\"schemaVersion\":1}");
+            out.push_str("\n/*#frame-map#\n"); out.push_str(&map_json); out.push_str("\n#frame-map#*/\n");
+            if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript) {
+                let mut vjson = String::from("{\"mappings\":["); let mut f=true; for (tline, sline, origin) in &visitor { if !f { vjson.push(','); } else { f=false; } vjson.push_str(&format!("{{\"targetLine\":{},\"sourceLine\":{},\"origin\":\"{}\"}}", tline, sline, origin)); } vjson.push_str("] ,\"schemaVersion\":1}");
+                out.push_str("\n/*#visitor-map#\n"); out.push_str(&vjson); out.push_str("\n#visitor-map#*/\n");
+            }
+        }
         // Structured errors JSON trailer for module compile (always for V3 demo)
         {
             // Run validation to collect issues akin to validate_module_demo_with_mode
