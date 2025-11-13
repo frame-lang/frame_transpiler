@@ -219,7 +219,7 @@ class FrameTestRunner:
         # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
         if any(cat in self.config.categories for cat in [
             "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke", "v3_exec_smoke",
-            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_visitor_map"
+            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_visitor_map", "v3_native_symbols"
         ]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
@@ -245,6 +245,8 @@ class FrameTestRunner:
                 collect_v3_category("v3_facade_smoke")
             if "v3_exec_smoke" in self.config.categories:
                 collect_v3_category("v3_exec_smoke")
+            if "v3_native_symbols" in self.config.categories:
+                collect_v3_category("v3_native_symbols")
             if "v3_core" in self.config.categories:
                 collect_v3_category("v3_core")
             if "v3_control_flow" in self.config.categories:
@@ -336,10 +338,11 @@ class FrameTestRunner:
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
         # Treat all v3_* categories as module demo path; v3_closers uses single-body demo
-        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_exec_smoke", "v3_visitor_map"}
+        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_exec_smoke", "v3_visitor_map", "v3_native_symbols"}
         is_v3 = any(seg in v3_categories for seg in parts_lower)
         is_v3_closers = "v3_closers" in parts_lower
         is_v3_mapping = "v3_mapping" in parts_lower
+        is_v3_native_symbols = "v3_native_symbols" in parts_lower
         is_v3_visitor_map = "v3_visitor_map" in parts_lower
         is_v3_expansion = "v3_expansion" in parts_lower
         # Initialize optional flags to avoid UnboundLocalError
@@ -371,6 +374,11 @@ class FrameTestRunner:
                     cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
                     extension = ".txt"
                     output_file = output_dir / (test_file.stem + extension)
+            elif is_v3_native_symbols:
+                # Route via demo-frame to emit native-symbols trailer
+                cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+                extension = ".py" if language == "python" else (".ts" if language == "typescript" else extension)
+                output_file = output_dir / (test_file.stem + extension)
             else:
                 if is_v3_project:
                     # Run project compilation on the directory containing this file
@@ -439,6 +447,9 @@ class FrameTestRunner:
             # For mapping fixtures, request trailer
             if is_v3_mapping or is_v3_visitor_map:
                 env["FRAME_MAP_TRAILER"] = "1"
+            # For native symbol snapshots, request trailer
+            if is_v3_native_symbols:
+                env["FRAME_NATIVE_SYMBOL_SNAPSHOT"] = "1"
             # Always request errors-json trailer for V3 module/demo paths so we can assert debug payload shape
             if is_v3:
                 env["FRAME_ERROR_JSON"] = "1"
@@ -532,6 +543,22 @@ class FrameTestRunner:
                 elif is_v3_visitor_map:
                     # No hard assertion yet; visitor-map is currently optional in single-body demo
                     pass
+                elif is_v3_native_symbols:
+                    # Assert native-symbols trailer exists and has minimal shape (at least one entry for module with handlers)
+                    out = result.stdout or ""
+                    ns = out.find("/*#native-symbols#")
+                    ne = out.find("#native-symbols#*/")
+                    if ns == -1 or ne == -1 or ne <= ns:
+                        return False, str(output_file), "Missing native-symbols trailer in output"
+                    payload = out[ns+len("/*#native-symbols#"):ne].strip()
+                    try:
+                        data = json.loads(payload)
+                        entries = data.get("entries", []) if isinstance(data, dict) else []
+                        # Expect at least one entry and params array present
+                        if not entries or not isinstance(entries[0].get("params", []), list):
+                            return False, str(output_file), "Invalid native-symbols payload"
+                    except Exception as e:
+                        return False, str(output_file), f"Invalid native-symbols JSON: {e}"
                 # Write output to file
                 out = result.stdout or ""
                 # If a frame-map trailer is present, extract to sidecar and strip from code

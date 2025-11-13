@@ -651,6 +651,35 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 out.push_str("\n/*#visitor-map#\n"); out.push_str(&vjson); out.push_str("\n#visitor-map#*/\n");
             }
         }
+        // Optional native symbol snapshot trailer (Stage 10A)
+        if std::env::var("FRAME_NATIVE_SYMBOL_SNAPSHOT").ok().as_deref() == Some("1") {
+            let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
+            let (items, _issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+            fn extract_params(hdr: &str) -> Vec<String> {
+                if let Some(lp) = hdr.find('(') { if let Some(rp) = hdr[lp+1..].find(')') { let inside = &hdr[lp+1..lp+1+rp];
+                    let mut out = Vec::new(); for raw in inside.split(',') { let tok = raw.trim(); if tok.is_empty() { continue; } let base = tok.split(|c| c=='=' || c==':').next().unwrap_or("").trim(); if !base.is_empty() { out.push(base.to_string()); } } return out; } }
+                Vec::new()
+            }
+            let mut entries_json = String::from("{\"entries\":[");
+            let mut first = true;
+            for it in &items {
+                if matches!(it.kind, crate::frame_c::v3::validator::BodyKindV3::Handler) {
+                    let start = it.header_span.start; let end = it.header_span.end.min(bytes.len());
+                    let hdr = std::str::from_utf8(&bytes[start..end]).unwrap_or("");
+                    let params = extract_params(hdr);
+                    if !first { entries_json.push(','); } else { first = false; }
+                    entries_json.push_str("{\"state\":");
+                    if let Some(ref s) = it.state_id { entries_json.push('"'); entries_json.push_str(s); entries_json.push('"'); } else { entries_json.push_str("null"); }
+                    entries_json.push_str(",\"owner\":");
+                    if let Some(ref o) = it.owner_id { entries_json.push('"'); entries_json.push_str(o); entries_json.push('"'); } else { entries_json.push_str("null"); }
+                    entries_json.push_str(",\"params\":[");
+                    for (i, p) in params.iter().enumerate() { if i>0 { entries_json.push(','); } entries_json.push('"'); entries_json.push_str(p); entries_json.push('"'); }
+                    entries_json.push_str("]}");
+                }
+            }
+            entries_json.push_str("],\"schemaVersion\":1}");
+            out.push_str("\n/*#native-symbols#\n"); out.push_str(&entries_json); out.push_str("\n#native-symbols#*/\n");
+        }
         // Structured errors JSON trailer for module compile (always for V3 demo)
         {
             // Run validation to collect issues akin to validate_module_demo_with_mode
