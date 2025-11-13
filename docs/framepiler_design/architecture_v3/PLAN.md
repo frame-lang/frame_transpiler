@@ -60,6 +60,7 @@ Deferred Improvements (postpone until TS/Py are 100% debugger‑ready)
 - Native parsing hermetic defaults: keep Py/TS/Rust default‑on; consider tree‑sitter prebuilt artifacts for C/C++/Java/C# to avoid system C compiler (feature‑gated).
 - Exec harness parity: expand Rust curated exec to Py/TS breadth (multi‑handler, deeper nesting); consider pilot real glue for non‑Py/TS later.
 - Project layer/FID (Phase A): define FID schema; adapters for Py/TS; cache under .frame/cache/fid; validator gate for missing/mismatched APIs; merge per‑file Arcanum into project scope.
+- Debug JSON envelope: add stable top‑level `code` alias and `targetLanguage` in debug output; keep language‑specific key for one minor cycle; ensure runner/tooling supports both.
 - Performance/Robustness: small‑buffer reuse in scanners/closers; fuzz/torture suites for protected regions and SOL anchoring; no panics.
 
 Production‑ready criteria (not done unless explicitly checked):

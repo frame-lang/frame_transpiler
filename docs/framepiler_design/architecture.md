@@ -84,6 +84,24 @@ CompilationUnit (.frm file)
       +----------------------------------------+
 ```
 
+## Debugger Integration Readiness (Python/TypeScript)
+
+- Error codes and envelopes
+  - Compiler diagnostics carry stable E‑codes (E###) with clear messages.
+  - A structured errors JSON trailer can be emitted for tools by setting `FRAME_ERROR_JSON=1` (or enabling debug output via CLI). The trailer is bounded by comment sentinels and safe for all targets.
+  - Source map trailers include a `schemaVersion` and origin mapping for spliced bodies.
+- Mapping requirements
+  - Frame‑map: origin→target mapping for spliced bodies; used to attribute diagnostics.
+  - Visitor‑map: optional targetLine→sourceLine pairs (single‑body today; module path next) for debugger stepping.
+- Execution modes for verification
+  - Curated Exec (Py/TS): emits real runtime glue and executes selected fixtures; assertions via `@run-expect`/`@run-exact`.
+  - Exec‑smoke (all languages): minimal wrappers print standardized markers (TRANSITION, FORWARD:PARENT, STACK:PUSH/POP).
+- Native parser policy (hermetic by default)
+  - TypeScript: SWC; Python: RustPython parser. Both are pure‑Rust and default‑on for validation in CI.
+  - C/C++/Java/C#: tree‑sitter adapters remain feature‑gated until we pin hermetic bundles.
+
+These guarantees are the baseline for VS Code debugger work: stable codes, mappable spans, optional JSON envelopes, and executable smoke tests.
+
 ## Stage‑by‑Stage Details
 
 1) Inputs & Configuration
@@ -152,6 +170,10 @@ Parsers & Mixed AST Linkage
 - Curated Exec vs Exec Smoke: Curated exec runs small programs with real glue (Py/TS/Rust); exec smoke uses standardized markers across all languages to verify end‑to‑end wiring.
 - E‑codes: Stable error codes. E100–E199 scanners/closers; E200–E399 parser; E400–E499 validator (Frame semantics); E5xx reserved for native parser diagnostics.
 - FID: Frame Interface Definition. Schema + cache describing host APIs for validation/linking at the project layer.
+- Hermetic: Builds/tools do not rely on external system toolchains. Native parsing (SWC/RustPython/syn) stays pure‑Rust; tree‑sitter‑based adapters ship prebuilt artifacts and remain feature‑gated.
+- Errors‑JSON Trailer: Optional structured JSON appended in comments containing all compiler diagnostics (code, message, span). Enabled by `FRAME_ERROR_JSON=1`.
+- Frame‑map Trailer: Optional JSON trailer describing splice origin mapping for generated text; used by tooling for attribution and mapping tests.
+- Visitor‑map Trailer: Optional JSON trailer recording targetLine→sourceLine pairs for stepping/breakpoints; single‑body today, module path planned.
 
 ## External References
 
@@ -160,6 +182,7 @@ Parsers & Mixed AST Linkage
 - syn (Rust): https://docs.rs/syn/
 - tree‑sitter core: https://tree-sitter.github.io/tree-sitter/
 - WASM targets: https://rustwasm.github.io/wasm-bindgen/ and https://wasi.dev/
+ - JUnit XML: https://llg.cubic.org/docs/junit/
 Body boundary detection uses small DPDA scanners per target to locate the matching closing `}` in target-native bodies. Detectors track language-specific string/comment modes and nested constructs (e.g., `${…}` in TS), and only count braces at the top level.
 
 See:
