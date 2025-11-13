@@ -348,10 +348,29 @@ class FrameTestRunner:
         if is_v3:
             is_v3_facade_smoke = "v3_facade_smoke" in parts_lower
             is_v3_project = "v3_project" in parts_lower
-            if is_v3_closers or is_v3_mapping or is_v3_expansion or is_v3_visitor_map:
+            if is_v3_closers or is_v3_expansion or is_v3_visitor_map:
                 cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
                 extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
+            elif is_v3_mapping:
+                # v3_mapping can be single-body or module-based. Route modules via demo-frame for module-level mapping.
+                is_module_file = False
+                try:
+                    with open(test_file, 'r') as f:
+                        for line in f:
+                            if line.strip().startswith('@target '):
+                                is_module_file = True
+                                break
+                except Exception:
+                    is_module_file = False
+                if is_module_file:
+                    cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+                    extension = ".py" if language == "python" else (".ts" if language == "typescript" else extension)
+                    output_file = output_dir / (test_file.stem + extension)
+                else:
+                    cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
+                    extension = ".txt"
+                    output_file = output_dir / (test_file.stem + extension)
             else:
                 if is_v3_project:
                     # Run project compilation on the directory containing this file
@@ -624,7 +643,19 @@ class FrameTestRunner:
 
         parts_lower = [p.lower() for p in test_file.parts]
         # Single-body demo categories validate via demo-multi
-        use_single_body = any(seg in ("v3_closers", "v3_mapping", "v3_expansion") for seg in parts_lower)
+        # v3_mapping can be module-based; detect @target and route those via demo-frame instead
+        is_v3_mapping = "v3_mapping" in parts_lower
+        is_module_file = False
+        if is_v3_mapping:
+            try:
+                with open(test_file, 'r') as f:
+                    for line in f:
+                        if line.strip().startswith('@target '):
+                            is_module_file = True
+                            break
+            except Exception:
+                is_module_file = False
+        use_single_body = any(seg in ("v3_closers", "v3_expansion") for seg in parts_lower) or (is_v3_mapping and not is_module_file)
         synthesized_single_body: Optional[Path] = None
         if use_single_body:
             # If a single-body fixture has a leading @target line, strip it into a temp file
