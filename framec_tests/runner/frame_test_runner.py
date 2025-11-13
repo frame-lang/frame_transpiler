@@ -416,7 +416,7 @@ class FrameTestRunner:
             if "v3_exec_smoke" in parts_lower and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
             # For general V3 categories in Python/TS, emit a minimal executable when running
-            if any(seg.startswith("v3_") for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript", "rust") and self.config.execute:
+            if any(seg.startswith("v3_") for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript", "rust", "java", "csharp") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
                 # For TypeScript exec, point the compiler at a resolvable runtime import
                 if language == "typescript":
@@ -429,7 +429,7 @@ class FrameTestRunner:
                         # Fall back to default in-compiler path
                         pass
             # For module files in Python/TS routed via demo-frame, also emit exec when executing
-            if 'demo-frame' in cmd and language in ("python", "typescript") and self.config.execute:
+            if 'demo-frame' in cmd and language in ("python", "typescript", "java", "csharp") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
                 if language == "typescript":
                     runtime_ts = self.base_dir / "typescript" / "runtime" / "frame_runtime"
@@ -1725,7 +1725,7 @@ class FrameTestRunner:
                     return result
                 # For other V3 categories, optionally execute selected sets for Python/TypeScript
                 if any(seg.startswith("v3_") for seg in parts_lower):
-                    if getattr(self.config, 'exec_v3', False) and language in ("python", "typescript", "rust") and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower):
+                    if getattr(self.config, 'exec_v3', False) and language in ("python", "typescript", "rust", "java", "csharp") and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower):
                         meta = self.parse_fixture_meta(test_file)
                         if not (meta.get('run_expect') or meta.get('exec_ok')):
                             result.execute_success = True
@@ -1736,10 +1736,20 @@ class FrameTestRunner:
                             exec_success, output = self.execute_python(output_file)
                         elif language == "typescript":
                             exec_success, output = self.execute_typescript(output_file)
-                        else:  # rust
+                        elif language == "rust":
                             exec_success, output = self.execute_rust(output_file)
+                        elif language == "java":
+                            exec_success, output = self._execute_java_source(output_file)
+                        else:  # csharp
+                            exec_success, output = self._execute_csharp_source(output_file)
                         result.execute_success = exec_success
                         result.output = output
+                        # Toolchain-missing skip for curated exec
+                        if (language == "java" and ('javac' in (result.skipped or '') or 'not found' in (output or '').lower())) or \
+                           (language == "csharp" and ('csc' in (result.skipped or '') or 'mcs' in (result.skipped or '') or 'not found' in (output or '').lower())):
+                            result.skipped = 'exec toolchain missing'
+                            result.execution_time = time.time() - start_time
+                            return result
                         # Apply @run-expect/@run-exact for exec-v3
                         if result.execute_success and meta.get('run_expect'):
                             missing = [p for p in meta['run_expect'] if not re.search(p, output or "", re.MULTILINE)]

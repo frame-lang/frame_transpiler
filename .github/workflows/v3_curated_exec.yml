@@ -48,7 +48,7 @@ jobs:
         run: |
           mkdir -p reports
           python3 framec_tests/runner/frame_test_runner.py \
-            --languages python typescript rust \
+            --languages python typescript rust java csharp \
             --categories v3_control_flow v3_core v3_systems \
             --framec ./target/release/framec \
             --exec-v3 --run \
