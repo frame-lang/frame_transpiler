@@ -72,6 +72,8 @@ Stage 10 — AST & Symbol Integration (Fine‑Grained)
 - Acceptance:
   - Positives/negatives for Py/TS; diagnostics carry mapped spans; disabling flag reverts to current behavior.
 
+Note: Arcanum now captures state parameter lists from outline headers (e.g., `$B(x, y, k)`), enabling the initial arity check without native parsing.
+
 10C — Unified Symbol Query Surface
 - Goal: Provide a single query API to obtain Frame (Arcanum) and Native (snapshots) metadata per handler.
 - Implementation: expose `get_frame_state_signature()` + `get_native_handler_params()` style helpers.

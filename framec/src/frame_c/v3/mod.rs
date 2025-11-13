@@ -25,6 +25,7 @@ pub mod facade;
 pub mod ast;
 pub mod arcanum;
 pub mod fid;
+pub mod native_symbol_snapshot;
 // future: pub mod import_validator;
 
 /// V3 compiler entrypoint (MVP scaffold).

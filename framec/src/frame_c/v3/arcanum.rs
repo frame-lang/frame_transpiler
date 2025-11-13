@@ -106,6 +106,7 @@ pub fn build_arcanum_from_outline_bytes(bytes: &[u8], start: usize) -> Arcanum {
         // We don't track machine names here; create a single machine entry per file
         let mut machine = MachineEntry::default();
         let mut p = spos;
+        fn is_space(b: u8) -> bool { b == b' ' || b == b'\t' }
         while p < epos {
             while p < epos && (bytes[p] == b' ' || bytes[p] == b'\t' || bytes[p] == b'\r' || bytes[p] == b'\n') { p += 1; }
             if p >= epos { break; }
@@ -129,7 +130,36 @@ pub fn build_arcanum_from_outline_bytes(bytes: &[u8], start: usize) -> Arcanum {
                     // header must contain '{' on the same line
                     let mut has_lbrace = false; let mut t = q; while t < epos && bytes[t] != b'\n' { if bytes[t] == b'{' { has_lbrace = true; break; } t += 1; }
                     if has_lbrace {
-                        machine.states.insert(name.clone(), StateDecl{ name, parent, span: super::ast::Span{ start: p, end: t } });
+                        // Parse optional state parameter list: $State(param1, param2, ...)
+                        let mut params: Vec<String> = Vec::new();
+                        let mut x = k; while x < epos && is_space(bytes[x]) { x += 1; }
+                        if x < epos && bytes[x] == b'(' {
+                            x += 1; // after '('
+                            let mut start_tok = x;
+                            while x < epos && bytes[x] != b')' {
+                                // collect identifier tokens; skip spaces and commas; ignore defaults/types (stop at '=' or ':' in tokens)
+                                if is_space(bytes[x]) || bytes[x] == b',' {
+                                    if start_tok < x {
+                                        let token = String::from_utf8_lossy(&bytes[start_tok..x]).trim().to_string();
+                                        if !token.is_empty() {
+                                            let trimmed = token.split(|c| c == '=' || c == ':').next().unwrap_or("").trim();
+                                            if !trimmed.is_empty() { params.push(trimmed.to_string()); }
+                                        }
+                                    }
+                                    x += 1; while x < epos && (is_space(bytes[x]) || bytes[x] == b',') { x += 1; }
+                                    start_tok = x; continue;
+                                }
+                                x += 1;
+                            }
+                            if start_tok < x {
+                                let token = String::from_utf8_lossy(&bytes[start_tok..x]).trim().to_string();
+                                if !token.is_empty() {
+                                    let trimmed = token.split(|c| c == '=' || c == ':').next().unwrap_or("").trim();
+                                    if !trimmed.is_empty() { params.push(trimmed.to_string()); }
+                                }
+                            }
+                        }
+                        machine.states.insert(name.clone(), StateDecl{ name, parent, params, span: super::ast::Span{ start: p, end: t } });
                     }
                 }
             }

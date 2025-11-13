@@ -21,6 +21,7 @@ pub struct MachineDecl {
 pub struct StateDecl {
     pub name: String,
     pub parent: Option<String>,
+    pub params: Vec<String>,
     pub span: Span,
 }
 
@@ -33,4 +34,3 @@ pub struct HandlerDecl {
     pub kind: HandlerKind,
     pub span: Span,
 }
-
