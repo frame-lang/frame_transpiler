@@ -26,6 +26,11 @@ End‑to‑End
   - Java/C#: javac/java and csc/mcs (+mono); optional Tree‑sitter adapters (`native-java`, `native-csharp`). If toolchains are missing, execution is cleanly skipped.
 - Other V3 suites (prolog/imports/outline/closers/mir/mapping/expansion/validator) remain build/validate‑only; these demos do not emit full runnable programs.
 
+Negative error code matching
+- Fixtures can declare expected validator codes with `@expect: E403 E404` (spaces between codes).
+- Default mode is superset: all listed codes must appear in the actual diagnostic set; extras are allowed.
+- Use `--expect-mode equal` to require an exact match between expected and actual codes.
+
 Performance
 - Add budget checks for worst‑case fixtures (large triple‑quotes/templates) to guarantee O(n) behavior and no stalls.
 

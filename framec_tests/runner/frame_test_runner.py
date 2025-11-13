@@ -2035,6 +2035,7 @@ def main():
     parser.add_argument('--require-error-codes', dest='require_error_codes', action='store_true', help='Negatives must surface validator error codes (E###) (default)')
     parser.add_argument('--no-require-error-codes', dest='no_require_error_codes', action='store_true', help='Do not require E### codes in negatives')
     parser.add_argument('--exec-v3', action='store_true', help='Execute selected non-smoke V3 categories (python/typescript: v3_core, v3_control_flow, v3_systems)')
+    parser.add_argument('--expect-mode', choices=['superset','equal'], default='superset', help='How to match expected validator error codes in negatives (default: superset)')
     
     args = parser.parse_args()
     
@@ -2082,6 +2083,7 @@ def main():
         include_common=args.include_common,
         strict_negatives=strict_neg,
         require_error_codes=require_codes,
+        expected_error_mode=args.expect_mode,
         include_flaky=args.include_flaky,
         include_patterns=args.include_patterns,
         exclude_patterns=args.exclude_patterns,
