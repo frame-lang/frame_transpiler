@@ -1,4 +1,4 @@
-name: V3 Curated Exec (Python/TypeScript)
+name: V3 Curated Exec (Python/TypeScript/Rust)
 
 on:
   workflow_dispatch:
@@ -44,11 +44,11 @@ jobs:
       - name: Install TypeScript
         run: npm install -g typescript
 
-      - name: Run curated exec (Py/TS)
+      - name: Run curated exec (Py/TS/Rust)
         run: |
           mkdir -p reports
           python3 framec_tests/runner/frame_test_runner.py \
-            --languages python typescript \
+            --languages python typescript rust \
             --categories v3_control_flow v3_core v3_systems \
             --framec ./target/release/framec \
             --exec-v3 --run \
