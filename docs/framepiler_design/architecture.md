@@ -3,7 +3,7 @@
 Status: Authoritative design reference for the current and in‑flight architecture (MixedBody/MIR — “B2”).
 
 Note on targets: LLVM is on indefinite hold. Do not plan new work on the LLVM target or runtime. All current focus is on Python and TypeScript with native bodies and SOL‑anchored Frame statements.
-Last updated: 2025‑11‑06
+Last updated: 2025‑11‑13
 
 This document is the single source of truth for the Frame compiler pipeline, terminology, and component responsibilities. Older sections below are retained as legacy context; the “Authoritative Architecture” sections supersede them.
 
@@ -119,6 +119,47 @@ Parsers & Mixed AST Linkage
 
 ### DPDA Body Boundary Detectors
 
+## Native Parser Policy (V3)
+
+- Hermetic default: native parsing is default‑on for TypeScript (SWC) and Python (RustPython parser) in validation paths; Rust (syn) is also hermetic and can be enabled by default.
+- Feature‑gated adapters: C/C++/Java/C# use tree‑sitter via Rust bindings (C runtime). These remain feature‑gated to keep builds hermetic; they can be enabled in CI or locally.
+- Mapping and attribution: native diagnostics are mapped back through the splice_map so users see errors on Frame source spans. Messages are preserved; we prefix a stable class (E5xx) where appropriate.
+- Frame semantics are owned by the V3 validator (SOL anchoring, terminal Transition rule, parent‑forward availability, handler scope). Native parsers do not replace those checks.
+
+## Debug Output and Maps (V3)
+
+- --debug-output emits a structured JSON envelope on stdout:
+  - Keys: targetLanguage, code (stable alias), <language alias>, sourceMap, errors, schemaVersion.
+  - We also retain optional comment trailers (errors-json, frame-map) for tools that parse inline.
+- Sidecar/Trailer mapping: splice_map trailer provides origin mapping between emitted and source spans; native visitor sidecar maps will align with targetLine/sourceLine as we extend Stage 08.
+
+## Milestone Focus — 100% Py/TS/Rust
+
+- TypeScript: SWC default‑on validation; curated exec with real glue; broaden coverage to core/control_flow/systems and strengthen source map tests.
+- Python: RustPython parser default‑on validation; curated exec with real glue; broaden coverage and map validation.
+- Rust: syn default‑on validation; curated exec expanded to parity; plan runtime glue after Py/TS stabilize.
+- CI mirrors runner for both transpile‑only (build) and curated/exec (run) suites; JUnit is uploaded.
+
+## Glossary (V3)
+
+- SOL: Start of line. Frame statements are recognized only at SOL (leading whitespace allowed), never inside strings/comments/templates.
+- DPDA: Deterministic pushdown automata. Mechanism used in scanners/closers to be brace/string/comment aware without regex for language syntax.
+- MixedBody: Sequence of NativeText and Frame statements extracted from a native body by the scanner. Basis for MIR assembly.
+- MIR: Middle Intermediate Representation for Frame statements (Transition, Forward, StackPush/Pop) with spans and buckets (exit/enter/state args).
+- Arcanum: Symbol table built from the outline (systems/machines/states, optional parents). Authoritative for Frame semantics like E402/E403.
+- splice_map: Mapping from emitted text back to original source spans (native vs Frame origins). Used to attribute diagnostics and build source maps.
+- Facade/Strict Native Validation: Optional per‑language adapters that parse spliced native text to surface native syntax errors; mapped back via splice_map.
+- Curated Exec vs Exec Smoke: Curated exec runs small programs with real glue (Py/TS/Rust); exec smoke uses standardized markers across all languages to verify end‑to‑end wiring.
+- E‑codes: Stable error codes. E100–E199 scanners/closers; E200–E399 parser; E400–E499 validator (Frame semantics); E5xx reserved for native parser diagnostics.
+- FID: Frame Interface Definition. Schema + cache describing host APIs for validation/linking at the project layer.
+
+## External References
+
+- SWC (TypeScript): https://swc.rs/ — swc_ecma_parser
+- RustPython parser: https://github.com/RustPython/Parser (or rustpython_parser crate)
+- syn (Rust): https://docs.rs/syn/
+- tree‑sitter core: https://tree-sitter.github.io/tree-sitter/
+- WASM targets: https://rustwasm.github.io/wasm-bindgen/ and https://wasi.dev/
 Body boundary detection uses small DPDA scanners per target to locate the matching closing `}` in target-native bodies. Detectors track language-specific string/comment modes and nested constructs (e.g., `${…}` in TS), and only count braces at the top level.
 
 See:

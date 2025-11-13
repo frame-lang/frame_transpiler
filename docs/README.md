@@ -26,7 +26,7 @@ Below is the living index of the most relevant specs and plans across `framelang
 - Rust: docs/framelang_design/target_language_specifications/rust/rust_body_grammar.md
 
 ## Framepiler Design
-- Architecture (Authoritative): docs/framepiler_design/architecture.md
+- Architecture (Authoritative): docs/framepiler_design/architecture.md (includes V3 glossary and native parser policy)
 - MixedBody FIRST‑Set Indexing: docs/framepiler_design/stages/native_mixed_body_first_set_indexing.md
 
 ### Going Native — Key Policies
