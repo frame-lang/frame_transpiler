@@ -94,11 +94,94 @@ impl CompilerV3 {
         };
         let spliced = SplicerV3.splice(content, &scan.regions, &exps);
         out_text = spliced.text.clone();
-        // Optional structured error JSON in debug mode
-        if _debug_output || std::env::var("FRAME_ERROR_JSON").ok().as_deref() == Some("1") {
-            // Minimal validation: terminal-last
-            let mut issues = ValidatorV3.validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
-            // Serialize as JSON trailer
+
+        // If debug_output is requested, emit a structured JSON envelope instead of plain code.
+        if _debug_output {
+            // Minimal structural validation (collect issues) for inclusion in JSON
+            let issues = ValidatorV3
+                .validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
+
+            // Build a compact JSON envelope: { targetLanguage, code, <langAlias>, sourceMap, errors, schemaVersion }
+            fn json_escape(s: &str) -> String {
+                let mut out = String::with_capacity(s.len() + 16);
+                for ch in s.chars() {
+                    match ch {
+                        '\\' => out.push_str("\\\\"),
+                        '"' => out.push_str("\\\""),
+                        '\n' => out.push_str("\\n"),
+                        '\r' => out.push_str("\\r"),
+                        '\t' => out.push_str("\\t"),
+                        c if c.is_control() => {
+                            use std::fmt::Write as _;
+                            let _ = write!(&mut out, "\\u{:04x}", c as u32);
+                        }
+                        c => out.push(c),
+                    }
+                }
+                out
+            }
+
+            let lang = _target_language.unwrap_or(TargetLanguage::Python3);
+            let code_escaped = json_escape(&spliced.text);
+            let map_json = spliced.build_trailer_json();
+            let errors_json = build_errors_json(&issues);
+            let lang_alias_key = match lang {
+                TargetLanguage::Python3 => "python",
+                TargetLanguage::TypeScript => "typescript",
+                TargetLanguage::CSharp => "csharp",
+                TargetLanguage::C => "c",
+                TargetLanguage::Cpp => "cpp",
+                TargetLanguage::Java => "java",
+                TargetLanguage::Rust => "rust",
+                _ => "target",
+            };
+            let lang_value = match lang {
+                TargetLanguage::Python3 => "python_3",
+                TargetLanguage::TypeScript => "typescript",
+                TargetLanguage::CSharp => "csharp",
+                TargetLanguage::C => "c",
+                TargetLanguage::Cpp => "cpp",
+                TargetLanguage::Java => "java",
+                TargetLanguage::Rust => "rust",
+                _ => "unknown",
+            };
+            let mut json = String::new();
+            json.push_str("{\"targetLanguage\":\"");
+            json.push_str(lang_value);
+            json.push_str("\",\"code\":\"");
+            json.push_str(&code_escaped);
+            json.push_str("\",");
+            // language-specific alias for code (backward-compat)
+            json.push('"'); json.push_str(lang_alias_key); json.push_str("\":\"");
+            json.push_str(&code_escaped);
+            json.push_str("\",");
+            // sourceMap (already a JSON object)
+            json.push_str("\"sourceMap\":");
+            json.push_str(&map_json);
+            json.push_str(",");
+            // errors (already a JSON object: { errors: [...], schemaVersion: 1 })
+            // normalize to an array field for top-level by extracting the inner structure
+            // We keep the object shape as-is under key "errorsEnvelope" and also expose an array under "errors" for convenience.
+            json.push_str("\"errorsEnvelope\":");
+            json.push_str(&errors_json);
+            // Build a flat errors array by simple extraction (cheap parsing avoided): leave as alias to envelope.errors for now
+            json.push_str(",\"errors\":");
+            json.push_str(&{
+                // naive slice: find errors array
+                if let Some(start) = errors_json.find("[") {
+                    if let Some(end) = errors_json.rfind("]") {
+                        errors_json[start..=end].to_string()
+                    } else { "[]".to_string() }
+                } else { "[]".to_string() }
+            });
+            json.push_str(",\"schemaVersion\":1}");
+            return Ok(json);
+        }
+
+        // Optional structured error JSON trailer for tools that parse embedded comments
+        if std::env::var("FRAME_ERROR_JSON").ok().as_deref() == Some("1") {
+            let issues = ValidatorV3
+                .validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
             let json = build_errors_json(&issues);
             out_text.push_str("\n/*#errors-json#\n");
             out_text.push_str(&json);

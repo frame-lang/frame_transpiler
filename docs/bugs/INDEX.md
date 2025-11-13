@@ -2,8 +2,8 @@
 
 ## Statistics
 - **Total Bugs**: 58
-- **Open**: 10
-- **Resolved**: 47
+- **Open**: 8
+- **Resolved**: 49
 - **Won't Fix**: 1
 - **Next Bug Number**: 059
 
@@ -25,13 +25,13 @@
 | [#052](open/bug_052_typescript_actions_generate_stubs.md) | TypeScript Actions Generate Stubs Despite Proper Imports | Critical | CodeGen | Open | - |
 | [#055](open/bug_055_async_typescript_socket_runtime.md) | TypeScript async runtime lacks socket helpers for Frame debugger | High | CodeGen | Open | - |
 
-| [#056](open/bug_056_missing_structured_error_json_in_debug_output.md) | Missing structured error JSON in debug-output | High | Tooling | Open | - |
-| [#057](open/bug_057_inconsistent_source_map_schema_across_languages.md) | Inconsistent source map schema across languages | Medium | Tooling | Open | - |
 | [#058](open/bug_058_add_stable_code_field_in_debug_output.md) | Add stable top-level code field in debug-output | Medium | Tooling | Open | - |
 ## Recently Resolved
 
 | Bug # | Title | Priority | Category | Status | Fixed Version |
 |-------|-------|----------|----------|--------|---------------|
+| [#057](closed/bug_057_inconsistent_source_map_schema_across_languages.md) | Inconsistent source map schema across languages | Medium | Tooling | Resolved | v0.86.26 |
+| [#056](closed/bug_056_missing_structured_error_json_in_debug_output.md) | Missing structured error JSON in debug-output | High | Tooling | Resolved | v0.86.26 |
 | [#054](closed/bug_054_typescript_boolean_literals_in_python_strings.md) | TypeScript Boolean Literals in Python Strings | Medium | CodeGen | Resolved | v0.86.24 |
 | [#053](closed/bug_053_typescript_missing_property_declarations.md) | TypeScript Missing Property Declarations and Runtime Imports | High | CodeGen | Resolved | v0.86.23 |
 | [#048](closed/bug_048_unreachable_return_after_transition.md) | Unreachable Return After Transition Statements | High | Semantic | Won't Fix | N/A |
