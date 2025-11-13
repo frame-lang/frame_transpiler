@@ -292,7 +292,12 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         Ok(p) => p,
         Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &e.0)),
     };
-    let system_name = find_system_name(bytes, 0);
+    // Stage 10: Prefer Arcanum-derived system name for expansion context
+    let arc_for_ctx = crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, 0);
+    let system_name = {
+        // pick the first declared system if present; otherwise fallback to textual scan
+        if let Some((name, _)) = arc_for_ctx.systems.iter().next() { Some(name.clone()) } else { find_system_name(bytes, 0) }
+    };
     let emit_body_only = std::env::var("FRAME_EMIT_BODY_ONLY").ok().as_deref() == Some("1");
     let emit_exec = std::env::var("FRAME_EMIT_EXEC").ok().as_deref() == Some("1");
     let mut out = String::new();
