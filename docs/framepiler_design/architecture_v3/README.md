@@ -67,3 +67,40 @@ Follow‑Up TODOs (Initial)
 Notes
 - LLVM remains on hold; no V3 work targets LLVM.
 - Keep changes hermetic; avoid adding network dependencies to the build.
+
+## Quick Reading List — Python and TypeScript
+
+Python
+- 01_body_closers_python.md:1
+- 02_native_region_scanner_python.md:1
+- 05_frame_statement_expansion_python.md:1
+- 07_native_parse_facade_python.md:1
+- runtime: frame_runtime_py/__init__.py:1
+
+TypeScript
+- 01_body_closers_typescript.md:1
+- 02_native_region_scanner_typescript.md:1
+- 05_frame_statement_expansion_typescript.md:1
+- 07_native_parse_facade_typescript.md:1
+- runtime: frame_runtime_ts/index.ts:1
+
+Shared V3 Core (order)
+- architecture_v3_overview.md:1
+- 03_frame_segment_parser.md:1
+- 04_mir_assembly.md:1
+- 06_splice_and_mapping.md:1
+- 06_5_structural_validation.md:1
+- 09_validation.md:1
+- 10_ast_and_symbol_integration.md:1
+- 11_error_taxonomy.md:1
+- 08_source_maps_and_codegen.md:1
+- 07_runtime_api_demo.md:1
+- 00_stage_index.md:1
+- PLAN.md:1
+
+Testing/Runner/CI
+- docs/framepiler_design/architecture_v3/12_testing_strategy.md:1
+- framec_tests/runner/frame_test_runner.py:1
+- .github/workflows/v3_all.yml:1
+- .github/workflows/v3_curated_exec.yml:1
+- .github/workflows/v3_exec_smoke.yml:1
