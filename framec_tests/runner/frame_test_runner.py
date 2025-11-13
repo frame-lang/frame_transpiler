@@ -439,8 +439,8 @@ class FrameTestRunner:
                     except Exception:
                         # Fall back to default in-compiler path
                         pass
-            # For module files in Python/TS routed via demo-frame, also emit exec when executing
-            if 'demo-frame' in cmd and language in ("python", "typescript", "java", "csharp", "c", "cpp") and self.config.execute:
+            # For module files routed via demo-frame, also emit exec when executing (except for facade smoke, which uses wrappers)
+            if 'demo-frame' in cmd and (not is_v3_facade_smoke) and language in ("python", "typescript", "java", "csharp", "c", "cpp") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
                 if language == "typescript":
                     runtime_ts = self.base_dir / "typescript" / "runtime" / "frame_runtime"
@@ -515,7 +515,7 @@ class FrameTestRunner:
                         # For negative tests, expect one or more errors
                         if self.is_negative_test(test_file):
                             assert isinstance(payload.get("errors"), list) and len(payload.get("errors")) >= 1, "negative test missing errors in errors-json"
-                    elif is_v3 and "FRAME_EMIT_EXEC" not in env:
+                    elif is_v3 and (not is_v3_facade_smoke) and "FRAME_EMIT_EXEC" not in env:
                         # If we requested errors-json for V3 but didn't get it, flag a failure
                         return False, str(output_file), "Missing errors-json trailer in output"
                 except AssertionError as ae:
