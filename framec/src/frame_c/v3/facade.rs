@@ -86,7 +86,8 @@ impl NativeParseFacadeV3 for PyWrapperFacade {
                 }
             }
         }
-        // Optional native parser diagnostics (Python) — feature-gated
+        // Optional native parser diagnostics (Python) — prefer RustPython parser when enabled,
+        // otherwise fall back to tree-sitter adapter. Both are feature-gated.
         if let Some(mut extra) = run_python_adapter(spliced_text) { diags.append(&mut extra); }
         Ok(diags)
     }
@@ -344,26 +345,69 @@ fn run_cpp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
 #[cfg(not(feature = "native-cpp"))]
 fn run_cpp_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
 
-#[cfg(feature = "native-py")]
+// Python native parsing adapter selection:
+// - If feature "native-py-rp" is enabled, use RustPython parser (pure Rust, hermetic)
+// - Else if feature "native-py" is enabled, use tree-sitter-python
+// - Else, return None
 fn run_python_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
-    use tree_sitter::{Parser, Node};
-    fn collect_errors(node: Node, out: &mut Vec<(usize, usize)>) {
-        if node.is_error() || node.is_missing() { out.push((node.start_byte(), node.end_byte())); }
-        for i in 0..node.child_count() { if let Some(ch) = node.child(i) { collect_errors(ch, out); } }
+    // Prefer RustPython-based parser when available
+    #[cfg(feature = "native-py-rp")]
+    {
+        // rustpython_parser reports errors with line/column; convert to byte offsets best-effort
+        // to integrate with splice_map remapping. We keep messages intact.
+        use rustpython_parser::parser;
+        use rustpython_parser::mode::Mode;
+        let parse_result = parser::parse(text, Mode::Module);
+        match parse_result {
+            Ok(_ast) => return Some(Vec::new()),
+            Err(err) => {
+                // Convert Location (1-based lines/columns) to byte index
+                fn offset_from_line_col(src: &str, line: usize, col: usize) -> usize {
+                    if line == 0 { return 0; }
+                    let mut cur_line = 1usize; let mut idx = 0usize; let bytes = src.as_bytes();
+                    while idx < bytes.len() && cur_line < line {
+                        if bytes[idx] == b'\n' { cur_line += 1; }
+                        idx += 1;
+                    }
+                    idx + col.saturating_sub(1)
+                }
+                let msg = format!("native facade (Python/RustPython): {}", err);
+                // Best-effort: rustpython_parser::error::ParseError may expose location()
+                let (s, e) = match err.location() {
+                    Some(loc) => {
+                        let start = offset_from_line_col(text, loc.row().get(), loc.column().get());
+                        (start, start)
+                    }
+                    None => (0usize, 0usize)
+                };
+                return Some(vec![NativeDiagnosticV3 { start: s, end: e, message: msg }]);
+            }
+        }
     }
-    let mut parser = Parser::new();
-    parser.set_language(tree_sitter_python::language()).ok()?;
-    let tree = parser.parse(text, None)?;
-    let root = tree.root_node();
-    let mut errs = Vec::new();
-    collect_errors(root, &mut errs);
-    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
-    for (s, e) in errs { out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (Python): parse error".into() }); }
-    Some(out)
+    // Tree-sitter fallback when RustPython feature is not enabled
+    #[cfg(all(not(feature = "native-py-rp"), feature = "native-py"))]
+    {
+        use tree_sitter::{Parser, Node};
+        fn collect_errors(node: Node, out: &mut Vec<(usize, usize)>) {
+            if node.is_error() || node.is_missing() { out.push((node.start_byte(), node.end_byte())); }
+            for i in 0..node.child_count() { if let Some(ch) = node.child(i) { collect_errors(ch, out); } }
+        }
+        let mut parser = Parser::new();
+        parser.set_language(tree_sitter_python::language()).ok()?;
+        let tree = parser.parse(text, None)?;
+        let root = tree.root_node();
+        let mut errs = Vec::new();
+        collect_errors(root, &mut errs);
+        let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+        for (s, e) in errs { out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (Python): parse error".into() }); }
+        return Some(out);
+    }
+    // No adapter available
+    #[cfg(all(not(feature = "native-py-rp"), not(feature = "native-py")))]
+    {
+        return None;
+    }
 }
-
-#[cfg(not(feature = "native-py"))]
-fn run_python_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
 
 #[cfg(feature = "native-java")]
 fn run_java_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {

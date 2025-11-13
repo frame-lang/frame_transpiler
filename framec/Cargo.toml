@@ -16,6 +16,7 @@ native-cpp = ["tree-sitter", "tree-sitter-cpp"]
 native-java = ["tree-sitter", "tree-sitter-java"]
 native-csharp = ["tree-sitter", "tree-sitter-c-sharp"]
 native-py = ["tree-sitter", "tree-sitter-python"]
+native-py-rp = ["rustpython_parser"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
@@ -51,6 +52,9 @@ tree-sitter-cpp = { version = "0.20", optional = true }
 tree-sitter-java = { version = "0.20", optional = true }
 tree-sitter-c-sharp = { version = "0.20", optional = true }
 tree-sitter-python = { version = "0.20", optional = true }
+
+# Python parser (pure Rust) for hermetic native parsing
+rustpython_parser = { version = "0.3", optional = true }
 
 # Note: rustpython-parser intentionally omitted here for now; Python adapter will be added later.
 
