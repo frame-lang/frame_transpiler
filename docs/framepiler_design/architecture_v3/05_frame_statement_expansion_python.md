@@ -36,6 +36,9 @@ Errors
 Runtime Imports (production)
 - Insert once at file top: `from frame_runtime_py import FrameEvent, FrameCompartment` (workspace local). The expander uses these types to construct transition compartments.
 
+Exec harness
+- In demo `--emit-exec` mode, the generated wrapper imports the runtime from `frame_runtime_py` and emits a minimal program that calls a single handler so we can validate output markers (TRANSITION:/FORWARD:PARENT/STACK:PUSH|POP) without inlining runtime primitives.
+
 Test Hooks
 - Nested conditionals with transitions; ensure no `elif` chain breaks.
 - Redundant native `return` immediately after a terminal Frame statement is harmless; optional suppression can be applied in later cleanup.

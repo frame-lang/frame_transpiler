@@ -35,6 +35,7 @@ Runtime Imports (production)
 
 Notes
 - Native `return` is terminal by TypeScript semantics; the validator’s terminal rule concerns Frame Transitions. Native-return enforcement is delegated to native parse facades or host compilers.
+- Exec harness note: in demo `--emit-exec` mode, the generated wrapper imports the repository runtime (`frame_runtime_ts/index`) rather than inlining primitives to keep execution hermetic.
 
 Test Hooks
 - Transitions in async handlers (ensure `await` where required by runtime policy).

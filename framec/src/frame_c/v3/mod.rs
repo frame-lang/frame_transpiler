@@ -328,17 +328,19 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             }
             TargetLanguage::TypeScript => {
                 let mut p = String::new();
-                p.push_str("class FrameEvent { constructor(public message: string, public parameters: any|null) {} }\n");
-                p.push_str("class FrameCompartment { constructor(public state: string) {} public forwardEvent: FrameEvent|null=null; public exitArgs: any=null; public enterArgs: any=null; public parentCompartment: FrameCompartment|null=null; public stateArgs: any=null; }\n");
+                // Use runtime import; allow runner to override with FRAME_TS_EXEC_IMPORT to ensure a resolvable path
+                let ts_exec_import = std::env::var("FRAME_TS_EXEC_IMPORT").ok().unwrap_or_else(|| String::from("../../../frame_runtime_ts/index"));
+                p.push_str(&format!("import {{ FrameEvent, FrameCompartment }} from '{}'\n", ts_exec_import));
                 p.push_str("class M { public _compartment: FrameCompartment = new FrameCompartment('__S_state_A'); _frame_transition(n: FrameCompartment){ this._compartment=n; console.log('TRANSITION:'+n.state); } _frame_router(__e: FrameEvent, c?: FrameCompartment){ console.log('FORWARD:PARENT'); } _frame_stack_push(){ console.log('STACK:PUSH'); } _frame_stack_pop(){ console.log('STACK:POP'); } }\n");
                 p.push_str("function native(): void {}\n\n");
-                p.push_str("function handler(self: M, __e: FrameEvent, compartment: FrameCompartment) {\n");
+                // In exec mode, relax the handler's compartment type to avoid TS type errors on parentCompartment
+                p.push_str("function handler(self: M, __e: FrameEvent, compartment: any) {\n");
                 for line in body.lines() {
                     let mut s = line.to_string();
                     if !(s.ends_with(';') || s.ends_with('{') || s.ends_with('}')) { s.push(';'); }
                     p.push_str("    "); p.push_str(&s); p.push('\n');
                 }
-                p.push_str("}\n(function(){ const m=new M(); handler.call(m, m, new FrameEvent('e', null), m._compartment); })();\n");
+                p.push_str("}\n(async function(){ const m=new M(); handler.call(m, m, new FrameEvent('e', null), m._compartment); })();\n");
                 p
             }
             TargetLanguage::Rust => {

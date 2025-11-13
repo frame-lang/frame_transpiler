@@ -418,9 +418,26 @@ class FrameTestRunner:
             # For general V3 categories in Python/TS, emit a minimal executable when running
             if any(seg.startswith("v3_") for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript", "rust") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
+                # For TypeScript exec, point the compiler at a resolvable runtime import
+                if language == "typescript":
+                    # Import the compiled shared runtime used by the runner
+                    runtime_ts = self.base_dir / "typescript" / "runtime" / "frame_runtime"
+                    try:
+                        rel = os.path.relpath(str(runtime_ts), start=str(output_dir))
+                        env["FRAME_TS_EXEC_IMPORT"] = rel.replace("\\", "/")
+                    except Exception:
+                        # Fall back to default in-compiler path
+                        pass
             # For module files in Python/TS routed via demo-frame, also emit exec when executing
             if 'demo-frame' in cmd and language in ("python", "typescript") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
+                if language == "typescript":
+                    runtime_ts = self.base_dir / "typescript" / "runtime" / "frame_runtime"
+                    try:
+                        rel = os.path.relpath(str(runtime_ts), start=str(output_dir))
+                        env["FRAME_TS_EXEC_IMPORT"] = rel.replace("\\", "/")
+                    except Exception:
+                        pass
             
             result = subprocess.run(
                 cmd,

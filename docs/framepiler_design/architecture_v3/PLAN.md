@@ -41,6 +41,7 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] Exec-smoke: all 7 languages emit and run tiny programs with standardized markers (TRANSITION, FORWARD:PARENT, STACK:PUSH/POP). Non-Py/TS use minimal wrapper stubs in exec mode; main suites remain transpile/validate-only.
  - [x] Curated exec (Python/TS): runner supports `--exec-v3` with gating via `@run-expect` / `@run-exact` / `@exec-ok` for selected categories (`v3_core`, `v3_control_flow`, `v3_systems`). Seeded fixtures under control_flow.
  - [x] Curated exec expanded (Python/TS): added nested/loops, inline-forward+transition, try/catch/finally/else chains, and full-bucket transition fixtures; all green.
+ - [x] TypeScript exec import stabilized: runner supplies FRAME_TS_EXEC_IMPORT and exec handler relaxes compartment type; curated exec 100%.
  - [x] Curated exec (Rust initial): control_flow/core/systems seeded with basic transition, parent forward, and stack ops; runner executes via rustc harness.
  - [x] CI artifacts: V3 workflows upload JUnit XML reports for v3_all, v3_exec_smoke, and curated exec.
 

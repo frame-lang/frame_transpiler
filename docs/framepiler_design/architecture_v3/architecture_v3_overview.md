@@ -20,6 +20,9 @@ Stages
   - `NativeRegionScannerV3<{python,typescript,csharp,c,cpp,java,rust}>` scans body byte slices.
   - Output: `[RegionV3::NativeText | RegionV3::FrameSegment]` with spans; SOL‑only detection.
   - Inline rule: for eligible languages, a Frame segment ends at the first top‑level semicolon `;` or comment start (Python: `;`/`#`; TS/C#/C/CPP/Java/Rust: `;`/`//`). The remainder of the line is emitted as a trailing native segment.
+  - Multi‑statement policy: Frame statements follow the host language’s rules for multiple statements on one physical line. Where the host language requires explicit separators, we end the Frame segment at the first top‑level separator and treat the rest as native. Examples:
+    - Python: `=> $^; # comment` and `=> $^; native()` are valid; without a separator, trailing tokens after a Frame statement are invalid.
+    - TypeScript/C#/C/C++/Java/Rust: `=> $^; native();` and `=> $^ // comment` are valid; without a top‑level `;` or comment start, trailing tokens after a Frame statement are invalid.
 
 - 03 Frame Segment Parser
   - `FrameStatementParserV3` parses `-> $State(args)`, `=> $^`, `$$[+]`/`$$[-]` with balanced‑paren, string‑aware arg splitting.

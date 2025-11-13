@@ -17,8 +17,9 @@ Invariants
 - MixedBody is authoritative for validation and expansion; no additional parsing is performed at this stage.
 
 Validation (at assembly time)
-- Terminal Frame statements (Transition, Forward, Stack ops) must be the last executable item in a handler body.
-- Any native content after a terminal Frame statement is flagged for diagnostics (policy violation).
+- Only Transition is terminal. A Transition must be the last executable statement within its containing block.
+- Forwards and Stack operations are non‑terminal and may be followed by native statements on the same or subsequent lines (subject to the host language’s multi‑statement rules).
+- Any native content after a Transition in the same block is flagged for diagnostics (policy violation).
 
 Complexity
 - Linear in the number of segments.
