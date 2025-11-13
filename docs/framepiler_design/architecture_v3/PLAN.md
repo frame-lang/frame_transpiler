@@ -52,6 +52,16 @@ Milestone — Py/TS/Rust to 100%
 - [x] Python: strict/native adapter via RustPython parser (pure Rust) enabled in CI; curated exec breadth expanded; runner asserts errors-json trailers and runtime output markers.
 - [ ] Rust: syn default‑on validation; expand curated exec to parity with Py/TS; plan promotion from exec markers to real runtime glue after Py/TS stabilization.
 
+Deferred Improvements (postpone until TS/Py are 100% debugger‑ready)
+- Rust target: switch state identity from strings to an enum (StateId), add Display/FromStr, update FrameCompartment to use enum; keep facade wrappers string‑based; preserve marker text via Display.
+- TS/Py state typing: add TS literal union type for state ids; optional Python Enum for state ids (Display for compiled id).
+- Validation policies (optional): arg/param arity checks for transition state_args vs outline params; rich error notes with related spans; suggestion diagnostics for unknown states.
+- Mapping/Debugging: finalize visitor‑map sidecars (targetLine/sourceLine) for Py/TS module + single‑body; add small golden tests; later add optional columns and AST dump JSON.
+- Native parsing hermetic defaults: keep Py/TS/Rust default‑on; consider tree‑sitter prebuilt artifacts for C/C++/Java/C# to avoid system C compiler (feature‑gated).
+- Exec harness parity: expand Rust curated exec to Py/TS breadth (multi‑handler, deeper nesting); consider pilot real glue for non‑Py/TS later.
+- Project layer/FID (Phase A): define FID schema; adapters for Py/TS; cache under .frame/cache/fid; validator gate for missing/mismatched APIs; merge per‑file Arcanum into project scope.
+- Performance/Robustness: small‑buffer reuse in scanners/closers; fuzz/torture suites for protected regions and SOL anchoring; no panics.
+
 Production‑ready criteria (not done unless explicitly checked):
 - [x] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
 - [x] ImportScannerV3 (DPDA) per language:

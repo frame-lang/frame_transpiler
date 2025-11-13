@@ -219,7 +219,7 @@ class FrameTestRunner:
         # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
         if any(cat in self.config.categories for cat in [
             "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke", "v3_exec_smoke",
-            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems"
+            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_visitor_map"
         ]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
@@ -233,6 +233,8 @@ class FrameTestRunner:
                 collect_v3_category("v3_mir")
             if "v3_mapping" in self.config.categories:
                 collect_v3_category("v3_mapping")
+            if "v3_visitor_map" in self.config.categories:
+                collect_v3_category("v3_visitor_map")
             if "v3_expansion" in self.config.categories:
                 collect_v3_category("v3_expansion")
             if "v3_validator" in self.config.categories:
@@ -334,10 +336,11 @@ class FrameTestRunner:
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
         # Treat all v3_* categories as module demo path; v3_closers uses single-body demo
-        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_exec_smoke"}
+        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_exec_smoke", "v3_visitor_map"}
         is_v3 = any(seg in v3_categories for seg in parts_lower)
         is_v3_closers = "v3_closers" in parts_lower
         is_v3_mapping = "v3_mapping" in parts_lower
+        is_v3_visitor_map = "v3_visitor_map" in parts_lower
         is_v3_expansion = "v3_expansion" in parts_lower
         # Initialize optional flags to avoid UnboundLocalError
         is_v3_facade_smoke = False
@@ -345,7 +348,7 @@ class FrameTestRunner:
         if is_v3:
             is_v3_facade_smoke = "v3_facade_smoke" in parts_lower
             is_v3_project = "v3_project" in parts_lower
-            if is_v3_closers or is_v3_mapping or is_v3_expansion:
+            if is_v3_closers or is_v3_mapping or is_v3_expansion or is_v3_visitor_map:
                 cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
                 extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
@@ -415,7 +418,7 @@ class FrameTestRunner:
             if language == "rust":
                 env["FRAME_RUST_GENERATE_MAIN"] = "1"
             # For mapping fixtures, request trailer
-            if is_v3_mapping:
+            if is_v3_mapping or is_v3_visitor_map:
                 env["FRAME_MAP_TRAILER"] = "1"
             # Always request errors-json trailer for V3 module/demo paths so we can assert debug payload shape
             if is_v3:
@@ -504,6 +507,9 @@ class FrameTestRunner:
                                     return False, str(output_file), "Invalid visitor-map line mappings"
                             except Exception as e:
                                 return False, str(output_file), f"Invalid visitor-map JSON: {e}"
+                elif is_v3_visitor_map:
+                    # No hard assertion yet; visitor-map is currently optional in single-body demo
+                    pass
                 # Write output to file
                 out = result.stdout or ""
                 # If a frame-map trailer is present, extract to sidecar and strip from code
@@ -551,7 +557,7 @@ class FrameTestRunner:
                         # For negative tests, expect one or more errors
                         if self.is_negative_test(test_file):
                             assert isinstance(payload.get("errors"), list) and len(payload.get("errors")) >= 1, "negative test missing errors in errors-json"
-                    elif is_v3 and (not is_v3_facade_smoke) and (not is_v3_mapping) and "FRAME_EMIT_EXEC" not in env:
+                    elif is_v3 and (not is_v3_facade_smoke) and (not is_v3_mapping) and (not is_v3_visitor_map) and "FRAME_EMIT_EXEC" not in env:
                         # If we requested errors-json for V3 but didn't get it, flag a failure
                         return False, str(output_file), "Missing errors-json trailer in output"
                 except AssertionError as ae:
