@@ -47,6 +47,32 @@ impl Arcanum {
 }
 
 pub fn build_arcanum_from_outline_bytes(bytes: &[u8], start: usize) -> Arcanum {
+    // Try to detect system name: scan for "system <Ident> {"
+    fn scan_system_name(bytes: &[u8], start: usize) -> Option<String> {
+        let n = bytes.len();
+        let mut i = start;
+        while i < n {
+            while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+            if i >= n { break; }
+            // skip line comments
+            if bytes[i] == b'/' && i+1 < n && bytes[i+1] == b'/' { while i < n && bytes[i] != b'\n' { i += 1; } continue; }
+            if bytes[i] == b'#' { while i < n && bytes[i] != b'\n' { i += 1; } continue; }
+            // skip block comments
+            if bytes[i] == b'/' && i+1 < n && bytes[i+1] == b'*' { i += 2; while i+1 < n && !(bytes[i] == b'*' && bytes[i+1] == b'/') { i += 1; } if i+1 < n { i += 2; } continue; }
+            // read ident
+            let mut j = i; while j < n && ((bytes[j] as char).is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+            if j > i {
+                let kw = String::from_utf8_lossy(&bytes[i..j]).to_ascii_lowercase();
+                if kw == "system" {
+                    while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+                    let name_start = j; while j < n && ((bytes[j] as char).is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+                    if j > name_start { return Some(String::from_utf8_lossy(&bytes[name_start..j]).to_string()); }
+                }
+            }
+            while i < n && bytes[i] != b'\n' { i += 1; }
+        }
+        None
+    }
     // Minimal scanner for machine: sections to populate state names and optional parents
     #[derive(Clone, Copy, PartialEq, Eq)]
     enum Sec { Machine, Other }
@@ -70,6 +96,7 @@ pub fn build_arcanum_from_outline_bytes(bytes: &[u8], start: usize) -> Arcanum {
         while i < n && bytes[i] != b'\n' { i += 1; }
     }
     let mut arc = Arcanum::new();
+    let sys_name = scan_system_name(bytes, 0).unwrap_or_else(|| "_".to_string());
     let mut sys = SystemEntry::default();
     // Build section ranges
     for idx in 0..marks.len() {
@@ -112,6 +139,6 @@ pub fn build_arcanum_from_outline_bytes(bytes: &[u8], start: usize) -> Arcanum {
         let machine_name = format!("machine_{}", idx);
         sys.machines.insert(machine_name, machine);
     }
-    arc.systems.insert("_".to_string(), sys);
+    arc.systems.insert(sys_name, sys);
     arc
 }

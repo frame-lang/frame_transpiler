@@ -47,12 +47,30 @@ Owner: native backend track
 - Provide pkg‑config/CMake (C/C++), Cargo example (Rust), and Gradle/Maven + loader‑path notes (Java).
 - Add cross‑OS CI (macOS/Linux) for all native targets; publish headers/libs as artifacts.
 
+9) FID/Native Import Mapping (Cross‑Target)
+- Define a shared FID schema (namespaces, types, functions, async/throws, docs) used across all targets for host API discovery and validation.
+- TypeScript (Phase A):
+  - Adapter over SWC/TypeScript to harvest imports (e.g., @types/node) and build FIDs.
+  - Validate referenced APIs from actions; optional codegen emits real `import` lines and uses mapped Node APIs.
+- Python (Phase A):
+  - Adapter over inspect/typeshed to extract callable signatures and build FIDs.
+  - Validate referenced APIs in actions; emit native Python as-is.
+- C#/Java (Phase B):
+  - Reflection/AST adapters (Roslyn/JavaParser) to extract public APIs without execution.
+  - Validate references; optional helpers for packaging/shading.
+- C/C++/Rust (Phase B):
+  - Header/clang and Cargo/syn adapters to extract function prototypes and public APIs.
+  - Validate references; no network during build.
+- Runner/Tooling:
+  - Cache FIDs under `.frame/cache/fid/<target>/...`.
+  - Add validation gate that uses FIDs when available (off by default in core build).
+
 ## References
 - Core Contract: docs/framelang_design/target_language_specifications/common/core_frame_contract.md
 - Source Map Spec: docs/framepiler_design/going_native/source_map_spec.md
 - AST Dump Spec: docs/framepiler_design/going_native/ast_dump_spec.md
 - Backend Plans: C / C++ / Rust / Java (going_native directory)
-9) MixedBody Parser Normalization (TS/Py)
+10) MixedBody Parser Normalization (TS/Py)
 - Implement FIRST‑set SOLIndex + Frame‑statement mini‑parsers in segmenters:
   - FIRST set: `->`, `=>` `$^`, `$$[+/-]`, `system.return =`.
   - Streaming DPDA‑protected pass builds Frame‑statement entries; per‑entry mini‑parsers return MIR with precise failures.
