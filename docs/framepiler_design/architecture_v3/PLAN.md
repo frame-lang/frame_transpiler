@@ -48,8 +48,8 @@ Status Summary — Fixtures and Validation (All Languages)
  - [x] CI artifacts: V3 workflows upload JUnit XML reports for v3_all, v3_exec_smoke, and curated exec.
 
 Milestone — Py/TS/Rust to 100%
-- [ ] TypeScript: native parsing default‑on in validation (SWC); expand curated exec to full core/control_flow/systems; add runner assertions for --debug-output JSON envelope keys (targetLanguage, code, sourceMap, errors).
-- [ ] Python: switch strict/native adapter to RustPython parser (pure Rust) and enable default‑on in validation; expand curated exec breadth; add runner assertions for --debug-output JSON envelope.
+- [x] TypeScript: native parsing default‑on in validation (SWC); curated exec expanded across core/control_flow/systems; runner asserts errors-json trailers and runtime output markers.
+- [x] Python: strict/native adapter via RustPython parser (pure Rust) enabled in CI; curated exec breadth expanded; runner asserts errors-json trailers and runtime output markers.
 - [ ] Rust: syn default‑on validation; expand curated exec to parity with Py/TS; plan promotion from exec markers to real runtime glue after Py/TS stabilization.
 
 Production‑ready criteria (not done unless explicitly checked):

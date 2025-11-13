@@ -135,8 +135,8 @@ Parsers & Mixed AST Linkage
 
 ## Milestone Focus — 100% Py/TS/Rust
 
-- TypeScript: SWC default‑on validation; curated exec with real glue; broaden coverage to core/control_flow/systems and strengthen source map tests.
-- Python: RustPython parser default‑on validation; curated exec with real glue; broaden coverage and map validation.
+- TypeScript: SWC default‑on validation; curated exec with real glue; coverage broadened to core/control_flow/systems; errors-json trailers asserted in runner.
+- Python: RustPython parser default‑on validation (enabled in CI); curated exec with real glue; coverage broadened; errors-json trailers asserted in runner.
 - Rust: syn default‑on validation; curated exec expanded to parity; plan runtime glue after Py/TS stabilize.
 - CI mirrors runner for both transpile‑only (build) and curated/exec (run) suites; JUnit is uploaded.
 
