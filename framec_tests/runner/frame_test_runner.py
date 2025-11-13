@@ -467,6 +467,7 @@ class FrameTestRunner:
                 # Optional mapping trailer validation for v3_mapping
                 if is_v3_mapping:
                     out = result.stdout or ""
+                    # Assert frame-map trailer exists and has at least one frame-origin mapping
                     start = out.find("/*#frame-map#")
                     end = out.find("#frame-map#*/")
                     if start == -1 or end == -1 or end <= start:
@@ -484,6 +485,25 @@ class FrameTestRunner:
                             return False, str(output_file), "No frame-origin entries in mapping"
                     except Exception as e:
                         return False, str(output_file), f"Invalid mapping JSON: {e}"
+                    # For Py/TS, also assert visitor-map exists and has minimal shape
+                    if language in ("python", "typescript"):
+                        vstart = out.find("/*#visitor-map#")
+                        vend = out.find("#visitor-map#*/")
+                        if vstart != -1 and vend != -1 and vend > vstart:
+                            try:
+                                vtext = out[vstart+len("/*#visitor-map#"):vend].strip()
+                                vp = _json.loads(vtext)
+                                mappings = vp.get("mappings", []) if isinstance(vp, dict) else []
+                                if not mappings:
+                                    return False, str(output_file), "Empty visitor-map mappings"
+                                ok_min = any(
+                                    isinstance(it, dict) and it.get("origin") in ("frame", "native") and int(it.get("targetLine", 0)) > 0 and int(it.get("sourceLine", 0)) > 0
+                                    for it in mappings
+                                )
+                                if not ok_min:
+                                    return False, str(output_file), "Invalid visitor-map line mappings"
+                            except Exception as e:
+                                return False, str(output_file), f"Invalid visitor-map JSON: {e}"
                 # Write output to file
                 out = result.stdout or ""
                 # If a frame-map trailer is present, extract to sidecar and strip from code

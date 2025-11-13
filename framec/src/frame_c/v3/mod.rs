@@ -204,13 +204,11 @@ impl CompilerV3 {
             out_text.push_str("\n/*#frame-map#\n");
             out_text.push_str(&trailer);
             out_text.push_str("\n#frame-map#*/\n");
-            // add visitor-style line map as a separate trailer for Py/TS convenience
-            if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript) {
-                let lmap = sp.build_line_map_json(content);
-                out_text.push_str("\n/*#visitor-map#\n");
-                out_text.push_str(&lmap);
-                out_text.push_str("\n#visitor-map#*/\n");
-            }
+            // Add visitor-style line map trailer (targetLine/sourceLine) for convenience
+            let lmap = sp.build_line_map_json(content);
+            out_text.push_str("\n/*#visitor-map#\n");
+            out_text.push_str(&lmap);
+            out_text.push_str("\n#visitor-map#*/\n");
         }
         Ok(out_text)
     }
