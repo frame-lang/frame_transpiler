@@ -219,10 +219,9 @@ impl FrameStatementExpanderV3 for CFacadeExpanderV3 {
     fn expand(&self, mir: &MirItemV3, indent: usize, _system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, state_args, .. } => {
-                let arglist = if state_args.is_empty() { String::new() } else { format!(", {}", state_args.join(", ")) };
-                // Use double quotes for string literal in C-like languages
-                format!("{}__frame_transition(\"{}\"{});\n", pad, target, arglist)
+            MirItemV3::Transition{ target, .. } => {
+                // Exec/facade markers for C-like/Java/C# accept only the state name
+                format!("{}__frame_transition(\"{}\");\n", pad, target)
             }
             MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
             MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),

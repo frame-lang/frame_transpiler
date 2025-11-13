@@ -6,8 +6,9 @@ system S {
     machine:
         $A {
             e() {
-                -> $B()
+                -> $B(1, 2, 3)
             }
         }
         $B { }
 }
+

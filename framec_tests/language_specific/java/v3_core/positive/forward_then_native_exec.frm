@@ -1,13 +1,18 @@
 @target java
 // @skip-if: java-toolchain-missing
+// @run-expect: FORWARD:PARENT
 // @run-expect: TRANSITION:
 
 system S {
     machine:
-        $A {
+        $A => $P {
             e() {
+                => $^
+                int x = 42;
                 -> $B()
             }
         }
         $B { }
+        $P { }
 }
+

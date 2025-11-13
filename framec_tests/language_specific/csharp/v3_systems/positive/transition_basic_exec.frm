@@ -1,5 +1,5 @@
-@target java
-// @skip-if: java-toolchain-missing
+@target csharp
+// @skip-if: csharp-toolchain-missing
 // @run-expect: TRANSITION:
 
 system S {
@@ -11,3 +11,4 @@ system S {
         }
         $B { }
 }
+
