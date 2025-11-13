@@ -53,6 +53,40 @@ Milestone — Py/TS/Rust to 100%
 - [x] Python: strict/native adapter via RustPython parser (pure Rust) enabled in CI; curated exec breadth expanded; runner asserts errors-json trailers and runtime output markers.
 - [x] Rust: syn default‑on validation; curated exec expanded across control_flow/core/systems with markers; parity with Py/TS subsets validated; promotion to real runtime glue deferred until Py/TS stabilization.
 
+Stage 10 — AST & Symbol Integration (Fine‑Grained)
+
+10A — Native Symbol Snapshots (Py/TS)
+- Goal: Extract safe native metadata (names/params) from parsed native bodies; keep advisory.
+- Implementation:
+  - TypeScript (SWC): collect function/handler param lists in segmented bodies.
+  - Python (RustPython parser): collect function/handler param lists (positional/kw‑only/defaults).
+- Mapping: All spans mapped back through `splice_map` to original source for diagnostics.
+- Acceptance:
+  - Snapshots available via API for selected fixtures; no behavior changes; mapped spans verified in tests.
+
+10B — Advisory Validation (flag‑gated)
+- Goal: Add optional policy checks that use native snapshots; keep Frame semantics authoritative.
+- Implementation:
+  - Add CLI/runner flag (e.g., `--validate-native-policy`).
+  - Checks: param arity/name presence for transition state_args vs outline params (initial); more later.
+- Acceptance:
+  - Positives/negatives for Py/TS; diagnostics carry mapped spans; disabling flag reverts to current behavior.
+
+10C — Unified Symbol Query Surface
+- Goal: Provide a single query API to obtain Frame (Arcanum) and Native (snapshots) metadata per handler.
+- Implementation: expose `get_frame_state_signature()` + `get_native_handler_params()` style helpers.
+- Acceptance: tooling/tests use the unified API; no semantic coupling to native.
+
+10D — Runner/CI Integration
+- Goal: Make it easy to run advisory checks in targeted suites.
+- Implementation: runner preset to enable `--validate-native-policy` for Py/TS; JUnit includes mapped spans for new diagnostics.
+- Acceptance: jobs green locally/CI, with clean skips when toolchains are missing.
+
+10E — Documentation
+- Update 10_ast_and_symbol_integration.md with scope, approach, advisory‑only policy, span mapping, risks/mitigations, flags.
+- Cross‑link from architecture.md and testing strategy.
+- Acceptance: docs clearly state that Frame semantics (Arcanum + MIR) remain authoritative; native snapshots enrich diagnostics only.
+
 Deferred Improvements (postpone until TS/Py are 100% debugger‑ready)
 - Rust target: switch state identity from strings to an enum (StateId), add Display/FromStr, update FrameCompartment to use enum; keep facade wrappers string‑based; preserve marker text via Display.
 - TS/Py state typing: add TS literal union type for state ids; optional Python Enum for state ids (Display for compiled id).

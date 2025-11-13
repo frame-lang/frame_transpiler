@@ -102,6 +102,13 @@ CompilationUnit (.frm file)
 
 These guarantees are the baseline for VS Code debugger work: stable codes, mappable spans, optional JSON envelopes, and executable smoke tests.
 
+## AST & Symbols Integration (Stage 10)
+
+- Frame is authoritative: Arcanum (symbol tables) + MIR own Frame semantics (E402/E403/E404; compiled state id).
+- Native remains advisory: we parse Py/TS bodies for diagnostics and will add optional symbol snapshots (names/params) per segmented body.
+- Fine‑grained plan (10A–10E): native symbol snapshots, flag‑gated advisory checks, unified query API, runner/CI wiring, and documentation.
+- Risks mitigated by pinning parsers, hermetic defaults, and strict span mapping via splice_map.
+
 ## Stage‑by‑Stage Details
 
 1) Inputs & Configuration

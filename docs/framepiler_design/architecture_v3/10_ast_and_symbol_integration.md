@@ -1,5 +1,9 @@
 # AST & Symbol Integration (V3)
 
+Status
+- Frame‑side symbols (Arcanum) are integrated and authoritative.
+- Native‑side symbols are advisory today; Stage 10 will complete fine‑grained integration in steps 10A–10E.
+
 Purpose
 - Define how the authoritative Frame AST and symbol tables integrate with native contexts and MixedBody/MIR.
 
@@ -28,6 +32,35 @@ Coordinate Spaces
 Cross‑Pass Contracts
 - No pass mutates `Arcanum` after initial construction; MIR/visitors read from it.
 - MixedBody remains the single source of truth for embedded Frame semantics across stages.
+
+Fine‑Grained Plan (Stage 10)
+----------------------------
+
+10A — Native Symbol Snapshots (Py/TS)
+- Extract safe metadata (names/params) from native ASTs per segmented body.
+- Map spans through `splice_map` for any diagnostics.
+- Advisory only; does not alter Frame semantics.
+
+10B — Advisory Validation (flag‑gated)
+- Add `--validate-native-policy` to enable optional checks (e.g., transition state_args arity vs outline params).
+- Diagnostics include mapped spans; disabling the flag reverts to current behavior.
+
+10C — Unified Symbol Query Surface
+- Provide helper APIs that return Frame (Arcanum) and Native (snapshots) views for a handler.
+- Intended for tools/tests; no semantic coupling to native.
+
+10D — Runner/CI Integration
+- Runner preset toggles `--validate-native-policy` for Py/TS suites; JUnit includes mapped spans for new diagnostics.
+
+10E — Documentation
+- This document remains authoritative; architecture.md and testing strategy link here.
+
+Risks & Mitigations
+-------------------
+- Parser drift/versioning: pin and vendor parsers; hermetic defaults (pure‑Rust parsers default‑on; tree‑sitter remains feature‑gated).
+- Performance: segment parsing, cache, and limit to validation paths.
+- Mapping correctness: assert mapped spans through `splice_map` in fixtures and unit tests.
+- Overreach: keep native snapshots advisory; Arcanum + MIR own Frame semantics.
 
 Stage 09 — Symbol Table Migration for State Targets & Parent Forward
 -------------------------------------------------------------------
