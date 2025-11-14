@@ -659,7 +659,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 // Merge mapping with module offset
                 for (tgt, origin) in &sp.splice_map {
                     module_map.push((RegionSpan{ start: out_offset + tgt.start, end: out_offset + tgt.end }, origin.clone()));
-                    if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript) {
+                    if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript | TargetLanguage::Rust) {
                         // Visitor mapping: target/source lines + columns
                         let t_off = out_offset + tgt.start;
                         let target_line = offset_to_line(&out, t_off);
@@ -680,7 +680,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             let mut first=true; for (tgt, origin) in &module_map { if !first { map_json.push(','); } else { first=false; } map_json.push_str(&format!("{{\"targetStart\":{},\"targetEnd\":{},", tgt.start, tgt.end)); match origin { OriginV3::Frame{ source } => map_json.push_str(&format!("\"origin\":\"frame\",\"sourceStart\":{},\"sourceEnd\":{} }}", source.start, source.end)), OriginV3::Native{ source } => map_json.push_str(&format!("\"origin\":\"native\",\"sourceStart\":{},\"sourceEnd\":{} }}", source.start, source.end)), } }
             map_json.push_str("] ,\"version\":1,\"schemaVersion\":1}");
             out.push_str("\n/*#frame-map#\n"); out.push_str(&map_json); out.push_str("\n#frame-map#*/\n");
-            if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript) {
+            if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript | TargetLanguage::Rust) {
                 let mut vjson = String::from("{\"mappings\":[");
                 let mut f=true; for (tline, tcol, sline, scol, origin) in &visitor { if !f { vjson.push(','); } else { f=false; } vjson.push_str(&format!("{{\"targetLine\":{},\"targetColumn\":{},\"sourceLine\":{},\"sourceColumn\":{},\"origin\":\"{}\"}}", tline, tcol, sline, scol, origin)); }
                 vjson.push_str("] ,\"schemaVersion\":2}");

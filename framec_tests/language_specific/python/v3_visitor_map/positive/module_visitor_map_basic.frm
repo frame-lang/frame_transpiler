@@ -1,4 +1,5 @@
 @target python
+# @visitor-map-golden: origins=frame; min=1
 
 system S {
     machine:
@@ -14,4 +15,3 @@ system S {
             }
         }
 }
-

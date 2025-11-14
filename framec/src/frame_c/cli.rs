@@ -33,6 +33,8 @@ pub struct Cli {
 pub enum CliCommand {
     None,
     Init,
+    CompileProject { language: String, dir: PathBuf, output_dir: PathBuf, recursive: bool },
+    Compile { language: String, file: PathBuf },
     DemoMulti { language: String, files: Vec<PathBuf> },
     DemoProject { language: String, dir: PathBuf, recursive: bool },
     DemoFrame { language: String, file: PathBuf },
@@ -47,10 +49,24 @@ impl Cli {
             .arg_required_else_help(false)
             .subcommand_precedence_over_arg(true)
             .subcommand(Command::new("init").about("Initialize a new Frame project with frame.toml").arg(Arg::new("name").help("Project name").value_name("NAME").index(1)))
+            .subcommand(
+                Command::new("compile")
+                    .about("Compile a full V3 module file (non-demo)")
+                    .arg(Arg::new("language").long("language").short('l').value_name("LANG").required(true))
+                    .arg(Arg::new("file").value_name("FILE").required(true))
+            )
+            .subcommand(
+                Command::new("compile-project")
+                    .about("Compile all V3 module files in a directory (non-demo)")
+                    .arg(Arg::new("language").long("language").short('l').value_name("LANG").required(true))
+                    .arg(Arg::new("output-dir").long("output-dir").short('o').value_name("DIR").required(true))
+                    .arg(Arg::new("recursive").long("recursive").short('r').action(clap::ArgAction::SetTrue))
+                    .arg(Arg::new("dir").value_name("DIR").required(true))
+            )
             .arg(Arg::new("FILE-PATH").help("File path").value_name("FILE").index(1))
             .arg(Arg::new("language").value_name("LANG").long("language").short('l').help("Target language (python_3, typescript, graphviz, llvm)").num_args(1))
             .arg(Arg::new("multifile").long("multifile").short('m').help("Enable multi-file project compilation").action(clap::ArgAction::SetTrue))
-            .arg(Arg::new("output-dir").long("output-dir").short('o').help("Output directory for generated files (multi-file mode)").value_name("DIR").num_args(1))
+            .arg(Arg::new("output-dir").long("output-dir").short('o').help("Output directory for generated files (compile/multi-file)").value_name("DIR").num_args(1).global(true))
             .arg(Arg::new("debug-output").long("debug-output").help("Generate JSON output with transpiled code and source map").action(clap::ArgAction::SetTrue).global(true))
             .arg(Arg::new("validate").long("validate").help("Run V3 validation before transpile").action(clap::ArgAction::SetTrue).global(true))
             .arg(Arg::new("validate-syntax").long("validate-syntax").help("Alias for --validate (compat) ").action(clap::ArgAction::SetTrue).global(true))
@@ -114,6 +130,18 @@ impl Cli {
                 has_subcommand = true;
                 match name {
                     "init" => CliCommand::Init,
+                    "compile-project" => {
+                        let lang = sub.get_one::<String>("language").expect("language required").to_string();
+                        let dir = sub.get_one::<String>("dir").map(|s| PathBuf::from(s)).expect("dir required");
+                        let out = sub.get_one::<String>("output-dir").map(|s| PathBuf::from(s)).expect("output-dir required");
+                        let recursive = sub.get_flag("recursive");
+                        CliCommand::CompileProject { language: lang, dir, output_dir: out, recursive }
+                    }
+                    "compile" => {
+                        let lang = sub.get_one::<String>("language").expect("language required").to_string();
+                        let file = sub.get_one::<String>("file").map(|s| PathBuf::from(s)).expect("file required");
+                        CliCommand::Compile { language: lang, file }
+                    }
                     "demo-multi" => {
                         let lang = sub.get_one::<String>("language").expect("language required").to_string();
                         let files = sub
@@ -195,6 +223,119 @@ pub fn run_with(args: Cli) {
             handle_init_command();
             return;
         }
+        CliCommand::CompileProject { language, dir, output_dir, recursive } => {
+            let lang = match TargetLanguage::try_from(language) { Ok(l) => l, Err(e) => { eprintln!("Invalid target language: {}", e); std::process::exit(exitcode::USAGE); } };
+            // Walk directory, compile module files (@target present), write outputs to output_dir
+            fn iter(dir: &std::path::Path, recursive: bool) -> std::io::Result<Vec<std::path::PathBuf>> {
+                let mut out = Vec::new();
+                fn walk(acc: &mut Vec<std::path::PathBuf>, p: &std::path::Path, recursive: bool) -> std::io::Result<()> {
+                    for entry in std::fs::read_dir(p)? {
+                        let entry = entry?; let path = entry.path();
+                        if path.is_dir() { if recursive { walk(acc, &path, recursive)?; } }
+                        else if path.is_file() { acc.push(path); }
+                    }
+                    Ok(())
+                }
+                walk(&mut out, dir, recursive)?; Ok(out)
+            }
+            let files = match iter(&dir, recursive) { Ok(v) => v, Err(e) => { eprintln!("walk error: {}", e); std::process::exit(exitcode::IOERR); } };
+            // Respect debug/map flags for trailers
+            if args.debug_output { std::env::set_var("FRAME_ERROR_JSON", "1"); }
+            if args.emit_map { std::env::set_var("FRAME_MAP_TRAILER", "1"); }
+            if args.emit_debug {
+                std::env::set_var("FRAME_ERROR_JSON", "1");
+                std::env::set_var("FRAME_MAP_TRAILER", "1");
+                std::env::set_var("FRAME_DEBUG_MANIFEST", "1");
+            }
+            if let Err(e) = std::fs::create_dir_all(&output_dir) { eprintln!("cannot create output dir: {}", e); std::process::exit(exitcode::IOERR); }
+            let mut compiled: Vec<String> = Vec::new();
+            let mut had_errors = false;
+            let mut errors_count: usize = 0;
+            let mut validated_count: usize = 0;
+            for f in files {
+                let Ok(content) = std::fs::read_to_string(&f) else { continue };
+                if !content.contains("@target ") { continue; }
+                if args.validate || args.validate_only {
+                    match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
+                        Ok(res) => {
+                            let mut had_any = false;
+                            for issue in &res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); had_any = true; }
+                            if had_any { had_errors = true; }
+                            errors_count += res.issues.len();
+                            validated_count += 1;
+                            if args.validate_only && !res.ok { /* defer exit to post-loop */ }
+                            if args.validate_native && !res.ok { /* continue; we'll still compile but print issues */ }
+                        }
+                        Err(e) => { eprintln!("{}: validation error: {}", f.display(), e.error); if args.validate_only || args.validate_native { std::process::exit(e.code); } }
+                    }
+                }
+                if args.validate_only { continue; }
+                match crate::frame_c::v3::compile_module_demo(&content, lang) {
+                    Ok(code) => {
+                        let ext = match lang { TargetLanguage::Python3 => ".py", TargetLanguage::TypeScript => ".ts", TargetLanguage::CSharp => ".cs", TargetLanguage::C => ".c", TargetLanguage::Cpp => ".cpp", TargetLanguage::Java => ".java", TargetLanguage::Rust => ".rs", _ => ".txt" };
+                        let stem = f.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
+                        let outp = output_dir.join(format!("{}{}", stem, ext));
+                        if let Err(e) = std::fs::write(&outp, code) { eprintln!("write error: {}", e); std::process::exit(exitcode::IOERR); }
+                        compiled.push(outp.display().to_string());
+                    }
+                    Err(e) => { eprintln!("{}", e.error); std::process::exit(e.code); }
+                }
+            }
+            if args.validate_only {
+                println!("[compile-project] summary: validated={} errors={}", validated_count, errors_count);
+                // Fail if no modules were validated or if any had errors
+                if validated_count == 0 || had_errors { std::process::exit(exitcode::DATAERR); }
+                else { std::process::exit(0); }
+            }
+            // Print a simple manifest for now
+            println!("Compiled {} module(s)", compiled.len());
+            for p in compiled { println!("{}", p); }
+            return;
+        }
+        CliCommand::Compile { language, file } => {
+            let lang = match TargetLanguage::try_from(language) { Ok(l) => l, Err(e) => { eprintln!("Invalid target language: {}", e); std::process::exit(exitcode::USAGE); } };
+            match std::fs::read_to_string(&file) {
+                Ok(content) => {
+                    if args.emit_body_only { std::env::set_var("FRAME_EMIT_BODY_ONLY", "1"); }
+                    if args.emit_exec { std::env::set_var("FRAME_EMIT_EXEC", "1"); }
+                    if args.debug_output { std::env::set_var("FRAME_ERROR_JSON", "1"); }
+                    if args.emit_map { std::env::set_var("FRAME_MAP_TRAILER", "1"); }
+                    if args.emit_debug {
+                        std::env::set_var("FRAME_ERROR_JSON", "1");
+                        std::env::set_var("FRAME_MAP_TRAILER", "1");
+                        std::env::set_var("FRAME_DEBUG_MANIFEST", "1");
+                    }
+                    // Optional validation
+                    if args.validate || args.validate_only {
+                        match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
+                            Ok(res) => {
+                                for issue in res.issues { eprintln!("validation: {}", issue.message); }
+                                if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
+                                if args.validate_native && !res.ok { std::process::exit(exitcode::DATAERR); }
+                            }
+                            Err(e) => { eprintln!("validation error: {}", e.error); if args.validate_only || args.validate_native { std::process::exit(e.code); } }
+                        }
+                    }
+                    match crate::frame_c::v3::compile_module_demo(&content, lang) {
+                        Ok(code) => {
+                            if let Some(dir) = args.output_dir.as_ref() {
+                                if let Err(e) = std::fs::create_dir_all(dir) { eprintln!("cannot create output dir: {}", e); std::process::exit(exitcode::IOERR); }
+                                let ext = match lang { TargetLanguage::Python3 => ".py", TargetLanguage::TypeScript => ".ts", TargetLanguage::CSharp => ".cs", TargetLanguage::C => ".c", TargetLanguage::Cpp => ".cpp", TargetLanguage::Java => ".java", TargetLanguage::Rust => ".rs", _ => ".txt" };
+                                let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
+                                let out_path = dir.join(format!("{}{}", stem, ext));
+                                if let Err(e) = std::fs::write(&out_path, code) { eprintln!("write error: {}", e); std::process::exit(exitcode::IOERR); }
+                                println!("{}", out_path.display());
+                            } else {
+                                println!("{}", code);
+                            }
+                        }
+                        Err(e) => { eprintln!("{}", e.error); std::process::exit(e.code); }
+                    }
+                }
+                Err(e) => { eprintln!("Failed to read {}: {}", file.display(), e); std::process::exit(exitcode::NOINPUT); }
+            }
+            return;
+        }
         CliCommand::DemoMulti { language, files } => {
             // parse language
             let lang = match TargetLanguage::try_from(language) {
@@ -245,6 +386,9 @@ pub fn run_with(args: Cli) {
                     }
                     walk(&mut out, dir, recursive)?; Ok(out)
                 }
+                let mut had_errors = false;
+                let mut validated_count: usize = 0;
+                let mut errors_count: usize = 0;
                 match iter_files(&dir, recursive) {
                     Ok(files) => {
                         // Build a project-level arcanum from module files (@target present)
@@ -268,13 +412,27 @@ pub fn run_with(args: Cli) {
                             if let Ok(content) = std::fs::read_to_string(&f) {
                                 if content.contains("@target ") {
                                     match super::v3::validate_module_with_arcanum(&content, lang, &arc, false) {
-                                        Ok(res) => { for issue in res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); } if args.validate_only && !res.ok { std::process::exit(exitcode::DATAERR); } }
+                                        Ok(res) => {
+                                            let mut had_any = false;
+                                            for issue in &res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); had_any = true; }
+                                            if had_any { had_errors = true; }
+                                            errors_count += res.issues.len();
+                                            validated_count += 1;
+                                            if args.validate_only && !res.ok { /* defer exit to post-loop */ }
+                                        }
                                         Err(e) => { eprintln!("{}: validation error: {}", f.display(), e.error); if args.validate_only { std::process::exit(e.code); } }
                                     }
                                 } else {
                                     let bytes = content.as_bytes(); if bytes.first().copied() != Some(b'{') { continue; }
                                     match super::v3::validate_single_body(&content, Some(lang)) {
-                                        Ok(res) => { for issue in res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); } if args.validate_only && !res.ok { std::process::exit(exitcode::DATAERR); } }
+                                        Ok(res) => {
+                                            let mut had_any = false;
+                                            for issue in &res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); had_any = true; }
+                                            if had_any { had_errors = true; }
+                                            errors_count += res.issues.len();
+                                            validated_count += 1;
+                                            if args.validate_only && !res.ok { /* defer exit to post-loop */ }
+                                        }
                                         Err(e) => { eprintln!("{}: validation error: {}", f.display(), e.error); if args.validate_only { std::process::exit(e.code); } }
                                     }
                                 }
@@ -283,7 +441,10 @@ pub fn run_with(args: Cli) {
                     }
                     Err(e) => { eprintln!("walk error: {}", e); if args.validate_only { std::process::exit(exitcode::IOERR); } }
                 }
-                if args.validate_only { return; }
+                if args.validate_only {
+                    println!("[demo-project] summary: validated={} errors={}", validated_count, errors_count);
+                    if validated_count == 0 || had_errors { std::process::exit(exitcode::DATAERR); } else { std::process::exit(0); }
+                }
             }
             match crate::frame_c::v3::multifile_demo::compile_directory_demo(&dir, lang, recursive) {
                 Ok(outputs) => {

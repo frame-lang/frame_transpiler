@@ -396,7 +396,22 @@ fn trailing_is_effectively_comment_only(slice: &[u8], lang: crate::frame_c::visi
     }
     if i>=n { return true; }
     match lang {
-        crate::frame_c::visitors::TargetLanguage::Python3 => slice[i]==b'#',
+        crate::frame_c::visitors::TargetLanguage::Python3 => {
+            // For Python targets, allow comment-only tails or closing braces from the module DSL on the same line.
+            // Skip an optional ';' and whitespace
+            while i<n && (slice[i].is_ascii_whitespace() || slice[i]==b';') { i+=1; }
+            if i>=n { return true; }
+            if slice[i]==b'#' { return true; }
+            // Accept one or more closing braces '}' (module DSL) followed by only whitespace/semicolons
+            let mut j = i;
+            let mut saw_brace = false;
+            while j<n && slice[j]==b'}' { saw_brace = true; j+=1; }
+            if saw_brace {
+                while j<n && (slice[j].is_ascii_whitespace() || slice[j]==b';') { j+=1; }
+                return j>=n;
+            }
+            false
+        }
         _ => {
             if i+1<n && slice[i]==b'/' && slice[i+1]==b'/' { return true; }
             if i+1<n && slice[i]==b'/' && slice[i+1]==b'*' {
