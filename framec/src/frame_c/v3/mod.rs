@@ -617,6 +617,21 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         Ok(joined)
     } else {
         if cursor < bytes.len() { out.push_str(&content_str[cursor..]); }
+        // Optional Rust state enum prelude (feature-gated by env)
+        if lang == TargetLanguage::Rust && std::env::var("FRAME_RUST_STATE_ENUM").ok().as_deref() == Some("1") {
+            let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
+            let validator = crate::frame_c::v3::validator::ValidatorV3;
+            let states = validator.collect_machine_state_names(bytes, outline_start);
+            if !states.is_empty() {
+                let mut prelude = String::new();
+                prelude.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n");
+                prelude.push_str("enum StateId { ");
+                let mut first = true;
+                for s in states.iter() { if !first { prelude.push_str(", "); } prelude.push_str(s); first = false; }
+                prelude.push_str(" }\n\n");
+                out = prelude + &out;
+            }
+        }
         // Optional mapping and visitor-map trailers for module demo path
         if std::env::var("FRAME_MAP_TRAILER").ok().as_deref() == Some("1") {
             use crate::frame_c::v3::splice::{SplicerV3 as _SplicerV3, OriginV3};
