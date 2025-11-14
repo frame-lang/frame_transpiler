@@ -13,6 +13,7 @@ Rules (non‑exhaustive)
 - No Frame statements in actions/operations (native‑only).
 - State/target existence: transition targets must resolve to known states.
 - Parent forward availability: a parent forward (=> $^) requires that the enclosing state explicitly declares a parent in the machine: section (e.g., `$A => $Parent { … }`). If the enclosing state does not declare a parent (regardless of other states), validation fails with “Cannot forward to parent: no parent available.” When no parent is declared anywhere in the machine:, all forwards to parent fail with the same diagnostic. This rule applies to module demos (files with machine: sections). Single‑body demo fixtures without a machine: section are exempt because no parent relationship can be declared in that form.
+ - Advisory state param arity (E405, Stage 10B, flag‑gated): When enabled via `FRAME_VALIDATE_NATIVE_POLICY=1`, compare transition `state_args` against the target state’s parameter list declared in the outline header; emit E405 on mismatch. This is advisory only and does not alter code generation.
 
 Outline checks
 - E111: function header missing `{` (actions/operations/interface sections) — “missing '{' after module artifact header”.
@@ -21,6 +22,7 @@ Outline checks
 Diagnostics
 - Report policy violations with precise Frame spans (for MIR) or native spans (for native policy).
 - Human‑oriented and machine‑readable formats.
+ - Advisory Frame‑level policies (e.g., E405) are opt‑in via `FRAME_VALIDATE_NATIVE_POLICY=1`.
 
 Complexity
 - Linear in item count per handler.

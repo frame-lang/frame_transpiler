@@ -29,7 +29,7 @@ End‑to‑End
 Negative error code matching
 - Fixtures can declare expected validator codes with `@expect: E403 E404` (spaces between codes).
 - Default mode is superset: all listed codes must appear in the actual diagnostic set; extras are allowed.
-- Use `--expect-mode equal` to require an exact match between expected and actual codes.
+- Per‑test override via `@expect-mode: equal|superset`; use `equal` to require exact matching between expected and actual codes.
 
 Performance
 - Add budget checks for worst‑case fixtures (large triple‑quotes/templates) to guarantee O(n) behavior and no stalls.
@@ -72,4 +72,4 @@ Mapping Sidecar (for debugger tooling)
 - The compiler can emit an inline mapping trailer when requested; the runner automatically extracts it to a sidecar next to the generated file.
 - Trigger: pass `--emit-map` to `framec` CLI or set `FRAME_MAP_TRAILER=1` in the environment.
 - Runner behavior: when a `/*#frame-map# ... #frame-map#*/` trailer is detected in compiler output, the runner writes `<output>.<ext>.frame-map.json` with the JSON payload and strips the trailer from the code file.
-- Mapping fixtures continue to sanity-check the JSON payload shape.
+- Mapping fixtures sanity‑check the JSON payload shape and require `schemaVersion`. For Py/TS, visitor‑map fixtures also require `schemaVersion`.

@@ -98,3 +98,43 @@ Tests
 
 Migration Notes
 - Keep original known‑state code as a fallback during bring‑up behind a feature flag; remove once symbol path is green across languages.
+# Stage 10 — AST & Symbol Integration (V3)
+
+Status: Complete for Python/TypeScript/Rust (advisory native snapshots, symbol‑table validation)
+
+Scope
+- Keep Arcanum (Frame symbol table) authoritative for Frame semantics (E402 unknown state, E403 parent‑forward).
+- Add hermetic, advisory native parser snapshots to enrich tooling (params, spans), without changing MIR/codegen.
+- Maintain tolerant diagnostics and stable error codes.
+
+Components
+- Arcanum (authoritative)
+  - Built from the outline (systems/machines/states, optional parents, state params from headers).
+  - Used in validator for E402/E403 (module path) and in exec contexts for compiled state ids.
+
+- Advisory native symbol snapshot (parser‑backed)
+  - Emitted as a trailer comment: /*#native-symbols# … #native-symbols#*/ with schemaVersion.
+  - Entry shape: { state, owner, params[], paramSpans[], schemaVersion }.
+  - TypeScript (SWC): parses a synthesized function signature (header‑derived) to collect param identifiers; falls back to header extraction when parser is disabled or fails; spans remain header‑derived for stability.
+  - Python (RustPython): parses a synthesized def __f(...): pass and conservatively extracts identifier names; header fallback retained; spans remain header‑derived.
+  - Advisory only: snapshots never alter MIR, validation, or codegen; they exist to help tools/IDE/debugger and optional policy checks.
+
+- Optional advisory validator policies
+  - E405 (state param arity mismatch) compares transition state_args to state header param count (Arcanum). Flag‑gated via FRAME_VALIDATE_NATIVE_POLICY=1; off by default.
+
+Diagnostics & Trailers
+- errors‑json: always emitted for V3 demo compiles; includes all validator issues (E400/E401/E402/E403 and advisory E405 when enabled) with schemaVersion.
+- frame‑map: splice origin mapping with version + schemaVersion; used for attribution and mapping tests.
+- visitor‑map: optional targetLine→sourceLine mappings (single‑body and module path for Py/TS) with schemaVersion; used for stepping/breakpoints tests.
+
+Hermetic Policy
+- Use pure‑Rust parsers by default (SWC, RustPython, syn). Tree‑sitter adapters remain feature‑gated for C‑family/Java/C#.
+- No external toolchains; no network I/O.
+
+Testing
+- Runner asserts presence/shape for errors‑json, frame‑map (map + schemaVersion), and visitor‑map (mappings + schemaVersion) where applicable.
+- Per‑test @expect (E‑codes) supports @expect‑mode: equal|superset (equal used for multi‑issue fixtures).
+- Curated exec (Py/TS/Rust) validates runtime markers with @run‑expect and, when needed, @run‑exact for precise outputs.
+
+Notes
+- Parser‑backed snapshots are intentionally advisory: they help tools and optional checks while keeping the compiler pipeline deterministic and Frame‑semantics led by Arcanum.

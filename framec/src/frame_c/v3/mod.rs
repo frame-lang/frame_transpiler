@@ -433,6 +433,29 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         cursor = b.close_byte + 1;
     }
     if emit_exec {
+        // Fallback: if we didn't capture a frameful MIR earlier (e.g., some non-Py/TS langs),
+        // attempt to locate the first body that contains Frame statements and assemble a MIR
+        // so exec harnesses can emit wrapper markers consistently across languages.
+        if exec_mir.is_none() {
+            for b in &parts.bodies {
+                let body_src = &content_str[b.open_byte..=b.close_byte];
+                let scan = match lang {
+                    TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_src.as_bytes(), 0),
+                    TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(body_src.as_bytes(), 0),
+                    TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(body_src.as_bytes(), 0),
+                    TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(body_src.as_bytes(), 0),
+                    TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(body_src.as_bytes(), 0),
+                    TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(body_src.as_bytes(), 0),
+                    TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(body_src.as_bytes(), 0),
+                    _ => Ok(crate::frame_c::v3::native_region_scanner::ScanResultV3 { close_byte: body_src.len().saturating_sub(1), regions: Vec::new() })
+                }.unwrap_or(crate::frame_c::v3::native_region_scanner::ScanResultV3 { close_byte: body_src.len().saturating_sub(1), regions: Vec::new() });
+                let mir = MirAssemblerV3.assemble(body_src.as_bytes(), &scan.regions).unwrap_or_else(|_| Vec::new());
+                if !mir.is_empty() {
+                    exec_mir = Some(mir);
+                    break;
+                }
+            }
+        }
         // Build a minimal executable wrapper for Python/TypeScript using the first frameful body
         let body = frameful_chunks.iter().find(|(has, _)| *has).map(|(_, s)| s.clone()).or_else(|| body_chunks.get(0).cloned()).unwrap_or_default();
         let program = match lang {
@@ -600,10 +623,16 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             use crate::frame_c::v3::native_region_scanner::RegionSpan;
             // Rebuild splice maps per-body and merge into module-target offsets
             let mut module_map: Vec<(RegionSpan, OriginV3)> = Vec::new();
-            let mut visitor: Vec<(usize, usize, &'static str)> = Vec::new();
+            let mut visitor: Vec<(usize, usize, usize, usize, &'static str)> = Vec::new();
             // Helper to compute line number from byte offset
             fn offset_to_line(s: &str, off: usize) -> usize {
                 let bytes = s.as_bytes(); let mut i=0usize; let mut line=1usize; while i < bytes.len() && i < off { if bytes[i]==b'\n' { line+=1; } i+=1; } line
+            }
+            // Helper to compute 1-based column from byte offset
+            fn offset_to_col(s: &str, off: usize) -> usize {
+                let bytes = s.as_bytes(); let mut i = if off > bytes.len() { bytes.len() } else { off };
+                while i > 0 { if bytes[i-1]==b'\n' { break; } i-=1; }
+                (off.saturating_sub(i)) + 1
             }
             let mut out_offset = 0usize;
             let mut cur = 0usize;
@@ -631,11 +660,16 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 for (tgt, origin) in &sp.splice_map {
                     module_map.push((RegionSpan{ start: out_offset + tgt.start, end: out_offset + tgt.end }, origin.clone()));
                     if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript) {
-                        // Visitor mapping: targetLine/sourceLine
-                        let target_line = offset_to_line(&out, out_offset + tgt.start);
-                        let source_line = match origin { OriginV3::Frame{ source } | OriginV3::Native{ source } => { let body_str = std::str::from_utf8(body_bytes).unwrap_or(""); offset_to_line(body_str, source.start) } };
+                        // Visitor mapping: target/source lines + columns
+                        let t_off = out_offset + tgt.start;
+                        let target_line = offset_to_line(&out, t_off);
+                        let target_col = offset_to_col(&out, t_off);
+                        let body_str = std::str::from_utf8(body_bytes).unwrap_or("");
+                        let (source_line, source_col) = match origin {
+                            OriginV3::Frame{ source } | OriginV3::Native{ source } => (offset_to_line(body_str, source.start), offset_to_col(body_str, source.start)),
+                        };
                         let origin_str: &'static str = match origin { OriginV3::Frame{..} => "frame", OriginV3::Native{..} => "native" };
-                        visitor.push((target_line, source_line, origin_str));
+                        visitor.push((target_line, target_col, source_line, source_col, origin_str));
                     }
                 }
                 out_offset += sp.text.len();
@@ -647,18 +681,106 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             map_json.push_str("] ,\"version\":1,\"schemaVersion\":1}");
             out.push_str("\n/*#frame-map#\n"); out.push_str(&map_json); out.push_str("\n#frame-map#*/\n");
             if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript) {
-                let mut vjson = String::from("{\"mappings\":["); let mut f=true; for (tline, sline, origin) in &visitor { if !f { vjson.push(','); } else { f=false; } vjson.push_str(&format!("{{\"targetLine\":{},\"sourceLine\":{},\"origin\":\"{}\"}}", tline, sline, origin)); } vjson.push_str("] ,\"schemaVersion\":1}");
+                let mut vjson = String::from("{\"mappings\":[");
+                let mut f=true; for (tline, tcol, sline, scol, origin) in &visitor { if !f { vjson.push(','); } else { f=false; } vjson.push_str(&format!("{{\"targetLine\":{},\"targetColumn\":{},\"sourceLine\":{},\"sourceColumn\":{},\"origin\":\"{}\"}}", tline, tcol, sline, scol, origin)); }
+                vjson.push_str("] ,\"schemaVersion\":2}");
                 out.push_str("\n/*#visitor-map#\n"); out.push_str(&vjson); out.push_str("\n#visitor-map#*/\n");
+            }
+            // Optional debug manifest trailer for debugger tooling
+            if std::env::var("FRAME_DEBUG_MANIFEST").ok().as_deref() == Some("1") {
+                // Build a minimal manifest: system name and state compiled IDs
+                let mut manifest = String::from("{");
+                if let Some((sys_name, _)) = arc_for_ctx.systems.iter().next() {
+                    manifest.push_str("\"system\":\""); manifest.push_str(sys_name); manifest.push_str("\",");
+                    // Collect states for first system only (demo manifest)
+                    manifest.push_str("\"states\":[");
+                    let mut first = true;
+                    if let Some(sys) = arc_for_ctx.systems.get(sys_name) {
+                        for (_mname, mach) in &sys.machines {
+                            for (sname, _sdecl) in &mach.states {
+                                if !first { manifest.push(','); } else { first = false; }
+                                let cid = format!("__{}_state_{}", sys_name, sname);
+                                manifest.push_str(&format!("{{\"name\":\"{}\",\"compiledId\":\"{}\"}}", sname, cid));
+                            }
+                        }
+                    }
+                    manifest.push(']');
+                    // Collect handlers with compiled IDs and params from outline (best-effort)
+                    let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
+                    let (items, _issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+                    fn extract_params(hdr: &str) -> Vec<String> {
+                        if let Some(lp) = hdr.find('(') { if let Some(rp_rel) = hdr[lp+1..].find(')') {
+                            let rp = lp+1+rp_rel; let inside = &hdr[lp+1..rp];
+                            return inside.split(',').map(|t| t.trim()).filter(|t| !t.is_empty()).map(|t| t.split(|c| c=='='||c==':').next().unwrap_or("").trim().to_string()).filter(|s| !s.is_empty()).collect();
+                        } }
+                        Vec::new()
+                    }
+                    manifest.push_str(",\"handlers\":[");
+                    let mut hf = true;
+                    for it in &items {
+                        if let crate::frame_c::v3::validator::BodyKindV3::Handler = it.kind {
+                            if let (Some(st), Some(hn)) = (it.state_id.as_ref(), it.owner_id.as_ref()) {
+                                let hdr = std::str::from_utf8(&bytes[it.header_span.start..it.header_span.end]).unwrap_or("");
+                                let params = extract_params(hdr);
+                                let hcid = format!("__{}_state_{}__handler_{}", sys_name, st, hn);
+                                if !hf { manifest.push(','); } else { hf=false; }
+                                manifest.push_str("{");
+                                manifest.push_str(&format!("\"state\":\"{}\",\"name\":\"{}\",\"compiledId\":\"{}\"", st, hn, hcid));
+                                if !params.is_empty() {
+                                    manifest.push_str(",\"params\":[");
+                                    for (i,p) in params.iter().enumerate() { if i>0 { manifest.push(','); } manifest.push('"'); manifest.push_str(p); manifest.push('"'); }
+                                    manifest.push(']');
+                                }
+                                manifest.push_str("}");
+                            }
+                        }
+                    }
+                    manifest.push(']');
+                } else {
+                    manifest.push_str("\"system\":null,\"states\":[],\"handlers\":[]");
+                }
+                manifest.push_str(",\"schemaVersion\":2}");
+                out.push_str("\n/*#debug-manifest#\n"); out.push_str(&manifest); out.push_str("\n#debug-manifest#*/\n");
             }
         }
         // Optional native symbol snapshot trailer (Stage 10A)
         if std::env::var("FRAME_NATIVE_SYMBOL_SNAPSHOT").ok().as_deref() == Some("1") {
             let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
             let (items, _issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
-            fn extract_params(hdr: &str) -> Vec<String> {
-                if let Some(lp) = hdr.find('(') { if let Some(rp) = hdr[lp+1..].find(')') { let inside = &hdr[lp+1..lp+1+rp];
-                    let mut out = Vec::new(); for raw in inside.split(',') { let tok = raw.trim(); if tok.is_empty() { continue; } let base = tok.split(|c| c=='=' || c==':').next().unwrap_or("").trim(); if !base.is_empty() { out.push(base.to_string()); } } return out; } }
-                Vec::new()
+            fn extract_params_with_spans(hdr: &str) -> (Vec<String>, Vec<(usize, usize)>) {
+                if let Some(lp) = hdr.find('(') {
+                    if let Some(rp_rel) = hdr[lp+1..].find(')') {
+                        let rp = lp + 1 + rp_rel;
+                        let inside = &hdr[lp+1..rp];
+                        let mut names = Vec::new();
+                        let mut spans = Vec::new();
+                        let bytes = inside.as_bytes();
+                        let mut i = 0usize;
+                        while i < bytes.len() {
+                            while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b',') { i += 1; }
+                            if i >= bytes.len() { break; }
+                            let tok_start = i;
+                            while i < bytes.len() && bytes[i] != b',' { i += 1; }
+                            let tok_end = i; // exclusive
+                            let token = &inside[tok_start..tok_end];
+                            let trimmed = token.trim();
+                            if !trimmed.is_empty() {
+                                let base = trimmed.split(|c| c=='=' || c==':').next().unwrap_or("").trim();
+                                if !base.is_empty() {
+                                    names.push(base.to_string());
+                                    // compute absolute span within hdr by trimming leading/trailing spaces of token
+                                    let lead = token.len() - token.trim_start().len();
+                                    let trail = token.len() - token.trim_end().len();
+                                    let abs_s = lp + 1 + tok_start + lead;
+                                    let abs_e = lp + 1 + tok_end - trail;
+                                    spans.push((abs_s, abs_e));
+                                }
+                            }
+                        }
+                        return (names, spans);
+                    }
+                }
+                (Vec::new(), Vec::new())
             }
             let mut entries_json = String::from("{\"entries\":[");
             let mut first = true;
@@ -666,7 +788,114 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 if matches!(it.kind, crate::frame_c::v3::validator::BodyKindV3::Handler) {
                     let start = it.header_span.start; let end = it.header_span.end.min(bytes.len());
                     let hdr = std::str::from_utf8(&bytes[start..end]).unwrap_or("");
-                    let params = extract_params(hdr);
+                    let (mut params, pspans) = extract_params_with_spans(hdr);
+                    // Stage 10C: parser-backed extraction for Python (RustPython) when available; fallback to header-based
+                    #[cfg(feature = "native-py-rp")]
+                    {
+                        fn py_parse_params_from_inside(inside: &str) -> Option<Vec<String>> {
+                            use rustpython_parser::mode::Mode;
+                            use rustpython_parser::parser;
+                            // Build a minimal def to parse
+                            let src = format!("def __f({}):\n    pass\n", inside);
+                            if let Ok(module) = parser::parse(&src, Mode::Module) {
+                                // rustpython_parser returns a located AST; traverse top-level for FunctionDef
+                                // The API exposes module!().body or .statements depending on version; use Debug fallback
+                                // Try to access via AST helper traits
+                                // We conservatively regex fallback if AST layout differs
+                                // But keep AST branch best-effort when available
+                                #[allow(unused_imports)]
+                                use rustpython_parser::ast as pyast;
+                                let mut names: Vec<String> = Vec::new();
+                                // The Display/Debug form is not ideal; attempt to downcast via pattern matching
+                                // Use Into<Vec<_>> approach via helper if present; else return None to keep header params
+                                // Since rustpython AST API can shift, guard with a simple string-based fallback
+                                let text = format!("{:?}", module);
+                                // naive extract identifiers between '(' and ')' of __f from the pretty AST text
+                                if let Some(start) = text.find("__f(") {
+                                    if let Some(rest) = text.get(start+4..) {
+                                        if let Some(end) = rest.find(')') { let inner = &rest[..end];
+                                            for tok in inner.split(',') {
+                                                let t = tok.trim();
+                                                if t.is_empty() { continue; }
+                                                // tokens like arg=..., or name: type, or *args/**kwargs patterns; keep base ident chars
+                                                let base = t.split(|c| c=='=' || c==':').next().unwrap_or("").trim().trim_start_matches('*');
+                                                if !base.is_empty() && base.chars().all(|c| c.is_ascii_alphanumeric() || c=='_') {
+                                                    names.push(base.to_string());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if !names.is_empty() { return Some(names); }
+                            }
+                            None
+                        }
+                        if let Some(lp) = hdr.find('(') { if let Some(rp) = hdr[lp+1..].find(')') {
+                            let inside = &hdr[lp+1..lp+1+rp];
+                            if let Some(nv) = py_parse_params_from_inside(inside) { if !nv.is_empty() { params = nv; } }
+                        } }
+                    }
+                    // Stage 10C: parser-backed param extraction (TypeScript) when available; fallback to header-based
+                    #[cfg(feature = "native-ts")]
+                    {
+                        fn ts_collect_idents(pat: &swc_ecma_ast::Pat, out: &mut Vec<String>) {
+                            use swc_ecma_ast::*;
+                            match pat {
+                                Pat::Ident(BindingIdent { id, .. }) => out.push(id.sym.to_string()),
+                                Pat::Array(ArrayPat { elems, .. }) => {
+                                    for e in elems {
+                                        if let Some(p) = e { ts_collect_idents(p, out); }
+                                    }
+                                }
+                                Pat::Assign(AssignPat { left, .. }) => {
+                                    ts_collect_idents(left, out);
+                                }
+                                Pat::Rest(RestPat { arg, .. }) => {
+                                    ts_collect_idents(arg, out);
+                                }
+                                Pat::Object(ObjectPat { props, .. }) => {
+                                    for _p in props { /* skip destructuring names for now */ }
+                                }
+                                _ => {}
+                            }
+                        }
+                        fn parse_ts_params_from_inside(inside: &str) -> Option<Vec<String>> {
+                            use swc_common::{sync::Lrc, FileName, SourceMap};
+                            use swc_ecma_ast::EsVersion;
+                            use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax};
+                            let cm: Lrc<SourceMap> = Lrc::new(SourceMap::default());
+                            let src = format!("function __f({}){{}}", inside);
+                            let fm = cm.new_source_file(FileName::Custom("snippet.ts".into()).into(), src);
+                            let lexer = Lexer::new(
+                                Syntax::Typescript(Default::default()),
+                                EsVersion::Es2020,
+                                StringInput::from(&*fm),
+                                None,
+                            );
+                            let mut parser = Parser::new_from(lexer);
+                            if let Ok(module) = parser.parse_script() {
+                                for stmt in module.body {
+                                    if let swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::Fn(fd)) = stmt {
+                                        let mut names = Vec::new();
+                                        for p in &fd.function.params {
+                                            ts_collect_idents(&p.pat, &mut names);
+                                        }
+                                        return Some(names);
+                                    }
+                                }
+                            }
+                            None
+                        }
+                        // Attempt to parse the header param list via SWC on the substring between '(' and ')'
+                        if let Some(lp) = hdr.find('(') {
+                            if let Some(rp) = hdr[lp+1..].find(')') { 
+                                let inside = &hdr[lp+1..lp+1+rp];
+                                if let Some(names) = parse_ts_params_from_inside(inside) {
+                                    if !names.is_empty() { params = names; }
+                                }
+                            }
+                        }
+                    }
                     if !first { entries_json.push(','); } else { first = false; }
                     entries_json.push_str("{\"state\":");
                     if let Some(ref s) = it.state_id { entries_json.push('"'); entries_json.push_str(s); entries_json.push('"'); } else { entries_json.push_str("null"); }
@@ -674,7 +903,20 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     if let Some(ref o) = it.owner_id { entries_json.push('"'); entries_json.push_str(o); entries_json.push('"'); } else { entries_json.push_str("null"); }
                     entries_json.push_str(",\"params\":[");
                     for (i, p) in params.iter().enumerate() { if i>0 { entries_json.push(','); } entries_json.push('"'); entries_json.push_str(p); entries_json.push('"'); }
-                    entries_json.push_str("]}");
+                    entries_json.push_str("]");
+                    if !pspans.is_empty() {
+                        entries_json.push_str(",\"paramSpans\":"); // emit array directly below
+                        // build spans JSON
+                        let mut s = String::from("[");
+                        for (i, (ss, ee)) in pspans.iter().enumerate() {
+                            if i>0 { s.push(','); }
+                            s.push_str(&format!("{{\"start\":{},\"end\":{}}}", start + ss, start + ee));
+                        }
+                        s.push(']');
+                        // replace placeholder
+                        entries_json.push_str(&s);
+                    }
+                    entries_json.push_str("}");
                 }
             }
             entries_json.push_str("],\"schemaVersion\":1}");
@@ -688,6 +930,10 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             let (items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
             for is in outline_issues { issues.push(is); }
             let validator = ValidatorV3;
+            // Build known-states and Arcanum (symbol table) for E402/E403 parity
+            let known_states = validator.collect_machine_state_names(bytes, outline_start);
+            let arcanum = crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start);
+            let system_name = find_system_name(bytes, 0);
             for b in &parts.bodies {
                 let body_bytes = &bytes[b.open_byte..=b.close_byte];
                 let scan = match lang {
@@ -702,8 +948,37 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 }.unwrap_or(crate::frame_c::v3::native_region_scanner::ScanResultV3 { close_byte: body_bytes.len().saturating_sub(1), regions: Vec::new() });
                 let (mir, parse_issues) = MirAssemblerV3.assemble_collect(body_bytes, &scan.regions);
                 for is in parse_issues { issues.push(is); }
+                // E400: terminal-last policy
                 let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
                 for is in extra { issues.push(is); }
+                // E402: unknown state (prefer Arcanum resolution)
+                if !known_states.is_empty() {
+                    let sys = system_name.as_deref();
+                    let e402 = validator.validate_transition_targets_arcanum(&mir, &arcanum, sys);
+                    for is in e402 { issues.push(is); }
+                }
+                // E405: advisory state param arity (flag-gated)
+                if std::env::var("FRAME_VALIDATE_NATIVE_POLICY").ok().as_deref() == Some("1") {
+                    let sys = system_name.as_deref();
+                    let adv = validator.validate_transition_state_arity_arcanum(&mir, &arcanum, sys);
+                    for is in adv { issues.push(is); }
+                }
+                // E403: parent-forward requires a declared parent when forwarding from a handler
+                if validator.has_machine_section(bytes, outline_start) {
+                    if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Unknown) {
+                        if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
+                            let enclosing_state = b.state_id.as_deref();
+                            let mut ok_parent = false;
+                            if let Some(state_name) = enclosing_state {
+                                let sys = system_name.as_deref().unwrap_or("_");
+                                ok_parent = arcanum.has_parent(sys, state_name) || arcanum.has_parent("_", state_name);
+                            }
+                            if !ok_parent {
+                                issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E403: Cannot forward to parent: no parent available".into() });
+                            }
+                        }
+                    }
+                }
 
                 // Include native parser diagnostics (facade mode) in errors-json for Py/TS/Rust by default
                 let enable_native = matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript | TargetLanguage::Rust);

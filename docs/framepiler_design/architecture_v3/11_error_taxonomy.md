@@ -33,6 +33,7 @@ MIR Assembly / Validation
 - E402: Unknown state in transition — "unknown state '$Name'".
 - E403: Parent forward without declared parent — "Cannot forward to parent: no parent available". Triggered when a handler’s enclosing state does not declare a parent in `machine:`. Applies to module demos; single‑body demos are exempt.
  - E404: Handler outside state block — "handler body must be inside a state block". Triggered when a handler header appears in `machine:` but is not nested within a `$State { … }` block.
+ - E405: State parameter arity mismatch (advisory, Stage 10B) — Emitted when a transition supplies a different number of `state_args` than the target state’s declared parameter list in the outline header. Flag‑gated via FRAME_VALIDATE_NATIVE_POLICY.
 
 Native Policy (Python)
 - E500: `var` in Python body — "'var' is not allowed in Python native bodies".

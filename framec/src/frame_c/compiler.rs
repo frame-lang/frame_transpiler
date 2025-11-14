@@ -19,7 +19,19 @@ impl Exe {
         target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
         match fs::read_to_string(input_path) {
-            Ok(content) => CompilerV3::compile_single_file(input_path.to_str(), &content, target_language, false),
+            Ok(content) => {
+                // If this looks like a V3 module (has @target header), route to module compiler.
+                // Prefer explicit CLI language, otherwise derive from header annotation.
+                let header_lang = crate::frame_c::compiler::detect_header_target_annotation(&content);
+                let chosen_lang = target_language.or(header_lang);
+                if content.contains("@target ") {
+                    // Require a target language to be known at this point
+                    let lang = chosen_lang.unwrap_or(TargetLanguage::Python3);
+                    return crate::frame_c::v3::compile_module_demo(&content, lang);
+                }
+                // Fallback to single-body demo compiler (expects body starting with '{')
+                CompilerV3::compile_single_file(input_path.to_str(), &content, target_language, false)
+            }
             Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read file: {}", err))),
         }
     }
@@ -30,7 +42,16 @@ impl Exe {
         target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
         match fs::read_to_string(input_path) {
-            Ok(content) => CompilerV3::compile_single_file(input_path.to_str(), &content, target_language, true),
+            Ok(content) => {
+                let header_lang = crate::frame_c::compiler::detect_header_target_annotation(&content);
+                let chosen_lang = target_language.or(header_lang);
+                if content.contains("@target ") {
+                    let lang = chosen_lang.unwrap_or(TargetLanguage::Python3);
+                    // In module path, debug trailers are controlled by env (set by CLI --emit-debug)
+                    return crate::frame_c::v3::compile_module_demo(&content, lang);
+                }
+                CompilerV3::compile_single_file(input_path.to_str(), &content, target_language, true)
+            }
             Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read file: {}", err))),
         }
     }

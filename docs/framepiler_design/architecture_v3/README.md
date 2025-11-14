@@ -104,3 +104,34 @@ Testing/Runner/CI
 - .github/workflows/v3_all.yml:1
 - .github/workflows/v3_curated_exec.yml:1
 - .github/workflows/v3_exec_smoke.yml:1
+
+## How To: Collect Debugging Artifacts (Py/TS)
+
+Generate module outputs with embedded debug trailers and extract sidecars for debugger tooling.
+
+- Python
+  - `./target/release/framec demo-frame --emit-debug -l python_3 path/to/module.frm > out.py`
+- TypeScript
+  - `./target/release/framec demo-frame --emit-debug -l typescript path/to/module.frm > out.ts`
+
+Trailers embedded in code (also extracted by the runner as sidecars):
+- `/*#errors-json# … #errors-json#*/` — structured diagnostics (schemaVersion)
+- `/*#frame-map# … #frame-map#*/` — high-level origin map
+- `/*#visitor-map# … #visitor-map#*/` (Py/TS module) — line map with `targetLine`/`sourceLine`/`origin`
+- `/*#debug-manifest# … #debug-manifest#*/` — system, states, compiled state IDs
+
+Env flags (granular control): `FRAME_ERROR_JSON=1`, `FRAME_MAP_TRAILER=1`, `FRAME_DEBUG_MANIFEST=1`, `FRAME_NATIVE_SYMBOL_SNAPSHOT=1`.
+
+Reference: `debugger_integration.md`, `12_testing_strategy.md`.
+
+## How To: Compile Modules (CLI)
+
+The main CLI now compiles full module files (auto-detects `@target`).
+
+- Python: `./target/release/framec -l python_3 --emit-debug path/to/module.frm > out.py`
+- TypeScript: `./target/release/framec -l typescript --emit-debug path/to/module.frm > out.ts`
+
+Differences vs demo-frame
+- Same module pipeline (partition → scan → MIR → validate → expand → splice).
+- `--emit-debug` produces the same trailers in this path.
+- Demos remain in place for hermetic tests and curated exec; use CLI compile for production builds.

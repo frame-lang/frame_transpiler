@@ -46,7 +46,44 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] Curated exec (Java/C#): control_flow/core/systems seeded and running under exec-v3 with toolchain skips.
 - [x] Curated exec (C/C++): control_flow/core/systems seeded and running under exec-v3; runner compiles C++ with -std=c++11.
 - [x] CI artifacts: V3 workflows upload JUnit XML reports for v3_all, v3_exec_smoke, and curated exec.
- - [x] Visitor-map (module path): emit frame-map and visitor-map trailers for module demos when FRAME_MAP_TRAILER=1 (Py/TS); runner routes v3_mapping module fixtures via demo-frame; basic module_map fixtures added and green.
+- [x] Visitor-map (module path): emit frame-map and visitor-map trailers for module demos when FRAME_MAP_TRAILER=1 (Py/TS); runner routes v3_mapping module fixtures via demo-frame; basic module_map fixtures added and green.
+
+Stage 10 — AST & Symbol Integration (Debugger Readiness)
+- [x] 10A Native-symbol snapshot (module path)
+  - Emit native-symbols trailer when FRAME_NATIVE_SYMBOL_SNAPSHOT=1.
+  - Entries include: state, owner (handler name), params, paramSpans, schemaVersion.
+  - Param extraction from outline headers with byte-accurate spans; trailer JSON shape stabilized.
+  - Fix: corrected paramSpans double-bracket bug; emit a proper JSON array.
+- [x] 10B Advisory policy checks (flag‑gated)
+  - E405: State parameter arity mismatch (transition state_args vs state header params) — advisory under FRAME_VALIDATE_NATIVE_POLICY=1.
+  - Runner enables the flag for v3_validator; negatives added and green for Py/TS.
+- [x] Errors‑JSON alignment
+  - errors-json trailer now aggregates module validator issues including E400/E401/E402/E403 and advisory E405 consistently with validate_module_demo.
+  - Runner asserts presence/shape of errors-json for V3 module/demo outputs.
+- [x] Robustness
+  - Splicer hardened against parse-collection underflow when MIR items are fewer than detected Frame segments (no panic). Empty expansion used to preserve mapping.
+
+Curated Exec (verification focus)
+- [x] Python/TypeScript curated exec for v3_core, v3_control_flow, v3_systems passing under --exec-v3 --run.
+- [x] Exec-smoke remains green across all 7 languages; markers standardized.
+
+Stage 10 — Completion
+- [x] 10C Parser-backed native snapshots (advisory)
+  - TypeScript: SWC-backed extraction of handler parameter identifiers from a synthesized function signature (header-derived). Falls back to header-based extraction if parsing fails or feature disabled.
+  - Python: header-based extraction remains authoritative (RustPython-backed variant tracked for future; not required for debugger readiness).
+- [x] 10D Module visitor-map parity
+  - Visitor-map trailer emitted and asserted (shape) for Py/TS module compiles; runner routes v3_visitor_map modules via demo-frame.
+- [x] 10E Symbol threading polish
+  - Arcanum threaded through module validation and exec contexts; unknown-state and parent-forward checks driven by symbols.
+
+Stage 11 — Full AST/Symbol Integration (scoped)
+- [ ] Replace remaining coarse known-state checks with Arcanum everywhere (complete).
+- [ ] Prepare optional native AST hooks (advisory only) for future param-bound checks (no codegen changes).
+
+Stage 12 — FID / Native Import Mapping
+- [ ] Define FID schema and cache (.frame/cache/fid).
+- [ ] Implement Phase A adapters (Py/TS) behind flags; runner probes; CI optional.
+- [ ] Project layer negatives/positives for cross-file resolution.
 
 Milestone — Py/TS/Rust to 100%
 - [x] TypeScript: native parsing default‑on in validation (SWC); curated exec expanded across core/control_flow/systems; runner asserts errors-json trailers and runtime output markers.

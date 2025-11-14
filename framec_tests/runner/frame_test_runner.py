@@ -140,10 +140,14 @@ class FrameTestRunner:
         """Parse inline metadata from the fixture header.
         Supports (first 20 lines):
           - @expect: E403 E404 (space-separated error codes)
+          - @expect-mode: equal|superset (per-test override)
           - @run-expect: <regex> (can appear multiple times)
           - @flaky
           - @skip-if: <token> (e.g., java-toolchain-missing)
           - @timeout: <seconds>
+          - @frame-map-golden: origins=frame,native; count=\d+
+          - @visitor-map-golden: origins=frame|native; min=\d+
+          - @debug-manifest-expect: system=<Name>; states=A,B
         """
         meta: Dict[str, List[str]] = {}
         try:
@@ -152,10 +156,21 @@ class FrameTestRunner:
                     if i > 20:
                         break
                     m = re.match(r"^\s*(#|//)\s*@expect:\s*(.+)$", line)
-                    if m:
-                        codes = re.findall(r"E\d{3}", m.group(2))
-                        if codes:
-                            meta['expect'] = [c for c in codes]
+                if m:
+                    codes = re.findall(r"E\d{3}", m.group(2))
+                    if codes:
+                        meta['expect'] = [c for c in codes]
+                m_mode = re.match(r"^\s*(#|//)\s*@expect-mode:\s*(equal|superset)\s*$", line)
+                if m_mode:
+                    meta['expect_mode'] = [m_mode.group(2)]
+                m_map = re.match(r"^\s*(#|//)\s*@frame-map-golden:\s*(.+)$", line)
+                if m_map:
+                    kv = m_map.group(2)
+                    meta['frame_map_golden'] = [kv]
+                m_vmap = re.match(r"^\s*(#|//)\s*@visitor-map-golden:\s*(.+)$", line)
+                if m_vmap:
+                    kv = m_vmap.group(2)
+                    meta['visitor_map_golden'] = [kv]
                     m2 = re.match(r"^\s*(#|//)\s*@run-expect:\s*(.+)$", line)
                     if m2:
                         pat = m2.group(2).strip()
@@ -177,6 +192,11 @@ class FrameTestRunner:
                     m4 = re.match(r"^\s*(#|//)\s*@timeout:\s*(\d+)\s*$", line)
                     if m4:
                         meta['timeout'] = [m4.group(2)]
+                    m_dm = re.match(r"^\s*(#|//)\s*@debug-manifest-expect:\s*(.+)$", line)
+                    if m_dm:
+                        spec = m_dm.group(2).strip()
+                        if spec:
+                            meta['debug_manifest_expect'] = [spec]
         except Exception:
             pass
         return meta
@@ -219,7 +239,7 @@ class FrameTestRunner:
         # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
         if any(cat in self.config.categories for cat in [
             "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke", "v3_exec_smoke",
-            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_visitor_map", "v3_native_symbols"
+            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_visitor_map", "v3_native_symbols", "v3_debugger"
         ]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
@@ -247,6 +267,8 @@ class FrameTestRunner:
                 collect_v3_category("v3_exec_smoke")
             if "v3_native_symbols" in self.config.categories:
                 collect_v3_category("v3_native_symbols")
+            if "v3_debugger" in self.config.categories:
+                collect_v3_category("v3_debugger")
             if "v3_core" in self.config.categories:
                 collect_v3_category("v3_core")
             if "v3_control_flow" in self.config.categories:
@@ -338,25 +360,38 @@ class FrameTestRunner:
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
         # Treat all v3_* categories as module demo path; v3_closers uses single-body demo
-        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_exec_smoke", "v3_visitor_map", "v3_native_symbols"}
+        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_exec_smoke", "v3_visitor_map", "v3_native_symbols", "v3_debugger"}
         is_v3 = any(seg in v3_categories for seg in parts_lower)
         is_v3_closers = "v3_closers" in parts_lower
         is_v3_mapping = "v3_mapping" in parts_lower
         is_v3_native_symbols = "v3_native_symbols" in parts_lower
         is_v3_visitor_map = "v3_visitor_map" in parts_lower
+        is_v3_debugger = "v3_debugger" in parts_lower
         is_v3_expansion = "v3_expansion" in parts_lower
-        # Initialize optional flags to avoid UnboundLocalError
+        # Initialize optional flags to avoid UnboundLocalError in all branches
         is_v3_facade_smoke = False
+        is_v3_project = False
         # Run transpiler - check if multifile test
         if is_v3:
             is_v3_facade_smoke = "v3_facade_smoke" in parts_lower
             is_v3_project = "v3_project" in parts_lower
-            if is_v3_closers or is_v3_expansion or is_v3_visitor_map:
+            # For visitor_map, detect module files to route via demo-frame when present
+            is_module_file_vm = False
+            if is_v3_visitor_map:
+                try:
+                    with open(test_file, 'r') as f:
+                        for line in f:
+                            if line.strip().startswith('@target '):
+                                is_module_file_vm = True
+                                break
+                except Exception:
+                    is_module_file_vm = False
+            if is_v3_closers or is_v3_expansion or (is_v3_visitor_map and not is_module_file_vm):
                 cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
                 extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
-            elif is_v3_mapping:
-                # v3_mapping can be single-body or module-based. Route modules via demo-frame for module-level mapping.
+            elif is_v3_mapping or is_v3_visitor_map:
+                # v3_mapping and v3_visitor_map can be single-body or module-based. Route modules via demo-frame for module-level trailers.
                 is_module_file = False
                 try:
                     with open(test_file, 'r') as f:
@@ -390,8 +425,8 @@ class FrameTestRunner:
                 if ("v3_exec_smoke" in parts_lower and self.config.execute) or (getattr(self.config, 'exec_v3', False) and self.config.execute and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower)):
                     ext_map = {"python": ".py", "typescript": ".ts", "rust": ".rs", "c": ".c", "cpp": ".cpp", "java": ".java", "csharp": ".cs"}
                     extension = ext_map.get(language, ".txt")
-                    if language in ("python", "typescript"):
-                        cmd.insert(2, "--emit-exec")
+                    # Emit exec harness for exec-smoke and curated exec runs across all languages
+                    cmd.insert(2, "--emit-exec")
                 else:
                     extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
@@ -444,9 +479,10 @@ class FrameTestRunner:
             env = os.environ.copy()
             if language == "rust":
                 env["FRAME_RUST_GENERATE_MAIN"] = "1"
-            # For mapping fixtures, request trailer
-            if is_v3_mapping or is_v3_visitor_map:
+            # For mapping/debugger fixtures, request trailer and debug manifest
+            if is_v3_mapping or is_v3_visitor_map or is_v3_debugger:
                 env["FRAME_MAP_TRAILER"] = "1"
+                env["FRAME_DEBUG_MANIFEST"] = "1"
             # For native symbol snapshots, request trailer
             if is_v3_native_symbols:
                 env["FRAME_NATIVE_SYMBOL_SNAPSHOT"] = "1"
@@ -515,10 +551,32 @@ class FrameTestRunner:
                         m = payload.get("map", [])
                         if not m:
                             return False, str(output_file), "Empty mapping payload"
+                        if "schemaVersion" not in payload:
+                            return False, str(output_file), "Missing mapping schemaVersion"
                         # At least one origin should be frame
                         has_frame = any(item.get("origin") == "frame" for item in m if isinstance(item, dict))
                         if not has_frame:
                             return False, str(output_file), "No frame-origin entries in mapping"
+                        # Optional golden: origins list and/or count
+                        meta = self.parse_fixture_meta(test_file)
+                        if 'frame_map_golden' in meta:
+                            spec = meta['frame_map_golden'][0]
+                            origins = None; count = None
+                            for part in spec.split(';'):
+                                part = part.strip()
+                                if part.startswith('origins='):
+                                    origins = [x.strip() for x in part[len('origins='):].split(',') if x.strip()]
+                                if part.startswith('count='):
+                                    try:
+                                        count = int(part[len('count='):])
+                                    except Exception:
+                                        pass
+                            if count is not None and len(m) != count:
+                                return False, str(output_file), f"frame-map count mismatch: expected {count}, got {len(m)}"
+                            if origins is not None:
+                                got = [it.get('origin') for it in m if isinstance(it, dict)]
+                                if got != origins:
+                                    return False, str(output_file), f"frame-map origins mismatch: expected {origins}, got {got}"
                     except Exception as e:
                         return False, str(output_file), f"Invalid mapping JSON: {e}"
                     # For Py/TS, also assert visitor-map exists and has minimal shape
@@ -532,17 +590,100 @@ class FrameTestRunner:
                                 mappings = vp.get("mappings", []) if isinstance(vp, dict) else []
                                 if not mappings:
                                     return False, str(output_file), "Empty visitor-map mappings"
+                                if not isinstance(vp, dict) or "schemaVersion" not in vp:
+                                    return False, str(output_file), "Missing visitor-map schemaVersion"
                                 ok_min = any(
                                     isinstance(it, dict) and it.get("origin") in ("frame", "native") and int(it.get("targetLine", 0)) > 0 and int(it.get("sourceLine", 0)) > 0
                                     for it in mappings
                                 )
                                 if not ok_min:
                                     return False, str(output_file), "Invalid visitor-map line mappings"
+                                # Optional golden for visitor-map
+                                meta = self.parse_fixture_meta(test_file)
+                                if 'visitor_map_golden' in meta:
+                                    spec = meta['visitor_map_golden'][0]
+                                    origins = None; mincnt = None
+                                    for part in spec.split(';'):
+                                        part = part.strip()
+                                        if part.startswith('origins='):
+                                            origins = [x.strip() for x in part[len('origins='):].split(',') if x.strip()]
+                                        if part.startswith('min='):
+                                            try:
+                                                mincnt = int(part[len('min='):])
+                                            except Exception:
+                                                pass
+                                    if mincnt is not None and len(mappings) < mincnt:
+                                        return False, str(output_file), f"visitor-map entries < {mincnt}"
+                                    if origins is not None:
+                                        got = [it.get('origin') for it in mappings if isinstance(it, dict)]
+                                        # allow multiple entries; compare prefix
+                                        if got[:len(origins)] != origins:
+                                            return False, str(output_file), f"visitor-map origins prefix mismatch: expected {origins}, got {got[:len(origins)]}"
                             except Exception as e:
                                 return False, str(output_file), f"Invalid visitor-map JSON: {e}"
-                elif is_v3_visitor_map:
-                    # No hard assertion yet; visitor-map is currently optional in single-body demo
-                    pass
+                elif is_v3_visitor_map or ("v3_debugger" in parts_lower):
+                    # Require visitor-map trailer presence for visitor_map category
+                    out = result.stdout or ""
+                    vstart = out.find("/*#visitor-map#")
+                    vend = out.find("#visitor-map#*/")
+                    if vstart == -1 or vend == -1 or vend <= vstart:
+                        return False, str(output_file), "Missing visitor-map trailer in output"
+                    try:
+                        vtext = out[vstart+len("/*#visitor-map#"):vend].strip()
+                        payload = json.loads(vtext)
+                        if not isinstance(payload, dict):
+                            return False, str(output_file), "Invalid visitor-map payload"
+                        maps = payload.get("mappings", [])
+                        if not isinstance(maps, list) or len(maps) == 0:
+                            return False, str(output_file), "Empty visitor-map mappings"
+                        first = maps[0]
+                        if not (isinstance(first, dict) and all(k in first for k in ("targetLine", "sourceLine", "origin"))):
+                            return False, str(output_file), "Invalid visitor-map line mappings"
+                    except Exception as e:
+                        return False, str(output_file), f"Invalid visitor-map JSON: {e}"
+                # Optional debug-manifest trailer assertion (when emitted)
+                out = result.stdout or ""
+                dms = out.find("/*#debug-manifest#")
+                dme = out.find("#debug-manifest#*/")
+                if dms != -1 and dme != -1 and dme > dms:
+                    try:
+                        dtext = out[dms+len("/*#debug-manifest#"):dme].strip()
+                        manifest = json.loads(dtext)
+                        if not isinstance(manifest, dict) or 'schemaVersion' not in manifest:
+                            return False, str(output_file), "Invalid debug-manifest payload"
+                        if 'states' in manifest and not isinstance(manifest['states'], list):
+                            return False, str(output_file), "debug-manifest states not a list"
+                        # If fixture provides expectations, assert them
+                        meta = self.parse_fixture_meta(test_file)
+                        if 'debug_manifest_expect' in meta:
+                            try:
+                                spec = meta['debug_manifest_expect'][0]
+                                want_system = None
+                                want_states: List[str] = []
+                                for part in spec.split(';'):
+                                    part = part.strip()
+                                    if part.startswith('system='):
+                                        want_system = part[len('system='):].strip()
+                                    if part.startswith('states='):
+                                        want_states = [t.strip() for t in part[len('states='):].split(',') if t.strip()]
+                                if want_system is not None:
+                                    got_system = manifest.get('system')
+                                    if got_system != want_system:
+                                        return False, str(output_file), f"debug-manifest system mismatch: expected {want_system}, got {got_system}"
+                                if want_states:
+                                    got_states = manifest.get('states', []) or []
+                                    # Require at least the listed states to be present (order-insensitive superset)
+                                    missing = [s for s in want_states if s not in got_states]
+                                    if missing:
+                                        return False, str(output_file), f"debug-manifest states missing: {missing}"
+                            except Exception as _e:
+                                return False, str(output_file), f"Invalid @debug-manifest-expect spec: {spec}"
+                        # Persist sidecar and strip trailer from code
+                        sidecar = str(output_file) + ".debug-manifest.json"
+                        Path(sidecar).write_text(json.dumps(manifest, indent=2))
+                        out = (out[:dms] + out[dme+len("#debug-manifest#*/"):]).rstrip() + "\n"
+                    except Exception as e:
+                        return False, str(output_file), f"Invalid debug-manifest JSON: {e}"
                 elif is_v3_native_symbols:
                     # Assert native-symbols trailer exists and has minimal shape (at least one entry for module with handlers)
                     out = result.stdout or ""
@@ -673,10 +814,11 @@ class FrameTestRunner:
 
         parts_lower = [p.lower() for p in test_file.parts]
         # Single-body demo categories validate via demo-multi
-        # v3_mapping can be module-based; detect @target and route those via demo-frame instead
+        # v3_mapping/v3_visitor_map can be module-based; detect @target and route those via demo-frame instead
         is_v3_mapping = "v3_mapping" in parts_lower
+        is_v3_visitor_map = "v3_visitor_map" in parts_lower
         is_module_file = False
-        if is_v3_mapping:
+        if is_v3_mapping or is_v3_visitor_map:
             try:
                 with open(test_file, 'r') as f:
                     for line in f:
@@ -685,7 +827,7 @@ class FrameTestRunner:
                             break
             except Exception:
                 is_module_file = False
-        use_single_body = any(seg in ("v3_closers", "v3_expansion") for seg in parts_lower) or (is_v3_mapping and not is_module_file)
+        use_single_body = any(seg in ("v3_closers", "v3_expansion") for seg in parts_lower) or ((is_v3_mapping or is_v3_visitor_map) and not is_module_file)
         synthesized_single_body: Optional[Path] = None
         if use_single_body:
             # If a single-body fixture has a leading @target line, strip it into a temp file
@@ -1753,7 +1895,7 @@ class FrameTestRunner:
             if 'expect' in meta:
                 expected = set(meta['expect'])
                 actual = set(result.validation_errors or [])
-                mode = getattr(self.config, 'expected_error_mode', 'superset')
+                mode = meta.get('expect_mode', [getattr(self.config, 'expected_error_mode', 'superset')])[0]
                 if mode == 'equal':
                     if actual != expected:
                         negative_ok = False

@@ -29,9 +29,9 @@ impl SplicerV3 {
                 }
                 RegionV3::FrameSegment { span, .. } => {
                     let start_pos = out.len();
-                    let exp = &expansions[mi];
+                    let exp_str: &str = if mi < expansions.len() { &expansions[mi] } else { "" };
                     mi += 1;
-                    out.push_str(exp);
+                    out.push_str(exp_str);
                     let end_pos = out.len();
                     map.push((RegionSpan { start: start_pos, end: end_pos }, OriginV3::Frame { source: *span }));
                 }

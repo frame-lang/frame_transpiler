@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 58
-- **Open**: 8
-- **Resolved**: 49
-- **Won't Fix**: 1
-- **Next Bug Number**: 059
+- **Total Bugs**: 59
+- **Open**: 7
+- **Resolved**: 50
+- **Won't Fix**: 2
+- **Next Bug Number**: 060
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -17,6 +17,7 @@
 
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
+ 
 | [#037](open/bug_037_state_diagram_missing_conditional_transitions.md) | State Diagram Missing Conditional Transitions | Low | CodeGen | Open | - |
 | [#039](open/bug_039_missing_frame_semantic_metadata.md) | Missing Frame Semantic Metadata for Debugger | Medium | Tooling | Open | - |
 | [#049](open/bug_049_typescript_transpilation_rate_low.md) | TypeScript Transpilation Rate Lower Than Python | Medium | CodeGen | Open | Claude |
@@ -25,7 +26,7 @@
 | [#052](open/bug_052_typescript_actions_generate_stubs.md) | TypeScript Actions Generate Stubs Despite Proper Imports | Critical | CodeGen | Open | - |
 | [#055](open/bug_055_async_typescript_socket_runtime.md) | TypeScript async runtime lacks socket helpers for Frame debugger | High | CodeGen | Open | - |
 
-| [#058](open/bug_058_add_stable_code_field_in_debug_output.md) | Add stable top-level code field in debug-output | Medium | Tooling | Open | - |
+ 
 ## Recently Resolved
 
 | Bug # | Title | Priority | Category | Status | Fixed Version |
@@ -36,6 +37,8 @@
 | [#053](closed/bug_053_typescript_missing_property_declarations.md) | TypeScript Missing Property Declarations and Runtime Imports | High | CodeGen | Resolved | v0.86.23 |
 | [#048](closed/bug_048_unreachable_return_after_transition.md) | Unreachable Return After Transition Statements | High | Semantic | Won't Fix | N/A |
 | [#047](closed/bug_047_typescript_complex_expression_support.md) | TypeScript Complex Expression Support | High | CodeGen | Resolved | v0.82.2 |
+| [#058](closed/bug_058_add_stable_code_field_in_debug_output.md) | Add stable top-level code field in debug-output | Medium | Tooling | Won't Fix | Superseded by trailers |
+| [#059](closed/bug_059_enable_full_module_codegen_for_ts_py.md) | Enable full module codegen for TS/Py (non-demo) and restore CLI compile path | Critical | Tooling | Resolved | v0.86.27 |
 | [#046](closed/bug_046_python_import_support.md) | Python Import Support | Low | Documentation | Won't Fix | - |
 | [#040](closed/bug_040_interface_method_source_mapping.md) | Interface Method Source Mapping | Medium | CodeGen | Resolved | v0.81.5 |
 | [#038](closed/bug_038_string_concat_escape_sequences.md) | String Concatenation with Escape Sequences | High | CodeGen | Resolved | v0.81.4 |
@@ -90,5 +93,5 @@
 - 2025-10-13: Initial bug tracking system created, all bugs migrated
 
 ---
-*Index Last Updated: 2025-10-30*  
+*Index Last Updated: 2025-11-14*  
 *Policy Version: 1.0*

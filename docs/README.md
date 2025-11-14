@@ -78,6 +78,45 @@ Shared V3 Core (applies to both; read in this order)
 - docs/framepiler_design/architecture_v3/00_stage_index.md:1
 - docs/framepiler_design/architecture_v3/PLAN.md:1
 
+## How To: Collect Debugging Artifacts (Python/TypeScript)
+
+Use the module demo path with `--emit-debug` to embed debug trailers in the generated code. Extracted sidecars are consumed by the test runner and can be read directly by tools.
+
+- Python
+  - Command: `./target/release/framec demo-frame --emit-debug -l python_3 path/to/module.frm > out.py`
+  - Trailers in `out.py` (and extracted sidecars):
+    - `/*#errors-json# … #errors-json#*/` → `out.py.errors-json.json`
+    - `/*#frame-map# … #frame-map#*/` → `out.py.frame-map.json`
+    - `/*#visitor-map# … #visitor-map#*/` → `out.py.visitor-map.json`
+    - `/*#debug-manifest# … #debug-manifest#*/` → `out.py.debug-manifest.json`
+
+- TypeScript
+  - Command: `./target/release/framec demo-frame --emit-debug -l typescript path/to/module.frm > out.ts`
+  - Trailers in `out.ts` (and extracted sidecars): same as Python above.
+
+Environment flag equivalents (if you prefer granular control):
+- `FRAME_ERROR_JSON=1` — emit errors-json trailer
+- `FRAME_MAP_TRAILER=1` — emit frame-map (and visitor-map for Py/TS module path)
+- `FRAME_DEBUG_MANIFEST=1` — emit debug-manifest trailer
+- `FRAME_NATIVE_SYMBOL_SNAPSHOT=1` — emit advisory native-symbols trailer (Py/TS)
+
+See also:
+- Debugger integration overview: `docs/framepiler_design/architecture_v3/debugger_integration.md`
+- Testing strategy (sidecars, JUnit): `docs/framepiler_design/architecture_v3/12_testing_strategy.md`
+
+## How To: Compile Modules (CLI)
+
+Use the main CLI path to compile full modules (not just demos). The compiler auto-detects `@target` and routes to the V3 module compile path.
+
+- Python:
+  - `./target/release/framec -l python_3 --emit-debug path/to/module.frm > out.py`
+- TypeScript:
+  - `./target/release/framec -l typescript --emit-debug path/to/module.frm > out.ts`
+
+Notes
+- `--emit-debug` embeds trailers in the output (errors-json, frame-map, visitor-map for Py/TS, debug-manifest). Sidecars can be extracted by the runner or custom tooling.
+- Body-only inputs (no `@target`, content starts with `{`) are still supported via the single-body path.
+
 Testing, Runner, and CI
 - docs/framepiler_design/architecture_v3/12_testing_strategy.md:1
 - framec_tests/runner/frame_test_runner.py:1

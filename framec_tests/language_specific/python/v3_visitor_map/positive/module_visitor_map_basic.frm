@@ -1,14 +1,17 @@
 @target python
-# @frame-map-golden: origins=frame
-# @visitor-map-golden: origins=frame; min=1
 
 system S {
     machine:
         $A {
             e() {
-                native()
+                x = 1
                 -> $B()
             }
         }
-        $B { }
+        $B {
+            e() {
+                pass
+            }
+        }
 }
+

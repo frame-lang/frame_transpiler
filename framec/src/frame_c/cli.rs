@@ -24,6 +24,8 @@ pub struct Cli {
     emit_exec: bool,
     /// Emit mapping trailer for spliced output (demo helper)
     emit_map: bool,
+    /// Emit debug trailers (errors-json, frame-map, visitor-map, debug-manifest)
+    emit_debug: bool,
     command: CliCommand,
 }
 
@@ -59,6 +61,7 @@ impl Cli {
             .arg(Arg::new("emit-body-only").long("emit-body-only").help("Emit only spliced handler body text (demo)").action(clap::ArgAction::SetTrue).global(true))
             .arg(Arg::new("emit-exec").long("emit-exec").help("Emit a minimal standalone executable for supported languages (demo)").action(clap::ArgAction::SetTrue).global(true))
             .arg(Arg::new("emit-map").long("emit-map").help("Emit a mapping trailer for spliced output (demo)").action(clap::ArgAction::SetTrue).global(true))
+            .arg(Arg::new("emit-debug").long("emit-debug").help("Emit debug trailers: errors-json, frame-map, visitor-map (module), debug-manifest").action(clap::ArgAction::SetTrue).global(true))
             .subcommand(
                 Command::new("demo-multi")
                     .about("V3 demo: compile multiple single-body files (transpile-only)")
@@ -155,6 +158,7 @@ impl Cli {
         let emit_body_only = matches.get_flag("emit-body-only");
         let emit_exec = matches.get_flag("emit-exec");
         let emit_map = matches.get_flag("emit-map");
+        let emit_debug = matches.get_flag("emit-debug");
 
         Cli {
             stdin_flag: stdin,
@@ -169,6 +173,7 @@ impl Cli {
             emit_body_only,
             emit_exec,
             emit_map,
+            emit_debug,
             command,
         }
     }
@@ -302,6 +307,11 @@ pub fn run_with(args: Cli) {
                     if args.emit_exec { std::env::set_var("FRAME_EMIT_EXEC", "1"); }
                     if args.debug_output { std::env::set_var("FRAME_ERROR_JSON", "1"); }
                     if args.emit_map { std::env::set_var("FRAME_MAP_TRAILER", "1"); }
+                    if args.emit_debug {
+                        std::env::set_var("FRAME_ERROR_JSON", "1");
+                        std::env::set_var("FRAME_MAP_TRAILER", "1");
+                        std::env::set_var("FRAME_DEBUG_MANIFEST", "1");
+                    }
                     if args.validate || args.validate_only {
                         match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
                             Ok(res) => {
@@ -378,16 +388,21 @@ pub fn run_with(args: Cli) {
                 std::process::exit(err.code);
             }
         }
-    } else {
-        let path = args.path.unwrap();
-        let result = if args.debug_output {
-            exe.run_file_debug(&path, target_language)
-        } else if args.multifile {
-            exe.run_multifile(&path, target_language, args.output_dir)
         } else {
-            if args.emit_map { std::env::set_var("FRAME_MAP_TRAILER", "1"); }
-            exe.run_file(&path, target_language)
-        };
+            let path = args.path.unwrap();
+            let result = if args.debug_output {
+                exe.run_file_debug(&path, target_language)
+            } else if args.multifile {
+                exe.run_multifile(&path, target_language, args.output_dir)
+            } else {
+                if args.emit_map { std::env::set_var("FRAME_MAP_TRAILER", "1"); }
+                if args.emit_debug {
+                    std::env::set_var("FRAME_ERROR_JSON", "1");
+                    std::env::set_var("FRAME_MAP_TRAILER", "1");
+                    std::env::set_var("FRAME_DEBUG_MANIFEST", "1");
+                }
+                exe.run_file(&path, target_language)
+            };
 
         match result {
             Ok(code) => println!("{}", code),

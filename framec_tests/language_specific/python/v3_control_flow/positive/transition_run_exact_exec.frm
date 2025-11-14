@@ -1,12 +1,10 @@
 @target python
-# @frame-map-golden: origins=frame
-# @visitor-map-golden: origins=frame; min=1
+# @run-exact: TRANSITION:__S_state_B
 
 system S {
     machine:
         $A {
             e() {
-                native()
                 -> $B()
             }
         }
