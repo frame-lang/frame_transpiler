@@ -142,6 +142,7 @@ class FrameTestRunner:
           - @expect: E403 E404 (space-separated error codes)
           - @expect-mode: equal|superset (per-test override)
           - @run-expect: <regex> (can appear multiple times)
+          - @compile-expect: <regex> (verify compiled output contains pattern)
           - @flaky
           - @skip-if: <token> (e.g., java-toolchain-missing)
           - @timeout: <seconds>
@@ -181,6 +182,11 @@ class FrameTestRunner:
                     if m2b:
                         exact = m2b.group(2).rstrip('\n')
                         meta['run_exact'] = [exact]
+                    m2c = re.match(r"^\s*(#|//)\s*@compile-expect:\s*(.+)$", line)
+                    if m2c:
+                        pat = m2c.group(2).strip()
+                        if pat:
+                            meta.setdefault('compile_expect', []).append(pat)
                     if re.match(r"^\s*(#|//)\s*@flaky\b", line):
                         meta['flaky'] = ['1']
                     if re.match(r"^\s*(#|//)\s*@exec-ok\b", line):
@@ -441,6 +447,15 @@ class FrameTestRunner:
             # Visitor-map required for Py/TS; optional for Rust
             if language in ("python", "typescript") and "/*#visitor-map#" not in out:
                 return False, str(output_file), "Missing visitor-map trailer"
+            # Optional compile-expect regex assertions
+            meta = self.parse_fixture_meta(test_file)
+            if 'compile_expect' in meta:
+                for pat in meta['compile_expect']:
+                    try:
+                        if not re.search(pat, out, re.MULTILINE):
+                            return False, str(output_file), f"compile-expect missing pattern: {pat}"
+                    except re.error as e:
+                        return False, str(output_file), f"invalid compile-expect regex '{pat}': {e}"
             return True, str(output_file), None
 
         if is_v3_cli_project:

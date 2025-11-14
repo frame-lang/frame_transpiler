@@ -1,4 +1,5 @@
 @target python
+# @compile-expect: class S:
 
 system S {
     machine:
@@ -9,4 +10,3 @@ system S {
         }
         $B { e() { pass } }
 }
-

@@ -1,4 +1,5 @@
 @target typescript
+// @compile-expect: export class S \{
 
 system S {
     machine:
@@ -9,4 +10,3 @@ system S {
         }
         $B { e() { } }
 }
-

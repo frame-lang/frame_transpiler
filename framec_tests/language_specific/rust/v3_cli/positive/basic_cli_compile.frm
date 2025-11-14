@@ -1,4 +1,5 @@
 @target rust
+// @compile-expect: pub fn e\(\) \{
 
 system S1 {
     machine:
@@ -9,4 +10,3 @@ system S1 {
         }
         $B { e() { } }
 }
-
