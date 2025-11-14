@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 59
-- **Open**: 7
+- **Total Bugs**: 60
+- **Open**: 8
 - **Resolved**: 50
 - **Won't Fix**: 2
-- **Next Bug Number**: 060
+- **Next Bug Number**: 61
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -18,6 +18,7 @@
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
  
+| [#060](open/bug_060_python_module_compile_not_runnable.md) | Python module compile outputs non-runnable file (annotated Frame + trailers) | High | Tooling | Open | - |
 | [#037](open/bug_037_state_diagram_missing_conditional_transitions.md) | State Diagram Missing Conditional Transitions | Low | CodeGen | Open | - |
 | [#039](open/bug_039_missing_frame_semantic_metadata.md) | Missing Frame Semantic Metadata for Debugger | Medium | Tooling | Open | - |
 | [#049](open/bug_049_typescript_transpilation_rate_low.md) | TypeScript Transpilation Rate Lower Than Python | Medium | CodeGen | Open | Claude |

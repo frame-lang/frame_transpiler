@@ -617,6 +617,128 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         Ok(joined)
     } else {
         if cursor < bytes.len() { out.push_str(&content_str[cursor..]); }
+        // Build runnable module code for Python/TypeScript/Rust unless explicitly disabled
+        let compile_runtimable = std::env::var("FRAME_COMPILE_RUNTIMABLE").ok().map(|v| v != "0").unwrap_or(true);
+        if compile_runtimable {
+            match lang {
+                TargetLanguage::Python3 => {
+                    let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    let mut module = String::new();
+                    module.push_str("from frame_runtime_py import FrameEvent, FrameCompartment\n\n");
+                    module.push_str(&format!("class {}:\n", sys_name));
+                    module.push_str("    def __init__(self):\n");
+                    module.push_str(&format!("        self._compartment = FrameCompartment(\"__{}_state_A\")\n", sys_name));
+                    module.push_str("    def _frame_transition(self, next_compartment: FrameCompartment):\n        self._compartment = next_compartment\n");
+                    module.push_str("    def _frame_router(self, __e: FrameEvent, c: FrameCompartment=None):\n        pass\n");
+                    module.push_str("    def _frame_stack_push(self):\n        pass\n");
+                    module.push_str("    def _frame_stack_pop(self):\n        pass\n");
+                    for (idx, b) in parts.bodies.iter().enumerate() {
+                        if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
+                            let hname = b.owner_id.as_deref().unwrap_or("handler");
+                            // Use previously spliced body (includes braces); strip outer braces
+                            let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
+                            let spliced = {
+                                let bytes = spliced_full.as_bytes();
+                                let mut li = 0usize; let mut ri = bytes.len();
+                                while li < ri && bytes[li].is_ascii_whitespace() { li += 1; }
+                                while ri > li && bytes[ri-1].is_ascii_whitespace() { ri -= 1; }
+                                if li < ri && bytes[li] == b'{' && ri > 0 && bytes[ri-1] == b'}' && li+1 < ri-1 {
+                                    &spliced_full[li+1..ri-1]
+                                } else { spliced_full }
+                            };
+                            module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                            for line in spliced.lines() {
+                                if line.trim().is_empty() { module.push_str("        \n"); } else { module.push_str("        "); module.push_str(line); module.push('\n'); }
+                            }
+                        }
+                    }
+                    out = module;
+                }
+                TargetLanguage::TypeScript => {
+                    let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    let ts_import = std::env::var("FRAME_TS_EXEC_IMPORT").ok().unwrap_or_else(|| String::from("../../../frame_runtime_ts/index"));
+                    let mut module = String::new();
+                    module.push_str(&format!("import {{ FrameEvent, FrameCompartment }} from '{}'\n\n", ts_import));
+                    module.push_str("export class "); module.push_str(&sys_name); module.push_str(" {\n");
+                    module.push_str(&format!("  public _compartment: FrameCompartment = new FrameCompartment('__{}_state_A');\n", sys_name));
+                    module.push_str("  _frame_transition(n: FrameCompartment){ this._compartment = n; }\n");
+                    module.push_str("  _frame_router(__e: FrameEvent, c?: FrameCompartment){ /* no-op */ }\n");
+                    module.push_str("  _frame_stack_push(){ /* no-op */ }\n  _frame_stack_pop(){ /* no-op */ }\n");
+                    for (idx, b) in parts.bodies.iter().enumerate() {
+                        if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
+                            let hname = b.owner_id.as_deref().unwrap_or("handler");
+                            let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
+                            let spliced = {
+                                let bytes = spliced_full.as_bytes();
+                                let mut li = 0usize; let mut ri = bytes.len();
+                                while li < ri && bytes[li].is_ascii_whitespace() { li += 1; }
+                                while ri > li && bytes[ri-1].is_ascii_whitespace() { ri -= 1; }
+                                if li < ri && bytes[li] == b'{' && ri > 0 && bytes[ri-1] == b'}' && li+1 < ri-1 {
+                                    &spliced_full[li+1..ri-1]
+                                } else { spliced_full }
+                            };
+                            module.push_str(&format!("  public {}(__e: FrameEvent, compartment: FrameCompartment): void {{\n", hname));
+                            for line in spliced.lines() {
+                                let t = line.trim_end();
+                                if t.is_empty() { module.push_str("  \n"); continue; }
+                                let needs_sc = !(t.ends_with(';') || t.ends_with('{') || t.ends_with('}'));
+                                module.push_str("    "); module.push_str(t);
+                                if needs_sc { module.push_str(";"); }
+                                module.push('\n');
+                            }
+                            module.push_str("  }\n");
+                        }
+                    }
+                    module.push_str("}\n");
+                    out = module;
+                }
+                TargetLanguage::Rust => {
+                    let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    let mut module = String::new();
+                    module.push_str("#[derive(Default)] struct FrameCompartment<'a>{ state: &'a str, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<&'a FrameCompartment<'a>>, state_args: Option<()>, }\n");
+                    module.push_str("fn _frame_transition(_n: &FrameCompartment){ /* no-op */ }\n");
+                    module.push_str("fn _frame_router(_e: Option<()>) { /* no-op */ }\n");
+                    module.push_str("fn _frame_stack_push(){ /* no-op */ }\nfn _frame_stack_pop(){ /* no-op */ }\n\n");
+                    for (idx, b) in parts.bodies.iter().enumerate() {
+                        if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
+                            let hname = b.owner_id.as_deref().unwrap_or("handler");
+                            let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
+                            let spliced = {
+                                let bytes = spliced_full.as_bytes();
+                                let mut li = 0usize; let mut ri = bytes.len();
+                                while li < ri && bytes[li].is_ascii_whitespace() { li += 1; }
+                                while ri > li && bytes[ri-1].is_ascii_whitespace() { ri -= 1; }
+                                if li < ri && bytes[li] == b'{' && ri > 0 && bytes[ri-1] == b'}' && li+1 < ri-1 {
+                                    &spliced_full[li+1..ri-1]
+                                } else { spliced_full }
+                            };
+                            module.push_str(&format!("pub fn {}() {{\n", hname));
+                            for line in spliced.lines() {
+                                module.push_str("    "); module.push_str(line); module.push('\n');
+                            }
+                            module.push_str("}\n\n");
+                        }
+                    }
+                    // Optional enum StateId
+                    if std::env::var("FRAME_RUST_STATE_ENUM").ok().as_deref() == Some("1") {
+                        let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
+                        let validator = crate::frame_c::v3::validator::ValidatorV3;
+                        let states = validator.collect_machine_state_names(bytes, outline_start);
+                        if !states.is_empty() {
+                            let mut enum_src = String::new();
+                            enum_src.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n");
+                            enum_src.push_str("enum StateId { ");
+                            let mut first = true;
+                            for s in states.iter() { if !first { enum_src.push_str(", "); } enum_src.push_str(s); first = false; }
+                            enum_src.push_str(" }\n\n");
+                            module = enum_src + &module;
+                        }
+                    }
+                    out = module;
+                }
+                _ => {}
+            }
+        }
         // Optional Rust state enum prelude (feature-gated by env)
         if lang == TargetLanguage::Rust && std::env::var("FRAME_RUST_STATE_ENUM").ok().as_deref() == Some("1") {
             let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);

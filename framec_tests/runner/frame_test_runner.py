@@ -410,6 +410,8 @@ class FrameTestRunner:
                     cmd = [self.config.framec_path, "-l", lang_flag, "--emit-debug", str(test_file)]
             env = os.environ.copy()
             try:
+                if self.config.verbose:
+                    print("[debug] v3_cli cmd:", " ".join(cmd))
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout or self.config.timeout)
             except subprocess.TimeoutExpired:
                 return False, str(output_file), "CLI compile timeout"
