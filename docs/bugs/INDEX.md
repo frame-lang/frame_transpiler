@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 60
+- **Total Bugs**: 62
 - **Open**: 7
-- **Resolved**: 51
+- **Resolved**: 53
 - **Won't Fix**: 2
-- **Next Bug Number**: 61
+- **Next Bug Number**: 63
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -18,6 +18,8 @@
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
  
+| [#061](closed/bug_061_python_trailer_block_style_invalid.md) | Python compile appends C-style trailer blocks that break Python syntax | High | Tooling | Resolved | Codex |
+| [#062](closed/bug_062_python_emit_debug_flag_ignored.md) | Python compile appends trailers when --emit-debug is not set | High | Tooling | Resolved | Codex |
 | [#037](open/bug_037_state_diagram_missing_conditional_transitions.md) | State Diagram Missing Conditional Transitions | Low | CodeGen | Open | - |
 | [#039](open/bug_039_missing_frame_semantic_metadata.md) | Missing Frame Semantic Metadata for Debugger | Medium | Tooling | Open | - |
 | [#049](open/bug_049_typescript_transpilation_rate_low.md) | TypeScript Transpilation Rate Lower Than Python | Medium | CodeGen | Open | Claude |

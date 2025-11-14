@@ -185,9 +185,15 @@ impl CompilerV3 {
         let issues = ValidatorV3
             .validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
         let json = build_errors_json(&issues);
-        out_text.push_str("\n/*#errors-json#\n");
-        out_text.push_str(&json);
-        out_text.push_str("\n#errors-json#*/\n");
+        if let TargetLanguage::Python3 = lang {
+            out_text.push_str("\n'''/*#errors-json#\n");
+            out_text.push_str(&json);
+            out_text.push_str("\n#errors-json#*/'''\n");
+        } else {
+            out_text.push_str("\n/*#errors-json#\n");
+            out_text.push_str(&json);
+            out_text.push_str("\n#errors-json#*/\n");
+        }
         if std::env::var("FRAME_MAP_TRAILER").ok().as_deref() == Some("1") {
             // rebuild splice to include map
             let exps: Vec<String> = match lang {
@@ -202,14 +208,26 @@ impl CompilerV3 {
             };
             let sp = SplicerV3.splice(content, &scan.regions, &exps);
             let trailer = sp.build_trailer_json();
-            out_text.push_str("\n/*#frame-map#\n");
-            out_text.push_str(&trailer);
-            out_text.push_str("\n#frame-map#*/\n");
+            if let TargetLanguage::Python3 = lang {
+                out_text.push_str("\n'''/*#frame-map#\n");
+                out_text.push_str(&trailer);
+                out_text.push_str("\n#frame-map#*/'''\n");
+            } else {
+                out_text.push_str("\n/*#frame-map#\n");
+                out_text.push_str(&trailer);
+                out_text.push_str("\n#frame-map#*/\n");
+            }
             // Add visitor-style line map trailer (targetLine/sourceLine) for convenience
             let lmap = sp.build_line_map_json(content);
-            out_text.push_str("\n/*#visitor-map#\n");
-            out_text.push_str(&lmap);
-            out_text.push_str("\n#visitor-map#*/\n");
+            if let TargetLanguage::Python3 = lang {
+                out_text.push_str("\n'''/*#visitor-map#\n");
+                out_text.push_str(&lmap);
+                out_text.push_str("\n#visitor-map#*/'''\n");
+            } else {
+                out_text.push_str("\n/*#visitor-map#\n");
+                out_text.push_str(&lmap);
+                out_text.push_str("\n#visitor-map#*/\n");
+            }
         }
         Ok(out_text)
     }
@@ -647,8 +665,27 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 } else { spliced_full }
                             };
                             module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
-                            for line in spliced.lines() {
-                                if line.trim().is_empty() { module.push_str("        \n"); } else { module.push_str("        "); module.push_str(line); module.push('\n'); }
+                            // Normalize indentation: detect minimal leading spaces across non-empty lines
+                            let mut min_lead = usize::MAX;
+                            for ln in spliced.lines() {
+                                let t = ln.trim_end();
+                                if t.is_empty() { continue; }
+                                let lead = ln.chars().take_while(|c| *c == ' ' || *c == '\t').count();
+                                if lead < min_lead { min_lead = lead; }
+                            }
+                            if min_lead == usize::MAX { min_lead = 0; }
+                            for ln in spliced.lines() {
+                                let t = ln.trim_end();
+                                if t.is_empty() { module.push_str("        \n"); continue; }
+                                let mut slice = &ln[min_lead.min(ln.len())..];
+                                // Ensure no leading tabs remain; replace with spaces to align
+                                let mut owned: Option<String> = None;
+                                if slice.chars().next() == Some('\t') {
+                                    let repl = slice.replace('\t', "    ");
+                                    owned = Some(repl);
+                                }
+                                if let Some(s) = owned.as_deref() { slice = s; }
+                                module.push_str("        "); module.push_str(slice); module.push('\n');
                             }
                         }
                     }
@@ -1157,10 +1194,18 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     }
                 }
             }
-            let json = build_errors_json(&issues);
-            out.push_str("\n/*#errors-json#\n");
-            out.push_str(&json);
-            out.push_str("\n#errors-json#*/\n");
+            if std::env::var("FRAME_ERROR_JSON").ok().as_deref() == Some("1") {
+                let json = build_errors_json(&issues);
+                if let TargetLanguage::Python3 = lang {
+                    out.push_str("\n'''/*#errors-json#\n");
+                    out.push_str(&json);
+                    out.push_str("\n#errors-json#*/'''\n");
+                } else {
+                    out.push_str("\n/*#errors-json#\n");
+                    out.push_str(&json);
+                    out.push_str("\n#errors-json#*/\n");
+                }
+            }
         }
         Ok(out)
     }
