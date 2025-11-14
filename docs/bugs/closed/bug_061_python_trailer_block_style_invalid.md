@@ -8,7 +8,7 @@ status: Resolved
 priority: High
 category: Tooling
 discovered_version: v0.86.28
-fixed_version: v0.86.28
+fixed_version: v0.86.29
 reporter: Codex
 assignee: Codex
 created_date: 2025-11-14

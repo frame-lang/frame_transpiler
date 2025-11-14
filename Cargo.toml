@@ -8,4 +8,4 @@ members = [
 exclude = ["framec_tests"]
 
 [workspace.package]
-version = "0.86.28"
+version = "0.86.29"
