@@ -15,6 +15,17 @@ impl ImportScannerV3 for ImportScannerRustV3 {
             if at_sol {
                 if bytes[i]==b'\n' || bytes[i]==b'\r' { i+=1; continue; }
                 let line_start=i; let mut j=i; while j<n && (bytes[j]==b' '||bytes[j]==b'\t'){ j+=1; }
+                // Stop scanning once we hit a V3 module/system header; Rust module imports must precede Frame sections.
+                if j < n && (
+                    starts_kw(bytes, j, b"system") ||
+                    starts_kw(bytes, j, b"machine") ||
+                    starts_kw(bytes, j, b"interface") ||
+                    starts_kw(bytes, j, b"actions") ||
+                    starts_kw(bytes, j, b"operations") ||
+                    starts_kw(bytes, j, b"domain")
+                ) {
+                    break;
+                }
                 if j<n && (starts_kw(bytes,j,b"use") || starts_kw(bytes,j,b"extern") ) {
                     let stmt_start = line_start; let mut k=j; let mut in_s=false; let mut raw_hashes=0usize; let mut block=false; let mut esc=false; let mut found_semicolon=false;
                     while k<n {

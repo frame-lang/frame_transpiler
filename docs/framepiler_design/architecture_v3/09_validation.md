@@ -43,3 +43,38 @@ CLI Integration (demo)
   - `demo-multi` validates each provided single‑body file prior to transpile.
   - `demo-project` walks the directory, validates eligible single‑body files, then (unless `--validation-only`) transpiles.
   - Validation prints human messages to stderr; non‑zero exit on failure in `--validation-only` mode.
+## Addendum: Validation Routes and Native Parse Policy
+
+The V3 runner uses multiple validation routes depending on category and file style (single‑body vs module). This section documents flags and the native parse policy.
+
+### Flags and environment
+
+- `--validate` / `--validation-only`: enable compiler‑side structural/semantic validation without emitting files.
+- `--validate-native`: request native parse validation (Stage 07) for module files when available.
+- `FRAME_VALIDATE_NATIVE_POLICY=1`: enables stricter native parse checks in some runner categories (e.g., `v3_validator`).
+
+### Routes
+
+- Single‑body validators (demo‑frame): used for a subset of `v3_*` categories where single‑body fixtures are authoritative (e.g., `v3_closers`).
+- Module validation: for module files (with `@target`) categories, use `compile --validation-only` and rely on emitted trailers/sidecars for mapping assertions.
+
+Recommended matrix to keep aligned with the runner:
+
+| Category            | Route                         | Native Parse |
+|---------------------|-------------------------------|--------------|
+| v3_closers          | single‑body (demo)            | no           |
+| v3_mapping          | module (compile)              | optional     |
+| v3_visitor_map      | module (compile)              | optional     |
+| v3_validator        | module (compile + native)     | yes (env)    |
+| v3_cli              | module (compile/emit)         | no           |
+| v3_cli_project      | project compile               | no           |
+
+### Trailers and sidecars (assertions)
+
+When using module validation, extract and assert the presence/shape of these where applicable:
+
+- `frame-map` → `*.frame-map.json`
+- `visitor-map` → `*.visitor-map.json`
+- `debug-manifest` → `*.debug-manifest.json`
+- `native-symbols` → `*.native-symbols.json`
+- `errors-json` → `*.errors.json` (optional)

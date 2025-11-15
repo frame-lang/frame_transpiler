@@ -49,6 +49,16 @@ Every bug report must follow the template in TEMPLATE.md and include:
 4. Update INDEX.md with the new bug entry
 5. Commit with message: `bug: Add Bug #NNN - [Short Description]`
 
+### 1b. Grammar and Architecture Compliance (V3)
+- All new bugs and proposed fixes MUST respect the latest V3 architecture and grammar specs:
+  - Core: `docs/framepiler_design/architecture_v3/architecture_v3_overview.md`
+  - Frame syntax and MIR: `docs/framepiler_design/architecture_v3/03_frame_segment_parser.md`, `04_mir_assembly.md`
+  - Per‑language behavior: `01_body_closers_*.md`, `02_native_region_scanner_*.md`, `05_frame_statement_expansion_*.md`
+- If a bug report or “fix” relies on syntax or semantics that contradict these docs (for example, using non‑Python constructs inside `@target python_3` bodies, or pre‑V3 header forms), maintainers should:
+  - Reject the change as‑is (or mark the bug `Won't Fix`/`Duplicate` of “legacy syntax not supported”), and
+  - Ask the filer to restate the scenario using valid V3 grammar, or explicitly mark it as a legacy/retired test.
+- Tests and fixtures MUST NOT depend on out‑of‑date grammar. When a discrepancy is found, prefer updating/retiring the fixture over changing the compiler to accept invalid syntax.
+
 ### 2. Working on a Bug
 1. Optional: add your name as assignee
 2. Document investigation findings in the Technical Analysis section

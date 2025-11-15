@@ -18,6 +18,17 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                 // skip leading spaces/tabs
                 let mut j = i;
                 while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+                // Stop scanning imports once we hit a V3 section or system header.
+                if j < n && (
+                    starts_kw(bytes, j, b"system") ||
+                    starts_kw(bytes, j, b"machine") ||
+                    starts_kw(bytes, j, b"interface") ||
+                    starts_kw(bytes, j, b"actions") ||
+                    starts_kw(bytes, j, b"operations") ||
+                    starts_kw(bytes, j, b"domain")
+                ) {
+                    break;
+                }
                 if j < n && (starts_kw(bytes, j, b"import") || starts_kw(bytes, j, b"export")) {
                     // consume a full import/export statement until semicolon at depth zero
                     let stmt_start = line_start;

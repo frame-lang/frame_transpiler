@@ -68,3 +68,27 @@ Test Hooks
 
 Integration
 - Downstream scanners receive `BodyPartition` and operate only within `[open_byte+1, close_byte)`.
+## Addendum: Import Scanning Boundaries (Python)
+
+Top‑level imports are only those that appear before the first module section header. Partitioning/scanning MUST stop import collection at the first occurrence of any of:
+
+`system`, `machine`, `interface`, `actions`, `operations`, `domain` (SOL‑anchored; leading whitespace permitted).
+
+Imports appearing inside `actions:` or state handlers are part of action/handler bodies and MUST NOT advance the outline start or be treated as module imports.
+
+Example (imports inside actions are not top‑level imports):
+
+```frame
+@target python_3
+system Example {
+  actions:
+    helper() {
+      import sys
+      self.s = sys.version
+    }
+  machine:
+    $S { e() { self.helper() } }
+}
+```
+
+The outline for `Example` begins at `system` and includes `machine`/`actions`; the `import sys` above is part of `_action_helper` and must not shift partitioning past `machine:`/`actions:`.

@@ -6,6 +6,7 @@ Purpose
 Start Here
 - Overview: `architecture_v3_overview.md`
 - Stage index: `00_stage_index.md`
+- Open Questions: `OPEN_QUESTIONS.md`
 
 How To Use These Docs
 - For each stage: read the dedicated spec, implement the named struct(s) in `framec/src/frame_c/v3/…`, and satisfy the Inputs/Outputs/Invariants/Errors/Test Hooks described.

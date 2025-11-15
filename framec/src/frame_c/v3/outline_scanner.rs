@@ -26,7 +26,7 @@ impl OutlineScannerV3 {
         let mut items: Vec<OutlineItemV3> = Vec::new();
         let n = bytes.len();
         let mut i = start;
-        #[derive(Clone, Copy, PartialEq, Eq)]
+        #[derive(Clone, Copy, PartialEq, Eq, Debug)]
         enum Section { None, Actions, Operations, Interface, Machine }
         let mut section = Section::None;
         // Track active state scopes (name, close_index) inside machine:
@@ -52,6 +52,9 @@ impl OutlineScannerV3 {
                     "interface" => section = Section::Interface,
                     "machine" => section = Section::Machine,
                     _ => {}
+                }
+                if std::env::var("FRAME_DEBUG_OUTLINE").ok().as_deref() == Some("1") {
+                    eprintln!("[outline] section={:?} at byte {}", section, line_start);
                 }
                 while i<n && bytes[i]!=b'\n' { i+=1; }
                 continue;
@@ -84,7 +87,9 @@ impl OutlineScannerV3 {
                 continue;
             }
             // Recognize headers:
-            // - In machine: section → IDENT '(' ... ')' '{' (handler), allowing bare names (no 'fn')
+            // - In machine/actions/operations/interface sections → IDENT '(' ... ')' '{'
+            //   and allow an optional leading 'async' before the name (e.g., 'async run() { ... }').
+            //   (Interface headers without a '{' are treated as prototypes and ignored.)
             // - Elsewhere → 'fn' or 'async fn' NAME '(' ... ')' '{'
             let mut name_start = kw_start;
             let mut name_end = j;
@@ -92,7 +97,20 @@ impl OutlineScannerV3 {
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
             let mut is_func_header = false;
             if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
-                // In machine/actions/operations sections, allow bare IDENT '(' … ')' '{'
+                // For these sections, support:
+                //   - bare names:      'run(...) {'
+                //   - async functions: 'async run(...) {'
+                if first_tok == "async" {
+                    // Advance to the actual function name after 'async'
+                    let mut p = k;
+                    while p < n && is_ident(bytes[p]) { p += 1; }
+                    if p > k {
+                        name_start = k;
+                        name_end = p;
+                        k = p;
+                        while k < n && is_space(bytes[k]) { k += 1; }
+                    }
+                }
                 if k < n && bytes[k] == b'(' { is_func_header = true; }
             } else if first_tok == "fn" || first_tok == "async" {
                 // If 'async', require 'fn' next; otherwise require IDENT after 'fn'
@@ -120,6 +138,18 @@ impl OutlineScannerV3 {
                 }
                 while p < n && is_space(bytes[p]) { p += 1; }
                 if p < n && bytes[p] == b'{' {
+                    if std::env::var("FRAME_DEBUG_OUTLINE").ok().as_deref() == Some("1") {
+                        let hdr = String::from_utf8_lossy(&bytes[line_start..p]).to_string();
+                        eprintln!(
+                            "[outline] header_detected section={:?} first_tok={} name={} line_start={} header_end={}",
+                            section,
+                            first_tok,
+                            String::from_utf8_lossy(&bytes[name_start..name_end]).to_string(),
+                            line_start,
+                            p
+                        );
+                        eprintln!("[outline] header_text={}", hdr);
+                    }
                     let open = p;
                     let close = match lang {
                         TargetLanguage::Python3 => closer::python::BodyCloserPyV3.close_byte(&bytes[open..], 0).map(|c| open + c),
@@ -137,11 +167,32 @@ impl OutlineScannerV3 {
                     items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close });
                     i = close + 1; continue;
                 }
-                // found header 'fn name(' ... ')' but no '{' -> malformed header
+                // found header 'fn name(' ... ')' but no '{'
+                // In interface: treat as prototype (no body) and ignore.
+                if matches!(section, Section::Interface) {
+                    while i<n && bytes[i]!=b'\n' { i+=1; }
+                    continue;
+                }
+                // Elsewhere this is a malformed header.
                 return Err(OutlineErrorV3{ message: "E111: missing '{' after module artifact header".into() });
             }
             // Otherwise skip to next line
             while i<n && bytes[i]!=b'\n' { i+=1; }
+        }
+        if std::env::var("FRAME_DEBUG_OUTLINE").ok().as_deref() == Some("1") {
+            eprintln!("[outline] items={} (lang={:?})", items.len(), lang);
+            for it in &items {
+                eprintln!(
+                    "[outline] kind={:?} owner={:?} state={:?} header_span=({},{}) body_span=({},{})",
+                    it.kind,
+                    it.owner_id,
+                    it.state_id,
+                    it.header_span.start,
+                    it.header_span.end,
+                    it.open_byte,
+                    it.close_byte
+                );
+            }
         }
         Ok(items)
     }
@@ -194,12 +245,24 @@ impl OutlineScannerV3 {
                 continue;
             }
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
-            // Recognize headers: allow bare IDENT '(' … ')' in machine/actions/operations; else require fn/async fn
+            // Recognize headers: allow bare IDENT '(' … ')' in machine/actions/operations/interface; else require fn/async fn.
+            // Interface headers without a '{' are treated as prototypes and ignored.
             let first_tok = to_lower_ascii(&bytes[kw_start..j]);
             let mut is_func_header = false;
             let mut _name_start = kw_start;
             let mut _name_end = j;
-            if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) {
+            if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
+                if first_tok == "async" {
+                    // Support 'async name(...) { ... }' inside these sections by advancing to the actual name.
+                    let mut p = k;
+                    while p < n && is_ident(bytes[p]) { p += 1; }
+                    if p > k {
+                        _name_start = k;
+                        _name_end = p;
+                        k = p;
+                        while k < n && is_space(bytes[k]) { k += 1; }
+                    }
+                }
                 if k < n && bytes[k] == b'(' { is_func_header = true; }
             } else if first_tok == "fn" || first_tok == "async" {
                 if first_tok == "async" {
@@ -246,6 +309,11 @@ impl OutlineScannerV3 {
                     continue;
                 }
                 // malformed header: header '(' ... ')' but no '{'
+                // In interface, treat as prototype (no body) and ignore.
+                if matches!(section, Section::Interface) {
+                    while i<n && bytes[i]!=b'\n' { i+=1; }
+                    continue;
+                }
                 issues.push(ValidationIssueV3{ message: "E111: missing '{' after module artifact header".into() });
                 while i<n && bytes[i]!=b'\n' { i+=1; }
                 continue;

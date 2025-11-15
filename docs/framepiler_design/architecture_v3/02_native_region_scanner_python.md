@@ -53,3 +53,12 @@ Test Hooks
 - Frame-statement-like tokens inside strings/comments are ignored.
 - Unicode whitespace before Frame statements is accepted at SOL.
 - Mixed native/Frame-statement lines produce correct segment boundaries.
+## Addendum: Section Headers Boundaries for Import/Prolog Scans
+
+Scans that collect module prolog and top‑level imports MUST stop at the first section header (SOL‑anchored, leading whitespace allowed):
+
+- `system`, `machine`, `interface`, `actions`, `operations`, `domain`
+
+Rationale: imports inside `actions:` or handlers are part of method bodies and must not be hoisted or used to advance the module outline start. This prevents skipping `machine:`/`actions:` during partitioning.
+
+Recommended check: when encountering a potential `import …` or `from … import …`, confirm that no section header has been seen yet; otherwise, treat the line as body content.

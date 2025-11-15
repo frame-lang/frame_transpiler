@@ -70,8 +70,14 @@ For Python/TypeScript, the compiler can optionally emit a `native-symbols` trail
 
 ## CLI quick reference
 
-- `--emit-debug`: turns on `errors-json`, `frame-map`, `visitor-map` (module path), `debug-manifest`.
-- `--emit-map`: only `frame-map`.
-- `--emit-exec`: emits a minimal runnable program (demo) for supported languages.
+- `compile` / `compile-project` are the non‑demo V3 entrypoints.
+- `--emit-debug`:
+  - Enables `errors-json`, `frame-map`, `visitor-map` (module path for Py/TS), and `debug-manifest` for module compiles.
+  - Internally maps to `FRAME_ERROR_JSON=1`, `FRAME_MAP_TRAILER=1`, and `FRAME_DEBUG_MANIFEST=1` for that invocation.
 
-Use `--emit-debug` during local development and when producing debugger fixtures. For CI, the test runner already asserts presence and schema for relevant categories.
+Advanced toggles (env‑only; used by tests and tooling):
+- `FRAME_MAP_TRAILER=1`: request frame-map/visitor-map trailers even without `--emit-debug` (e.g., single‑body flows).
+- `FRAME_ERROR_JSON=1`: force errors-json trailer for V3 demo/single‑body paths.
+- `FRAME_EMIT_EXEC=1`: enable exec/demo emission in selected test categories only (not exposed as a CLI flag).
+
+Use `compile --emit-debug` during local development and when producing debugger fixtures. For CI, the test runner already sets the appropriate env flags and asserts presence and schema for relevant categories.

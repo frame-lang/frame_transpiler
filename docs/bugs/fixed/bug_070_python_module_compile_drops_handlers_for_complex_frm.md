@@ -8,45 +8,39 @@ status: Fixed
 priority: High
 category: CodeGen
 discovered_version: v0.86.37
-fixed_version: v0.86.38
+fixed_version: v0.86.39
 reporter: Codex
 assignee: 
 created_date: 2025-11-15
-resolved_date: 
+resolved_date: 2025-11-15
 ```
 
 ## Description
-Compiling a moderately complex module FRM (adapter/runtime harness) yields a skeleton Python module with only the class boilerplate and no interface handlers or `def _action_*` methods. This breaks unit tests that expect `_action_handleCommand` and basic handler emission.
+Compiling a moderately complex module FRM (adapter/runtime harness) previously yielded a skeleton Python module with only the class boilerplate and no interface handlers or `def _action_*` methods. This blocked debugger/runtime harness tests that expect `_action_handleCommand` and other action methods.
 
-## Reproduction Steps
-1. Use the provided FRM copied from the rebuild harness:
-   - `/tmp/frame_transpiler_repro/bug_070/runtime_protocol.frm`
-2. Run the script:
-   - `/tmp/frame_transpiler_repro/bug_070/run.sh`
-3. Observe output prints `BUG_REPRODUCED` and shows the generated `.py` with no handlers/actions.
+## Root Cause
+- The Python import scanner (`ImportScannerPyV3`) scanned from the prolog through the entire file and treated any SOL `import` or `from` statement as a module import, even when it appeared inside the `actions:` section.
+- Module partitioning sets the outline start index to the end of the last import span. Because the last `import` in `runtime_protocol.frm` is inside the `actions:` section, the outline scan started near the `domain:` block and skipped all `machine:` and `actions:` headers.
+- As a result, `ModulePartitionerV3` produced an empty `bodies` list for this FRM, and the Python module emitter only generated the runtime skeleton methods.
 
-## Validation Assets
-- FRM: `/tmp/frame_transpiler_repro/bug_070/runtime_protocol.frm`
-- Script: `/tmp/frame_transpiler_repro/bug_070/run.sh`
+## Fix
+- Updated `ImportScannerPyV3` to stop scanning imports once it hits a V3 section or `system` header (`system`, `machine`, `interface`, `actions`, `operations`, `domain`), so imports inside `actions:` no longer affect the outline start.
+- Ensured the outline scanner recognizes handlers and actions correctly for the harness FRM, and that the Python emitter always generates handler and `_action_*` methods for those bodies.
 
-## Expected vs Actual
-- Expected: Generated Python module includes interface handlers and `_action_*` methods per actions section.
-- Actual: Only skeleton methods are emitted.
-
-## Impact
-- Severity: High — blocks Frame-only generation for runtime validation; unit tests cannot execute without handlers.
-
-## Technical Analysis
-- The FRM includes async actions, event-loop helpers, and multiple actions. Generator may be failing to emit handlers when certain async/try/except patterns combine with domain declarations.
-- Minimal reproduction still pending; current repro uses the harness FRM. A smaller FRM can be derived if needed.
-
-## Proposed Solution
-- Ensure codegen emits interface handlers and action methods regardless of action content complexity.
-- Add tests to assert presence of emitted `_action_*` methods and interface handlers for module FRMs.
+## How to Validate
+- Repro assets:
+  - FRM: `/tmp/frame_transpiler_repro/bug_070/runtime_protocol.frm`
+  - Scripts:
+    - `/tmp/frame_transpiler_repro/bug_070/run_check_handlers.sh`
+- Command:
+  - `FRAMEC_BIN=./target/release/framec bash /tmp/frame_transpiler_repro/bug_070/run_check_handlers.sh`
+- Expected:
+  - Script reports that handlers/actions are present (no `BUG_REPRODUCED`), and the generated `runtime_protocol.py` contains at least one `def run(` handler and multiple `_action_*` methods.
 
 ## Work Log
-- 2025-11-15: Initial report with /tmp repro — Codex
-- 2025-11-15: Allow bare IDENT headers under interface: in OutlineScanner; added interface handler emission test; validated; marking Fixed (awaiting closure). — Codex
+- 2025-11-15: Initial v0.86.38 fix handled simple interface/actions cases but not the full harness FRM; bug was reopened by debugger team.
+- 2025-11-15: Tightened Python import scanner boundary and outline scanning; confirmed harness FRM emits handlers and actions with v0.86.39 and marked as Fixed. — Codex
 
 ---
 *Bug tracking policy version: 1.1*
+

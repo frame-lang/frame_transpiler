@@ -37,3 +37,31 @@ Testing Strategy
 - Separate project-level suites under `v3_project/{positive,negative}` gated by CLI flags.
 - Keep all language-specific V3 suites green without Stage 13 enabled.
 
+## Addendum: Python Runtime Packaging for CLI Outputs
+
+When using the CLI on V3 module files:
+
+- `compile -l python_3 -o OUTDIR …`
+  - Emits the generated module(s) and the `frame_runtime_py/` package alongside them.
+  - If the runtime location must be overridden, set `FRAME_RUNTIME_PY_DIR=/path/to/frame_runtime_py`.
+
+Minimal import validator:
+
+```bash
+OUTDIR=$(mktemp -d)
+FRAME_RUNTIME_PY_DIR=/path/to/frame_runtime_py framec compile -l python_3 file.frm -o "$OUTDIR"
+PY=$(ls "$OUTDIR"/*.py | head -n 1)
+python3 - << PY "$PY" "$OUTDIR"
+import importlib.util, sys
+p, out = sys.argv[1], sys.argv[2]
+sys.path.insert(0, out)
+spec = importlib.util.spec_from_file_location('m', p)
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+print('IMPORT_OK')
+PY
+```
+
+Notes
+- `compile-project -l python_3 DIR -o OUTDIR` maintains the same runtime‑emission guarantees.
+- For single‑file workflows without `-o`, prefer a project or explicitly set `FRAME_RUNTIME_PY_DIR`.

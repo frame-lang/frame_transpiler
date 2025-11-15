@@ -48,12 +48,14 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] CI artifacts: V3 workflows upload JUnit XML reports for v3_all, v3_exec_smoke, and curated exec.
 - [x] Visitor-map (module path): emit frame-map and visitor-map trailers for module demos when FRAME_MAP_TRAILER=1 (Py/TS); runner routes v3_mapping module fixtures via demo-frame; basic module_map fixtures added and green.
 
-v0.86.36 — Runtime & Testing Hardening (Py/TS/Rust)
+v0.86.36–0.86.39 — Runtime & Testing Hardening (Py/TS/Rust)
 - Python runtime emission
   - compile-project copies `frame_runtime_py` to OUTDIR root.
   - compile `-o` copies `frame_runtime_py` (robust path resolution: env, exe-relative repo root/target, cwd).
 - Actions/Operations emission
   - OutlineScanner recognizes bare IDENT headers in `actions:` and `operations:`; Python emits `def _action_*` / `def _operation_*`.
+  - Import scanners for Python/TypeScript/Rust now stop at `system`/section headers so imports/uses inside `actions:` do not shift the module outline start; avoids dropping handlers/actions in complex FRMs.
+  - OutlineScanner supports `async` headers in `machine:`/`actions:` across languages; `interface` headers without `{` are treated as prototypes (no E111), while `interface` bodies with `{` emit handlers.
 - E401 policy enforcement
   - Compile validation enforces E401 for Frame statements inside actions/operations.
 - Runner robustness

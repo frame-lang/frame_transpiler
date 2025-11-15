@@ -662,51 +662,152 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         match b.kind {
                             crate::frame_c::v3::validator::BodyKindV3::Handler => {
                                 let hname = b.owner_id.as_deref().unwrap_or("handler");
-                                module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                                // Detect async handlers from header text (best-effort).
+                                let is_async = if let Some(hs) = b.header_span {
+                                    let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                    hdr.trim_start().starts_with("async ")
+                                } else {
+                                    false
+                                };
+                                if is_async {
+                                    module.push_str(&format!("    async def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                                } else {
+                                    module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                                }
+                                // For handlers, keep indentation simple: treat all body lines as first-level
+                                // statements under the method. Handlers are expected to delegate real control
+                                // flow to actions.
                                 let mut emitted_code = false;
                                 for ln in spliced.lines() {
-                                    let t = ln.trim();
-                                    if t.is_empty() { module.push_str("        \n"); continue; }
-                                    if t.starts_with('#') { module.push_str("        "); module.push_str(t); module.push('\n'); continue; }
+                                    let raw = ln.trim_end();
+                                    if raw.trim().is_empty() {
+                                        module.push_str("        \n");
+                                        continue;
+                                    }
+                                    // Comments do not count as code for the purpose of inserting a fallback body.
+                                    if raw.trim_start().starts_with('#') {
+                                        module.push_str("        ");
+                                        module.push_str(raw.trim_start());
+                                        module.push('\n');
+                                        continue;
+                                    }
+                                    module.push_str("        ");
+                                    module.push_str(raw.trim_start());
+                                    module.push('\n');
                                     emitted_code = true;
-                                    module.push_str("        "); module.push_str(t); module.push('\n');
                                 }
                                 if !emitted_code { module.push_str("        pass\n"); }
                             }
                             crate::frame_c::v3::validator::BodyKindV3::Action => {
                                 let aname = b.owner_id.as_deref().unwrap_or("action");
-                                // Extract parameter list from header (best-effort)
-                                let params = if let Some(hs) = b.header_span {
+                                // Extract parameter list and async flag from header (best-effort)
+                                let (is_async, params) = if let Some(hs) = b.header_span {
                                     let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
-                                    if let Some(lp) = hdr.find('(') { if let Some(rp_rel) = hdr[lp+1..].find(')') { hdr[lp+1..lp+1+rp_rel].trim().to_string() } else { String::new() } } else { String::new() }
-                                } else { String::new() };
-                                let sig = if params.is_empty() { format!("    def _action_{}(self):\n", aname) } else { format!("    def _action_{}(self, {}):\n", aname, params) };
+                                    let async_flag = hdr.trim_start().starts_with("async ");
+                                    let param_text = if let Some(lp) = hdr.find('(') {
+                                        if let Some(rp_rel) = hdr[lp+1..].find(')') {
+                                            hdr[lp+1..lp+1+rp_rel].trim().to_string()
+                                        } else { String::new() }
+                                    } else { String::new() };
+                                    (async_flag, param_text)
+                                } else { (false, String::new()) };
+                                let sig = if params.is_empty() {
+                                    if is_async {
+                                        format!("    async def _action_{}(self):\n", aname)
+                                    } else {
+                                        format!("    def _action_{}(self):\n", aname)
+                                    }
+                                } else {
+                                    if is_async {
+                                        format!("    async def _action_{}(self, {}):\n", aname, params)
+                                    } else {
+                                        format!("    def _action_{}(self, {}):\n", aname, params)
+                                    }
+                                };
                                 module.push_str(&sig);
+                                let mut min_indent: Option<usize> = None;
+                                for ln in spliced.lines() {
+                                    if ln.trim().is_empty() { continue; }
+                                    let indent = ln.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
+                                    min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
+                                }
+                                let base = min_indent.unwrap_or(0);
                                 let mut emitted_code = false;
                                 for ln in spliced.lines() {
-                                    let t = ln.trim();
-                                    if t.is_empty() { module.push_str("        \n"); continue; }
-                                    if t.starts_with('#') { module.push_str("        "); module.push_str(t); module.push('\n'); continue; }
+                                    let raw = ln.trim_end();
+                                    if raw.trim().is_empty() {
+                                        module.push_str("        \n");
+                                        continue;
+                                    }
+                                    if raw.trim_start().starts_with('#') {
+                                        module.push_str("        ");
+                                        module.push_str(raw.trim_start());
+                                        module.push('\n');
+                                        continue;
+                                    }
+                                    let indent = raw.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
+                                    let offset = if indent >= base { base } else { indent };
+                                    let content = &raw[offset..];
                                     emitted_code = true;
-                                    module.push_str("        "); module.push_str(t); module.push('\n');
+                                    module.push_str("        ");
+                                    module.push_str(content);
+                                    module.push('\n');
                                 }
                                 if !emitted_code { module.push_str("        pass\n"); }
                             }
                             crate::frame_c::v3::validator::BodyKindV3::Operation => {
                                 let oname = b.owner_id.as_deref().unwrap_or("operation");
-                                let params = if let Some(hs) = b.header_span {
+                                let (is_async, params) = if let Some(hs) = b.header_span {
                                     let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
-                                    if let Some(lp) = hdr.find('(') { if let Some(rp_rel) = hdr[lp+1..].find(')') { hdr[lp+1..lp+1+rp_rel].trim().to_string() } else { String::new() } } else { String::new() }
-                                } else { String::new() };
-                                let sig = if params.is_empty() { format!("    def _operation_{}(self):\n", oname) } else { format!("    def _operation_{}(self, {}):\n", oname, params) };
+                                    let async_flag = hdr.trim_start().starts_with("async ");
+                                    let param_text = if let Some(lp) = hdr.find('(') {
+                                        if let Some(rp_rel) = hdr[lp+1..].find(')') {
+                                            hdr[lp+1..lp+1+rp_rel].trim().to_string()
+                                        } else { String::new() }
+                                    } else { String::new() };
+                                    (async_flag, param_text)
+                                } else { (false, String::new()) };
+                                let sig = if params.is_empty() {
+                                    if is_async {
+                                        format!("    async def _operation_{}(self):\n", oname)
+                                    } else {
+                                        format!("    def _operation_{}(self):\n", oname)
+                                    }
+                                } else {
+                                    if is_async {
+                                        format!("    async def _operation_{}(self, {}):\n", oname, params)
+                                    } else {
+                                        format!("    def _operation_{}(self, {}):\n", oname, params)
+                                    }
+                                };
                                 module.push_str(&sig);
+                                let mut min_indent: Option<usize> = None;
+                                for ln in spliced.lines() {
+                                    if ln.trim().is_empty() { continue; }
+                                    let indent = ln.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
+                                    min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
+                                }
+                                let base = min_indent.unwrap_or(0);
                                 let mut emitted_code = false;
                                 for ln in spliced.lines() {
-                                    let t = ln.trim();
-                                    if t.is_empty() { module.push_str("        \n"); continue; }
-                                    if t.starts_with('#') { module.push_str("        "); module.push_str(t); module.push('\n'); continue; }
+                                    let raw = ln.trim_end();
+                                    if raw.trim().is_empty() {
+                                        module.push_str("        \n");
+                                        continue;
+                                    }
+                                    if raw.trim_start().starts_with('#') {
+                                        module.push_str("        ");
+                                        module.push_str(raw.trim_start());
+                                        module.push('\n');
+                                        continue;
+                                    }
+                                    let indent = raw.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
+                                    let offset = if indent >= base { base } else { indent };
+                                    let content = &raw[offset..];
                                     emitted_code = true;
-                                    module.push_str("        "); module.push_str(t); module.push('\n');
+                                    module.push_str("        ");
+                                    module.push_str(content);
+                                    module.push('\n');
                                 }
                                 if !emitted_code { module.push_str("        pass\n"); }
                             }

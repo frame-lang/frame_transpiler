@@ -309,6 +309,27 @@ class FrameTestRunner:
                 lang_dir = self.language_specific_dir / lang
                 if lang_dir.exists():
                     lang_tests = list(lang_dir.rglob("*.frm"))
+                    # Retire legacy pre‑V3 async/comment fixtures from the generic language_specific_python suite.
+                    # These use the old @target python + async fn syntax and are covered by V3 categories now.
+                    if lang == "python":
+                        legacy_stems = {
+                            "test_async_basic",
+                            "test_async_debug",
+                            "test_async_generators",
+                            "test_async_handler",
+                            "test_async_interface",
+                            "test_async_minimal",
+                            "test_async_simple",
+                            "test_async_stress",
+                            "test_async_stress_fixed",
+                            "test_async_stress_simple",
+                            "test_async_validate",
+                            "test_async_with_proper",
+                            "test_async_with_real",
+                            "test_c_style_comments",
+                            "test_c_style_comments_simple",
+                        }
+                        lang_tests = [p for p in lang_tests if p.stem not in legacy_stems]
                     # Exclude torture tests in transpile-only runs to avoid skew
                     if not self.config.execute:
                         lang_tests = [p for p in lang_tests if "torture" not in [pp.lower() for pp in p.parts]]
@@ -322,6 +343,25 @@ class FrameTestRunner:
                     lang_dir = self.language_specific_dir / lang
                     if lang_dir.exists():
                         lang_tests = list(lang_dir.rglob("*.frm"))
+                        if lang == "python":
+                            legacy_stems = {
+                                "test_async_basic",
+                                "test_async_debug",
+                                "test_async_generators",
+                                "test_async_handler",
+                                "test_async_interface",
+                                "test_async_minimal",
+                                "test_async_simple",
+                                "test_async_stress",
+                                "test_async_stress_fixed",
+                                "test_async_stress_simple",
+                                "test_async_validate",
+                                "test_async_with_proper",
+                                "test_async_with_real",
+                                "test_c_style_comments",
+                                "test_c_style_comments_simple",
+                            }
+                            lang_tests = [p for p in lang_tests if p.stem not in legacy_stems]
                         if not self.config.execute:
                             lang_tests = [p for p in lang_tests if "torture" not in [pp.lower() for pp in p.parts]]
                         if lang_tests:

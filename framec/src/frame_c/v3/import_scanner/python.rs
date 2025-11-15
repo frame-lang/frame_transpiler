@@ -19,6 +19,18 @@ impl ImportScannerV3 for ImportScannerPyV3 {
                 // skip spaces/tabs
                 let mut j = i;
                 while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+                // Stop scanning imports once we hit a V3 section or system header.
+                // All module imports are required to appear before `system` and sections.
+                if j < n && (
+                    starts_kw(bytes, j, b"system") ||
+                    starts_kw(bytes, j, b"machine") ||
+                    starts_kw(bytes, j, b"interface") ||
+                    starts_kw(bytes, j, b"actions") ||
+                    starts_kw(bytes, j, b"operations") ||
+                    starts_kw(bytes, j, b"domain")
+                ) {
+                    break;
+                }
                 if j < n && (starts_kw(bytes, j, b"import") || starts_kw(bytes, j, b"from")) {
                     // Collect full logical import statement (handle parens and backslash continuations)
                     let stmt_start = line_start;

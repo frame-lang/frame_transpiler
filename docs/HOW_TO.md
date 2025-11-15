@@ -22,7 +22,7 @@ This document captures every process, tool, and workflow used in the Frame Trans
 Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.25 and in the “Going Native” phase (native bodies with SOL‑anchored Frame statements in handlers).
 
 ### Current Status
-- **Version**: v0.86.25
+- **Version**: v0.86.40
 - **Branch**: `going_native`
 - **Supported Targets (V3 work focus)**: Python 3, TypeScript, C#, C, C++, Java, Rust. (GraphViz remains available but is not V3‑gated.)
 - **LLVM**: on indefinite hold — do not develop or maintain LLVM until further notice.
@@ -60,6 +60,23 @@ Frame module file (.frm with @target <lang>)
 - `frame_statement_parser.rs`, `mir.rs`, `mir_assembler.rs`
 - `expander/`, `splice.rs`, `validator.rs`
 - `module_partitioner.rs`, `prolog_scanner.rs`, `import_scanner/`, `outline_scanner.rs`
+
+### V3 Frame Syntax & Grammar (Where to Read It)
+
+- **Authoritative V3 architecture & grammar docs** live under:
+  - `docs/framepiler_design/architecture_v3/architecture_v3_overview.md`
+  - `docs/framepiler_design/architecture_v3/03_frame_segment_parser.md` (Frame statement syntax: `Transition`, `Forward`, `Stack`)
+  - `docs/framepiler_design/architecture_v3/04_mir_assembly.md` (MixedBody/MIR + terminal‑statement rules)
+  - Per‑language scanner/expander docs:
+    - Python:
+      - `docs/framepiler_design/architecture_v3/01_body_closers_python.md`
+      - `docs/framepiler_design/architecture_v3/02_native_region_scanner_python.md`
+      - `docs/framepiler_design/architecture_v3/05_frame_statement_expansion_python.md`
+    - TypeScript:
+      - `docs/framepiler_design/architecture_v3/01_body_closers_typescript.md`
+      - `docs/framepiler_design/architecture_v3/02_native_region_scanner_typescript.md`
+      - `docs/framepiler_design/architecture_v3/05_frame_statement_expansion_typescript.md`
+- **Legacy/old syntax docs** (v0.x pre‑V3) live elsewhere under `docs/framepiler_design/architecture_v0.*.md` and are no longer authoritative for new work; when in doubt, prefer the V3 files above.
 
 ## Development Environment
 
