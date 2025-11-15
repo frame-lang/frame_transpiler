@@ -2,8 +2,8 @@
 
 ## Statistics
 - **Total Bugs**: 63
-- **Open**: 7
-- **Resolved**: 54
+- **Open**: 8
+- **Resolved**: 53
 - **Won't Fix**: 2
 - **Next Bug Number**: 64
 
@@ -25,87 +25,4 @@
 
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
- 
- 
- 
-| [#037](open/bug_037_state_diagram_missing_conditional_transitions.md) | State Diagram Missing Conditional Transitions | Low | CodeGen | Open | - |
-| [#039](open/bug_039_missing_frame_semantic_metadata.md) | Missing Frame Semantic Metadata for Debugger | Medium | Tooling | Open | - |
-| [#049](open/bug_049_typescript_transpilation_rate_low.md) | TypeScript Transpilation Rate Lower Than Python | Medium | CodeGen | Open | Claude |
-| [#050](open/bug_050_test_runner_language_filtering.md) | Language-Specific Tests Running for All Languages | Low | Tooling | Open | - |
-| [#051](open/bug_051_typescript_duplicate_imports.md) | TypeScript Generator Produces Duplicate Imports | High | CodeGen | Open | - |
-| [#052](open/bug_052_typescript_actions_generate_stubs.md) | TypeScript Actions Generate Stubs Despite Proper Imports | Critical | CodeGen | Open | - |
-| [#055](open/bug_055_async_typescript_socket_runtime.md) | TypeScript async runtime lacks socket helpers for Frame debugger | High | CodeGen | Open | - |
-
- 
-## Recently Resolved
-
-| Bug # | Title | Priority | Category | Status | Fixed Version |
-|-------|-------|----------|----------|--------|---------------|
-| [#057](closed/bug_057_inconsistent_source_map_schema_across_languages.md) | Inconsistent source map schema across languages | Medium | Tooling | Resolved | v0.86.26 |
-| [#056](closed/bug_056_missing_structured_error_json_in_debug_output.md) | Missing structured error JSON in debug-output | High | Tooling | Resolved | v0.86.26 |
-| [#054](closed/bug_054_typescript_boolean_literals_in_python_strings.md) | TypeScript Boolean Literals in Python Strings | Medium | CodeGen | Resolved | v0.86.24 |
-| [#053](closed/bug_053_typescript_missing_property_declarations.md) | TypeScript Missing Property Declarations and Runtime Imports | High | CodeGen | Resolved | v0.86.23 |
-| [#048](closed/bug_048_unreachable_return_after_transition.md) | Unreachable Return After Transition Statements | High | Semantic | Won't Fix | N/A |
-| [#047](closed/bug_047_typescript_complex_expression_support.md) | TypeScript Complex Expression Support | High | CodeGen | Resolved | v0.82.2 |
-| [#058](closed/bug_058_add_stable_code_field_in_debug_output.md) | Add stable top-level code field in debug-output | Medium | Tooling | Won't Fix | Superseded by trailers |
-| [#059](closed/bug_059_enable_full_module_codegen_for_ts_py.md) | Enable full module codegen for TS/Py (non-demo) and restore CLI compile path | Critical | Tooling | Resolved | v0.86.27 |
-| [#060](closed/bug_060_python_module_compile_not_runnable.md) | Python module compile outputs non-runnable file (annotated Frame + trailers) | High | Tooling | Resolved | v0.86.28 |
-| [#061](closed/bug_061_python_trailer_block_style_invalid.md) | Python compile appends C-style trailer blocks that break Python syntax | High | Tooling | Resolved | v0.86.29 |
-| [#062](closed/bug_062_python_emit_debug_flag_ignored.md) | Python compile appends trailers when --emit-debug is not set | High | Tooling | Resolved | v0.86.29 |
-| [#063](closed/bug_063_python_module_compile_not_runnable_regression.md) | Python module compile still emits non-runnable output (regression) — references Bug #060 | High | Tooling | Resolved | v0.86.30 |
-| [#046](closed/bug_046_python_import_support.md) | Python Import Support | Low | Documentation | Won't Fix | - |
-| [#040](closed/bug_040_interface_method_source_mapping.md) | Interface Method Source Mapping | Medium | CodeGen | Resolved | v0.81.5 |
-| [#038](closed/bug_038_string_concat_escape_sequences.md) | String Concatenation with Escape Sequences | High | CodeGen | Resolved | v0.81.4 |
-
-## Bug Categories
-
-### Parser (2)
-- Bug #019: Parser Error with Functions After Systems
-- Bug #020: Parser Error with State Parameters
-
-### Semantic Analysis (3)
-- Bug #048: Unreachable Return After Transition
-- Bug #016: Circular Import Detection
-- Bug #030: Spurious Unreachable Return Statements
-
-### Code Generation (26)
-- Bug #055: TypeScript async runtime lacks socket helpers for Frame debugger
-- Bug #047: TypeScript Complex Expression Support
-- Bug #049: TypeScript Transpilation Rate
-- Bug #037: State Diagram Conditional Transitions
-- Bug #040: Interface Method Source Mapping
-- Bug #038: String Concatenation
-
-### Runtime (5)
-- Bug #029: Interface Method Routing
-- Bug #031: Spurious Method Calls
-- Bug #033: State Context Management
-
-### Tooling (10)
-- Bug #050: Test Runner Language Filtering
-- Bug #039: Debugger Metadata
-- Bug #018: Duplicate Source Mappings
-- Bug #011: VS Code Debugger Offset
-
-### Documentation (5)
-- Bug #046: Python Import Support Docs
-- Bug #044: Migration Guide
-- Bug #042: API Documentation
-
-## Search Index
-<!-- For quick grep searching -->
-<!-- Keywords: transition, return, unreachable, typescript, python, source map, debugger, test, import, state, diagram, interface, method -->
-
-## Historical Notes
-- Migrated from multiple tracking systems on 2025-10-13
-- Bug #001-#036: Migrated from closed_bugs.md
-- Bug #037-#047: Migrated from open_bugs.md and issues/
-- Bug #048-#050: Active bugs as of migration
-- Note: Bug #047 was numbered #48 in one tracking system, renumbered for consistency
-
-## Maintenance Log
-- 2025-10-13: Initial bug tracking system created, all bugs migrated
-
----
-*Index Last Updated: 2025-11-14*  
-*Policy Version: 1.0*
+| [#063](open/bug_063_python_module_compile_not_runnable_regression.md) | Python module compile still emits non-runnable output (regression) — references Bug #060 | High | Tooling | Reopened | Codex |

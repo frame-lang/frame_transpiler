@@ -8,7 +8,7 @@ status: Resolved
 priority: High
 category: Tooling
 discovered_version: v0.86.28
-fixed_version: v0.86.30
+fixed_version: v0.86.31
 reporter: Codex
 assignee: Codex
 created_date: 2025-11-14
@@ -16,18 +16,16 @@ resolved_date: 2025-11-14
 ```
 
 ## Description
-A regression caused Python module compile to emit code with inconsistent indentation inside handler bodies, leading to IndentationError on import. This is similar in impact to #060 but rooted in indentation normalization.
+A regression caused Python module compile to emit code with inconsistent indentation inside handler bodies in some cases when `--emit-debug` was in use, which led to import failures.
 
 ## Fix Summary
-- Normalize indentation in Python handler method bodies: left-strip each spliced line and re-indent to the method block level. This guarantees consistent indentation regardless of original native spacing.
-- Combined with #061/#062:
-  - Safe trailer embedding (triple-quoted string at module scope)
-  - Errors-JSON only when `--emit-debug` (via FRAME_ERROR_JSON=1)
+- Normalize indentation in Python handler method bodies: left-strip each spliced line and re-indent to the method block level.
+- Ensure Python debug trailers (frame-map, visitor-map, debug-manifest, errors-json) are wrapped in triple-quoted blocks at module scope.
+- Errors-JSON is emitted only when enabled by `--emit-debug` (FRAME_ERROR_JSON=1).
 
 ## Verification
 - Compile without `--emit-debug`: module imports cleanly; no trailers present.
-- Compile with `--emit-debug`: trailers present and import succeeds; runner extracts sidecars.
-- v3_cli (Py) remains green.
+- Compile with `--emit-debug`: module imports cleanly; trailers present but safe; runner extracts sidecars.
 
 ---
 *Resolution Owner: Codex*

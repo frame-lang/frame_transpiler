@@ -837,12 +837,20 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             let mut map_json = String::from("{\"map\":[");
             let mut first=true; for (tgt, origin) in &module_map { if !first { map_json.push(','); } else { first=false; } map_json.push_str(&format!("{{\"targetStart\":{},\"targetEnd\":{},", tgt.start, tgt.end)); match origin { OriginV3::Frame{ source } => map_json.push_str(&format!("\"origin\":\"frame\",\"sourceStart\":{},\"sourceEnd\":{} }}", source.start, source.end)), OriginV3::Native{ source } => map_json.push_str(&format!("\"origin\":\"native\",\"sourceStart\":{},\"sourceEnd\":{} }}", source.start, source.end)), } }
             map_json.push_str("] ,\"version\":1,\"schemaVersion\":1}");
-            out.push_str("\n/*#frame-map#\n"); out.push_str(&map_json); out.push_str("\n#frame-map#*/\n");
+            if let TargetLanguage::Python3 = lang {
+                out.push_str("\n'''/*#frame-map#\n"); out.push_str(&map_json); out.push_str("\n#frame-map#*/'''\n");
+            } else {
+                out.push_str("\n/*#frame-map#\n"); out.push_str(&map_json); out.push_str("\n#frame-map#*/\n");
+            }
             if matches!(lang, TargetLanguage::Python3 | TargetLanguage::TypeScript | TargetLanguage::Rust) {
                 let mut vjson = String::from("{\"mappings\":[");
                 let mut f=true; for (tline, tcol, sline, scol, origin) in &visitor { if !f { vjson.push(','); } else { f=false; } vjson.push_str(&format!("{{\"targetLine\":{},\"targetColumn\":{},\"sourceLine\":{},\"sourceColumn\":{},\"origin\":\"{}\"}}", tline, tcol, sline, scol, origin)); }
                 vjson.push_str("] ,\"schemaVersion\":2}");
-                out.push_str("\n/*#visitor-map#\n"); out.push_str(&vjson); out.push_str("\n#visitor-map#*/\n");
+                if let TargetLanguage::Python3 = lang {
+                    out.push_str("\n'''/*#visitor-map#\n"); out.push_str(&vjson); out.push_str("\n#visitor-map#*/'''\n");
+                } else {
+                    out.push_str("\n/*#visitor-map#\n"); out.push_str(&vjson); out.push_str("\n#visitor-map#*/\n");
+                }
             }
             // Optional debug manifest trailer for debugger tooling
             if std::env::var("FRAME_DEBUG_MANIFEST").ok().as_deref() == Some("1") {
@@ -898,7 +906,11 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     manifest.push_str("\"system\":null,\"states\":[],\"handlers\":[]");
                 }
                 manifest.push_str(",\"schemaVersion\":2}");
-                out.push_str("\n/*#debug-manifest#\n"); out.push_str(&manifest); out.push_str("\n#debug-manifest#*/\n");
+                if let TargetLanguage::Python3 = lang {
+                    out.push_str("\n'''/*#debug-manifest#\n"); out.push_str(&manifest); out.push_str("\n#debug-manifest#*/'''\n");
+                } else {
+                    out.push_str("\n/*#debug-manifest#\n"); out.push_str(&manifest); out.push_str("\n#debug-manifest#*/\n");
+                }
             }
         }
         // Optional native symbol snapshot trailer (Stage 10A)
