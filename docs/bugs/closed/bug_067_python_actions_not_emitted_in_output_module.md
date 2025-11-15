@@ -8,20 +8,15 @@ status: Closed
 priority: High
 category: CodeGen
 discovered_version: v0.86.31
-fixed_version: 
+fixed_version: v0.86.33
 reporter: Codex
 assignee: 
 created_date: 2025-11-14
-resolved_date: 
+resolved_date: 2025-11-15
 ```
 
 ## Resolution
 - Python module compile now emits methods for `actions:` and `operations:`:
   - Actions: `def _action_<name>(self, ...)`
   - Operations: `def _operation_<name>(self, ...)`
-- Bodies are normalized and a `pass` is inserted for empty methods to keep code valid.
-
-## Validation
-- New fixture asserts presence of `_action_*` in compiled code:
-  - `framec_tests/language_specific/python/v3_cli/positive/actions_emitted.frm`
 
