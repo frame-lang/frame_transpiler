@@ -717,7 +717,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 }
                 TargetLanguage::TypeScript => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
-                    let ts_import = std::env::var("FRAME_TS_EXEC_IMPORT").ok().unwrap_or_else(|| String::from("../../../frame_runtime_ts/index"));
+                    let ts_import = std::env::var("FRAME_TS_EXEC_IMPORT").ok().unwrap_or_else(|| String::from("frame_runtime_ts"));
                     let mut module = String::new();
                     module.push_str(&format!("import {{ FrameEvent, FrameCompartment }} from '{}'\n\n", ts_import));
                     module.push_str("export class "); module.push_str(&sys_name); module.push_str(" {\n");
@@ -754,7 +754,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     out = module;
                 }
                 TargetLanguage::Rust => {
-                    let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    let _sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
                     let mut module = String::new();
                     module.push_str("#[derive(Default)] struct FrameCompartment{ state: StateId, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
                     module.push_str("fn _frame_transition(_n: &FrameCompartment){ /* no-op */ }\n");

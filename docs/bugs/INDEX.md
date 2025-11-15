@@ -26,3 +26,9 @@
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
 | (none) |  |  |  |  |  |
+
+## Recently Resolved (awaiting closure by owning team)
+
+- #065: Python runtime package not emitted by compile — fixed_version: v0.86.35
+- #067: Python actions not emitted in output module — fixed_version: v0.86.35
+- #068: TypeScript runtime import path incorrect for single-file — fixed_version: v0.86.35
