@@ -2,8 +2,8 @@
 
 ## Statistics
 - **Total Bugs**: 67
-- **Open**: 6
-- **Resolved**: 59
+- **Open**: 3
+- **Resolved**: 62
 - **Won't Fix**: 2
 - **Next Bug Number**: 69
 
