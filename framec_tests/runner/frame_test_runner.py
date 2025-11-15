@@ -1123,6 +1123,11 @@ class FrameTestRunner:
             }.get(language, language)
             cmd = [self.config.framec_path, "compile", "-l", lang_flag, "--validation-only", str(test_file)]
             try:
+                try:
+                    if cmd and not os.path.isabs(cmd[0]):
+                        cmd[0] = os.path.abspath(cmd[0])
+                except Exception:
+                    pass
                 res = subprocess.run(cmd, capture_output=True, text=True, timeout=max(self.config.timeout,10))
                 ok = (res.returncode == 0)
                 return ok, (res.stderr or res.stdout)
@@ -1155,6 +1160,11 @@ class FrameTestRunner:
                     env = os.environ.copy()
                     if "v3_validator" in parts_lower and language in ("python", "typescript"):
                         env["FRAME_VALIDATE_NATIVE_POLICY"] = "1"
+                    try:
+                        if cmd and not os.path.isabs(cmd[0]):
+                            cmd[0] = os.path.abspath(cmd[0])
+                    except Exception:
+                        pass
                     res = subprocess.run(cmd, capture_output=True, text=True, timeout=max(self.config.timeout,10), env=env)
                     return (res.returncode == 0), (res.stderr or res.stdout)
                 except Exception as e:
@@ -2752,7 +2762,7 @@ def main():
     if args.full and 'all_v3' not in categories:
         categories.append('all_v3')
     if 'all_v3' in categories:
-        base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems']
+        base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems','v3_cli','v3_cli_project']
         categories = [c for c in categories if c != 'all_v3'] + base
     if args.fast:
         fast = ['v3_outline','v3_mir','v3_validator','v3_exec_smoke']

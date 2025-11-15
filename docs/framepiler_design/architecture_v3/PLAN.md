@@ -65,6 +65,18 @@ v0.86.36 — Runtime & Testing Hardening (Py/TS/Rust)
 - Rust
   - Curated exec positives/negatives green; compile-time E401 wired.
 
+Non-PRT Languages (C/C++/Java/C#) — Roadmap and Parity Tasks
+- CWD parity
+  - Add @cwd: tmp CLI and CLI-project fixtures (compile-only) to ensure runner/path robustness (planned next).
+- Visitor-map parity
+  - Add module-path visitor-map trailers (where supported) and minimal shape checks.
+- CLI scaffolds
+  - Ensure compile emits code with debug trailers (errors-json, frame-map; visitor-map when available) consistently.
+- Validation parity
+  - Keep E400/E401/E404 aligned; add targeted negatives as needed.
+- Exec-smoke
+  - Maintain exec-smoke markers; expand curated exec only when minimal runtime wrappers are stable.
+
 Stage 10 — AST & Symbol Integration (Debugger Readiness)
 - [x] 10A Native-symbol snapshot (module path)
   - Emit native-symbols trailer when FRAME_NATIVE_SYMBOL_SNAPSHOT=1.
