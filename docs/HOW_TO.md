@@ -22,7 +22,7 @@ This document captures every process, tool, and workflow used in the Frame Trans
 Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.25 and in the “Going Native” phase (native bodies with SOL‑anchored Frame statements in handlers).
 
 ### Current Status
-- **Version**: v0.86.40
+- **Version**: v0.86.41
 - **Branch**: `going_native`
 - **Supported Targets (V3 work focus)**: Python 3, TypeScript, C#, C, C++, Java, Rust. (GraphViz remains available but is not V3‑gated.)
 - **LLVM**: on indefinite hold — do not develop or maintain LLVM until further notice.

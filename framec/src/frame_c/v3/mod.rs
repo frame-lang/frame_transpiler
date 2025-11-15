@@ -711,6 +711,25 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     } else { String::new() };
                                     (async_flag, param_text)
                                 } else { (false, String::new()) };
+                                // Helper to build call argument list from params (strip annotations/defaults)
+                                fn build_call_args(param_text: &str) -> String {
+                                    let mut names: Vec<String> = Vec::new();
+                                    for raw in param_text.split(',') {
+                                        let t = raw.trim();
+                                        if t.is_empty() { continue; }
+                                        let mut end = t.len();
+                                        if let Some(idx) = t.find('=') { end = end.min(idx); }
+                                        if let Some(idx) = t.find(':') { end = end.min(idx); }
+                                        let name = t[..end].trim();
+                                        if !name.is_empty() {
+                                            names.push(name.to_string());
+                                        }
+                                    }
+                                    names.join(", ")
+                                }
+                                let call_args = build_call_args(&params);
+
+                                // Internal implementation
                                 let sig = if params.is_empty() {
                                     if is_async {
                                         format!("    async def _action_{}(self):\n", aname)
@@ -754,6 +773,36 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     module.push('\n');
                                 }
                                 if !emitted_code { module.push_str("        pass\n"); }
+
+                                // Public wrapper with FRM action name so call sites like self.log(...)
+                                // and self.handle(...) continue to work.
+                                let wrapper_sig = if params.is_empty() {
+                                    if is_async {
+                                        format!("    async def {}(self):\n", aname)
+                                    } else {
+                                        format!("    def {}(self):\n", aname)
+                                    }
+                                } else {
+                                    if is_async {
+                                        format!("    async def {}(self, {}):\n", aname, params)
+                                    } else {
+                                        format!("    def {}(self, {}):\n", aname, params)
+                                    }
+                                };
+                                module.push_str(&wrapper_sig);
+                                if is_async {
+                                    if call_args.is_empty() {
+                                        module.push_str(&format!("        return await self._action_{}()\n", aname));
+                                    } else {
+                                        module.push_str(&format!("        return await self._action_{}({})\n", aname, call_args));
+                                    }
+                                } else {
+                                    if call_args.is_empty() {
+                                        module.push_str(&format!("        return self._action_{}()\n", aname));
+                                    } else {
+                                        module.push_str(&format!("        return self._action_{}({})\n", aname, call_args));
+                                    }
+                                }
                             }
                             crate::frame_c::v3::validator::BodyKindV3::Operation => {
                                 let oname = b.owner_id.as_deref().unwrap_or("operation");
