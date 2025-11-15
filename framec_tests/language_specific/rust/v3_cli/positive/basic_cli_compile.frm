@@ -1,5 +1,7 @@
 @target rust
-// @compile-expect: pub fn e\(\) \{
+// @rust-state-enum
+// @compile-expect: enum StateId \{
+// @compile-expect: state: StateId
 
 system S1 {
     machine:

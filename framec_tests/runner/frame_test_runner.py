@@ -143,6 +143,7 @@ class FrameTestRunner:
           - @expect-mode: equal|superset (per-test override)
           - @run-expect: <regex> (can appear multiple times)
           - @compile-expect: <regex> (verify compiled output contains pattern)
+          - @import-call: class=<Name>; method=<name> (compile/import smoke)
           - @flaky
           - @skip-if: <token> (e.g., java-toolchain-missing)
           - @timeout: <seconds>
@@ -187,6 +188,13 @@ class FrameTestRunner:
                         pat = m2c.group(2).strip()
                         if pat:
                             meta.setdefault('compile_expect', []).append(pat)
+                    m_ic = re.match(r"^\s*(#|//)\s*@import-call:\s*(.+)$", line)
+                    if m_ic:
+                        spec = m_ic.group(2).strip()
+                        if spec:
+                            meta.setdefault('import_call', []).append(spec)
+                    if re.match(r"^\s*(#|//)\s*@rust-state-enum\b", line):
+                        meta['rust_state_enum'] = ['1']
                     if re.match(r"^\s*(#|//)\s*@flaky\b", line):
                         meta['flaky'] = ['1']
                     if re.match(r"^\s*(#|//)\s*@exec-ok\b", line):
@@ -418,7 +426,12 @@ class FrameTestRunner:
             try:
                 if self.config.verbose:
                     print("[debug] v3_cli cmd:", " ".join(cmd))
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout or self.config.timeout)
+                # Per-fixture env flags
+                env = os.environ.copy()
+                meta = self.parse_fixture_meta(test_file)
+                if language == "rust" and 'rust_state_enum' in meta:
+                    env["FRAME_RUST_STATE_ENUM"] = "1"
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout or self.config.timeout, env=env)
             except subprocess.TimeoutExpired:
                 return False, str(output_file), "CLI compile timeout"
             if result.returncode != 0:
@@ -456,6 +469,27 @@ class FrameTestRunner:
                             return False, str(output_file), f"compile-expect missing pattern: {pat}"
                     except re.error as e:
                         return False, str(output_file), f"invalid compile-expect regex '{pat}': {e}"
+            # Optional import-call smoke for Python compiled module
+            if language == "python" and 'import_call' in meta and mode == "compile" and not is_neg:
+                try:
+                    # Expect a single spec: class=<Name>; method=<name>
+                    spec = meta['import_call'][0]
+                    cls = None; meth = None
+                    for part in spec.split(';'):
+                        p = part.strip()
+                        if p.startswith('class='):
+                            cls = p[len('class='):].strip()
+                        if p.startswith('method='):
+                            meth = p[len('method='):].strip()
+                    if not cls or not meth:
+                        return False, str(output_file), f"invalid @import-call spec: {spec}"
+                    modname = Path(output_file).stem
+                    code = f"import sys;sys.path.insert(0,'{outdir}');from {modname} import {cls}; from frame_runtime_py import FrameEvent; o={cls}(); o.{meth}(FrameEvent('e', None), o._compartment)"
+                    res = subprocess.run(["python3","-c",code], capture_output=True, text=True, timeout=max(self.config.timeout,10))
+                    if res.returncode != 0:
+                        return False, str(output_file), f"import-call failed: {res.stderr or res.stdout}"
+                except Exception as e:
+                    return False, str(output_file), f"import-call error: {e}"
             return True, str(output_file), None
 
         if is_v3_cli_project:

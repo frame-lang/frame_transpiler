@@ -665,11 +665,19 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 } else { spliced_full }
                             };
                             module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
-                            // Normalize indentation: left-strip each non-empty line and re-indent to method level
+                            // Normalize indentation: left-strip and re-indent to method level.
+                            // Track if we emitted any real code (non-comment, non-empty) to decide on inserting 'pass'.
+                            let mut emitted_code = false;
                             for ln in spliced.lines() {
                                 let t = ln.trim();
                                 if t.is_empty() { module.push_str("        \n"); continue; }
+                                // Treat pure comments as not code
+                                if t.starts_with('#') { module.push_str("        "); module.push_str(t); module.push('\n'); continue; }
+                                emitted_code = true;
                                 module.push_str("        "); module.push_str(t); module.push('\n');
+                            }
+                            if !emitted_code {
+                                module.push_str("        pass\n");
                             }
                         }
                     }
@@ -716,7 +724,12 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 TargetLanguage::Rust => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
                     let mut module = String::new();
-                    module.push_str("#[derive(Default)] struct FrameCompartment<'a>{ state: &'a str, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<&'a FrameCompartment<'a>>, state_args: Option<()>, }\n");
+                    let use_enum = std::env::var("FRAME_RUST_STATE_ENUM").ok().as_deref() == Some("1");
+                    if use_enum {
+                        module.push_str("#[derive(Default)] struct FrameCompartment{ state: StateId, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
+                    } else {
+                        module.push_str("#[derive(Default)] struct FrameCompartment<'a>{ state: &'a str, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<&'a FrameCompartment<'a>>, state_args: Option<()>, }\n");
+                    }
                     module.push_str("fn _frame_transition(_n: &FrameCompartment){ /* no-op */ }\n");
                     module.push_str("fn _frame_router(_e: Option<()>) { /* no-op */ }\n");
                     module.push_str("fn _frame_stack_push(){ /* no-op */ }\nfn _frame_stack_pop(){ /* no-op */ }\n\n");

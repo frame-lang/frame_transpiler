@@ -170,8 +170,13 @@ impl FrameStatementExpanderV3 for RustExpanderV3 {
         match mir {
             MirItemV3::Transition{ target, .. } => {
                 let mut out = String::new();
-                let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
-                out.push_str(&format!("{}let next_compartment = FrameCompartment {{ state: \"{}\", ..Default::default() }};\n", pad, id_raw));
+                let use_enum = std::env::var("FRAME_RUST_STATE_ENUM").ok().as_deref() == Some("1");
+                if use_enum {
+                    out.push_str(&format!("{}let next_compartment = FrameCompartment {{ state: StateId::{}, ..Default::default() }};\n", pad, target));
+                } else {
+                    let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
+                    out.push_str(&format!("{}let next_compartment = FrameCompartment {{ state: \"{}\", ..Default::default() }};\n", pad, id_raw));
+                }
                 out.push_str(&format!("{}_frame_transition(&next_compartment);\n", pad));
                 out.push_str(&format!("{}return;\n", pad));
                 out
