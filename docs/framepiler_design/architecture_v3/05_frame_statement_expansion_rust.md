@@ -1,13 +1,13 @@
 # Stage 5g — Frame Statement Expansion (Rust)
 
 Purpose
-- Expand MIR Frame statements in Rust bodies. The module compile path emits runnable stubs by default and uses an enum for state identifiers.
+- Expand MIR Frame statements in Rust bodies. The module compile path emits runnable stubs by default and uses an enum for state identifiers (no fallback).
 
 Inputs
 - `MixedBody` MIR items; indent derived from each Frame-statement line.
 
 Outputs
-- Module compile: runnable code with a lightweight `FrameCompartment` and transitions targeting `StateId::<State>` (default‑on). Set `FRAME_RUST_STATE_ENUM=0` to disable and fall back to string state IDs.
+- Module compile: runnable code with a lightweight `FrameCompartment` and transitions targeting `StateId::<State>`.
 - Facade/exec‑smoke: wrapper calls that produce standardized markers (no runtime dependency), used in minimal exec tests.
 
 Expansions (Module compile)

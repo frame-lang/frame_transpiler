@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 67
-- **Open**: 5
-- **Resolved**: 60
+- **Total Bugs**: 68
+- **Open**: 8
+- **Resolved**: 58
 - **Won't Fix**: 2
-- **Next Bug Number**: 68
+- **Next Bug Number**: 69
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -25,4 +25,4 @@
 
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
-| (none) |  |  |  |  |  |
+| [#068](open/bug_068_typescript_runtime_import_path_incorrect_for_single_file_compile.md) | TypeScript runtime import path incorrect for single-file compile output | Medium | CodeGen | Open | Codex |

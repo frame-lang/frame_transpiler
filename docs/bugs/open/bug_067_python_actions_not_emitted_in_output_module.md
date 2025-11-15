@@ -8,11 +8,11 @@ status: Closed
 priority: High
 category: CodeGen
 discovered_version: v0.86.31
-fixed_version: v0.86.32
+fixed_version: 
 reporter: Codex
 assignee: 
 created_date: 2025-11-14
-resolved_date: 2025-11-15
+resolved_date: 
 ```
 
 ## Resolution

@@ -1,5 +1,4 @@
 @target rust
-// @rust-state-enum
 // @compile-expect: enum StateId \{
 // @compile-expect: state: StateId
 

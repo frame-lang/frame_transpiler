@@ -193,8 +193,6 @@ class FrameTestRunner:
                         spec = m_ic.group(2).strip()
                         if spec:
                             meta.setdefault('import_call', []).append(spec)
-                    if re.match(r"^\s*(#|//)\s*@rust-state-enum\b", line):
-                        meta['rust_state_enum'] = ['1']
                     if re.match(r"^\s*(#|//)\s*@flaky\b", line):
                         meta['flaky'] = ['1']
                     if re.match(r"^\s*(#|//)\s*@exec-ok\b", line):
@@ -429,8 +427,6 @@ class FrameTestRunner:
                 # Per-fixture env flags
                 env = os.environ.copy()
                 meta = self.parse_fixture_meta(test_file)
-                if language == "rust" and 'rust_state_enum' in meta:
-                    env["FRAME_RUST_STATE_ENUM"] = "1"
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout or self.config.timeout, env=env)
             except subprocess.TimeoutExpired:
                 return False, str(output_file), "CLI compile timeout"

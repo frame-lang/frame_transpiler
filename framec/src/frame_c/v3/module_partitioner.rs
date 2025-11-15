@@ -1,6 +1,4 @@
 use crate::frame_c::visitors::TargetLanguage;
-use super::body_closer as closer;
-use super::body_closer::BodyCloserV3;
 use super::validator::BodyKindV3;
 use super::native_region_scanner::RegionSpan;
 use super::prolog_scanner::PrologScannerV3;

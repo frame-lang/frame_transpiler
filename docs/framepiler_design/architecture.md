@@ -71,4 +71,4 @@ How To (Quick)
 Notes
 - Demos remain for hermetic exec smoke; production uses `compile`/`compile-project`.
 - Keep changes deterministic and documented; update stage docs upon policy changes.
-- Rust default: StateId enum is default‑on for module compile; set `FRAME_RUST_STATE_ENUM=0` to fall back to string state IDs.
+- Rust StateId enums are always emitted; no fallback to string IDs.

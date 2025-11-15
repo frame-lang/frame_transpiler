@@ -68,8 +68,8 @@ impl SplicedBodyV3 {
         for (tgt, origin) in &self.splice_map {
             if start >= tgt.start && start < tgt.end {
                 // compute offset within target segment
-                let mut off_start = start - tgt.start;
-                let mut off_end = if end <= tgt.end { end - tgt.start } else { tgt.end - tgt.start };
+                let off_start = start - tgt.start;
+                let off_end = if end <= tgt.end { end - tgt.start } else { tgt.end - tgt.start };
                 match origin {
                     OriginV3::Frame { source } => {
                         let src_start = source.start + off_start.min(source.end.saturating_sub(source.start));

@@ -756,13 +756,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 TargetLanguage::Rust => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
                     let mut module = String::new();
-                    // Default ON: use enum unless explicitly disabled with FRAME_RUST_STATE_ENUM=0
-                    let use_enum = std::env::var("FRAME_RUST_STATE_ENUM").map(|v| v != "0").unwrap_or(true);
-                    if use_enum {
-                        module.push_str("#[derive(Default)] struct FrameCompartment{ state: StateId, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
-                    } else {
-                        module.push_str("#[derive(Default)] struct FrameCompartment<'a>{ state: &'a str, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<&'a FrameCompartment<'a>>, state_args: Option<()>, }\n");
-                    }
+                    module.push_str("#[derive(Default)] struct FrameCompartment{ state: StateId, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
                     module.push_str("fn _frame_transition(_n: &FrameCompartment){ /* no-op */ }\n");
                     module.push_str("fn _frame_router(_e: Option<()>) { /* no-op */ }\n");
                     module.push_str("fn _frame_stack_push(){ /* no-op */ }\nfn _frame_stack_pop(){ /* no-op */ }\n\n");
@@ -786,44 +780,28 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             module.push_str("}\n\n");
                         }
                     }
-                    // Optional enum StateId
-                    if std::env::var("FRAME_RUST_STATE_ENUM").map(|v| v != "0").unwrap_or(true) {
-                        let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
-                        let validator = crate::frame_c::v3::validator::ValidatorV3;
-                        let states = validator.collect_machine_state_names(bytes, outline_start);
-                        if !states.is_empty() {
-                            let mut enum_src = String::new();
-                            enum_src.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n");
-                            enum_src.push_str("enum StateId { ");
-                            let mut first = true;
-                            for s in states.iter() { if !first { enum_src.push_str(", "); } enum_src.push_str(s); first = false; }
-                            enum_src.push_str(" }\n\n");
-                            module = enum_src + &module;
-                        }
+                    // Enum StateId
+                    let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
+                    let validator = crate::frame_c::v3::validator::ValidatorV3;
+                    let states = validator.collect_machine_state_names(bytes, outline_start);
+                    if !states.is_empty() {
+                        let mut enum_src = String::new();
+                        enum_src.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n");
+                        enum_src.push_str("enum StateId { ");
+                        let mut first = true;
+                        for s in states.iter() { if !first { enum_src.push_str(", "); } enum_src.push_str(s); first = false; }
+                        enum_src.push_str(" }\n\n");
+                        module = enum_src + &module;
                     }
                     out = module;
                 }
                 _ => {}
             }
         }
-        // Optional Rust state enum prelude (feature-gated by env)
-        if lang == TargetLanguage::Rust && std::env::var("FRAME_RUST_STATE_ENUM").map(|v| v != "0").unwrap_or(true) {
-            let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
-            let validator = crate::frame_c::v3::validator::ValidatorV3;
-            let states = validator.collect_machine_state_names(bytes, outline_start);
-            if !states.is_empty() {
-                let mut prelude = String::new();
-                prelude.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n");
-                prelude.push_str("enum StateId { ");
-                let mut first = true;
-                for s in states.iter() { if !first { prelude.push_str(", "); } prelude.push_str(s); first = false; }
-                prelude.push_str(" }\n\n");
-                out = prelude + &out;
-            }
-        }
+        // Rust enum StateId is always emitted above within the Rust branch
         // Optional mapping and visitor-map trailers for module demo path
         if std::env::var("FRAME_MAP_TRAILER").ok().as_deref() == Some("1") {
-            use crate::frame_c::v3::splice::{SplicerV3 as _SplicerV3, OriginV3};
+            use crate::frame_c::v3::splice::OriginV3;
             use crate::frame_c::v3::native_region_scanner::RegionSpan;
             // Rebuild splice maps per-body and merge into module-target offsets
             let mut module_map: Vec<(RegionSpan, OriginV3)> = Vec::new();

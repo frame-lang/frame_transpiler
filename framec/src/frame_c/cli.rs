@@ -109,9 +109,6 @@ impl Cli {
         let validate_only = matches.get_flag("validation-only");
         let validate = matches.get_flag("validate") || matches.get_flag("validate-syntax");
         let validate_native = matches.get_flag("validate-native");
-        let emit_body_only = false;
-        let emit_exec = false;
-        let emit_map = false;
         let emit_debug = matches.get_flag("emit-debug");
 
         Cli {
