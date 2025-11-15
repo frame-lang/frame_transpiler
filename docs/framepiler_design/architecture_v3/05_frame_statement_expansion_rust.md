@@ -1,27 +1,29 @@
 # Stage 5g — Frame Statement Expansion (Rust)
 
 Purpose
-- Minimal expansion for MIR Frame statements in Rust bodies: emit comment-only markers at the correct indentation.
+- Expand MIR Frame statements in Rust bodies. The module compile path emits runnable stubs by default and uses an enum for state identifiers.
 
 Inputs
 - `MixedBody` MIR items; indent derived from each Frame-statement line.
 
 Outputs
-- Rust comment lines (`// ...`) preserving the line’s indentation.
+- Module compile: runnable code with a lightweight `FrameCompartment` and transitions targeting `StateId::<State>` (default‑on). Set `FRAME_RUST_STATE_ENUM=0` to disable and fall back to string state IDs.
+- Facade/exec‑smoke: wrapper calls that produce standardized markers (no runtime dependency), used in minimal exec tests.
 
-Expansions (Minimal)
-- Transition `-> $State(args?)` → `// frame:transition State(args)`
-- Forward `=> $^` → `// frame:forward`
-- Stack ops `$$+` / `$$-` → `// frame:stack_push` / `// frame:stack_pop`
+Expansions (Module compile)
+- Transition `-> $State(args?)` → constructs `FrameCompartment { state: StateId::<State>, ..Default::default() }`, calls transition shim, then returns.
+- Forward `=> $^` → non‑terminal router call.
+- Stack ops `$$+` / `$$-` → push/pop shims.
 
 Indentation
-- Use exactly the leading whitespace from the Frame-statement line.
+- Use exactly the leading whitespace from the Frame‑statement line.
 
 Terminal Semantics
-- Transitions are terminal within their containing block; forwards/stack ops are not mandated terminal. Validator enforces transition-as-terminal only; comments serve as placeholders.
+- Transitions are terminal within their containing block; forwards/stack ops are non‑terminal. The validator enforces the rule; expansions reflect it by emitting an immediate return after transitions.
 
 Inline forms
-- Support `;` separated single-line forms; expansion precedes the semicolon; trailing native text (or `//` comment) remains native.
+- Support `;`‑separated single‑line forms; expansion precedes the semicolon; trailing native text (or `//` comment) remains native.
 
 Tests
-- Indentation and mapping anchors in nested `if`/`match` blocks.
+- Indentation/mapping anchors in nested `if`/`match` blocks.
+- Enum state ID default: fixtures assert presence of `enum StateId` and `state: StateId`.

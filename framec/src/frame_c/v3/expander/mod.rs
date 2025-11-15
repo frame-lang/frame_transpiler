@@ -170,7 +170,8 @@ impl FrameStatementExpanderV3 for RustExpanderV3 {
         match mir {
             MirItemV3::Transition{ target, .. } => {
                 let mut out = String::new();
-                let use_enum = std::env::var("FRAME_RUST_STATE_ENUM").ok().as_deref() == Some("1");
+                // Default ON: use enum unless explicitly disabled with FRAME_RUST_STATE_ENUM=0
+                let use_enum = std::env::var("FRAME_RUST_STATE_ENUM").map(|v| v != "0").unwrap_or(true);
                 if use_enum {
                     out.push_str(&format!("{}let next_compartment = FrameCompartment {{ state: StateId::{}, ..Default::default() }};\n", pad, target));
                 } else {
@@ -246,7 +247,7 @@ impl FrameStatementExpanderV3 for RustFacadeExpanderV3 {
         // Rust also accepts unknown function calls syntactically
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, state_args, .. } => {
+            MirItemV3::Transition{ target, state_args: _state_args, .. } => {
                 // For exec/facade markers we only require the state name; ignore extra args in wrapper calls
                 format!("{}__frame_transition(\"{}\");\n", pad, target)
             }

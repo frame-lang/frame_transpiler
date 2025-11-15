@@ -49,7 +49,7 @@ impl NativeRegionScannerV3 for NativeRegionScannerCsV3 {
                 }
                 b'$' => {
                     // $"..." or raw $"""...""" (with N quotes) or $@"..." handled via @ branch after this if `$@`.
-                    let mut j=i; let mut dollars=0; while j<end && bytes[j]==b'$' { dollars+=1; j+=1; }
+                    let mut j=i; let mut _dollars=0; while j<end && bytes[j]==b'$' { _dollars+=1; j+=1; }
                     // if next is '@', fall through so '@' handler consumes verbatim string
                     if j<end && bytes[j]==b'@' { i+=1; continue; }
                     // count quotes for potential raw string

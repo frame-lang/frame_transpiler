@@ -1,7 +1,7 @@
 use crate::frame_c::v3::mir::MirItemV3;
 use crate::frame_c::v3::native_region_scanner::RegionV3;
 use crate::frame_c::visitors::TargetLanguage;
-use crate::frame_c::v3::outline_scanner::{OutlineScannerV3, OutlineItemV3};
+use crate::frame_c::v3::outline_scanner::OutlineItemV3;
 use std::collections::HashSet;
 use super::arcanum::Arcanum;
 

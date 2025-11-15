@@ -2,7 +2,7 @@ use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v3::native_region_scanner as nscan;
 use crate::frame_c::v3::native_region_scanner::NativeRegionScannerV3;
-use crate::frame_c::v3::body_closer::BodyCloserV3;
+// removed unused BodyCloserV3 import
 use crate::frame_c::v3::mir_assembler::MirAssemblerV3;
 use crate::frame_c::v3::expander::{FrameStatementExpanderV3, PyExpanderV3, TsExpanderV3, CExpanderV3, CppExpanderV3, JavaExpanderV3, RustExpanderV3};
 use crate::frame_c::v3::splice::SplicerV3;
@@ -651,34 +651,66 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     module.push_str("    def _frame_stack_push(self):\n        pass\n");
                     module.push_str("    def _frame_stack_pop(self):\n        pass\n");
                     for (idx, b) in parts.bodies.iter().enumerate() {
-                        if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
-                            let hname = b.owner_id.as_deref().unwrap_or("handler");
-                            // Use previously spliced body (includes braces); strip outer braces
-                            let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
-                            let spliced = {
-                                let bytes = spliced_full.as_bytes();
-                                let mut li = 0usize; let mut ri = bytes.len();
-                                while li < ri && bytes[li].is_ascii_whitespace() { li += 1; }
-                                while ri > li && bytes[ri-1].is_ascii_whitespace() { ri -= 1; }
-                                if li < ri && bytes[li] == b'{' && ri > 0 && bytes[ri-1] == b'}' && li+1 < ri-1 {
-                                    &spliced_full[li+1..ri-1]
-                                } else { spliced_full }
-                            };
-                            module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
-                            // Normalize indentation: left-strip and re-indent to method level.
-                            // Track if we emitted any real code (non-comment, non-empty) to decide on inserting 'pass'.
-                            let mut emitted_code = false;
-                            for ln in spliced.lines() {
-                                let t = ln.trim();
-                                if t.is_empty() { module.push_str("        \n"); continue; }
-                                // Treat pure comments as not code
-                                if t.starts_with('#') { module.push_str("        "); module.push_str(t); module.push('\n'); continue; }
-                                emitted_code = true;
-                                module.push_str("        "); module.push_str(t); module.push('\n');
+                        let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
+                        let spliced = {
+                            let bytes = spliced_full.as_bytes();
+                            let mut li = 0usize; let mut ri = bytes.len();
+                            while li < ri && bytes[li].is_ascii_whitespace() { li += 1; }
+                            while ri > li && bytes[ri-1].is_ascii_whitespace() { ri -= 1; }
+                            if li < ri && bytes[li] == b'{' && ri > 0 && bytes[ri-1] == b'}' && li+1 < ri-1 { &spliced_full[li+1..ri-1] } else { spliced_full }
+                        };
+                        match b.kind {
+                            crate::frame_c::v3::validator::BodyKindV3::Handler => {
+                                let hname = b.owner_id.as_deref().unwrap_or("handler");
+                                module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                                let mut emitted_code = false;
+                                for ln in spliced.lines() {
+                                    let t = ln.trim();
+                                    if t.is_empty() { module.push_str("        \n"); continue; }
+                                    if t.starts_with('#') { module.push_str("        "); module.push_str(t); module.push('\n'); continue; }
+                                    emitted_code = true;
+                                    module.push_str("        "); module.push_str(t); module.push('\n');
+                                }
+                                if !emitted_code { module.push_str("        pass\n"); }
                             }
-                            if !emitted_code {
-                                module.push_str("        pass\n");
+                            crate::frame_c::v3::validator::BodyKindV3::Action => {
+                                let aname = b.owner_id.as_deref().unwrap_or("action");
+                                // Extract parameter list from header (best-effort)
+                                let params = if let Some(hs) = b.header_span {
+                                    let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                    if let Some(lp) = hdr.find('(') { if let Some(rp_rel) = hdr[lp+1..].find(')') { hdr[lp+1..lp+1+rp_rel].trim().to_string() } else { String::new() } } else { String::new() }
+                                } else { String::new() };
+                                let sig = if params.is_empty() { format!("    def _action_{}(self):\n", aname) } else { format!("    def _action_{}(self, {}):\n", aname, params) };
+                                module.push_str(&sig);
+                                let mut emitted_code = false;
+                                for ln in spliced.lines() {
+                                    let t = ln.trim();
+                                    if t.is_empty() { module.push_str("        \n"); continue; }
+                                    if t.starts_with('#') { module.push_str("        "); module.push_str(t); module.push('\n'); continue; }
+                                    emitted_code = true;
+                                    module.push_str("        "); module.push_str(t); module.push('\n');
+                                }
+                                if !emitted_code { module.push_str("        pass\n"); }
                             }
+                            crate::frame_c::v3::validator::BodyKindV3::Operation => {
+                                let oname = b.owner_id.as_deref().unwrap_or("operation");
+                                let params = if let Some(hs) = b.header_span {
+                                    let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                    if let Some(lp) = hdr.find('(') { if let Some(rp_rel) = hdr[lp+1..].find(')') { hdr[lp+1..lp+1+rp_rel].trim().to_string() } else { String::new() } } else { String::new() }
+                                } else { String::new() };
+                                let sig = if params.is_empty() { format!("    def _operation_{}(self):\n", oname) } else { format!("    def _operation_{}(self, {}):\n", oname, params) };
+                                module.push_str(&sig);
+                                let mut emitted_code = false;
+                                for ln in spliced.lines() {
+                                    let t = ln.trim();
+                                    if t.is_empty() { module.push_str("        \n"); continue; }
+                                    if t.starts_with('#') { module.push_str("        "); module.push_str(t); module.push('\n'); continue; }
+                                    emitted_code = true;
+                                    module.push_str("        "); module.push_str(t); module.push('\n');
+                                }
+                                if !emitted_code { module.push_str("        pass\n"); }
+                            }
+                            _ => {}
                         }
                     }
                     out = module;
@@ -724,7 +756,8 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 TargetLanguage::Rust => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
                     let mut module = String::new();
-                    let use_enum = std::env::var("FRAME_RUST_STATE_ENUM").ok().as_deref() == Some("1");
+                    // Default ON: use enum unless explicitly disabled with FRAME_RUST_STATE_ENUM=0
+                    let use_enum = std::env::var("FRAME_RUST_STATE_ENUM").map(|v| v != "0").unwrap_or(true);
                     if use_enum {
                         module.push_str("#[derive(Default)] struct FrameCompartment{ state: StateId, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
                     } else {
@@ -754,7 +787,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         }
                     }
                     // Optional enum StateId
-                    if std::env::var("FRAME_RUST_STATE_ENUM").ok().as_deref() == Some("1") {
+                    if std::env::var("FRAME_RUST_STATE_ENUM").map(|v| v != "0").unwrap_or(true) {
                         let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
                         let validator = crate::frame_c::v3::validator::ValidatorV3;
                         let states = validator.collect_machine_state_names(bytes, outline_start);
@@ -774,7 +807,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             }
         }
         // Optional Rust state enum prelude (feature-gated by env)
-        if lang == TargetLanguage::Rust && std::env::var("FRAME_RUST_STATE_ENUM").ok().as_deref() == Some("1") {
+        if lang == TargetLanguage::Rust && std::env::var("FRAME_RUST_STATE_ENUM").map(|v| v != "0").unwrap_or(true) {
             let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
             let validator = crate::frame_c::v3::validator::ValidatorV3;
             let states = validator.collect_machine_state_names(bytes, outline_start);

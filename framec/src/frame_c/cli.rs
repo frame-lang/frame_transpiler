@@ -1,6 +1,5 @@
-use crate::frame_c::compiler::{detect_header_target_annotation, Exe, TargetLanguage};
+use crate::frame_c::compiler::{Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
-use crate::frame_c::v3::multifile_demo::compile_multiple_bodies_demo;
 use clap::{Arg, Command};
 use std::convert::TryFrom;
 use std::path::PathBuf;
@@ -18,12 +17,6 @@ pub struct Cli {
     validate: bool,
     /// Enable strict/native validation (facade mode)
     validate_native: bool,
-    /// Emit only spliced handler body text (demo helper)
-    emit_body_only: bool,
-    /// Emit a minimal standalone executable (demo helper)
-    emit_exec: bool,
-    /// Emit mapping trailer for spliced output (demo helper)
-    emit_map: bool,
     /// Emit debug trailers (errors-json, frame-map, visitor-map, debug-manifest)
     emit_debug: bool,
     command: CliCommand,
@@ -35,9 +28,7 @@ pub enum CliCommand {
     Init,
     CompileProject { language: String, dir: PathBuf, output_dir: PathBuf, recursive: bool },
     Compile { language: String, file: PathBuf },
-    DemoMulti { language: String, files: Vec<PathBuf> },
-    DemoProject { language: String, dir: PathBuf, recursive: bool },
-    DemoFrame { language: String, file: PathBuf },
+    
 }
 
 impl Cli {
@@ -74,54 +65,8 @@ impl Cli {
             .arg(Arg::new("validation-level").long("validation-level").help("Validation level (compat)").num_args(1).global(true))
             .arg(Arg::new("validate-native").long("validate-native").help("Enable strict/native validation (facade mode)").action(clap::ArgAction::SetTrue).global(true))
             .arg(Arg::new("validation-format").long("validation-format").help("Validation output format (compat)").num_args(1).global(true))
-            .arg(Arg::new("emit-body-only").long("emit-body-only").help("Emit only spliced handler body text (demo)").action(clap::ArgAction::SetTrue).global(true))
-            .arg(Arg::new("emit-exec").long("emit-exec").help("Emit a minimal standalone executable for supported languages (demo)").action(clap::ArgAction::SetTrue).global(true))
-            .arg(Arg::new("emit-map").long("emit-map").help("Emit a mapping trailer for spliced output (demo)").action(clap::ArgAction::SetTrue).global(true))
             .arg(Arg::new("emit-debug").long("emit-debug").help("Emit debug trailers: errors-json, frame-map, visitor-map (module), debug-manifest").action(clap::ArgAction::SetTrue).global(true))
-            .subcommand(
-                Command::new("demo-multi")
-                    .about("V3 demo: compile multiple single-body files (transpile-only)")
-                    .arg(
-                        Arg::new("language")
-                            .long("language").short('l')
-                            .value_name("LANG").required(true)
-                            .help("Target language: python_3, typescript, csharp, c, cpp, java, rust"),
-                    )
-                    .arg(
-                        Arg::new("file")
-                            .value_name("FILE")
-                            .help("Input file(s) starting with '{' single native body")
-                            .num_args(1..),
-                    )
-            )
-            .subcommand(
-                Command::new("demo-project")
-                    .about("V3 demo: compile all single-body files in a directory (transpile-only)")
-                    .arg(
-                        Arg::new("language")
-                            .long("language").short('l')
-                            .value_name("LANG").required(true)
-                            .help("Target language: python_3, typescript, csharp, c, cpp, java, rust"),
-                    )
-                    .arg(
-                        Arg::new("dir")
-                            .value_name("DIR")
-                            .help("Source directory containing files starting with '{'")
-                            .required(true),
-                    )
-                    .arg(
-                        Arg::new("recursive")
-                            .long("recursive").short('r')
-                            .help("Recurse into subdirectories")
-                            .action(clap::ArgAction::SetTrue),
-                    )
-            )
-            .subcommand(
-                Command::new("demo-frame")
-                    .about("V3 demo: compile a Frame-like file with multiple bodies")
-                    .arg(Arg::new("language").long("language").short('l').value_name("LANG").required(true))
-                    .arg(Arg::new("file").value_name("FILE").required(true))
-            )
+            
             .get_matches();
 
         let mut has_subcommand = false;
@@ -141,25 +86,6 @@ impl Cli {
                         let lang = sub.get_one::<String>("language").expect("language required").to_string();
                         let file = sub.get_one::<String>("file").map(|s| PathBuf::from(s)).expect("file required");
                         CliCommand::Compile { language: lang, file }
-                    }
-                    "demo-multi" => {
-                        let lang = sub.get_one::<String>("language").expect("language required").to_string();
-                        let files = sub
-                            .get_many::<String>("file")
-                            .map(|vals| vals.map(|s| PathBuf::from(s)).collect::<Vec<_>>())
-                            .unwrap_or_default();
-                        CliCommand::DemoMulti { language: lang, files }
-                    }
-                    "demo-project" => {
-                        let lang = sub.get_one::<String>("language").expect("language required").to_string();
-                        let dir = sub.get_one::<String>("dir").map(|s| PathBuf::from(s)).expect("dir required");
-                        let recursive = sub.get_flag("recursive");
-                        CliCommand::DemoProject { language: lang, dir, recursive }
-                    }
-                    "demo-frame" => {
-                        let lang = sub.get_one::<String>("language").expect("language required").to_string();
-                        let file = sub.get_one::<String>("file").map(|s| PathBuf::from(s)).expect("file required");
-                        CliCommand::DemoFrame { language: lang, file }
                     }
                     _ => CliCommand::None,
                 }
@@ -183,9 +109,9 @@ impl Cli {
         let validate_only = matches.get_flag("validation-only");
         let validate = matches.get_flag("validate") || matches.get_flag("validate-syntax");
         let validate_native = matches.get_flag("validate-native");
-        let emit_body_only = matches.get_flag("emit-body-only");
-        let emit_exec = matches.get_flag("emit-exec");
-        let emit_map = matches.get_flag("emit-map");
+        let emit_body_only = false;
+        let emit_exec = false;
+        let emit_map = false;
         let emit_debug = matches.get_flag("emit-debug");
 
         Cli {
@@ -198,9 +124,6 @@ impl Cli {
             validate_only,
             validate,
             validate_native,
-            emit_body_only,
-            emit_exec,
-            emit_map,
             emit_debug,
             command,
         }
@@ -241,7 +164,6 @@ pub fn run_with(args: Cli) {
             let files = match iter(&dir, recursive) { Ok(v) => v, Err(e) => { eprintln!("walk error: {}", e); std::process::exit(exitcode::IOERR); } };
             // Respect debug/map flags for trailers
             if args.debug_output { std::env::set_var("FRAME_ERROR_JSON", "1"); }
-            if args.emit_map { std::env::set_var("FRAME_MAP_TRAILER", "1"); }
             if args.emit_debug {
                 std::env::set_var("FRAME_ERROR_JSON", "1");
                 std::env::set_var("FRAME_MAP_TRAILER", "1");
@@ -296,10 +218,7 @@ pub fn run_with(args: Cli) {
             let lang = match TargetLanguage::try_from(language) { Ok(l) => l, Err(e) => { eprintln!("Invalid target language: {}", e); std::process::exit(exitcode::USAGE); } };
             match std::fs::read_to_string(&file) {
                 Ok(content) => {
-                    if args.emit_body_only { std::env::set_var("FRAME_EMIT_BODY_ONLY", "1"); }
-                    if args.emit_exec { std::env::set_var("FRAME_EMIT_EXEC", "1"); }
                     if args.debug_output { std::env::set_var("FRAME_ERROR_JSON", "1"); }
-                    if args.emit_map { std::env::set_var("FRAME_MAP_TRAILER", "1"); }
                     if args.emit_debug {
                         std::env::set_var("FRAME_ERROR_JSON", "1");
                         std::env::set_var("FRAME_MAP_TRAILER", "1");
@@ -324,6 +243,32 @@ pub fn run_with(args: Cli) {
                                 let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
                                 let out_path = dir.join(format!("{}{}", stem, ext));
                                 if let Err(e) = std::fs::write(&out_path, code) { eprintln!("write error: {}", e); std::process::exit(exitcode::IOERR); }
+                                // Emit Python runtime package next to outputs when compiling Python modules
+                                if matches!(lang, TargetLanguage::Python3) {
+                                    // Resolve runtime source directory: env override or relative repo path
+                                    let runtime_src = std::env::var("FRAME_RUNTIME_PY_DIR").ok().map(std::path::PathBuf::from)
+                                        .unwrap_or_else(|| std::path::PathBuf::from("frame_runtime_py"));
+                                    let dst_dir = dir.join("frame_runtime_py");
+                                    if runtime_src.exists() {
+                                        // Recursively copy (create dirs as needed)
+                                        fn copy_dir(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+                                            if !dst.exists() { std::fs::create_dir_all(dst)?; }
+                                            for entry in std::fs::read_dir(src)? {
+                                                let entry = entry?; let p = entry.path();
+                                                let name = entry.file_name(); let to = dst.join(name);
+                                                if p.is_dir() {
+                                                    copy_dir(&p, &to)?;
+                                                } else if p.is_file() {
+                                                    std::fs::copy(&p, &to)?; // overwrite if exists
+                                                }
+                                            }
+                                            Ok(())
+                                        }
+                                        if let Err(e) = copy_dir(&runtime_src, &dst_dir) { eprintln!("warning: failed to copy frame_runtime_py: {}", e); }
+                                    } else {
+                                        eprintln!("warning: frame_runtime_py not found at {:?}; set FRAME_RUNTIME_PY_DIR to override", runtime_src);
+                                    }
+                                }
                                 println!("{}", out_path.display());
                             } else {
                                 println!("{}", code);
@@ -336,41 +281,9 @@ pub fn run_with(args: Cli) {
             }
             return;
         }
-        CliCommand::DemoMulti { language, files } => {
-            // parse language
-            let lang = match TargetLanguage::try_from(language) {
-                Ok(l) => l,
-                Err(e) => { eprintln!("Invalid target language: {}", e); std::process::exit(exitcode::USAGE); }
-            };
-            let mut inputs: Vec<(String, String)> = Vec::new();
-            for p in files {
-                match std::fs::read_to_string(&p) {
-                    Ok(c) => inputs.push((p.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string(), c)),
-                    Err(e) => { eprintln!("Failed to read {}: {}", p.display(), e); std::process::exit(exitcode::NOINPUT); }
-                }
-            }
-            if args.validate || args.validate_only {
-                for (name, content) in &inputs {
-                    match super::v3::validate_single_body(content, Some(lang)) {
-                        Ok(res) => {
-                            for issue in res.issues { eprintln!("{}: validation: {}", name, issue.message); }
-                            if args.validate_only && !res.ok { std::process::exit(exitcode::DATAERR); }
-                        }
-                        Err(e) => { eprintln!("{}: validation error: {}", name, e.error); if args.validate_only { std::process::exit(e.code); } }
-                    }
-                }
-                if args.validate_only { return; }
-            }
-            match compile_multiple_bodies_demo(inputs.iter().map(|(n,c)| (n.as_str(), c.as_str())).collect(), lang) {
-                Ok(outputs) => {
-                    for (name, code) in outputs {
-                        println!("=== file: {} ===\n{}", name, code);
-                    }
-                }
-                Err(e) => { eprintln!("{}", e.error); std::process::exit(e.code); }
-            }
-            return;
-        }
+        
+        /* Removed legacy demo-project */
+        /*
         CliCommand::DemoProject { language, dir, recursive } => {
             let lang = match TargetLanguage::try_from(language) {
                 Ok(l) => l,
@@ -456,6 +369,8 @@ pub fn run_with(args: Cli) {
             }
             return;
         }
+        */
+        /* Removed legacy demo-frame
         CliCommand::DemoFrame { language, file } => {
             let lang = match TargetLanguage::try_from(language) {
                 Ok(l) => l,
@@ -493,6 +408,7 @@ pub fn run_with(args: Cli) {
             }
             return;
         }
+        */
         CliCommand::None => {}
     }
 
@@ -556,7 +472,6 @@ pub fn run_with(args: Cli) {
             } else if args.multifile {
                 exe.run_multifile(&path, target_language, args.output_dir)
             } else {
-                if args.emit_map { std::env::set_var("FRAME_MAP_TRAILER", "1"); }
                 if args.emit_debug {
                     std::env::set_var("FRAME_ERROR_JSON", "1");
                     std::env::set_var("FRAME_MAP_TRAILER", "1");

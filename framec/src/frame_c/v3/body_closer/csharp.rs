@@ -42,7 +42,7 @@ impl BodyCloserV3 for BodyCloserCsV3 {
                 }
                 b'$' => {
                     // interpolated $"..." or raw $"""...""" with $ count
-                    let mut j=i; let mut dollars=0; while j<n && bytes[j]==b'$' { dollars+=1; j+=1; }
+                    let mut j=i; let mut _dollars=0; while j<n && bytes[j]==b'$' { _dollars+=1; j+=1; }
                     let mut k=j; let mut quotes=0; while k<n && bytes[k]==b'"' { quotes+=1; k+=1; }
                     if quotes>=3 { // raw string
                         i = k; // inside raw

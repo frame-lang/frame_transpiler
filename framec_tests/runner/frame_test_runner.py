@@ -595,7 +595,8 @@ class FrameTestRunner:
                 except Exception:
                     is_module_file_vm = False
             if is_v3_closers or is_v3_expansion or (is_v3_visitor_map and not is_module_file_vm):
-                cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
+                # Single-body tests use the legacy single-file pipeline
+                cmd = [self.config.framec_path, "-l", lang_flag, str(test_file)]
                 extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
             elif is_v3_mapping or is_v3_visitor_map:
@@ -610,34 +611,32 @@ class FrameTestRunner:
                 except Exception:
                     is_module_file = False
                 if is_module_file:
-                    cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+                    cmd = [self.config.framec_path, "compile", "-l", lang_flag, "--emit-debug", str(test_file)]
                     extension = ".py" if language == "python" else (".ts" if language == "typescript" else extension)
                     output_file = output_dir / (test_file.stem + extension)
                 else:
-                    cmd = [self.config.framec_path, "demo-multi", "-l", lang_flag, str(test_file)]
+                    cmd = [self.config.framec_path, "-l", lang_flag, str(test_file)]
                     extension = ".txt"
                     output_file = output_dir / (test_file.stem + extension)
             elif is_v3_native_symbols:
-                # Route via demo-frame to emit native-symbols trailer
-                cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+                # Route via compile to emit native-symbols trailer
+                cmd = [self.config.framec_path, "compile", "-l", lang_flag, "--emit-debug", str(test_file)]
                 extension = ".py" if language == "python" else (".ts" if language == "typescript" else extension)
                 output_file = output_dir / (test_file.stem + extension)
             else:
                 if is_v3_project:
                     # Run project compilation on the directory containing this file
                     proj_dir = str(test_file.parent)
-                    cmd = [self.config.framec_path, "demo-project", "-l", lang_flag, proj_dir]
+                    cmd = [self.config.framec_path, "compile-project", "-l", lang_flag, proj_dir, "-o", str(output_dir)]
                     # For negative project fixtures, use validation-only to enforce non-zero exit
                     if self.is_negative_test(test_file):
-                        cmd.insert(2, "--validation-only")
+                        cmd.append("--validation-only")
                 else:
-                    cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+                    cmd = [self.config.framec_path, "compile", "-l", lang_flag, "--emit-debug", str(test_file)]
                 # Choose extension when we intend to execute the output
                 if ("v3_exec_smoke" in parts_lower and self.config.execute) or (getattr(self.config, 'exec_v3', False) and self.config.execute and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower)):
                     ext_map = {"python": ".py", "typescript": ".ts", "rust": ".rs", "c": ".c", "cpp": ".cpp", "java": ".java", "csharp": ".cs"}
                     extension = ext_map.get(language, ".txt")
-                    # Emit exec harness for exec-smoke and curated exec runs across all languages
-                    cmd.insert(2, "--emit-exec")
                 else:
                     extension = ".txt"
                 output_file = output_dir / (test_file.stem + extension)
@@ -645,10 +644,16 @@ class FrameTestRunner:
             if self.config.validate:
                 # Only add --validate if not already using --validation-only for project negatives
                 if "--validation-only" not in cmd:
-                    cmd.insert(2, "--validate")
+                    if len(cmd) > 1 and cmd[1] in ("compile", "compile-project"):
+                        cmd.insert(2, "--validate")
+                    else:
+                        cmd.append("--validate")
                 # Enable native validation for facade smoke fixtures
                 if is_v3_facade_smoke:
-                    cmd.insert(3, "--validate-native")
+                    if len(cmd) > 1 and cmd[1] in ("compile", "compile-project"):
+                        cmd.insert(3, "--validate-native")
+                    else:
+                        cmd.append("--validate-native")
         elif self.is_multifile_test(test_file):
             # Use multifile flag for tests with Frame imports
             cmd = [self.config.framec_path, "-m", str(test_file), "-l", lang_flag]
@@ -678,7 +683,8 @@ class FrameTestRunner:
                     pass
 
             if is_module_file:
-                cmd = [self.config.framec_path, "demo-frame", "-l", lang_flag, str(test_file)]
+                # Use compile path with debug trailers instead of legacy demo-frame
+                cmd = [self.config.framec_path, "compile", "-l", lang_flag, "--emit-debug", str(test_file)]
                 if synthesized_path is not None:
                     cmd[-1] = str(synthesized_path)
                 extension = ".py" if language == "python" else (".ts" if language == "typescript" else extension)
@@ -724,8 +730,8 @@ class FrameTestRunner:
                     except Exception:
                         # Fall back to default in-compiler path
                         pass
-            # For module files routed via demo-frame, also emit exec when executing (except for facade smoke, which uses wrappers)
-            if 'demo-frame' in cmd and (not is_v3_facade_smoke) and language in ("python", "typescript", "java", "csharp", "c", "cpp") and self.config.execute:
+            # For module compiles we may still emit exec when executing (not facade smoke)
+            if cmd[:2] == [self.config.framec_path, "compile"] and (not is_v3_facade_smoke) and language in ("python", "typescript", "java", "csharp", "c", "cpp") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
                 if language == "typescript":
                     runtime_ts = self.base_dir / "typescript" / "runtime" / "frame_runtime"
@@ -735,6 +741,11 @@ class FrameTestRunner:
                     except Exception:
                         pass
             
+            if self.config.verbose:
+                try:
+                    print("[debug] cmd:", " ".join(cmd))
+                except Exception:
+                    pass
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -1072,7 +1083,25 @@ class FrameTestRunner:
         }.get(language, language)
 
         parts_lower = [p.lower() for p in test_file.parts]
-        # Single-body demo categories validate via demo-multi
+        # v3_cli: validate using compile subcommand with --validation-only
+        if "v3_cli" in parts_lower:
+            lang_flag = {
+                "python": "python_3",
+                "typescript": "typescript",
+                "rust": "rust",
+                "golang": "golang",
+                "javascript": "javascript",
+                "llvm": "llvm",
+            }.get(language, language)
+            cmd = [self.config.framec_path, "compile", "-l", lang_flag, "--validation-only", str(test_file)]
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=max(self.config.timeout,10))
+                ok = (res.returncode == 0)
+                return ok, (res.stderr or res.stdout)
+            except Exception as e:
+                return False, str(e)
+
+        # Single-body demo categories validate via single-file path
         # v3_mapping/v3_visitor_map can be module-based; detect @target and route those via demo-frame instead
         is_v3_mapping = "v3_mapping" in parts_lower
         is_v3_visitor_map = "v3_visitor_map" in parts_lower

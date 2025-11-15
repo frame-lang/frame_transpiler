@@ -20,7 +20,7 @@ impl BodyCloserV3 for BodyCloserRustV3 {
                 b'/' if i+1<n && bytes[i+1]==b'*' => { block_comment_nest=1; i+=2; }
                 b'\'' => { // char or lifetime; disambiguate by next char
                     // treat as char if next is not whitespace or apostrophe alone
-                    let mut j=i+1; // char literal cases: '\'' or 'a'
+                    let _j=i+1; // char literal cases: '\'' or 'a'
                     i+=1; while i<n { if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==b'\'' { i+=1; break; } i+=1; }
                     if i>=n { return Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnterminatedString, message:"unterminated char".into() }); }
                 }
@@ -49,4 +49,3 @@ impl BodyCloserV3 for BodyCloserRustV3 {
 
 #[cfg(test)]
 mod tests { use super::*; #[test] fn closes_raw_rust() { let src=b"{\nlet s = r#\" } \"#; /* nested { */ /* */ \n}\n"; let mut c=BodyCloserRustV3; let idx=c.close_byte(src,0).unwrap(); assert_eq!(idx, src.len()-2); } }
-
