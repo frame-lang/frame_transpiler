@@ -8,12 +8,11 @@ status: Fixed
 priority: Medium
 category: Tooling
 discovered_version: v0.86.35
-fixed_version: v0.86.36
+fixed_version: v0.86.37
 reporter: Debugger Team
 assignee: Codex
 created_date: 2025-11-15
 resolved_date: 
-```
 
 ## Description
 When test fixtures request `@cwd: tmp`, the runner changes the working directory for `framec` invocations. If the runner passes a relative binary path (e.g., `./target/release/framec`), subprocess execution fails with `FileNotFoundError` because the binary path is resolved relative to the temporary cwd.

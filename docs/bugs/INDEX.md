@@ -1,13 +1,13 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 24
-- **Open**: 0
-- **Fixed**: 1
+- **Total Bugs**: 26
+- **Open**: 1
+- **Fixed**: 2
 - **Closed**: 23
 - **Reopen**: 0
 - **Won't Fix**: 1
-- **Next Bug Number**: 070
+- **Next Bug Number**: 071
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -17,6 +17,7 @@
 
 
 ## Repro Shortcuts
+- #070: /tmp/frame_transpiler_repro/bug_070/runtime_protocol.frm, /tmp/frame_transpiler_repro/bug_070/run.sh
 
 - #067: /tmp/frame_transpiler_repro/bug_067/minimal_actions_missing.frm, /tmp/frame_transpiler_repro/bug_067/multiple_actions.frm, /tmp/frame_transpiler_repro/bug_067/run_validate.sh
 - #068: /tmp/frame_transpiler_repro/bug_068/minimal_ts_import.frm, /tmp/frame_transpiler_repro/bug_068/run.sh
@@ -29,13 +30,14 @@
 
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
-| (none) |  |  |  |  |  |
+| [#056](open/bug_056_python_module_compile_drops_handlers_for_complex_frm.md) | Python module compile drops handlers/actions for complex FRM | High | CodeGen | Open |  |
 
 ## Fixed (awaiting closure by owning team)
 
 | Bug # | Title | Fixed Version |
 |-------|-------|----------------|
-| [#069](fixed/bug_069_runner_relative_framec_path_cwd_failure.md) | Runner fails when CWD changes (relative framec path) | v0.86.36 |
+| [#069](fixed/bug_069_runner_relative_framec_path_cwd_failure.md) | Runner fails when CWD changes (relative framec path) | v0.86.37 |
+| [#070](fixed/bug_070_python_module_compile_drops_handlers_for_complex_frm.md) | Python module compile drops handlers/actions for complex FRM | v0.86.38 |
 
 ## Recently Closed
 

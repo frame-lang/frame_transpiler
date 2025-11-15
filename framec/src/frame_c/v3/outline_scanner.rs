@@ -91,7 +91,7 @@ impl OutlineScannerV3 {
             let first_tok = to_lower_ascii(&bytes[name_start..name_end]);
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
             let mut is_func_header = false;
-            if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) {
+            if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
                 // In machine/actions/operations sections, allow bare IDENT '(' … ')' '{'
                 if k < n && bytes[k] == b'(' { is_func_header = true; }
             } else if first_tok == "fn" || first_tok == "async" {
