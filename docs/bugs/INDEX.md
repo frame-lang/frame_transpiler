@@ -1,11 +1,11 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 62
+- **Total Bugs**: 63
 - **Open**: 7
-- **Resolved**: 53
+- **Resolved**: 54
 - **Won't Fix**: 2
-- **Next Bug Number**: 63
+- **Next Bug Number**: 64
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -13,10 +13,19 @@
 - [Open Bugs](open/)
 - [Closed Bugs](closed/)
 
+
+## Repro Shortcuts
+
+- #061: /tmp/frame_transpiler_repro/bug_061/minimal_py.frm, /tmp/frame_transpiler_repro/bug_061/run.sh
+- #062: /tmp/frame_transpiler_repro/bug_062/minimal_py.frm, /tmp/frame_transpiler_repro/bug_062/run.sh
+
+- #063: /tmp/frame_transpiler_repro/bug_063/minimal_py.frm, /tmp/frame_transpiler_repro/bug_063/run.sh
+
 ## Active Bugs
 
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
+ 
  
  
 | [#037](open/bug_037_state_diagram_missing_conditional_transitions.md) | State Diagram Missing Conditional Transitions | Low | CodeGen | Open | - |
@@ -43,6 +52,7 @@
 | [#060](closed/bug_060_python_module_compile_not_runnable.md) | Python module compile outputs non-runnable file (annotated Frame + trailers) | High | Tooling | Resolved | v0.86.28 |
 | [#061](closed/bug_061_python_trailer_block_style_invalid.md) | Python compile appends C-style trailer blocks that break Python syntax | High | Tooling | Resolved | v0.86.29 |
 | [#062](closed/bug_062_python_emit_debug_flag_ignored.md) | Python compile appends trailers when --emit-debug is not set | High | Tooling | Resolved | v0.86.29 |
+| [#063](closed/bug_063_python_module_compile_not_runnable_regression.md) | Python module compile still emits non-runnable output (regression) — references Bug #060 | High | Tooling | Resolved | v0.86.30 |
 | [#046](closed/bug_046_python_import_support.md) | Python Import Support | Low | Documentation | Won't Fix | - |
 | [#040](closed/bug_040_interface_method_source_mapping.md) | Interface Method Source Mapping | Medium | CodeGen | Resolved | v0.81.5 |
 | [#038](closed/bug_038_string_concat_escape_sequences.md) | String Concatenation with Escape Sequences | High | CodeGen | Resolved | v0.81.4 |
