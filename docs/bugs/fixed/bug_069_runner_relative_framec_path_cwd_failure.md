@@ -29,19 +29,15 @@ When test fixtures request `@cwd: tmp`, the runner changes the working directory
 
 ## Technical Analysis
 - Runner builds `cmd = [self.config.framec_path, ...]` but does not absolutize it before `subprocess.run(...)` when setting `cwd`.
-- Some branches were fixed previously; others (general V3 transpile path) still passed a relative path.
-
-## Proposed Solution
-- Before calling `subprocess.run`, ensure `cmd[0]` is absolute whenever it refers to the `framec` binary.
-- Apply in all relevant branches: v3_cli, v3_cli_project, and general V3 transpile/validate paths.
+- Fix: absolutize `cmd[0]` in v3_cli, v3_cli_project, and general V3 transpile/validate paths.
 
 ## Resolution
-- Runner now absolutizes `cmd[0]` in v3_cli, v3_cli_project, and the general V3 transpile path.
-- Added @cwd: tmp parity fixtures for Python and TypeScript (CLI and project) to guard against regressions.
+- Runner now absolutizes `cmd[0]` across all execution branches that use cwd changes.
+- Added @cwd parity fixtures for TS/Py/Rust CLI and project modes.
 
 ## Work Log
 - 2025-11-15: Bug filed by Debugger Team.
-- 2025-11-15: Implemented absolute path fix across runner code paths; added @cwd parity fixtures for TS/Py; validated green. Marking Fixed (awaiting closure).
+- 2025-11-15: Implemented absolute path fix; tests added; marking Fixed (awaiting closure by filer).
 
 ---
 *Bug tracking policy version: 1.1*

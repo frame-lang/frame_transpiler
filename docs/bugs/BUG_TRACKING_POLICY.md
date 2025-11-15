@@ -7,12 +7,13 @@ This document defines the bug tracking process for the Frame Transpiler project.
 ```
 docs/bugs/
 ├── BUG_TRACKING_POLICY.md    # This file
-├── TEMPLATE.md                # Bug report template
-├── INDEX.md                   # Master index of all bugs
-├── open/                      # Active bugs
-│   └── bug_NNN_short_title.md
-└── closed/                    # Resolved bugs
-    └── bug_NNN_short_title.md
+├── TEMPLATE.md               # Bug report template
+├── INDEX.md                  # Master index of all bugs (must be maintained)
+├── open/                     # State: Open
+├── fixed/                    # State: Fixed (developer marks fixed; awaiting filer closure)
+├── closed/                   # State: Closed (filer/owner verified)
+├── reopen/                   # State: Reopen
+└── <other>                   # Archive or Won't Fix remain in closed/ with status note
 ```
 
 ## Bug Numbering Scheme
@@ -56,21 +57,22 @@ Every bug report must follow the template in TEMPLATE.md and include:
 ### 3. Resolving a Bug (Developer)
 1. Do not close the bug yourself.
 2. Set status to "Fixed" in the metadata and fill `fixed_version`.
-3. Add resolution details and tests in the bug file.
-4. Leave the file in `open/` so the filer (or owning team) can close it.
-5. Commit with message: `fix(vX.Y.Z): Fixed Bug #NNN - [Short Description]`.
+3. Move the file from `open/` to `fixed/`.
+4. Add resolution details and tests in the bug file.
+5. Update `INDEX.md` (see below) with updated counts and list the bug under "Fixed".
+6. Commit with message: `fix(vX.Y.Z): Fixed Bug #NNN - [Short Description]`.
 
 ### 3b. Closing a Bug (Filer/Owner)
 1. After verifying the fix, change status to "Closed".
-2. Move file from `open/` to `closed/`.
-3. Update INDEX.md to reflect closed status.
+2. Move file from `fixed/` (or `reopen/`) to `closed/`.
+3. Update `INDEX.md` counts and lists accordingly.
 4. Commit with message: `chore: Close Bug #NNN - [Short Description]`.
 
 ### 4. Reopening a Bug
-1. Move file from `closed/` back to `open/` (if it was already closed) or keep in `open/` if still open.
+1. Move file from `closed/` back to `reopen/` (or from `fixed/` if not yet closed).
 2. Update status to "Reopen" (not "Reopened").
 3. Add reopening reason in work log and reference the regression version.
-4. Update INDEX.md accordingly.
+4. Update `INDEX.md` counts and lists accordingly.
 
 ## Bug Priorities
 - **Critical**: System crash, data loss, security issue
@@ -124,10 +126,11 @@ When migrating bugs from old tracking systems:
 4. Check for duplicates before creating new bug
 
 ## Maintenance
-- Quarterly review of old open bugs
+- Keep `INDEX.md` current in every relevant bug commit:
+  - Update counts: Total, Open, Fixed, Closed, Reopen, Won't Fix, Next Bug Number
+  - Update tables/lists for each state (Open, Fixed awaiting closure, Reopen, Recently Closed)
+- Quarterly review of old open/reopen bugs
 - Archive bugs older than 1 year to `docs/bugs/archive/`
-- Update INDEX.md regularly
-- Keep statistics in INDEX.md header
 
 ## Contact
 For questions about bug tracking:

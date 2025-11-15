@@ -1,11 +1,13 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 68
+- **Total Bugs**: 24
 - **Open**: 0
-- **Closed**: 65
-- **Won't Fix**: 2
-- **Next Bug Number**: 70
+- **Fixed**: 1
+- **Closed**: 23
+- **Reopen**: 0
+- **Won't Fix**: 1
+- **Next Bug Number**: 070
 
 ## Quick Links
 - [Bug Tracking Policy](BUG_TRACKING_POLICY.md)
@@ -23,15 +25,20 @@
 
 - #063: /tmp/frame_transpiler_repro/bug_063/minimal_py.frm, /tmp/frame_transpiler_repro/bug_063/run.sh
 
-## Active Bugs
+## Active Bugs (Open)
 
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
+| (none) |  |  |  |  |  |
 
-## Recently Closed (awaiting closure by owning team)
+## Fixed (awaiting closure by owning team)
+
+| Bug # | Title | Fixed Version |
+|-------|-------|----------------|
+| [#069](fixed/bug_069_runner_relative_framec_path_cwd_failure.md) | Runner fails when CWD changes (relative framec path) | v0.86.36 |
+
+## Recently Closed
 
 - #065: Python runtime package not emitted by compile — fixed_version: v0.86.36
-
 - #067: Python actions not emitted in output module — fixed_version: v0.86.35
 - #068: TypeScript runtime import path incorrect for single-file — fixed_version: v0.86.35
-- #069: Runner fails when CWD changes (relative framec path) — fixed_version: v0.86.36
