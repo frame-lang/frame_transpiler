@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 067
 title: "Python codegen omits actions methods in output module (no def _action_*)"
-status: Resolved
+status: Fixed
 priority: High
 category: CodeGen
 discovered_version: v0.86.31
@@ -32,7 +32,17 @@ The generated Python module lacks methods for `actions:` entries (e.g., `def _ac
 - Actual: Only interface handler methods present
 
 ## Work Log
-- 2025-11-15: Verified fix in v0.86.35: generated modules include `def _action_*` methods; v3_cli/actions_emitted passes. — Codex
+- 2025-11-15: Revalidated on v0.86.35; still reproducible via /tmp script — Codex
 
 ---
 *Bug tracking policy version: 1.0*
+
+- 2025-11-15: v0.86.35 repro generated: /var/folders/kl/kn9ds0z918n0bhzr9w40xlt00000gn/T/tmp.jqzO8IfxLp/minimal_actions_missing.py
+\n- 2025-11-15: Full console (v0.86.35)
+\n"""console
+framec 0.86.35
+warning: frame_runtime_py not found at "frame_runtime_py"; set FRAME_RUNTIME_PY_DIR to override
+/var/folders/kl/kn9ds0z918n0bhzr9w40xlt00000gn/T/tmp.EsZfFOmmI3/minimal_actions_missing.py
+BUG_REPRODUCED: actions missing in generated module
+/var/folders/kl/kn9ds0z918n0bhzr9w40xlt00000gn/T/tmp.EsZfFOmmI3/minimal_actions_missing.py
+"""
