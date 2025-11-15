@@ -766,6 +766,12 @@ class FrameTestRunner:
             if is_v3_project and meta.get('cwd') and meta['cwd'][0].lower() in ("tmp", "temp", "tmpdir"):
                 run_cwd = str(self.generated_dir / "cli_project" / language / f"cwd_{Path(test_file).stem}")
                 os.makedirs(run_cwd, exist_ok=True)
+            # Ensure binary path absolute if framec is the command
+            try:
+                if cmd and not os.path.isabs(cmd[0]):
+                    cmd[0] = os.path.abspath(cmd[0])
+            except Exception:
+                pass
             result = subprocess.run(
                 cmd,
                 capture_output=True,
