@@ -1,10 +1,10 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 26
-- **Open**: 1
-- **Fixed**: 2
-- **Closed**: 23
+- **Total Bugs**: 25
+- **Open**: 0
+- **Fixed**: 1
+- **Closed**: 24
 - **Reopen**: 0
 - **Won't Fix**: 1
 - **Next Bug Number**: 071
@@ -30,17 +30,17 @@
 
 | Bug # | Title | Priority | Category | Status | Assignee |
 |-------|-------|----------|----------|--------|----------|
-| [#056](open/bug_056_python_module_compile_drops_handlers_for_complex_frm.md) | Python module compile drops handlers/actions for complex FRM | High | CodeGen | Open |  |
+| (none) |  |  |  |  |  |
 
 ## Fixed (awaiting closure by owning team)
 
 | Bug # | Title | Fixed Version |
 |-------|-------|----------------|
 | [#069](fixed/bug_069_runner_relative_framec_path_cwd_failure.md) | Runner fails when CWD changes (relative framec path) | v0.86.37 |
-| [#070](fixed/bug_070_python_module_compile_drops_handlers_for_complex_frm.md) | Python module compile drops handlers/actions for complex FRM | v0.86.38 |
 
 ## Recently Closed
 
 - #065: Python runtime package not emitted by compile — fixed_version: v0.86.36
 - #067: Python actions not emitted in output module — fixed_version: v0.86.35
 - #068: TypeScript runtime import path incorrect for single-file — fixed_version: v0.86.35
+- #070: Python module compile drops handlers/actions for complex FRM — fixed_version: v0.86.38
