@@ -110,9 +110,9 @@ Testing/Runner/CI
 Generate module outputs with embedded debug trailers and extract sidecars for debugger tooling.
 
 - Python
-  - `./target/release/framec demo-frame --emit-debug -l python_3 path/to/module.frm > out.py`
+  - `./target/release/framec compile --emit-debug -l python_3 path/to/module.frm > out.py`
 - TypeScript
-  - `./target/release/framec demo-frame --emit-debug -l typescript path/to/module.frm > out.ts`
+  - `./target/release/framec compile --emit-debug -l typescript path/to/module.frm > out.ts`
 
 Trailers embedded in code (also extracted by the runner as sidecars):
 - `/*#errors-json# … #errors-json#*/` — structured diagnostics (schemaVersion)
@@ -126,12 +126,10 @@ Reference: `debugger_integration.md`, `12_testing_strategy.md`.
 
 ## How To: Compile Modules (CLI)
 
-The main CLI now compiles full module files (auto-detects `@target`).
+The main CLI compiles full module files (auto-detects `@target`).
 
-- Python: `./target/release/framec -l python_3 --emit-debug path/to/module.frm > out.py`
-- TypeScript: `./target/release/framec -l typescript --emit-debug path/to/module.frm > out.ts`
+- Python: `./target/release/framec compile --emit-debug -l python_3 path/to/module.frm > out.py`
+- TypeScript: `./target/release/framec compile --emit-debug -l typescript path/to/module.frm > out.ts`
 
-Differences vs demo-frame
-- Same module pipeline (partition → scan → MIR → validate → expand → splice).
-- `--emit-debug` produces the same trailers in this path.
-- Demos remain in place for hermetic tests and curated exec; use CLI compile for production builds.
+Notes
+- Legacy demo subcommands have been removed; use `compile` and `compile-project` for production and tests.

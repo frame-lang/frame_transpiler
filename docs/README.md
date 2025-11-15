@@ -80,10 +80,10 @@ Shared V3 Core (applies to both; read in this order)
 
 ## How To: Collect Debugging Artifacts (Python/TypeScript)
 
-Use the module demo path with `--emit-debug` to embed debug trailers in the generated code. Extracted sidecars are consumed by the test runner and can be read directly by tools.
+Use `compile --emit-debug` to embed debug trailers in the generated code. Extracted sidecars are consumed by the test runner and can be read directly by tools.
 
 - Python
-  - Command: `./target/release/framec demo-frame --emit-debug -l python_3 path/to/module.frm > out.py`
+  - Command: `./target/release/framec compile --emit-debug -l python_3 path/to/module.frm > out.py`
   - Trailers in `out.py` (and extracted sidecars):
     - `/*#errors-json# … #errors-json#*/` → `out.py.errors-json.json`
     - `/*#frame-map# … #frame-map#*/` → `out.py.frame-map.json`
@@ -91,7 +91,7 @@ Use the module demo path with `--emit-debug` to embed debug trailers in the gene
     - `/*#debug-manifest# … #debug-manifest#*/` → `out.py.debug-manifest.json`
 
 - TypeScript
-  - Command: `./target/release/framec demo-frame --emit-debug -l typescript path/to/module.frm > out.ts`
+  - Command: `./target/release/framec compile --emit-debug -l typescript path/to/module.frm > out.ts`
   - Trailers in `out.ts` (and extracted sidecars): same as Python above.
 
 Environment flag equivalents (if you prefer granular control):
@@ -106,7 +106,7 @@ See also:
 
 ## How To: Compile Modules (CLI)
 
-Use the main CLI path to compile full modules (not just demos). The compiler auto-detects `@target` and routes to the V3 module compile path.
+Use the main CLI to compile full modules. The compiler auto-detects `@target` and routes to the V3 module compile path.
 
 - Python:
   - `./target/release/framec -l python_3 --emit-debug path/to/module.frm > out.py`
@@ -116,6 +116,9 @@ Use the main CLI path to compile full modules (not just demos). The compiler aut
 Notes
 - `--emit-debug` embeds trailers in the output (errors-json, frame-map, visitor-map for Py/TS, debug-manifest). Sidecars can be extracted by the runner or custom tooling.
 - Body-only inputs (no `@target`, content starts with `{`) are still supported via the single-body path.
+
+Notes
+- Legacy demo subcommands have been removed. Use `compile`/`compile-project` for all module workflows.
 
 Testing, Runner, and CI
 - docs/framepiler_design/architecture_v3/12_testing_strategy.md:1
