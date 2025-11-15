@@ -1142,6 +1142,12 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 }.unwrap_or(crate::frame_c::v3::native_region_scanner::ScanResultV3 { close_byte: body_bytes.len().saturating_sub(1), regions: Vec::new() });
                 let (mir, parse_issues) = MirAssemblerV3.assemble_collect(body_bytes, &scan.regions);
                 for is in parse_issues { issues.push(is); }
+                // E401: frame statements disallowed in actions/operations
+                if matches!(b.kind, crate::frame_c::v3::validator::BodyKindV3::Action | crate::frame_c::v3::validator::BodyKindV3::Operation) {
+                    let pol = crate::frame_c::v3::validator::ValidatorPolicyV3 { body_kind: Some(b.kind) };
+                    let res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, pol);
+                    for is in res.issues { issues.push(is); }
+                }
                 // E400: terminal-last policy
                 let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
                 for is in extra { issues.push(is); }

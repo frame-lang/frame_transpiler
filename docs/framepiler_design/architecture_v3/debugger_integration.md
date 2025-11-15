@@ -4,7 +4,7 @@ This note summarizes the artifacts the transpiler emits to support source-level 
 
 ## How to enable
 
-- CLI: add `--emit-debug` when using the V3 demo CLI commands (e.g., `demo-frame`). This sets:
+- CLI: add `--emit-debug` to the `compile` subcommand for module files. This sets:
   - `FRAME_ERROR_JSON=1` — structured compiler diagnostics trailer
   - `FRAME_MAP_TRAILER=1` — inline splice mapping (frame/native origins)
   - `FRAME_DEBUG_MANIFEST=1` — module manifest of system and compiled state IDs
@@ -12,7 +12,7 @@ This note summarizes the artifacts the transpiler emits to support source-level 
 
 Example (Python):
 ```
-./target/release/framec demo-frame --emit-debug -l python_3 path/to/module.frm > out.py
+./target/release/framec compile --emit-debug -l python_3 path/to/module.frm > out.py
 ```
 
 ## Artifacts (trailers)

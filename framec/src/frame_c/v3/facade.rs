@@ -349,7 +349,7 @@ fn run_cpp_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
 // - If feature "native-py-rp" is enabled, use RustPython parser (pure Rust, hermetic)
 // - Else if feature "native-py" is enabled, use tree-sitter-python
 // - Else, return None
-fn run_python_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+fn run_python_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     // Prefer RustPython-based parser when available
     #[cfg(feature = "native-py-rp")]
     {

@@ -4,7 +4,7 @@
 ```yaml
 bug_number: NNN
 title: "Clear, descriptive title"
-status: Open
+status: Open  # Allowed: Open|Fixed|Closed|Reopen|Won't Fix|Duplicate
 priority: High|Medium|Low|Critical
 category: Parser|Semantic|CodeGen|Runtime|Tooling|Documentation
 discovered_version: vX.Y.Z
@@ -84,17 +84,17 @@ system TestCase {
 - YYYY-MM-DD: [Initial report] - Reporter
 - YYYY-MM-DD: [Investigation started] - Developer
 - YYYY-MM-DD: [Root cause identified] - Developer
-- YYYY-MM-DD: [Fix implemented] - Developer
-- YYYY-MM-DD: [Fix verified] - Tester
+- YYYY-MM-DD: [Marked Fixed in vX.Y.Z] - Developer
+- YYYY-MM-DD: [Marked Closed after verification] - Reporter/Owner
 
 ## Resolution
-[Once resolved, document what was done to fix it]
+[Once Fixed or Closed, document what was done to fix it and how verification was performed]
 
 ### Fix Summary
 [Brief description of the fix]
 
 ### Verification
-[How the fix was verified]
+[How the fix was verified — tests, commands, artifacts]
 
 ### Lessons Learned
 [Any insights gained from this bug]

@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 068
 title: "TypeScript runtime import path incorrect for single-file compile output"
-status: Fixed
+status: Closed
 priority: Medium
 category: CodeGen
 discovered_version: v0.86.32

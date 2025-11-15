@@ -38,7 +38,6 @@ pub struct ModulePartitionerV3;
 
 impl ModulePartitionerV3 {
     pub fn partition(bytes: &[u8], lang: TargetLanguage) -> Result<ModulePartitionsV3, ModulePartitionErrorV3> {
-        let n = bytes.len();
         let mut i = 0usize;
         // Required prolog: must be first non-whitespace token
         let prolog = match PrologScannerV3.scan(bytes) {

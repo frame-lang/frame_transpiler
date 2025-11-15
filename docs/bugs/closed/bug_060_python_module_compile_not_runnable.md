@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 060
 title: "Python module compile outputs non-runnable file (annotated Frame + trailers)"
-status: Resolved
+status: Closed
 priority: High
 category: Tooling
 discovered_version: v0.86.27

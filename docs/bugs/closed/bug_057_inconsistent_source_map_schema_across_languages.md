@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 057
 title: "Inconsistent source map schema across languages"
-status: Resolved
+status: Closed
 priority: Medium
 category: Tooling
 discovered_version: v0.86.25
@@ -36,4 +36,3 @@ Language-specific docs and emitters drifted on mapping field names.
 
 ---
 *Bug tracking policy version: 1.0*
-

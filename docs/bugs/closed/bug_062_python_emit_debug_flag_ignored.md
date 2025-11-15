@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 062
 title: "Python compile appends trailers when --emit-debug is not set"
-status: Resolved
+status: Closed
 priority: High
 category: Tooling
 discovered_version: v0.86.28

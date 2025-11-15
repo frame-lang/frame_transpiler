@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 056
 title: "Missing structured error JSON in --debug-output mode"
-status: Resolved
+status: Closed
 priority: High
 category: Tooling
 discovered_version: v0.86.25
@@ -35,4 +35,3 @@ When `--debug-output` was set, the compiler emitted only the generated code (opt
 
 ---
 *Bug tracking policy version: 1.0*
-

@@ -91,11 +91,9 @@ impl OutlineScannerV3 {
             let first_tok = to_lower_ascii(&bytes[name_start..name_end]);
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
             let mut is_func_header = false;
-            if matches!(section, Section::Machine) {
-                // Bare IDENT '(' … ')' is allowed for handler headers
-                if k < n && bytes[k] == b'(' {
-                    is_func_header = true;
-                }
+            if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) {
+                // In machine/actions/operations sections, allow bare IDENT '(' … ')' '{'
+                if k < n && bytes[k] == b'(' { is_func_header = true; }
             } else if first_tok == "fn" || first_tok == "async" {
                 // If 'async', require 'fn' next; otherwise require IDENT after 'fn'
                 let mut next = j; while next < n && is_space(bytes[next]) { next += 1; }
@@ -196,12 +194,12 @@ impl OutlineScannerV3 {
                 continue;
             }
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
-            // Recognize handler headers in machine: section without 'fn'; elsewhere require 'fn'/'async fn'
+            // Recognize headers: allow bare IDENT '(' … ')' in machine/actions/operations; else require fn/async fn
             let first_tok = to_lower_ascii(&bytes[kw_start..j]);
             let mut is_func_header = false;
-            let mut name_start = kw_start;
-            let mut name_end = j;
-            if matches!(section, Section::Machine) {
+            let mut _name_start = kw_start;
+            let mut _name_end = j;
+            if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) {
                 if k < n && bytes[k] == b'(' { is_func_header = true; }
             } else if first_tok == "fn" || first_tok == "async" {
                 if first_tok == "async" {
@@ -211,11 +209,11 @@ impl OutlineScannerV3 {
                     if maybe_fn == "fn" {
                         k = w; while k < n && is_space(bytes[k]) { k += 1; }
                         let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
-                        if p > k { name_start = k; name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
+                        if p > k { _name_start = k; _name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
                     }
                 } else {
                     let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
-                    if p > k { name_start = k; name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
+                    if p > k { _name_start = k; _name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
                 }
             }
             if is_func_header && k < n && bytes[k] == b'(' {

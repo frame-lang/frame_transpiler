@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 064
 title: "Python codegen for comment-only action body emits no pass → IndentationError"
-status: Resolved
+status: Closed
 priority: High
 category: CodeGen
 discovered_version: v0.86.31

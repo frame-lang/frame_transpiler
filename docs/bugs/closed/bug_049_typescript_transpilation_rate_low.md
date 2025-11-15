@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 049
 title: "TypeScript Transpilation Rate Lower Than Python"
-status: Resolved
+status: Closed
 priority: Medium
 category: CodeGen
 discovered_version: v0.82.2

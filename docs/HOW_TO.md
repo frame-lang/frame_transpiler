@@ -223,13 +223,13 @@ For quick end‑to‑end verification, the V3 demo can emit a minimal, standalon
 
 - Emit and run a standalone Python script:
 ```bash
-FRAME_EMIT_EXEC=1 ./target/release/framec demo-frame -l python_3 framec_tests/language_specific/python/v3_exec_smoke/positive/transition_basic.frm > out.py
+FRAME_EMIT_EXEC=1 ./target/release/framec compile -l python_3 framec_tests/language_specific/python/v3_exec_smoke/positive/transition_basic.frm > out.py
 python3 out.py
 ```
 
 - Emit and run a standalone TypeScript program:
 ```bash
-FRAME_EMIT_EXEC=1 ./target/release/framec demo-frame -l typescript framec_tests/language_specific/typescript/v3_exec_smoke/positive/transition_basic.frm > out.ts
+FRAME_EMIT_EXEC=1 ./target/release/framec compile -l typescript framec_tests/language_specific/typescript/v3_exec_smoke/positive/transition_basic.frm > out.ts
 tsc out.ts && node out.js
 ```
 

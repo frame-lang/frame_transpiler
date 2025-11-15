@@ -86,7 +86,7 @@
 //! ```
 
 use anyhow::{Error, Result};
-use framec::frame_c::compiler::{detect_header_target_annotation, Exe};
+use framec::frame_c::compiler::detect_header_target_annotation;
 use framec::frame_c::v3::CompilerV3;
 use std::collections::HashSet;
 use std::convert::TryFrom;

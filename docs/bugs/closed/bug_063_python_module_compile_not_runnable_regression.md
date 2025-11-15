@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 063
 title: "Python module compile still emits non-runnable output (regression) — references Bug #060"
-status: Resolved
+status: Closed
 priority: High
 category: Tooling
 discovered_version: v0.86.28

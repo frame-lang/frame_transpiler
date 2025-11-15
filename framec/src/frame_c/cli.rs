@@ -208,7 +208,45 @@ pub fn run_with(args: Cli) {
             }
             // Print a simple manifest for now
             println!("Compiled {} module(s)", compiled.len());
-            for p in compiled { println!("{}", p); }
+            for p in &compiled { println!("{}", p); }
+            // For Python projects, copy frame_runtime_py once to the output directory root
+            if matches!(lang, TargetLanguage::Python3) {
+                if let Some(outdir) = args.output_dir.as_ref() {
+                    let env_override = std::env::var("FRAME_RUNTIME_PY_DIR").ok().map(std::path::PathBuf::from);
+                    let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()));
+                    let repo_guess = exe_dir.as_ref()
+                        .and_then(|d| d.parent().map(|d| d.to_path_buf()))
+                        .and_then(|d| d.parent().map(|d| d.to_path_buf()))
+                        .map(|d| d.join("frame_runtime_py"));
+                    let target_guess = exe_dir.as_ref()
+                        .and_then(|d| d.parent().map(|d| d.to_path_buf()))
+                        .map(|d| d.join("frame_runtime_py"));
+                    let cwd_guess = Some(std::path::PathBuf::from("frame_runtime_py"));
+                    let runtime_src = env_override
+                        .filter(|p| p.exists())
+                        .or(repo_guess.filter(|p| p.exists()))
+                        .or(target_guess.filter(|p| p.exists()))
+                        .or(cwd_guess.filter(|p| p.exists()))
+                        .unwrap_or_else(|| std::path::PathBuf::from("frame_runtime_py"));
+                    let dst_dir = outdir.join("frame_runtime_py");
+                    if runtime_src.exists() {
+                        fn copy_dir(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+                            if !dst.exists() { std::fs::create_dir_all(dst)?; }
+                            for entry in std::fs::read_dir(src)? {
+                                let entry = entry?; let p = entry.path();
+                                let name = entry.file_name(); let to = dst.join(name);
+                                if p.is_dir() { copy_dir(&p, &to)?; } else if p.is_file() { std::fs::copy(&p, &to)?; }
+                            }
+                            Ok(())
+                        }
+                        if let Err(e) = copy_dir(&runtime_src, &dst_dir) {
+                            eprintln!("warning: failed to copy frame_runtime_py: {}", e);
+                        }
+                    } else {
+                        eprintln!("warning: frame_runtime_py not found at {:?}; set FRAME_RUNTIME_PY_DIR to override", runtime_src);
+                    }
+                }
+            }
             return;
         }
         CliCommand::Compile { language, file } => {
@@ -242,8 +280,22 @@ pub fn run_with(args: Cli) {
                                 if let Err(e) = std::fs::write(&out_path, code) { eprintln!("write error: {}", e); std::process::exit(exitcode::IOERR); }
                                 // Emit Python runtime package next to outputs when compiling Python modules
                                 if matches!(lang, TargetLanguage::Python3) {
-                                    // Resolve runtime source directory: env override or relative repo path
-                                    let runtime_src = std::env::var("FRAME_RUNTIME_PY_DIR").ok().map(std::path::PathBuf::from)
+                                    // Resolve runtime source directory robustly for compile -o
+                                    let env_override = std::env::var("FRAME_RUNTIME_PY_DIR").ok().map(std::path::PathBuf::from);
+                                    let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()));
+                                    let repo_guess = exe_dir.as_ref()
+                                        .and_then(|d| d.parent().map(|d| d.to_path_buf()))
+                                        .and_then(|d| d.parent().map(|d| d.to_path_buf()))
+                                        .map(|d| d.join("frame_runtime_py"));
+                                    let target_guess = exe_dir.as_ref()
+                                        .and_then(|d| d.parent().map(|d| d.to_path_buf()))
+                                        .map(|d| d.join("frame_runtime_py"));
+                                    let cwd_guess = Some(std::path::PathBuf::from("frame_runtime_py"));
+                                    let runtime_src = env_override
+                                        .filter(|p| p.exists())
+                                        .or(repo_guess.filter(|p| p.exists()))
+                                        .or(target_guess.filter(|p| p.exists()))
+                                        .or(cwd_guess.filter(|p| p.exists()))
                                         .unwrap_or_else(|| std::path::PathBuf::from("frame_runtime_py"));
                                     let dst_dir = dir.join("frame_runtime_py");
                                     if runtime_src.exists() {

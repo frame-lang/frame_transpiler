@@ -1,0 +1,3 @@
+@target python
+# @cwd: tmp
+

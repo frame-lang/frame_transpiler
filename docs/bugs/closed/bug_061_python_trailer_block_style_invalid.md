@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 061
 title: "Python compile appends C-style trailer blocks that break Python syntax"
-status: Resolved
+status: Closed
 priority: High
 category: Tooling
 discovered_version: v0.86.28

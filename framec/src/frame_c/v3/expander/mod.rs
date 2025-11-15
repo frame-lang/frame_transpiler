@@ -165,7 +165,7 @@ impl FrameStatementExpanderV3 for JavaExpanderV3 {
 }
 
 impl FrameStatementExpanderV3 for RustExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
+    fn expand(&self, mir: &MirItemV3, indent: usize, _system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
             MirItemV3::Transition{ target, .. } => {

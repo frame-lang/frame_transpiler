@@ -87,7 +87,7 @@ impl ValidatorV3 {
     }
 
     // Outer grammar structural checks (headers inside sections)
-    pub fn validate_outer_grammar(&self, bytes: &[u8], start: usize, lang: TargetLanguage, outline: &[OutlineItemV3]) -> Vec<ValidationIssueV3> {
+pub fn validate_outer_grammar(&self, bytes: &[u8], start: usize, _lang: TargetLanguage, outline: &[OutlineItemV3]) -> Vec<ValidationIssueV3> {
         #[derive(Clone, Copy, PartialEq, Eq)]
         enum Sec { Actions, Operations, Interface, Machine }
         // Collect section spans: [start,end)

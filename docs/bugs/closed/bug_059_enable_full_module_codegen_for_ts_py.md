@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 059
 title: "Enable full module codegen for TS/Py (non-demo) and restore CLI compile path"
-status: Resolved
+status: Closed
 priority: Critical
 category: Tooling
 discovered_version: v0.86.26
@@ -33,4 +33,3 @@ Restored the main CLI compile path for module files. Files containing an `@targe
 
 ---
 *Bug tracking policy version: 1.0*
-

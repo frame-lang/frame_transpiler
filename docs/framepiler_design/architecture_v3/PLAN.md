@@ -48,6 +48,23 @@ Status Summary — Fixtures and Validation (All Languages)
 - [x] CI artifacts: V3 workflows upload JUnit XML reports for v3_all, v3_exec_smoke, and curated exec.
 - [x] Visitor-map (module path): emit frame-map and visitor-map trailers for module demos when FRAME_MAP_TRAILER=1 (Py/TS); runner routes v3_mapping module fixtures via demo-frame; basic module_map fixtures added and green.
 
+v0.86.36 — Runtime & Testing Hardening (Py/TS/Rust)
+- Python runtime emission
+  - compile-project copies `frame_runtime_py` to OUTDIR root.
+  - compile `-o` copies `frame_runtime_py` (robust path resolution: env, exe-relative repo root/target, cwd).
+- Actions/Operations emission
+  - OutlineScanner recognizes bare IDENT headers in `actions:` and `operations:`; Python emits `def _action_*` / `def _operation_*`.
+- E401 policy enforcement
+  - Compile validation enforces E401 for Frame statements inside actions/operations.
+- Runner robustness
+  - @cwd: tmp supported for v3_cli and v3_cli_project; runner makes framec path absolute when cwd changes.
+  - v3_cli compile asserts presence of `frame_runtime_py` in OUTDIR for Python; v3_cli_project continues runtime assertion.
+  - Visitor-map single-body validation uses transpile() assertions; no legacy single-body validator.
+- TypeScript
+  - Non-demo compile imports from `frame_runtime_ts` by default; locked by CLI test.
+- Rust
+  - Curated exec positives/negatives green; compile-time E401 wired.
+
 Stage 10 — AST & Symbol Integration (Debugger Readiness)
 - [x] 10A Native-symbol snapshot (module path)
   - Emit native-symbols trailer when FRAME_NATIVE_SYMBOL_SNAPSHOT=1.

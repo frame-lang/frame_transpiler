@@ -49,23 +49,28 @@ Every bug report must follow the template in TEMPLATE.md and include:
 5. Commit with message: `bug: Add Bug #NNN - [Short Description]`
 
 ### 2. Working on a Bug
-1. Update bug status to "In Progress" in the metadata
-2. Add your name as assignee
-3. Document investigation findings in the Technical Analysis section
-4. Update work log at bottom of file
+1. Optional: add your name as assignee
+2. Document investigation findings in the Technical Analysis section
+3. Update the work log as you proceed
 
-### 3. Resolving a Bug
-1. Move file from `open/` to `closed/`
-2. Update status to "Resolved" or "Won't Fix"
-3. Add resolution details and version fixed
-4. Update INDEX.md to reflect closed status
-5. Commit with message: `fix(vX.Y.Z): Resolve Bug #NNN - [Short Description]`
+### 3. Resolving a Bug (Developer)
+1. Do not close the bug yourself.
+2. Set status to "Fixed" in the metadata and fill `fixed_version`.
+3. Add resolution details and tests in the bug file.
+4. Leave the file in `open/` so the filer (or owning team) can close it.
+5. Commit with message: `fix(vX.Y.Z): Fixed Bug #NNN - [Short Description]`.
+
+### 3b. Closing a Bug (Filer/Owner)
+1. After verifying the fix, change status to "Closed".
+2. Move file from `open/` to `closed/`.
+3. Update INDEX.md to reflect closed status.
+4. Commit with message: `chore: Close Bug #NNN - [Short Description]`.
 
 ### 4. Reopening a Bug
-1. Move file from `closed/` back to `open/`
-2. Update status to "Reopened"
-3. Add reopening reason in work log
-4. Update INDEX.md accordingly
+1. Move file from `closed/` back to `open/` (if it was already closed) or keep in `open/` if still open.
+2. Update status to "Reopen" (not "Reopened").
+3. Add reopening reason in work log and reference the regression version.
+4. Update INDEX.md accordingly.
 
 ## Bug Priorities
 - **Critical**: System crash, data loss, security issue
@@ -83,11 +88,11 @@ Every bug report must follow the template in TEMPLATE.md and include:
 
 ## Status Values
 - **Open**: Bug confirmed, awaiting fix
-- **In Progress**: Actively being worked on
-- **Resolved**: Fixed and verified
+- **Fixed**: Developer implemented a fix; awaiting filer verification/closure
+- **Closed**: Filer/owner verified fix and closed the bug
+- **Reopen**: Previously Fixed/Closed bug has recurred (use this exact spelling)
 - **Won't Fix**: Intentional behavior or out of scope
 - **Duplicate**: Duplicate of another bug
-- **Reopened**: Previously fixed but recurred
 
 ## Version Tracking
 - Always note the version where bug was discovered
@@ -131,6 +136,6 @@ For questions about bug tracking:
 - Ask in project discussions
 
 ---
-*Policy Version: 1.0*  
-*Last Updated: 2025-10-13*  
-*Next Review: 2025-01-13*
+*Policy Version: 1.1*  
+*Last Updated: 2025-11-15*  
+*Next Review: 2026-01-15*

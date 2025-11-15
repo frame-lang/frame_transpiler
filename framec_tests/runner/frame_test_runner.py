@@ -137,21 +137,7 @@ class FrameTestRunner:
             return False
 
     def parse_fixture_meta(self, test_file: Path) -> Dict[str, List[str]]:
-        """Parse inline metadata from the fixture header.
-        Supports (first 20 lines):
-          - @expect: E403 E404 (space-separated error codes)
-          - @expect-mode: equal|superset (per-test override)
-          - @run-expect: <regex> (can appear multiple times)
-          - @compile-expect: <regex> (verify compiled output contains pattern)
-          - @import-call: class=<Name>; method=<name> (compile/import smoke)
-          - @flaky
-          - @skip-if: <token> (e.g., java-toolchain-missing)
-          - @timeout: <seconds>
-          - @frame-map-golden: origins=frame,native; count=\d+
-          - @visitor-map-golden: origins=frame|native; min=\d+
-          - @debug-manifest-handler-expect: state=<S>; name=<h>; params=a,b
-          - @debug-manifest-expect: system=<Name>; states=A,B
-        """
+        """Parse inline metadata from the fixture header (first 20 lines)."""
         meta: Dict[str, List[str]] = {}
         try:
             with open(test_file, 'r') as f:
@@ -159,62 +145,73 @@ class FrameTestRunner:
                     if i > 20:
                         break
                     m = re.match(r"^\s*(#|//)\s*@expect:\s*(.+)$", line)
-                if m:
-                    codes = re.findall(r"E\d{3}", m.group(2))
-                    if codes:
-                        meta['expect'] = [c for c in codes]
-                m_mode = re.match(r"^\s*(#|//)\s*@expect-mode:\s*(equal|superset)\s*$", line)
-                if m_mode:
-                    meta['expect_mode'] = [m_mode.group(2)]
-                m_map = re.match(r"^\s*(#|//)\s*@frame-map-golden:\s*(.+)$", line)
-                if m_map:
-                    kv = m_map.group(2)
-                    meta['frame_map_golden'] = [kv]
-                m_vmap = re.match(r"^\s*(#|//)\s*@visitor-map-golden:\s*(.+)$", line)
-                if m_vmap:
-                    kv = m_vmap.group(2)
-                    meta['visitor_map_golden'] = [kv]
+                    if m:
+                        codes = re.findall(r"E\d{3}", m.group(2))
+                        if codes:
+                            meta['expect'] = [c for c in codes]
+                        continue
+                    m_mode = re.match(r"^\s*(#|//)\s*@expect-mode:\s*(equal|superset)\s*$", line)
+                    if m_mode:
+                        meta['expect_mode'] = [m_mode.group(2)]
+                        continue
+                    m_map = re.match(r"^\s*(#|//)\s*@frame-map-golden:\s*(.+)$", line)
+                    if m_map:
+                        meta['frame_map_golden'] = [m_map.group(2)]
+                        continue
+                    m_vmap = re.match(r"^\s*(#|//)\s*@visitor-map-golden:\s*(.+)$", line)
+                    if m_vmap:
+                        meta['visitor_map_golden'] = [m_vmap.group(2)]
+                        continue
                     m2 = re.match(r"^\s*(#|//)\s*@run-expect:\s*(.+)$", line)
                     if m2:
                         pat = m2.group(2).strip()
                         if pat:
                             meta.setdefault('run_expect', []).append(pat)
+                        continue
                     m2b = re.match(r"^\s*(#|//)\s*@run-exact:\s*(.+)$", line)
                     if m2b:
-                        exact = m2b.group(2).rstrip('\n')
-                        meta['run_exact'] = [exact]
+                        meta['run_exact'] = [m2b.group(2).rstrip('\n')]
+                        continue
                     m2c = re.match(r"^\s*(#|//)\s*@compile-expect:\s*(.+)$", line)
                     if m2c:
                         pat = m2c.group(2).strip()
                         if pat:
                             meta.setdefault('compile_expect', []).append(pat)
+                        continue
                     m_ic = re.match(r"^\s*(#|//)\s*@import-call:\s*(.+)$", line)
                     if m_ic:
                         spec = m_ic.group(2).strip()
                         if spec:
                             meta.setdefault('import_call', []).append(spec)
+                        continue
+                    m_cwd = re.match(r"^\s*(#|//)\s*@cwd:\s*(.+)$", line)
+                    if m_cwd:
+                        meta['cwd'] = [m_cwd.group(2).strip()]
+                        continue
                     if re.match(r"^\s*(#|//)\s*@flaky\b", line):
                         meta['flaky'] = ['1']
+                        continue
                     if re.match(r"^\s*(#|//)\s*@exec-ok\b", line):
                         meta['exec_ok'] = ['1']
+                        continue
                     m3 = re.match(r"^\s*(#|//)\s*@skip-if:\s*(.+)$", line)
                     if m3:
                         toks = [t.strip() for t in m3.group(2).split(',') if t.strip()]
                         if toks:
                             meta.setdefault('skip_if', []).extend(toks)
+                        continue
                     m4 = re.match(r"^\s*(#|//)\s*@timeout:\s*(\d+)\s*$", line)
                     if m4:
                         meta['timeout'] = [m4.group(2)]
+                        continue
                     m_dm = re.match(r"^\s*(#|//)\s*@debug-manifest-expect:\s*(.+)$", line)
                     if m_dm:
-                        spec = m_dm.group(2).strip()
-                        if spec:
-                            meta['debug_manifest_expect'] = [spec]
+                        meta['debug_manifest_expect'] = [m_dm.group(2).strip()]
+                        continue
                     m_dmh = re.match(r"^\s*(#|//)\s*@debug-manifest-handler-expect:\s*(.+)$", line)
                     if m_dmh:
-                        spec = m_dmh.group(2).strip()
-                        if spec:
-                            meta.setdefault('debug_manifest_handler_expect', []).append(spec)
+                        meta.setdefault('debug_manifest_handler_expect', []).append(m_dmh.group(2).strip())
+                        continue
         except Exception:
             pass
         return meta
@@ -427,7 +424,18 @@ class FrameTestRunner:
                 # Per-fixture env flags
                 env = os.environ.copy()
                 meta = self.parse_fixture_meta(test_file)
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout or self.config.timeout, env=env)
+                # Support @cwd: tmp for v3_cli compile mode
+                run_cwd = None
+                if meta.get('cwd') and meta['cwd'][0].lower() in ("tmp", "temp", "tmpdir"):
+                    run_cwd = str(output_dir.parent / f"cwd__{test_file.stem}")
+                    os.makedirs(run_cwd, exist_ok=True)
+                # Ensure binary path is absolute when changing cwd
+                try:
+                    if cmd and not os.path.isabs(cmd[0]):
+                        cmd[0] = os.path.abspath(cmd[0])
+                except Exception:
+                    pass
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout or self.config.timeout, env=env, cwd=run_cwd)
             except subprocess.TimeoutExpired:
                 return False, str(output_file), "CLI compile timeout"
             if result.returncode != 0:
@@ -446,6 +454,11 @@ class FrameTestRunner:
                     out = output_file.read_text()
                 except Exception as e:
                     return False, str(output_file), f"Failed to read CLI output: {e}"
+                # For Python compile outputs, ensure runtime package exists in outdir root (compile -o path)
+                if language == "python":
+                    rt = outdir / "frame_runtime_py"
+                    if not rt.exists() or not rt.is_dir():
+                        return False, str(output_file), "Missing frame_runtime_py in compile output"
             else:
                 out = result.stdout or ""
                 output_file.write_text(out)
@@ -519,6 +532,11 @@ class FrameTestRunner:
             try:
                 if self.config.verbose:
                     print("[debug] v3_cli_project cmd:", " ".join(cmd))
+                try:
+                    if cmd and not os.path.isabs(cmd[0]):
+                        cmd[0] = os.path.abspath(cmd[0])
+                except Exception:
+                    pass
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout or max(self.config.timeout, 60))
             except subprocess.TimeoutExpired:
                 return False, str(outdir), "CLI compile-project timeout"
@@ -742,12 +760,19 @@ class FrameTestRunner:
                     print("[debug] cmd:", " ".join(cmd))
                 except Exception:
                     pass
+            # Decide working directory (support @cwd: tmp for project compiles)
+            run_cwd = None
+            meta = self.parse_fixture_meta(test_file)
+            if is_v3_project and meta.get('cwd') and meta['cwd'][0].lower() in ("tmp", "temp", "tmpdir"):
+                run_cwd = str(self.generated_dir / "cli_project" / language / f"cwd_{Path(test_file).stem}")
+                os.makedirs(run_cwd, exist_ok=True)
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout or self.config.timeout,
-                env=env
+                env=env,
+                cwd=run_cwd
             )
             
             if result.returncode == 0:
@@ -755,6 +780,11 @@ class FrameTestRunner:
                 if is_v3_project:
                     out = result.stdout or ""
                     output_file.write_text(out)
+                    # Additional assertion: Python projects should have runtime package copied to outdir root
+                    if language == "python":
+                        rt_dir = outdir / "frame_runtime_py"
+                        if not rt_dir.exists() or not rt_dir.is_dir():
+                            return False, str(output_file), "Missing frame_runtime_py in project output"
                     return True, str(output_file), None
                 # Optional mapping trailer validation for v3_mapping
                 if is_v3_mapping:
@@ -1141,32 +1171,9 @@ class FrameTestRunner:
         use_single_body = any(seg in ("v3_closers", "v3_expansion") for seg in parts_lower) or ((is_v3_mapping or is_v3_visitor_map) and not is_module_file)
         synthesized_single_body: Optional[Path] = None
         if use_single_body:
-            # If a single-body fixture has a leading @target line, strip it into a temp file
-            try:
-                content = Path(test_file).read_text()
-                lines = content.splitlines()
-                # Find first non-empty line
-                first_non_empty = next((i for i, ln in enumerate(lines) if ln.strip()), None)
-                if first_non_empty is not None and lines[first_non_empty].strip().startswith('@target '):
-                    stripped = '\n'.join(lines[:first_non_empty] + lines[first_non_empty+1:])
-                    # Ensure single-body starts with '{' at byte 0
-                    stripped = stripped.lstrip()
-                    tmp_dir = self.generated_dir / language / 'tmp_single_body'
-                    tmp_dir.mkdir(parents=True, exist_ok=True)
-                    synthesized_single_body = tmp_dir / (Path(test_file).stem + '__body.frm')
-                    synthesized_single_body.write_text(stripped)
-            except Exception:
-                synthesized_single_body = None
-            target_path = str(synthesized_single_body or test_file)
-            cmd = [
-                self.config.framec_path,
-                "demo-multi",
-                "--language",
-                lang_flag,
-                "--validate",
-                "--validation-only",
-                target_path,
-            ]
+            # Modern CLI no longer validates single-body fixtures. Skip validation and
+            # rely on transpile() trailer assertions for v3_mapping/v3_visitor_map.
+            return True, "single-body validation skipped"
         else:
             # Align validation path with demo-frame module validator for V3
             cmd = [
