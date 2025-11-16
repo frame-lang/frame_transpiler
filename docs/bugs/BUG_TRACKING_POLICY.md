@@ -74,7 +74,7 @@ Every bug report must follow the template in TEMPLATE.md and include:
 
 ### 3b. Closing a Bug (Filer/Owner)
 1. After verifying the fix, change status to "Closed".
-2. Move file from `fixed/` (or `reopen/`) to `closed/`.
+2. Move the file from `fixed/` (or `reopen/`) to `closed/` — there MUST NOT be any remaining copy of that bug file under `fixed/` once it is closed (no duplicates across folders).
 3. Update `INDEX.md` counts and lists accordingly.
 4. Commit with message: `chore: Close Bug #NNN - [Short Description]`.
 

@@ -200,6 +200,9 @@ class FrameTestRunner:
                         if toks:
                             meta.setdefault('skip_if', []).extend(toks)
                         continue
+                    if re.match(r"^\s*(#|//)\s*@tsc-compile\b", line):
+                        meta['tsc_compile'] = ['1']
+                        continue
                     m4 = re.match(r"^\s*(#|//)\s*@timeout:\s*(\d+)\s*$", line)
                     if m4:
                         meta['timeout'] = [m4.group(2)]
@@ -518,6 +521,21 @@ class FrameTestRunner:
                             return False, str(output_file), f"compile-expect missing pattern: {pat}"
                     except re.error as e:
                         return False, str(output_file), f"invalid compile-expect regex '{pat}': {e}"
+            # Optional TypeScript compile check via tsc for CLI outputs
+            if language == "typescript" and mode == "compile" and 'tsc_compile' in meta:
+                try:
+                    # Use local toolchain; tests can gate with @skip-if: tsc-missing.
+                    res = subprocess.run(
+                        ["tsc", str(output_file)],
+                        capture_output=True,
+                        text=True,
+                        timeout=max(self.config.timeout, 10),
+                    )
+                    if res.returncode != 0:
+                        msg = res.stderr or res.stdout or "tsc compile failed"
+                        return False, str(output_file), f"tsc compile failed: {msg}"
+                except FileNotFoundError:
+                    return False, str(output_file), "tsc not found for @tsc-compile"
             # Optional import-call smoke for Python compiled module
             if language == "python" and 'import_call' in meta and mode == "compile" and not is_neg:
                 try:

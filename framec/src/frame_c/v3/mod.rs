@@ -871,34 +871,211 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     let mut module = String::new();
                     module.push_str(&format!("import {{ FrameEvent, FrameCompartment }} from '{}'\n\n", ts_import));
                     module.push_str("export class "); module.push_str(&sys_name); module.push_str(" {\n");
+                    // Domain fields (if any) from domain: block
+                    let domain_fields = scan_ts_domain_fields(bytes);
+                    for (name, ty_opt, init_opt) in domain_fields {
+                        module.push_str("  public ");
+                        module.push_str(&name);
+                        if let Some(ty) = ty_opt.as_ref() {
+                            module.push_str(": ");
+                            module.push_str(ty);
+                        } else {
+                            module.push_str(": any");
+                        }
+                        if let Some(init) = init_opt.as_ref() {
+                            if !init.is_empty() {
+                                module.push_str(" = ");
+                                module.push_str(init);
+                            }
+                        }
+                        module.push_str(";\n");
+                    }
                     module.push_str(&format!("  public _compartment: FrameCompartment = new FrameCompartment('__{}_state_A');\n", sys_name));
                     module.push_str("  _frame_transition(n: FrameCompartment){ this._compartment = n; }\n");
                     module.push_str("  _frame_router(__e: FrameEvent, c?: FrameCompartment){ /* no-op */ }\n");
                     module.push_str("  _frame_stack_push(){ /* no-op */ }\n  _frame_stack_pop(){ /* no-op */ }\n");
+                    // Group handlers by interface method name so we emit a single
+                    // public method per interface function and dispatch on state.
+                    let mut handler_groups: std::collections::BTreeMap<String, Vec<(Option<String>, String, String)>> = std::collections::BTreeMap::new();
+                    // Collect actions/operations for later emission
+                    let mut actions: Vec<(String, bool, String, String)> = Vec::new();
+                    let mut operations: Vec<(String, bool, String, String)> = Vec::new();
                     for (idx, b) in parts.bodies.iter().enumerate() {
-                        if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
-                            let hname = b.owner_id.as_deref().unwrap_or("handler");
-                            let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
-                            let spliced = {
-                                let bytes = spliced_full.as_bytes();
-                                let mut li = 0usize; let mut ri = bytes.len();
-                                while li < ri && bytes[li].is_ascii_whitespace() { li += 1; }
-                                while ri > li && bytes[ri-1].is_ascii_whitespace() { ri -= 1; }
-                                if li < ri && bytes[li] == b'{' && ri > 0 && bytes[ri-1] == b'}' && li+1 < ri-1 {
-                                    &spliced_full[li+1..ri-1]
-                                } else { spliced_full }
-                            };
+                        let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
+                        let spliced_trimmed = {
+                            let bytes = spliced_full.as_bytes();
+                            let mut li = 0usize; let mut ri = bytes.len();
+                            while li < ri && bytes[li].is_ascii_whitespace() { li += 1; }
+                            while ri > li && bytes[ri-1].is_ascii_whitespace() { ri -= 1; }
+                            if li < ri && bytes[li] == b'{' && ri > 0 && bytes[ri-1] == b'}' && li+1 < ri-1 {
+                                &spliced_full[li+1..ri-1]
+                            } else { spliced_full }
+                        };
+                        match b.kind {
+                            crate::frame_c::v3::validator::BodyKindV3::Handler => {
+                                let hname = b.owner_id.as_deref().unwrap_or("handler").to_string();
+                                let params = if let Some(hs) = b.header_span {
+                                    let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                    if let Some(lp) = hdr.find('(') {
+                                        if let Some(rp_rel) = hdr[lp+1..].find(')') {
+                                            hdr[lp+1..lp+1+rp_rel].trim().to_string()
+                                        } else { String::new() }
+                                    } else { String::new() }
+                                } else { String::new() };
+                                handler_groups
+                                    .entry(hname)
+                                    .or_default()
+                                    .push((b.state_id.clone(), spliced_trimmed.to_string(), params));
+                            }
+                            crate::frame_c::v3::validator::BodyKindV3::Action => {
+                                let aname = b.owner_id.as_deref().unwrap_or("action").to_string();
+                                let (is_async, params) = if let Some(hs) = b.header_span {
+                                    let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                    let async_flag = hdr.trim_start().starts_with("async ");
+                                    let param_text = if let Some(lp) = hdr.find('(') {
+                                        if let Some(rp_rel) = hdr[lp+1..].find(')') {
+                                            hdr[lp+1..lp+1+rp_rel].trim().to_string()
+                                        } else { String::new() }
+                                    } else { String::new() };
+                                    (async_flag, param_text)
+                                } else { (false, String::new()) };
+                                actions.push((aname, is_async, params, spliced_trimmed.to_string()));
+                            }
+                            crate::frame_c::v3::validator::BodyKindV3::Operation => {
+                                let oname = b.owner_id.as_deref().unwrap_or("operation").to_string();
+                                let (is_async, params) = if let Some(hs) = b.header_span {
+                                    let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                    let async_flag = hdr.trim_start().starts_with("async ");
+                                    let param_text = if let Some(lp) = hdr.find('(') {
+                                        if let Some(rp_rel) = hdr[lp+1..].find(')') {
+                                            hdr[lp+1..lp+1+rp_rel].trim().to_string()
+                                        } else { String::new() }
+                                    } else { String::new() };
+                                    (async_flag, param_text)
+                                } else { (false, String::new()) };
+                                operations.push((oname, is_async, params, spliced_trimmed.to_string()));
+                            }
+                            _ => {}
+                        }
+                    }
+                    for (hname, entries) in handler_groups {
+                        // Choose a parameter list from any header that declared one.
+                        let mut params = String::new();
+                        for (_, _, ptxt) in &entries {
+                            if !ptxt.is_empty() {
+                                params = ptxt.clone();
+                                break;
+                            }
+                        }
+                        if params.is_empty() {
                             module.push_str(&format!("  public {}(__e: FrameEvent, compartment: FrameCompartment): void {{\n", hname));
-                            for line in spliced.lines() {
+                        } else {
+                            module.push_str(&format!("  public {}(__e: FrameEvent, compartment: FrameCompartment, {}): void {{\n", hname, params));
+                        }
+                        module.push_str("    const c = compartment || this._compartment;\n");
+                        if entries.len() == 1 && entries[0].0.is_none() {
+                            // Single, non-state-qualified handler: inline body directly.
+                            let body = &entries[0].1;
+                            for line in body.lines() {
                                 let t = line.trim_end();
-                                if t.is_empty() { module.push_str("  \n"); continue; }
+                                if t.is_empty() {
+                                    module.push_str("    \n");
+                                    continue;
+                                }
                                 let needs_sc = !(t.ends_with(';') || t.ends_with('{') || t.ends_with('}'));
-                                module.push_str("    "); module.push_str(t);
+                                module.push_str("    ");
+                                module.push_str(t);
                                 if needs_sc { module.push_str(";"); }
                                 module.push('\n');
                             }
-                            module.push_str("  }\n");
+                        } else {
+                            module.push_str("    switch (c.state) {\n");
+                            for (state_id_opt, body, _) in entries {
+                                if let Some(state_name) = state_id_opt.as_deref() {
+                                    let compiled_id = if let Some(sys) = system_name.as_deref() {
+                                        format!("__{}_state_{}", sys, state_name)
+                                    } else {
+                                        state_name.to_string()
+                                    };
+                                    module.push_str(&format!("      case '{}':\n", compiled_id));
+                                } else {
+                                    module.push_str("      default:\n");
+                                }
+                                for line in body.lines() {
+                                    let t = line.trim_end();
+                                    if t.is_empty() {
+                                        module.push_str("        \n");
+                                        continue;
+                                    }
+                                    let needs_sc = !(t.ends_with(';') || t.ends_with('{') || t.ends_with('}'));
+                                    module.push_str("        ");
+                                    module.push_str(t);
+                                    if needs_sc { module.push_str(";"); }
+                                    module.push('\n');
+                                }
+                                module.push_str("        break;\n");
+                            }
+                            module.push_str("    }\n");
                         }
+                        module.push_str("  }\n");
+                    }
+                    // Emit actions as class methods so state bodies can call them.
+                    for (aname, is_async, params, body) in actions {
+                        if is_async {
+                            if params.is_empty() {
+                                module.push_str(&format!("  public async {}(): Promise<any> {{\n", aname));
+                            } else {
+                                module.push_str(&format!("  public async {}({}): Promise<any> {{\n", aname, params));
+                            }
+                        } else {
+                            if params.is_empty() {
+                                module.push_str(&format!("  public {}(): void {{\n", aname));
+                            } else {
+                                module.push_str(&format!("  public {}({}): void {{\n", aname, params));
+                            }
+                        }
+                        for line in body.lines() {
+                            let t = line.trim_end();
+                            if t.is_empty() {
+                                module.push_str("    \n");
+                                continue;
+                            }
+                            let needs_sc = !(t.ends_with(';') || t.ends_with('{') || t.ends_with('}'));
+                            module.push_str("    ");
+                            module.push_str(t);
+                            if needs_sc { module.push_str(";"); }
+                            module.push('\n');
+                        }
+                        module.push_str("  }\n");
+                    }
+                    // Emit operations similarly (internal helpers)
+                    for (oname, is_async, params, body) in operations {
+                        if is_async {
+                            if params.is_empty() {
+                                module.push_str(&format!("  public async {}(): Promise<any> {{\n", oname));
+                            } else {
+                                module.push_str(&format!("  public async {}({}): Promise<any> {{\n", oname, params));
+                            }
+                        } else {
+                            if params.is_empty() {
+                                module.push_str(&format!("  public {}(): void {{\n", oname));
+                            } else {
+                                module.push_str(&format!("  public {}({}): void {{\n", oname, params));
+                            }
+                        }
+                        for line in body.lines() {
+                            let t = line.trim_end();
+                            if t.is_empty() {
+                                module.push_str("    \n");
+                                continue;
+                            }
+                            let needs_sc = !(t.ends_with(';') || t.ends_with('{') || t.ends_with('}'));
+                            module.push_str("    ");
+                            module.push_str(t);
+                            if needs_sc { module.push_str(";"); }
+                            module.push('\n');
+                        }
+                        module.push_str("  }\n");
                     }
                     module.push_str("}\n");
                     out = module;
@@ -1727,4 +1904,128 @@ fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
         while i < n && bytes[i] != b'\n' { i += 1; }
     }
     None
+}
+
+// Minimal domain: scanner for TypeScript runnable modules.
+// Scans for a top-level `domain:` block and extracts Frame-style domain
+// variables into (name, type, initializer) triples.
+fn scan_ts_domain_fields(bytes: &[u8]) -> Vec<(String, Option<String>, Option<String>)> {
+    let n = bytes.len();
+    let mut i = 0usize;
+    let mut domain_start: Option<usize> = None;
+    while i < n {
+        // skip leading whitespace
+        while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+        if i >= n { break; }
+        let line_start = i;
+        // skip comments
+        if bytes[i] == b'#' {
+            while i < n && bytes[i] != b'\n' { i += 1; }
+            continue;
+        }
+        if bytes[i] == b'/' && i + 1 < n && bytes[i + 1] == b'/' {
+            while i < n && bytes[i] != b'\n' { i += 1; }
+            continue;
+        }
+        // read identifier at SOL
+        let mut j = i;
+        while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+        let kw_start = j;
+        while j < n && (bytes[j] as char).is_ascii_alphanumeric() { j += 1; }
+        if kw_start < j && j < n && bytes[j] == b':' {
+            let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
+            if kw.as_str() == "domain" {
+                // domain: header detected; domain block begins after this line
+                let mut k = line_start;
+                while k < n && bytes[k] != b'\n' { k += 1; }
+                domain_start = Some(if k < n { k + 1 } else { n });
+                break;
+            }
+        }
+        while i < n && bytes[i] != b'\n' { i += 1; }
+        if i < n { i += 1; }
+    }
+    let mut out: Vec<(String, Option<String>, Option<String>)> = Vec::new();
+    let mut p = match domain_start { Some(s) => s, None => return out };
+    while p < n {
+        let line_start = p;
+        while p < n && bytes[p] != b'\n' { p += 1; }
+        let line_end = p;
+        if p < n { p += 1; }
+        let line = &bytes[line_start..line_end];
+        // trim
+        let mut s = 0usize; let mut e = line.len();
+        while s < e && (line[s] == b' ' || line[s] == b'\t') { s += 1; }
+        while e > s && (line[e-1] == b' ' || line[e-1] == b'\t' || line[e-1] == b'\r') { e -= 1; }
+        if s >= e { continue; }
+        let slice = &line[s..e];
+        // comments
+        if slice[0] == b'#' { continue; }
+        if slice.len() >= 2 && slice[0] == b'/' && slice[1] == b'/' { continue; }
+        // helper to trim trailing ';'
+        let trim_semicolon = |s: &str| {
+            let t = s.trim_end();
+            if t.ends_with(';') { t[..t.len()-1].trim().to_string() } else { t.to_string() }
+        };
+        // Case 1: "var name[: Type] = expr" or "var name[: Type]"
+        if slice.len() >= 4 && &slice[..4].to_ascii_lowercase() == b"var " {
+            let rest = &slice[4..];
+            let rest_str = String::from_utf8_lossy(rest);
+            let mut parts_iter = rest_str.trim_start().chars().peekable();
+            let mut name = String::new();
+            while let Some(&ch) = parts_iter.peek() {
+                if ch.is_ascii_alphanumeric() || ch == '_' {
+                    name.push(ch);
+                    parts_iter.next();
+                } else { break; }
+            }
+            if name.is_empty() { continue; }
+            let mut remainder: String = parts_iter.collect();
+            let mut ty: Option<String> = None;
+            if let Some(colon_idx) = remainder.find(':') {
+                let after_colon = remainder[colon_idx+1..].trim_start();
+                let mut ty_end = 0usize;
+                for (idx, ch) in after_colon.char_indices() {
+                    if ch == '=' || ch == ';' { break; }
+                    ty_end = idx + ch.len_utf8();
+                }
+                if ty_end > 0 {
+                    let ty_str = &after_colon[..ty_end];
+                    let trimmed = ty_str.trim();
+                    if !trimmed.is_empty() { ty = Some(trimmed.to_string()); }
+                }
+                remainder = String::from(after_colon);
+            }
+            let mut init: Option<String> = None;
+            if let Some(eq_pos) = remainder.find('=') {
+                let val = &remainder[eq_pos+1..];
+                let v = trim_semicolon(val);
+                if !v.is_empty() { init = Some(v); }
+            }
+            out.push((name, ty, init));
+            continue;
+        }
+        // Case 2: "name = expr" (implicit any)
+        let line_str = String::from_utf8_lossy(slice);
+        let mut chars = line_str.chars().peekable();
+        let mut name = String::new();
+        while let Some(&ch) = chars.peek() {
+            if ch.is_ascii_alphanumeric() || ch == '_' {
+                name.push(ch);
+                chars.next();
+            } else { break; }
+        }
+        if name.is_empty() { continue; }
+        let remainder: String = chars.collect();
+        let mut init: Option<String> = None;
+        if let Some(eq_pos) = remainder.find('=') {
+            let val = &remainder[eq_pos+1..];
+            let v = trim_semicolon(val);
+            if !v.is_empty() { init = Some(v); }
+        }
+        if init.is_some() {
+            out.push((name, None, init));
+        }
+    }
+    out
 }

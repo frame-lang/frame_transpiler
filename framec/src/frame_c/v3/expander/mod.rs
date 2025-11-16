@@ -62,18 +62,33 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
         match mir {
             MirItemV3::Transition{ target, exit_args, enter_args, state_args, .. } => {
                 let id = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
+                // Use a per-state temporary name so we never redeclare the same
+                // identifier across multiple transitions in a shared switch block.
+                fn sanitize_ident(s: &str) -> String {
+                    let mut out = String::new();
+                    for ch in s.chars() {
+                        if ch.is_ascii_alphanumeric() || ch == '_' {
+                            out.push(ch);
+                        } else {
+                            out.push('_');
+                        }
+                    }
+                    if out.is_empty() { "_".to_string() } else { out }
+                }
+                let suffix = sanitize_ident(target);
+                let temp_name = format!("__frameNextCompartment_{}", suffix);
                 let mut out = String::new();
-                out.push_str(&format!("{}const nextCompartment = new FrameCompartment(\"{}\");\n", pad, id));
+                out.push_str(&format!("{}const {} = new FrameCompartment(\"{}\");\n", pad, temp_name, id));
                 if !exit_args.is_empty() {
                     out.push_str(&format!("{}compartment.exitArgs = [{}];\n", pad, exit_args.join(", ")));
                 }
                 if !enter_args.is_empty() {
-                    out.push_str(&format!("{}nextCompartment.enterArgs = [{}];\n", pad, enter_args.join(", ")));
+                    out.push_str(&format!("{}{}.enterArgs = [{}];\n", pad, temp_name, enter_args.join(", ")));
                 }
                 if !state_args.is_empty() {
-                    out.push_str(&format!("{}nextCompartment.stateArgs = [{}];\n", pad, state_args.join(", ")));
+                    out.push_str(&format!("{}{}.stateArgs = [{}];\n", pad, temp_name, state_args.join(", ")));
                 }
-                out.push_str(&format!("{}this._frame_transition(nextCompartment);\n", pad));
+                out.push_str(&format!("{}this._frame_transition({});\n", pad, temp_name));
                 out.push_str(&format!("{}return;\n", pad));
                 out
             }

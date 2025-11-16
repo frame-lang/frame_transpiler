@@ -4,7 +4,7 @@
 ```yaml
 bug_number: 072
 title: "Python action call prefix mismatch (self.log vs _action_log)"
-status: Fixed
+status: Closed
 priority: Medium
 category: CodeGen
 discovered_version: v0.86.40
@@ -74,6 +74,8 @@ When an action called another action by its FRM name (e.g., `self.log("...")`), 
   - `def log(self, message)` wrapper exists.
 
 ## Work Log
+- 2025-11-15: Verified with framec v0.86.42; unit tests pass in vscode_editor — Owner closure
+
 - 2025-11-15: Identified that internal `_action_*` methods did not have public wrappers; actions calling other actions by FRM name failed at runtime. — Codex  
 - 2025-11-15: Implemented public wrappers for actions/operations while retaining `_action_*`/`_operation_*` as internal implementation; verified that the minimal repro generates `log`/`handle` wrappers and no longer exhibits AttributeError. — Codex
 
