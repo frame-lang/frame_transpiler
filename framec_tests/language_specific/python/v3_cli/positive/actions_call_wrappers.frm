@@ -5,6 +5,10 @@
 # @compile-expect: def handle\(
 
 system CallMismatch {
+    machine:
+        $S {
+            e() { self.handle() }
+        }
     actions:
         log(message) {
             # log sink
@@ -14,11 +18,6 @@ system CallMismatch {
             # Calls 'log' without _action_ prefix; wrappers should preserve FRM names
             self.log("hello")
         }
-    machine:
-        $S {
-            e() { self.handle() }
-        }
     domain:
         last = ""
 }
-

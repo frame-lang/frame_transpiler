@@ -4,8 +4,11 @@
 
 system S {
     interface:
-        e() { pass }
+        e()
+    machine:
+        $A {
+            e() { pass }
+        }
     actions:
         doThing() { pass }
 }
-

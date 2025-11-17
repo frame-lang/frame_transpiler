@@ -18,6 +18,9 @@ Import Scanners
 Outline / Headers
 - E111: Missing '{' after module artifact header — applies to function headers in interface/actions/operations sections.
  - E112: Missing '{' after state header in machine: — applies to `$State` headers inside the `machine:` section.
+ - E113: System block order violation — "system blocks out of order: expected operations:, interface:, machine:, actions:, domain:". Emitted when section blocks within a `system` appear in a non-canonical order.
+ - E114: Duplicate system block — "duplicate '<section>:' block in system". Emitted when a `system` defines more than one `operations:`, `interface:`, `machine:`, `actions:`, or `domain:` block.
+ - E115: Multiple `main` functions — "multiple 'main' functions in module". Emitted when more than one top-level `fn main` body is present in a module.
 
 Segmentation
 - E200: Invalid Frame-statement token at SOL — "invalid Frame statement at start of line"; span: statement slice.

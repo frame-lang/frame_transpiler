@@ -2,7 +2,7 @@
 
 system S {
     actions:
-        fn bad() {
+        bad() {
             => $^
         }
     machine:

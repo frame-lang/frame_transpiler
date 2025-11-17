@@ -136,6 +136,18 @@ class FrameTestRunner:
         except:
             return False
 
+    def _fixture_has_main(self, test_file: Path) -> bool:
+        """
+        Detect whether a fixture declares a top-level Frame function `fn main(...)`.
+        Used to decide whether we should auto-run the compiled module when --run is set.
+        """
+        try:
+            text = Path(test_file).read_text()
+        except Exception:
+            return False
+        pattern = re.compile(r"^\s*(async\s+)?fn\s+main\s*\(", re.MULTILINE)
+        return bool(pattern.search(text))
+
     def parse_fixture_meta(self, test_file: Path) -> Dict[str, List[str]]:
         """Parse inline metadata from the fixture header (first 20 lines)."""
         meta: Dict[str, List[str]] = {}
@@ -257,7 +269,8 @@ class FrameTestRunner:
         # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
         if any(cat in self.config.categories for cat in [
             "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke", "v3_exec_smoke",
-            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_visitor_map", "v3_native_symbols", "v3_debugger", "v3_cli", "v3_cli_project"
+            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_visitor_map", "v3_native_symbols", "v3_debugger", "v3_cli", "v3_cli_project",
+            "v3_legacy_async", "v3_capabilities"
         ]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
@@ -304,6 +317,10 @@ class FrameTestRunner:
                 collect_v3_category("v3_scoping")
             if "v3_systems" in self.config.categories:
                 collect_v3_category("v3_systems")
+            if "v3_legacy_async" in self.config.categories:
+                collect_v3_category("v3_legacy_async")
+            if "v3_capabilities" in self.config.categories:
+                collect_v3_category("v3_capabilities")
 
         # Language-specific tests - only include if explicitly requested or "all" is specified
         if "all" in self.config.categories:
@@ -706,7 +723,9 @@ class FrameTestRunner:
                 else:
                     cmd = [self.config.framec_path, "compile", "-l", lang_flag, "--emit-debug", str(test_file)]
                 # Choose extension when we intend to execute the output
-                if ("v3_exec_smoke" in parts_lower and self.config.execute) or (getattr(self.config, 'exec_v3', False) and self.config.execute and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower)):
+                if language == "python" and self.config.execute:
+                    extension = ".py"
+                elif ("v3_exec_smoke" in parts_lower and self.config.execute) or (getattr(self.config, 'exec_v3', False) and self.config.execute and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower)):
                     ext_map = {"python": ".py", "typescript": ".ts", "rust": ".rs", "c": ".c", "cpp": ".cpp", "java": ".java", "csharp": ".cs"}
                     extension = ext_map.get(language, ".txt")
                 else:
@@ -789,10 +808,10 @@ class FrameTestRunner:
             # Exec smoke should emit a minimal executable so we can run it end-to-end
             if "v3_exec_smoke" in parts_lower and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
-            # For general V3 categories in Python/TS, emit a minimal executable when running
-            if any(seg.startswith("v3_") for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript", "rust", "java", "csharp", "c", "cpp") and self.config.execute:
+            # For curated V3 exec categories, emit a minimal executable when running
+            curated_exec_cats = {"v3_core", "v3_control_flow", "v3_systems"}
+            if any(seg in curated_exec_cats for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript", "rust", "java", "csharp", "c", "cpp") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
-                # For TypeScript exec, point the compiler at a resolvable runtime import
                 if language == "typescript":
                     # Import the compiled shared runtime used by the runner
                     runtime_ts = self.base_dir / "typescript" / "runtime" / "frame_runtime"
@@ -802,8 +821,9 @@ class FrameTestRunner:
                     except Exception:
                         # Fall back to default in-compiler path
                         pass
-            # For module compiles we may still emit exec when executing (not facade smoke)
-            if cmd[:2] == [self.config.framec_path, "compile"] and (not is_v3_facade_smoke) and language in ("python", "typescript", "java", "csharp", "c", "cpp") and self.config.execute:
+            # For module compiles in non-facade V3 paths, only non-Python/TS languages
+            # rely on FRAME_EMIT_EXEC for execution; Python/TS can use import-based harnesses.
+            if cmd[:2] == [self.config.framec_path, "compile"] and (not is_v3_facade_smoke) and language in ("typescript", "java", "csharp", "c", "cpp") and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
                 if language == "typescript":
                     runtime_ts = self.base_dir / "typescript" / "runtime" / "frame_runtime"
@@ -1344,11 +1364,71 @@ class FrameTestRunner:
                     return False, output
                 
             return True, output
-            
         except subprocess.TimeoutExpired:
             return False, "Execution timeout"
         except Exception as e:
             return False, str(e)
+
+    def _execute_python_main(self, output_file: str) -> Tuple[bool, str]:
+        """
+        Execute `main()` from a compiled Python module.
+        Used for V3 fixtures that declare `fn main(...)` and are not
+        otherwise covered by curated exec or @import-call.
+        """
+        env = os.environ.copy()
+        project_root = str(self.base_dir.parent)
+        existing_pythonpath = env.get("PYTHONPATH", "")
+        if existing_pythonpath:
+            env["PYTHONPATH"] = os.pathsep.join([project_root, existing_pythonpath])
+        else:
+            env["PYTHONPATH"] = project_root
+
+        outdir = os.path.dirname(output_file)
+        modname = Path(output_file).stem
+        code = (
+            "import sys, importlib; "
+            f"sys.path.insert(0, {outdir!r}); "
+            f"m = importlib.import_module({modname!r}); "
+            "main = getattr(m, 'main', None); "
+            "exit(main() if callable(main) else 0)"
+        )
+        try:
+            result = subprocess.run(
+                ["python3", "-c", code],
+                capture_output=True,
+                text=True,
+                timeout=self.config.timeout,
+                env=env,
+                cwd=outdir or None,
+            )
+        except subprocess.TimeoutExpired:
+            return False, "Execution timeout"
+        except Exception as e:
+            return False, str(e)
+        output = (result.stdout or "") + (result.stderr or "")
+        if "Traceback" in output or result.returncode != 0:
+            return False, output
+        return True, output
+
+    def _fixture_has_main(self, test_file: Path) -> bool:
+        """
+        Best-effort check for a top-level `fn main` in a V3 module fixture.
+        This is used only to decide whether to attempt a `main()`-based
+        execution path; semantic validation (E115) already enforces that at
+        most one `main` exists.
+        """
+        try:
+            with open(test_file, "r") as f:
+                for line in f:
+                    s = line.strip()
+                    if not s or s.startswith("#") or s.startswith("//"):
+                        continue
+                    # Simple, SOL-anchored check for `fn main` or `async fn main`.
+                    if s.startswith("fn main(") or s.startswith("async fn main("):
+                        return True
+            return False
+        except OSError:
+            return False
 
     def _execute_py_harness_from_spliced(self, test_name: str, spliced_output: str) -> Tuple[bool, str]:
         """
@@ -2446,9 +2526,21 @@ class FrameTestRunner:
                     result.output = "Facade harness executed"
                     result.execution_time = time.time() - start_time
                     return result
-                # For other V3 categories, optionally execute selected sets for Python/TypeScript
+                # For other V3 categories, optionally execute selected sets for curated exec
+                # or auto-run fixtures that declare a top-level `fn main(...)`.
                 if any(seg.startswith("v3_") for seg in parts_lower):
-                    if getattr(self.config, 'exec_v3', False) and language in ("python", "typescript", "rust", "java", "csharp", "c", "cpp") and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower):
+                    # Curated V3 exec (core/control_flow/systems):
+                    # - For Python, obey the global execute flag (--run) without requiring --exec-v3.
+                    # - For other languages, continue to require --exec-v3 plus execute.
+                    curated_categories = ("v3_core", "v3_control_flow", "v3_systems")
+                    in_curated_cat = any(seg in curated_categories for seg in parts_lower)
+                    should_exec_curated = False
+                    if language == "python" and self.config.execute and in_curated_cat:
+                        should_exec_curated = True
+                    elif getattr(self.config, 'exec_v3', False) and self.config.execute and language in ("python", "typescript", "rust", "java", "csharp", "c", "cpp") and in_curated_cat:
+                        should_exec_curated = True
+
+                    if should_exec_curated:
                         meta = self.parse_fixture_meta(test_file)
                         if not (meta.get('run_expect') or meta.get('exec_ok')):
                             result.execute_success = True
@@ -2496,6 +2588,28 @@ class FrameTestRunner:
                                 result.error_message = f"Run exact mismatch.\nWanted:\n{want}\nGot:\n{output}"
                         result.execution_time = time.time() - start_time
                         return result
+
+                    # Auto-run Python V3 fixtures that declare `fn main(...)`.
+                    # v3_legacy_async fixtures keep their existing execution semantics.
+                    if language == "python" and self.config.execute and not is_negative and self._fixture_has_main(test_file) and "v3_legacy_async" not in parts_lower:
+                        meta = self.parse_fixture_meta(test_file)
+                        exec_success, output = self._execute_python_main(str(output_file))
+                        result.execute_success = exec_success
+                        result.output = output
+                        if result.execute_success and meta.get('run_expect'):
+                            missing = [p for p in meta['run_expect'] if not re.search(p, output or "", re.MULTILINE)]
+                            if missing:
+                                result.execute_success = False
+                                result.error_message = f"Run output expectation failed: missing patterns {missing}\n{output}"
+                        if result.execute_success and meta.get('run_exact'):
+                            want = meta['run_exact'][0]
+                            got = (output or "").strip()
+                            if got != want.strip():
+                                result.execute_success = False
+                                result.error_message = f"Run exact mismatch.\nWanted:\n{want}\nGot:\n{output}"
+                        result.execution_time = time.time() - start_time
+                        return result
+
                     # Otherwise skip exec for remaining V3 categories
                     result.execute_success = True
                     result.output = "V3 category: execution skipped"
@@ -2820,7 +2934,7 @@ def main():
     if args.full and 'all_v3' not in categories:
         categories.append('all_v3')
     if 'all_v3' in categories:
-        base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems','v3_cli','v3_cli_project']
+        base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems','v3_cli','v3_cli_project','v3_legacy_async']
         categories = [c for c in categories if c != 'all_v3'] + base
     if args.fast:
         fast = ['v3_outline','v3_mir','v3_validator','v3_exec_smoke']

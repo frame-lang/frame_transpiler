@@ -640,16 +640,31 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         if compile_runtimable {
             match lang {
                 TargetLanguage::Python3 => {
+                    use std::collections::BTreeMap;
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
                     let mut module = String::new();
                     module.push_str("from frame_runtime_py import FrameEvent, FrameCompartment\n\n");
                     module.push_str(&format!("class {}:\n", sys_name));
                     module.push_str("    def __init__(self):\n");
                     module.push_str(&format!("        self._compartment = FrameCompartment(\"__{}_state_A\")\n", sys_name));
-                    module.push_str("    def _frame_transition(self, next_compartment: FrameCompartment):\n        self._compartment = next_compartment\n");
-                    module.push_str("    def _frame_router(self, __e: FrameEvent, c: FrameCompartment=None):\n        pass\n");
-                    module.push_str("    def _frame_stack_push(self):\n        pass\n");
-                    module.push_str("    def _frame_stack_pop(self):\n        pass\n");
+                    module.push_str("    def _frame_transition(self, next_compartment: FrameCompartment):\n");
+                    module.push_str("        self._compartment = next_compartment\n");
+                    module.push_str("    def _frame_router(self, __e: FrameEvent, c: FrameCompartment=None):\n");
+                    module.push_str("        # Event router for parent-forward; dispatches by event name.\n");
+                    module.push_str("        compartment = c or self._compartment\n");
+                    module.push_str("        msg = getattr(__e, \"_message\", None)\n");
+                    module.push_str("        if msg is None:\n");
+                    module.push_str("            return\n");
+                    module.push_str("        # Dispatch to event-specific handler when available.\n");
+                    module.push_str("        if False:\n");
+                    module.push_str("            return  # placeholder for generated clauses\n");
+                    module.push_str("    def _frame_stack_push(self):\n");
+                    module.push_str("        pass\n");
+                    module.push_str("    def _frame_stack_pop(self):\n");
+                    module.push_str("        pass\n");
+                    // Group handlers by event name (owner_id) and collect actions/operations/functions.
+                    let mut handler_groups: BTreeMap<String, Vec<(Option<String>, String, bool)>> = BTreeMap::new();
+                    let mut function_defs: Vec<String> = Vec::new();
                     for (idx, b) in parts.bodies.iter().enumerate() {
                         let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
                         let spliced = {
@@ -661,7 +676,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         };
                         match b.kind {
                             crate::frame_c::v3::validator::BodyKindV3::Handler => {
-                                let hname = b.owner_id.as_deref().unwrap_or("handler");
+                                let hname = b.owner_id.as_deref().unwrap_or("handler").to_string();
                                 // Detect async handlers from header text (best-effort).
                                 let is_async = if let Some(hs) = b.header_span {
                                     let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
@@ -669,34 +684,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 } else {
                                     false
                                 };
-                                if is_async {
-                                    module.push_str(&format!("    async def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
-                                } else {
-                                    module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
-                                }
-                                // For handlers, keep indentation simple: treat all body lines as first-level
-                                // statements under the method. Handlers are expected to delegate real control
-                                // flow to actions.
-                                let mut emitted_code = false;
-                                for ln in spliced.lines() {
-                                    let raw = ln.trim_end();
-                                    if raw.trim().is_empty() {
-                                        module.push_str("        \n");
-                                        continue;
-                                    }
-                                    // Comments do not count as code for the purpose of inserting a fallback body.
-                                    if raw.trim_start().starts_with('#') {
-                                        module.push_str("        ");
-                                        module.push_str(raw.trim_start());
-                                        module.push('\n');
-                                        continue;
-                                    }
-                                    module.push_str("        ");
-                                    module.push_str(raw.trim_start());
-                                    module.push('\n');
-                                    emitted_code = true;
-                                }
-                                if !emitted_code { module.push_str("        pass\n"); }
+                                handler_groups.entry(hname).or_default().push((b.state_id.clone(), spliced.to_string(), is_async));
                             }
                             crate::frame_c::v3::validator::BodyKindV3::Action => {
                                 let aname = b.owner_id.as_deref().unwrap_or("action");
@@ -764,11 +752,20 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         module.push('\n');
                                         continue;
                                     }
-                                    let indent = raw.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
+                                    let bytes_ln = raw.as_bytes();
+                                    let indent = bytes_ln.iter().take_while(|b| **b == b' ' || **b == b'\t').count();
                                     let offset = if indent >= base { base } else { indent };
                                     let content = &raw[offset..];
+                                    // Preserve relative indentation beyond the base.
+                                    let extra = if indent > base {
+                                        let extra_bytes = &bytes_ln[base..indent];
+                                        std::str::from_utf8(extra_bytes).unwrap_or("")
+                                    } else {
+                                        ""
+                                    };
                                     emitted_code = true;
                                     module.push_str("        ");
+                                    module.push_str(extra);
                                     module.push_str(content);
                                     module.push('\n');
                                 }
@@ -850,18 +847,196 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         module.push('\n');
                                         continue;
                                     }
-                                    let indent = raw.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
+                                    let bytes_ln = raw.as_bytes();
+                                    let indent = bytes_ln.iter().take_while(|b| **b == b' ' || **b == b'\t').count();
                                     let offset = if indent >= base { base } else { indent };
                                     let content = &raw[offset..];
+                                    let extra = if indent > base {
+                                        let extra_bytes = &bytes_ln[base..indent];
+                                        std::str::from_utf8(extra_bytes).unwrap_or("")
+                                    } else {
+                                        ""
+                                    };
                                     emitted_code = true;
                                     module.push_str("        ");
+                                    module.push_str(extra);
                                     module.push_str(content);
                                     module.push('\n');
                                 }
                                 if !emitted_code { module.push_str("        pass\n"); }
                             }
+                            crate::frame_c::v3::validator::BodyKindV3::Function => {
+                                let fname = b.owner_id.as_deref().unwrap_or("fn");
+                                // Extract async flag and parameter list from header (best-effort).
+                                let (is_async, params) = if let Some(hs) = b.header_span {
+                                    let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                    let async_flag = hdr.trim_start().starts_with("async ");
+                                    let param_text = if let Some(lp) = hdr.find('(') {
+                                        if let Some(rp_rel) = hdr[lp+1..].find(')') {
+                                            hdr[lp+1..lp+1+rp_rel].trim().to_string()
+                                        } else { String::new() }
+                                    } else { String::new() };
+                                    (async_flag, param_text)
+                                } else { (false, String::new()) };
+                                let sig = if params.is_empty() {
+                                    if is_async {
+                                        format!("async def {}():\n", fname)
+                                    } else {
+                                        format!("def {}():\n", fname)
+                                    }
+                                } else {
+                                    if is_async {
+                                        format!("async def {}({}):\n", fname, params)
+                                    } else {
+                                        format!("def {}({}):\n", fname, params)
+                                    }
+                                };
+                                let mut fun = String::new();
+                                fun.push_str(&sig);
+                                let mut min_indent: Option<usize> = None;
+                                for ln in spliced.lines() {
+                                    if ln.trim().is_empty() { continue; }
+                                    let indent = ln.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
+                                    min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
+                                }
+                                let base = min_indent.unwrap_or(0);
+                                let mut emitted = false;
+                                for ln in spliced.lines() {
+                                    let raw = ln.trim_end();
+                                    if raw.trim().is_empty() {
+                                        fun.push_str("    \n");
+                                        continue;
+                                    }
+                                    if raw.trim_start().starts_with('#') {
+                                        fun.push_str("    ");
+                                        fun.push_str(raw.trim_start());
+                                        fun.push('\n');
+                                        continue;
+                                    }
+                                    let bytes_ln = raw.as_bytes();
+                                    let indent = bytes_ln.iter().take_while(|b| **b == b' ' || **b == b'\t').count();
+                                    let offset = if indent >= base { base } else { indent };
+                                    let content = &raw[offset..];
+                                    let extra = if indent > base {
+                                        let extra_bytes = &bytes_ln[base..indent];
+                                        std::str::from_utf8(extra_bytes).unwrap_or("")
+                                    } else {
+                                        ""
+                                    };
+                                    emitted = true;
+                                    fun.push_str("    ");
+                                    fun.push_str(extra);
+                                    fun.push_str(content);
+                                    fun.push('\n');
+                                }
+                                if !emitted {
+                                    fun.push_str("    pass\n");
+                                }
+                                function_defs.push(fun);
+                            }
                             _ => {}
                         }
+                    }
+                    // Generate event-specific handler methods grouped by state.
+                    for (hname, entries) in handler_groups.iter() {
+                        let any_async = entries.iter().any(|(_, _, is_async)| *is_async);
+                        if any_async {
+                            module.push_str(&format!("    async def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                        } else {
+                            module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                        }
+                        module.push_str("        c = compartment or self._compartment\n");
+                        if entries.len() == 1 && entries[0].0.is_none() {
+                            let body = &entries[0].1;
+                            // Normalize indentation while preserving relative nesting inside the handler.
+                            let mut min_indent: Option<usize> = None;
+                            for ln in body.lines() {
+                                if ln.trim().is_empty() { continue; }
+                                let indent = ln.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
+                                min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
+                            }
+                            let base = min_indent.unwrap_or(0);
+                            let mut emitted = false;
+                            for ln in body.lines() {
+                                let raw = ln.trim_end();
+                                if raw.trim().is_empty() {
+                                    module.push_str("        \n");
+                                    continue;
+                                }
+                                // Strip leading indentation relative to the minimum indent,
+                                // but do not carry over any extra indentation from the
+                                // original source; each logical line inside the spliced
+                                // body becomes a single level deeper than the handler's
+                                // `if` guard. This avoids mixed indentation when Frame
+                                // expansions introduce deep pad offsets.
+                                let trimmed = raw.trim_start();
+                                if trimmed.is_empty() {
+                                    module.push_str("        \n");
+                                    continue;
+                                }
+                                module.push_str("        ");
+                                module.push_str(trimmed);
+                                module.push('\n');
+                                emitted = true;
+                            }
+                            if !emitted {
+                                module.push_str("        pass\n");
+                            }
+                        } else {
+                            let mut first_case = true;
+                            for (state_id_opt, body, _) in entries {
+                                if let Some(state_name) = state_id_opt.as_deref() {
+                                    let compiled_id = if let Some(sys) = system_name.as_deref() {
+                                        format!("__{}_state_{}", sys, state_name)
+                                    } else {
+                                        state_name.to_string()
+                                    };
+                                    if first_case {
+                                        module.push_str(&format!("        if c.state == \"{}\":\n", compiled_id));
+                                        first_case = false;
+                                    } else {
+                                        module.push_str(&format!("        elif c.state == \"{}\":\n", compiled_id));
+                                    }
+                                } else {
+                                    if first_case {
+                                        module.push_str("        if True:\n");
+                                        first_case = false;
+                                    } else {
+                                        module.push_str("        else:\n");
+                                    }
+                                }
+                                // For multi-state handlers, normalize each logical line by
+                                // stripping all leading whitespace and indenting once under
+                                // the generated guard. This avoids carrying deep pad offsets
+                                // from Frame expansions that can trigger inconsistent
+                                // indentation errors in Python while preserving order.
+                                let mut emitted = false;
+                                for ln in body.lines() {
+                                    let raw = ln.trim_end();
+                                    if raw.trim().is_empty() {
+                                        module.push_str("            \n");
+                                        continue;
+                                    }
+                                    let trimmed = raw.trim_start();
+                                    if trimmed.is_empty() {
+                                        module.push_str("            \n");
+                                        continue;
+                                    }
+                                    module.push_str("            ");
+                                    module.push_str(trimmed);
+                                    module.push('\n');
+                                    emitted = true;
+                                }
+                                if !emitted {
+                                    module.push_str("            pass\n");
+                                }
+                            }
+                        }
+                    }
+                    // Append top-level functions (including fn main) after the class.
+                    for fun in function_defs {
+                        module.push('\n');
+                        module.push_str(&fun);
                     }
                     out = module;
                 }
@@ -1454,6 +1629,8 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             // Build known-states and Arcanum (symbol table) for E402/E403 parity
             let known_states = validator.collect_machine_state_names(bytes, outline_start);
             let arcanum = crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start);
+            let interface_methods = validator.collect_interface_method_names(bytes, outline_start);
+            let interface_methods = validator.collect_interface_method_names(bytes, outline_start);
             let system_name = find_system_name(bytes, 0);
             for b in &parts.bodies {
                 let body_bytes = &bytes[b.open_byte..=b.close_byte];
@@ -1492,7 +1669,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 }
                 // E403: parent-forward requires a declared parent when forwarding from a handler
                 if validator.has_machine_section(bytes, outline_start) {
-                    if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Unknown) {
+                    if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Function | BodyKindV3::Unknown) {
                         if mir.iter().any(|m| matches!(m, crate::frame_c::v3::mir::MirItemV3::Forward { .. })) {
                             let enclosing_state = b.state_id.as_deref();
                             let mut ok_parent = false;
@@ -1505,6 +1682,13 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             }
                         }
                     }
+                }
+                // E406/E407: system.method/system.return usage
+                if matches!(b.kind, crate::frame_c::v3::validator::BodyKindV3::Handler | crate::frame_c::v3::validator::BodyKindV3::Action | crate::frame_c::v3::validator::BodyKindV3::Operation) {
+                    let call_issues = validator.validate_system_calls_interface(body_bytes, &scan.regions, &interface_methods);
+                    for is in call_issues { issues.push(is); }
+                    let ret_issues = validator.validate_system_return_usage(body_bytes, &scan.regions, b.kind);
+                    for is in ret_issues { issues.push(is); }
                 }
 
                 // Include native parser diagnostics (facade mode) in errors-json for Py/TS/Rust by default
@@ -1623,6 +1807,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
     let mut known_states = std::collections::HashSet::new();
     let mut system_name: Option<String> = None;
+    let mut interface_methods: std::collections::HashSet<String> = std::collections::HashSet::new();
     // Build Arcanum symbol table from outline
     let mut arcanum_symtab: Option<crate::frame_c::v3::arcanum::Arcanum> = None;
     {
@@ -1630,6 +1815,12 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         all_issues.extend(outline_issues);
         let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
         all_issues.extend(outer_issues);
+        // Enforce per-system block ordering and uniqueness (operations:, interface:, machine:, actions:, domain:).
+        let block_order_issues = validator.validate_system_block_order(bytes, outline_start, lang);
+        all_issues.extend(block_order_issues);
+        // Enforce single `fn main` per module.
+        let main_issues = validator.validate_main_functions(bytes, &items);
+        all_issues.extend(main_issues);
         // machine section: simple state header check for '{'
         let state_issues = validator.validate_machine_state_headers(bytes, outline_start);
         all_issues.extend(state_issues);
@@ -1639,6 +1830,8 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         // Collect known state names (coarse) and build Arcanum for symbol-precision
         known_states = validator.collect_machine_state_names(bytes, outline_start);
         arcanum_symtab = Some(crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start));
+        // Collect interface method names for system.method(...) validation
+        interface_methods = validator.collect_interface_method_names(bytes, outline_start);
         // Best-effort scan for system name
         system_name = find_system_name(bytes, 0);
         // Debug hook removed: known_states reporting was temporary for triage
@@ -1698,6 +1891,14 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         // Enforce no native after terminal MIR at body level
         let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
         res.issues.extend(extra);
+        // Enforce that system.return is not used in operations.
+        let ret_issues = validator.validate_system_return_usage(body_bytes, &scan.regions, b.kind);
+        res.issues.extend(ret_issues);
+        // Enforce that system.method(...) calls target interface methods.
+        if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Action | BodyKindV3::Operation) {
+            let sys_issues = validator.validate_system_calls_interface(body_bytes, &scan.regions, &interface_methods);
+            res.issues.extend(sys_issues);
+        }
         res.ok = res.issues.is_empty();
         all_issues.extend(res.issues);
 
@@ -1777,6 +1978,12 @@ pub fn validate_module_with_arcanum(
     all_issues.extend(outline_issues);
     let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
     all_issues.extend(outer_issues);
+    // Per-system block ordering and uniqueness (operations:, interface:, machine:, actions:, domain:).
+    let block_order_issues = validator.validate_system_block_order(bytes, outline_start, lang);
+    all_issues.extend(block_order_issues);
+    // Enforce single `fn main` per module.
+    let main_issues = validator.validate_main_functions(bytes, &items);
+    all_issues.extend(main_issues);
     all_issues.extend(validator.validate_machine_state_headers(bytes, outline_start));
     all_issues.extend(validator.validate_handlers_in_state(&items));
 

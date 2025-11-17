@@ -1,8 +1,105 @@
-# Frame v0.38 Feature Capability Matrix
+# Frame V3 Capability Matrix
+
+**Last Updated**: 2025-11-17  
+**Version**: v0.86.45  
+**Purpose**: Map core **Frame‑level** capabilities (not host‑language features) to their validating tests in the V3 pipeline. Native expressions, operators, and collections are now handled by the target languages’ parsers/runtimes and are no longer tracked one‑by‑one here.
+
+> Legacy note: The original v0.38 matrix is preserved below as a historical appendix. It references many legacy `test_*.frm` fixtures and pre‑V3 syntax; it is **not** authoritative for the current V3 pipeline.
+
+## Core Frame Semantics (V3)
+
+### Prolog, Modules, Systems & Blocks
+
+| Capability | Status | V3 Tests (examples) | Legacy Tests |
+|-----------|--------|---------------------|--------------|
+| File prolog / target selection (`@target <language>`) | ✅ | Python/TS/Rust: all `v3_*` suites (e.g., `v3_prolog/positive/basic_target.frm`) | `framec_tests/common/tests/core/test_targets.frm` |
+| System declaration (`system S { … }`) | ✅ | Python: `framec_tests/language_specific/python/v3_systems/positive/*`  TS: `framec_tests/language_specific/typescript/v3_systems/positive/*` | `framec_tests/common/tests/systems/test_simple_system.frm` |
+| Interface / machine / actions / operations blocks | ✅ | Python: `v3_systems/positive/*`, `v3_cli/positive/*`  TS: `v3_systems/positive/*`, `v3_cli/positive/*` | `common/tests/systems/test_SystemBlocksTest.frm` |
+| Domain block (`domain:`) is native‑only in V3 | ✅ (tracked as native) | V3 systems use native domain where needed; semantics validated by host language and legacy tests | `common/tests/systems/test_domain_vars.frm` |
+| Block order & uniqueness (operations → interface → machine → actions → [domain]) | ✅ | Structural: V3 validator via `framec_tests/language_specific/*/v3_systems/negative/system_blocks_out_of_order.frm`, `duplicate_machine_block.frm` | (new in V3) |
+
+### States, Handlers, Entry/Exit
+
+| Capability | Status | V3 Tests (examples) | Legacy Tests |
+|-----------|--------|---------------------|--------------|
+| State blocks (`$State { … }`) | ✅ | Python/TS: `v3_systems/positive/*_exec.frm`, `simple_interface.frm` | `common/tests/systems/test_states_simple.frm` |
+| Entry handlers (`$>()`) | ✅ | Python: `v3_capabilities/state_parameters/positive/state_parameters_v3.frm`, `v3_legacy_async/positive/test_async_debug_v3.frm`  TS: `v3_control_flow/positive/*_exec.frm` | `common/tests/systems/test_LampCompleteTest.frm`, `test_states_simple.frm` |
+| Exit handlers (`<$()`) | ✅ | Python: `v3_capabilities/exit_handlers/positive/exit_handler_basic_v3.frm`  TS: `v3_capabilities/exit_handlers/positive/exit_handler_basic_v3.frm` | legacy HSM / enter/exit tests |
+| Handler placement (`machine:` only, inside state) | ✅ | Negative: `framec_tests/language_specific/python/v3_systems/negative/frame_in_actions.frm`, `interface_missing_brace.frm` and TS equivalents (E404) | various legacy outline/handler tests |
+
+### Transitions, Forward, Stack
+
+| Capability | Status | V3 Tests (examples) | Legacy Tests |
+|-----------|--------|---------------------|--------------|
+| Basic transitions (`-> $State`) | ✅ | Python/TS: `v3_systems/positive/transition_basic_exec.frm`, `while_inline_forward_stack_then_transition_exec.frm` | `common/tests/systems/test_just_transition*.frm`, `test_basic_transition_demo.frm` |
+| Parent forward (`=> $^`) | ✅ | Python/TS/Rust: `v3_systems/positive/child_forwards_then_transition_exec.frm`, `nested_parent_forward_then_transition_exec.frm` (E403 coverage) | `common/tests/systems/test_parent_dispatch*.frm` |
+| Stack operations (`$$[+]`, `$$[-]`) | ✅ | Python/Rust: `v3_systems/positive/parent_forward_then_stack_then_transition_exec.frm`, `while_inline_forward_stack_then_transition_exec.frm` | `common/tests/systems/test_state_stack.frm.bak` (legacy) |
+
+### Parameters & Arguments
+
+| Capability | Status | V3 Tests (examples) | Legacy Tests |
+|-----------|--------|---------------------|--------------|
+| **Transition arguments** (`-> $State(args…)`) | ✅ | Python/TS: `v3_systems/positive/transition_basic_exec.frm`, `v3_capabilities/state_parameters/positive/state_parameters_v3.frm` | `common/tests/core/test_state_parameters.frm`, `test_TransitionsTest.frm`, `test_correct_transition.frm` |
+| **State parameters** (`$State(p1, p2)` / `$State(p: int)`) | ⚠️ PARTIAL (V3 structural + semantic) | V3 arity negative: Python/TS `v3_validator/negative/transition_state_arity_mismatch.frm` (E405).  V3 positive compile‑only: Python `framec_tests/language_specific/python/v3_capabilities/state_parameters/positive/state_parameters_v3.frm`; TS `framec_tests/language_specific/typescript/v3_capabilities/state_parameters/positive/state_parameters_v3.frm`. | `common/tests/core/test_state_parameters.frm`, `common/tests/systems/test_SimpleSystemParamsTest.frm` |
+| **System parameters** (`system S($(start), $>(enter), domain)` ) | ⚠️ PARTIAL (grammar + docs; runtime glue WIP) | V3 compile‑only: Python `framec_tests/language_specific/python/v3_capabilities/system_params/positive/system_params_v3.frm`; TS `framec_tests/language_specific/typescript/v3_capabilities/system_params/positive/system_params_v3.frm`. | `framec_tests/common/tests/systems/test_SimpleSystemParamsTest.frm`, `test_TestOneParam.frm` |
+
+> Note: V3 already enforces structural/semantic rules (E405) for state/transition arguments via Arcanum. System‑parameter runtime glue is now part of the V3 grammar/design but not yet fully wired; dedicated V3 fixtures will be added as that implementation lands.
+
+### Actions & Operations
+
+| Capability | Status | V3 Tests (examples) | Legacy Tests |
+|-----------|--------|---------------------|--------------|
+| Actions block (`actions:`) with native bodies | ✅ | Python: `v3_cli/positive/actions_emitted.frm`, `actions_call_wrappers.frm`  TS: `v3_cli/positive/actions_emitted_with_imports.frm` | `common/tests/core/test_operations*.frm`, `systems/test_ActionsBlockTest.frm` |
+| Operations block (`operations:`) with native bodies | ✅ | Python: `v3_cli/positive/operations_emitted.frm`  TS: `v3_cli/positive/operations_emitted.frm` | same as above |
+| Operation attributes (`@attribute` before operation name) | ✅ | Python: `v3_capabilities/operation_attributes/positive/operation_attribute_v3.frm` | legacy attribute usage was ad‑hoc |
+| No Frame in actions/operations (`E401`) | ✅ | Negative: `v3_systems/negative/frame_in_actions.frm` (Py/TS) | legacy negative tests: `common/tests/negative/test_transition_in_action.frm`, `test_transition_in_operation.frm` |
+
+### Mixed Native + Frame Bodies
+
+| Capability | Status | V3 Tests (examples) | Legacy Tests |
+|-----------|--------|---------------------|--------------|
+| Mixed native control + Frame statements in handlers | ✅ | Python: `v3_control_flow/positive/*_exec.frm`, `v3_legacy_async/positive/*_v3.frm`  TS: `v3_control_flow/positive/*.frm` | `common/tests/systems/test_debug_systems.frm`, `test_comprehensive_v0_20_features.frm` |
+| Terminal‑last rule (Transition is last in block, E400) | ✅ | Negative: `v3_control_flow/negative/*` (Py/TS/Rust) | enforced more loosely in legacy tests |
+
+### System Return and System Calls
+
+| Capability | Status | V3 Tests (examples) | Legacy Tests |
+|-----------|--------|---------------------|--------------|
+| `system.return` assignment from handlers/actions; disallowed in operations | ⚠️ PARTIAL (placement rule enforced; runtime defaults WIP) | Python: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../negative/system_return_in_operation_v3.frm` (E407).  TS: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../negative/system_return_in_operation_v3.frm` (E407). | `common/tests/control_flow/test_system_return*.frm`, various system patterns in `framec_tests/common/tests/control_flow` |
+| `system.method()` calls from handlers/actions/operations (must be interface methods) | ⚠️ PARTIAL (new semantic rule) | Python: `framec_tests/language_specific/python/v3_capabilities/system_calls/positive/system_interface_call_v3.frm`, `.../negative/system_calls_non_interface_v3.frm` (E406).  TS: `framec_tests/language_specific/typescript/v3_capabilities/system_calls/positive/system_interface_call_v3.frm`, `.../negative/system_calls_non_interface_v3.frm`. | many legacy async/with/decorator tests using `system.return` and system‑scoped helpers |
+
+### Functions & Entry Points
+
+| Capability | Status | V3 Tests (examples) | Legacy Tests |
+|-----------|--------|---------------------|--------------|
+| Top‑level Frame functions (`fn name(...) { … }`) | ✅ | Python: `v3_imports/positive/import_*_v3.frm`, `v3_legacy_async/positive/*_v3.frm`  TS: `v3_imports/positive/*.frm` | various legacy `test_functions_*.frm` |
+| Single `fn main` per module (E115 on duplicates) | ✅ | Negative: Python `v3_cli/negative/multiple_main_functions.frm`; positives: `v3_imports/positive/*_v3.frm` | legacy main tests under `common/tests/*` |
+
+### Mapping, Debugging & Artifacts
+
+| Capability | Status | V3 Tests (examples) | Notes |
+|-----------|--------|---------------------|-------|
+| Frame→target mapping (`frame-map` trailer) | ✅ | Python/TS: `v3_mapping/positive/*.frm` | Controlled via `FRAME_MAP_TRAILER=1` and enforced in runner. |
+| Visitor map (v2) | ✅ | Python/TS: `v3_visitor_map/positive/*.frm` | Includes target/source line+column. |
+| Debug manifest (v2) | ✅ | Python/TS/Rust: `v3_debugger/positive/*.frm` | Handlers + compiled state IDs. |
+| Native symbol snapshot (advisory) | ✅ | Python/TS: `v3_native_symbols/positive/*.frm` | Parser‑backed param extraction for debugging tools. |
+
+### Native Expressions, Collections, and Control Flow
+
+Most expression/collection/loop features described in the legacy docs are now treated as **host‑language concerns** and validated via:
+
+- Native parsers/facades for Python/TS/Rust (Stage 07).
+- Runtime smoke tests in the V3 suites (`v3_legacy_async`, `v3_imports`, `v3_data_types`, `v3_operators`, `v3_control_flow`).
+
+They are no longer tracked one‑feature‑per‑row in this matrix. The legacy v0.38 table below remains as a reference if you need to correlate older tests and features, but it is not the primary V3 checklist.
+
+---
+
+# Frame v0.38 Feature Capability Matrix (Legacy Appendix)
 
 **Last Updated**: 2025-09-07  
 **Version**: v0.38  
-**Purpose**: Maps every Frame feature to its validating test(s) with current pass/fail status
+**Purpose**: Legacy mapping of Frame features to validating tests (pre‑V3). It is retained for historical context only.
 
 ## Legend
 - ✅ **PASS** - Feature implemented and test passes

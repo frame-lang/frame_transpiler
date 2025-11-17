@@ -1,8 +1,11 @@
 @target python
 
+# Intentionally malformed: missing '{' after function-style header.
+# We expect a structural E111 from the outline/semantic validator.
+
+fn ev()  # missing '{' after header
+
 system S {
-    interface:
-        fn ev()  # missing '{' after header
     machine:
         $A { e() { x() } }
 }

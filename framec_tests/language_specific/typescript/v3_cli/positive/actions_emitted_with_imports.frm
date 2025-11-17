@@ -3,10 +3,13 @@
 
 system RuntimeProtocol {
     interface:
-        run() {
-            // interface handler
+        run()
+    machine:
+        $Idle {
+            run() {
+                // interface handler
+            }
         }
-    
     actions:
         // import inside actions: should not be treated as a top-level module import
         handleCommand(message: any) {

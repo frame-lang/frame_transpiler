@@ -31,6 +31,9 @@ impl OutlineScannerV3 {
         let mut section = Section::None;
         // Track active state scopes (name, close_index) inside machine:
         let mut state_scopes: Vec<(String, usize)> = Vec::new();
+        // Track body scopes for handlers/actions/operations/functions so we don't
+        // misinterpret inner statements (e.g., `print(...)`) as headers.
+        let mut body_scopes: Vec<(usize, usize)> = Vec::new();
         while i < n {
             // skip to SOL non-space
             while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
@@ -38,6 +41,18 @@ impl OutlineScannerV3 {
             let line_start = i;
             // Drop any state scopes that ended before this line
             while let Some((_, close)) = state_scopes.last() { if *close <= line_start { state_scopes.pop(); } else { break; } }
+            // Skip lines that are inside an already-recorded body scope
+            let mut inside_body = false;
+            for (open, close) in &body_scopes {
+                if line_start > *open && line_start < *close {
+                    inside_body = true;
+                    break;
+                }
+            }
+            if inside_body {
+                while i < n && bytes[i] != b'\n' { i += 1; }
+                continue;
+            }
             // first token
             let mut j = i;
             while j < n && is_space(bytes[j]) { j += 1; }
@@ -59,10 +74,19 @@ impl OutlineScannerV3 {
                 while i<n && bytes[i]!=b'\n' { i+=1; }
                 continue;
             }
-            // Track state scopes: in machine:, a line starting with '$' beginning a state block
+            // Track state scopes: in machine:, a line starting with '$Name {' begins a state block.
+            // Require an identifier after '$' to avoid treating entry handlers like '$>()' as states.
             if matches!(section, Section::Machine) && bytes[kw_start] == b'$' {
-                // parse state ident
-                let mut s = kw_start + 1; while s < n && is_ident(bytes[s]) { s += 1; }
+                let ident_start = kw_start + 1;
+                let mut s = ident_start;
+                while s < n && is_ident(bytes[s]) { s += 1; }
+                // Must have at least one ident char and a valid ident start.
+                let is_state_header = s > ident_start
+                    && ((bytes[ident_start] as char).is_ascii_alphabetic() || bytes[ident_start] == b'_');
+                if !is_state_header {
+                    while i<n && bytes[i]!=b'\n' { i+=1; }
+                    continue;
+                }
                 // find '{' on this line
                 let mut p = s; while p < n && bytes[p] != b'\n' && bytes[p] != b'{' { p += 1; }
                 if p < n && bytes[p] == b'{' {
@@ -79,7 +103,7 @@ impl OutlineScannerV3 {
                         _ => None,
                     };
                     if let Some(close) = close_opt {
-                        let name = String::from_utf8_lossy(&bytes[kw_start+1..s]).to_string();
+                        let name = String::from_utf8_lossy(&bytes[ident_start..s]).to_string();
                         state_scopes.push((name, close));
                     }
                 }
@@ -87,19 +111,45 @@ impl OutlineScannerV3 {
                 continue;
             }
             // Recognize headers:
-            // - In machine/actions/operations/interface sections → IDENT '(' ... ')' '{'
-            //   and allow an optional leading 'async' before the name (e.g., 'async run() { ... }').
+            // - Global functions: 'fn name(...) { ... }' or 'async fn name(...) { ... }'.
+            // - Section members (machine/actions/operations/interface): IDENT '(' ... ')' '{'
+            //   with optional leading 'async' before the name (e.g., 'async run() { ... }').
             //   (Interface headers without a '{' are treated as prototypes and ignored.)
-            // - Elsewhere → 'fn' or 'async fn' NAME '(' ... ')' '{'
             let mut name_start = kw_start;
             let mut name_end = j;
             let first_tok = to_lower_ascii(&bytes[name_start..name_end]);
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
             let mut is_func_header = false;
-            if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
-                // For these sections, support:
-                //   - bare names:      'run(...) {'
-                //   - async functions: 'async run(...) {'
+            let mut is_global_fn = false;
+            // Global functions: fn name(...) or async fn name(...)
+            let mut is_global_candidate = false;
+            if first_tok == "fn" {
+                is_global_candidate = true;
+            } else if first_tok == "async" {
+                // Look ahead for 'fn' after async
+                let mut next = j; while next < n && is_space(bytes[next]) { next += 1; }
+                let mut w = next; while w < n && is_ident(bytes[w]) { w += 1; }
+                let maybe_fn = to_lower_ascii(&bytes[next..w]);
+                if maybe_fn == "fn" {
+                    is_global_candidate = true;
+                    // Position k at start of name after 'fn'
+                    k = w; while k < n && is_space(bytes[k]) { k += 1; }
+                }
+            }
+            if is_global_candidate {
+                // Parse function name
+                let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
+                if p > k {
+                    name_start = k;
+                    name_end = p;
+                    j = p;
+                    k = p;
+                    while k < n && is_space(bytes[k]) { k += 1; }
+                    is_func_header = true;
+                    is_global_fn = true;
+                }
+            } else if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
+                // Section members: bare names or 'async name(...) { ... }'
                 if first_tok == "async" {
                     // Advance to the actual function name after 'async'
                     let mut p = k;
@@ -112,22 +162,6 @@ impl OutlineScannerV3 {
                     }
                 }
                 if k < n && bytes[k] == b'(' { is_func_header = true; }
-            } else if first_tok == "fn" || first_tok == "async" {
-                // If 'async', require 'fn' next; otherwise require IDENT after 'fn'
-                let mut next = j; while next < n && is_space(bytes[next]) { next += 1; }
-                if first_tok == "async" {
-                    let mut w = next; while w < n && is_ident(bytes[w]) { w += 1; }
-                    let maybe_fn = to_lower_ascii(&bytes[next..w]);
-                    if maybe_fn == "fn" {
-                        k = w; while k < n && is_space(bytes[k]) { k += 1; }
-                        let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
-                        if p > k { name_start = k; name_end = p; j = p; k = p; while k < n && is_space(bytes[k]) { k += 1; } is_func_header = true; }
-                    }
-                } else {
-                    // first token is 'fn'
-                    let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
-                    if p > k { name_start = k; name_end = p; j = p; k = p; while k < n && is_space(bytes[k]) { k += 1; } is_func_header = true; }
-                }
             }
             if is_func_header && k < n && bytes[k] == b'(' {
                 // balance parens
@@ -163,18 +197,48 @@ impl OutlineScannerV3 {
                     }.map_err(|e| OutlineErrorV3{ message: format!("body close error: {:?}", e) })?;
                     let owner_id = Some(String::from_utf8_lossy(&bytes[name_start..name_end]).to_string());
                     let state_id = state_scopes.last().map(|(n, _)| n.clone());
-                    let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler };
+                    let kind = if is_global_fn {
+                        BodyKindV3::Function
+                    } else {
+                        match section {
+                            Section::Actions => BodyKindV3::Action,
+                            Section::Operations => BodyKindV3::Operation,
+                            _ => BodyKindV3::Handler
+                        }
+                    };
+                    // Record this body scope so subsequent lines inside it are not treated as headers.
+                    body_scopes.push((open, close));
                     items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close });
                     i = close + 1; continue;
                 }
-                // found header 'fn name(' ... ')' but no '{'
-                // In interface: treat as prototype (no body) and ignore.
+                // malformed header: header '(' ... ')' but no '{'
+                // In interface: treat as prototype (no body) and ignore signature‑only declarations.
                 if matches!(section, Section::Interface) {
                     while i<n && bytes[i]!=b'\n' { i+=1; }
                     continue;
                 }
-                // Elsewhere this is a malformed header.
-                return Err(OutlineErrorV3{ message: "E111: missing '{' after module artifact header".into() });
+                // For other sections, only treat true function artifacts (`fn` / `async fn`)
+                // as E111; regular statements like `print(...)` should not trigger.
+                if first_tok == "fn" || first_tok == "async" {
+                    if std::env::var("FRAME_DEBUG_OUTLINE").ok().as_deref() == Some("1") {
+                        let line_end = {
+                            let mut q = p;
+                            while q < n && bytes[q] != b'\n' { q += 1; }
+                            q
+                        };
+                        let hdr = String::from_utf8_lossy(&bytes[line_start..line_end]).to_string();
+                        eprintln!(
+                            "[outline] E111 at section={:?} line_start={} header_text={}",
+                            section,
+                            line_start,
+                            hdr
+                        );
+                    }
+                    return Err(OutlineErrorV3{ message: "E111: missing '{' after module artifact header".into() });
+                }
+                // Otherwise treat this as a regular statement, not a header.
+                while i<n && bytes[i]!=b'\n' { i+=1; }
+                continue;
             }
             // Otherwise skip to next line
             while i<n && bytes[i]!=b'\n' { i+=1; }
@@ -245,13 +309,30 @@ impl OutlineScannerV3 {
                 continue;
             }
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
-            // Recognize headers: allow bare IDENT '(' … ')' in machine/actions/operations/interface; else require fn/async fn.
-            // Interface headers without a '{' are treated as prototypes and ignored.
+            // Recognize headers:
+            // - Global functions: 'fn name(...) { ... }' or 'async fn name(...) { ... }' (regardless of section).
+            // - Section members: IDENT '(' … ')' '{', with optional leading 'async'.
             let first_tok = to_lower_ascii(&bytes[kw_start..j]);
             let mut is_func_header = false;
             let mut _name_start = kw_start;
             let mut _name_end = j;
-            if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
+            if first_tok == "fn" || first_tok == "async" {
+                // Global function or 'async fn'
+                let mut next = k; while next < n && is_space(bytes[next]) { next += 1; }
+                if first_tok == "async" {
+                    let mut w = next; while w < n && is_ident(bytes[w]) { w += 1; }
+                    let maybe_fn = to_lower_ascii(&bytes[next..w]);
+                    if maybe_fn == "fn" {
+                        k = w; while k < n && is_space(bytes[k]) { k += 1; }
+                        let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
+                        if p > k { _name_start = k; _name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
+                    }
+                } else {
+                    let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
+                    if p > k { _name_start = k; _name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
+                }
+            } else if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
+                // Section members: bare names or 'async name(...) { ... }'
                 if first_tok == "async" {
                     // Support 'async name(...) { ... }' inside these sections by advancing to the actual name.
                     let mut p = k;
@@ -264,20 +345,6 @@ impl OutlineScannerV3 {
                     }
                 }
                 if k < n && bytes[k] == b'(' { is_func_header = true; }
-            } else if first_tok == "fn" || first_tok == "async" {
-                if first_tok == "async" {
-                    let mut next = k; while next < n && is_space(bytes[next]) { next += 1; }
-                    let mut w = next; while w < n && is_ident(bytes[w]) { w += 1; }
-                    let maybe_fn = to_lower_ascii(&bytes[next..w]);
-                    if maybe_fn == "fn" {
-                        k = w; while k < n && is_space(bytes[k]) { k += 1; }
-                        let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
-                        if p > k { _name_start = k; _name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
-                    }
-                } else {
-                    let mut p = k; while p < n && is_ident(bytes[p]) { p += 1; }
-                    if p > k { _name_start = k; _name_end = p; is_func_header = true; k = p; while k < n && is_space(bytes[k]) { k += 1; } }
-                }
             }
             if is_func_header && k < n && bytes[k] == b'(' {
                 let mut depth: i32 = 0; let mut p = k;
@@ -290,18 +357,23 @@ impl OutlineScannerV3 {
                             let close = open + c;
                             let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string());
                             let state_id = state_scopes.last().map(|(n, _)| n.clone());
-                            let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler };
+                            let kind = match section {
+                                Section::Actions => BodyKindV3::Action,
+                                Section::Operations => BodyKindV3::Operation,
+                                Section::None => BodyKindV3::Function,
+                                _ => BodyKindV3::Handler
+                            };
                             items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close });
                             i = close + 1; continue;
                         }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
                         TargetLanguage::TypeScript => match closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0) { Ok(c) => {
-                            let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue;
+                            let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue;
                         }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::CSharp => match closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::C => match closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::Cpp => match closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::Java => match closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::Rust => match closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::CSharp => match closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::C => match closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::Cpp => match closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::Java => match closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::Rust => match closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
                         _ => {}
                     }
                     // recovery: skip to next line after '{'
@@ -309,12 +381,19 @@ impl OutlineScannerV3 {
                     continue;
                 }
                 // malformed header: header '(' ... ')' but no '{'
-                // In interface, treat as prototype (no body) and ignore.
-                if matches!(section, Section::Interface) {
+                // In interface, treat as prototype (no body) and ignore for
+                // signature-style declarations like `e()` or `async e()`.
+                // Headers starting with `fn` remain invalid here and are
+                // reported as E111.
+                if matches!(section, Section::Interface) && first_tok != "fn" {
                     while i<n && bytes[i]!=b'\n' { i+=1; }
                     continue;
                 }
-                issues.push(ValidationIssueV3{ message: "E111: missing '{' after module artifact header".into() });
+                // Only treat function-like constructs as E111; regular statements
+                // like `print(...)` inside bodies should not surface this error.
+                if first_tok == "fn" || first_tok == "async" {
+                    issues.push(ValidationIssueV3{ message: "E111: missing '{' after module artifact header".into() });
+                }
                 while i<n && bytes[i]!=b'\n' { i+=1; }
                 continue;
             }

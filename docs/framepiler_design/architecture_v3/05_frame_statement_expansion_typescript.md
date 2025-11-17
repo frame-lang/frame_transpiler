@@ -13,6 +13,18 @@ Expansions
 - Transition `-> $State(args?)`:
   - Production glue: construct a `FrameCompartment` for the target state, call `this._frame_transition(<compartment>)`, then emit a native `return;` to exit the handler immediately. This mirrors the kernel contract and the terminal rule.
   - Terminal within its containing block (validator enforced). The emitted `return;` makes control‑flow explicit even in deeply nested blocks.
+  - To avoid `TS2451` redeclarations in multi‑state handlers that use `switch (c.state)`, each transition expansion:
+    - Uses a per‑target temporary name (e.g., `__frameNextCompartment_Connected`, `__frameNextCompartment_Terminated`).
+    - Is wrapped in its own block:
+      ```ts
+      {
+        const __frameNextCompartment_Terminated = new FrameCompartment("__System_state_Terminated");
+        // optional exit/enter/state arg wiring
+        this._frame_transition(__frameNextCompartment_Terminated);
+        return;
+      }
+      ```
+    - This ensures that even when multiple `case` labels transition to the same state, no `const` is redeclared across cases.
 - Forward `=> $^`:
   - Emit parent forward glue (dispatch to parent with current event) via `this._frame_router(__e, compartment.parentCompartment)`.
   - Not mandated terminal; no implicit `return;` is injected. Native statements may follow (subject to TypeScript syntax and inline separators).

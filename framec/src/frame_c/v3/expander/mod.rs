@@ -62,8 +62,8 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
         match mir {
             MirItemV3::Transition{ target, exit_args, enter_args, state_args, .. } => {
                 let id = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
-                // Use a per-state temporary name so we never redeclare the same
-                // identifier across multiple transitions in a shared switch block.
+                // Use a per-state temporary name and wrap each expansion in its own
+                // block so we never redeclare the same identifier across cases.
                 fn sanitize_ident(s: &str) -> String {
                     let mut out = String::new();
                     for ch in s.chars() {
@@ -78,6 +78,7 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
                 let suffix = sanitize_ident(target);
                 let temp_name = format!("__frameNextCompartment_{}", suffix);
                 let mut out = String::new();
+                out.push_str(&format!("{}{{\n", pad));
                 out.push_str(&format!("{}const {} = new FrameCompartment(\"{}\");\n", pad, temp_name, id));
                 if !exit_args.is_empty() {
                     out.push_str(&format!("{}compartment.exitArgs = [{}];\n", pad, exit_args.join(", ")));
@@ -90,6 +91,7 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
                 }
                 out.push_str(&format!("{}this._frame_transition({});\n", pad, temp_name));
                 out.push_str(&format!("{}return;\n", pad));
+                out.push_str(&format!("{}}}\n", pad));
                 out
             }
             MirItemV3::Forward{ .. } => {

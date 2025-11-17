@@ -2,8 +2,10 @@ use crate::frame_c::v3::mir::MirItemV3;
 use crate::frame_c::v3::native_region_scanner::RegionV3;
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v3::outline_scanner::OutlineItemV3;
+use crate::frame_c::v3::body_closer::BodyCloserV3;
 use std::collections::HashSet;
 use super::arcanum::Arcanum;
+use super::body_closer as closer;
 
 #[derive(Debug, Clone)]
 pub struct ValidationIssueV3 { pub message: String }
@@ -13,10 +15,67 @@ pub struct ValidationResultV3 { pub ok: bool, pub issues: Vec<ValidationIssueV3>
 
 pub struct ValidatorV3;
 
+/// Aggregated module-level context for semantic validation.
+/// Built once from the outline + bytes, then reused for per-body checks.
+#[derive(Debug, Clone)]
+pub struct ModuleSemanticContextV3 {
+    /// Byte offset where the outline (sections/system body) begins.
+    pub outline_start: usize,
+    /// Outline items discovered by OutlineScannerV3 (handlers/actions/ops/functions).
+    pub outline_items: Vec<OutlineItemV3>,
+    /// Coarse set of known state names discovered from machine sections.
+    pub known_states: HashSet<String>,
+    /// Arcanum symbol table (systems, machines, states, params).
+    pub arcanum: Arcanum,
+}
+
 impl ValidatorV3 {
     // Structural validation placeholder; block-scoped terminal rule enforced in validate_terminal_last_native.
     pub fn validate_regions_mir(&self, _regions: &[RegionV3], _mir: &[MirItemV3]) -> ValidationResultV3 {
         ValidationResultV3 { ok: true, issues: Vec::new() }
+    }
+
+    /// Build a semantic context for a module after syntactic/outline checks have succeeded.
+    ///
+    /// This folds together:
+    /// - outline scan + section placement checks,
+    /// - machine state header checks,
+    /// - handler-in-state checks,
+    /// - state name collection, and
+    /// - Arcanum construction.
+    ///
+    /// It returns both the context and any validation issues discovered at the module level.
+    pub fn build_module_semantic_context(
+        &self,
+        bytes: &[u8],
+        outline_start: usize,
+        lang: TargetLanguage,
+    ) -> (ModuleSemanticContextV3, Vec<ValidationIssueV3>) {
+        let mut issues = Vec::new();
+        // Tolerant outline scan (collects E111 and similar diagnostics).
+        let (items, outline_issues) =
+            crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+        issues.extend(outline_issues);
+        // Section placement: actions/operations/handlers must live in correct sections.
+        let outer_issues = self.validate_outer_grammar(bytes, outline_start, lang, &items);
+        issues.extend(outer_issues);
+        // Machine state headers must have '{' on the same line.
+        let state_issues = self.validate_machine_state_headers(bytes, outline_start);
+        issues.extend(state_issues);
+        // Handlers must be nested inside a state block in machine:.
+        let handler_scope_issues = self.validate_handlers_in_state(&items);
+        issues.extend(handler_scope_issues);
+        // Collect coarse state names and build Arcanum symbol table.
+        let known_states = self.collect_machine_state_names(bytes, outline_start);
+        let arcanum = crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start);
+
+        let ctx = ModuleSemanticContextV3 {
+            outline_start,
+            outline_items: items,
+            known_states,
+            arcanum,
+        };
+        (ctx, issues)
     }
 
     // Optional: check that transition state_args arity matches state parameter arity from Arcanum
@@ -79,15 +138,179 @@ impl ValidatorV3 {
                         res.issues.push(ValidationIssueV3 { message: "E401: Frame statements are not allowed in actions/operations".to_string() });
                     }
                 }
-                BodyKindV3::Handler | BodyKindV3::Unknown => {}
+                BodyKindV3::Handler | BodyKindV3::Function | BodyKindV3::Unknown => {}
             }
         }
         res.ok = res.issues.is_empty();
         res
     }
 
+    /// Collect interface method names declared under `interface:` blocks.
+    /// This is a lightweight lexical scan; it does not depend on OutlineScannerV3.
+    pub fn collect_interface_method_names(&self, bytes: &[u8], start: usize) -> HashSet<String> {
+        let mut names = HashSet::new();
+        let n = bytes.len();
+        let mut i = start;
+        let mut in_interface = false;
+        while i < n {
+            // Skip leading whitespace and blank lines.
+            while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+            if i >= n { break; }
+            let line_start = i;
+            // Skip comment-only lines quickly.
+            if bytes[i] == b'#' {
+                while i < n && bytes[i] != b'\n' { i += 1; }
+                continue;
+            }
+            if i + 1 < n && bytes[i] == b'/' && bytes[i + 1] == b'/' {
+                while i < n && bytes[i] != b'\n' { i += 1; }
+                continue;
+            }
+            // Read first identifier on the line.
+            let mut j = i;
+            while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+            let kw_start = j;
+            while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+            if kw_start < j {
+                // Section header (IDENT ':' at SOL).
+                if j < n && bytes[j] == b':' {
+                    let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
+                    match kw.as_str() {
+                        "interface" => in_interface = true,
+                        "actions" | "operations" | "machine" | "domain" => in_interface = false,
+                        _ => {}
+                    }
+                    // Skip rest of line.
+                    while i < n && bytes[i] != b'\n' { i += 1; }
+                    continue;
+                }
+                if in_interface {
+                    // Potential interface method header: IDENT '(' … ')'
+                    let mut k = j;
+                    while k < n && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                    if k < n && bytes[k] == b'(' {
+                        let name = String::from_utf8_lossy(&bytes[kw_start..j]).to_string();
+                        if !name.is_empty() {
+                            names.insert(name);
+                        }
+                    }
+                }
+            }
+            // Move to next line.
+            while i < n && bytes[i] != b'\n' { i += 1; }
+        }
+        names
+    }
+
+    /// Validate that `system.method(...)` calls inside native regions target
+    /// interface methods. This runs over native text regions only.
+    pub fn validate_system_calls_interface(
+        &self,
+        body_bytes: &[u8],
+        regions: &[RegionV3],
+        interface_methods: &HashSet<String>,
+    ) -> Vec<ValidationIssueV3> {
+        let mut issues = Vec::new();
+        if interface_methods.is_empty() {
+            return issues;
+        }
+        for r in regions {
+            if let RegionV3::NativeText { span } = r {
+                if span.end <= span.start || span.end > body_bytes.len() { continue; }
+                let seg = &body_bytes[span.start..span.end];
+                let mut i = 0usize;
+                while i + 6 < seg.len() {
+                    // Look for "system" at an identifier boundary.
+                    if &seg[i..i + 6] == b"system" {
+                        let prev_is_ident = if i == 0 {
+                            false
+                        } else {
+                            let b = seg[i - 1];
+                            (b as char).is_ascii_alphanumeric() || b == b'_'
+                        };
+                        let mut j = i + 6;
+                        if !prev_is_ident && j < seg.len() && seg[j] == b'.' {
+                            j += 1;
+                            if j >= seg.len() {
+                                break;
+                            }
+                            // Parse method identifier after the dot.
+                            let mut name_start = j;
+                            if !((seg[j] as char).is_ascii_alphabetic() || seg[j] == b'_') {
+                                i += 1;
+                                continue;
+                            }
+                            j += 1;
+                            while j < seg.len() {
+                                let c = seg[j] as char;
+                                if c.is_ascii_alphanumeric() || seg[j] == b'_' {
+                                    j += 1;
+                                } else {
+                                    break;
+                                }
+                            }
+                            let name = String::from_utf8_lossy(&seg[name_start..j]).to_string();
+                            // Ignore the special `system.return` variable.
+                            if name != "return" && !name.is_empty() && !interface_methods.contains(&name) {
+                                issues.push(ValidationIssueV3 {
+                                    message: format!("E406: system.{} call must target an interface method", name),
+                                });
+                            }
+                            i = j;
+                            continue;
+                        }
+                    }
+                    i += 1;
+                }
+            }
+        }
+        issues
+    }
+
+    /// Validate `system.return` usage according to V3 policy.
+    /// - Allowed in handlers and actions.
+    /// - Disallowed in operations (legacy restriction).
+    pub fn validate_system_return_usage(
+        &self,
+        body_bytes: &[u8],
+        regions: &[RegionV3],
+        kind: super::validator::BodyKindV3,
+    ) -> Vec<ValidationIssueV3> {
+        let mut issues = Vec::new();
+        // Only operations are restricted for now.
+        if !matches!(kind, super::validator::BodyKindV3::Operation) {
+            return issues;
+        }
+        for r in regions {
+            if let RegionV3::NativeText { span } = r {
+                if span.end <= span.start || span.end > body_bytes.len() { continue; }
+                let seg = &body_bytes[span.start..span.end];
+                let mut i = 0usize;
+                while i + 13 < seg.len() {
+                    // Look for "system.return" at an identifier boundary.
+                    if &seg[i..i + 13] == b"system.return" {
+                        let prev_is_ident = if i == 0 {
+                            false
+                        } else {
+                            let b = seg[i - 1];
+                            (b as char).is_ascii_alphanumeric() || b == b'_'
+                        };
+                        if !prev_is_ident {
+                            issues.push(ValidationIssueV3 {
+                                message: "E407: system.return is not allowed in operations".into(),
+                            });
+                            break;
+                        }
+                    }
+                    i += 1;
+                }
+            }
+        }
+        issues
+    }
+
     // Outer grammar structural checks (headers inside sections)
-pub fn validate_outer_grammar(&self, bytes: &[u8], start: usize, _lang: TargetLanguage, outline: &[OutlineItemV3]) -> Vec<ValidationIssueV3> {
+    pub fn validate_outer_grammar(&self, bytes: &[u8], start: usize, _lang: TargetLanguage, outline: &[OutlineItemV3]) -> Vec<ValidationIssueV3> {
         #[derive(Clone, Copy, PartialEq, Eq)]
         enum Sec { Actions, Operations, Interface, Machine }
         // Collect section spans: [start,end)
@@ -140,7 +363,233 @@ pub fn validate_outer_grammar(&self, bytes: &[u8], start: usize, _lang: TargetLa
                 super::validator::BodyKindV3::Handler => {
                     if sec_kind != Some(Sec::Machine) { issues.push(ValidationIssueV3{ message: "handler body outside machine: section".into() }); }
                 }
+                super::validator::BodyKindV3::Function => {
+                    // Functions live at top level; they are not tied to a section.
+                }
                 super::validator::BodyKindV3::Unknown => {}
+            }
+        }
+        issues
+    }
+
+    /// Ensure that there is at most one `fn main` per module.
+    /// This is a module-level semantic constraint used to decide runnable modules.
+    /// We detect `fn main` and `async fn main` from header text rather than relying
+    /// on outline owner_id, to keep tolerant scan behavior simple.
+    pub fn validate_main_functions(&self, bytes: &[u8], outline: &[OutlineItemV3]) -> Vec<ValidationIssueV3> {
+        let mut main_count = 0usize;
+        for it in outline {
+            if let BodyKindV3::Function = it.kind {
+                let span = it.header_span;
+                if span.end <= span.start || span.end > bytes.len() { continue; }
+                if let Ok(hdr) = std::str::from_utf8(&bytes[span.start..span.end]) {
+                    let s = hdr.trim_start();
+                    if s.starts_with("fn main(") || s.starts_with("async fn main(") {
+                        main_count += 1;
+                    }
+                }
+            }
+        }
+        if main_count > 1 {
+            vec![ValidationIssueV3 {
+                message: "E115: multiple 'main' functions in module".into(),
+            }]
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Enforce per-system block ordering and uniqueness:
+    /// operations:, interface:, machine:, actions:, domain: (when present).
+    /// Blocks are optional but must appear in this canonical order inside each system,
+    /// and at most one of each block is allowed per system.
+    pub fn validate_system_block_order(&self, bytes: &[u8], start: usize, lang: TargetLanguage) -> Vec<ValidationIssueV3> {
+        let n = bytes.len();
+        let mut i = start;
+        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+
+        // Helper to close a system block starting at the given '{' index.
+        fn close_system(bytes: &[u8], open: usize, lang: TargetLanguage) -> Option<usize> {
+            match lang {
+                TargetLanguage::Python3 => closer::python::BodyCloserPyV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                TargetLanguage::TypeScript => closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                TargetLanguage::CSharp => closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                TargetLanguage::C => closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                TargetLanguage::Cpp => closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                TargetLanguage::Java => closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                TargetLanguage::Rust => closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                _ => None,
+            }
+        }
+
+        // Scan for top-level `system Name { ... }` blocks and, for each, enforce section order.
+        while i < n {
+            // Skip leading whitespace at start-of-line.
+            while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+            if i >= n { break; }
+            let line_start = i;
+            // Skip comment-only lines quickly.
+            if bytes[i] == b'#' {
+                while i < n && bytes[i] != b'\n' { i += 1; }
+                continue;
+            }
+            if i + 1 < n && bytes[i] == b'/' {
+                let c2 = bytes[i + 1];
+                if c2 == b'/' {
+                    // C/TS-style line comment.
+                    while i < n && bytes[i] != b'\n' { i += 1; }
+                    continue;
+                } else if c2 == b'*' {
+                    // Skip block comment conservatively.
+                    i += 2;
+                    while i + 1 < n {
+                        if bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                            i += 2;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    continue;
+                }
+            }
+            // Read first identifier on the line.
+            let mut j = i;
+            while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+            let kw_start = j;
+            while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+            if kw_start == j {
+                // No identifier; skip line.
+                while i < n && bytes[i] != b'\n' { i += 1; }
+                continue;
+            }
+            let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
+            if kw.as_str() == "system" {
+                // Best-effort: require a name and '{' on this line.
+                let mut k = j;
+                while k < n && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                // Skip system name identifier, if any.
+                while k < n && (bytes[k].is_ascii_alphanumeric() || bytes[k] == b'_') { k += 1; }
+                // Find '{' before end-of-line.
+                let mut p = k;
+                while p < n && bytes[p] != b'\n' && bytes[p] != b'{' { p += 1; }
+                if p < n && bytes[p] == b'{' {
+                    if let Some(close) = close_system(bytes, p, lang) {
+                        // Enforce block ordering inside [p+1, close).
+                        let mut q = p + 1;
+                        let mut last_idx: i32 = -1;
+                        let mut seen_ops = false;
+                        let mut seen_iface = false;
+                        let mut seen_machine = false;
+                        let mut seen_actions = false;
+                        let mut seen_domain = false;
+                        while q < close {
+                            // Move to next SOL.
+                            while q < close && (bytes[q] == b' ' || bytes[q] == b'\t' || bytes[q] == b'\r' || bytes[q] == b'\n') { q += 1; }
+                            if q >= close { break; }
+                            // Skip comments inside system.
+                            if bytes[q] == b'#' {
+                                while q < close && bytes[q] != b'\n' { q += 1; }
+                                continue;
+                            }
+                            if q + 1 < close && bytes[q] == b'/' {
+                                let c2 = bytes[q + 1];
+                                if c2 == b'/' {
+                                    while q < close && bytes[q] != b'\n' { q += 1; }
+                                    continue;
+                                } else if c2 == b'*' {
+                                    q += 2;
+                                    while q + 1 < close {
+                                        if bytes[q] == b'*' && bytes[q + 1] == b'/' {
+                                            q += 2;
+                                            break;
+                                        }
+                                        q += 1;
+                                    }
+                                    continue;
+                                }
+                            }
+                            // Read potential section keyword.
+                            let mut s = q;
+                            while s < close && (bytes[s] == b' ' || bytes[s] == b'\t') { s += 1; }
+                            let sec_start = s;
+                            while s < close && (bytes[s].is_ascii_alphanumeric() || bytes[s] == b'_') { s += 1; }
+                            if sec_start == s {
+                                while q < close && bytes[q] != b'\n' { q += 1; }
+                                continue;
+                            }
+                            if s < close && bytes[s] == b':' {
+                                let sec_kw = String::from_utf8_lossy(&bytes[sec_start..s]).to_ascii_lowercase();
+                                let (idx, dup_issue) = match sec_kw.as_str() {
+                                    "operations" => {
+                                        if seen_ops {
+                                            (Some(0), Some("E114: duplicate 'operations:' block in system".to_string()))
+                                        } else {
+                                            seen_ops = true;
+                                            (Some(0), None)
+                                        }
+                                    }
+                                    "interface" => {
+                                        if seen_iface {
+                                            (Some(1), Some("E114: duplicate 'interface:' block in system".to_string()))
+                                        } else {
+                                            seen_iface = true;
+                                            (Some(1), None)
+                                        }
+                                    }
+                                    "machine" => {
+                                        if seen_machine {
+                                            (Some(2), Some("E114: duplicate 'machine:' block in system".to_string()))
+                                        } else {
+                                            seen_machine = true;
+                                            (Some(2), None)
+                                        }
+                                    }
+                                    "actions" => {
+                                        if seen_actions {
+                                            (Some(3), Some("E114: duplicate 'actions:' block in system".to_string()))
+                                        } else {
+                                            seen_actions = true;
+                                            (Some(3), None)
+                                        }
+                                    }
+                                    "domain" => {
+                                        if seen_domain {
+                                            (Some(4), Some("E114: duplicate 'domain:' block in system".to_string()))
+                                        } else {
+                                            seen_domain = true;
+                                            (Some(4), None)
+                                        }
+                                    }
+                                    _ => (None, None),
+                                };
+                                if let Some(msg) = dup_issue {
+                                    issues.push(ValidationIssueV3 { message: msg });
+                                }
+                                if let Some(cur_idx) = idx {
+                                    if cur_idx < last_idx {
+                                        issues.push(ValidationIssueV3 {
+                                            message: "E113: system blocks out of order: expected operations:, interface:, machine:, actions:, domain:".into(),
+                                        });
+                                        // Once mis-ordered, further ordering diagnostics for this system add little value.
+                                        break;
+                                    } else {
+                                        last_idx = cur_idx;
+                                    }
+                                }
+                            }
+                            while q < close && bytes[q] != b'\n' { q += 1; }
+                        }
+                        // Advance to end of system block.
+                        i = close + 1;
+                        continue;
+                    }
+                }
+            }
+            // Not a system header; skip this line.
+            while i < n && bytes[i] != b'\n' { i += 1; }
+            if i == line_start {
+                // Safety: avoid infinite loop on unexpected bytes.
+                i += 1;
             }
         }
         issues
@@ -535,7 +984,7 @@ fn current_region_end(regions: &[RegionV3], ridx: usize) -> Option<usize> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BodyKindV3 { Handler, Action, Operation, Unknown }
+pub enum BodyKindV3 { Handler, Action, Operation, Function, Unknown }
 
 #[derive(Debug, Clone, Default)]
 pub struct ValidatorPolicyV3 { pub body_kind: Option<BodyKindV3> }

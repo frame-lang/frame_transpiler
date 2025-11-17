@@ -1,10 +1,10 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 30
+- **Total Bugs**: 31
 - **Open**: 0
 - **Fixed**: 0
-- **Closed**: 30
+- **Closed**: 31
 - **Reopen**: 0
 - **Won't Fix**: 0
 ## Quick Links
@@ -15,6 +15,8 @@
 - [Fixed Bugs](fixed/)
 
 ## Repro Shortcuts
+- #076: `/tmp/frame_transpiler_repro/bug_076/adapter_protocol.frm`, scripts `run.sh`, `run_validate.sh`
+
 - #075: `/tmp/frame_transpiler_repro/bug_075/minimal_redeclare_next_compartment.frm`, scripts `run.sh`, `run_validate.sh`
 
 - #074: `/tmp/frame_transpiler_repro/bug_074/minimal_ts_emit_issues.frm`, script `run.sh`
@@ -32,7 +34,8 @@
 
 ## Active Bugs (Open)
 
-_(none)_
+| Bug # | Title | Priority | Category | Status | Assignee |
+|-------|-------|----------|----------|--------|----------|
 ## Fixed (awaiting closure by owning team)
 
 | Bug # | Title | Fixed Version |
