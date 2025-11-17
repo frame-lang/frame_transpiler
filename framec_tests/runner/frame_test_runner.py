@@ -269,7 +269,7 @@ class FrameTestRunner:
         # v3_outline, v3_prolog, v3_imports, v3_closers, v3_mir, v3_mapping, v3_expansion
         if any(cat in self.config.categories for cat in [
             "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke", "v3_exec_smoke",
-            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_visitor_map", "v3_native_symbols", "v3_debugger", "v3_cli", "v3_cli_project",
+            "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_systems_runtime", "v3_visitor_map", "v3_native_symbols", "v3_debugger", "v3_cli", "v3_cli_project",
             "v3_legacy_async", "v3_capabilities"
         ]):
             if "v3_outline" in self.config.categories:
@@ -317,6 +317,8 @@ class FrameTestRunner:
                 collect_v3_category("v3_scoping")
             if "v3_systems" in self.config.categories:
                 collect_v3_category("v3_systems")
+            if "v3_systems_runtime" in self.config.categories:
+                collect_v3_category("v3_systems_runtime")
             if "v3_legacy_async" in self.config.categories:
                 collect_v3_category("v3_legacy_async")
             if "v3_capabilities" in self.config.categories:
@@ -2934,7 +2936,7 @@ def main():
     if args.full and 'all_v3' not in categories:
         categories.append('all_v3')
     if 'all_v3' in categories:
-        base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems','v3_cli','v3_cli_project','v3_legacy_async']
+        base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems','v3_systems_runtime','v3_cli','v3_cli_project','v3_legacy_async']
         categories = [c for c in categories if c != 'all_v3'] + base
     if args.fast:
         fast = ['v3_outline','v3_mir','v3_validator','v3_exec_smoke']

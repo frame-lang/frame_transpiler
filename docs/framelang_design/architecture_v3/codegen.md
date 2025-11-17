@@ -58,58 +58,81 @@ system TrafficLight {
 
 V3 codegen emits a Python class with:
 
-- **State IDs and compartment**
+- **System parameters and initial compartment**
   ```python
   class TrafficLight:
-      def __init__(self):
-          # initial state is the first declared state
-          self._compartment = FrameCompartment("__TrafficLight_state_Red")
-  ```
+      def __init__(self, *sys_params):
+          # System params: ($(initial), $>(enter_color), domain)
+          start_count = 1
+          enter_count = 1
+          start_args = list(sys_params[0:start_count])
+          enter_args = list(sys_params[start_count:start_count+enter_count])
+          domain_args = list(sys_params[start_count+enter_count:])
 
-- **Router (event dispatch)**
-  ```python
-      def _frame_router(self, __e: FrameEvent, compartment: FrameCompartment = None):
-          c = compartment or self._compartment
-          if c.state == "__TrafficLight_state_Red":
-              self._s_Red(__e, c)
-          elif c.state == "__TrafficLight_state_Green":
-              self._s_Green(__e, c)
-          elif c.state == "__TrafficLight_state_Yellow":
-              self._s_Yellow(__e, c)
+          state_args = {}
+          if len(start_args) > 0:
+              state_args["initial"] = start_args[0]
+          if len(domain_args) > 0:
+              self.domain = domain_args[0]
+
+          # Start state is the first declared state (via Arcanum).
+          self._compartment = FrameCompartment("__TrafficLight_state_Red", enter_args=enter_args, state_args=state_args)
+          self._stack = []
+
+          # Fire initial $enter event for the start state.
+          enter_event = FrameEvent("$enter", enter_args)
+          self._frame_router(enter_event, self._compartment)
   ```
 
 - **Transition primitive**
   ```python
       def _frame_transition(self, next_compartment: FrameCompartment):
           self._compartment = next_compartment
-          # call entry handler for the new state
-          self._frame_router(FrameEvent("$enter", None), self._compartment)
+          enter_event = FrameEvent("$enter", getattr(next_compartment, "enter_args", None))
+          self._frame_router(enter_event, next_compartment)
   ```
 
-- **State handlers**
-  - Each state gets a handler method that switches on event name, e.g.:
+- **Router (event dispatch)**
   ```python
-      def _s_Red(self, __e: FrameEvent, compartment: FrameCompartment):
-          if __e.name == "$enter":
+      def _frame_router(self, __e: FrameEvent, c: FrameCompartment = None):
+          compartment = c or self._compartment
+          msg = getattr(__e, "_message", None)
+          if msg is None:
+              return
+          handler = getattr(self, msg, None)
+          if handler is None:
+              return
+          return handler(__e, compartment)
+  ```
+
+- **Event handlers (per interface method)**
+  - For each interface method (e.g., `tick()`), V3 emits a method that switches on `c.state` and inlines the spliced handler bodies, e.g. for `tick`:
+  ```python
+      def tick(self, __e: FrameEvent, compartment: FrameCompartment):
+          c = compartment or self._compartment
+          if c.state == "__TrafficLight_state_Red":
               print("Red")
-          elif __e.name == "tick":
-              # expansion of `-> $Green()`
               next_compartment = FrameCompartment("__TrafficLight_state_Green")
+              next_compartment.state_args = ["green"]
+              self._frame_transition(next_compartment)
+              return
+          elif c.state == "__TrafficLight_state_Green":
+              print("Green")
+              next_compartment = FrameCompartment("__TrafficLight_state_Yellow")
+              next_compartment.state_args = ["yellow"]
+              self._frame_transition(next_compartment)
+              return
+          elif c.state == "__TrafficLight_state_Yellow":
+              print("Yellow")
+              next_compartment = FrameCompartment("__TrafficLight_state_Red")
+              next_compartment.state_args = ["red"]
               self._frame_transition(next_compartment)
               return
   ```
 
-- **Interface methods**
-  - `interface: tick()` becomes a thin wrapper that builds a `FrameEvent` and calls `_frame_router`:
-  ```python
-      def tick(self):
-          __e = FrameEvent("tick", None)
-          self._frame_router(__e, self._compartment)
-  ```
-
 - **Domain and actions/operations**
-  - `domain:` variables become instance attributes initialized in `__init__`.
-  - `actions:` and `operations:` become helper methods on the class (e.g., `_action_handle(...)` and `handle(...)` wrappers), with bodies treated as native Python + embedded Frame statements lowered via MIR.
+  - `domain:` variables become instance attributes initialized in `__init__` using domain parameters when present.
+  - `actions:` and `operations:` become helper methods on the class (e.g., `_action_handle(...)` plus public wrappers), with bodies treated as native Python + embedded Frame statements lowered via MIR.
 
 ### Functions and `fn main`
 
@@ -156,18 +179,50 @@ V3 codegen emits a Python class with:
 
 ### Systems → TS classes
 
-- For a system `system Name { … }`, codegen emits:
+- For a system `system Name($(...), $>(...), domain) { … }`, codegen emits:
   ```ts
   export class Name {
     public _compartment: FrameCompartment = new FrameCompartment("__Name_state_A");
-    _frame_transition(n: FrameCompartment) { this._compartment = n; }
-    _frame_router(__e: FrameEvent, c?: FrameCompartment) { /* real router */ }
-    _frame_stack_push() { /* stack impl */ }
-    _frame_stack_pop() { /* stack impl */ }
+    private _stack: FrameCompartment[] = [];
+
+    constructor(...sysParams: any[]) {
+      const startCount = /* number of $(...) params */;
+      const enterCount = /* number of $>(...) params */;
+      const startArgs = sysParams.slice(0, startCount);
+      const enterArgs = sysParams.slice(startCount, startCount + enterCount);
+      const domainArgs = sysParams.slice(startCount + enterCount);
+
+      const stateArgs: any = {};
+      // populate stateArgs["paramName"] from startArgs
+      // populate this.domainField from domainArgs when fields exist
+
+      this._compartment = new FrameCompartment("__Name_state_A", enterArgs, undefined, stateArgs);
+      const enterEvent = new FrameEvent("$enter", enterArgs);
+      this._frame_router(enterEvent, this._compartment);
+    }
+
+    _frame_transition(n: FrameCompartment) {
+      this._compartment = n;
+      const enterEvent = new FrameEvent("$enter", n.enterArgs);
+      this._frame_router(enterEvent, n);
+    }
+
+    _frame_router(__e: FrameEvent, c?: FrameCompartment) {
+      // Current V3 impl: stub; event‑specific handlers are emitted as methods
+      // and invoked directly by the caller. Full router parity is a roadmap item.
+      const _c = c || this._compartment;
+      const _m = __e.message;
+      void _c;
+      void _m;
+    }
+
+    _frame_stack_push() { this._stack.push(this._compartment); }
+    _frame_stack_pop() {
+      const prev = this._stack.pop();
+      if (prev) this._frame_transition(prev);
+    }
   }
   ```
-
-- State routing uses a `switch` on `c.state` inside `_frame_router`, with one case per compiled state ID.
 
 - Embedded Frame statements are lowered as:
   - Transition: `-> $State(args?)` →
@@ -188,7 +243,7 @@ V3 codegen emits a Python class with:
     this._frame_stack_push(); // or _frame_stack_pop();
     ```
 
-- Interface methods become public methods that construct a `FrameEvent` and call `_frame_router`.
+- Interface methods become public methods that construct a `FrameEvent` and call `_frame_router` in the long‑term design. In the current V3 TypeScript implementation, they are emitted as public methods with native bodies; full router parity is tracked in the V3 roadmap and tested structurally in `v3_systems` and `v3_capabilities`.
 
 ### Functions and `fn main`
 
@@ -245,4 +300,3 @@ V3 codegen emits a Python class with:
   - Obey the terminal‑last rule (validators enforce that transitions/forwards/stacks are last in their containing block, modulo comments/whitespace).
 - Systems do not rely on Frame‑level classes:
   - All “class” behavior is provided by native classes/structs on the target, with Frame semantics encoded in the generated methods and runtime calls.
-

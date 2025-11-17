@@ -163,9 +163,17 @@ class MySystem:
 **Note (current V3 status)**:
 
 - The v2 runtime implemented this behavior concretely (via system initializer
-  lists). V3 grammar and docs preserve the concept, but full constructor/start
-  wiring for `$(...)`, `$>(...)`, and `domain` is **not yet implemented** in
-  all runtimes; Python/TS currently use a simpler `__S_state_A` seed.
+  lists). V3 grammar and docs preserve the concept.
+- **Python**: `compile_module_demo` now implements this wiring for V3 modules:
+  it parses `system` parameter lists, partitions constructor arguments into
+  start/enter/domain groups, seeds the initial `FrameCompartment` for the
+  first declared state (via Arcanum), and fires an initial `$enter` event.
+  This behavior is exercised by
+  `framec_tests/language_specific/python/v3_systems_runtime/positive/traffic_light_system_exec.frm`.
+- **TypeScript**: constructor/start wiring is implemented structurally (the
+  class constructor partitions system params and seeds `_compartment`), but
+  `_frame_router` is still a stub. V3 TS tests run in transpile/validate
+  mode only; full runtime parity is a roadmap item.
 
 ### 2.2 Event Dispatch
 
@@ -491,4 +499,3 @@ As the Python/TS/Rust runtimes converge on this design, this document should be
 kept in sync with both the code and the V3 tests. Any new runtime feature
 (e.g., richer system parameter semantics, history semantics on the stack) must
 first be added here, then implemented and tested. 
-

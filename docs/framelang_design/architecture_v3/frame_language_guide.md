@@ -299,8 +299,18 @@ system Chained {
 }
 ```
 
-These calls are parsed as native member calls; the runtime/codegen ensures that
-they dispatch correctly on the underlying system class.
+These calls are parsed as native member calls; the runtime/codegen and
+validator enforce the V3 policy that:
+
+- `system.method()` used as a system‑level call must target an `interface:`
+  method (E406 if it does not).
+- `system.return` is allowed in handlers and actions but not in operations
+  (E407 in operations).
+
+Runtime behavior for `system.return` (mapping to the underlying
+`return_stack`/defaults) is inherited from the v2 runtime and is being
+re‑validated in V3; placement rules are enforced today and listed in the
+capability matrix as **PARTIAL** until full exec coverage is in place.
 
 ## 9. Capability Matrix and Tests
 
@@ -323,4 +333,3 @@ When adding or changing V3 features:
 3. Update `capability_matrix.md` with the feature and fixture links.
 4. Run `framec_tests/runner/frame_test_runner.py` for the relevant languages
    and categories to keep V3 coverage honest.
-

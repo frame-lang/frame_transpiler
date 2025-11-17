@@ -2,7 +2,6 @@ use crate::frame_c::utils::{frame_exitcode, RunError};
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v3::native_region_scanner as nscan;
 use crate::frame_c::v3::native_region_scanner::NativeRegionScannerV3;
-// removed unused BodyCloserV3 import
 use crate::frame_c::v3::mir_assembler::MirAssemblerV3;
 use crate::frame_c::v3::expander::{FrameStatementExpanderV3, PyExpanderV3, TsExpanderV3, CExpanderV3, CppExpanderV3, JavaExpanderV3, RustExpanderV3};
 use crate::frame_c::v3::splice::SplicerV3;
@@ -35,7 +34,7 @@ pub mod native_symbol_snapshot;
 pub struct CompilerV3;
 
 impl CompilerV3 {
-    pub fn compile_single_file(
+pub fn compile_single_file(
         _input_path: Option<&str>,
         _content: &str,
         _target_language: Option<TargetLanguage>,
@@ -307,6 +306,171 @@ pub fn validate_single_body(content_str: &str, target_language: Option<TargetLan
     res.issues.extend(extra);
     res.ok = res.issues.is_empty();
     Ok(res)
+}
+
+fn parse_system_params(bytes: &[u8], sys_name: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
+    // Returns (start_state_params, enter_event_params, domain_params)
+    fn is_space(b: u8) -> bool { b == b' ' || b == b'\t' || b == b'\r' || b == b'\n' }
+    fn is_ident_start(b: u8) -> bool { (b as char).is_ascii_alphabetic() || b == b'_' }
+    fn is_ident(b: u8) -> bool { (b as char).is_ascii_alphanumeric() || b == b'_' }
+
+    let n = bytes.len();
+    let mut i = 0usize;
+    while i < n {
+        // skip whitespace
+        while i < n && is_space(bytes[i]) { i += 1; }
+        if i >= n { break; }
+        // skip comments
+        if bytes[i] == b'#' {
+            while i < n && bytes[i] != b'\n' { i += 1; }
+            continue;
+        }
+        if i + 1 < n && bytes[i] == b'/' {
+            let c2 = bytes[i + 1];
+            if c2 == b'/' {
+                while i < n && bytes[i] != b'\n' { i += 1; }
+                continue;
+            } else if c2 == b'*' {
+                i += 2;
+                while i + 1 < n {
+                    if bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                        i += 2;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+        }
+        // read potential "system" keyword
+        let mut j = i;
+        while j < n && !is_space(bytes[j]) { j += 1; }
+        let token = String::from_utf8_lossy(&bytes[i..j]).to_ascii_lowercase();
+        if token != "system" {
+            while i < n && bytes[i] != b'\n' { i += 1; }
+            continue;
+        }
+        // Found "system"; read name
+        i = j;
+        while i < n && is_space(bytes[i]) { i += 1; }
+        let name_start = i;
+        while i < n && is_ident(bytes[i]) { i += 1; }
+        if name_start == i {
+            continue;
+        }
+        let name = String::from_utf8_lossy(&bytes[name_start..i]).to_string();
+        if name != sys_name {
+            // Different system; skip this line and continue
+            while i < n && bytes[i] != b'\n' { i += 1; }
+            continue;
+        }
+        // Skip spaces; expect optional '(' for system_params
+        while i < n && is_space(bytes[i]) { i += 1; }
+        if i >= n || bytes[i] != b'(' {
+            return (Vec::new(), Vec::new(), Vec::new());
+        }
+        i += 1; // after '('
+        let mut start_params: Vec<String> = Vec::new();
+        let mut enter_params: Vec<String> = Vec::new();
+        let mut domain_params: Vec<String> = Vec::new();
+        while i < n {
+            while i < n && is_space(bytes[i]) { i += 1; }
+            if i >= n { break; }
+            if bytes[i] == b')' {
+                break;
+            }
+            // Start-state parameter list: "$(p1, p2)"
+            if bytes[i] == b'$' && i + 1 < n && bytes[i + 1] == b'(' {
+                i += 2; // skip "$("
+                let mut k = i;
+                while k < n && bytes[k] != b')' {
+                    if is_ident_start(bytes[k]) {
+                        let ident_start = k;
+                        k += 1;
+                        while k < n && is_ident(bytes[k]) { k += 1; }
+                        let ident = String::from_utf8_lossy(&bytes[ident_start..k]).to_string();
+                        start_params.push(ident);
+                    } else {
+                        k += 1;
+                    }
+                }
+                i = k;
+                if i < n && bytes[i] == b')' { i += 1; }
+            }
+            // Enter-event parameter list: "$>(p1, p2)"
+            else if bytes[i] == b'$' && i + 1 < n && bytes[i + 1] == b'>' {
+                i += 2;
+                while i < n && is_space(bytes[i]) { i += 1; }
+                if i < n && bytes[i] == b'(' {
+                    i += 1;
+                    let mut k = i;
+                    while k < n && bytes[k] != b')' {
+                        if is_ident_start(bytes[k]) {
+                            let ident_start = k;
+                            k += 1;
+                            while k < n && is_ident(bytes[k]) { k += 1; }
+                            let ident = String::from_utf8_lossy(&bytes[ident_start..k]).to_string();
+                            enter_params.push(ident);
+                        } else {
+                            k += 1;
+                        }
+                    }
+                    i = k;
+                    if i < n && bytes[i] == b')' { i += 1; }
+                }
+            }
+            // Domain parameter: IDENT at top level
+            else if is_ident_start(bytes[i]) {
+                let ident_start = i;
+                i += 1;
+                while i < n && is_ident(bytes[i]) { i += 1; }
+                let ident = String::from_utf8_lossy(&bytes[ident_start..i]).to_string();
+                domain_params.push(ident);
+            } else {
+                i += 1;
+            }
+            // skip to next ',' or ')'
+            while i < n && is_space(bytes[i]) { i += 1; }
+            if i < n && bytes[i] == b',' {
+                i += 1;
+                continue;
+            }
+            if i < n && bytes[i] == b')' {
+                break;
+            }
+        }
+        return (start_params, enter_params, domain_params);
+    }
+    (Vec::new(), Vec::new(), Vec::new())
+}
+
+/// Best-effort selection of the textual first state in the given system.
+/// Uses Arcanum state spans to choose the earliest state header for a stable
+/// start state name instead of hard-coding "A".
+fn find_start_state_name(
+    arc: &crate::frame_c::v3::arcanum::Arcanum,
+    sys_name: &str,
+) -> Option<String> {
+    let sys = arc.systems.get(sys_name)?;
+    let mut best_name: Option<String> = None;
+    let mut best_start: Option<usize> = None;
+    for mach in sys.machines.values() {
+        for st in mach.states.values() {
+            match best_start {
+                None => {
+                    best_start = Some(st.span.start);
+                    best_name = Some(st.name.clone());
+                }
+                Some(cur) => {
+                    if st.span.start < cur {
+                        best_start = Some(st.span.start);
+                        best_name = Some(st.name.clone());
+                    }
+                }
+            }
+        }
+    }
+    best_name
 }
 
 pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<String, RunError> {
@@ -642,26 +806,53 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 TargetLanguage::Python3 => {
                     use std::collections::BTreeMap;
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    let (start_params, enter_params, domain_params) = parse_system_params(bytes, &sys_name);
+                     // Prefer the first declared state as the start state when available.
+                    let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
                     let mut module = String::new();
                     module.push_str("from frame_runtime_py import FrameEvent, FrameCompartment\n\n");
                     module.push_str(&format!("class {}:\n", sys_name));
-                    module.push_str("    def __init__(self):\n");
-                    module.push_str(&format!("        self._compartment = FrameCompartment(\"__{}_state_A\")\n", sys_name));
+                    // For now, accept arbitrary system parameters but keep semantics simple:
+                    // we seed the initial compartment for the first declared state and
+                    // thread system parameters into state_args/enter_args/domain fields.
+                    module.push_str("    def __init__(self, *sys_params):\n");
+                    module.push_str("        start_count = "); module.push_str(&start_params.len().to_string()); module.push_str("\n");
+                    module.push_str("        enter_count = "); module.push_str(&enter_params.len().to_string()); module.push_str("\n");
+                    module.push_str("        start_args = list(sys_params[0:start_count])\n");
+                    module.push_str("        enter_args = list(sys_params[start_count:start_count+enter_count])\n");
+                    module.push_str("        domain_args = list(sys_params[start_count+enter_count:])\n");
+                    // Build state_args dict keyed by parameter names
+                    module.push_str("        state_args = {}\n");
+                    for (idx, name) in start_params.iter().enumerate() {
+                        module.push_str(&format!("        if len(start_args) > {}: state_args[\"{}\"] = start_args[{}]\n", idx, name, idx));
+                    }
+                    // Apply domain parameters as attributes when present
+                    for (idx, name) in domain_params.iter().enumerate() {
+                        module.push_str(&format!("        if len(domain_args) > {}: self.{} = domain_args[{}]\n", idx, name, idx));
+                    }
+                    module.push_str(&format!("        self._compartment = FrameCompartment(\"__{}_state_{}\", enter_args=enter_args, state_args=state_args)\n", sys_name, start_state));
+                    module.push_str("        self._stack = []\n");
+                    module.push_str("        enter_event = FrameEvent(\"$enter\", enter_args)\n");
+                    module.push_str("        self._frame_router(enter_event, self._compartment)\n");
                     module.push_str("    def _frame_transition(self, next_compartment: FrameCompartment):\n");
                     module.push_str("        self._compartment = next_compartment\n");
+                    module.push_str("        enter_event = FrameEvent(\"$enter\", getattr(next_compartment, \"enter_args\", None))\n");
+                    module.push_str("        self._frame_router(enter_event, next_compartment)\n");
                     module.push_str("    def _frame_router(self, __e: FrameEvent, c: FrameCompartment=None):\n");
-                    module.push_str("        # Event router for parent-forward; dispatches by event name.\n");
                     module.push_str("        compartment = c or self._compartment\n");
                     module.push_str("        msg = getattr(__e, \"_message\", None)\n");
                     module.push_str("        if msg is None:\n");
                     module.push_str("            return\n");
-                    module.push_str("        # Dispatch to event-specific handler when available.\n");
-                    module.push_str("        if False:\n");
-                    module.push_str("            return  # placeholder for generated clauses\n");
+                    module.push_str("        handler = getattr(self, f\"_event_{msg}\", None)\n");
+                    module.push_str("        if handler is None:\n");
+                    module.push_str("            return\n");
+                    module.push_str("        return handler(__e, compartment)\n");
                     module.push_str("    def _frame_stack_push(self):\n");
-                    module.push_str("        pass\n");
+                    module.push_str("        self._stack.append(self._compartment)\n");
                     module.push_str("    def _frame_stack_pop(self):\n");
-                    module.push_str("        pass\n");
+                    module.push_str("        if self._stack:\n");
+                    module.push_str("            prev = self._stack.pop()\n");
+                    module.push_str("            self._frame_transition(prev)\n");
                     // Group handlers by event name (owner_id) and collect actions/operations/functions.
                     let mut handler_groups: BTreeMap<String, Vec<(Option<String>, String, bool)>> = BTreeMap::new();
                     let mut function_defs: Vec<String> = Vec::new();
@@ -938,12 +1129,15 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         }
                     }
                     // Generate event-specific handler methods grouped by state.
+                    // Internal handlers are named `_event_<name>` so that the public
+                    // interface methods can use the bare name (tick(), status(), …)
+                    // without colliding with the router entrypoints.
                     for (hname, entries) in handler_groups.iter() {
                         let any_async = entries.iter().any(|(_, _, is_async)| *is_async);
                         if any_async {
-                            module.push_str(&format!("    async def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                            module.push_str(&format!("    async def _event_{}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
                         } else {
-                            module.push_str(&format!("    def {}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                            module.push_str(&format!("    def _event_{}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
                         }
                         module.push_str("        c = compartment or self._compartment\n");
                         if entries.len() == 1 && entries[0].0.is_none() {
@@ -1033,6 +1227,14 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             }
                         }
                     }
+                    // Public interface wrappers: for each event name we expose a method
+                    // that constructs a FrameEvent and routes it through the kernel.
+                    for hname in handler_groups.keys() {
+                        module.push_str(&format!("    def {}(self, *args, **kwargs):\n", hname));
+                        module.push_str(&format!("        __e = FrameEvent(\"{}\", list(args) if args else None)\n", hname));
+                        module.push_str("        return self._frame_router(__e, self._compartment)\n");
+                    }
+
                     // Append top-level functions (including fn main) after the class.
                     for fun in function_defs {
                         module.push('\n');
@@ -1048,9 +1250,9 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     module.push_str("export class "); module.push_str(&sys_name); module.push_str(" {\n");
                     // Domain fields (if any) from domain: block
                     let domain_fields = scan_ts_domain_fields(bytes);
-                    for (name, ty_opt, init_opt) in domain_fields {
+                    for (name, ty_opt, init_opt) in domain_fields.iter() {
                         module.push_str("  public ");
-                        module.push_str(&name);
+                        module.push_str(name);
                         if let Some(ty) = ty_opt.as_ref() {
                             module.push_str(": ");
                             module.push_str(ty);
@@ -1065,10 +1267,34 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         }
                         module.push_str(";\n");
                     }
-                    module.push_str(&format!("  public _compartment: FrameCompartment = new FrameCompartment('__{}_state_A');\n", sys_name));
-                    module.push_str("  _frame_transition(n: FrameCompartment){ this._compartment = n; }\n");
-                    module.push_str("  _frame_router(__e: FrameEvent, c?: FrameCompartment){ /* no-op */ }\n");
-                    module.push_str("  _frame_stack_push(){ /* no-op */ }\n  _frame_stack_pop(){ /* no-op */ }\n");
+                    // System/state parameter metadata from outline: $(...), $>(...), and domain param list.
+                    let (start_params, enter_params, domain_params) = parse_system_params(bytes, &sys_name);
+                    let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
+                    module.push_str(&format!("  public _compartment: FrameCompartment = new FrameCompartment('__{}_state_{}');\n", sys_name, start_state));
+                    module.push_str("  private _stack: FrameCompartment[] = [];\n");
+                    // Constructor: partition system params into start / enter / domain and seed initial compartment.
+                    module.push_str("  constructor(...sysParams: any[]) {\n");
+                    module.push_str("    const startCount = "); module.push_str(&start_params.len().to_string()); module.push_str(";\n");
+                    module.push_str("    const enterCount = "); module.push_str(&enter_params.len().to_string()); module.push_str(";\n");
+                    module.push_str("    const startArgs = sysParams.slice(0, startCount);\n");
+                    module.push_str("    const enterArgs = sysParams.slice(startCount, startCount + enterCount);\n");
+                    module.push_str("    const domainArgs = sysParams.slice(startCount + enterCount);\n");
+                    module.push_str("    const stateArgs: any = {};\n");
+                    for (idx, name) in start_params.iter().enumerate() {
+                        module.push_str(&format!("    if (startArgs.length > {}) stateArgs['{}'] = startArgs[{}];\n", idx, name, idx));
+                    }
+                    // Apply domain parameters as overrides on matching fields when present.
+                    for (idx, name) in domain_params.iter().enumerate() {
+                        module.push_str(&format!("    if (domainArgs.length > {}) (this as any).{} = domainArgs[{}];\n", idx, name, idx));
+                    }
+                    module.push_str(&format!("    this._compartment = new FrameCompartment('__{}_state_{}', enterArgs, undefined, stateArgs);\n", sys_name, start_state));
+                    module.push_str("    const enterEvent = new FrameEvent(\"$enter\", enterArgs);\n");
+                    module.push_str("    this._frame_router(enterEvent, this._compartment);\n");
+                    module.push_str("  }\n");
+                    module.push_str("  _frame_transition(n: FrameCompartment){ this._compartment = n; const enterEvent = new FrameEvent(\"$enter\", n.enterArgs); this._frame_router(enterEvent, n); }\n");
+                    module.push_str("  _frame_router(__e: FrameEvent, c?: FrameCompartment){ const _c = c || this._compartment; const _m = __e.message; void _c; void _m; }\n");
+                    module.push_str("  _frame_stack_push(){ this._stack.push(this._compartment); }\n");
+                    module.push_str("  _frame_stack_pop(){ const prev = this._stack.pop(); if (prev) this._frame_transition(prev); }\n");
                     // Group handlers by interface method name so we emit a single
                     // public method per interface function and dispatch on state.
                     let mut handler_groups: std::collections::BTreeMap<String, Vec<(Option<String>, String, String)>> = std::collections::BTreeMap::new();

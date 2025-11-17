@@ -28,7 +28,7 @@ impl FrameStatementExpanderV3 for PyExpanderV3 {
                 let mut out = String::new();
                 out.push_str(&format!("{}next_compartment = FrameCompartment(\"{}\")\n", pad, id));
                 if !exit_args.is_empty() {
-                    out.push_str(&format!("{}compartment.exit_args = ({})\n", pad, exit_args.join(", ")));
+                    out.push_str(&format!("{}next_compartment.exit_args = ({})\n", pad, exit_args.join(", ")));
                 }
                 if !enter_args.is_empty() {
                     out.push_str(&format!("{}next_compartment.enter_args = ({})\n", pad, enter_args.join(", ")));

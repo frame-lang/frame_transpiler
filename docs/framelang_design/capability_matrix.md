@@ -1,7 +1,7 @@
 # Frame V3 Capability Matrix
 
 **Last Updated**: 2025-11-17  
-**Version**: v0.86.45  
+**Version**: v0.86.46  
 **Purpose**: Map core **Frame‑level** capabilities (not host‑language features) to their validating tests in the V3 pipeline. Native expressions, operators, and collections are now handled by the target languages’ parsers/runtimes and are no longer tracked one‑by‑one here.
 
 > Legacy note: The original v0.38 matrix is preserved below as a historical appendix. It references many legacy `test_*.frm` fixtures and pre‑V3 syntax; it is **not** authoritative for the current V3 pipeline.
@@ -41,9 +41,9 @@
 |-----------|--------|---------------------|--------------|
 | **Transition arguments** (`-> $State(args…)`) | ✅ | Python/TS: `v3_systems/positive/transition_basic_exec.frm`, `v3_capabilities/state_parameters/positive/state_parameters_v3.frm` | `common/tests/core/test_state_parameters.frm`, `test_TransitionsTest.frm`, `test_correct_transition.frm` |
 | **State parameters** (`$State(p1, p2)` / `$State(p: int)`) | ⚠️ PARTIAL (V3 structural + semantic) | V3 arity negative: Python/TS `v3_validator/negative/transition_state_arity_mismatch.frm` (E405).  V3 positive compile‑only: Python `framec_tests/language_specific/python/v3_capabilities/state_parameters/positive/state_parameters_v3.frm`; TS `framec_tests/language_specific/typescript/v3_capabilities/state_parameters/positive/state_parameters_v3.frm`. | `common/tests/core/test_state_parameters.frm`, `common/tests/systems/test_SimpleSystemParamsTest.frm` |
-| **System parameters** (`system S($(start), $>(enter), domain)` ) | ⚠️ PARTIAL (grammar + docs; runtime glue WIP) | V3 compile‑only: Python `framec_tests/language_specific/python/v3_capabilities/system_params/positive/system_params_v3.frm`; TS `framec_tests/language_specific/typescript/v3_capabilities/system_params/positive/system_params_v3.frm`. | `framec_tests/common/tests/systems/test_SimpleSystemParamsTest.frm`, `test_TestOneParam.frm` |
+| **System parameters** (`system S($(start), $>(enter), domain)` ) | ⚠️ PARTIAL (V3 structural + semantic; runtime ✅ for Python TrafficLight, compile‑only TS) | V3 compile‑only: Python `framec_tests/language_specific/python/v3_capabilities/system_params/positive/system_params_v3.frm`; TS `framec_tests/language_specific/typescript/v3_capabilities/system_params/positive/system_params_v3.frm`.  Runtime: Python `framec_tests/language_specific/python/v3_systems_runtime/positive/traffic_light_system_exec.frm` exercises constructor partitioning and start‑state selection. | `framec_tests/common/tests/systems/test_SimpleSystemParamsTest.frm`, `test_TestOneParam.frm` |
 
-> Note: V3 already enforces structural/semantic rules (E405) for state/transition arguments via Arcanum. System‑parameter runtime glue is now part of the V3 grammar/design but not yet fully wired; dedicated V3 fixtures will be added as that implementation lands.
+> Note: V3 already enforces structural/semantic rules (E405) for state/transition arguments via Arcanum. System‑parameter runtime glue is implemented for Python in the `TrafficLight` runtime fixture and compile‑only for TS; additional exec fixtures will be added as TS/Rust runtimes evolve.
 
 ### Actions & Operations
 
@@ -65,7 +65,7 @@
 
 | Capability | Status | V3 Tests (examples) | Legacy Tests |
 |-----------|--------|---------------------|--------------|
-| `system.return` assignment from handlers/actions; disallowed in operations | ⚠️ PARTIAL (placement rule enforced; runtime defaults WIP) | Python: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../negative/system_return_in_operation_v3.frm` (E407).  TS: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../negative/system_return_in_operation_v3.frm` (E407). | `common/tests/control_flow/test_system_return*.frm`, various system patterns in `framec_tests/common/tests/control_flow` |
+| `system.return` assignment from handlers/actions; disallowed in operations | ⚠️ PARTIAL (placement rule enforced; runtime defaults WIP) | Python: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../negative/system_return_in_operation_v3.frm` (E407).  TS: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../negative/system_return_in_operation_v3.frm` (E407).  Runtime behavior (mapping to `return_stack` and default values) is still inherited from the legacy runtime docs and will be validated by future V3 exec fixtures. | `common/tests/control_flow/test_system_return*.frm`, various system patterns in `framec_tests/common/tests/control_flow` |
 | `system.method()` calls from handlers/actions/operations (must be interface methods) | ⚠️ PARTIAL (new semantic rule) | Python: `framec_tests/language_specific/python/v3_capabilities/system_calls/positive/system_interface_call_v3.frm`, `.../negative/system_calls_non_interface_v3.frm` (E406).  TS: `framec_tests/language_specific/typescript/v3_capabilities/system_calls/positive/system_interface_call_v3.frm`, `.../negative/system_calls_non_interface_v3.frm`. | many legacy async/with/decorator tests using `system.return` and system‑scoped helpers |
 
 ### Functions & Entry Points
