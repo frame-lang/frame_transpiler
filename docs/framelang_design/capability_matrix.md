@@ -1,7 +1,7 @@
 # Frame V3 Capability Matrix
 
-**Last Updated**: 2025-11-17  
-**Version**: v0.86.46  
+**Last Updated**: 2025-11-18  
+**Version**: v0.86.47  
 **Purpose**: Map core **Frame‑level** capabilities (not host‑language features) to their validating tests in the V3 pipeline. Native expressions, operators, and collections are now handled by the target languages’ parsers/runtimes and are no longer tracked one‑by‑one here.
 
 > Legacy note: The original v0.38 matrix is preserved below as a historical appendix. It references many legacy `test_*.frm` fixtures and pre‑V3 syntax; it is **not** authoritative for the current V3 pipeline.
@@ -25,7 +25,7 @@
 | State blocks (`$State { … }`) | ✅ | Python/TS: `v3_systems/positive/*_exec.frm`, `simple_interface.frm` | `common/tests/systems/test_states_simple.frm` |
 | Entry handlers (`$>()`) | ✅ | Python: `v3_capabilities/state_parameters/positive/state_parameters_v3.frm`, `v3_legacy_async/positive/test_async_debug_v3.frm`  TS: `v3_control_flow/positive/*_exec.frm` | `common/tests/systems/test_LampCompleteTest.frm`, `test_states_simple.frm` |
 | Exit handlers (`<$()`) | ✅ | Python: `v3_capabilities/exit_handlers/positive/exit_handler_basic_v3.frm`  TS: `v3_capabilities/exit_handlers/positive/exit_handler_basic_v3.frm` | legacy HSM / enter/exit tests |
-| Handler placement (`machine:` only, inside state) | ✅ | Negative: `framec_tests/language_specific/python/v3_systems/negative/frame_in_actions.frm`, `interface_missing_brace.frm` and TS equivalents (E404) | various legacy outline/handler tests |
+| Handler placement (`machine:` only, inside state) | ✅ | Negative: V3 validator uses `ModuleAst` + `Arcanum` for E404; Python/TS: `v3_systems/negative/handler_outside_state.frm` and related fixtures | various legacy outline/handler tests |
 
 ### Transitions, Forward, Stack
 
@@ -41,7 +41,7 @@
 |-----------|--------|---------------------|--------------|
 | **Transition arguments** (`-> $State(args…)`) | ✅ | Python/TS: `v3_systems/positive/transition_basic_exec.frm`, `v3_capabilities/state_parameters/positive/state_parameters_v3.frm` | `common/tests/core/test_state_parameters.frm`, `test_TransitionsTest.frm`, `test_correct_transition.frm` |
 | **State parameters** (`$State(p1, p2)` / `$State(p: int)`) | ⚠️ PARTIAL (V3 structural + semantic) | V3 arity negative: Python/TS `v3_validator/negative/transition_state_arity_mismatch.frm` (E405).  V3 positive compile‑only: Python `framec_tests/language_specific/python/v3_capabilities/state_parameters/positive/state_parameters_v3.frm`; TS `framec_tests/language_specific/typescript/v3_capabilities/state_parameters/positive/state_parameters_v3.frm`. | `common/tests/core/test_state_parameters.frm`, `common/tests/systems/test_SimpleSystemParamsTest.frm` |
-| **System parameters** (`system S($(start), $>(enter), domain)` ) | ⚠️ PARTIAL (V3 structural + semantic; runtime ✅ for Python TrafficLight, compile‑only TS) | V3 compile‑only: Python `framec_tests/language_specific/python/v3_capabilities/system_params/positive/system_params_v3.frm`; TS `framec_tests/language_specific/typescript/v3_capabilities/system_params/positive/system_params_v3.frm`.  Runtime: Python `framec_tests/language_specific/python/v3_systems_runtime/positive/traffic_light_system_exec.frm` exercises constructor partitioning and start‑state selection. | `framec_tests/common/tests/systems/test_SimpleSystemParamsTest.frm`, `test_TestOneParam.frm` |
+| **System parameters** (`system S($(start), $>(enter), domain)` ) | ⚠️ PARTIAL (V3 structural + semantic; Python runtime ✅, TS compile‑only) | Python: `v3_capabilities/system_params/positive/system_params_v3.frm`, `v3_systems_runtime/positive/traffic_light_system_exec.frm` (E416–E418); TS: `v3_capabilities/system_params/positive/system_params_v3.frm` | `framec_tests/common/tests/systems/test_SimpleSystemParamsTest.frm`, `test_TestOneParam.frm` |
 
 > Note: V3 already enforces structural/semantic rules (E405) for state/transition arguments via Arcanum. System‑parameter runtime glue is implemented for Python in the `TrafficLight` runtime fixture and compile‑only for TS; additional exec fixtures will be added as TS/Rust runtimes evolve.
 

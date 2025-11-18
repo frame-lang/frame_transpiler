@@ -74,12 +74,16 @@ V3 enforces a canonical block order when multiple blocks are present:
 5. optional native `domain:` (treated as native, not Frame)
 
 Each block is optional, but when present it must respect this order. The V3
-validator reports E113/E114 on mis‑ordered or duplicate blocks.
+validator uses the `ModuleAst` produced by `SystemParserV3` to report:
+
+- **E113** — blocks out of order (expected operations → interface → machine → actions → domain).
+- **E114** — duplicate `operations:`, `interface:`, `machine:`, `actions:`, or `domain:` blocks.
 
 ## 3. System Parameters (Start, Enter, Domain)
 
 Systems may declare **system parameters** that describe how they are
-constructed and started:
+constructed and started. These are fully part of the V3 grammar and are
+validated semantically:
 
 ```frame
 system TestSystem($(startState), $>(enterEvent), domain) {
@@ -102,14 +106,31 @@ Grammar (see `architecture_v3/grammar.md`):
 - `enter_event_param ::= '$>' '(' param_list? ')'`
 - `domain_param ::= IDENT`
 
-V3 semantics:
+V3 semantics (using `ModuleAst` + `Arcanum`):
 
-- These parameters are visible to the V3 semantic layer (Arcanum) and
-  codegen/runtime. They are not yet fully wired through all targets but are
-  part of the V3 grammar and capability matrix.
-- Legacy common tests (e.g., `test_SimpleSystemParamsTest.frm`) remain the
-  behavioral reference; new V3 fixtures will validate the updated runtime
-  glue as it is implemented.
+- `$(...)` **start parameters**:
+  - Names must match the **start state’s** parameter list (order and count).
+  - Mismatches produce **E416**.
+- `$>(...)` **enter parameters**:
+  - Names must match the start state’s `$>()` handler parameter list.
+  - If the system declares `$>(...)` but the start state has no `$>()` handler,
+    or the parameter names disagree, **E417** is reported.
+- `domain` identifiers:
+  - Each domain parameter name must correspond to a variable declared in the
+    system’s `domain:` block (enforced by `DomainBlockScannerV3`).
+  - Missing variables produce **E418**.
+
+Runtime:
+
+- Python V3:
+  - `compile_module_demo` partitions constructor arguments into start, enter,
+    and domain groups based on the parsed `system_params`.
+  - Seeds the initial `FrameCompartment` using the first declared state (via
+    `Arcanum`) and fires an initial `$enter` event.
+  - This behavior is validated by `v3_systems_runtime/positive/traffic_light_system_exec.frm`.
+- TypeScript V3:
+  - The constructor partitions system params and seeds `_compartment`
+    structurally; a full `_frame_router` is a roadmap item.
 
 ## 4. States, State Parameters, and Handlers
 
@@ -152,7 +173,8 @@ Grammar:
 
 Semantics:
 
-- **Hierarchy**: `$Child => $Parent { … }` inherits behavior from `$Parent`.
+- **Hierarchy**: `$Child => $Parent { … }` inherits behavior from `$Parent`
+  (tracked in `Arcanum` and used by the parent‑forward rule E403).
 - **State parameters**: captured in the Arcanum symbol table and used to
   validate transition argument arity (E405).
 - **Entry/Exit**: `$>()` fires on entry, `<$()` on exit. V3 tests cover entry

@@ -132,3 +132,9 @@ The TS emitter already routes per state via a `switch (c.state)` (fix for #073),
 
 - 2025-11-15: Initial report with /tmp repro — vscode_editor
 - 2025-11-15: Implemented domain field scanning and emission, action/operation methods, and handler parameter propagation; added `@tsc-compile` regression fixtures; fixed in v0.86.43 — framepiler team
+
+## Acceptance Criteria
+- /tmp/frame_transpiler_repro/bug_074/run_validate.sh exits 0 (no TypeScript errors).
+
+## Repro Shortcuts (Validator)
+- /tmp/frame_transpiler_repro/bug_074/run_validate.sh

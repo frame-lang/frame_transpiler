@@ -1,23 +1,25 @@
 @target python_3
 
 # V3 capability: system parameters ($(start), $>(enter), domain).
-# Compile/validate-only; runtime glue is still being implemented.
+# Positive: names align with start state, $>() handler, and domain variable.
+# Compile/validate-only (no fn main).
 
-system SystemParamsDemo($(startState), $>(enterEvent), domain) {
+system SystemParamsDemo($(color), $>(enter_color), domain) {
     interface:
         run()
 
     machine:
-        $Idle {
+        $Red(color) {
+            $>(enter_color) {
+                # Entry handler params match $>(enter_color).
+            }
             run() {
-                -> $Running()
+                # Simple self-transition using the start-state parameter.
+                -> $Red(color)
             }
         }
 
-        $Running {
-            run() {
-                -> $Idle()
-            }
-        }
+    domain:
+        # Domain parameter maps to this variable.
+        domain = None
 }
-

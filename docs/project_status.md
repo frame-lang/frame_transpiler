@@ -2,14 +2,19 @@
 
 ## Current State
 
-**Branch**: `dev`  
-**Version**: `v0.86.25`  
+**Branch**: `going_native`  
+**Version**: `v0.86.47`  
 **Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 18/18  
 **Achievement**: LLVM backend now propagates typed interface arguments through queued dispatch and parent forwards; stack multi-pop semantics validated end-to-end.  
 **Latest Snapshot (2025-10-28)**: 913 specs passing (common + language-specific + LLVM smoke) with the LLVM suite covering enter/exit, parent forwarding, event parameters, and multi-pop pops.  
 **Rust Version**: 1.89.0 (Latest Stable)
 
-## Latest Updates (October 28, 2025)
+## Latest Updates (November 18, 2025)
+
+### 🛠️ Frame v0.86.47 - V3 Outer Pipeline (PT) Aligned with AST
+- **AST-Backed Outer Pipeline (PT)**: Systems, block ordering, machine/state headers, handler placement, system parameters, and domain semantics are now driven by `SystemParserV3`, `MachineParserV3`, `DomainBlockScannerV3`, `ModuleAst`, and `Arcanum` instead of ad-hoc byte scans.
+- **PT Suites 100% Green**: `all_v3` categories for Python and TypeScript remain fully passing after the refactor, confirming that V3 semantics and tests are aligned.
+- **Docs Updated**: V3 grammar, language guide, runtime, and capability matrix now describe the AST/scanner architecture as the authoritative model for PT; previous v0.86.x entries below remain as historical context.
 
 ### 🛠️ Frame v0.86.25 - LLVM Queue Semantics & Typed Events
 - **Typed Event Payloads**: `FrameEvent` now stores `StateValue`s with FFI push/get helpers so interface parameters travel through queued dispatch, parent forwarding, and re-entrancy without loss.

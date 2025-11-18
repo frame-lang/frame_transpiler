@@ -34,3 +34,47 @@ pub struct HandlerDecl {
     pub kind: HandlerKind,
     pub span: Span,
 }
+
+// High-level outer AST for V3 modules and systems. This will become the
+// single source of truth for system/block structure instead of ad-hoc
+// byte scans spread across the validator.
+
+#[derive(Debug, Clone)]
+pub struct SystemParamsAst {
+    pub start_params: Vec<String>,
+    pub enter_params: Vec<String>,
+    pub domain_params: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemSectionKind {
+    Operations,
+    Interface,
+    Machine,
+    Actions,
+    Domain,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SystemSectionsAst {
+    pub operations: Option<Span>,
+    pub interface: Option<Span>,
+    pub machine: Option<Span>,
+    pub actions: Option<Span>,
+    pub domain: Option<Span>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SystemAst {
+    pub name: String,
+    pub params: SystemParamsAst,
+    pub span: Span,
+    pub sections: SystemSectionsAst,
+    /// Section order as encountered in the source (may contain duplicates).
+    pub section_order: Vec<SystemSectionKind>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ModuleAst {
+    pub systems: Vec<SystemAst>,
+}

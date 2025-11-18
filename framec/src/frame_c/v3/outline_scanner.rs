@@ -83,32 +83,32 @@ impl OutlineScannerV3 {
                 // Must have at least one ident char and a valid ident start.
                 let is_state_header = s > ident_start
                     && ((bytes[ident_start] as char).is_ascii_alphabetic() || bytes[ident_start] == b'_');
-                if !is_state_header {
+                if is_state_header {
+                    // find '{' on this line
+                    let mut p = s; while p < n && bytes[p] != b'\n' && bytes[p] != b'{' { p += 1; }
+                    if p < n && bytes[p] == b'{' {
+                        let open = p;
+                        // compute close; ignore errors in this fast path
+                        let close_opt: Option<usize> = match lang {
+                            TargetLanguage::Python3 => closer::python::BodyCloserPyV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::TypeScript => closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::CSharp => closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::C => closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::Cpp => closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::Java => closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::Rust => closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            _ => None,
+                        };
+                        if let Some(close) = close_opt {
+                            let name = String::from_utf8_lossy(&bytes[ident_start..s]).to_string();
+                            state_scopes.push((name, close));
+                        }
+                    }
                     while i<n && bytes[i]!=b'\n' { i+=1; }
                     continue;
                 }
-                // find '{' on this line
-                let mut p = s; while p < n && bytes[p] != b'\n' && bytes[p] != b'{' { p += 1; }
-                if p < n && bytes[p] == b'{' {
-                    let open = p;
-                    // compute close; ignore errors in this fast path
-                    let close_opt: Option<usize> = match lang {
-                        TargetLanguage::Python3 => closer::python::BodyCloserPyV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::TypeScript => closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::CSharp => closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::C => closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::Cpp => closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::Java => closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::Rust => closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        _ => None,
-                    };
-                    if let Some(close) = close_opt {
-                        let name = String::from_utf8_lossy(&bytes[ident_start..s]).to_string();
-                        state_scopes.push((name, close));
-                    }
-                }
-                while i<n && bytes[i]!=b'\n' { i+=1; }
-                continue;
+                // If this is not a valid state header (e.g., '$>()'), fall through
+                // and let the section-member detection handle it as a handler.
             }
             // Recognize headers:
             // - Global functions: 'fn name(...) { ... }' or 'async fn name(...) { ... }'.
@@ -150,18 +150,29 @@ impl OutlineScannerV3 {
                 }
             } else if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
                 // Section members: bare names or 'async name(...) { ... }'
-                if first_tok == "async" {
-                    // Advance to the actual function name after 'async'
+                // Special-case entry handlers `$>() { ... }` in machine:.
+                if matches!(section, Section::Machine) && bytes[kw_start] == b'$' && kw_start + 1 < n && bytes[kw_start + 1] == b'>' {
+                    // Find the '(' after `$>`.
                     let mut p = k;
-                    while p < n && is_ident(bytes[p]) { p += 1; }
-                    if p > k {
-                        name_start = k;
-                        name_end = p;
+                    while p < n && bytes[p] != b'(' && bytes[p] != b'\n' { p += 1; }
+                    if p < n && bytes[p] == b'(' {
                         k = p;
-                        while k < n && is_space(bytes[k]) { k += 1; }
+                        is_func_header = true;
                     }
+                } else {
+                    if first_tok == "async" {
+                        // Advance to the actual function name after 'async'
+                        let mut p = k;
+                        while p < n && is_ident(bytes[p]) { p += 1; }
+                        if p > k {
+                            name_start = k;
+                            name_end = p;
+                            k = p;
+                            while k < n && is_space(bytes[k]) { k += 1; }
+                        }
+                    }
+                    if k < n && bytes[k] == b'(' { is_func_header = true; }
                 }
-                if k < n && bytes[k] == b'(' { is_func_header = true; }
             }
             if is_func_header && k < n && bytes[k] == b'(' {
                 // balance parens
@@ -286,27 +297,35 @@ impl OutlineScannerV3 {
                 continue;
             }
             if matches!(section, Section::Machine) && bytes[kw_start] == b'$' {
-                let mut s = kw_start + 1; while s < n && is_ident(bytes[s]) { s += 1; }
-                let mut p = s; while p < n && bytes[p] != b'\n' && bytes[p] != b'{' { p += 1; }
-                if p < n && bytes[p] == b'{' {
-                    let open = p;
-                    let close_opt: Option<usize> = match lang {
-                        TargetLanguage::Python3 => closer::python::BodyCloserPyV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::TypeScript => closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::CSharp => closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::C => closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::Cpp => closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::Java => closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        TargetLanguage::Rust => closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
-                        _ => None,
-                    };
-                    if let Some(close) = close_opt {
-                        let name = String::from_utf8_lossy(&bytes[kw_start+1..s]).to_string();
-                        state_scopes.push((name, close));
+                let ident_start = kw_start + 1;
+                let mut s = ident_start; while s < n && is_ident(bytes[s]) { s += 1; }
+                // Treat only '$State' headers (identifier starting with alpha or '_') as state scopes.
+                let is_state_header = s > ident_start
+                    && ((bytes[ident_start] as char).is_ascii_alphabetic() || bytes[ident_start] == b'_');
+                if is_state_header {
+                    let mut p = s; while p < n && bytes[p] != b'\n' && bytes[p] != b'{' { p += 1; }
+                    if p < n && bytes[p] == b'{' {
+                        let open = p;
+                        let close_opt: Option<usize> = match lang {
+                            TargetLanguage::Python3 => closer::python::BodyCloserPyV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::TypeScript => closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::CSharp => closer::csharp::BodyCloserCsV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::C => closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::Cpp => closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::Java => closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            TargetLanguage::Rust => closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0).ok().map(|c| open + c),
+                            _ => None,
+                        };
+                        if let Some(close) = close_opt {
+                            let name = String::from_utf8_lossy(&bytes[ident_start..s]).to_string();
+                            state_scopes.push((name, close));
+                        }
                     }
+                    while i<n && bytes[i]!=b'\n' { i+=1; }
+                    continue;
                 }
-                while i<n && bytes[i]!=b'\n' { i+=1; }
-                continue;
+                // Otherwise (e.g., '$>()'), fall through and let header detection
+                // treat it as a handler inside the current state.
             }
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
             // Recognize headers:
@@ -333,18 +352,29 @@ impl OutlineScannerV3 {
                 }
             } else if matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
                 // Section members: bare names or 'async name(...) { ... }'
-                if first_tok == "async" {
-                    // Support 'async name(...) { ... }' inside these sections by advancing to the actual name.
+                // Special-case entry handlers `$>() { ... }` in machine:.
+                if matches!(section, Section::Machine) && bytes[kw_start] == b'$' && kw_start + 1 < n && bytes[kw_start + 1] == b'>' {
+                    // Find the '(' after `$>`.
                     let mut p = k;
-                    while p < n && is_ident(bytes[p]) { p += 1; }
-                    if p > k {
-                        _name_start = k;
-                        _name_end = p;
+                    while p < n && bytes[p] != b'(' && bytes[p] != b'\n' { p += 1; }
+                    if p < n && bytes[p] == b'(' {
                         k = p;
-                        while k < n && is_space(bytes[k]) { k += 1; }
+                        is_func_header = true;
                     }
+                } else {
+                    if first_tok == "async" {
+                        // Support 'async name(...) { ... }' inside these sections by advancing to the actual name.
+                        let mut p = k;
+                        while p < n && is_ident(bytes[p]) { p += 1; }
+                        if p > k {
+                            _name_start = k;
+                            _name_end = p;
+                            k = p;
+                            while k < n && is_space(bytes[k]) { k += 1; }
+                        }
+                    }
+                    if k < n && bytes[k] == b'(' { is_func_header = true; }
                 }
-                if k < n && bytes[k] == b'(' { is_func_header = true; }
             }
             if is_func_header && k < n && bytes[k] == b'(' {
                 let mut depth: i32 = 0; let mut p = k;

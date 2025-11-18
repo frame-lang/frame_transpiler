@@ -7,7 +7,7 @@
 # @run-expect: Yellow
 # @run-expect: Red
 
-system TrafficLight($(initial), $>(enter_color), domain) {
+system TrafficLight($(color), domain) {
     interface:
         tick()
 
@@ -32,6 +32,9 @@ system TrafficLight($(initial), $>(enter_color), domain) {
                 -> $Red("red")
             }
         }
+
+    domain:
+        domain = None
 }
 
 fn main() {

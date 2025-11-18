@@ -28,7 +28,7 @@ language     ::= 'python' | 'typescript' | 'csharp' | 'c' | 'cpp' | 'java' | 'ru
 ```
 - Must be the first non‑whitespace token in the file.
 
-Top‑Level Outline
+Top‑Level Outline and Outer Pipeline
 ```
 module       ::= prolog module_item*
 module_item  ::= system_decl | function_decl | native_item
@@ -48,6 +48,43 @@ domain_param  ::= IDENT                 // domain object injected at constructio
 
 native_item  ::= /* any target‑language construct not recognized as Frame; ignored by Frame grammar */
 ```
+
+### Outer Parsing and AST
+
+V3 uses a dedicated, Frame‑only outer pipeline to interpret the outline:
+
+- `SystemParserV3`:
+  - Scans for `system` headers and builds a `ModuleAst`:
+    - `SystemAst { name, params: SystemParamsAst, sections: SystemSectionsAst, section_order: [SystemSectionKind] }`.
+  - Locates per‑system block spans:
+    - `operations:`, `interface:`, `machine:`, `actions:`, and `domain:`.
+  - Parses `system_params` into:
+    - `start_params` (`$(...)`), `enter_params` (`$>(...)`), and `domain_params` (identifiers).
+
+- `MachineParserV3`:
+  - Operates within a system’s `machine:` span.
+  - Finds `$State` headers and `$>()` entry handlers (`$>() { … }`) for the start state.
+  - Supplies state/entry parameter names for system‑parameter semantics (E416/E417).
+
+- `DomainBlockScannerV3`:
+  - Operates within a system’s `domain:` span.
+  - Enforces that each non‑blank, non‑comment line is a declaration‐shaped statement:
+    - `var ident = <expr>` or `ident = <expr>`.
+  - Reports E419 if a line does not match this form.
+
+- `ModuleAst` + `Arcanum`:
+  - `ModuleAst` is the primary outer AST; `Arcanum` is a symbol table built from
+    `ModuleAst` + `machine:` spans:
+    - Systems → machines → states (`StateDecl { name, parent, params, span }`).
+  - The validator uses this to:
+    - Enforce system block ordering and uniqueness (E113/E114).
+    - Validate state parameter arity vs transitions (E405).
+    - Check state header form and placement (E112/E404).
+
+The outer pipeline is **DPDA‑based and language‑agnostic**: it only understands
+Frame tokens and structural markers (`system`, section headers, `$State`, etc.).
+All native syntax inside bodies is delegated to per‑target native scanners and,
+optionally, native parsers (facades).
 
 States and Handlers (headers are Frame; bodies are native)
 ```

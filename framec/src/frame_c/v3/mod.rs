@@ -6,6 +6,8 @@ use crate::frame_c::v3::mir_assembler::MirAssemblerV3;
 use crate::frame_c::v3::expander::{FrameStatementExpanderV3, PyExpanderV3, TsExpanderV3, CExpanderV3, CppExpanderV3, JavaExpanderV3, RustExpanderV3};
 use crate::frame_c::v3::splice::SplicerV3;
 use crate::frame_c::v3::validator::{ValidatorV3, ValidationResultV3, ValidatorPolicyV3, BodyKindV3};
+use crate::frame_c::v3::system_parser::SystemParserV3;
+use crate::frame_c::v3::interface_parser::InterfaceParserV3;
 
 pub mod body_closer;
 pub mod native_region_scanner;
@@ -23,8 +25,13 @@ pub mod outline_scanner;
 pub mod facade;
 pub mod ast;
 pub mod arcanum;
+pub mod domain_scanner;
+pub mod interface_parser;
+pub mod system_parser;
+pub mod machine_parser;
 pub mod fid;
 pub mod native_symbol_snapshot;
+pub mod system_param_semantics;
 // future: pub mod import_validator;
 
 /// V3 compiler entrypoint (MVP scaffold).
@@ -308,7 +315,7 @@ pub fn validate_single_body(content_str: &str, target_language: Option<TargetLan
     Ok(res)
 }
 
-fn parse_system_params(bytes: &[u8], sys_name: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
+pub(crate) fn parse_system_params(bytes: &[u8], sys_name: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
     // Returns (start_state_params, enter_event_params, domain_params)
     fn is_space(b: u8) -> bool { b == b' ' || b == b'\t' || b == b'\r' || b == b'\n' }
     fn is_ident_start(b: u8) -> bool { (b as char).is_ascii_alphabetic() || b == b'_' }
@@ -1150,30 +1157,28 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
                             }
                             let base = min_indent.unwrap_or(0);
-                            let mut emitted = false;
+                            let mut has_non_comment = false;
                             for ln in body.lines() {
                                 let raw = ln.trim_end();
                                 if raw.trim().is_empty() {
                                     module.push_str("        \n");
                                     continue;
                                 }
-                                // Strip leading indentation relative to the minimum indent,
-                                // but do not carry over any extra indentation from the
-                                // original source; each logical line inside the spliced
-                                // body becomes a single level deeper than the handler's
-                                // `if` guard. This avoids mixed indentation when Frame
-                                // expansions introduce deep pad offsets.
                                 let trimmed = raw.trim_start();
                                 if trimmed.is_empty() {
                                     module.push_str("        \n");
                                     continue;
                                 }
+                                if !trimmed.starts_with('#') {
+                                    has_non_comment = true;
+                                }
                                 module.push_str("        ");
                                 module.push_str(trimmed);
                                 module.push('\n');
-                                emitted = true;
                             }
-                            if !emitted {
+                            // If the handler body was comment-only, Python still
+                            // requires a statement; emit a pass after the comments.
+                            if !has_non_comment {
                                 module.push_str("        pass\n");
                             }
                         } else {
@@ -1204,7 +1209,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 // the generated guard. This avoids carrying deep pad offsets
                                 // from Frame expansions that can trigger inconsistent
                                 // indentation errors in Python while preserving order.
-                                let mut emitted = false;
+                                let mut has_non_comment = false;
                                 for ln in body.lines() {
                                     let raw = ln.trim_end();
                                     if raw.trim().is_empty() {
@@ -1216,12 +1221,17 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         module.push_str("            \n");
                                         continue;
                                     }
+                                     // Comments should be preserved but do not count
+                                     // as satisfying Python's requirement for a
+                                     // statement in the branch.
+                                    if !trimmed.starts_with('#') {
+                                        has_non_comment = true;
+                                    }
                                     module.push_str("            ");
                                     module.push_str(trimmed);
                                     module.push('\n');
-                                    emitted = true;
                                 }
-                                if !emitted {
+                                if !has_non_comment {
                                     module.push_str("            pass\n");
                                 }
                             }
@@ -1852,11 +1862,14 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             let (items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
             for is in outline_issues { issues.push(is); }
             let validator = ValidatorV3;
-            // Build known-states and Arcanum (symbol table) for E402/E403 parity
+            // Build module AST, known-states, and Arcanum (symbol table) for E402/E403 parity
+            let module_ast = SystemParserV3::parse_module(bytes, lang);
             let known_states = validator.collect_machine_state_names(bytes, outline_start);
-            let arcanum = crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start);
-            let interface_methods = validator.collect_interface_method_names(bytes, outline_start);
-            let interface_methods = validator.collect_interface_method_names(bytes, outline_start);
+            let arcanum = crate::frame_c::v3::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
+            let sys_param_issues = validator.validate_system_param_semantics(bytes, outline_start, lang, &arcanum, &items);
+            for is in sys_param_issues { issues.push(is); }
+            // Collect interface method names for system.method validation.
+            let interface_methods = InterfaceParserV3.collect_all_interface_method_names(bytes, &module_ast, lang);
             let system_name = find_system_name(bytes, 0);
             for b in &parts.bodies {
                 let body_bytes = &bytes[b.open_byte..=b.close_byte];
@@ -2041,23 +2054,35 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         all_issues.extend(outline_issues);
         let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
         all_issues.extend(outer_issues);
-        // Enforce per-system block ordering and uniqueness (operations:, interface:, machine:, actions:, domain:).
-        let block_order_issues = validator.validate_system_block_order(bytes, outline_start, lang);
+        // Enforce per-system block ordering and uniqueness using ModuleAst (operations:, interface:, machine:, actions:, domain:)
+        // and validate machine state headers from the same AST.
+        let module_ast = SystemParserV3::parse_module(bytes, lang);
+        let block_order_issues = validator.validate_system_block_order_ast(&module_ast);
         all_issues.extend(block_order_issues);
         // Enforce single `fn main` per module.
         let main_issues = validator.validate_main_functions(bytes, &items);
         all_issues.extend(main_issues);
-        // machine section: simple state header check for '{'
-        let state_issues = validator.validate_machine_state_headers(bytes, outline_start);
+        // machine section: simple state header check for '{' driven from ModuleAst.
+        let state_issues = validator.validate_machine_state_headers_ast(bytes, &module_ast);
         all_issues.extend(state_issues);
-        // handlers must be nested inside a state block in machine:
-        let handler_scope_issues = validator.validate_handlers_in_state(&items);
+        // handlers must be nested inside a state block in machine:, validated against Arcanum/AST.
+        let arc_for_ctx = crate::frame_c::v3::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
+        let handler_scope_issues = validator.validate_handlers_in_state_ast(&items, &arc_for_ctx);
         all_issues.extend(handler_scope_issues);
+        // domain blocks must contain only variable declarations
+        let domain_issues = validator.validate_domain_blocks_decls_only(bytes, outline_start, lang);
+        all_issues.extend(domain_issues);
         // Collect known state names (coarse) and build Arcanum for symbol-precision
         known_states = validator.collect_machine_state_names(bytes, outline_start);
         arcanum_symtab = Some(crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start));
-        // Collect interface method names for system.method(...) validation
-        interface_methods = validator.collect_interface_method_names(bytes, outline_start);
+        if let Some(ref arc) = arcanum_symtab {
+            let sys_param_issues =
+                validator.validate_system_param_semantics(bytes, outline_start, lang, arc, &items);
+            all_issues.extend(sys_param_issues);
+        }
+        // Collect interface method names for system.method(...) validation using the system parser.
+        interface_methods =
+            InterfaceParserV3.collect_all_interface_method_names(bytes, &module_ast, lang);
         // Best-effort scan for system name
         system_name = find_system_name(bytes, 0);
         // Debug hook removed: known_states reporting was temporary for triage
@@ -2204,14 +2229,19 @@ pub fn validate_module_with_arcanum(
     all_issues.extend(outline_issues);
     let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
     all_issues.extend(outer_issues);
-    // Per-system block ordering and uniqueness (operations:, interface:, machine:, actions:, domain:).
-    let block_order_issues = validator.validate_system_block_order(bytes, outline_start, lang);
+    // Per-system block ordering and uniqueness (operations:, interface:, machine:, actions:, domain:) using ModuleAst.
+    let module_ast = SystemParserV3::parse_module(bytes, lang);
+    let block_order_issues = validator.validate_system_block_order_ast(&module_ast);
     all_issues.extend(block_order_issues);
     // Enforce single `fn main` per module.
     let main_issues = validator.validate_main_functions(bytes, &items);
     all_issues.extend(main_issues);
-    all_issues.extend(validator.validate_machine_state_headers(bytes, outline_start));
-    all_issues.extend(validator.validate_handlers_in_state(&items));
+    // Machine state headers and handler placement must be validated via ModuleAst/Arcanum.
+    let state_issues = validator.validate_machine_state_headers_ast(bytes, &module_ast);
+    all_issues.extend(state_issues);
+    let arc_for_ctx = crate::frame_c::v3::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
+    let handler_scope_issues = validator.validate_handlers_in_state_ast(&items, &arc_for_ctx);
+    all_issues.extend(handler_scope_issues);
 
     let system_name = find_system_name(bytes, 0);
 

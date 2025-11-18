@@ -8,7 +8,7 @@ Scope
 - Python, TypeScript, Rust as primary “PRT” targets.
 - C/C++/Java/C# stay facade/wrapper‑only for now (compile‑time and debugger artifacts).
 
-High‑Level Model
+High‑Level Model (Backed by ModuleAst + Arcanum)
 - `system` → a target‑language class/struct that owns:
   - A runtime compartment object (current state, args, vars, enter/exit args, forward event).
   - A router method that dispatches events by state.
@@ -17,7 +17,14 @@ High‑Level Model
   - Use the generated system class/struct and runtime kernel.
   - Have bodies treated as native code with embedded Frame statements lowered via the same MIR/expander pipeline used for handlers.
 
-## Python Target
+These mappings are derived from the outer AST (`ModuleAst`) and symbol table
+(`Arcanum`):
+- `SystemAst.sections` and `section_order` drive block ordering and uniqueness.
+- `Arcanum` provides state names, parent relationships, parameters, and spans.
+- `SystemParamsAst` plus per‑system state information determine system/start/
+  enter/domain parameter wiring.
+
+## Python Target (V3)
 
 ### Imports and runtime
 
@@ -62,7 +69,9 @@ V3 codegen emits a Python class with:
   ```python
   class TrafficLight:
       def __init__(self, *sys_params):
-          # System params: ($(initial), $>(enter_color), domain)
+          # System params: ($(color), $>(enter_color), domain)
+          # Parsed via ModuleAst/SystemParamsAst; counts and names come from the
+          # system header and the Arcanum start-state declaration.
           start_count = 1
           enter_count = 1
           start_args = list(sys_params[0:start_count])
@@ -71,7 +80,7 @@ V3 codegen emits a Python class with:
 
           state_args = {}
           if len(start_args) > 0:
-              state_args["initial"] = start_args[0]
+              state_args["color"] = start_args[0]
           if len(domain_args) > 0:
               self.domain = domain_args[0]
 
@@ -92,23 +101,25 @@ V3 codegen emits a Python class with:
           self._frame_router(enter_event, next_compartment)
   ```
 
-- **Router (event dispatch)**
+-- **Router (event dispatch)**
   ```python
       def _frame_router(self, __e: FrameEvent, c: FrameCompartment = None):
           compartment = c or self._compartment
           msg = getattr(__e, "_message", None)
           if msg is None:
               return
-          handler = getattr(self, msg, None)
+          # Dispatch to event-specific internal handler based on message name.
+          handler = getattr(self, f"_event_{msg}", None)
           if handler is None:
               return
           return handler(__e, compartment)
   ```
 
-- **Event handlers (per interface method)**
-  - For each interface method (e.g., `tick()`), V3 emits a method that switches on `c.state` and inlines the spliced handler bodies, e.g. for `tick`:
+-- **Event handlers (per interface method)**
+  - For each interface method (e.g., `tick()`), V3 emits an internal handler
+    that switches on `c.state` and inlines the spliced handler bodies, e.g.:
   ```python
-      def tick(self, __e: FrameEvent, compartment: FrameCompartment):
+      def _event_tick(self, __e: FrameEvent, compartment: FrameCompartment):
           c = compartment or self._compartment
           if c.state == "__TrafficLight_state_Red":
               print("Red")
@@ -131,8 +142,11 @@ V3 codegen emits a Python class with:
   ```
 
 - **Domain and actions/operations**
-  - `domain:` variables become instance attributes initialized in `__init__` using domain parameters when present.
-  - `actions:` and `operations:` become helper methods on the class (e.g., `_action_handle(...)` plus public wrappers), with bodies treated as native Python + embedded Frame statements lowered via MIR.
+  - `domain:` variables become instance attributes initialized in `__init__`
+    using domain parameters when present.
+  - `actions:` and `operations:` become helper methods on the class (internal
+    `_action_*` implementations plus public wrappers), with bodies treated as
+    native Python + embedded Frame statements lowered via MIR.
 
 ### Functions and `fn main`
 
@@ -177,7 +191,7 @@ V3 codegen emits a Python class with:
   ```
   (path is configurable via `FRAME_TS_EXEC_IMPORT` in exec/debug modes).
 
-### Systems → TS classes
+### Systems → TS classes (V3)
 
 - For a system `system Name($(...), $>(...), domain) { … }`, codegen emits:
   ```ts
@@ -208,8 +222,9 @@ V3 codegen emits a Python class with:
     }
 
     _frame_router(__e: FrameEvent, c?: FrameCompartment) {
-      // Current V3 impl: stub; event‑specific handlers are emitted as methods
-      // and invoked directly by the caller. Full router parity is a roadmap item.
+      // Current V3 TS impl largely mirrors Python structurally:
+      // event-specific handlers are emitted as methods and invoked by
+      // interface wrappers. Full router parity is a roadmap item.
       const _c = c || this._compartment;
       const _m = __e.message;
       void _c;

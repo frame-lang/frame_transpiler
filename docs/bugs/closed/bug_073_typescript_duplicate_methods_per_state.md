@@ -110,3 +110,9 @@ TS codegen does not mirror the runtime/compartment routing pattern used in other
   - Dispatches on `c.state` inside each method (using compiled state IDs like `__System_state_A`) instead of emitting one method per state.
   - Reuses spliced Frame expansions inside each case block, preserving indentation and terminal semantics.
 - The test runner gained `@tsc-compile` support (with `@skip-if: tsc-missing`) to validate that generated TS compiles cleanly with `tsc` for CLI modules.
+
+## Acceptance Criteria
+- /tmp/frame_transpiler_repro/bug_073/run_validate.sh exits 0 (no TypeScript errors).
+
+## Repro Shortcuts (Validator)
+- /tmp/frame_transpiler_repro/bug_073/run_validate.sh

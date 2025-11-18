@@ -360,14 +360,13 @@ pub fn run_with(args: Cli) {
                                 if content.contains("@target ") { module_files.push((f.clone(), content)); }
                             }
                         }
-                        // Build arcanum by merging outlines from each module file
+                        // Build Arcanum by merging AST-based symbol tables from each module file
                         let mut arc = crate::frame_c::v3::arcanum::Arcanum::new();
                         for (_p, content) in &module_files {
                             let bytes = content.as_bytes();
-                            // approximate outline start using prolog/imports offsets
-                            let outline_start = 0usize;
-                            let a = crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start);
-                            // merge into arc (simple overlay)
+                            let module_ast = crate::frame_c::v3::system_parser::SystemParserV3::parse_module(bytes, lang);
+                            let a = crate::frame_c::v3::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
+                            // merge into arc (simple overlay keyed by system name)
                             for (k, v) in a.systems.into_iter() { arc.systems.entry(k).or_insert(v); }
                         }
                         for f in files {
