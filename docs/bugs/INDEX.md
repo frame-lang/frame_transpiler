@@ -3,8 +3,8 @@
 ## Statistics
 - **Total Bugs**: 34
 - **Open**: 0
-- **Fixed**: 4
-- **Closed**: 30
+- **Fixed**: 3
+- **Closed**: 31
 - **Reopen**: 0
 - **Won't Fix**: 0
 
@@ -43,4 +43,3 @@ _(none)_
 | 073 | TypeScript generator emits duplicate class methods per state | v0.86.49 |
 | 074 | TypeScript generator omits actions/domain declarations and drops interface params | v0.86.49 |
 | 078 | TS runtime d.ts mismatch with generator calls | v0.86.49 |
-| 079 | V3 TypeScript — missing public interface wrappers and router parity | v0.86.49 |

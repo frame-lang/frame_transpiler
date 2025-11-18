@@ -3,7 +3,7 @@
 ## Metadata
 bug_number: 079
 title: V3 TypeScript — missing public interface wrappers and router parity (generated systems expose internal args; router stub)
-status: Fixed
+status: Closed
 priority: High
 category: CodeGen
 discovered_version: v0.86.49
