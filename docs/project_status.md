@@ -3,13 +3,20 @@
 ## Current State
 
 **Branch**: `going_native`  
-**Version**: `v0.86.47`  
+**Version**: `v0.86.49`  
 **Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 18/18  
 **Achievement**: LLVM backend now propagates typed interface arguments through queued dispatch and parent forwards; stack multi-pop semantics validated end-to-end.  
 **Latest Snapshot (2025-10-28)**: 913 specs passing (common + language-specific + LLVM smoke) with the LLVM suite covering enter/exit, parent forwarding, event parameters, and multi-pop pops.  
 **Rust Version**: 1.89.0 (Latest Stable)
 
 ## Latest Updates (November 18, 2025)
+
+### 🛠️ Frame v0.86.49 - TypeScript Runtime Types and CLI Bug Fixes
+- **Runtime Type Alignment (TypeScript)**: Added `frame_runtime_ts/index.d.ts` so that the published TypeScript runtime types (`FrameEvent`, `FrameCompartment`) match the actual runtime implementation and V3 generator usage (multi-argument `FrameCompartment` constructor, `enterArgs`, `stateArgs`, and `message` fields).
+- **Bug #078 Fixed (TS runtime d.ts mismatch)**: Generated TypeScript now compiles cleanly against the bundled runtime types; constructor arity and property accesses are aligned with the new `.d.ts`.
+- **Bug #073 Fixed (duplicate methods per state, reopen)**: Confirmed the V3 TS CLI emitter still generates a single public method per interface with state-based routing; with the new runtime types, the minimal module validator now passes without TypeScript errors.
+- **Bug #074 Fixed (actions/domain emits, reopen)**: Verified that actions and domain fields are emitted correctly in CLI modules and that TypeScript compilation succeeds against the updated runtime types.
+- **V3 CLI Suites Green (TS)**: `language_specific/typescript/v3_cli` (including `multi_state_interface_router` and `actions_and_domain_emit_issues`) passes fully under `@tsc-compile` validation.
 
 ### 🛠️ Frame v0.86.47 - V3 Outer Pipeline (PT) Aligned with AST
 - **AST-Backed Outer Pipeline (PT)**: Systems, block ordering, machine/state headers, handler placement, system parameters, and domain semantics are now driven by `SystemParserV3`, `MachineParserV3`, `DomainBlockScannerV3`, `ModuleAst`, and `Arcanum` instead of ad-hoc byte scans.
