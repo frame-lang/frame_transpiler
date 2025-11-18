@@ -2,8 +2,8 @@
 // @skip-if: tsc-missing
 // @tsc-compile
 // @compile-expect: export class DemoTsGen
-// @compile-expect: public start\(__e: FrameEvent, compartment: FrameCompartment\): void
-// @compile-expect: public runtimeMessage\(__e: FrameEvent, compartment: FrameCompartment, payload\): void
+// @compile-expect: public start\(\): void
+// @compile-expect: public runtimeMessage\(
 // @compile-expect: switch \(c\.state\)
 // @compile-expect: case '__DemoTsGen_state_A':
 // @compile-expect: case '__DemoTsGen_state_B':

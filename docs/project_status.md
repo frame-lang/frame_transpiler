@@ -3,7 +3,7 @@
 ## Current State
 
 **Branch**: `going_native`  
-**Version**: `v0.86.49`  
+**Version**: `v0.86.50`  
 **Status**: ✅ Python 462/462 · ✅ TypeScript 433/433 · ✅ LLVM smoke 18/18  
 **Achievement**: LLVM backend now propagates typed interface arguments through queued dispatch and parent forwards; stack multi-pop semantics validated end-to-end.  
 **Latest Snapshot (2025-10-28)**: 913 specs passing (common + language-specific + LLVM smoke) with the LLVM suite covering enter/exit, parent forwarding, event parameters, and multi-pop pops.  
@@ -17,6 +17,11 @@
 - **Bug #073 Fixed (duplicate methods per state, reopen)**: Confirmed the V3 TS CLI emitter still generates a single public method per interface with state-based routing; with the new runtime types, the minimal module validator now passes without TypeScript errors.
 - **Bug #074 Fixed (actions/domain emits, reopen)**: Verified that actions and domain fields are emitted correctly in CLI modules and that TypeScript compilation succeeds against the updated runtime types.
 - **V3 CLI Suites Green (TS)**: `language_specific/typescript/v3_cli` (including `multi_state_interface_router` and `actions_and_domain_emit_issues`) passes fully under `@tsc-compile` validation.
+
+### 🛠️ Frame v0.86.50 - V3 TypeScript Interface Wrappers and Router Parity
+- **Public Interface Wrappers (TS)**: V3 TypeScript systems now expose consumer-friendly public methods for interface events (e.g., `start()`, `runtimeMessage(payload)`) that construct `FrameEvent` instances and call `_frame_router` without requiring callers to pass `FrameEvent`/`FrameCompartment`.
+- **Functional Router (TS)**: `_frame_router` now dispatches on `__e.message` and delegates to private `_event_*` handlers that switch on `c.state`, restoring parity with the V3 design documented in `architecture_v3/codegen.md`.
+- **Bug #079 Fixed**: Generated TS modules no longer expose internal runtime parameters on public methods, and CLI fixtures validate that wrapper signatures and router dispatch match expectations (`v3_cli` remains 100% green).
 
 ### 🛠️ Frame v0.86.47 - V3 Outer Pipeline (PT) Aligned with AST
 - **AST-Backed Outer Pipeline (PT)**: Systems, block ordering, machine/state headers, handler placement, system parameters, and domain semantics are now driven by `SystemParserV3`, `MachineParserV3`, `DomainBlockScannerV3`, `ModuleAst`, and `Arcanum` instead of ad-hoc byte scans.

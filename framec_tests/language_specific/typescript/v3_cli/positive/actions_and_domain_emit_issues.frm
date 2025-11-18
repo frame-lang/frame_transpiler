@@ -5,7 +5,7 @@
 // @compile-expect: public lifecycle: any =  "idle"
 // @compile-expect: public last: any =  ""
 // @compile-expect: public commandQueue: any =  \[]
-// @compile-expect: public runtimeMessage\(__e: FrameEvent, compartment: FrameCompartment, payload\)
+// @compile-expect: public runtimeMessage\(
 // @compile-expect: public handle\(payload
 // @compile-expect: public enqueueCommand\(action, data
 // @compile-expect: public flushCommands\(

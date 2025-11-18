@@ -34,6 +34,30 @@ pub mod native_symbol_snapshot;
 pub mod system_param_semantics;
 // future: pub mod import_validator;
 
+fn ts_param_idents(params: &str) -> String {
+    let mut names: Vec<String> = Vec::new();
+    for part in params.split(',') {
+        let mut p = part.trim();
+        if p.is_empty() {
+            continue;
+        }
+        if p.starts_with("...") {
+            p = &p[3..];
+        }
+        let mut name = String::new();
+        for ch in p.chars() {
+            if ch.is_whitespace() || ch == ':' || ch == '=' {
+                break;
+            }
+            name.push(ch);
+        }
+        if !name.is_empty() {
+            names.push(name);
+        }
+    }
+    names.join(", ")
+}
+
 /// V3 compiler entrypoint (MVP scaffold).
 ///
 /// This will replace the legacy pipeline incrementally. For now it returns a
@@ -1302,7 +1326,6 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     module.push_str("    this._frame_router(enterEvent, this._compartment);\n");
                     module.push_str("  }\n");
                     module.push_str("  _frame_transition(n: FrameCompartment){ this._compartment = n; const enterEvent = new FrameEvent(\"$enter\", n.enterArgs); this._frame_router(enterEvent, n); }\n");
-                    module.push_str("  _frame_router(__e: FrameEvent, c?: FrameCompartment){ const _c = c || this._compartment; const _m = __e.message; void _c; void _m; }\n");
                     module.push_str("  _frame_stack_push(){ this._stack.push(this._compartment); }\n");
                     module.push_str("  _frame_stack_pop(){ const prev = this._stack.pop(); if (prev) this._frame_transition(prev); }\n");
                     // Group handlers by interface method name so we emit a single
@@ -1369,6 +1392,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             _ => {}
                         }
                     }
+                    let mut router_cases: Vec<(String, bool)> = Vec::new();
                     for (hname, entries) in handler_groups {
                         // Choose a parameter list from any header that declared one.
                         let mut params = String::new();
@@ -1378,10 +1402,27 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 break;
                             }
                         }
+                        let param_idents = if params.is_empty() { String::new() } else { ts_param_idents(&params) };
+                        // Public interface wrapper: Frame-friendly signature (no FrameEvent/FrameCompartment).
                         if params.is_empty() {
-                            module.push_str(&format!("  public {}(__e: FrameEvent, compartment: FrameCompartment): void {{\n", hname));
+                            module.push_str(&format!("  public {}(): void {{\n", hname));
+                            module.push_str(&format!("    const __e = new FrameEvent(\"{}\", null);\n", hname));
+                            module.push_str("    this._frame_router(__e, this._compartment);\n");
                         } else {
-                            module.push_str(&format!("  public {}(__e: FrameEvent, compartment: FrameCompartment, {}): void {{\n", hname, params));
+                            module.push_str(&format!("  public {}({}): void {{\n", hname, params));
+                            module.push_str(&format!("    const __e = new FrameEvent(\"{}\", null);\n", hname));
+                            if param_idents.is_empty() {
+                                module.push_str("    this._frame_router(__e, this._compartment);\n");
+                            } else {
+                                module.push_str(&format!("    this._frame_router(__e, this._compartment, {});\n", param_idents));
+                            }
+                        }
+                        module.push_str("  }\n");
+                        // Internal event handler: router target with full signature.
+                        if params.is_empty() {
+                            module.push_str(&format!("  private _event_{}(__e: FrameEvent, compartment: FrameCompartment): void {{\n", hname));
+                        } else {
+                            module.push_str(&format!("  private _event_{}(__e: FrameEvent, compartment: FrameCompartment, {}): void {{\n", hname, params));
                         }
                         module.push_str("    const c = compartment || this._compartment;\n");
                         if entries.len() == 1 && entries[0].0.is_none() {
@@ -1424,12 +1465,27 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     if needs_sc { module.push_str(";"); }
                                     module.push('\n');
                                 }
-                                module.push_str("        break;\n");
+                                    module.push_str("        break;\n");
                             }
                             module.push_str("    }\n");
                         }
                         module.push_str("  }\n");
+                        router_cases.push((hname, !params.is_empty()));
                     }
+                    // Router: dispatch on event name to internal handlers.
+                    module.push_str("  _frame_router(__e: FrameEvent, c?: FrameCompartment, ...args: any[]): void {\n");
+                    module.push_str("    const _c = c || this._compartment;\n");
+                    module.push_str("    switch (__e.message) {\n");
+                    for (hname, has_params) in router_cases {
+                        if has_params {
+                            module.push_str(&format!("      case \"{}\": this._event_{}(__e, _c, args[0]); break;\n", hname, hname));
+                        } else {
+                            module.push_str(&format!("      case \"{}\": this._event_{}(__e, _c); break;\n", hname, hname));
+                        }
+                    }
+                    module.push_str("      default: break;\n");
+                    module.push_str("    }\n");
+                    module.push_str("  }\n");
                     // Emit actions as class methods so state bodies can call them.
                     for (aname, is_async, params, body) in actions {
                         if is_async {
