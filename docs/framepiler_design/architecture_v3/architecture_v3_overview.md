@@ -75,3 +75,52 @@ Testing
 
 Performance
 - All scanners/closers/segmenters are O(n) in input size with must‑advance guarantees. Mapping and splicing are O(n) in combined body length.
+
+## Glossary (V3 Terms)
+
+- **System**  
+  A single `system Name { … }` declaration in a module. Each system has at most one `interface:` block, one `machine:` block, and optional `actions:`, `operations:`, and `domain:` blocks.
+
+- **Interface block (`interface:`)**  
+  The section inside a system that declares interface methods (e.g., `tick()`, `status(): str = "idle"`). These methods define the public, Frame‑visible API of the system.
+
+- **Interface method**  
+  A single method declared under `interface:`. In V3, each interface method has:
+  - A Frame header in the `.frm` file, and
+  - One or more generated target‑language methods that implement its behavior (wrappers + internal handlers).
+
+- **Interface wrapper (public wrapper)**  
+  The generated, consumer‑facing method for an interface method on the target class (Python/TypeScript). It:
+  - Accepts only native arguments (no `FrameEvent`/`FrameCompartment` parameters).
+  - Constructs a `FrameEvent(message, params)` internally.
+  - Calls the system’s router (e.g., `_frame_router(event, compartment, …args)`).
+  Wrappers are what user code calls (e.g., `tl.tick()` in Python or `tsSystem.runtimeMessage(payload)` in TypeScript).
+
+- **Internal handler**  
+  A generated, implementation detail method that handles a specific `(state, event)` pair. Examples:
+  - Python: `_s_Red_tick(self, __e, compartment)`.
+  - TypeScript V3 CLI: `_event_runtimeMessage(__e: FrameEvent, compartment: FrameCompartment, payload: T)`.
+  Internal handlers are not part of the public API; they are invoked only by the router.
+
+- **Router**  
+  The generated dispatch method that routes events to internal handlers based on the current compartment:
+  - Python: `_frame_router(self, __e: FrameEvent, compartment: FrameCompartment | None)`.
+  - TypeScript: `_frame_router(__e: FrameEvent, c?: FrameCompartment, ...args: any[])`.
+  Routers are responsible for consulting `compartment.state` (and `__e.message`) and calling the appropriate internal handler. V3 considers a stubbed router (one that only `void`s variables) incomplete.
+
+- **Multi‑method interface system**  
+  A system whose single `interface:` block declares multiple interface methods (e.g., `start`, `runtimeConnected`, `runtimeMessage`, etc.). Some bug reports may refer to these informally as “multi‑interface systems”; V3 does **not** support multiple independent `interface:` blocks per system, so “multi‑interface system” always means “one system with one interface block and several interface methods”.
+
+- **Multi‑entity module**  
+  A `.frm` file that contains more than one system and/or top‑level `fn` functions. V3 treats each system independently in the outer pipeline; modules with multiple systems are common in CLI and test fixtures.
+
+- **Facade wrapper (Stage 07)**  
+  A synthetic call inserted by the native parse facades (Stage 07) around expanded Frame statements, used only for strict native syntax validation and exec‑smoke (e.g., `__frame_transition("State", …)` in C/C++/Java/C# facades). These wrappers are distinct from interface wrappers:
+  - Facade wrappers exist only in spliced demo/module outputs and are used for diagnostics and smoke tests.
+  - Interface wrappers are part of the public API for end users in Python/TypeScript.
+
+- **Start state (V3)**  
+  The initial state for a system at runtime. In V3, when no explicit start annotation exists, the start state is:
+  - The **first state header** discovered in the system’s `machine:` block, in textual order, as recorded by `Arcanum`, and
+  - Used to seed the initial `FrameCompartment` in the runtime (`FrameCompartment("__System_state_Start", …)`).
+  Hard‑coding `A` as the start state is considered legacy behavior and is replaced in V3 by this AST‑backed selection.

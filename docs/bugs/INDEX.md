@@ -1,10 +1,10 @@
 # Frame Transpiler Bug Index
 
 ## Statistics
-- **Total Bugs**: 34
+- **Total Bugs**: 39
 - **Open**: 0
-- **Fixed**: 3
-- **Closed**: 31
+- **Fixed**: 5
+- **Closed**: 34
 - **Reopen**: 0
 - **Won't Fix**: 0
 
@@ -34,12 +34,5 @@
 
 ## Active Bugs (Open)
 
-_(none)_
-
-## Fixed (awaiting closure by owning team)
-
-| Bug # | Title | Fixed Version |
-|-------|-------|----------------|
-| 073 | TypeScript generator emits duplicate class methods per state | v0.86.49 |
-| 074 | TypeScript generator omits actions/domain declarations and drops interface params | v0.86.49 |
-| 078 | TS runtime d.ts mismatch with generator calls | v0.86.49 |
+| Bug # | Title | Priority | Category | Status | Assignee |
+|-------|-------|----------|----------|--------|---------- |
