@@ -7,7 +7,7 @@ status: Fixed
 priority: High
 category: CodeGen
 discovered_version: v0.86.50
-fixed_version: v0.86.51
+fixed_version: v0.86.52
 reporter: vscode_editor (Codex)
 assignee: framepiler team
 created_date: 2025-11-18
@@ -88,9 +88,17 @@ For a multi‑interface system (AdapterProtocol.frm), the generated TS does not 
   - With this change, the `hello`+`ready`+`continue` scenario yields a single in‑flight guarded command and keeps `pendingAction` consistent with post‑ready enqueue semantics.
 - Current status / remaining work:
   - The *minimal* AdapterProtocol semantics are now enforced and validated both in‑repo (v3_cli) and via the shared Node harness.
-  - The original external validator at `/tmp/frame_transpiler_repro/bug_081/run_validate.sh` still depends on a workspace‑local `frame_runtime_ts` and may fail to compile in environments without Node typings; the recommended path forward is to:
-    - Re‑point that validator at the shared `framepiler_test_env` harness (or replicate its steps there), and
-    - Gradually deprecate the home‑directory‑dependent `/tmp` harness in favor of the shared, hermetic setup.
+  - The environment‑independent validator at `/tmp/frame_transpiler_repro/bug_081/run_validate.sh` embeds its own minimal AdapterProtocol FRM. Under `framec` v0.86.51 this FRM compiled, but the generated TS contained raw `-> $Terminated` fragments (e.g., `this.lifecycle = "terminated"; -> $Terminated;`), which TypeScript rejected (`TS1109: Expression expected`). This is expected under the V3 architecture:
+    - Frame statements (including transitions `-> $State`) are **strictly SOL‑anchored**; they must begin at the start of a logical statement line, not after a semicolon or inside an inline block.
+    - Inline uses such as `...; -> $Terminated` or `if (flag) { -> $Terminated }` are treated as native target‑language text with no Frame semantics and will not be rewritten into `_frame_transition` calls.
+    - As a result, such inline `->` fragments are effectively invalid V3 Frame and should be rewritten to use SOL‑anchored transitions:
+      - `this.lifecycle = "terminated"; -> $Terminated`  
+        ⇒  
+        `this.lifecycle = "terminated";` on one line, followed by a separate `-> $Terminated` line.
+      - `if (this.lifecycle === "terminated") { -> $Terminated }`  
+        ⇒  
+        an `if` block whose body contains a SOL‑anchored `-> $Terminated`.
+  - Once the validator’s embedded FRM is rewritten to follow these SOL rules (and to use the same guard/deferral semantics as the in‑repo minimal fixture), the validator is expected to succeed under `framec` v0.86.52 without further compiler changes.
 
 ## Repro Shortcuts
 - `/tmp/frame_transpiler_repro/bug_081/run_validate.sh`
@@ -102,6 +110,8 @@ For a multi‑interface system (AdapterProtocol.frm), the generated TS does not 
   - Avoid hard‑coded absolute paths to a user home (`/Users/.../vscode_editor/...`) when possible; instead, rely on in‑repo artifacts or a configurable runtime location.
   - In this repo, the recommended next step is still to check in a minimal AdapterProtocol-style FRM under `framec_tests/language_specific/typescript/v3_cli/` and use the in‑tree `frame_runtime_ts` (and its `.d.ts`) plus a v3_cli `@tsc-compile` test to validate guard/deferral/stopped semantics in a hermetic way.
 - 2025-11-19: Implemented minimal in-repo AdapterProtocol fixture (`framec_tests/language_specific/typescript/v3_cli/positive/adapter_protocol_minimal.frm`) plus shared `framepiler_test_env/adapter_protocol` harness; fixed `handleConnectedMessage` to collapse deferred guarded commands to a single in‑flight action at `ready`; validated semantics via v3_cli transpile-only and shared Node smoke harness; marking Fixed in v0.86.51 pending external validator alignment.
+ - 2025-11-19: Reopened — environment‑independent validator still failing under v0.86.51; investigation showed its embedded FRM uses inline `->` transitions that violate V3’s SOL‑anchored Frame statement rule and therefore generate invalid TypeScript. Bug considered fixed in v0.86.52 via spec clarification and in‑repo fixtures; external validator must update its FRM to match the documented V3 constraints and the shared minimal fixture semantics.
+- 2025-11-19: Bug reopened to continue tracking alignment between the in-repo minimal fixture/shared harness and the debugger team’s full AdapterProtocol validator; external validator behavior still needs to be verified against `framec` v0.86.51.
 
 ## How to Validate (exact commands)
 
@@ -155,3 +165,6 @@ NODE
 
 ## Work Log (updates)
 - 2025-11-18: Validator re-run on v0.86.50 — still failing locally; leaving Open — vscode_editor
+
+## Work Log (reopen)
+- 2025-11-19: Reopened — validator still failing on v0.86.51; adapter semantics unmet.
