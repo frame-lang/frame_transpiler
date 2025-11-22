@@ -176,8 +176,18 @@ System Return and System Calls (Native Patterns)
 -----------------------------------------------
 
 - `system.return` is a **native** pseudo‑variable used to set interface return
-  values from handlers and actions. It is not a separate Frame statement; it
-  appears inside native bodies and is rewritten by target‑language visitors.
+  values from handlers, actions, and non‑static operations. It is not a
+  separate Frame statement; it appears inside native bodies and is rewritten
+  by target‑language visitors to access a per‑call return slot.
+- Handler and operation headers may optionally initialize the per‑call slot
+  using the same header form as interfaces:
+
+  - Interface: `status(a, b): Type = Expr`
+  - Handler: `status(a, b) = Expr`
+
+  The initializer expression `Expr` is evaluated in the handler’s native
+  context at entry and used as the initial `system.return` value for that
+  call.
 - Calls of the form `system.methodName(...)` inside handlers/actions/operations
   are also treated as native and are used to invoke interface methods or other
   system‑level helpers. The Frame grammar does not special‑case this syntax;

@@ -727,7 +727,7 @@ class FrameTestRunner:
                 # Choose extension when we intend to execute the output
                 if language == "python" and self.config.execute:
                     extension = ".py"
-                elif ("v3_exec_smoke" in parts_lower and self.config.execute) or (getattr(self.config, 'exec_v3', False) and self.config.execute and any(seg in ("v3_core", "v3_control_flow", "v3_systems") for seg in parts_lower)):
+                elif ("v3_exec_smoke" in parts_lower and self.config.execute) or (getattr(self.config, 'exec_v3', False) and self.config.execute and any(seg in ("v3_core", "v3_control_flow", "v3_scoping", "v3_systems") for seg in parts_lower)):
                     ext_map = {"python": ".py", "typescript": ".ts", "rust": ".rs", "c": ".c", "cpp": ".cpp", "java": ".java", "csharp": ".cs"}
                     extension = ext_map.get(language, ".txt")
                 else:
@@ -2531,10 +2531,10 @@ class FrameTestRunner:
                 # For other V3 categories, optionally execute selected sets for curated exec
                 # or auto-run fixtures that declare a top-level `fn main(...)`.
                 if any(seg.startswith("v3_") for seg in parts_lower):
-                    # Curated V3 exec (core/control_flow/systems):
+                    # Curated V3 exec (core/control_flow/scoping/systems):
                     # - For Python, obey the global execute flag (--run) without requiring --exec-v3.
                     # - For other languages, continue to require --exec-v3 plus execute.
-                    curated_categories = ("v3_core", "v3_control_flow", "v3_systems")
+                    curated_categories = ("v3_core", "v3_control_flow", "v3_scoping", "v3_systems")
                     in_curated_cat = any(seg in curated_categories for seg in parts_lower)
                     should_exec_curated = False
                     if language == "python" and self.config.execute and in_curated_cat:

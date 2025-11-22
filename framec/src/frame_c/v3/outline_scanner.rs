@@ -112,8 +112,10 @@ impl OutlineScannerV3 {
             }
             // Recognize headers:
             // - Global functions: 'fn name(...) { ... }' or 'async fn name(...) { ... }'.
-            // - Section members (machine/actions/operations/interface): IDENT '(' ... ')' '{'
+            // - Section members (machine/actions/operations/interface): IDENT '(' ... ')'
             //   with optional leading 'async' before the name (e.g., 'async run() { ... }').
+            //   After the ')', we allow an optional header type/default segment
+            //   (': Type = default') before the opening '{'.
             //   (Interface headers without a '{' are treated as prototypes and ignored.)
             let mut name_start = kw_start;
             let mut name_end = j;
@@ -171,7 +173,9 @@ impl OutlineScannerV3 {
                             while k < n && is_space(bytes[k]) { k += 1; }
                         }
                     }
-                    if k < n && bytes[k] == b'(' { is_func_header = true; }
+                    if k < n && bytes[k] == b'(' && !is_control_flow_keyword(&first_tok) {
+                        is_func_header = true;
+                    }
                 }
             }
             if is_func_header && k < n && bytes[k] == b'(' {
@@ -182,6 +186,33 @@ impl OutlineScannerV3 {
                     match c { b'(' => { depth+=1; p+=1; }, b')' => { depth-=1; p+=1; if depth==0 { break; } }, _ => { p+=1; } }
                 }
                 while p < n && is_space(bytes[p]) { p += 1; }
+                // For non-global section members, allow optional header type/default
+                // segments like ': Type = default' between ')' and '{'.
+                if !is_global_fn && matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
+                    // Optional ': Type ...'
+                    if p < n && bytes[p] == b':' {
+                        p += 1;
+                        // Skip type expression up to '{', '=', or end-of-line.
+                        while p < n && bytes[p] != b'{' && bytes[p] != b'=' && bytes[p] != b'\n' {
+                            p += 1;
+                        }
+                        // Optional '= default' after the type.
+                        if p < n && bytes[p] == b'=' {
+                            p += 1;
+                            while p < n && bytes[p] != b'{' && bytes[p] != b'\n' {
+                                p += 1;
+                            }
+                        }
+                        while p < n && is_space(bytes[p]) { p += 1; }
+                    } else if p < n && bytes[p] == b'=' {
+                        // Header default without an explicit type: name(...) = expr { ... }
+                        p += 1;
+                        while p < n && bytes[p] != b'{' && bytes[p] != b'\n' {
+                            p += 1;
+                        }
+                        while p < n && is_space(bytes[p]) { p += 1; }
+                    }
+                }
                 if p < n && bytes[p] == b'{' {
                     if std::env::var("FRAME_DEBUG_OUTLINE").ok().as_deref() == Some("1") {
                         let hdr = String::from_utf8_lossy(&bytes[line_start..p]).to_string();
@@ -330,7 +361,9 @@ impl OutlineScannerV3 {
             let mut k = j; while k < n && is_space(bytes[k]) { k += 1; }
             // Recognize headers:
             // - Global functions: 'fn name(...) { ... }' or 'async fn name(...) { ... }' (regardless of section).
-            // - Section members: IDENT '(' … ')' '{', with optional leading 'async'.
+            // - Section members: IDENT '(' … ')' with optional leading 'async'.
+            //   For section members we allow an optional header type/default
+            //   segment (': Type = default') before the opening '{'.
             let first_tok = to_lower_ascii(&bytes[kw_start..j]);
             let mut is_func_header = false;
             let mut _name_start = kw_start;
@@ -373,13 +406,38 @@ impl OutlineScannerV3 {
                             while k < n && is_space(bytes[k]) { k += 1; }
                         }
                     }
-                    if k < n && bytes[k] == b'(' { is_func_header = true; }
+                    if k < n && bytes[k] == b'(' && !is_control_flow_keyword(&first_tok) {
+                        is_func_header = true;
+                    }
                 }
             }
             if is_func_header && k < n && bytes[k] == b'(' {
                 let mut depth: i32 = 0; let mut p = k;
                 while p < n { let c = bytes[p]; match c { b'(' => { depth+=1; p+=1; }, b')' => { depth-=1; p+=1; if depth==0 { break; } }, _ => { p+=1; } } }
                 while p < n && is_space(bytes[p]) { p += 1; }
+                // For section members (non-global), allow optional ': Type = default'
+                // between ')' and '{' on the same line.
+                if !(first_tok == "fn" || first_tok == "async") && matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
+                    if p < n && bytes[p] == b':' {
+                        p += 1;
+                        while p < n && bytes[p] != b'{' && bytes[p] != b'=' && bytes[p] != b'\n' {
+                            p += 1;
+                        }
+                        if p < n && bytes[p] == b'=' {
+                            p += 1;
+                            while p < n && bytes[p] != b'{' && bytes[p] != b'\n' {
+                                p += 1;
+                            }
+                        }
+                        while p < n && is_space(bytes[p]) { p += 1; }
+                    } else if p < n && bytes[p] == b'=' {
+                        p += 1;
+                        while p < n && bytes[p] != b'{' && bytes[p] != b'\n' {
+                            p += 1;
+                        }
+                        while p < n && is_space(bytes[p]) { p += 1; }
+                    }
+                }
                 if p < n && bytes[p] == b'{' {
                     let open = p;
                     match lang {
@@ -457,3 +515,9 @@ impl OutlineScannerV3 {
 fn is_space(b: u8) -> bool { b == b' ' || b == b'\t' }
 fn is_ident(b: u8) -> bool { b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b == b'^' }
 fn to_lower_ascii(s: &[u8]) -> String { s.iter().map(|b| (*b as char).to_ascii_lowercase()).collect() }
+
+// Control-flow keywords that should never be interpreted as section-member names
+// even when followed by '(...) { ... }' in actions/operations/machine/interface sections.
+fn is_control_flow_keyword(tok: &str) -> bool {
+    matches!(tok, "if" | "for" | "while" | "switch")
+}

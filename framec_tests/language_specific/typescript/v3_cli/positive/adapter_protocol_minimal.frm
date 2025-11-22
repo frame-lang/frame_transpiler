@@ -2,12 +2,12 @@
 // @skip-if: tsc-missing
 // @tsc-compile
 // @compile-expect: export class AdapterProtocolMinimal
-// @compile-expect: public start\(\): void
-// @compile-expect: public runtimeConnected\(\): void
+// @compile-expect: public start\(\): any
+// @compile-expect: public runtimeConnected\(\): any
 // @compile-expect: public runtimeMessage\(
-// @compile-expect: public runtimeDisconnected\(\): void
-// @compile-expect: public requestTerminate\(\): void
-// @compile-expect: public drainCommands\(\): void
+// @compile-expect: public runtimeDisconnected\(\): any
+// @compile-expect: public requestTerminate\(\): any
+// @compile-expect: public drainCommands\(\): any
 
 // Minimal AdapterProtocol-style fixture for V3 TS CLI tests.
 // Mirrors the shared adapter_protocol_minimal.frm used in framepiler_test_env.

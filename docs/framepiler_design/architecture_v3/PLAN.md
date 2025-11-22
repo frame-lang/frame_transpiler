@@ -482,16 +482,16 @@ Scope
 - Replace comment‑only expansions with real runtime glue; execute non‑façade suites; wire CI; lock runtime APIs; document and package.
 
 Checklist (Py/TS)
-- [ ] Expanders: full glue semantics
-  - [ ] Python: implement Transition/Forward/Stack expansions that call stable runtime instance methods on the machine (kernel Option B) with correct control‑flow semantics. Transitions emit native `return` after `_frame_transition(...)`.
-  - [ ] TypeScript: implement Transition/Forward/Stack expansions that call stable runtime instance methods on the machine (kernel Option B); preserve inline multi‑statement splits; avoid double semicolons. Transitions emit native `return;` after `this._frame_transition(...)`.
-- [ ] Runtime API surface (stabilize and document)
-  - [ ] Python runtime: import `FrameEvent`/`FrameCompartment`; machine provides `_frame_transition/_frame_router` methods. Version and doc in `frame_runtime_py`.
-  - [ ] TypeScript runtime: import `FrameEvent`/`FrameCompartment`; machine provides `_frame_transition/_frame_router` methods. Version and doc in `frame_runtime_ts`.
-- [ ] Executable test suites (beyond façade)
-  - [ ] Runner: enable execute/run mode for v3_core, v3_control_flow, v3_scoping, v3_systems for Python/TypeScript using real runtime (build = transpile; validate/run = execute).
-  - [ ] Fixtures: add positives/negatives that assert real behavior for Transition (terminal), Forward (non‑terminal), and Stack operations.
-  - [ ] SOL/inline multi‑statement cases executing correctly (e.g., `=> $^; native()` keeps ordering).
+- [x] Expanders: full glue semantics
+  - [x] Python: implement Transition/Forward/Stack expansions that call stable runtime instance methods on the machine (kernel Option B) with correct control‑flow semantics. Transitions emit native `return` after `_frame_transition(...)`. (Implemented in `PyExpanderV3`; covered by v3_exec_smoke + curated exec.)
+  - [x] TypeScript: implement Transition/Forward/Stack expansions that call stable runtime instance methods on the machine (kernel Option B); preserve inline multi‑statement splits; avoid double semicolons. Transitions emit native `return;` after `this._frame_transition(...)`. (Implemented in `TsExpanderV3`; covered by v3_exec_smoke + curated exec.)
+- [x] Runtime API surface (stabilize and document)
+  - [x] Python runtime: `frame_runtime_py` exposes `FrameEvent`/`FrameCompartment`; generated systems import them and implement `_frame_transition/_frame_router` as described in `frame_runtime.md`. Runtime semantics are exercised by Python v3_exec_smoke and curated exec suites.
+  - [x] TypeScript runtime: `frame_runtime_ts` exposes `FrameEvent`/`FrameCompartment` via `index.ts/index.d.ts`; generated systems import from `"frame_runtime_ts"` and implement `_frame_transition/_frame_router` per `frame_runtime.md`. Semantics are exercised by TypeScript v3_exec_smoke and curated exec suites.
+- [x] Executable test suites (beyond façade)
+  - [x] Runner: enable execute/run mode for v3_core, v3_control_flow, v3_scoping, v3_systems for Python/TypeScript using real runtime (build = transpile; validate/run = execute). (Implemented via `--exec-v3` gating in `framec_tests/runner/frame_test_runner.py`; verified with `--languages python typescript --categories v3_core v3_control_flow v3_scoping v3_systems --run --exec-v3`.)
+  - [x] Fixtures: add positives/negatives that assert real behavior for Transition (terminal), Forward (non‑terminal), and Stack operations. (Covered by curated exec fixtures under v3_core/v3_control_flow/v3_systems and newly exec‑enabled v3_scoping fixtures.)
+  - [x] SOL/inline multi‑statement cases executing correctly (e.g., `=> $^; native()` keeps ordering). (Exercised by scoping/control‑flow fixtures such as `block_scope.frm`, `closure_scope.frm`, `function_block_scope.frm`, and their Python equivalents.)
 - [ ] Validation rules (production)
   - [x] Transition terminal in containing block (structural) — implemented.
   - [x] Unknown state target diagnostics — implemented.

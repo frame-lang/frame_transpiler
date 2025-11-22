@@ -369,45 +369,20 @@ impl ValidatorV3 {
     }
 
     /// Validate `system.return` usage according to V3 policy.
-    /// - Allowed in handlers and actions.
-    /// - Disallowed in operations (legacy restriction).
+    ///
+    /// V3 semantics now treat `system.return` as a per-call slot that can be
+    /// read or written from handlers, actions, and non-static operations.
+    /// Sugar such as `return expr` is handled in the code generators for
+    /// handlers only; the validator now only reserves a hook for future
+    /// placement checks and does not emit E407 by default.
     pub fn validate_system_return_usage(
         &self,
         body_bytes: &[u8],
         regions: &[RegionV3],
         kind: super::validator::BodyKindV3,
     ) -> Vec<ValidationIssueV3> {
-        let mut issues = Vec::new();
-        // Only operations are restricted for now.
-        if !matches!(kind, super::validator::BodyKindV3::Operation) {
-            return issues;
-        }
-        for r in regions {
-            if let RegionV3::NativeText { span } = r {
-                if span.end <= span.start || span.end > body_bytes.len() { continue; }
-                let seg = &body_bytes[span.start..span.end];
-                let mut i = 0usize;
-                while i + 13 < seg.len() {
-                    // Look for "system.return" at an identifier boundary.
-                    if &seg[i..i + 13] == b"system.return" {
-                        let prev_is_ident = if i == 0 {
-                            false
-                        } else {
-                            let b = seg[i - 1];
-                            (b as char).is_ascii_alphanumeric() || b == b'_'
-                        };
-                        if !prev_is_ident {
-                            issues.push(ValidationIssueV3 {
-                                message: "E407: system.return is not allowed in operations".into(),
-                            });
-                            break;
-                        }
-                    }
-                    i += 1;
-                }
-            }
-        }
-        issues
+        let _ = (body_bytes, regions, kind);
+        Vec::new()
     }
 
     // Outer grammar structural checks (headers inside sections)

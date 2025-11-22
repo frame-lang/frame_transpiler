@@ -1,5 +1,10 @@
 ``# Frame Transpiler Bug Tracking Policy
 
+DEPRECATION NOTICE
+- The canonical bug tracker has moved to the shared test environment:
+  - `/Users/marktruluck/projects/framepiler_test_env/bug` (single‑folder model)
+- This local tracker is frozen for history. Do not add or update bugs here; file and verify in the shared env instead. Keep this file and existing entries for reference only.
+
 ## Overview
 This document defines the bug tracking process for the Frame Transpiler project. All bugs are tracked as individual markdown files in the `/docs/bugs/` directory structure.
 
@@ -39,6 +44,10 @@ Every bug report must follow the template in TEMPLATE.md and include:
 6. **Technical Analysis** (if available)
 7. **Proposed Solution**
 8. **Test Cases**
+9. **Build/Release Artifacts** — the exact path(s) to the built binaries or
+   compiled artifacts used to reproduce and validate the bug (for example,
+   `./target/release/framec`, generated TS/JS paths, or shared harness entry
+   scripts).
 
 ## Workflow
 

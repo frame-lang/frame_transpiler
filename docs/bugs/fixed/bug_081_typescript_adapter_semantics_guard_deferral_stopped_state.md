@@ -7,11 +7,11 @@ status: Fixed
 priority: High
 category: CodeGen
 discovered_version: v0.86.50
-fixed_version: v0.86.52
+fixed_version: v0.86.54
 reporter: vscode_editor (Codex)
 assignee: framepiler team
 created_date: 2025-11-18
-resolved_date: 2025-11-19
+resolved_date: 2025-11-20
 
 ## Description
 For a multi‑interface system (AdapterProtocol.frm), the generated TS does not fully execute FRM‑encoded adapter semantics:
@@ -35,6 +35,19 @@ For a multi‑interface system (AdapterProtocol.frm), the generated TS does not 
    - runtimeConnected → drain (expect initialize+ping)
    - enqueue guarded command before handshake/ready (expect deferred: drain empty)
    - hello + ready → enqueue continue (expect single entry); stopped event → `isPaused === true`
+
+## Build/Release Artifacts
+- framec binary used for validation:
+  `/Users/marktruluck/projects/frame_transpiler/target/release/framec` (v0.86.54, build 48)
+- Shared adapter smoke harness:
+  `FRAMEC_BIN=/Users/marktruluck/projects/frame_transpiler/target/release/framec ./adapter_protocol/scripts/run_adapter_smoke.sh`
+  run from `/Users/marktruluck/projects/framepiler_test_env`, which compiles
+  `adapter_protocol_minimal.frm` and executes `node_harness.js` against the
+  generated JS (`ADAPTER_SMOKE_OK`).
+- External validator harness (legacy, environment-dependent):
+  `/tmp/frame_transpiler_repro/bug_081/run_validate.sh` (compiles
+  `/Users/marktruluck/vscode_editor/rebuild/adapter_protocol.frm` to
+  TypeScript/JS and runs Node assertions).
 
 ## Impact
 - Severity: High — blocks adapter without wrapper logic; violates “Frame‑only → generate”.
@@ -165,6 +178,10 @@ NODE
 
 ## Work Log (updates)
 - 2025-11-18: Validator re-run on v0.86.50 — still failing locally; leaving Open — vscode_editor
-
-## Work Log (reopen)
 - 2025-11-19: Reopened — validator still failing on v0.86.51; adapter semantics unmet.
+- 2025-11-20: V3 TypeScript/Python module generators updated to use a per-call
+  `system.return` stack in public interface wrappers, with header defaults and
+  handler sugar wired through. The in-repo minimal AdapterProtocol fixture and
+  shared `framepiler_test_env` harness both validate guard/deferral/stopped
+  semantics under v0.86.54; external validators are expected to align with
+  these semantics rather than rely on legacy inline `->` usage.

@@ -294,21 +294,69 @@ status() {
 
 Abstract rules:
 
-- `system.return` is a special variable associated with the **current interface
-  call**.
-- When an interface wrapper returns, it reads `system.return` (if set) and
-  returns that value; otherwise it uses the default return value from the
-  interface header (`: type = default`).
-- Actions may also assign `system.return` so they can participate in computing
-  the interface return.
-- Operations **cannot** assign `system.return` (V3 reports E407).
+- `system.return` is a special variable associated with the **current call to
+  an interface method**. Each interface invocation allocates a per‑call slot on
+  a return stack (`_system_return_stack`).
+- When an interface wrapper returns, it reads the current `system.return`
+  value from the top of that stack and returns it; if no handler or helper has
+  written to it, the value comes from the interface header default
+  (`name(params): Type = Expr`).
+- Handlers, actions, and non‑static operations may all assign to
+  `system.return` so they can participate in computing the interface return.
+- In event handlers only, a `return expr` statement is treated as sugar for
+  `system.return = expr; return` in the underlying target code. A bare
+  `return` does not modify `system.return`.
+
+Example with header defaults and mixed returns:
+
+```frame
+system Example {
+    interface:
+        a1(): int = 10
+        a2(a): int = a
+        a3(a): int = self.x + a
+
+    machine:
+        $Idle {
+            a1() {
+                if self.x < 5:
+                    return        # leaves system.return = 10
+                else:
+                    return 0      # sugar for system.return = 0; return
+            }
+
+            a2(a) {
+                return            # leaves system.return = a
+            }
+
+            a3(a) {
+                return a          # overrides header default
+            }
+        }
+
+    domain:
+        x = 3
+}
+```
+
+For `a1()`:
+- When `self.x < 5`, the bare `return` leaves `system.return` at the header
+  default (`10`), so the wrapper returns `10`.
+- Otherwise, `return 0` updates `system.return` to `0` and the wrapper returns
+  `0`.
+
+For `a2(a)`, the header default (`a`) is preserved by the bare `return`, so
+the final value is the argument. For `a3(a)`, the handler body overrides the
+header default by assigning a new value via `return a`.
 
 **Current V3 status**:
 
-- Placement rules are enforced (allowed in handlers/actions; disallowed in
-  operations) and covered by V3 fixtures.
-- Full wiring of `system.return` into interface wrappers is partially
-  implemented in Python and TS codegen and will be documented as it stabilizes.
+- Per‑call `system.return` stacks and header defaults are implemented in the
+  V3 Python and TypeScript generators (module path), including handler sugar
+  and support for actions/operations participating in the value.
+- Placement rules are enforced structurally in the validator (handlers,
+  actions, and operations share the same semantics) and exercised via the
+  V3 `system_return_*` capability fixtures.
 
 ### 2.7 `system.method()` Calls
 

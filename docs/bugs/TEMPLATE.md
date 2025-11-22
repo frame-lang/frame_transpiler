@@ -24,6 +24,10 @@ resolved_date:
 3. [Continue as needed]
 4. [Observe the error]
 
+## Build/Release Artifacts
+- framec binary: `./target/release/framec` (or full path used for this bug)
+- Generated artifacts: `[path/to/generated.ts or .py, adapter harness scripts, etc.]`
+
 ## Test Case
 ```frame
 // Minimal Frame code that reproduces the issue

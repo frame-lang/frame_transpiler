@@ -1,4 +1,5 @@
 @target typescript
+// @exec-ok
 
 system S {
     machine:

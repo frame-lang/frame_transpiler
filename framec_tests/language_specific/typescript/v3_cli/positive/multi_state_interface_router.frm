@@ -2,7 +2,7 @@
 // @skip-if: tsc-missing
 // @tsc-compile
 // @compile-expect: export class DemoTsGen
-// @compile-expect: public start\(\): void
+// @compile-expect: public start\(\): any
 // @compile-expect: public runtimeMessage\(
 // @compile-expect: switch \(c\.state\)
 // @compile-expect: case '__DemoTsGen_state_A':

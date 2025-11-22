@@ -326,13 +326,15 @@ validator enforce the V3 policy that:
 
 - `system.method()` used as a system‑level call must target an `interface:`
   method (E406 if it does not).
-- `system.return` is allowed in handlers and actions but not in operations
-  (E407 in operations).
+- `system.return` is a native pseudo‑variable that can be read or written from
+  handlers, actions, and non‑static operations. Event handlers additionally
+  get sugar: `return expr` is expanded to `system.return = expr; return`, while
+  a bare `return` leaves the current `system.return` value unchanged.
 
-Runtime behavior for `system.return` (mapping to the underlying
-`return_stack`/defaults) is inherited from the v2 runtime and is being
-re‑validated in V3; placement rules are enforced today and listed in the
-capability matrix as **PARTIAL** until full exec coverage is in place.
+Runtime behavior for `system.return` (mapping to the underlying per‑call
+return stack and header defaults) is implemented in the V3 Python and
+TypeScript generators, and covered by the `v3_capabilities/system_return`
+fixtures (handlers, actions, and operations).
 
 ## 9. Capability Matrix and Tests
 

@@ -58,6 +58,71 @@ fn ts_param_idents(params: &str) -> String {
     names.join(", ")
 }
 
+/// Best-effort scanner for TypeScript class instance fields used in native bodies.
+/// Looks for `this.<ident>` patterns inside native regions of handlers/actions/operations
+/// and returns the set of candidate field names. This is used to synthesize class
+/// field declarations so `tsc` does not report TS2339 for state stored on `this`.
+fn collect_ts_field_candidates(
+    content: &str,
+    parts: &crate::frame_c::v3::module_partitioner::ModulePartitionsV3,
+) -> std::collections::HashSet<String> {
+    use crate::frame_c::v3::native_region_scanner::RegionV3;
+    let mut fields: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for b in &parts.bodies {
+        // Only scan handler/action/operation bodies; ignore functions/unknown for now.
+        if !matches!(
+            b.kind,
+            BodyKindV3::Handler | BodyKindV3::Action | BodyKindV3::Operation
+        ) {
+            continue;
+        }
+        if b.close_byte <= b.open_byte || b.close_byte >= content.len() {
+            continue;
+        }
+        let body_src = &content[b.open_byte..=b.close_byte];
+        let scan = match nscan::typescript::NativeRegionScannerTsV3.scan(body_src.as_bytes(), 0)
+        {
+            Ok(s) => s,
+            Err(_) => crate::frame_c::v3::native_region_scanner::ScanResultV3 {
+                close_byte: body_src.len().saturating_sub(1),
+                regions: Vec::new(),
+            },
+        };
+        for r in &scan.regions {
+            if let RegionV3::NativeText { span } = r {
+                if span.end <= span.start || span.end > body_src.len() {
+                    continue;
+                }
+                let seg = &body_src.as_bytes()[span.start..span.end];
+                let mut i = 0usize;
+                while i + 5 <= seg.len() {
+                    // Look for "this." followed by an identifier.
+                    if &seg[i..i + 5] == b"this." {
+                        let mut j = i + 5;
+                        let mut name = String::new();
+                        while j < seg.len() {
+                            let ch = seg[j] as char;
+                            if ch.is_ascii_alphanumeric() || ch == '_' || ch == '$' {
+                                name.push(ch);
+                                j += 1;
+                            } else {
+                                break;
+                            }
+                        }
+                        if !name.is_empty() {
+                            fields.insert(name);
+                        }
+                        i = j;
+                    } else {
+                        i += 1;
+                    }
+                }
+            }
+        }
+    }
+    fields
+}
+
 /// V3 compiler entrypoint (MVP scaffold).
 ///
 /// This will replace the legacy pipeline incrementally. For now it returns a
@@ -842,6 +907,12 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
                     let mut module = String::new();
                     module.push_str("from frame_runtime_py import FrameEvent, FrameCompartment\n\n");
+                    // Build per-system interface metadata (return initializers) for Python.
+                    let module_ast = crate::frame_c::v3::system_parser::SystemParserV3::parse_module(bytes, TargetLanguage::Python3);
+                    let iface_parser = crate::frame_c::v3::interface_parser::InterfaceParserV3;
+                    let iface_meta_map = iface_parser.collect_method_metadata(bytes, &module_ast, TargetLanguage::Python3);
+                    let iface_meta_for_sys = iface_meta_map.get(&sys_name);
+
                     module.push_str(&format!("class {}:\n", sys_name));
                     // For now, accept arbitrary system parameters but keep semantics simple:
                     // we seed the initial compartment for the first declared state and
@@ -863,6 +934,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     }
                     module.push_str(&format!("        self._compartment = FrameCompartment(\"__{}_state_{}\", enter_args=enter_args, state_args=state_args)\n", sys_name, start_state));
                     module.push_str("        self._stack = []\n");
+                    module.push_str("        self._system_return_stack = []\n");
                     module.push_str("        enter_event = FrameEvent(\"$enter\", enter_args)\n");
                     module.push_str("        self._frame_router(enter_event, self._compartment)\n");
                     module.push_str("    def _frame_transition(self, next_compartment: FrameCompartment):\n");
@@ -974,10 +1046,17 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         module.push('\n');
                                         continue;
                                     }
-                                    let bytes_ln = raw.as_bytes();
+                                    let mut t = raw.to_string();
+                                    if t.contains("system.return") {
+                                        t = t.replace(
+                                            "system.return",
+                                            "self._system_return_stack[-1]",
+                                        );
+                                    }
+                                    let bytes_ln = t.as_bytes();
                                     let indent = bytes_ln.iter().take_while(|b| **b == b' ' || **b == b'\t').count();
                                     let offset = if indent >= base { base } else { indent };
-                                    let content = &raw[offset..];
+                                    let content = &t[offset..];
                                     // Preserve relative indentation beyond the base.
                                     let extra = if indent > base {
                                         let extra_bytes = &bytes_ln[base..indent];
@@ -1069,10 +1148,17 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         module.push('\n');
                                         continue;
                                     }
-                                    let bytes_ln = raw.as_bytes();
+                                    let mut t = raw.to_string();
+                                    if t.contains("system.return") {
+                                        t = t.replace(
+                                            "system.return",
+                                            "self._system_return_stack[-1]",
+                                        );
+                                    }
+                                    let bytes_ln = t.as_bytes();
                                     let indent = bytes_ln.iter().take_while(|b| **b == b' ' || **b == b'\t').count();
                                     let offset = if indent >= base { base } else { indent };
-                                    let content = &raw[offset..];
+                                    let content = &t[offset..];
                                     let extra = if indent > base {
                                         let extra_bytes = &bytes_ln[base..indent];
                                         std::str::from_utf8(extra_bytes).unwrap_or("")
@@ -1188,13 +1274,32 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     module.push_str("        \n");
                                     continue;
                                 }
-                                let trimmed = raw.trim_start();
+                                let mut t = raw.to_string();
+                                // Rewrite system.return to top-of-stack access.
+                                if t.contains("system.return") {
+                                    t = t.replace(
+                                        "system.return",
+                                        "self._system_return_stack[-1]",
+                                    );
+                                }
+                                let trimmed = t.trim_start();
                                 if trimmed.is_empty() {
                                     module.push_str("        \n");
                                     continue;
                                 }
                                 if !trimmed.starts_with('#') {
                                     has_non_comment = true;
+                                }
+                                // Handler-only sugar: `return expr` => `system.return = expr; return`.
+                                if trimmed.starts_with("return ") && !trimmed.starts_with("return:") && trimmed != "return" && trimmed != "return:" {
+                                    let expr = trimmed["return ".len()..].trim_end_matches(':').trim_end();
+                                    if !expr.is_empty() {
+                                        module.push_str("        self._system_return_stack[-1] = ");
+                                        module.push_str(expr);
+                                        module.push('\n');
+                                        module.push_str("        return\n");
+                                        continue;
+                                    }
                                 }
                                 module.push_str("        ");
                                 module.push_str(trimmed);
@@ -1240,16 +1345,33 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         module.push_str("            \n");
                                         continue;
                                     }
-                                    let trimmed = raw.trim_start();
+                                    let mut t = raw.to_string();
+                                    if t.contains("system.return") {
+                                        t = t.replace(
+                                            "system.return",
+                                            "self._system_return_stack[-1]",
+                                        );
+                                    }
+                                    let trimmed = t.trim_start();
                                     if trimmed.is_empty() {
                                         module.push_str("            \n");
                                         continue;
                                     }
-                                     // Comments should be preserved but do not count
-                                     // as satisfying Python's requirement for a
-                                     // statement in the branch.
+                                    // Comments should be preserved but do not count
+                                    // as satisfying Python's requirement for a statement
+                                    // in the branch.
                                     if !trimmed.starts_with('#') {
                                         has_non_comment = true;
+                                    }
+                                    if trimmed.starts_with("return ") && !trimmed.starts_with("return:") && trimmed != "return" && trimmed != "return:" {
+                                        let expr = trimmed["return ".len()..].trim_end_matches(':').trim_end();
+                                        if !expr.is_empty() {
+                                            module.push_str("            self._system_return_stack[-1] = ");
+                                            module.push_str(expr);
+                                            module.push('\n');
+                                            module.push_str("            return\n");
+                                            continue;
+                                        }
                                     }
                                     module.push_str("            ");
                                     module.push_str(trimmed);
@@ -1264,9 +1386,24 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     // Public interface wrappers: for each event name we expose a method
                     // that constructs a FrameEvent and routes it through the kernel.
                     for hname in handler_groups.keys() {
+                        let meta = iface_meta_for_sys.and_then(|m| m.get(hname));
+                        let init_expr_opt = meta.and_then(|m| m.return_init.as_deref());
                         module.push_str(&format!("    def {}(self, *args, **kwargs):\n", hname));
-                        module.push_str(&format!("        __e = FrameEvent(\"{}\", list(args) if args else None)\n", hname));
-                        module.push_str("        return self._frame_router(__e, self._compartment)\n");
+                        if let Some(init_expr) = init_expr_opt {
+                            module.push_str(&format!("        __initial = {}\n", init_expr));
+                        } else {
+                            module.push_str("        __initial = None\n");
+                        }
+                        module.push_str("        self._system_return_stack.append(__initial)\n");
+                        module.push_str(&format!(
+                            "        __e = FrameEvent(\"{}\", list(args) if args else None)\n",
+                            hname
+                        ));
+                        module.push_str("        try:\n");
+                        module.push_str("            self._frame_router(__e, self._compartment)\n");
+                        module.push_str("            return self._system_return_stack[-1]\n");
+                        module.push_str("        finally:\n");
+                        module.push_str("            self._system_return_stack.pop()\n");
                     }
 
                     // Append top-level functions (including fn main) after the class.
@@ -1278,6 +1415,14 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 }
                 TargetLanguage::TypeScript => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    // Build per-system interface metadata (return types and initializers)
+                    let module_ast = crate::frame_c::v3::system_parser::SystemParserV3::parse_module(bytes, TargetLanguage::TypeScript);
+                    let iface_parser = crate::frame_c::v3::interface_parser::InterfaceParserV3;
+                    let iface_meta_map = iface_parser.collect_method_metadata(bytes, &module_ast, TargetLanguage::TypeScript);
+                    let iface_meta_for_sys = iface_meta_map.get(&sys_name);
+                    // Scan native bodies for `this.<field>` usages so we can synthesize
+                    // class field declarations for state stored on `this`.
+                    let field_candidates = collect_ts_field_candidates(content_str, &parts);
                     let ts_import = std::env::var("FRAME_TS_EXEC_IMPORT").ok().unwrap_or_else(|| String::from("frame_runtime_ts"));
                     let mut module = String::new();
                     module.push_str(&format!("import {{ FrameEvent, FrameCompartment }} from '{}'\n\n", ts_import));
@@ -1306,6 +1451,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
                     module.push_str(&format!("  public _compartment: FrameCompartment = new FrameCompartment('__{}_state_{}');\n", sys_name, start_state));
                     module.push_str("  private _stack: FrameCompartment[] = [];\n");
+                    module.push_str("  private _systemReturnStack: any[] = [];\n");
                     // Constructor: partition system params into start / enter / domain and seed initial compartment.
                     module.push_str("  constructor(...sysParams: any[]) {\n");
                     module.push_str("    const startCount = "); module.push_str(&start_params.len().to_string()); module.push_str(";\n");
@@ -1330,10 +1476,12 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     module.push_str("  _frame_stack_pop(){ const prev = this._stack.pop(); if (prev) this._frame_transition(prev); }\n");
                     // Group handlers by interface method name so we emit a single
                     // public method per interface function and dispatch on state.
-                    let mut handler_groups: std::collections::BTreeMap<String, Vec<(Option<String>, String, String)>> = std::collections::BTreeMap::new();
-                    // Collect actions/operations for later emission
-                    let mut actions: Vec<(String, bool, String, String)> = Vec::new();
-                    let mut operations: Vec<(String, bool, String, String)> = Vec::new();
+                    // Tuple: (state_id, body_text, params_text, handler_init_expr)
+                    let mut handler_groups: std::collections::BTreeMap<String, Vec<(Option<String>, String, String, Option<String>)>> = std::collections::BTreeMap::new();
+                    // Collect actions/operations for later emission.
+                    // Tuple: (name, is_async, params_text, body_text, return_type_opt)
+                    let mut actions: Vec<(String, bool, String, String, Option<String>)> = Vec::new();
+                    let mut operations: Vec<(String, bool, String, String, Option<String>)> = Vec::new();
                     for (idx, b) in parts.bodies.iter().enumerate() {
                         let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
                         let spliced_trimmed = {
@@ -1348,55 +1496,85 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         match b.kind {
                             crate::frame_c::v3::validator::BodyKindV3::Handler => {
                                 let hname = b.owner_id.as_deref().unwrap_or("handler").to_string();
-                                let params = if let Some(hs) = b.header_span {
+                                let mut params = String::new();
+                                let mut handler_init: Option<String> = None;
+                                if let Some(hs) = b.header_span {
                                     let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                    // Reuse interface header parser to extract initializer (and ignore any type).
+                                    if let Some((_, meta)) =
+                                        crate::frame_c::v3::interface_parser::parse_interface_header_meta(hdr)
+                                    {
+                                        if let Some(init) = meta.return_init {
+                                            if !init.trim().is_empty() {
+                                                handler_init = Some(init);
+                                            }
+                                        }
+                                    }
                                     if let Some(lp) = hdr.find('(') {
                                         if let Some(rp_rel) = hdr[lp+1..].find(')') {
-                                            hdr[lp+1..lp+1+rp_rel].trim().to_string()
-                                        } else { String::new() }
-                                    } else { String::new() }
-                                } else { String::new() };
+                                            params = hdr[lp+1..lp+1+rp_rel].trim().to_string();
+                                        }
+                                    }
+                                }
                                 handler_groups
                                     .entry(hname)
                                     .or_default()
-                                    .push((b.state_id.clone(), spliced_trimmed.to_string(), params));
+                                    .push((b.state_id.clone(), spliced_trimmed.to_string(), params, handler_init));
                             }
                             crate::frame_c::v3::validator::BodyKindV3::Action => {
                                 let aname = b.owner_id.as_deref().unwrap_or("action").to_string();
-                                let (is_async, params) = if let Some(hs) = b.header_span {
+                                let (is_async, params, ret_type_opt) = if let Some(hs) = b.header_span {
                                     let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
-                                    let async_flag = hdr.trim_start().starts_with("async ");
-                                    let param_text = if let Some(lp) = hdr.find('(') {
-                                        if let Some(rp_rel) = hdr[lp+1..].find(')') {
-                                            hdr[lp+1..lp+1+rp_rel].trim().to_string()
+                                    let mut core = hdr.trim_start();
+                                    let async_flag = core.starts_with("async ");
+                                    if async_flag {
+                                        core = core["async ".len()..].trim_start();
+                                    }
+                                    let param_text = if let Some(lp) = core.find('(') {
+                                        if let Some(rp_rel) = core[lp+1..].find(')') {
+                                            core[lp+1..lp+1+rp_rel].trim().to_string()
                                         } else { String::new() }
                                     } else { String::new() };
-                                    (async_flag, param_text)
-                                } else { (false, String::new()) };
-                                actions.push((aname, is_async, params, spliced_trimmed.to_string()));
+                                    // Reuse interface header parser to extract an optional return type.
+                                    let ret_ty = crate::frame_c::v3::interface_parser::parse_interface_header_meta(core)
+                                        .and_then(|(_, m)| m.return_type)
+                                        .map(|s| s.trim().to_string())
+                                        .filter(|s| !s.is_empty());
+                                    (async_flag, param_text, ret_ty)
+                                } else { (false, String::new(), None) };
+                                actions.push((aname, is_async, params, spliced_trimmed.to_string(), ret_type_opt));
                             }
                             crate::frame_c::v3::validator::BodyKindV3::Operation => {
                                 let oname = b.owner_id.as_deref().unwrap_or("operation").to_string();
-                                let (is_async, params) = if let Some(hs) = b.header_span {
+                                let (is_async, params, ret_type_opt) = if let Some(hs) = b.header_span {
                                     let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
-                                    let async_flag = hdr.trim_start().starts_with("async ");
-                                    let param_text = if let Some(lp) = hdr.find('(') {
-                                        if let Some(rp_rel) = hdr[lp+1..].find(')') {
-                                            hdr[lp+1..lp+1+rp_rel].trim().to_string()
+                                    let mut core = hdr.trim_start();
+                                    let async_flag = core.starts_with("async ");
+                                    if async_flag {
+                                        core = core["async ".len()..].trim_start();
+                                    }
+                                    let param_text = if let Some(lp) = core.find('(') {
+                                        if let Some(rp_rel) = core[lp+1..].find(')') {
+                                            core[lp+1..lp+1+rp_rel].trim().to_string()
                                         } else { String::new() }
                                     } else { String::new() };
-                                    (async_flag, param_text)
-                                } else { (false, String::new()) };
-                                operations.push((oname, is_async, params, spliced_trimmed.to_string()));
+                                    let ret_ty = crate::frame_c::v3::interface_parser::parse_interface_header_meta(core)
+                                        .and_then(|(_, m)| m.return_type)
+                                        .map(|s| s.trim().to_string())
+                                        .filter(|s| !s.is_empty());
+                                    (async_flag, param_text, ret_ty)
+                                } else { (false, String::new(), None) };
+                                operations.push((oname, is_async, params, spliced_trimmed.to_string(), ret_type_opt));
                             }
                             _ => {}
                         }
                     }
-                    let mut router_cases: Vec<(String, bool)> = Vec::new();
+                    // Track parameter arity per interface method for router calls.
+                    let mut router_cases: Vec<(String, usize)> = Vec::new();
                     for (hname, entries) in handler_groups {
                         // Choose a parameter list from any header that declared one.
                         let mut params = String::new();
-                        for (_, _, ptxt) in &entries {
+                        for (_, _, ptxt, _) in &entries {
                             if !ptxt.is_empty() {
                                 params = ptxt.clone();
                                 break;
@@ -1404,19 +1582,35 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         }
                         let param_idents = if params.is_empty() { String::new() } else { ts_param_idents(&params) };
                         // Public interface wrapper: Frame-friendly signature (no FrameEvent/FrameCompartment).
+                        // Initialize a per-call system.return slot and forward to the router.
+                        let meta = iface_meta_for_sys.and_then(|m| m.get(&hname));
+                        let ret_type = meta
+                            .and_then(|m| m.return_type.as_deref())
+                            .unwrap_or("any");
+                        let init_expr_opt = meta.and_then(|m| m.return_init.as_deref());
+
                         if params.is_empty() {
-                            module.push_str(&format!("  public {}(): void {{\n", hname));
-                            module.push_str(&format!("    const __e = new FrameEvent(\"{}\", null);\n", hname));
-                            module.push_str("    this._frame_router(__e, this._compartment);\n");
+                            module.push_str(&format!("  public {}(): {} {{\n", hname, ret_type));
                         } else {
-                            module.push_str(&format!("  public {}({}): void {{\n", hname, params));
-                            module.push_str(&format!("    const __e = new FrameEvent(\"{}\", null);\n", hname));
-                            if param_idents.is_empty() {
-                                module.push_str("    this._frame_router(__e, this._compartment);\n");
-                            } else {
-                                module.push_str(&format!("    this._frame_router(__e, this._compartment, {});\n", param_idents));
-                            }
+                            module.push_str(&format!("  public {}({}): {} {{\n", hname, params, ret_type));
                         }
+                        if let Some(init_expr) = init_expr_opt {
+                            module.push_str(&format!("    const __initial = {};\n", init_expr));
+                        } else {
+                            module.push_str("    const __initial = undefined;\n");
+                        }
+                        module.push_str("    this._systemReturnStack.push(__initial);\n");
+                        module.push_str("    try {\n");
+                        module.push_str(&format!("      const __e = new FrameEvent(\"{}\", null);\n", hname));
+                        if param_idents.is_empty() {
+                            module.push_str("      this._frame_router(__e, this._compartment);\n");
+                        } else {
+                            module.push_str(&format!("      this._frame_router(__e, this._compartment, {});\n", param_idents));
+                        }
+                        module.push_str("      return this._systemReturnStack[this._systemReturnStack.length - 1];\n");
+                        module.push_str("    } finally {\n");
+                        module.push_str("      this._systemReturnStack.pop();\n");
+                        module.push_str("    }\n");
                         module.push_str("  }\n");
                         // Internal event handler: router target with full signature.
                         if params.is_empty() {
@@ -1425,24 +1619,49 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             module.push_str(&format!("  private _event_{}(__e: FrameEvent, compartment: FrameCompartment, {}): void {{\n", hname, params));
                         }
                         module.push_str("    const c = compartment || this._compartment;\n");
+                        // If any handler variant declared a header initializer, apply it to the current system.return slot.
+                        let handler_init_expr = entries.iter().find_map(|(_, _, _, init)| init.as_ref());
+                        if let Some(init) = handler_init_expr {
+                            module.push_str(&format!("    this._systemReturnStack[this._systemReturnStack.length - 1] = {};\n", init));
+                        }
                         if entries.len() == 1 && entries[0].0.is_none() {
                             // Single, non-state-qualified handler: inline body directly.
                             let body = &entries[0].1;
                             for line in body.lines() {
-                                let t = line.trim_end();
-                                if t.is_empty() {
+                                let raw = line.trim_end();
+                                if raw.trim().is_empty() {
                                     module.push_str("    \n");
                                     continue;
                                 }
-                                let needs_sc = !(t.ends_with(';') || t.ends_with('{') || t.ends_with('}'));
+                                let mut t = raw.to_string();
+                                // Rewrite system.return to top-of-stack access.
+                                if t.contains("system.return") {
+                                    t = t.replace(
+                                        "system.return",
+                                        "this._systemReturnStack[this._systemReturnStack.length - 1]",
+                                    );
+                                }
+                                let trimmed = t.trim_start();
+                                // Handler-only sugar: return expr; => system.return = expr; return;
+                                if trimmed.starts_with("return ") && !trimmed.starts_with("return;") {
+                                    let expr = trimmed["return ".len()..].trim_end_matches(';').trim();
+                                    if !expr.is_empty() {
+                                        module.push_str("    this._systemReturnStack[this._systemReturnStack.length - 1] = ");
+                                        module.push_str(expr);
+                                        module.push_str(";\n");
+                                        module.push_str("    return;\n");
+                                        continue;
+                                    }
+                                }
+                                let needs_sc = !(trimmed.ends_with(';') || trimmed.ends_with('{') || trimmed.ends_with('}'));
                                 module.push_str("    ");
-                                module.push_str(t);
+                                module.push_str(trimmed);
                                 if needs_sc { module.push_str(";"); }
                                 module.push('\n');
                             }
                         } else {
                             module.push_str("    switch (c.state) {\n");
-                            for (state_id_opt, body, _) in entries {
+                            for (state_id_opt, body, _, _) in entries {
                                 if let Some(state_name) = state_id_opt.as_deref() {
                                     let compiled_id = if let Some(sys) = system_name.as_deref() {
                                         format!("__{}_state_{}", sys, state_name)
@@ -1454,14 +1673,32 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     module.push_str("      default:\n");
                                 }
                                 for line in body.lines() {
-                                    let t = line.trim_end();
-                                    if t.is_empty() {
+                                    let raw = line.trim_end();
+                                    if raw.trim().is_empty() {
                                         module.push_str("        \n");
                                         continue;
                                     }
-                                    let needs_sc = !(t.ends_with(';') || t.ends_with('{') || t.ends_with('}'));
+                                    let mut t = raw.to_string();
+                                    if t.contains("system.return") {
+                                        t = t.replace(
+                                            "system.return",
+                                            "this._systemReturnStack[this._systemReturnStack.length - 1]",
+                                        );
+                                    }
+                                    let trimmed = t.trim_start();
+                                    if trimmed.starts_with("return ") && !trimmed.starts_with("return;") {
+                                        let expr = trimmed["return ".len()..].trim_end_matches(';').trim();
+                                        if !expr.is_empty() {
+                                            module.push_str("        this._systemReturnStack[this._systemReturnStack.length - 1] = ");
+                                            module.push_str(expr);
+                                            module.push_str(";\n");
+                                            module.push_str("        return;\n");
+                                            continue;
+                                        }
+                                    }
+                                    let needs_sc = !(trimmed.ends_with(';') || trimmed.ends_with('{') || trimmed.ends_with('}'));
                                     module.push_str("        ");
-                                    module.push_str(t);
+                                    module.push_str(trimmed);
                                     if needs_sc { module.push_str(";"); }
                                     module.push('\n');
                                 }
@@ -1470,79 +1707,153 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             module.push_str("    }\n");
                         }
                         module.push_str("  }\n");
-                        router_cases.push((hname, !params.is_empty()));
+                        let arity = if param_idents.is_empty() {
+                            0
+                        } else {
+                            param_idents
+                                .split(',')
+                                .filter(|s| !s.trim().is_empty())
+                                .count()
+                        };
+                        router_cases.push((hname, arity));
                     }
-                    // Router: dispatch on event name to internal handlers.
-                    module.push_str("  _frame_router(__e: FrameEvent, c?: FrameCompartment, ...args: any[]): void {\n");
+                    // Router: dispatch on event name to internal handlers and propagate
+                    // any return value back to the interface wrapper.
+                    module.push_str("  _frame_router(__e: FrameEvent, c?: FrameCompartment, ...args: any[]): any {\n");
                     module.push_str("    const _c = c || this._compartment;\n");
                     module.push_str("    switch (__e.message) {\n");
-                    for (hname, has_params) in router_cases {
-                        if has_params {
-                            module.push_str(&format!("      case \"{}\": this._event_{}(__e, _c, args[0]); break;\n", hname, hname));
+                    for (hname, arity) in router_cases {
+                        if arity == 0 {
+                            module.push_str(&format!("      case \"{}\": return this._event_{}(__e, _c);\n", hname, hname));
                         } else {
-                            module.push_str(&format!("      case \"{}\": this._event_{}(__e, _c); break;\n", hname, hname));
+                            let mut call = format!("      case \"{}\": return this._event_{}(__e, _c", hname, hname);
+                            for idx in 0..arity {
+                                call.push_str(", args[");
+                                call.push_str(&idx.to_string());
+                                call.push(']');
+                            }
+                            call.push_str(");\n");
+                            module.push_str(&call);
                         }
                     }
-                    module.push_str("      default: break;\n");
+                    module.push_str("      default: return;\n");
                     module.push_str("    }\n");
                     module.push_str("  }\n");
                     // Emit actions as class methods so state bodies can call them.
-                    for (aname, is_async, params, body) in actions {
-                        if is_async {
+                    for (aname, is_async, params, body, ret_type_opt) in &actions {
+                        let ty = ret_type_opt.as_deref().unwrap_or("any");
+                        if *is_async {
                             if params.is_empty() {
-                                module.push_str(&format!("  public async {}(): Promise<any> {{\n", aname));
+                                module.push_str(&format!("  public async {}(): Promise<{}> {{\n", aname, ty));
                             } else {
-                                module.push_str(&format!("  public async {}({}): Promise<any> {{\n", aname, params));
+                                module.push_str(&format!("  public async {}({}): Promise<{}> {{\n", aname, params, ty));
                             }
                         } else {
+                            let rty = if ret_type_opt.is_some() { ty } else { "void" };
                             if params.is_empty() {
-                                module.push_str(&format!("  public {}(): void {{\n", aname));
+                                module.push_str(&format!("  public {}(): {} {{\n", aname, rty));
                             } else {
-                                module.push_str(&format!("  public {}({}): void {{\n", aname, params));
+                                module.push_str(&format!("  public {}({}): {} {{\n", aname, params, rty));
                             }
                         }
                         for line in body.lines() {
-                            let t = line.trim_end();
-                            if t.is_empty() {
+                            let raw = line.trim_end();
+                            if raw.is_empty() {
                                 module.push_str("    \n");
                                 continue;
                             }
-                            let needs_sc = !(t.ends_with(';') || t.ends_with('{') || t.ends_with('}'));
+                            let mut t = raw.to_string();
+                            if t.contains("system.return") {
+                                t = t.replace(
+                                    "system.return",
+                                    "this._systemReturnStack[this._systemReturnStack.length - 1]",
+                                );
+                            }
+                            let trimmed = t.trim_start();
+                            let needs_sc = !(trimmed.ends_with(';') || trimmed.ends_with('{') || trimmed.ends_with('}'));
                             module.push_str("    ");
-                            module.push_str(t);
+                            module.push_str(trimmed);
                             if needs_sc { module.push_str(";"); }
                             module.push('\n');
                         }
                         module.push_str("  }\n");
                     }
                     // Emit operations similarly (internal helpers)
-                    for (oname, is_async, params, body) in operations {
-                        if is_async {
+                    for (oname, is_async, params, body, ret_type_opt) in &operations {
+                        let ty = ret_type_opt.as_deref().unwrap_or("any");
+                        if *is_async {
                             if params.is_empty() {
-                                module.push_str(&format!("  public async {}(): Promise<any> {{\n", oname));
+                                module.push_str(&format!("  public async {}(): Promise<{}> {{\n", oname, ty));
                             } else {
-                                module.push_str(&format!("  public async {}({}): Promise<any> {{\n", oname, params));
+                                module.push_str(&format!("  public async {}({}): Promise<{}> {{\n", oname, params, ty));
                             }
                         } else {
+                            let rty = if ret_type_opt.is_some() { ty } else { "void" };
                             if params.is_empty() {
-                                module.push_str(&format!("  public {}(): void {{\n", oname));
+                                module.push_str(&format!("  public {}(): {} {{\n", oname, rty));
                             } else {
-                                module.push_str(&format!("  public {}({}): void {{\n", oname, params));
+                                module.push_str(&format!("  public {}({}): {} {{\n", oname, params, rty));
                             }
                         }
                         for line in body.lines() {
-                            let t = line.trim_end();
-                            if t.is_empty() {
+                            let raw = line.trim_end();
+                            if raw.is_empty() {
                                 module.push_str("    \n");
                                 continue;
                             }
-                            let needs_sc = !(t.ends_with(';') || t.ends_with('{') || t.ends_with('}'));
+                            let mut t = raw.to_string();
+                            if t.contains("system.return") {
+                                t = t.replace(
+                                    "system.return",
+                                    "this._systemReturnStack[this._systemReturnStack.length - 1]",
+                                );
+                            }
+                            let trimmed = t.trim_start();
+                            let needs_sc = !(trimmed.ends_with(';') || trimmed.ends_with('{') || trimmed.ends_with('}'));
                             module.push_str("    ");
-                            module.push_str(t);
+                            module.push_str(trimmed);
                             if needs_sc { module.push_str(";"); }
                             module.push('\n');
                         }
                         module.push_str("  }\n");
+                    }
+                    // Synthesize class fields for native-body state stored on `this.`.
+                    let mut reserved: std::collections::HashSet<String> = std::collections::HashSet::new();
+                    // Domain fields
+                    for (name, _, _) in &domain_fields {
+                        reserved.insert(name.clone());
+                    }
+                    // Internal runtime fields
+                    reserved.insert("_compartment".to_string());
+                    reserved.insert("_stack".to_string());
+                    reserved.insert("_systemReturnStack".to_string());
+                    // Interface methods
+                    if let Some(iface) = iface_meta_for_sys {
+                        for k in iface.keys() {
+                            reserved.insert(k.clone());
+                        }
+                    }
+                    // Actions and operations
+                    for (aname, _, _, _, _) in &actions {
+                        reserved.insert(aname.clone());
+                    }
+                    for (oname, _, _, _, _) in &operations {
+                        reserved.insert(oname.clone());
+                    }
+                    let mut inferred: Vec<String> = field_candidates
+                        .into_iter()
+                        .filter(|name| {
+                            !reserved.contains(name)
+                                && !name.starts_with("_frame_")
+                                && !name.starts_with("_event_")
+                        })
+                        .collect();
+                    inferred.sort();
+                    inferred.dedup();
+                    for name in inferred {
+                        module.push_str("  public ");
+                        module.push_str(&name);
+                        module.push_str(": any;\n");
                     }
                     module.push_str("}\n");
                     out = module;
