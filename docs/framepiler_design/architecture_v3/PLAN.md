@@ -1,5 +1,13 @@
 # V3 Execution Plan — First Principles Rebuild
 
+## Todo Next
+
+- [ ] Stage 11 — Arcanum-backed known-state checks  
+  Replace remaining coarse known-state checks with Arcanum everywhere in the V3
+  module path (Python/TypeScript first), then fan out to other languages. Add
+  targeted fixtures to confirm that unknown-state, parent-forward availability,
+  and transition arg-shape diagnostics are all driven from the Arcanum symbols.
+
 Goal
 - Rebuild the single‑file pipeline from first principles using the V3 docs as the source of truth, then add the multi‑file project layer. Keep the new code hermetic and deterministic.
 

@@ -1258,6 +1258,8 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         }
                         module.push_str("        c = compartment or self._compartment\n");
                         if entries.len() == 1 && entries[0].0.is_none() {
+                            // Single, state-less handler: emit directly under the router without
+                            // an explicit state guard.
                             let body = &entries[0].1;
                             // Normalize indentation while preserving relative nesting inside the handler.
                             let mut min_indent: Option<usize> = None;
@@ -1282,7 +1284,21 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         "self._system_return_stack[-1]",
                                     );
                                 }
-                                let trimmed = t.trim_start();
+                                // Preserve relative indentation beyond the base so nested
+                                // defs / blocks remain valid while normalizing the outer pad.
+                                let bytes_ln = t.as_bytes();
+                                let indent = bytes_ln
+                                    .iter()
+                                    .take_while(|b| **b == b' ' || **b == b'\t')
+                                    .count();
+                                let offset = if indent >= base { base } else { indent };
+                                let content = &t[offset..];
+                                let extra = if indent > base {
+                                    std::str::from_utf8(&bytes_ln[base..indent]).unwrap_or("")
+                                } else {
+                                    ""
+                                };
+                                let trimmed = content.trim_start();
                                 if trimmed.is_empty() {
                                     module.push_str("        \n");
                                     continue;
@@ -1294,14 +1310,19 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 if trimmed.starts_with("return ") && !trimmed.starts_with("return:") && trimmed != "return" && trimmed != "return:" {
                                     let expr = trimmed["return ".len()..].trim_end_matches(':').trim_end();
                                     if !expr.is_empty() {
-                                        module.push_str("        self._system_return_stack[-1] = ");
+                                        module.push_str("        ");
+                                        module.push_str(extra);
+                                        module.push_str("self._system_return_stack[-1] = ");
                                         module.push_str(expr);
                                         module.push('\n');
-                                        module.push_str("        return\n");
+                                        module.push_str("        ");
+                                        module.push_str(extra);
+                                        module.push_str("return\n");
                                         continue;
                                     }
                                 }
                                 module.push_str("        ");
+                                module.push_str(extra);
                                 module.push_str(trimmed);
                                 module.push('\n');
                             }
@@ -1309,6 +1330,198 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             // requires a statement; emit a pass after the comments.
                             if !has_non_comment {
                                 module.push_str("        pass\n");
+                            }
+                        } else if entries.len() == 1 {
+                            // Single state-qualified handler: emit a single guarded block and
+                            // normalize indentation inside that block while preserving relative
+                            // nesting (e.g., nested defs / blocks).
+                            let (state_id_opt, body, _) = &entries[0];
+                            if let Some(state_name) = state_id_opt.as_deref() {
+                                let compiled_id = if let Some(sys) = system_name.as_deref() {
+                                    format!("__{}_state_{}", sys, state_name)
+                                } else {
+                                    state_name.to_string()
+                                };
+                                module.push_str(&format!(
+                                    "        if c.state == \"{}\":\n",
+                                    compiled_id
+                                ));
+                                let mut min_indent: Option<usize> = None;
+                                for ln in body.lines() {
+                                    if ln.trim().is_empty() {
+                                        continue;
+                                    }
+                                    let indent = ln
+                                        .as_bytes()
+                                        .iter()
+                                        .take_while(|b| **b == b' ' || **b == b'\t')
+                                        .count();
+                                    min_indent =
+                                        Some(min_indent.map_or(indent, |m| m.min(indent)));
+                                }
+                                let base = min_indent.unwrap_or(0);
+                                let mut has_non_comment = false;
+                                for ln in body.lines() {
+                                    let raw = ln.trim_end();
+                                    if raw.trim().is_empty() {
+                                        module.push_str("            \n");
+                                        continue;
+                                    }
+                                    let mut t = raw.to_string();
+                                    if t.contains("system.return") {
+                                        t = t.replace(
+                                            "system.return",
+                                            "self._system_return_stack[-1]",
+                                        );
+                                    }
+                                    let bytes_ln = t.as_bytes();
+                                    let indent = bytes_ln
+                                        .iter()
+                                        .take_while(|b| **b == b' ' || **b == b'\t')
+                                        .count();
+                                    let offset =
+                                        if indent >= base { base } else { indent };
+                                    let content = &t[offset..];
+                                    let extra = if indent > base {
+                                        std::str::from_utf8(&bytes_ln[base..indent])
+                                            .unwrap_or("")
+                                    } else {
+                                        ""
+                                    };
+                                    let trimmed = content.trim_start();
+                                    if trimmed.is_empty() {
+                                        module.push_str("            \n");
+                                        continue;
+                                    }
+                                    // Comments should be preserved but do not count
+                                    // as satisfying Python's requirement for a statement
+                                    // in the branch.
+                                    if !trimmed.starts_with('#') {
+                                        has_non_comment = true;
+                                    }
+                                    // Router calls generated from Frame forward/transition
+                                    // semantics should always live at the top level of the
+                                    // state guard, not nested under any local defs/blocks.
+                                    if trimmed.starts_with("self._frame_router(") {
+                                        module.push_str("            ");
+                                        module.push_str(trimmed);
+                                        module.push('\n');
+                                        continue;
+                                    }
+                                    if trimmed.starts_with("return ")
+                                        && !trimmed.starts_with("return:")
+                                        && trimmed != "return"
+                                        && trimmed != "return:"
+                                    {
+                                        let expr = trimmed["return ".len()..]
+                                            .trim_end_matches(':')
+                                            .trim_end();
+                                        if !expr.is_empty() {
+                                            module.push_str("            ");
+                                            module.push_str(extra);
+                                            module.push_str(
+                                                "self._system_return_stack[-1] = ",
+                                            );
+                                            module.push_str(expr);
+                                            module.push('\n');
+                                            module.push_str("            ");
+                                            module.push_str(extra);
+                                            module.push_str("return\n");
+                                            continue;
+                                        }
+                                    }
+                                    module.push_str("            ");
+                                    module.push_str(extra);
+                                    module.push_str(trimmed);
+                                    module.push('\n');
+                                }
+                                if !has_non_comment {
+                                    module.push_str("            pass\n");
+                                }
+                            } else {
+                                // Defensive fallback: treat as state-less handler if the outline
+                                // did not record a state id.
+                                let body = &entries[0].1;
+                                let mut min_indent: Option<usize> = None;
+                                for ln in body.lines() {
+                                    if ln.trim().is_empty() {
+                                        continue;
+                                    }
+                                    let indent = ln
+                                        .as_bytes()
+                                        .iter()
+                                        .take_while(|b| **b == b' ' || **b == b'\t')
+                                        .count();
+                                    min_indent =
+                                        Some(min_indent.map_or(indent, |m| m.min(indent)));
+                                }
+                                let base = min_indent.unwrap_or(0);
+                                let mut has_non_comment = false;
+                                for ln in body.lines() {
+                                    let raw = ln.trim_end();
+                                    if raw.trim().is_empty() {
+                                        module.push_str("        \n");
+                                        continue;
+                                    }
+                                    let mut t = raw.to_string();
+                                    if t.contains("system.return") {
+                                        t = t.replace(
+                                            "system.return",
+                                            "self._system_return_stack[-1]",
+                                        );
+                                    }
+                                    let bytes_ln = t.as_bytes();
+                                    let indent = bytes_ln
+                                        .iter()
+                                        .take_while(|b| **b == b' ' || **b == b'\t')
+                                        .count();
+                                    let offset =
+                                        if indent >= base { base } else { indent };
+                                    let content = &t[offset..];
+                                    let extra = if indent > base {
+                                        std::str::from_utf8(&bytes_ln[base..indent])
+                                            .unwrap_or("")
+                                    } else {
+                                        ""
+                                    };
+                                    let trimmed = content.trim_start();
+                                    if trimmed.is_empty() {
+                                        module.push_str("        \n");
+                                        continue;
+                                    }
+                                    if !trimmed.starts_with('#') {
+                                        has_non_comment = true;
+                                    }
+                                    if trimmed.starts_with("return ")
+                                        && !trimmed.starts_with("return:")
+                                        && trimmed != "return"
+                                        && trimmed != "return:"
+                                    {
+                                        let expr = trimmed["return ".len()..]
+                                            .trim_end_matches(':')
+                                            .trim_end();
+                                        if !expr.is_empty() {
+                                            module.push_str("        ");
+                                            module.push_str(extra);
+                                            module.push_str(
+                                                "self._system_return_stack[-1] = ",
+                                            );
+                                            module.push_str(expr);
+                                            module.push('\n');
+                                            module.push_str("        ");
+                                            module.push_str(extra);
+                                            module.push_str("return\n");
+                                            continue;
+                                        }
+                                    }
+                                    module.push_str("        ");
+                                    module.push_str(extra);
+                                    module.push_str(trimmed);
+                                    module.push('\n');
+                                }
+                                if !has_non_comment {
+                                    module.push_str("        pass\n");
+                                }
                             }
                         } else {
                             let mut first_case = true;
@@ -1338,6 +1551,23 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 // the generated guard. This avoids carrying deep pad offsets
                                 // from Frame expansions that can trigger inconsistent
                                 // indentation errors in Python while preserving order.
+                                // Normalize indentation per state body while preserving
+                                // relative nesting (e.g., nested defs / blocks) so that
+                                // Python does not see inconsistent indentation.
+                                let mut min_indent: Option<usize> = None;
+                                for ln in body.lines() {
+                                    if ln.trim().is_empty() {
+                                        continue;
+                                    }
+                                    let indent = ln
+                                        .as_bytes()
+                                        .iter()
+                                        .take_while(|b| **b == b' ' || **b == b'\t')
+                                        .count();
+                                    min_indent =
+                                        Some(min_indent.map_or(indent, |m| m.min(indent)));
+                                }
+                                let base = min_indent.unwrap_or(0);
                                 let mut has_non_comment = false;
                                 for ln in body.lines() {
                                     let raw = ln.trim_end();
@@ -1352,7 +1582,21 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                             "self._system_return_stack[-1]",
                                         );
                                     }
-                                    let trimmed = t.trim_start();
+                                    let bytes_ln = t.as_bytes();
+                                    let indent = bytes_ln
+                                        .iter()
+                                        .take_while(|b| **b == b' ' || **b == b'\t')
+                                        .count();
+                                    let offset =
+                                        if indent >= base { base } else { indent };
+                                    let content = &t[offset..];
+                                    let extra = if indent > base {
+                                        std::str::from_utf8(&bytes_ln[base..indent])
+                                            .unwrap_or("")
+                                    } else {
+                                        ""
+                                    };
+                                    let trimmed = content.trim_start();
                                     if trimmed.is_empty() {
                                         module.push_str("            \n");
                                         continue;
@@ -1363,17 +1607,30 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     if !trimmed.starts_with('#') {
                                         has_non_comment = true;
                                     }
-                                    if trimmed.starts_with("return ") && !trimmed.starts_with("return:") && trimmed != "return" && trimmed != "return:" {
-                                        let expr = trimmed["return ".len()..].trim_end_matches(':').trim_end();
+                                    if trimmed.starts_with("return ")
+                                        && !trimmed.starts_with("return:")
+                                        && trimmed != "return"
+                                        && trimmed != "return:"
+                                    {
+                                        let expr = trimmed["return ".len()..]
+                                            .trim_end_matches(':')
+                                            .trim_end();
                                         if !expr.is_empty() {
-                                            module.push_str("            self._system_return_stack[-1] = ");
+                                            module.push_str("            ");
+                                            module.push_str(extra);
+                                            module.push_str(
+                                                "self._system_return_stack[-1] = ",
+                                            );
                                             module.push_str(expr);
                                             module.push('\n');
-                                            module.push_str("            return\n");
+                                            module.push_str("            ");
+                                            module.push_str(extra);
+                                            module.push_str("return\n");
                                             continue;
                                         }
                                     }
                                     module.push_str("            ");
+                                    module.push_str(extra);
                                     module.push_str(trimmed);
                                     module.push('\n');
                                 }

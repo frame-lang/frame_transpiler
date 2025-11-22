@@ -1,4 +1,5 @@
 @target python
+# @exec-ok
 
 system S {
     machine:
