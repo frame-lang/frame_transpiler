@@ -46,7 +46,7 @@ impl Arcanum {
     }
 }
 
-pub fn build_arcanum_from_outline_bytes(bytes: &[u8], start: usize) -> Arcanum {
+pub fn build_arcanum_from_outline_bytes(bytes: &[u8], _start: usize) -> Arcanum {
     // DEPRECATED: kept temporarily for compatibility; prefer build_arcanum_from_module_ast.
     // For now, delegate to a ModuleAst-based builder using the default language
     // assumptions of the outer pipeline (Python3 is sufficient for brace/indent).

@@ -1399,9 +1399,15 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     if !trimmed.starts_with('#') {
                                         has_non_comment = true;
                                     }
-                                    // Router calls generated from Frame forward/transition
-                                    // semantics should always live at the top level of the
-                                    // state guard, not nested under any local defs/blocks.
+                                    // Router/transition calls generated from Frame semantics
+                                    // should always live at the top level of the state guard,
+                                    // not nested under any local defs/blocks.
+                                    if trimmed.starts_with("next_compartment = FrameCompartment(") {
+                                        module.push_str("            ");
+                                        module.push_str(trimmed);
+                                        module.push('\n');
+                                        continue;
+                                    }
                                     if trimmed.starts_with("self._frame_router(") {
                                         module.push_str("            ");
                                         module.push_str(trimmed);
@@ -2690,20 +2696,22 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         let state_issues = validator.validate_machine_state_headers_ast(bytes, &module_ast);
         all_issues.extend(state_issues);
         // handlers must be nested inside a state block in machine:, validated against Arcanum/AST.
-        let arc_for_ctx = crate::frame_c::v3::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
-        let handler_scope_issues = validator.validate_handlers_in_state_ast(&items, &arc_for_ctx);
+        let arc_for_ctx =
+            crate::frame_c::v3::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
+        let handler_scope_issues =
+            validator.validate_handlers_in_state_ast(bytes, &items, &module_ast, &arc_for_ctx);
         all_issues.extend(handler_scope_issues);
         // domain blocks must contain only variable declarations
         let domain_issues = validator.validate_domain_blocks_decls_only(bytes, outline_start, lang);
         all_issues.extend(domain_issues);
-        // Collect known state names (coarse) and build Arcanum for symbol-precision
+        // Collect known state names (coarse) and build Arcanum for symbol-precision.
+        // For PRT languages we rely on the ModuleAst-backed Arcanum; non-PRT languages
+        // continue to use a coarse known-state set for E402.
         known_states = validator.collect_machine_state_names(bytes, outline_start);
-        arcanum_symtab = Some(crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, outline_start));
-        if let Some(ref arc) = arcanum_symtab {
-            let sys_param_issues =
-                validator.validate_system_param_semantics(bytes, outline_start, lang, arc, &items);
-            all_issues.extend(sys_param_issues);
-        }
+        arcanum_symtab = Some(arc_for_ctx.clone());
+        let sys_param_issues =
+            validator.validate_system_param_semantics(bytes, outline_start, lang, &arc_for_ctx, &items);
+        all_issues.extend(sys_param_issues);
         // Collect interface method names for system.method(...) validation using the system parser.
         interface_methods =
             InterfaceParserV3.collect_all_interface_method_names(bytes, &module_ast, lang);
@@ -2729,14 +2737,23 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         if !parse_issues.is_empty() { all_issues.extend(parse_issues); }
         let policy = ValidatorPolicyV3 { body_kind: Some(b.kind) };
         let mut res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
-        // Validate that transition targets refer to known states (symbol-table first, fallback to coarse set)
-        if let Some(ref arc) = arcanum_symtab {
-            if !known_states.is_empty() {
-                let sys = system_name.as_deref();
-                res.issues.extend(validator.validate_transition_targets_arcanum(&mir, arc, sys));
+        // Validate that transition targets refer to known states.
+        match lang {
+            TargetLanguage::Python3 | TargetLanguage::TypeScript | TargetLanguage::Rust => {
+                if let Some(ref arc) = arcanum_symtab {
+                    let sys = system_name.as_deref();
+                    res.issues.extend(
+                        validator.validate_transition_targets_arcanum(&mir, arc, sys)
+                    );
+                }
             }
-        } else if !known_states.is_empty() {
-            res.issues.extend(validator.validate_transition_targets(&mir, &known_states));
+            _ => {
+                if !known_states.is_empty() {
+                    res.issues.extend(
+                        validator.validate_transition_targets(&mir, &known_states)
+                    );
+                }
+            }
         }
         // Optional advisory policy: state parameter arity (Stage 10B).
         if std::env::var("FRAME_VALIDATE_NATIVE_POLICY").ok().as_deref() == Some("1") {
@@ -2864,7 +2881,8 @@ pub fn validate_module_with_arcanum(
     let state_issues = validator.validate_machine_state_headers_ast(bytes, &module_ast);
     all_issues.extend(state_issues);
     let arc_for_ctx = crate::frame_c::v3::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
-    let handler_scope_issues = validator.validate_handlers_in_state_ast(&items, &arc_for_ctx);
+    let handler_scope_issues =
+        validator.validate_handlers_in_state_ast(bytes, &items, &module_ast, &arc_for_ctx);
     all_issues.extend(handler_scope_issues);
 
     let system_name = find_system_name(bytes, 0);

@@ -232,6 +232,18 @@ def expand_transition(target_state: string, exitArgs, enterArgs, stateArgs):
   within a handler (E400): no additional executable statements after the Frame
   statement in the same block, except comments/whitespace.
 
+Validation (PRT / Arcanum-backed):
+
+- For the PRT languages (Python/TypeScript/Rust), V3 uses the ModuleAst +
+  Arcanum symbol table to validate transition targets:
+  - If a handler transitions to `$TargetState` that is not declared in the
+    enclosing system’s `machine:` block, validation reports  
+    **E402: unknown state 'TargetState'**.
+  - This check runs in both the V3 module path and the V3 CLI pipelines for
+    Py/TS/Rust and is driven by the same Arcanum symbols used for codegen.
+  - Non‑PRT languages continue to use a coarse structural known‑state set for
+    E402 until their V3 paths are upgraded.
+
 ### 2.4 Parent Forward (`=> $^`)
 
 Forward semantics:
@@ -249,6 +261,14 @@ V3 includes validation:
 
 - If there is no parent state in the system hierarchy, parent forward raises
   **E403: Cannot forward to parent: no parent available**.
+
+For Py/TS/Rust, the parent‑availability check is Arcanum‑backed:
+
+- The Arcanum records parent relationships between states (e.g.,
+  `$B => $A { … }`), and the validator only allows `=> $^` when the enclosing
+  state has a parent in that symbol table.
+- If a handler contains a `Forward` MIR item but the Arcanum indicates no
+  parent for the enclosing state, E403 is emitted in the V3 module/CLI paths.
 
 ### 2.5 Stack Operations (`$$[+]`, `$$[-]`)
 
@@ -357,6 +377,26 @@ header default by assigning a new value via `return a`.
 - Placement rules are enforced structurally in the validator (handlers,
   actions, and operations share the same semantics) and exercised via the
   V3 `system_return_*` capability fixtures.
+
+### 2.7 Handler Placement (`machine:` vs `interface:`)
+
+V3 enforces that:
+
+- Handlers inside `machine:` must be nested within a state block (`$State { … }`);
+- Interface handlers live under `interface:` and are *not* required to be
+  inside a state block.
+
+Implementation details:
+
+- The validator uses the ModuleAst + Arcanum to collect all state spans in
+  each system’s `machine:` section.
+- For handlers whose headers lie inside `machine:`, the validator checks that
+  their header offsets fall within some `$State` span; otherwise it emits  
+  **E404: handler body must be inside a state block**.
+- Handlers whose headers lie outside any `machine:` section (e.g., interface
+  handlers) are excluded from this check. This Arcanum‑backed behavior is
+  implemented for the PRT languages (Py/TS/Rust) in the V3 module and CLI
+  paths; non‑PRT languages continue to rely on the existing structural checks.
 
 ### 2.7 `system.method()` Calls
 

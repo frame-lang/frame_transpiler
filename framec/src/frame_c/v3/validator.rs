@@ -2,11 +2,9 @@ use crate::frame_c::v3::mir::MirItemV3;
 use crate::frame_c::v3::native_region_scanner::RegionV3;
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v3::outline_scanner::OutlineItemV3;
-use crate::frame_c::v3::body_closer::BodyCloserV3;
 use std::collections::HashSet;
 use super::arcanum::Arcanum;
 use super::ast::{ModuleAst, SystemSectionKind};
-use super::body_closer as closer;
 use super::system_param_semantics::{collect_domain_vars_per_system, first_state_for_system};
 
 #[derive(Debug, Clone)]
@@ -71,7 +69,8 @@ impl ValidatorV3 {
         let known_states = self.collect_machine_state_names(bytes, outline_start);
         let arcanum = crate::frame_c::v3::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
         // Handlers must be nested inside a state block in machine:, now validated against Arcanum/AST.
-        let handler_scope_issues = self.validate_handlers_in_state_ast(&items, &arcanum);
+        let handler_scope_issues =
+            self.validate_handlers_in_state_ast(bytes, &items, &module_ast, &arcanum);
         issues.extend(handler_scope_issues);
 
         let ctx = ModuleSemanticContextV3 {
@@ -437,7 +436,13 @@ impl ValidatorV3 {
                     if sec_kind != Some(Sec::Operations) { issues.push(ValidationIssueV3{ message: "operation body outside operations: section".into() }); }
                 }
                 super::validator::BodyKindV3::Handler => {
-                    if sec_kind != Some(Sec::Machine) { issues.push(ValidationIssueV3{ message: "handler body outside machine: section".into() }); }
+                    // Machine handlers must live under `machine:`, but interface
+                    // handlers are also valid and should not trigger this check.
+                    if sec_kind != Some(Sec::Machine) && sec_kind != Some(Sec::Interface) {
+                        issues.push(ValidationIssueV3{
+                            message: "handler body outside machine: section".into()
+                        });
+                    }
                 }
                 super::validator::BodyKindV3::Function => {
                     // Functions live at top level; they are not tied to a section.
@@ -842,27 +847,53 @@ impl ValidatorV3 {
     }
 
     /// Ensure handlers in machine: are nested within a state block, using the Arcanum/AST
-    /// state spans rather than relying solely on OutlineScanner state_id.
+    /// state spans rather than relying solely on OutlineScanner state_id. Interface handlers
+    /// are explicitly excluded from this check.
     pub fn validate_handlers_in_state_ast(
         &self,
+        bytes: &[u8],
         outline: &[OutlineItemV3],
+        module: &ModuleAst,
         arc: &Arcanum,
     ) -> Vec<ValidationIssueV3> {
-        let mut issues = Vec::new();
+        // Collect machine section spans from the ModuleAst.
+        let n = bytes.len();
+        let mut machine_spans: Vec<(usize, usize)> = Vec::new();
+        for sys in &module.systems {
+            if let Some(machine_span) = sys.sections.machine {
+                let start = machine_span.start.min(n);
+                let end = machine_span.end.min(n);
+                machine_spans.push((start, end));
+            }
+        }
+        // If there is no machine: section at all, there is nothing to validate for E404.
+        if machine_spans.is_empty() {
+            return Vec::new();
+        }
+
         // Collect all state spans from Arcanum.
-        let mut spans: Vec<(usize, usize)> = Vec::new();
+        let mut state_spans: Vec<(usize, usize)> = Vec::new();
         for sys in arc.systems.values() {
             for mach in sys.machines.values() {
                 for st in mach.states.values() {
-                    spans.push((st.span.start, st.span.end));
+                    state_spans.push((st.span.start, st.span.end));
                 }
             }
         }
+
+        let mut issues = Vec::new();
         for it in outline {
             if let BodyKindV3::Handler = it.kind {
                 let header_pos = it.header_span.start;
+                // Only enforce E404 for handlers whose headers lie within a machine: section.
+                let in_machine = machine_spans
+                    .iter()
+                    .any(|(s, e)| header_pos >= *s && header_pos < *e);
+                if !in_machine {
+                    continue;
+                }
                 let mut in_state = false;
-                for (s, e) in &spans {
+                for (s, e) in &state_spans {
                     if header_pos >= *s && header_pos < *e {
                         in_state = true;
                         break;

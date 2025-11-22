@@ -24,6 +24,20 @@ These mappings are derived from the outer AST (`ModuleAst`) and symbol table
 - `SystemParamsAst` plus per‑system state information determine system/start/
   enter/domain parameter wiring.
 
+For the PRT languages (Python/TypeScript/Rust), these same AST/symbols also
+drive key validation rules in the V3 module and CLI paths:
+
+- **E402 (unknown state)**: transitions whose `$TargetState` does not appear in
+  the Arcanum for the enclosing system’s `machine:` block are rejected.
+- **E403 (no parent for `=> $^`)**: parent forwards are allowed only when the
+  Arcanum records a parent for the enclosing state.
+- **E404 (handler outside state)**: handlers inside `machine:` must reside
+  within some `$State { … }` span; interface handlers under `interface:` are
+  exempt.
+
+Non‑PRT languages continue to use the existing structural known‑state and
+section checks for these diagnostics until their V3 paths are upgraded.
+
 ## Python Target (V3)
 
 ### Imports and runtime

@@ -2,11 +2,21 @@
 
 ## Todo Next
 
-- [ ] Stage 11 — Arcanum-backed known-state checks  
-  Replace remaining coarse known-state checks with Arcanum everywhere in the V3
-  module path (Python/TypeScript first), then fan out to other languages. Add
-  targeted fixtures to confirm that unknown-state, parent-forward availability,
-  and transition arg-shape diagnostics are all driven from the Arcanum symbols.
+- [x] Stage 11 — Docs alignment for PRT Arcanum semantics  
+  Document the Arcanum-backed behavior of E402 (unknown state), E403 (parent
+  forward with no parent), and E404 (handler outside state) for the PRT
+  languages in the V3 architecture docs (`frame_runtime.md`, `codegen.md`).
+  Ensure the docs are explicit that Py/TS/Rust use the ModuleAst/Arcanum
+  symbol table for these diagnostics in the V3 module and CLI paths, while
+  non‑PRT languages remain on the coarse structural checks for now.
+
+## Todo Next
+
+- [ ] Stage 12 — PRT-focused FID / Native Import Mapping  
+  Start Stage 12 for the PRT languages only: define the initial FID schema and
+  cache layout, and prototype a minimal Py/TS/Rust implementation behind flags
+  without enabling it in the default pipelines. Keep non‑PRT languages on the
+  existing facade-only behavior until the PRT implementation is stable.
 
 Goal
 - Rebuild the single‑file pipeline from first principles using the V3 docs as the source of truth, then add the multi‑file project layer. Keep the new code hermetic and deterministic.
@@ -116,8 +126,9 @@ Stage 10 — Completion
   - Arcanum threaded through module validation and exec contexts; unknown-state and parent-forward checks driven by symbols.
 
 Stage 11 — Full AST/Symbol Integration (scoped)
-- [ ] Replace remaining coarse known-state checks with Arcanum everywhere (complete).
-- [ ] Prepare optional native AST hooks (advisory only) for future param-bound checks (no codegen changes).
+- [x] Replace remaining coarse known-state checks with Arcanum for PRT (Py/TS/Rust) in the V3 module/CLI paths; keep non‑PRT languages on the coarse known‑state set for now.
+- [x] Prepare optional native AST hooks (advisory only) for future param-bound checks (no codegen changes).
+  - Native facade parsers (SWC/RustPython/syn) are already wired via `NativeFacadeRegistryV3` in the V3 module path for Py/TS/Rust, mapping advisory diagnostics onto `ValidationIssueV3` without affecting codegen. CLI flags/environment (`strict_native`, `FRAME_VALIDATE_NATIVE_POLICY`) gate these checks so they remain optional.
 
 Stage 12 — FID / Native Import Mapping
 - [ ] Define FID schema and cache (.frame/cache/fid).
