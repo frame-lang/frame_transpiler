@@ -1,24 +1,24 @@
 # Stage 07 — Native Parse Facade (C#)
 
 Purpose (V3 minimal)
-- Provide hermetic validation of facade wrapper calls in strict mode. Wrapper lines are always validated; optional structural C# parsing is available behind a feature flag.
+- Provide hermetic validation of facade runtime helper calls in strict mode. Lines containing these calls are always validated; optional structural C# parsing is available behind a feature flag.
 
 Runtime Optionality
 - Gated by `--validate-native` (strict). Off by default.
-- Wrapper-only checks are always available; structural C# parsing uses Tree-sitter when the `native-csharp` cargo feature is enabled.
+- Call-site checks are always available; structural C# parsing uses Tree-sitter when the `native-csharp` cargo feature is enabled.
 
 Inputs
-- Spliced body text + `splice_map` with wrapper calls inserted when `FRAME_FACADE_EXPANSION=1`.
+- Spliced body text + `splice_map` with helper calls inserted when `FRAME_FACADE_EXPANSION=1`.
 
 Outputs
-- Diagnostics for wrapper lines only (spliced spans), remapped to Frame/native via `splice_map`.
+- Diagnostics for helper-call lines only (spliced spans), remapped to Frame/native via `splice_map`.
 
-Checks (wrapper-only)
-- Balanced parentheses on wrapper calls.
-- Require trailing semicolon `;` on wrapper lines.
+Checks (call-sites only)
+- Balanced parentheses on helper calls.
+- Require trailing semicolon `;` on these lines.
 
-Wrapper arguments (policy)
-- Transition wrapper `__frame_transition("<State>"[, <args>...]);`
+Helper call arguments (policy)
+- Transition helper `__frame_transition("<State>"[, <args>...]);`
   - First argument must be a quoted state identifier matching `[A-Za-z_][A-Za-z0-9_]*` (single or double quotes accepted; double quotes shown here).
   - Additional arguments are allowed and left uninterpreted (count/shape validated later in Stage 09).
 - `__frame_forward();` and `__frame_stack_{push|pop}();` take no arguments.
@@ -33,18 +33,18 @@ Scanner/Closer Constraints (inputs to facade)
   - SOL preprocessor lines: `#if`, `#elif`, `#endif`, `#define`, etc. (treated as part of the imports/outline when at SOL).
 
 Diagnostics
-- `unbalanced parentheses in wrapper`
+- `unbalanced parentheses in helper call`
 - `missing semicolon terminator`
-- `transition wrapper: first argument must be quoted state`
-- `transition wrapper: invalid state identifier`
-- `wrapper takes no arguments` (for forward/stack wrappers)
+- `transition helper: first argument must be quoted state`
+- `transition helper: invalid state identifier`
+- `helper call takes no arguments` (for forward/stack helpers)
 
 Acceptance
 - Disabled by default; zero impact when off.
-- When enabled, surfaces wrapper-line errors with correct attribution.
+- When enabled, surfaces helper-call errors with correct attribution.
 
 Tests
-- v3_facade_smoke negatives (wrapper-only) produce expected failures; diagnostics map through `splice_map`.
+- v3_facade_smoke negatives (call-sites only) produce expected failures; diagnostics map through `splice_map`.
 
 Native parser integration (optional)
 - Structural C# parsing via Tree-sitter is available behind cargo feature `native-csharp` and `--validate-native`.

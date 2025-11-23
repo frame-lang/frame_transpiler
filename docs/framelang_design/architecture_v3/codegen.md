@@ -6,7 +6,7 @@ Purpose
 
 Scope
 - Python, TypeScript, Rust as primary “PRT” targets.
-- C/C++/Java/C# stay facade/wrapper‑only for now (compile‑time and debugger artifacts).
+- C/C++/Java/C# stay facade‑only for now (compile‑time and debugger artifacts).
 
 High‑Level Model (Backed by ModuleAst + Arcanum)
 - `system` → a target‑language class/struct that owns:
@@ -159,7 +159,7 @@ V3 codegen emits a Python class with:
   - `domain:` variables become instance attributes initialized in `__init__`
     using domain parameters when present.
   - `actions:` and `operations:` become helper methods on the class (internal
-    `_action_*` implementations plus public wrappers), with bodies treated as
+    `_action_*` implementations plus public entrypoints), with bodies treated as
     native Python + embedded Frame statements lowered via MIR.
 
 ### Functions and `fn main`
@@ -238,7 +238,7 @@ V3 codegen emits a Python class with:
     _frame_router(__e: FrameEvent, c?: FrameCompartment) {
       // Current V3 TS impl largely mirrors Python structurally:
       // event-specific handlers are emitted as methods and invoked by
-      // interface wrappers. Full router parity is a roadmap item.
+      // generated interface methods. Full router parity is a roadmap item.
       const _c = c || this._compartment;
       const _m = __e.message;
       void _c;
@@ -293,18 +293,27 @@ V3 codegen emits a Python class with:
 
 - As with Python, function bodies are scanned/spliced so embedded Frame statements use the same kernel helpers.
 
-## Rust Target (outline)
+## Rust Target (PRT parity plan)
 
-- Systems map to:
+- Goal: bring the Rust V3 target to parity with Python/TypeScript:
+  - Real `FrameCompartment` struct and `FrameEvent` type for the runtime.
+  - `_frame_transition`/`_frame_router` methods on the generated system struct.
+  - `system.return` per‑call stack and generated interface methods mirroring the Python/TS design.
+  - Curated exec suites (`v3_core`, `v3_control_flow`, `v3_scoping`, `v3_systems`) running against the real Rust runtime.
+
+- Target structure (design):
   - A `struct` for the system, containing:
     - A compartment struct (`FrameCompartment` analog) holding `StateId`, args, vars, etc.
-  - An `enum StateId { A, B, … }` (now the default).
+    - A stack of compartments for `$$[+]`/`$$[-]`.
+    - A per‑call `system_return_stack: Vec<Value>` analogous to the Python/TS `_systemReturnStack`.
+  - An `enum StateId { A, B, … }` (default‑on).
   - Methods:
-    - `fn new() -> Self` initializing the compartment to the start state.
-    - `fn frame_router(&mut self, e: FrameEvent)` switching on `self.compartment.state`.
-    - Per‑state handler methods (`fn s_A_tick(&mut self, e: FrameEvent)`, etc.).
+    - `fn new(...) -> Self` initializing the compartment to the start state (first state in `machine:` per Arcanum) and firing `$enter`.
+    - `fn frame_transition(&mut self, next: FrameCompartment)` switching the active compartment and firing `$enter`.
+    - `fn frame_router(&mut self, e: FrameEvent)` switching on `(self.compartment.state, e.message)` and invoking state‑specific handlers.
+    - Per‑state handler methods (`fn s_A_tick(&mut self, e: FrameEvent)`, etc.) and generated interface methods that manage `system.return`.
 
-- Transitions lower to:
+- Transitions will lower to:
   ```rust
   let mut next_compartment = FrameCompartment::new(StateId::B);
   // exit/enter/state args wiring
@@ -312,7 +321,7 @@ V3 codegen emits a Python class with:
   return;
   ```
 
-- `fn main` in Frame maps to a native Rust `fn main()` in the generated module/binary crate when that mode is enabled; otherwise, it is a regular helper function.
+- `fn main` in Frame will map to a native Rust `fn main()` in the generated module/binary crate when that mode is enabled; otherwise, it is a regular helper function. Parity with Python/TS for `fn main` wiring is part of this plan.
 
 ## Non‑PRT Targets (C/C++/Java/C#)
 

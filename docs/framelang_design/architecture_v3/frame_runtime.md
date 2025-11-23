@@ -297,7 +297,7 @@ previous compartments, including state variables and arguments.
 
 ```pseudocode
 def interface_status(self) -> string:
-    # generated wrapper
+    # generated interface method
     event = FrameEvent("status", [])
     self._frame_router(event)
     return self._system_return_default_or_current("status")
@@ -308,7 +308,7 @@ Handler:
 ```pseudocode
 status() {
     system.return = "idle"
-    # no explicit return from handler; wrapper reads system.return
+    # no explicit return from handler; generated interface method reads system.return
 }
 ```
 
@@ -317,7 +317,7 @@ Abstract rules:
 - `system.return` is a special variable associated with the **current call to
   an interface method**. Each interface invocation allocates a per‑call slot on
   a return stack (`_system_return_stack`).
-- When an interface wrapper returns, it reads the current `system.return`
+- When a generated interface method returns, it reads the current `system.return`
   value from the top of that stack and returns it; if no handler or helper has
   written to it, the value comes from the interface header default
   (`name(params): Type = Expr`).
@@ -361,8 +361,8 @@ system Example {
 
 For `a1()`:
 - When `self.x < 5`, the bare `return` leaves `system.return` at the header
-  default (`10`), so the wrapper returns `10`.
-- Otherwise, `return 0` updates `system.return` to `0` and the wrapper returns
+  default (`10`), so the generated interface method returns `10`.
+- Otherwise, `return 0` updates `system.return` to `0` and the generated interface method returns
   `0`.
 
 For `a2(a)`, the header default (`a`) is preserved by the bare `return`, so
@@ -468,7 +468,8 @@ class TrafficLight:
 
 - Handlers are emitted as methods with signatures derived from Frame headers.
 - Actions/operations are emitted as internal `_action_*` / `_operation_*`
-  methods plus public wrapper methods (FRM names) that call them.
+  methods plus generated interface methods (FRM names) that call them when
+  exposed on the public surface.
 - Frame statements inside those bodies are expanded via `PyExpanderV3` into
   `_frame_transition`, `_frame_router`, `_frame_stack_push/pop` calls.
 
@@ -558,7 +559,7 @@ structural class‑based system runtime equivalent to Python/TS.
 For C/C++/Java/C#, V3 currently focuses on:
 
 - Generating valid native code for Frame statements via expander facades.
-- Providing minimal `main()` wrappers and runtime helpers in the exec‑smoke
+- Providing minimal `main()` entrypoints and runtime helpers in the exec‑smoke
   tests to show that transitions, forward, and stack operations compile and run.
 
 These targets do not yet have a fully featured class‑based runtime in the V3

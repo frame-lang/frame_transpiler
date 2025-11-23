@@ -2,13 +2,13 @@
 
 ## Todo Next
 
-- [ ] Docs — PRT V3 expansion semantics  
-  Align the V3 per-language expansion docs for Python and TypeScript with the
-  implemented semantics (system.return stack, interface wrappers, handler
-  return sugar, adapter glue). Once the docs match the current codegen, mark
-  the relevant sections in `05_frame_statement_expansion_python.md` and
-  `05_frame_statement_expansion_typescript.md` as complete and add brief
-  cross-references from the architecture overview.
+- [ ] Rust runtime parity with Python/TypeScript (PRT)  
+  Bring the Rust V3 codegen and runtime semantics up to parity with the Python
+  and TypeScript V3 implementations: `_frame_transition/_frame_router` glue,
+  `system.return` per-call stack, generated interface methods, and curated
+  exec suites for `v3_core`, `v3_control_flow`, `v3_scoping`, and `v3_systems`.
+  Update the Rust V3 docs to match and mark the PRT trio (Py/TS/Rust) as
+  fully aligned in the architecture overview.
 
 Goal
 - Rebuild the single‑file pipeline from first principles using the V3 docs as the source of truth, then add the multi‑file project layer. Keep the new code hermetic and deterministic.
