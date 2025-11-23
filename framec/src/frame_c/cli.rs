@@ -182,25 +182,57 @@ pub fn run() {
     run_with(Cli::new());
 }
 
-pub fn run_with(mut args: Cli) {
+pub fn run_with(args: Cli) {
     match args.command {
         CliCommand::Init => {
             handle_init_command();
             return;
         }
         CliCommand::ProjectBuild { language, ref output_dir, recursive } => {
-            // PRT-first, advisory project build: currently just delegates to compile-project
-            // semantics using frame.toml's configured entry paths in future iterations.
-            // For now, treat project build as "compile all @target modules under cwd".
-            let dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-            let mut project_args = Cli::new();
-            project_args.command = CliCommand::CompileProject {
-                language,
-                dir: dir.clone(),
-                output_dir: output_dir.clone(),
-                recursive,
-            };
-            run_with(project_args);
+            // PRT-first, advisory project build:
+            // - If a frame.toml is found, use its root and source dirs.
+            // - Otherwise, delegate to compile-project over the current directory.
+            if let Some((config_path, cfg)) = FrameConfig::find_project_config() {
+                let project_root = config_path
+                    .parent()
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| std::path::PathBuf::from("."));
+                let src_dirs: Vec<std::path::PathBuf> = if !cfg.build.source_dirs.is_empty() {
+                    cfg.build
+                        .source_dirs
+                        .iter()
+                        .map(|p| project_root.join(p))
+                        .collect()
+                } else if !cfg.paths.modules.is_empty() {
+                    cfg.paths
+                        .modules
+                        .iter()
+                        .map(|p| project_root.join(p))
+                        .collect()
+                } else {
+                    vec![project_root.join("src")]
+                };
+                for dir in src_dirs {
+                    let mut project_args = Cli::new();
+                    project_args.command = CliCommand::CompileProject {
+                        language: language.clone(),
+                        dir: dir.clone(),
+                        output_dir: output_dir.clone(),
+                        recursive,
+                    };
+                    run_with(project_args);
+                }
+            } else {
+                let dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let mut project_args = Cli::new();
+                project_args.command = CliCommand::CompileProject {
+                    language,
+                    dir: dir.clone(),
+                    output_dir: output_dir.clone(),
+                    recursive,
+                };
+                run_with(project_args);
+            }
             return;
         }
         CliCommand::FidImport { target, input, cache_root } => {

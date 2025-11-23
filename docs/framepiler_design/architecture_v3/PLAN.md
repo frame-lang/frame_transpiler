@@ -2,21 +2,13 @@
 
 ## Todo Next
 
-- [x] Stage 11 — Docs alignment for PRT Arcanum semantics  
-  Document the Arcanum-backed behavior of E402 (unknown state), E403 (parent
-  forward with no parent), and E404 (handler outside state) for the PRT
-  languages in the V3 architecture docs (`frame_runtime.md`, `codegen.md`).
-  Ensure the docs are explicit that Py/TS/Rust use the ModuleAst/Arcanum
-  symbol table for these diagnostics in the V3 module and CLI paths, while
-  non‑PRT languages remain on the coarse structural checks for now.
-
-## Todo Next
-
-- [ ] Stage 12 — PRT-focused FID / Native Import Mapping  
-  Start Stage 12 for the PRT languages only: define the initial FID schema and
-  cache layout, and prototype a minimal Py/TS/Rust implementation behind flags
-  without enabling it in the default pipelines. Keep non‑PRT languages on the
-  existing facade-only behavior until the PRT implementation is stable.
+- [ ] Stage 13 — Project Layer / FID Linking (PRT-first)  
+  Continue Stage 13 for the PRT languages only: finish 13A–13B by wiring
+  project manifests and CLI scaffolding (`framec project build`, `framec fid
+  import`) to the existing Phase A FID loaders, and start adding minimal
+  project-level tests. Stage 11 (Arcanum-backed semantics) and Stage 12 Phase
+  A FID/schema work are complete for Py/TS/Rust and documented in the sections
+  below.
 
 Goal
 - Rebuild the single‑file pipeline from first principles using the V3 docs as the source of truth, then add the multi‑file project layer. Keep the new code hermetic and deterministic.
