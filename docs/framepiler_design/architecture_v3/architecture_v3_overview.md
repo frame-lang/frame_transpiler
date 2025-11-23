@@ -49,8 +49,8 @@ Stages
 - 09 Validation
   - `ValidatorV3` rules: terminal‑last; no Frame statements in actions/ops; per‑language native policies.
  
- - 13 Project Layer (Optional — FID/Linking/Packaging)
-  - Optional, gated stage for symbol discovery and typed linking; not required for core V3. Provides `.fid` cache generation and project packaging when enabled.
+- 13 Project Layer (Reserved)
+  - Reserved for future project‑level features (e.g., richer manifest‑driven builds). The earlier FID/cache experiment has been removed from V3; there is no FID‑based behavior in the current compiler.
 
 Project Configuration (frame.toml)
 - V3 supports a TOML-based project manifest used by the CLI and build tooling:
@@ -63,8 +63,8 @@ Project Configuration (frame.toml)
     - Creates a default `frame.toml` in the current directory using these fields.
     - Creates a `src/` directory and a starter `src/main.frm` with a `fn main()` stub.
   - The project layer (Stages 12–13) builds on top of this manifest:
-    - Stage 12 defines per-target FID schema and cache layout under `.frame/cache/fid`.
-    - Stage 13 introduces optional project-level commands (e.g., `framec project build`, `framec fid import`) that consume `frame.toml` and FID caches. These commands are opt-in and do not affect single-file V3 compiles.
+    - Stage 12 focuses on native import and project‑level wiring without any FID/cache mechanism.
+    - Stage 13 is reserved for future project‑level features; there is no active design or implementation beyond `frame.toml` and the existing CLI project build support.
 
 Notes on C# Specifics
 - C# scanners/closers must handle: verbatim strings (`@"…"`), interpolated strings (`$"…{"expr"}…"`), interpolated‑verbatim (`$@"…"`), raw triple/long quotes (`"""…"""`), character literals, and SOL preprocessor lines (`#if`, `#endif`, etc.). The V3 C# DPDA implementations model these states to avoid false SOL detections.

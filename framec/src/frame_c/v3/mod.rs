@@ -29,7 +29,6 @@ pub mod domain_scanner;
 pub mod interface_parser;
 pub mod system_parser;
 pub mod machine_parser;
-pub mod fid;
 pub mod native_symbol_snapshot;
 pub mod system_param_semantics;
 // future: pub mod import_validator;
