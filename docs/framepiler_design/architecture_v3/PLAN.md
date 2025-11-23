@@ -131,8 +131,8 @@ Stage 11 — Full AST/Symbol Integration (scoped)
   - Native facade parsers (SWC/RustPython/syn) are already wired via `NativeFacadeRegistryV3` in the V3 module path for Py/TS/Rust, mapping advisory diagnostics onto `ValidationIssueV3` without affecting codegen. CLI flags/environment (`strict_native`, `FRAME_VALIDATE_NATIVE_POLICY`) gate these checks so they remain optional.
 
 Stage 12 — FID / Native Import Mapping
-- [ ] Define FID schema and cache (.frame/cache/fid).
-- [ ] Implement Phase A adapters (Py/TS) behind flags; runner probes; CI optional.
+- [x] Define FID schema and cache (.frame/cache/fid).
+- [x] Implement Phase A adapters (Py/TS/Rust) behind flags; runner probes; CI optional.
 - [ ] Project layer negatives/positives for cross-file resolution.
 
 Stage 13 — Project Layer / FID Linking (PRT-first)
