@@ -16,7 +16,8 @@ Goal
 Scope (MVP → Plus)
 - MVP: Stages 01–06 (closers, streaming scanners, Frame Statement parser, MIR assembly, expansion, splice/mapping), per‑file TS/Py. Validation rules enforced. No native parse facades in the critical path.
 - Plus: Stage 07 (optional native parse facades for diagnostics/formatting), Stage 08 polish, Stage 09 policies.
-- Optional Final: Stage 13 — Project Layer is reserved and currently has no active design beyond basic project manifests and `framec project build`.
+- Project Layer: Stage 13 is reserved and currently has no active design beyond basic project manifests and `framec project build`.
+- Persistence: Stage 14 — Persistence & Snapshots is **mandatory** for PRT (Py/TS/Rust) workflows and defines the per-language snapshot libraries and schema.
 
 Progress Snapshot
 Scaffold brought up (demo‑level; not production‑ready):

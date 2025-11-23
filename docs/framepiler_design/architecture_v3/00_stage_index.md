@@ -41,4 +41,5 @@ This index links to the detailed, authoritative design documents for each stage 
 - 11 — Error Taxonomy: `11_error_taxonomy.md`
 - 12 — Testing Strategy: `12_testing_strategy.md`
 - 13 — Project Layer (Reserved): `13_project_layer_fid_linking.md`
+- 14 — Persistence & Snapshots (PRT, mandatory): `14_persistence_and_snapshots.md`
 - 99 — Naming Index (Objects/Traits): `99_naming_index.md`
