@@ -125,11 +125,11 @@ Stage 11 — Full AST/Symbol Integration (scoped)
 Stage 12 — FID / Native Import Mapping
 - [x] Define FID schema and cache (.frame/cache/fid).
 - [x] Implement Phase A adapters (Py/TS/Rust) behind flags; runner probes; CI optional.
-- [ ] Project layer negatives/positives for cross-file resolution.
+- [x] Project layer negatives/positives for cross-file resolution.
 
 Stage 13 — Project Layer / FID Linking (PRT-first)
-- [ ] 13A — Project manifest + CLI scaffolding (PRT)
-  - Define a minimal project manifest format (e.g. `frame_project.toml`) and CLI entrypoints for project builds in `frame_build`/`framec` (commands such as `framec project build`, `framec fid import`).
+- [x] 13A — Project manifest + CLI scaffolding (PRT)
+  - Define a minimal project manifest format (e.g. `frame.toml`) and CLI entrypoints for project builds in `framec` (commands such as `framec project build`, `framec fid import`).
   - Ensure that all project-level commands are gated behind explicit flags/env and are no-ops for existing single-file workflows.
 - [ ] 13B — FID cache generation commands (PRT)
   - Implement `framec fid import` (or equivalent) for Py/TS/Rust that:
