@@ -28,7 +28,8 @@ pub enum CliCommand {
     Init,
     CompileProject { language: String, dir: PathBuf, output_dir: PathBuf, recursive: bool },
     Compile { language: String, file: PathBuf },
-    
+    ProjectBuild { language: String, output_dir: PathBuf, recursive: bool },
+    FidImport { target: String, input: PathBuf, cache_root: Option<PathBuf> },
 }
 
 impl Cli {
@@ -40,6 +41,28 @@ impl Cli {
             .arg_required_else_help(false)
             .subcommand_precedence_over_arg(true)
             .subcommand(Command::new("init").about("Initialize a new Frame project with frame.toml").arg(Arg::new("name").help("Project name").value_name("NAME").index(1)))
+            .subcommand(
+                Command::new("project")
+                    .about("Project-level operations (optional; PRT-first)")
+                    .subcommand(
+                        Command::new("build")
+                            .about("Build a Frame project using frame.toml")
+                            .arg(Arg::new("language").long("language").short('l').value_name("LANG").required(true))
+                            .arg(Arg::new("output-dir").long("output-dir").short('o').value_name("DIR").required(true))
+                            .arg(Arg::new("recursive").long("recursive").short('r').action(clap::ArgAction::SetTrue))
+                    )
+            )
+            .subcommand(
+                Command::new("fid")
+                    .about("FID cache operations (optional; PRT-only Phase A)")
+                    .subcommand(
+                        Command::new("import")
+                            .about("Import a FID JSON file into the cache")
+                            .arg(Arg::new("target").long("target").short('t').value_name("TARGET").required(true))
+                            .arg(Arg::new("cache-root").long("cache-root").value_name("DIR"))
+                            .arg(Arg::new("input").value_name("FID_JSON").required(true))
+                    )
+            )
             .subcommand(
                 Command::new("compile")
                     .about("Compile a full V3 module file (non-demo)")
@@ -86,6 +109,28 @@ impl Cli {
                         let lang = sub.get_one::<String>("language").expect("language required").to_string();
                         let file = sub.get_one::<String>("file").map(|s| PathBuf::from(s)).expect("file required");
                         CliCommand::Compile { language: lang, file }
+                    }
+                    "project" => {
+                        match sub.subcommand() {
+                            Some(("build", sb)) => {
+                                let lang = sb.get_one::<String>("language").expect("language required").to_string();
+                                let out = sb.get_one::<String>("output-dir").map(|s| PathBuf::from(s)).expect("output-dir required");
+                                let recursive = sb.get_flag("recursive");
+                                CliCommand::ProjectBuild { language: lang, output_dir: out, recursive }
+                            }
+                            _ => CliCommand::None,
+                        }
+                    }
+                    "fid" => {
+                        match sub.subcommand() {
+                            Some(("import", sb)) => {
+                                let target = sb.get_one::<String>("target").expect("target required").to_string();
+                                let input = sb.get_one::<String>("input").map(|s| PathBuf::from(s)).expect("FID_JSON required");
+                                let cache_root = sb.get_one::<String>("cache-root").map(|s| PathBuf::from(s));
+                                CliCommand::FidImport { target, input, cache_root }
+                            }
+                            _ => CliCommand::None,
+                        }
                     }
                     _ => CliCommand::None,
                 }
@@ -137,11 +182,64 @@ pub fn run() {
     run_with(Cli::new());
 }
 
-pub fn run_with(args: Cli) {
+pub fn run_with(mut args: Cli) {
     match args.command {
         CliCommand::Init => {
             handle_init_command();
             return;
+        }
+        CliCommand::ProjectBuild { language, ref output_dir, recursive } => {
+            // PRT-first, advisory project build: currently just delegates to compile-project
+            // semantics using frame.toml's configured entry paths in future iterations.
+            // For now, treat project build as "compile all @target modules under cwd".
+            let dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let mut project_args = Cli::new();
+            project_args.command = CliCommand::CompileProject {
+                language,
+                dir: dir.clone(),
+                output_dir: output_dir.clone(),
+                recursive,
+            };
+            run_with(project_args);
+            return;
+        }
+        CliCommand::FidImport { target, input, cache_root } => {
+            // Phase A: simple file copy into the FID cache layout. This does not
+            // invoke external tools; it only organizes existing JSON into the
+            // expected `.frame/cache/fid/<target>/` directory.
+            let target_dir = match target.as_str() {
+                "python" | "python_3" => "python",
+                "typescript" | "ts" => "typescript",
+                "rust" | "rs" => "rust",
+                other => {
+                    eprintln!(
+                        "Unsupported FID target '{}'; expected one of python, python_3, typescript, ts, rust, rs",
+                        other
+                    );
+                    std::process::exit(exitcode::USAGE);
+                }
+            };
+            let root = cache_root.unwrap_or_else(|| std::path::PathBuf::from(".frame/cache/fid"));
+            let dest_dir = root.join(target_dir);
+            if let Err(e) = std::fs::create_dir_all(&dest_dir) {
+                eprintln!("Failed to create FID cache directory {:?}: {}", dest_dir, e);
+                std::process::exit(exitcode::IOERR);
+            }
+            let file_name = input
+                .file_name()
+                .map(|s| s.to_owned())
+                .unwrap_or_else(|| std::ffi::OsStr::new("fid.json").to_owned());
+            let dest_path = dest_dir.join(&file_name);
+            match std::fs::copy(&input, &dest_path) {
+                Ok(_) => {
+                    println!("Imported FID: {}", dest_path.display());
+                    std::process::exit(0);
+                }
+                Err(e) => {
+                    eprintln!("Failed to import FID from {:?} to {:?}: {}", input, dest_path, e);
+                    std::process::exit(exitcode::IOERR);
+                }
+            }
         }
         CliCommand::CompileProject { language, dir, output_dir, recursive } => {
             let lang = match TargetLanguage::try_from(language) { Ok(l) => l, Err(e) => { eprintln!("Invalid target language: {}", e); std::process::exit(exitcode::USAGE); } };

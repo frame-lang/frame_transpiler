@@ -52,6 +52,20 @@ Stages
  - 13 Project Layer (Optional — FID/Linking/Packaging)
   - Optional, gated stage for symbol discovery and typed linking; not required for core V3. Provides `.fid` cache generation and project packaging when enabled.
 
+Project Configuration (frame.toml)
+- V3 supports a TOML-based project manifest used by the CLI and build tooling:
+  - `frame.toml` (or `.framerc.toml`) in the project root describes:
+    - `project` metadata (name, version, description).
+    - The entry point (`project.entry`, typically `src/main.frm`).
+    - Build options (e.g., output mode/dir) and named scripts (e.g., `build`, `clean`, `dev`).
+    - Module search paths (`paths.modules`, e.g., `["src", "lib"]`).
+  - The `framec init` command:
+    - Creates a default `frame.toml` in the current directory using these fields.
+    - Creates a `src/` directory and a starter `src/main.frm` with a `fn main()` stub.
+  - The project layer (Stages 12–13) builds on top of this manifest:
+    - Stage 12 defines per-target FID schema and cache layout under `.frame/cache/fid`.
+    - Stage 13 introduces optional project-level commands (e.g., `framec project build`, `framec fid import`) that consume `frame.toml` and FID caches. These commands are opt-in and do not affect single-file V3 compiles.
+
 Notes on C# Specifics
 - C# scanners/closers must handle: verbatim strings (`@"…"`), interpolated strings (`$"…{"expr"}…"`), interpolated‑verbatim (`$@"…"`), raw triple/long quotes (`"""…"""`), character literals, and SOL preprocessor lines (`#if`, `#endif`, etc.). The V3 C# DPDA implementations model these states to avoid false SOL detections.
 

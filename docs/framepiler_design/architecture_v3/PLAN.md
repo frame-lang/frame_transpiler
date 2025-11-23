@@ -135,6 +135,30 @@ Stage 12 — FID / Native Import Mapping
 - [ ] Implement Phase A adapters (Py/TS) behind flags; runner probes; CI optional.
 - [ ] Project layer negatives/positives for cross-file resolution.
 
+Stage 13 — Project Layer / FID Linking (PRT-first)
+- [ ] 13A — Project manifest + CLI scaffolding (PRT)
+  - Define a minimal project manifest format (e.g. `frame_project.toml`) and CLI entrypoints for project builds in `frame_build`/`framec` (commands such as `framec project build`, `framec fid import`).
+  - Ensure that all project-level commands are gated behind explicit flags/env and are no-ops for existing single-file workflows.
+- [ ] 13B — FID cache generation commands (PRT)
+  - Implement `framec fid import` (or equivalent) for Py/TS/Rust that:
+    - Reads target-specific inputs (e.g. TypeDoc JSON, Python introspection stubs, Rustdoc JSON).
+    - Produces `.fid.json` files under `.frame/cache/fid/{python,typescript,rust}/` following the V1 schema.
+  - Keep all tooling offline and version-pinned; record tool and hash in the `origin` block.
+- [ ] 13C — Project-aware symbol resolution (advisory)
+  - Teach the project build path to load FID caches (using the Phase A loader) and make symbol presence/shape available for advisory diagnostics:
+    - “Unknown external symbol” warnings for imports that do not resolve.
+    - Optional hints for runtime surface mismatches (e.g., missing runtime helpers).
+  - Ensure FID-based diagnostics are only emitted when FID is explicitly enabled and caches are present; otherwise the project build must behave like today.
+- [ ] 13D — Project-level tests (PRT)
+  - Add `v3_project/{positive,negative}` suites for Py/TS/Rust that:
+    - Exercise multi-file project builds with and without FID caches.
+    - Assert that enabling FID introduces additional diagnostics only when there are real mismatches, and that disabling FID restores current behavior.
+- [ ] 13E — Documentation and operational guidance
+  - Update `13_project_layer_fid_linking.md` and the main V3 overview to:
+    - Describe the project-level commands, manifest format, and FID cache lifecycle.
+    - Clarify that Stage 13 is optional and disabled by default for core V3 tests.
+  - Add a short “how to adopt FID” section for PRT users (debugger/adapter teams) with concrete, reproducible command sequences.
+
 Milestone — Py/TS/Rust to 100%
 - [x] TypeScript: native parsing default‑on in validation (SWC); curated exec expanded across core/control_flow/systems; runner asserts errors-json trailers and runtime output markers.
 - [x] Python: strict/native adapter via RustPython parser (pure Rust) enabled in CI; curated exec breadth expanded; runner asserts errors-json trailers and runtime output markers.

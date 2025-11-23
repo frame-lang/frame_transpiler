@@ -37,6 +37,108 @@ Testing Strategy
 - Separate project-level suites under `v3_project/{positive,negative}` gated by CLI flags.
 - Keep all language-specific V3 suites green without Stage 13 enabled.
 
+## FID Schema (Phase A — PRT Only)
+
+For the PRT languages (Python/TypeScript/Rust), the initial FID schema is
+intended to be:
+
+- **Stable**: explicit `schemaVersion` and target identifiers.
+- **Hermetic**: content-addressed by the inputs (source JSON or symbols), not
+  by external tool versions alone.
+- **Advisory**: used to enrich diagnostics and codegen when enabled, but never
+  required for single-file V3 compilation.
+
+### FID File Layout
+
+- Root cache directory (per project):
+  - `.frame/cache/fid/`
+- Per-target subdirectories:
+  - `.frame/cache/fid/python/`
+  - `.frame/cache/fid/typescript/`
+  - `.frame/cache/fid/rust/`
+- FID files are JSON with a `.fid.json` extension:
+  - Example: `.frame/cache/fid/typescript/runtime_ts_v1.fid.json`
+  - Example: `.frame/cache/fid/python/frame_runtime_py_v1.fid.json`
+
+FID files are treated as build artifacts and MUST NOT be committed to VCS.
+They are regenerated via explicit FID commands and validated via project-level
+tests, not unit tests.
+
+### JSON Shape (V1)
+
+Top-level structure:
+
+```json
+{
+  "schemaVersion": 1,
+  "target": "typescript",
+  "sourceKind": "typedoc-json",
+  "origin": {
+    "path": "node_modules/frame_runtime_ts/index.d.ts",
+    "hash": "sha256:...",
+    "tool": "typedoc@x.y.z"
+  },
+  "symbols": [
+    {
+      "name": "FrameEvent",
+      "kind": "class",
+      "module": "frame_runtime_ts",
+      "location": {
+        "file": "index.d.ts",
+        "line": 12,
+        "column": 1
+      }
+    },
+    {
+      "name": "FrameCompartment.state",
+      "kind": "property",
+      "type": "string",
+      "module": "frame_runtime_ts"
+    }
+  ]
+}
+```
+
+Fields:
+
+- `schemaVersion`: integer, starting at 1.
+- `target`: one of `"python"`, `"typescript"`, `"rust"` (PRT only in Phase A).
+- `sourceKind`: describes the upstream format:
+  - `"typedoc-json"` (TypeScript),
+  - `"python-introspection"` (Python),
+  - `"rustdoc-json"` (Rust),
+  - or `"frame-native"` for hand-authored FID stubs.
+- `origin`:
+  - `path`: path to the source file or JSON used to build the FID.
+  - `hash`: content hash of the source, used to detect staleness.
+  - `tool`: optional string describing the tool/version used.
+- `symbols`: array of symbol descriptors with minimally:
+  - `name`: fully qualified name (e.g., `"FrameCompartment.state"`).
+  - `kind`: `"class"`, `"struct"`, `"function"`, `"method"`, `"property"`, `"module"`, etc.
+  - Optional `module`, `location`, `type`, and other target-specific fields.
+
+### Phase A (PRT) Use Cases
+
+Phase A focuses on PRT and does **not** change core V3 behavior:
+
+- **TypeScript**:
+  - Optionally import FID for `frame_runtime_ts` so V3 module/CLI flows can
+    verify existence/shape of runtime symbols when `FRAME_USE_FID=1` is set.
+- **Python**:
+  - Optionally import FID for `frame_runtime_py` to validate imports and basic
+    symbol presence in advisory mode.
+- **Rust**:
+  - Optionally import FID for the Rust runtime crate (e.g., `frame_runtime_rs`)
+    to check symbol existence when linking multi-file projects.
+
+In Phase A:
+
+- FID consumption is guarded by CLI flags/env (`--use-fid`, `FRAME_USE_FID=1`).
+- Missing FID files never block compilation; they only disable FID-based
+  diagnostics for that target.
+- The compiler surface (CLI options and module paths) MUST remain unchanged
+  when FID is not enabled.
+
 ## Addendum: Python Runtime Packaging for CLI Outputs
 
 When using the CLI on V3 module files:
