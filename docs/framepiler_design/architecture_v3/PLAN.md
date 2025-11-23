@@ -2,13 +2,13 @@
 
 ## Todo Next
 
-- [ ] Stage 13 — Project Layer / FID Linking (PRT-first)  
-  Continue Stage 13 for the PRT languages only: finish 13A–13B by wiring
-  project manifests and CLI scaffolding (`framec project build`, `framec fid
-  import`) to the existing Phase A FID loaders, and start adding minimal
-  project-level tests. Stage 11 (Arcanum-backed semantics) and Stage 12 Phase
-  A FID/schema work are complete for Py/TS/Rust and documented in the sections
-  below.
+- [ ] Docs — PRT V3 expansion semantics  
+  Align the V3 per-language expansion docs for Python and TypeScript with the
+  implemented semantics (system.return stack, interface wrappers, handler
+  return sugar, adapter glue). Once the docs match the current codegen, mark
+  the relevant sections in `05_frame_statement_expansion_python.md` and
+  `05_frame_statement_expansion_typescript.md` as complete and add brief
+  cross-references from the architecture overview.
 
 Goal
 - Rebuild the single‑file pipeline from first principles using the V3 docs as the source of truth, then add the multi‑file project layer. Keep the new code hermetic and deterministic.
@@ -16,7 +16,7 @@ Goal
 Scope (MVP → Plus)
 - MVP: Stages 01–06 (closers, streaming scanners, Frame Statement parser, MIR assembly, expansion, splice/mapping), per‑file TS/Py. Validation rules enforced. No native parse facades in the critical path.
 - Plus: Stage 07 (optional native parse facades for diagnostics/formatting), Stage 08 polish, Stage 09 policies.
-- Optional Final: Stage 13 — Project Layer (FID/linking/packaging) is explicitly optional and disabled by default in core V3 flows.
+- Optional Final: Stage 13 — Project Layer is reserved and currently has no active design beyond basic project manifests and `framec project build`.
 
 Progress Snapshot
 Scaffold brought up (demo‑level; not production‑ready):
@@ -123,15 +123,15 @@ Stage 11 — Full AST/Symbol Integration (scoped)
   - Native facade parsers (SWC/RustPython/syn) are already wired via `NativeFacadeRegistryV3` in the V3 module path for Py/TS/Rust, mapping advisory diagnostics onto `ValidationIssueV3` without affecting codegen. CLI flags/environment (`strict_native`, `FRAME_VALIDATE_NATIVE_POLICY`) gate these checks so they remain optional.
 
 Stage 12 — Native Import / Project Wiring
-- [ ] Reserved for future native import and project‑level wiring work that does not require any FID/cache mechanism.
+- [ ] Reserved for future native import and project‑level wiring work that does not require any external metadata caches.
 
-Stage 13 — Project Layer (Reserved, no FID)
+Stage 13 — Project Layer (Reserved)
 - [x] 13A — Project manifest + CLI scaffolding (PRT)
   - Minimal project manifest format (`frame.toml`) and CLI entrypoints for project builds in `framec` (e.g. `framec init`, `framec project build`).
   - Project-level commands are gated behind explicit flags/env and are no-ops for existing single-file workflows when not used.
 - [ ] 13B–13E — Future project-layer features
   - Any future project‑layer behavior (e.g., richer manifest semantics, packaging, or advisory cross‑file checks) should be specified from scratch.
-  - The earlier FID experiment has been removed from V3; there is no FID schema, cache, or FID‑based diagnostics in the implementation.
+  - The earlier project‑layer experiment that relied on external metadata caches has been removed from V3; there is no such mechanism in the current implementation.
 
 Milestone — Py/TS/Rust to 100%
 - [x] TypeScript: native parsing default‑on in validation (SWC); curated exec expanded across core/control_flow/systems; runner asserts errors-json trailers and runtime output markers.
@@ -181,7 +181,7 @@ Deferred Improvements (postpone until TS/Py are 100% debugger‑ready)
 - Mapping/Debugging: finalize visitor‑map sidecars (targetLine/sourceLine) for Py/TS module + single‑body; add small golden tests; later add optional columns and AST dump JSON.
 - Native parsing hermetic defaults: keep Py/TS/Rust default‑on; consider tree‑sitter prebuilt artifacts for C/C++/Java/C# to avoid system C compiler (feature‑gated).
 - Exec harness parity: expand Rust curated exec to Py/TS breadth (multi‑handler, deeper nesting); consider pilot real glue for non‑Py/TS later.
-- Project layer/FID (Phase A): define FID schema; adapters for Py/TS; cache under .frame/cache/fid; validator gate for missing/mismatched APIs; merge per‑file Arcanum into project scope.
+- Project layer (Phase A, retired): earlier sketch of a metadata‑driven linking layer; removed in favour of native parsing + Arcanum. No current implementation.
 - Debug JSON envelope: add stable top‑level `code` alias and `targetLanguage` in debug output; keep language‑specific key for one minor cycle; ensure runner/tooling supports both.
 - Performance/Robustness: small‑buffer reuse in scanners/closers; fuzz/torture suites for protected regions and SOL anchoring; no panics.
 
@@ -199,7 +199,7 @@ Production‑ready criteria (not done unless explicitly checked):
 - [x] Validator policies (structural only by default; no Frame in actions/ops). Per‑language native policies are optional and provided via Stage 07 facades when enabled.
 - [x] Mapping trailer gating/polish and docs
 - [x] Optional native parser adapters (facade strict): TS/Rust/C/C++/Java/C# behind `native-*` features
-- [ ] Real project build: FID/linking/packaging (TS/Py first), then others
+- [ ] Real project build: project linking/packaging (TS/Py first), then others
 - [ ] Beyond‑comment expansions/glue per language (gated by flags)
 
 Repository Mechanics
@@ -409,16 +409,15 @@ Checklist
 - [x] Handler scope enforcement
   - [x] E404: handler must be inside a state (negatives added across languages: `handler_outside_state`, `handler_in_nonstate_block`)
 
-Project / Multi‑File Layer (after MVP green)
-- Objects: `FileLoaderV3`, `ModuleResolverV3`, `ProjectGraphV3`, `FIDIndexV3`, `FIDEmitterV3`, `SemanticAnalyzerV3`, `TsModuleLinkerV3`, `PythonPackagePlannerV3`, `BuildPlannerV3`.
-- Deliverables: FID emission/consumption, import resolution, stable linking/packaging, incremental build.
+Project / Multi‑File Layer (after MVP green; reserved)
+- Objects: `FileLoaderV3`, `ModuleResolverV3`, `ProjectGraphV3`, `SemanticAnalyzerV3`, `TsModuleLinkerV3`, `PythonPackagePlannerV3`, `BuildPlannerV3`.
+- Deliverables: import resolution, stable linking/packaging, incremental build.
 - Acceptance: multi‑file TS/Py suites execute and link correctly; one shared runtime import per module set.
-- Tests: import graph positives/negatives, circular detection, missing FID, signature mismatch.
+- Tests: import graph positives/negatives, circular detection, signature mismatch.
 
 Checklist
 - [x] ModulePartitionerV3 (demo): bodies via body closers
 - [ ] Full module outline (prolog/imports/owner_id)
-- [ ] FID emission/consumption
 - [ ] Linking/packaging per language
 - [ ] Incremental build caches
 
@@ -481,14 +480,14 @@ Milestones & Gating
   - Status: Python/TypeScript v3_exec_smoke 100% run/validate; C/C++/Java/C#/Rust exec-smoke 100% via wrapper markers; runner emits `--emit-exec` for Py/TS and validates markers consistently across languages.
 - M3: Stage 06 mapping debug anchors verified on samples.
 - Next: Stage 07 (optional) — Native parser adapter scaffolding behind cargo features (`native-ts`, `native-py`, `native-rs`, etc.) and `--validate-native`.
-- M4 (Optional): Project layer minimum viable linking (TS/Py) + FID round‑trip; multi‑file suites pass when enabled.
+- M4 (Optional): Project layer minimum viable linking (TS/Py); multi‑file suites pass when enabled.
 - M5: Legacy retirement; V3 default.
 
 Milestone Checklist
 - [x] M1 — Closers/Scanners/Parser scaffold green
 - [ ] M2 — MIR/Expansion coverage per language suites
 - [x] M3 — Mapping anchors verified via tests (demo)
-- [ ] M4 — Project linking + FID round‑trip
+- [ ] M4 — Project linking (Optional)
 - [ ] M5 — Project layer + policies complete
 
 Production Readiness — Python & TypeScript (P‑track)
@@ -671,9 +670,9 @@ Per‑Phase Testing Plan (Must Be In Python Runner)
   - Negatives: violations for each rule with precise diagnostics.
   - Location: `language_specific/<lang>/v3_validator/{positive,negative}/*.frm`
 
-- Project Layer — FID/Linking/Packaging
-  - Positives: multi‑file imports/linking; FID round‑trip.
-  - Negatives: circular imports, missing FID, signature mismatch.
+- Project Layer — Linking/Packaging (reserved)
+  - Positives: multi‑file imports/linking.
+  - Negatives: circular imports, signature mismatch.
   - Location: `language_specific/<lang>/v3_project/{positive,negative}/*.frm`
 
 Testing Status (Initial)
@@ -695,7 +694,7 @@ New Tests to Create
 - `framec_tests/v3/02_scanner/{py,ts}/*.frm`: SOL detection vs protected regions; region boundary assertions.
 - `framec_tests/v3/03_parser/*.frm`: Frame statement positives/negatives; trailing‑token error.
 - `framec_tests/v3/05_expander_py/*.frm`: elif/else/except/finally preservation; redundant native return after terminal.
-- Project: `framec_tests/v3/project/*`: FID import/export round‑trip; linking paths; circular import negative.
+- Project: `framec_tests/v3/project/*`: project import/linking paths; circular import negative.
 
 Owner’s Notes
 - Keep objects small and single‑purpose; no monolithic RD parsers.
