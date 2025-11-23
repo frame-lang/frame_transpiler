@@ -22,8 +22,13 @@ Responsibilities
 - Package/link multi-file projects with deterministic outputs and pinned dependencies.
 
 CLI and Gating
-- `framec fid import --config <manifest>.json [--allow-missing]` generates/refreshes `.fid` caches.
-- Project build commands accept flags to enable project linking and FID consumption; defaults keep this stage disabled for the core V3 demos/suites.
+- `framec project build -l <LANG> -o <OUTDIR> [--recursive]` builds a Frame project using `frame.toml` when present:
+  - If a `frame.toml` (or `.framerc.toml`) is found, the project root is its directory and source dirs come from `build.source_dirs` or `paths.modules`, defaulting to `src/`.
+  - If no project manifest is found, the command behaves like `compile-project` over the current directory with the provided language and output directory.
+- `framec fid import -t <TARGET> [--cache-root <DIR>] <FID_JSON>` imports an existing FID JSON file into the cache:
+  - `TARGET` is one of `python|python_3`, `typescript|ts`, or `rust|rs` (PRT-only in Phase A).
+  - FID files are placed under `.frame/cache/fid/<target>/` (or the overridden cache root) and are expected to already follow the FID V1 schema.
+- Project build and FID commands are explicitly opt-in and not used by the core V3 demo suites by default; enabling FID-based diagnostics or project-aware checks remains an explicit choice.
 
 Determinism & Operations
 - No ad-hoc network during builds; any external tool invocations (e.g., `typedoc`) are version-pinned and behind explicit commands.

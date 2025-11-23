@@ -192,6 +192,10 @@ pub fn run_with(args: Cli) {
             // PRT-first, advisory project build:
             // - If a frame.toml is found, use its root and source dirs.
             // - Otherwise, delegate to compile-project over the current directory.
+            //
+            // Project builds should honour the same validation/debug flags as
+            // direct compile-project invocations, so we thread those settings
+            // through when we construct the inner Cli value.
             if let Some((config_path, cfg)) = FrameConfig::find_project_config() {
                 let project_root = config_path
                     .parent()
@@ -213,23 +217,47 @@ pub fn run_with(args: Cli) {
                     vec![project_root.join("src")]
                 };
                 for dir in src_dirs {
-                    let mut project_args = Cli::new();
-                    project_args.command = CliCommand::CompileProject {
-                        language: language.clone(),
-                        dir: dir.clone(),
-                        output_dir: output_dir.clone(),
-                        recursive,
+                    let mut project_args = Cli {
+                        stdin_flag: false,
+                        path: None,
+                        // The compile-project command carries the language/dir/output;
+                        // we keep the top-level language field unused here.
+                        language: None,
+                        multifile: false,
+                        output_dir: Some(output_dir.clone()),
+                        debug_output: args.debug_output,
+                        validate_only: args.validate_only,
+                        validate: args.validate,
+                        validate_native: args.validate_native,
+                        emit_debug: args.emit_debug,
+                        command: CliCommand::CompileProject {
+                            language: language.clone(),
+                            dir: dir.clone(),
+                            output_dir: output_dir.clone(),
+                            recursive,
+                        },
                     };
                     run_with(project_args);
                 }
             } else {
                 let dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-                let mut project_args = Cli::new();
-                project_args.command = CliCommand::CompileProject {
-                    language,
-                    dir: dir.clone(),
-                    output_dir: output_dir.clone(),
-                    recursive,
+                let mut project_args = Cli {
+                    stdin_flag: false,
+                    path: None,
+                    language: None,
+                    multifile: false,
+                    output_dir: Some(output_dir.clone()),
+                    debug_output: args.debug_output,
+                    validate_only: args.validate_only,
+                    validate: args.validate,
+                    validate_native: args.validate_native,
+                    emit_debug: args.emit_debug,
+                    command: CliCommand::CompileProject {
+                        language,
+                        dir: dir.clone(),
+                        output_dir: output_dir.clone(),
+                        recursive,
+                    },
                 };
                 run_with(project_args);
             }
