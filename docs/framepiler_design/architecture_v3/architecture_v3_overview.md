@@ -66,6 +66,22 @@ Project Configuration (frame.toml)
     - Stage 12 focuses on native import and project‑level wiring without any FID/cache mechanism.
     - Stage 13 is reserved for future project‑level features; there is no active design or implementation beyond `frame.toml` and the existing CLI project build support.
 
+File Naming Conventions (V3)
+- The authoritative indicator of a file’s target is the `@target <language>` pragma at the top of the file. The parser always trusts `@target`; file extensions are advisory and for tooling ergonomics only.
+- The historical, target-agnostic extension is `.frm`:
+  - Any `*.frm` file with a valid `@target` line is a V3 Frame module.
+- For projects that prefer per-target extensions, V3 recommends the following **optional** conventions. These are treated exactly like `.frm` by the compiler; they simply make the intended target obvious and help file globs:
+  - Python (`@target python`): `*.fpy`
+  - TypeScript (`@target typescript`): `*.frts` (we avoid `*.fts` because it is a well-established FITS astronomy extension).
+  - C# (`@target csharp`): `*.frcs` (we avoid `*.fcs`, which is widely used for Flow Cytometry Standard data).
+  - C (`@target c`): `*.fc`
+  - C++ (`@target cpp`): `*.fcpp`
+  - Java (`@target java`): `*.fjava`
+  - Rust (`@target rust`): `*.frs`
+- Tooling and test globs may include both generic and per-target forms, for example:
+  - `**/*.frm`, `**/*.fpy`, `**/*.frts`, `**/*.frs`  
+  This remains purely a naming convention; no V3 stage relies on the extension to choose parsing rules or semantics.
+
 Notes on C# Specifics
 - C# scanners/closers must handle: verbatim strings (`@"…"`), interpolated strings (`$"…{"expr"}…"`), interpolated‑verbatim (`$@"…"`), raw triple/long quotes (`"""…"""`), character literals, and SOL preprocessor lines (`#if`, `#endif`, etc.). The V3 C# DPDA implementations model these states to avoid false SOL detections.
 
