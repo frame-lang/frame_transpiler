@@ -2121,12 +2121,24 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     out = module;
                 }
                 TargetLanguage::Rust => {
-                    let _sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
                     let mut module = String::new();
-                    module.push_str("#[derive(Default)] struct FrameCompartment{ state: StateId, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
-                    module.push_str("fn _frame_transition(_n: &FrameCompartment){ /* no-op */ }\n");
-                    module.push_str("fn _frame_router(_e: Option<()>) { /* no-op */ }\n");
-                    module.push_str("fn _frame_stack_push(){ /* no-op */ }\nfn _frame_stack_pop(){ /* no-op */ }\n\n");
+                    // Minimal compartment struct for mapping/debug output; semantics will be
+                    // provided by a future runtime-aware Rust generator.
+                    module.push_str("#[derive(Debug)] struct FrameCompartment{ state: StateId, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
+                    // System struct scaffold: one per Frame system.
+                    module.push_str(&format!("struct {} {{\n    compartment: FrameCompartment,\n}}\n\n", sys_name));
+                    // Stub runtime methods on the system; these are intentionally no-ops for now
+                    // so existing mapping/validator tests remain unchanged. Future work will wire
+                    // these into a real Rust runtime (FrameEvent/FrameCompartment/FrameKernel).
+                    module.push_str(&format!("impl {} {{\n", sys_name));
+                    module.push_str("    fn _frame_transition(&mut self, _n: &FrameCompartment){ /* TODO: transition semantics */ }\n");
+                    module.push_str("    fn _frame_router(&mut self, _e: Option<()>) { /* TODO: router semantics */ }\n");
+                    module.push_str("    fn _frame_stack_push(&mut self){ /* TODO: stack push */ }\n");
+                    module.push_str("    fn _frame_stack_pop(&mut self){ /* TODO: stack pop */ }\n");
+                    module.push_str("}\n\n");
+                    // For now, emit handlers as free functions with spliced native bodies. These
+                    // will be moved into impl blocks in a later parity step.
                     for (idx, b) in parts.bodies.iter().enumerate() {
                         if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
                             let hname = b.owner_id.as_deref().unwrap_or("handler");
