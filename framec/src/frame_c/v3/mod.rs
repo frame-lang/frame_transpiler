@@ -2137,13 +2137,14 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     module.push_str("    fn _frame_stack_push(&mut self){ /* TODO: stack push */ }\n");
                     module.push_str("    fn _frame_stack_pop(&mut self){ /* TODO: stack pop */ }\n");
                     module.push_str("}\n\n");
-                    // For now, emit handlers as free functions with spliced native bodies. These
-                    // will be moved into impl blocks in a later parity step.
+                    // For now, emit handlers both as free functions and as methods on the system
+                    // struct. The method form will be wired into a real router in a later parity
+                    // step; keeping the free functions preserves existing mapping/debug behavior.
                     for (idx, b) in parts.bodies.iter().enumerate() {
                         if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
                             let hname = b.owner_id.as_deref().unwrap_or("handler");
                             let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
-                            let spliced = {
+                            let spliced_slice = {
                                 let bytes = spliced_full.as_bytes();
                                 let mut li = 0usize; let mut ri = bytes.len();
                                 while li < ri && bytes[li].is_ascii_whitespace() { li += 1; }
@@ -2152,11 +2153,20 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     &spliced_full[li+1..ri-1]
                                 } else { spliced_full }
                             };
+                            let spliced = spliced_slice.to_string();
+                            // Free function version
                             module.push_str(&format!("pub fn {}() {{\n", hname));
                             for line in spliced.lines() {
                                 module.push_str("    "); module.push_str(line); module.push('\n');
                             }
                             module.push_str("}\n\n");
+                            // Method on the system struct (scaffold for future router wiring)
+                            module.push_str(&format!("impl {} {{\n", sys_name));
+                            module.push_str(&format!("    fn {}(&mut self) {{\n", hname));
+                            for line in spliced.lines() {
+                                module.push_str("        "); module.push_str(line); module.push('\n');
+                            }
+                            module.push_str("    }\n}\n\n");
                         }
                     }
                     // Enum StateId
