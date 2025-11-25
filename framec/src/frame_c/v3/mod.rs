@@ -1360,6 +1360,14 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 }
                                 let base = min_indent.unwrap_or(0);
                                 let mut has_non_comment = false;
+                                // Track the most recent block header (e.g., `if`/`else`)
+                                // so we can align Frame transition expansions inside that
+                                // block instead of at the outer guard level.
+                                let mut last_block_rel: Option<usize> = None;
+                                // Track the most recent transition indent so that the
+                                // trailing bare `return` from a Transition MIR expands
+                                // at the same level as the transition itself.
+                                let mut last_transition_rel: Option<usize> = None;
                                 for ln in body.lines() {
                                     let raw = ln.trim_end();
                                     if raw.trim().is_empty() {
@@ -1378,16 +1386,9 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         .iter()
                                         .take_while(|b| **b == b' ' || **b == b'\t')
                                         .count();
-                                    let offset =
-                                        if indent >= base { base } else { indent };
-                                    let content = &t[offset..];
-                                    let extra = if indent > base {
-                                        std::str::from_utf8(&bytes_ln[base..indent])
-                                            .unwrap_or("")
-                                    } else {
-                                        ""
-                                    };
-                                    let trimmed = content.trim_start();
+                                    let mut rel = indent.saturating_sub(base);
+                                    let stripped = &t[indent..];
+                                    let trimmed = stripped.trim_start();
                                     if trimmed.is_empty() {
                                         module.push_str("            \n");
                                         continue;
@@ -1398,21 +1399,29 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     if !trimmed.starts_with('#') {
                                         has_non_comment = true;
                                     }
-                                    // Router/transition calls generated from Frame semantics
-                                    // should always live at the top level of the state guard,
-                                    // not nested under any local defs/blocks.
+                                    // Track block headers (`if`/`elif`/`else`/etc.) so that
+                                    // the following Frame transitions can be aligned inside
+                                    // the block rather than at the outer guard level.
+                                    if trimmed.ends_with(':')
+                                        && !trimmed.starts_with("return")
+                                    {
+                                        last_block_rel = Some(rel.saturating_add(4));
+                                    }
+                                    // If this is a Frame transition line, prefer the
+                                    // interior block indent when we have one.
                                     if trimmed.starts_with("next_compartment = FrameCompartment(") {
-                                        module.push_str("            ");
-                                        module.push_str(trimmed);
-                                        module.push('\n');
-                                        continue;
+                                        if let Some(block_rel) = last_block_rel {
+                                            rel = block_rel;
+                                        } else {
+                                            // When there is no nested block header in scope,
+                                            // align transition expansions with the state
+                                            // guard body (no extra relative indent).
+                                            rel = 0;
+                                        }
+                                        last_transition_rel = Some(rel);
                                     }
-                                    if trimmed.starts_with("self._frame_router(") {
-                                        module.push_str("            ");
-                                        module.push_str(trimmed);
-                                        module.push('\n');
-                                        continue;
-                                    }
+                                    // In handlers only, `return expr` is sugar for
+                                    // `system.return = expr; return`.
                                     if trimmed.starts_with("return ")
                                         && !trimmed.starts_with("return:")
                                         && trimmed != "return"
@@ -1423,21 +1432,28 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                             .trim_end();
                                         if !expr.is_empty() {
                                             module.push_str("            ");
-                                            module.push_str(extra);
+                                            for _ in 0..rel { module.push(' '); }
                                             module.push_str(
                                                 "self._system_return_stack[-1] = ",
                                             );
                                             module.push_str(expr);
                                             module.push('\n');
                                             module.push_str("            ");
-                                            module.push_str(extra);
+                                            for _ in 0..rel { module.push(' '); }
                                             module.push_str("return\n");
                                             continue;
                                         }
+                                    } else if trimmed == "return" || trimmed == "return:" {
+                                        // Ensure the trailing bare `return` from a Transition
+                                        // MIR expansion aligns with the last transition line
+                                        // so Python does not see an unexpected indent.
+                                        if let Some(tr) = last_transition_rel {
+                                            rel = tr;
+                                        }
                                     }
                                     module.push_str("            ");
-                                    module.push_str(extra);
-                                    module.push_str(trimmed);
+                                    for _ in 0..rel { module.push(' '); }
+                                    module.push_str(stripped);
                                     module.push('\n');
                                 }
                                 if !has_non_comment {
@@ -1588,8 +1604,16 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         .iter()
                                         .take_while(|b| **b == b' ' || **b == b'\t')
                                         .count();
-                                    let stripped = &t[indent..];
-                                    let trimmed = stripped.trim_start();
+                                    let offset =
+                                        if indent >= base { base } else { indent };
+                                    let content = &t[offset..];
+                                    let extra = if indent > base {
+                                        std::str::from_utf8(&bytes_ln[base..indent])
+                                            .unwrap_or("")
+                                    } else {
+                                        ""
+                                    };
+                                    let trimmed = content.trim_start();
                                     if trimmed.is_empty() {
                                         module.push_str("            \n");
                                         continue;
@@ -1600,25 +1624,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     if !trimmed.starts_with('#') {
                                         has_non_comment = true;
                                     }
-                                    // Router/transition calls generated from Frame semantics
-                                    // should always live at the top level of the state guard,
-                                    // not nested under any local defs/blocks. Force their
-                                    // indentation to the guard level by ignoring any extra
-                                    // leading spaces beyond the base.
-                                    let is_frame_line =
-                                        trimmed.starts_with("next_compartment = FrameCompartment(") ||
-                                        trimmed.starts_with("next_compartment.exit_args") ||
-                                        trimmed.starts_with("next_compartment.enter_args") ||
-                                        trimmed.starts_with("next_compartment.state_args") ||
-                                        trimmed.starts_with("self._frame_transition(") ||
-                                        trimmed.starts_with("self._frame_router(__e, compartment.parent_compartment)") ||
-                                        trimmed.starts_with("self._frame_stack_push()") ||
-                                        trimmed.starts_with("self._frame_stack_pop()");
-                                    let rel = if is_frame_line {
-                                        0
-                                    } else {
-                                        indent.saturating_sub(base)
-                                    };
+                                    // Handler-only sugar: `return expr` => `system.return = expr; return`.
                                     if trimmed.starts_with("return ")
                                         && !trimmed.starts_with("return:")
                                         && trimmed != "return"
@@ -1629,21 +1635,21 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                             .trim_end();
                                         if !expr.is_empty() {
                                             module.push_str("            ");
-                                            for _ in 0..rel { module.push(' '); }
+                                            module.push_str(extra);
                                             module.push_str(
                                                 "self._system_return_stack[-1] = ",
                                             );
                                             module.push_str(expr);
                                             module.push('\n');
                                             module.push_str("            ");
-                                            for _ in 0..rel { module.push(' '); }
+                                            module.push_str(extra);
                                             module.push_str("return\n");
                                             continue;
                                         }
                                     }
                                     module.push_str("            ");
-                                    for _ in 0..rel { module.push(' '); }
-                                    module.push_str(stripped);
+                                    module.push_str(extra);
+                                    module.push_str(trimmed);
                                     module.push('\n');
                                 }
                                 if !has_non_comment {
@@ -1680,7 +1686,30 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         module.push('\n');
                         module.push_str(&fun);
                     }
-                    out = module;
+
+                    // Post-process to normalize bare `return` indentation immediately
+                    // following a Frame transition so that Python does not see an
+                    // unexpected indent. We align `return` to the preceding
+                    // `self._frame_transition(next_compartment)` line.
+                    let mut fixed = String::new();
+                    let lines: Vec<&str> = module.lines().collect();
+                    for (i, line) in lines.iter().enumerate() {
+                        let mut out_line = (*line).to_string();
+                        if i > 0 {
+                            let trimmed = out_line.trim_start();
+                            if trimmed == "return" || trimmed == "return:" {
+                                let prev = lines[i - 1];
+                                let prev_trimmed = prev.trim_start();
+                                if prev_trimmed.starts_with("self._frame_transition(next_compartment)") {
+                                    let prev_indent = prev.len().saturating_sub(prev_trimmed.len());
+                                    out_line = format!("{}{}", " ".repeat(prev_indent), trimmed);
+                                }
+                            }
+                        }
+                        fixed.push_str(&out_line);
+                        fixed.push('\n');
+                    }
+                    out = fixed;
                 }
                 TargetLanguage::TypeScript => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
