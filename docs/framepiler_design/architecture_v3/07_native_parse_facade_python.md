@@ -3,6 +3,15 @@
 Purpose (V3 minimal)
 - Provide hermetic validation of facade runtime calls in strict mode. Lines containing these calls are always validated; optional structural Python parsing is available behind a feature flag.
 
+Usage Policy (PRT)
+- For user projects, native validation remains optional and is gated by
+  `--validate-native` and the `native-py` feature.
+- For Frame‑owned PRT runtimes and adapters (e.g., debug runtimes and shared
+  libraries used by multiple teams), Stage 7 native validation MUST be
+  enabled in their test/CI pipelines. Syntax errors or facade misuse in
+  native Python bodies should be treated as validation failures rather than
+  deferred to runtime.
+
 Runtime Optionality
 - Execution of Stage 07 is runtime-optional (gated by `--validate-native`).
 - These call-site checks are always available; structural Python parsing uses Tree-sitter when the `native-py` cargo feature is enabled.

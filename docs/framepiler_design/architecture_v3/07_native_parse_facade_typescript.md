@@ -3,6 +3,15 @@
 Purpose (V3 minimal)
 - Provide hermetic validation of facade runtime helper calls in strict mode. No general TS parsing; only these helper-call sites are checked.
 
+Usage Policy (PRT)
+- For user projects, native validation remains optional and is gated by
+  `--validate-native` and the `native-ts` feature.
+- For Frame‑owned PRT runtimes and adapters (e.g., `frame_runtime_ts`,
+  adapter protocol FRMs), Stage 7 native validation MUST be enabled in their
+  test/CI pipelines. Syntax errors or facade misuse in native TypeScript
+  bodies should be treated as validation failures rather than deferred to
+  runtime or editor diagnostics.
+
 Runtime Optionality
 - Gated by `--validate-native` (strict). Off by default.
 - Present across all languages with call-site checks.

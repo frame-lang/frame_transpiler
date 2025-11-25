@@ -3,6 +3,15 @@
 Purpose (V3 minimal)
 - Provide hermetic validation of wrapper calls in strict mode. No general Rust parsing; wrapper lines only.
 
+Usage Policy (PRT)
+- For user projects, native validation remains optional and is gated by
+  `--validate-native` and the `native-rs` feature.
+- For Frame‑owned PRT runtimes and adapters that emit Rust (once they are
+  introduced), Stage 7 native validation SHOULD be enabled in their test/CI
+  pipelines so wrapper misuse is caught early. Rust parity is still
+  evolving; this policy becomes mandatory once Rust moves into full PRT
+  production use.
+
 Runtime Optionality
 - Gated by `--validate-native` (strict). Off by default.
 - Implemented uniformly across all languages with wrapper-only checks.

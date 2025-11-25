@@ -735,7 +735,7 @@ PRT Stages 7–13 Closure Checklist
   - [ ] Python: Enable native facade / `py_compile` for all Frame‑owned runtimes and adapters (including `PythonDebugRuntime.frm`); make native syntax errors fail validation/tests.
   - [ ] TypeScript: Ensure all Frame‑owned TS runtimes/adapters are covered by `@tsc-compile` + TS facade; syntax errors fail tests.
   - [ ] Rust: Keep facade smoke green; add at least one Rust native‑facade suite that exercises generated runtime code and fails on native syntax errors.
-  - [ ] Docs/PLAN: State that Stage 7 is mandatory for Frame‑owned PRT runtimes/adapters, optional for user projects.
+  - [x] Docs/PLAN: State that Stage 7 is mandatory for Frame‑owned PRT runtimes/adapters, optional for user projects.
 - Stage 8 — Codegen Adapters (PRT)
   - [ ] Python: Decide on minimal AST/codegen adapter (or explicitly defer) and document its scope; keep off by default.
   - [ ] TypeScript: Same for TS (optional formatting/codegen adapter, gated by a flag).
