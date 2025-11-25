@@ -1,4 +1,4 @@
-# Stage 14 — Persistence & Snapshots (PRT, Mandatory)
+# Stage 15 — Persistence & Snapshots (PRT, Mandatory)
 
 Purpose
 - Provide a first-class, per-language persistence model for V3 systems in the
@@ -8,10 +8,10 @@ Purpose
   depending on ad-hoc serialization of the full object graph.
 
 Scope
-- Targets: Python, TypeScript, Rust (PRT). Stage 14 is **mandatory** for
+- Targets: Python, TypeScript, Rust (PRT). Stage 15 is **mandatory** for
   production workflows on these languages.
 - Non-PRT languages (C/C++/Java/C#) MAY adopt the same snapshot schema later,
-  but are not in scope for the initial Stage 14 implementation.
+  but are not in scope for the initial Stage 15 implementation.
 - Persistence covers **system state** only, not arbitrary application data:
   - Current state identifier and state parameters.
   - Domain/state variables owned by the system.
@@ -20,7 +20,7 @@ Scope
     resumed behavior.
 
 Out of Scope
-- Storage backends (files, databases, message queues) — Stage 14 defines the
+- Storage backends (files, databases, message queues) — Stage 15 defines the
   encode/decode of system state, not how or where snapshots are stored.
 - Live external resources (sockets, file handles, OS processes, debugger
   adapters) — these must be re-established by application code after a
@@ -63,7 +63,7 @@ Design Goals
 - **Minimal but sufficient**: captures just enough to resume behavior from the
   same logical point while avoiding transient fields (e.g., current event,
   enter/exit args, internal runtime book-keeping).
-- **Explicit versioning**: `schemaVersion` enables safe evolution; Stage 14
+- **Explicit versioning**: `schemaVersion` enables safe evolution; Stage 15
   MUST treat unknown versions conservatively (e.g., refuse to restore or
   require an adapter).
 
@@ -91,7 +91,7 @@ Per-Language Libraries (mandatory for PRT)
     - Domain fields populated from `domainState`.
     - Stack rebuilt from the snapshot.
 
-Python (Stage 14 requirements)
+Python (Stage 15 requirements)
 - Do NOT rely on `jsonpickle.encode(self)` for full-system persistence in V3.
 - Instead:
   - Implement `frame_persistence_py.snapshot_system(system)` that:
@@ -105,7 +105,7 @@ Python (Stage 14 requirements)
   - Provide helpers for encoding/decoding snapshots to JSON using standard
     libraries (`json`, optional `orjson`), with `schemaVersion` included.
 
-TypeScript (Stage 14 requirements)
+TypeScript (Stage 15 requirements)
 - Do NOT rely on `JSON.stringify(this)` for systems; it fails on cycles and
   loses class identity.
 - Instead:
@@ -120,7 +120,7 @@ TypeScript (Stage 14 requirements)
     - Seeds `_compartment` and `_stack` according to the snapshot.
   - Provide JSON encode/decode helpers that preserve `schemaVersion`.
 
-Rust (Stage 14 requirements)
+Rust (Stage 15 requirements)
 - Use `serde` over a dedicated `SystemSnapshot` struct instead of serializing
   the live system struct directly.
 - Define:
@@ -142,7 +142,7 @@ Rust (Stage 14 requirements)
   - JSON encode/decode via `serde_json`.
 
 Integration with Workflows (mandatory)
-- Stage 14 is a **required capability** for production workflows on PRT:
+- Stage 15 is a **required capability** for production workflows on PRT:
   - The PRT runtimes and codegen must support round-tripping a system through
     `snapshot → JSON → snapshot → system` without violating core semantics
     (state, domain, stack).
@@ -155,11 +155,11 @@ Integration with Workflows (mandatory)
     `systemName` are rejected gracefully.
 
 Relationship to Stages 01–13
-- Stage 14 depends on:
+- Stage 15 depends on:
   - Stage 04/05/06 for accurate MIR/expansion/splice behavior (so state and
     transitions are well-defined).
   - Stage 10/11 for AST/symbol information (so state names and parameters are
     known).
-- Stage 14 does **not** change core compilation semantics; it adds a
+- Stage 15 does **not** change core compilation semantics; it adds a
   persistence layer on top of the runtime model defined in
   `frame_runtime.md` and `codegen.md`.

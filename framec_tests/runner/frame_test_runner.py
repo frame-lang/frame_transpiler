@@ -218,6 +218,9 @@ class FrameTestRunner:
                     if re.match(r"^\s*(#|//)\s*@py-compile\b", line):
                         meta['py_compile'] = ['1']
                         continue
+                    if re.match(r"^\s*(#|//)\s*@rs-compile\b", line):
+                        meta['rs_compile'] = ['1']
+                        continue
                     m4 = re.match(r"^\s*(#|//)\s*@timeout:\s*(\d+)\s*$", line)
                     if m4:
                         meta['timeout'] = [m4.group(2)]
@@ -558,6 +561,22 @@ class FrameTestRunner:
                         return False, str(output_file), f"tsc compile failed: {msg}"
                 except FileNotFoundError:
                     return False, str(output_file), "tsc not found for @tsc-compile"
+            # Optional Rust syntax check via rustc for CLI outputs
+            if language == "rust" and mode == "compile" and 'rs_compile' in meta:
+                try:
+                    # Compile as a library; discard the .rlib after the fact.
+                    rlib_path = str(output_file) + ".rlib"
+                    res = subprocess.run(
+                        ["rustc", "--crate-type", "lib", str(output_file), "-o", rlib_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=max(self.config.timeout, 10),
+                    )
+                    if res.returncode != 0:
+                        msg = res.stderr or res.stdout or "rustc compile failed"
+                        return False, str(output_file), f"rs-compile failed: {msg}"
+                except FileNotFoundError:
+                    return False, str(output_file), "rustc not found for @rs-compile"
             # Optional Python syntax check via py_compile for CLI outputs
             if language == "python" and mode == "compile" and 'py_compile' in meta:
                 try:
@@ -883,9 +902,10 @@ class FrameTestRunner:
                 if is_v3_project:
                     out = result.stdout or ""
                     output_file.write_text(out)
-                    # Additional assertion: Python projects should have runtime package copied to outdir root
+                    # Additional assertion: Python projects should have runtime package copied
+                    # to the project output directory root.
                     if language == "python":
-                        rt_dir = outdir / "frame_runtime_py"
+                        rt_dir = output_dir / "frame_runtime_py"
                         if not rt_dir.exists() or not rt_dir.is_dir():
                             return False, str(output_file), "Missing frame_runtime_py in project output"
                     return True, str(output_file), None

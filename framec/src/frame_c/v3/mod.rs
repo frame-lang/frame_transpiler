@@ -1244,6 +1244,138 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             _ => {}
                         }
                     }
+                    // Helper: emit a Python handler body with normalized indentation while
+                    // preserving relative nesting (including nested defs / blocks) and
+                    // aligning Frame expansion lines (transitions, forwards, stack ops)
+                    // to the logical block they belong to.
+                    fn emit_py_handler_body(module: &mut String, body: &str, pad: &str) {
+                        // Compute the minimal indent across non-empty lines to serve as
+                        // the normalization base for this handler body.
+                        let mut min_indent: Option<usize> = None;
+                        for ln in body.lines() {
+                            if ln.trim().is_empty() {
+                                continue;
+                            }
+                            let indent = ln
+                                .as_bytes()
+                                .iter()
+                                .take_while(|b| **b == b' ' || **b == b'\t')
+                                .count();
+                            min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
+                        }
+                        let base = min_indent.unwrap_or(0);
+                        let mut has_non_comment = false;
+                        // Track the last logical indent so that Frame expansion lines
+                        // (e.g., transitions) can align with their surrounding native
+                        // statements instead of inheriting any extra indent coming from
+                        // the original Frame source. Also track whether the previous
+                        // logical line ended with a colon so we can indent the first
+                        // statement in that block one level deeper.
+                        let mut prev_indent_norm: Option<usize> = None;
+                        let mut last_line_ended_with_colon = false;
+
+                        for ln in body.lines() {
+                            let raw = ln.trim_end();
+                            if raw.trim().is_empty() {
+                                module.push_str(pad);
+                                module.push('\n');
+                                continue;
+                            }
+                            let mut t = raw.to_string();
+                            // Rewrite system.return to top-of-stack access.
+                            if t.contains("system.return") {
+                                t = t.replace("system.return", "self._system_return_stack[-1]");
+                            }
+                            let bytes_ln = t.as_bytes();
+                            let indent_orig = bytes_ln
+                                .iter()
+                                .take_while(|b| **b == b' ' || **b == b'\t')
+                                .count();
+                            let content = &t[indent_orig..];
+                            let trimmed = content.trim_start();
+                            if trimmed.is_empty() {
+                                module.push_str(pad);
+                                module.push('\n');
+                                continue;
+                            }
+                            let is_comment = trimmed.starts_with('#');
+                            if !is_comment {
+                                has_non_comment = true;
+                            }
+                            // Frame expansion lines emitted by the expander should align
+                            // with the surrounding block rather than keep any extra
+                            // indentation from the original Frame file.
+                            let is_expander = trimmed.starts_with("next_compartment = FrameCompartment(")
+                                || trimmed.starts_with("next_compartment.exit_args =")
+                                || trimmed.starts_with("next_compartment.enter_args =")
+                                || trimmed.starts_with("next_compartment.state_args =")
+                                || trimmed.starts_with("self._frame_transition(")
+                                || trimmed.starts_with("self._frame_stack_push(")
+                                || trimmed.starts_with("self._frame_stack_pop(")
+                                || trimmed.starts_with(
+                                    "self._frame_router(__e, compartment.parent_compartment)",
+                                );
+                            // Choose a normalized indent:
+                            // - If the previous logical line ended with a colon, the first
+                            //   statement in that block must be indented one level deeper
+                            //   than the colon line.
+                            // - Otherwise, for expansion lines, align to the previous
+                            //   logical indent when available; for native lines, keep the
+                            //   original indent.
+                            // Clamp to at least `base` so expansion lines do not end up
+                            // less indented than their block.
+                            let mut indent_norm = if last_line_ended_with_colon {
+                                prev_indent_norm.unwrap_or(base).saturating_add(4)
+                            } else if is_expander {
+                                prev_indent_norm.unwrap_or(indent_orig)
+                            } else {
+                                indent_orig
+                            };
+                            if indent_norm < base {
+                                indent_norm = base;
+                            }
+                            let extra_width = indent_norm.saturating_sub(base);
+                            let extra = " ".repeat(extra_width);
+
+                            // Handler-only sugar: `return expr` => `system.return = expr; return`.
+                            if trimmed.starts_with("return ")
+                                && !trimmed.starts_with("return:")
+                                && trimmed != "return"
+                                && trimmed != "return:"
+                            {
+                                let expr = trimmed["return ".len()..]
+                                    .trim_end_matches(':')
+                                    .trim_end();
+                                if !expr.is_empty() {
+                                    module.push_str(pad);
+                                    module.push_str(&extra);
+                                    module.push_str("self._system_return_stack[-1] = ");
+                                    module.push_str(expr);
+                                    module.push('\n');
+                                    module.push_str(pad);
+                                    module.push_str(&extra);
+                                    module.push_str("return\n");
+                                    prev_indent_norm = Some(indent_norm);
+                                    last_line_ended_with_colon = false;
+                                    continue;
+                                }
+                            }
+
+                            module.push_str(pad);
+                            module.push_str(&extra);
+                            module.push_str(trimmed);
+                            module.push('\n');
+                            prev_indent_norm = Some(indent_norm);
+                            last_line_ended_with_colon = trimmed.ends_with(':');
+                        }
+                        // If the handler body was comment-only, Python still
+                        // requires a statement; emit a pass after the comments.
+                        if !has_non_comment {
+                            module.push_str(pad);
+                            module.push_str("pass\n");
+                        }
+                    }
+
                     // Generate event-specific handler methods grouped by state.
                     // Internal handlers are named `_event_<name>` so that the public
                     // interface methods can use the bare name (tick(), status(), …)
@@ -1260,76 +1392,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             // Single, state-less handler: emit directly under the router without
                             // an explicit state guard.
                             let body = &entries[0].1;
-                            // Normalize indentation while preserving relative nesting inside the handler.
-                            let mut min_indent: Option<usize> = None;
-                            for ln in body.lines() {
-                                if ln.trim().is_empty() { continue; }
-                                let indent = ln.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
-                                min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
-                            }
-                            let base = min_indent.unwrap_or(0);
-                            let mut has_non_comment = false;
-                            for ln in body.lines() {
-                                let raw = ln.trim_end();
-                                if raw.trim().is_empty() {
-                                    module.push_str("        \n");
-                                    continue;
-                                }
-                                let mut t = raw.to_string();
-                                // Rewrite system.return to top-of-stack access.
-                                if t.contains("system.return") {
-                                    t = t.replace(
-                                        "system.return",
-                                        "self._system_return_stack[-1]",
-                                    );
-                                }
-                                // Preserve relative indentation beyond the base so nested
-                                // defs / blocks remain valid while normalizing the outer pad.
-                                let bytes_ln = t.as_bytes();
-                                let indent = bytes_ln
-                                    .iter()
-                                    .take_while(|b| **b == b' ' || **b == b'\t')
-                                    .count();
-                                let offset = if indent >= base { base } else { indent };
-                                let content = &t[offset..];
-                                let extra = if indent > base {
-                                    std::str::from_utf8(&bytes_ln[base..indent]).unwrap_or("")
-                                } else {
-                                    ""
-                                };
-                                let trimmed = content.trim_start();
-                                if trimmed.is_empty() {
-                                    module.push_str("        \n");
-                                    continue;
-                                }
-                                if !trimmed.starts_with('#') {
-                                    has_non_comment = true;
-                                }
-                                // Handler-only sugar: `return expr` => `system.return = expr; return`.
-                                if trimmed.starts_with("return ") && !trimmed.starts_with("return:") && trimmed != "return" && trimmed != "return:" {
-                                    let expr = trimmed["return ".len()..].trim_end_matches(':').trim_end();
-                                    if !expr.is_empty() {
-                                        module.push_str("        ");
-                                        module.push_str(extra);
-                                        module.push_str("self._system_return_stack[-1] = ");
-                                        module.push_str(expr);
-                                        module.push('\n');
-                                        module.push_str("        ");
-                                        module.push_str(extra);
-                                        module.push_str("return\n");
-                                        continue;
-                                    }
-                                }
-                                module.push_str("        ");
-                                module.push_str(extra);
-                                module.push_str(trimmed);
-                                module.push('\n');
-                            }
-                            // If the handler body was comment-only, Python still
-                            // requires a statement; emit a pass after the comments.
-                            if !has_non_comment {
-                                module.push_str("        pass\n");
-                            }
+                            emit_py_handler_body(&mut module, body, "        ");
                         } else if entries.len() == 1 {
                             // Single state-qualified handler: emit a single guarded block and
                             // normalize indentation inside that block while preserving relative
@@ -1345,204 +1408,12 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     "        if c.state == \"{}\":\n",
                                     compiled_id
                                 ));
-                                let mut min_indent: Option<usize> = None;
-                                for ln in body.lines() {
-                                    if ln.trim().is_empty() {
-                                        continue;
-                                    }
-                                    let indent = ln
-                                        .as_bytes()
-                                        .iter()
-                                        .take_while(|b| **b == b' ' || **b == b'\t')
-                                        .count();
-                                    min_indent =
-                                        Some(min_indent.map_or(indent, |m| m.min(indent)));
-                                }
-                                let base = min_indent.unwrap_or(0);
-                                let mut has_non_comment = false;
-                                // Track the most recent block header (e.g., `if`/`else`)
-                                // so we can align Frame transition expansions inside that
-                                // block instead of at the outer guard level.
-                                let mut last_block_rel: Option<usize> = None;
-                                // Track the most recent transition indent so that the
-                                // trailing bare `return` from a Transition MIR expands
-                                // at the same level as the transition itself.
-                                let mut last_transition_rel: Option<usize> = None;
-                                for ln in body.lines() {
-                                    let raw = ln.trim_end();
-                                    if raw.trim().is_empty() {
-                                        module.push_str("            \n");
-                                        continue;
-                                    }
-                                    let mut t = raw.to_string();
-                                    if t.contains("system.return") {
-                                        t = t.replace(
-                                            "system.return",
-                                            "self._system_return_stack[-1]",
-                                        );
-                                    }
-                                    let bytes_ln = t.as_bytes();
-                                    let indent = bytes_ln
-                                        .iter()
-                                        .take_while(|b| **b == b' ' || **b == b'\t')
-                                        .count();
-                                    let mut rel = indent.saturating_sub(base);
-                                    let stripped = &t[indent..];
-                                    let trimmed = stripped.trim_start();
-                                    if trimmed.is_empty() {
-                                        module.push_str("            \n");
-                                        continue;
-                                    }
-                                    // Comments should be preserved but do not count
-                                    // as satisfying Python's requirement for a statement
-                                    // in the branch.
-                                    if !trimmed.starts_with('#') {
-                                        has_non_comment = true;
-                                    }
-                                    // Track block headers (`if`/`elif`/`else`/etc.) so that
-                                    // the following Frame transitions can be aligned inside
-                                    // the block rather than at the outer guard level.
-                                    if trimmed.ends_with(':')
-                                        && !trimmed.starts_with("return")
-                                    {
-                                        last_block_rel = Some(rel.saturating_add(4));
-                                    }
-                                    // If this is a Frame transition line, prefer the
-                                    // interior block indent when we have one.
-                                    if trimmed.starts_with("next_compartment = FrameCompartment(") {
-                                        if let Some(block_rel) = last_block_rel {
-                                            rel = block_rel;
-                                        } else {
-                                            // When there is no nested block header in scope,
-                                            // align transition expansions with the state
-                                            // guard body (no extra relative indent).
-                                            rel = 0;
-                                        }
-                                        last_transition_rel = Some(rel);
-                                    }
-                                    // In handlers only, `return expr` is sugar for
-                                    // `system.return = expr; return`.
-                                    if trimmed.starts_with("return ")
-                                        && !trimmed.starts_with("return:")
-                                        && trimmed != "return"
-                                        && trimmed != "return:"
-                                    {
-                                        let expr = trimmed["return ".len()..]
-                                            .trim_end_matches(':')
-                                            .trim_end();
-                                        if !expr.is_empty() {
-                                            module.push_str("            ");
-                                            for _ in 0..rel { module.push(' '); }
-                                            module.push_str(
-                                                "self._system_return_stack[-1] = ",
-                                            );
-                                            module.push_str(expr);
-                                            module.push('\n');
-                                            module.push_str("            ");
-                                            for _ in 0..rel { module.push(' '); }
-                                            module.push_str("return\n");
-                                            continue;
-                                        }
-                                    } else if trimmed == "return" || trimmed == "return:" {
-                                        // Ensure the trailing bare `return` from a Transition
-                                        // MIR expansion aligns with the last transition line
-                                        // so Python does not see an unexpected indent.
-                                        if let Some(tr) = last_transition_rel {
-                                            rel = tr;
-                                        }
-                                    }
-                                    module.push_str("            ");
-                                    for _ in 0..rel { module.push(' '); }
-                                    module.push_str(stripped);
-                                    module.push('\n');
-                                }
-                                if !has_non_comment {
-                                    module.push_str("            pass\n");
-                                }
+                                emit_py_handler_body(&mut module, body, "            ");
                             } else {
                                 // Defensive fallback: treat as state-less handler if the outline
                                 // did not record a state id.
                                 let body = &entries[0].1;
-                                let mut min_indent: Option<usize> = None;
-                                for ln in body.lines() {
-                                    if ln.trim().is_empty() {
-                                        continue;
-                                    }
-                                    let indent = ln
-                                        .as_bytes()
-                                        .iter()
-                                        .take_while(|b| **b == b' ' || **b == b'\t')
-                                        .count();
-                                    min_indent =
-                                        Some(min_indent.map_or(indent, |m| m.min(indent)));
-                                }
-                                let base = min_indent.unwrap_or(0);
-                                let mut has_non_comment = false;
-                                for ln in body.lines() {
-                                    let raw = ln.trim_end();
-                                    if raw.trim().is_empty() {
-                                        module.push_str("        \n");
-                                        continue;
-                                    }
-                                    let mut t = raw.to_string();
-                                    if t.contains("system.return") {
-                                        t = t.replace(
-                                            "system.return",
-                                            "self._system_return_stack[-1]",
-                                        );
-                                    }
-                                    let bytes_ln = t.as_bytes();
-                                    let indent = bytes_ln
-                                        .iter()
-                                        .take_while(|b| **b == b' ' || **b == b'\t')
-                                        .count();
-                                    let offset =
-                                        if indent >= base { base } else { indent };
-                                    let content = &t[offset..];
-                                    let extra = if indent > base {
-                                        std::str::from_utf8(&bytes_ln[base..indent])
-                                            .unwrap_or("")
-                                    } else {
-                                        ""
-                                    };
-                                    let trimmed = content.trim_start();
-                                    if trimmed.is_empty() {
-                                        module.push_str("        \n");
-                                        continue;
-                                    }
-                                    if !trimmed.starts_with('#') {
-                                        has_non_comment = true;
-                                    }
-                                    if trimmed.starts_with("return ")
-                                        && !trimmed.starts_with("return:")
-                                        && trimmed != "return"
-                                        && trimmed != "return:"
-                                    {
-                                        let expr = trimmed["return ".len()..]
-                                            .trim_end_matches(':')
-                                            .trim_end();
-                                        if !expr.is_empty() {
-                                            module.push_str("        ");
-                                            module.push_str(extra);
-                                            module.push_str(
-                                                "self._system_return_stack[-1] = ",
-                                            );
-                                            module.push_str(expr);
-                                            module.push('\n');
-                                            module.push_str("        ");
-                                            module.push_str(extra);
-                                            module.push_str("return\n");
-                                            continue;
-                                        }
-                                    }
-                                    module.push_str("        ");
-                                    module.push_str(extra);
-                                    module.push_str(trimmed);
-                                    module.push('\n');
-                                }
-                                if !has_non_comment {
-                                    module.push_str("        pass\n");
-                                }
+                                emit_py_handler_body(&mut module, body, "        ");
                             }
                         } else {
                             let mut first_case = true;
@@ -1567,94 +1438,10 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         module.push_str("        else:\n");
                                     }
                                 }
-                                // For multi-state handlers, normalize each logical line by
-                                // stripping a common leading indentation while preserving
-                                // relative nesting (e.g., nested defs / blocks) so that
-                                // Python does not see inconsistent indentation.
-                                let mut min_indent: Option<usize> = None;
-                                for ln in body.lines() {
-                                    if ln.trim().is_empty() {
-                                        continue;
-                                    }
-                                    let indent = ln
-                                        .as_bytes()
-                                        .iter()
-                                        .take_while(|b| **b == b' ' || **b == b'\t')
-                                        .count();
-                                    min_indent =
-                                        Some(min_indent.map_or(indent, |m| m.min(indent)));
-                                }
-                                let base = min_indent.unwrap_or(0);
-                                let mut has_non_comment = false;
-                                for ln in body.lines() {
-                                    let raw = ln.trim_end();
-                                    if raw.trim().is_empty() {
-                                        module.push_str("            \n");
-                                        continue;
-                                    }
-                                    let mut t = raw.to_string();
-                                    if t.contains("system.return") {
-                                        t = t.replace(
-                                            "system.return",
-                                            "self._system_return_stack[-1]",
-                                        );
-                                    }
-                                    let bytes_ln = t.as_bytes();
-                                    let indent = bytes_ln
-                                        .iter()
-                                        .take_while(|b| **b == b' ' || **b == b'\t')
-                                        .count();
-                                    let offset =
-                                        if indent >= base { base } else { indent };
-                                    let content = &t[offset..];
-                                    let extra = if indent > base {
-                                        std::str::from_utf8(&bytes_ln[base..indent])
-                                            .unwrap_or("")
-                                    } else {
-                                        ""
-                                    };
-                                    let trimmed = content.trim_start();
-                                    if trimmed.is_empty() {
-                                        module.push_str("            \n");
-                                        continue;
-                                    }
-                                    // Comments should be preserved but do not count
-                                    // as satisfying Python's requirement for a statement
-                                    // in the branch.
-                                    if !trimmed.starts_with('#') {
-                                        has_non_comment = true;
-                                    }
-                                    // Handler-only sugar: `return expr` => `system.return = expr; return`.
-                                    if trimmed.starts_with("return ")
-                                        && !trimmed.starts_with("return:")
-                                        && trimmed != "return"
-                                        && trimmed != "return:"
-                                    {
-                                        let expr = trimmed["return ".len()..]
-                                            .trim_end_matches(':')
-                                            .trim_end();
-                                        if !expr.is_empty() {
-                                            module.push_str("            ");
-                                            module.push_str(extra);
-                                            module.push_str(
-                                                "self._system_return_stack[-1] = ",
-                                            );
-                                            module.push_str(expr);
-                                            module.push('\n');
-                                            module.push_str("            ");
-                                            module.push_str(extra);
-                                            module.push_str("return\n");
-                                            continue;
-                                        }
-                                    }
-                                    module.push_str("            ");
-                                    module.push_str(extra);
-                                    module.push_str(trimmed);
-                                    module.push('\n');
-                                }
-                                if !has_non_comment {
-                                    module.push_str("            pass\n");
-                                }
+                                // Normalize the body under the state guard while
+                                // preserving relative nesting and aligning Frame
+                                // expansion lines to the logical block.
+                                emit_py_handler_body(&mut module, body, "            ");
                             }
                         }
                     }
@@ -2164,8 +1951,8 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     // Minimal event and compartment structs for mapping/debug output and
                     // basic runtime semantics. Derive Default on the compartment so
                     // RustExpanderV3 can use `..Default::default()`.
-                    module.push_str("struct FrameEvent{ message: String }\n");
-                    module.push_str("#[derive(Debug, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
+                    module.push_str("#[derive(Debug, Clone)] struct FrameEvent{ message: String }\n");
+                    module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
                     // System struct scaffold: one per Frame system.
                     module.push_str(&format!("struct {} {{\n    compartment: FrameCompartment,\n    _stack: Vec<FrameCompartment>,\n}}\n\n", sys_name));
                     // Minimal runtime methods on the system. These provide basic
@@ -2179,14 +1966,14 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         start_state
                     ));
                     module.push_str("    fn _frame_transition(&mut self, next: &FrameCompartment){\n");
-                    module.push_str("        // Basic transition: update the active compartment.\n");
-                    module.push_str("        self.compartment = FrameCompartment{ state: next.state, ..self.compartment };\n");
+                    module.push_str("        // Basic transition: update the active state id; other fields remain unchanged for now.\n");
+                    module.push_str("        self.compartment.state = next.state;\n");
                     module.push_str("    }\n");
                     module.push_str("    fn _frame_router(&mut self, _e: Option<FrameEvent>) {\n");
                     module.push_str("        // Router semantics will be provided by a future runtime-aware generator.\n");
                     module.push_str("    }\n");
                     module.push_str("    fn _frame_stack_push(&mut self){\n");
-                    module.push_str("        self._stack.push(self.compartment);\n");
+                    module.push_str("        self._stack.push(self.compartment.clone());\n");
                     module.push_str("    }\n");
                     module.push_str("    fn _frame_stack_pop(&mut self){\n");
                     module.push_str("        if let Some(prev) = self._stack.pop() {\n");
@@ -2227,11 +2014,28 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     let states = validator.collect_machine_state_names(bytes, outline_start);
                     if !states.is_empty() {
                         let mut enum_src = String::new();
-                        enum_src.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]\n");
+                        enum_src.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n");
                         enum_src.push_str("enum StateId { ");
                         let mut first = true;
-                        for s in states.iter() { if !first { enum_src.push_str(", "); } enum_src.push_str(s); first = false; }
-                        enum_src.push_str(" }\n\n");
+                        for s in states.iter() {
+                            if !first {
+                                enum_src.push_str(", ");
+                            }
+                            enum_src.push_str(s);
+                            first = false;
+                        }
+                        enum_src.push_str(" }\n");
+                        // Default implementation: prefer the start state when present,
+                        // otherwise fall back to the first collected state.
+                        let default_state: &str = if states.iter().any(|s| s == &start_state) {
+                            start_state.as_str()
+                        } else {
+                            states.iter().next().map(|s| s.as_str()).unwrap_or(start_state.as_str())
+                        };
+                        enum_src.push_str(&format!(
+                            "\nimpl Default for StateId {{ fn default() -> Self {{ StateId::{} }} }}\n\n",
+                            default_state
+                        ));
                         module = enum_src + &module;
                     }
                     out = module;

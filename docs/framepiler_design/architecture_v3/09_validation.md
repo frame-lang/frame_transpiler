@@ -24,6 +24,21 @@ Diagnostics
 - Human‑oriented and machine‑readable formats.
  - Advisory Frame‑level policies (e.g., E405) are opt‑in via `FRAME_VALIDATE_NATIVE_POLICY=1`.
 
+PRT Policy Coverage (Python / TypeScript / Rust)
+- Python:
+  - E400 (transition terminal-in-block): exercised in `language_specific/python/v3_validator/negative/*` and runtime fixtures under `v3_systems_runtime`.
+  - E401 (no Frame in actions/operations): `framec_tests/language_specific/python/v3_validator/negative/action_has_frame.frm`.
+  - E402/E403/E404 (unknown state / parent forward / handler placement): driven from Arcanum in V3 module path; negatives live in `v3_validator/negative` and CLI project tests.
+  - E405 (state param arity mismatch): `framec_tests/language_specific/python/v3_validator/negative/transition_state_arity_mismatch.frm` when `FRAME_VALIDATE_NATIVE_POLICY=1`.
+  - E406 (system.method must target interface method): `framec_tests/language_specific/python/v3_capabilities/system_calls/negative/system_calls_non_interface_v3.frm`.
+- TypeScript:
+  - E400/E401/E402/E403/E404: same rules as Python, using the TypeScript scanner and Arcanum; negatives live in `language_specific/typescript/v3_validator/negative/*`.
+  - E405: `framec_tests/language_specific/typescript/v3_validator/negative/transition_state_arity_mismatch.frm`.
+  - E406: `framec_tests/language_specific/typescript/v3_capabilities/system_calls/negative/system_calls_non_interface_v3.frm`.
+- Rust:
+  - Structural and policy validation uses the same ValidatorV3 core (E400/E401/E402/E403/E404/E405).
+  - Stage 7 native validation for Rust is enforced via `@rs-compile` on V3 CLI fixtures (e.g., `language_specific/rust/v3_cli/positive/basic_cli_compile.frm`), which requires generated Rust to pass `rustc` syntax checks.
+
 Complexity
 - Linear in item count per handler.
 

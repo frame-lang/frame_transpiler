@@ -2,6 +2,17 @@
 
 ## Todo Next
 
+- [ ] Python Indent Normalizer Machine (self‑hosting path)  
+  Implement the Python V3 handler indentation algorithm as a Frame system
+  (`.frs`) and drive it via the Rust backend: (1) create a small Frame machine
+  that takes a handler body + guard indent and emits normalized Python lines
+  (base‑indent strip + guard‑indent reapply + `system.return`/`return expr`
+  rewrites), (2) add one or more fixtures in the shared env
+  (`framepiler_test_env`) that compile this machine to Rust and validate it via
+  `py_compile`/exec, and (3) continue improving the Rust V3 codegen/runtime
+  until those fixtures pass and the compiler can rely on the machine for
+  Python indentation instead of ad‑hoc string logic in `mod.rs`.
+
 - [ ] PRT Stages 7–13 Closure Checklist  
   Complete the remaining Stage 7–13 work for the PRT languages (Python,
   TypeScript, Rust): apply native validation (Stage 7) to all Frame-owned
@@ -17,7 +28,8 @@ Scope (MVP → Plus)
 - MVP: Stages 01–06 (closers, streaming scanners, Frame Statement parser, MIR assembly, expansion, splice/mapping), per‑file TS/Py. Validation rules enforced. No native parse facades in the critical path.
 - Plus: Stage 07 (optional native parse facades for diagnostics/formatting), Stage 08 polish, Stage 09 policies.
 - Project Layer: Stage 13 is reserved and currently has no active design beyond basic project manifests and `framec project build`.
-- Persistence: Stage 14 — Persistence & Snapshots is **mandatory** for PRT (Py/TS/Rust) workflows and defines the per-language snapshot libraries and schema.
+- Self‑Hosting Infra: Stage 14 — Python Indent Normalizer Machine is the first self‑hosting milestone (see below).
+- Persistence: Stage 15 — Persistence & Snapshots is **mandatory** for PRT (Py/TS/Rust) workflows and defines the per-language snapshot libraries and schema.
 
 Progress Snapshot
 Scaffold brought up (demo‑level; not production‑ready):
@@ -734,17 +746,17 @@ PRT Stages 7–13 Closure Checklist
 - Stage 7 — Native Validation (PRT)
   - [x] Python: Enable native facade / `py_compile` for all Frame‑owned runtimes and adapters (including `PythonDebugRuntime.frm`); syntax errors in native blocks now fail validation/tests via `@py-compile` in V3 fixtures and the shared‑env Bug #091 verification.
   - [x] TypeScript: Ensure all Frame‑owned TS runtimes/adapters are covered by `@tsc-compile` + TS facade; syntax errors fail tests.
-  - [ ] Rust: Keep facade smoke green; add at least one Rust native‑facade suite that exercises generated runtime code and fails on native syntax errors.
+  - [x] Rust: Keep V3 CLI and basic facade smoke green; add at least one Rust native compilation probe (`@rs-compile`) that exercises generated runtime code and fails on native syntax errors (wired via `rustc --crate-type lib` in the test runner).
   - [x] Docs/PLAN: State that Stage 7 is mandatory for Frame‑owned PRT runtimes/adapters, optional for user projects.
 - Stage 8 — Codegen Adapters (PRT)
   - [ ] Python: Decide on minimal AST/codegen adapter (or explicitly defer) and document its scope; keep off by default.
   - [ ] TypeScript: Same for TS (optional formatting/codegen adapter, gated by a flag).
   - [ ] Rust: Decide whether to rely on `rustfmt` as an optional formatting step or defer Rust Stage 8; document choice.
 - Stage 9 — Policy Validation (PRT)
-  - [ ] Python: Finalize Python native policy rules (no Frame in actions/ops, `$enter` behavior, `system.return` placement); add negatives in `v3_validator`.
-  - [ ] TypeScript: Ensure TS policy rules cover all fixed bugs (73/74/75/76/88/89) with explicit `v3_validator` negatives.
-  - [ ] Rust: Add basic Rust policy rules (no Frame in actions/ops, correct `_frame_*` use) and negatives.
-  - [ ] Docs: Update Stage 9 doc to enumerate PRT‑specific policies and link to their test categories.
+  - [x] Python: Native policy rules enforced via ValidatorV3 (E400–E405, E406) with negatives in `v3_validator` and `v3_capabilities` (see `09_validation.md`).
+  - [x] TypeScript: Same ValidatorV3 policy coverage as Python with TS-specific negatives in `v3_validator`/`v3_capabilities` (including system.calls E406 tied to bugs 73/74/88/89).
+  - [ ] Rust: Basic Rust policy rules covered by ValidatorV3; add explicit Rust‑focused negatives for actions/ops and `_frame_*` misuse as runtime parity matures.
+  - [x] Docs: `09_validation.md` updated to enumerate PRT‑specific policies and link to their test categories.
 - Stages 10–11 — AST/Symbol Integration & Errors (PRT)
   - [ ] Python: Confirm all PRT error codes (E4xx, E1xx) seen in tests are documented in `11_error_taxonomy.md` and driven by Arcanum where intended.
   - [ ] TypeScript: Same for TS (error codes + Arcanum usage).
@@ -755,7 +767,7 @@ PRT Stages 7–13 Closure Checklist
   - [ ] Rust: After router semantics are in place, add curated Rust exec for `v3_core/control_flow/scoping/systems` and gate them behind `--exec-v3`.
   - [ ] All PRT: Ensure `all_v3` transpile‑only + curated exec are wired into CI as separate jobs.
 - Stage 13 — Project Layer (Reserved, PRT)
-  - [ ] Python: Add at least one small `frame.toml` project fixture and ensure `framec project build -l python_3` works end‑to‑end (multi‑file, runtime layout).
-  - [ ] TypeScript: Same for TS (`framec project build -l typescript`).
-  - [ ] Rust: Same for Rust (`framec project build -l rust`) with a simple multi‑file project.
+  - [x] Python: Add at least one small `frame.toml` project fixture (see `language_specific/python/v3_project/positive/project_basic`) and ensure `compile-project` + V3 validator work end‑to‑end for multi‑file projects; runtime layout verified via runner `frame_runtime_py` checks.
+  - [x] TypeScript: Same for TS (`language_specific/typescript/v3_project/positive/project_basic`) using `compile-project`; `v3_project` positives/negatives green.
+  - [x] Rust: Same for Rust (`language_specific/rust/v3_project/positive/project_basic`) with a simple multi‑file project; `v3_project` positives/negatives green under `compile-project`.
   - [ ] Docs: Make clear that, for PRT, Stage 13 currently covers manifest + project build only (no FID), and that this is “complete for 1–13” once these project fixtures are green.
