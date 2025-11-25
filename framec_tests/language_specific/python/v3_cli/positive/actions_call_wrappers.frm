@@ -3,6 +3,7 @@
 # @compile-expect: def log\(
 # @compile-expect: def _action_handle\(
 # @compile-expect: def handle\(
+# @py-compile
 
 system CallMismatch {
     machine:

@@ -2,13 +2,13 @@
 
 ## Todo Next
 
-- [ ] Rust runtime parity with Python/TypeScript (PRT)  
-  Bring the Rust V3 codegen and runtime semantics up to parity with the Python
-  and TypeScript V3 implementations: `_frame_transition/_frame_router` glue,
-  `system.return` per-call stack, generated interface methods, and curated
-  exec suites for `v3_core`, `v3_control_flow`, `v3_scoping`, and `v3_systems`.
-  Update the Rust V3 docs to match and mark the PRT trio (Py/TS/Rust) as
-  fully aligned in the architecture overview.
+- [ ] PRT Stages 7–13 Closure Checklist  
+  Complete the remaining Stage 7–13 work for the PRT languages (Python,
+  TypeScript, Rust): apply native validation (Stage 7) to all Frame-owned
+  runtimes/adapters, finalize PRT policy rules (Stage 9), finish Rust runtime
+  parity (router + `system.return` + curated exec), and add minimal project
+  fixtures for PRT in Stage 13. Keep the checklist below as the authoritative
+  list of outstanding Stage 7–13 items for PRT.
 
 Goal
 - Rebuild the single‑file pipeline from first principles using the V3 docs as the source of truth, then add the multi‑file project layer. Keep the new code hermetic and deterministic.
@@ -701,3 +701,61 @@ Owner’s Notes
 - Keep objects small and single‑purpose; no monolithic RD parsers.
 - The only “parser” in core is `FrameStatementParserV3` (tiny, FIRST‑set). Everything else is scanning/assembly/expansion.
 - Default to textual expansions; AST involvement is optional.
+
+Stage 14 — Persistence & Snapshots (PRT Progress)
+- [x] Python: `frame_persistence_py` module added with `SystemSnapshot`,
+      `snapshot_system`, `restore_system`, and JSON helpers as specified in
+      `14_persistence_and_snapshots.md`. No core pipeline behavior change.
+- [ ] TypeScript: `frame_persistence_ts` library mirroring the same snapshot
+      shape and helpers.
+- [ ] Rust: `frame_persistence_rs` library using `serde`‑backed
+      `SystemSnapshot` and `from_snapshot`/`to_snapshot` implementations.
+
+Rust Runtime Parity (PRT Progress)
+- [x] Basic Rust V3 runtime scaffold:
+  - `StateId` enum with `Default`, a minimal `FrameEvent` struct, and a
+    `FrameCompartment` struct with `Default` and a `state: StateId` field.
+  - Generated system struct per Frame system with `compartment` and
+    `_stack: Vec<FrameCompartment>`.
+  - Runtime helpers on the system: `_frame_transition`, `_frame_router`
+    (stub), `_frame_stack_push`, `_frame_stack_pop`, and `new()` seeded from
+    the Arcanum start state.
+- [ ] Router semantics: implement `_frame_router` for Rust V3 to dispatch
+      `(state, event)` to the appropriate handler methods, mirroring the
+      Python/TypeScript design.
+- [ ] `system.return` for Rust: add a per‑call return stack to the Rust
+      system struct and generated interface methods following the V3
+      semantics described in `frame_runtime.md` and `codegen.md`.
+- [ ] Curated Rust exec: extend the V3 runner to execute Rust V3 systems
+      against the real runtime (not just facade markers) for
+      `v3_core`/`v3_control_flow`/`v3_scoping`/`v3_systems`.
+
+PRT Stages 7–13 Closure Checklist
+- Stage 7 — Native Validation (PRT)
+  - [ ] Python: Enable native facade / `py_compile` for all Frame‑owned runtimes and adapters (including `PythonDebugRuntime.frm`); make native syntax errors fail validation/tests.
+  - [ ] TypeScript: Ensure all Frame‑owned TS runtimes/adapters are covered by `@tsc-compile` + TS facade; syntax errors fail tests.
+  - [ ] Rust: Keep facade smoke green; add at least one Rust native‑facade suite that exercises generated runtime code and fails on native syntax errors.
+  - [ ] Docs/PLAN: State that Stage 7 is mandatory for Frame‑owned PRT runtimes/adapters, optional for user projects.
+- Stage 8 — Codegen Adapters (PRT)
+  - [ ] Python: Decide on minimal AST/codegen adapter (or explicitly defer) and document its scope; keep off by default.
+  - [ ] TypeScript: Same for TS (optional formatting/codegen adapter, gated by a flag).
+  - [ ] Rust: Decide whether to rely on `rustfmt` as an optional formatting step or defer Rust Stage 8; document choice.
+- Stage 9 — Policy Validation (PRT)
+  - [ ] Python: Finalize Python native policy rules (no Frame in actions/ops, `$enter` behavior, `system.return` placement); add negatives in `v3_validator`.
+  - [ ] TypeScript: Ensure TS policy rules cover all fixed bugs (73/74/75/76/88/89) with explicit `v3_validator` negatives.
+  - [ ] Rust: Add basic Rust policy rules (no Frame in actions/ops, correct `_frame_*` use) and negatives.
+  - [ ] Docs: Update Stage 9 doc to enumerate PRT‑specific policies and link to their test categories.
+- Stages 10–11 — AST/Symbol Integration & Errors (PRT)
+  - [ ] Python: Confirm all PRT error codes (E4xx, E1xx) seen in tests are documented in `11_error_taxonomy.md` and driven by Arcanum where intended.
+  - [ ] TypeScript: Same for TS (error codes + Arcanum usage).
+  - [ ] Rust: Same for Rust, plus ensure any remaining string‑based header parsing is replaced by the AST/header helpers where appropriate.
+- Stage 12 — Testing Strategy (PRT)
+  - [ ] Python: Curated exec (`v3_core`, `v3_control_flow`, `v3_scoping`, `v3_systems`) stable; add explicit Stage‑7 native‑validation negatives (e.g. invalid Python bodies) that must fail when native validation is enabled.
+  - [ ] TypeScript: Curated exec and `v3_capabilities` stable; ensure adapter/TS runtime fixtures cover key semantics.
+  - [ ] Rust: After router semantics are in place, add curated Rust exec for `v3_core/control_flow/scoping/systems` and gate them behind `--exec-v3`.
+  - [ ] All PRT: Ensure `all_v3` transpile‑only + curated exec are wired into CI as separate jobs.
+- Stage 13 — Project Layer (Reserved, PRT)
+  - [ ] Python: Add at least one small `frame.toml` project fixture and ensure `framec project build -l python_3` works end‑to‑end (multi‑file, runtime layout).
+  - [ ] TypeScript: Same for TS (`framec project build -l typescript`).
+  - [ ] Rust: Same for Rust (`framec project build -l rust`) with a simple multi‑file project.
+  - [ ] Docs: Make clear that, for PRT, Stage 13 currently covers manifest + project build only (no FID), and that this is “complete for 1–13” once these project fixtures are green.

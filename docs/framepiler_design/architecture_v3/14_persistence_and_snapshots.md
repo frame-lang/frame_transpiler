@@ -94,12 +94,12 @@ Per-Language Libraries (mandatory for PRT)
 Python (Stage 14 requirements)
 - Do NOT rely on `jsonpickle.encode(self)` for full-system persistence in V3.
 - Instead:
-  - Implement `frame_persistence_py.snapshot(system)` that:
+  - Implement `frame_persistence_py.snapshot_system(system)` that:
     - Inspects `_compartment`, `_stack`, and selected domain fields.
     - Produces a `SystemSnapshot` structure.
-  - Implement `frame_persistence_py.restore(snapshot)` that:
-    - Instantiates a new system (calling the Python constructor in a defined
-      way).
+  - Implement `frame_persistence_py.restore_system(snapshot, system_factory)` that:
+    - Instantiates a new system via `system_factory` (calling the Python
+      constructor in a defined way).
     - Rebuilds the initial compartment and stack from the snapshot without
       firing `$enter` unexpectedly.
   - Provide helpers for encoding/decoding snapshots to JSON using standard
@@ -163,4 +163,3 @@ Relationship to Stages 01–13
 - Stage 14 does **not** change core compilation semantics; it adds a
   persistence layer on top of the runtime model defined in
   `frame_runtime.md` and `codegen.md`.
-

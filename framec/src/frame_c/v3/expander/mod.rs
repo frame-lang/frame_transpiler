@@ -182,22 +182,49 @@ impl FrameStatementExpanderV3 for JavaExpanderV3 {
 }
 
 impl FrameStatementExpanderV3 for RustExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, _system_ctx: Option<&str>) -> String {
+    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
+        // When we know the system context (V3 module path), expand against methods
+        // on the generated system struct. Otherwise, keep the legacy free-function
+        // calls used by demo/exec harnesses.
+        let use_methods = system_ctx.is_some();
         match mir {
             MirItemV3::Transition{ target, .. } => {
                 let mut out = String::new();
-                out.push_str(&format!("{}let next_compartment = FrameCompartment {{ state: StateId::{}, ..Default::default() }};\n", pad, target));
-                out.push_str(&format!("{}_frame_transition(&next_compartment);\n", pad));
+                out.push_str(&format!(
+                    "{}let next_compartment = FrameCompartment {{ state: StateId::{}, ..Default::default() }};\n",
+                    pad, target
+                ));
+                if use_methods {
+                    out.push_str(&format!("{}self._frame_transition(&next_compartment);\n", pad));
+                } else {
+                    out.push_str(&format!("{}_frame_transition(&next_compartment);\n", pad));
+                }
                 out.push_str(&format!("{}return;\n", pad));
                 out
             }
             MirItemV3::Forward{ .. } => {
                 // Forwards are non-terminal
-                format!("{}_frame_router(None);\n", pad)
+                if use_methods {
+                    format!("{}self._frame_router(None);\n", pad)
+                } else {
+                    format!("{}_frame_router(None);\n", pad)
+                }
             }
-            MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
+            MirItemV3::StackPush{ .. } => {
+                if use_methods {
+                    format!("{}self._frame_stack_push();\n", pad)
+                } else {
+                    format!("{}_frame_stack_push();\n", pad)
+                }
+            }
+            MirItemV3::StackPop{ .. } => {
+                if use_methods {
+                    format!("{}self._frame_stack_pop();\n", pad)
+                } else {
+                    format!("{}_frame_stack_pop();\n", pad)
+                }
+            }
         }
     }
 }

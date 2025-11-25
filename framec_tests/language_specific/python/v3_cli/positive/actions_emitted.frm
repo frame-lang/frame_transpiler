@@ -1,5 +1,6 @@
 @target python
 # @compile-expect: def _action_helper\(
+# @py-compile
 
 system S {
     machine:
@@ -11,4 +12,3 @@ system S {
     actions:
         helper() { pass }
 }
-

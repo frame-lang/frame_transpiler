@@ -2122,24 +2122,46 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 }
                 TargetLanguage::Rust => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    // Prefer the first declared state as the start state when available.
+                    let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
                     let mut module = String::new();
-                    // Minimal compartment struct for mapping/debug output; semantics will be
-                    // provided by a future runtime-aware Rust generator.
-                    module.push_str("#[derive(Debug)] struct FrameCompartment{ state: StateId, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
+                    // Minimal event and compartment structs for mapping/debug output and
+                    // basic runtime semantics. Derive Default on the compartment so
+                    // RustExpanderV3 can use `..Default::default()`.
+                    module.push_str("struct FrameEvent{ message: String }\n");
+                    module.push_str("#[derive(Debug, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
                     // System struct scaffold: one per Frame system.
-                    module.push_str(&format!("struct {} {{\n    compartment: FrameCompartment,\n}}\n\n", sys_name));
-                    // Stub runtime methods on the system; these are intentionally no-ops for now
-                    // so existing mapping/validator tests remain unchanged. Future work will wire
-                    // these into a real Rust runtime (FrameEvent/FrameCompartment/FrameKernel).
+                    module.push_str(&format!("struct {} {{\n    compartment: FrameCompartment,\n    _stack: Vec<FrameCompartment>,\n}}\n\n", sys_name));
+                    // Minimal runtime methods on the system. These provide basic
+                    // transition/stack semantics for V3 Rust while remaining compatible
+                    // with the existing exec-smoke harnesses (which still use facade
+                    // wrapper calls).
                     module.push_str(&format!("impl {} {{\n", sys_name));
-                    module.push_str("    fn _frame_transition(&mut self, _n: &FrameCompartment){ /* TODO: transition semantics */ }\n");
-                    module.push_str("    fn _frame_router(&mut self, _e: Option<()>) { /* TODO: router semantics */ }\n");
-                    module.push_str("    fn _frame_stack_push(&mut self){ /* TODO: stack push */ }\n");
-                    module.push_str("    fn _frame_stack_pop(&mut self){ /* TODO: stack pop */ }\n");
+                    // Basic constructor: seed the compartment with the start state and an empty stack.
+                    module.push_str(&format!(
+                        "    fn new() -> Self {{ Self {{ compartment: FrameCompartment{{ state: StateId::{}, ..Default::default() }}, _stack: Vec::new(), }} }}\n",
+                        start_state
+                    ));
+                    module.push_str("    fn _frame_transition(&mut self, next: &FrameCompartment){\n");
+                    module.push_str("        // Basic transition: update the active compartment.\n");
+                    module.push_str("        self.compartment = FrameCompartment{ state: next.state, ..self.compartment };\n");
+                    module.push_str("    }\n");
+                    module.push_str("    fn _frame_router(&mut self, _e: Option<FrameEvent>) {\n");
+                    module.push_str("        // Router semantics will be provided by a future runtime-aware generator.\n");
+                    module.push_str("    }\n");
+                    module.push_str("    fn _frame_stack_push(&mut self){\n");
+                    module.push_str("        self._stack.push(self.compartment);\n");
+                    module.push_str("    }\n");
+                    module.push_str("    fn _frame_stack_pop(&mut self){\n");
+                    module.push_str("        if let Some(prev) = self._stack.pop() {\n");
+                    module.push_str("            self._frame_transition(&prev);\n");
+                    module.push_str("        }\n");
+                    module.push_str("    }\n");
                     module.push_str("}\n\n");
-                    // For now, emit handlers both as free functions and as methods on the system
-                    // struct. The method form will be wired into a real router in a later parity
-                    // step; keeping the free functions preserves existing mapping/debug behavior.
+                    // Emit handlers as methods on the system struct. The method form will be wired
+                    // into a real router in a later parity step. We deliberately avoid emitting
+                    // free-function variants here so the expanded bodies can rely on `self.` calls
+                    // to the runtime helpers without introducing uncompilable top-level code.
                     for (idx, b) in parts.bodies.iter().enumerate() {
                         if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
                             let hname = b.owner_id.as_deref().unwrap_or("handler");
@@ -2154,12 +2176,6 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 } else { spliced_full }
                             };
                             let spliced = spliced_slice.to_string();
-                            // Free function version
-                            module.push_str(&format!("pub fn {}() {{\n", hname));
-                            for line in spliced.lines() {
-                                module.push_str("    "); module.push_str(line); module.push('\n');
-                            }
-                            module.push_str("}\n\n");
                             // Method on the system struct (scaffold for future router wiring)
                             module.push_str(&format!("impl {} {{\n", sys_name));
                             module.push_str(&format!("    fn {}(&mut self) {{\n", hname));
@@ -2175,7 +2191,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     let states = validator.collect_machine_state_names(bytes, outline_start);
                     if !states.is_empty() {
                         let mut enum_src = String::new();
-                        enum_src.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n");
+                        enum_src.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]\n");
                         enum_src.push_str("enum StateId { ");
                         let mut first = true;
                         for s in states.iter() { if !first { enum_src.push_str(", "); } enum_src.push_str(s); first = false; }

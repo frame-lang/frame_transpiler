@@ -215,6 +215,9 @@ class FrameTestRunner:
                     if re.match(r"^\s*(#|//)\s*@tsc-compile\b", line):
                         meta['tsc_compile'] = ['1']
                         continue
+                    if re.match(r"^\s*(#|//)\s*@py-compile\b", line):
+                        meta['py_compile'] = ['1']
+                        continue
                     m4 = re.match(r"^\s*(#|//)\s*@timeout:\s*(\d+)\s*$", line)
                     if m4:
                         meta['timeout'] = [m4.group(2)]
@@ -555,6 +558,20 @@ class FrameTestRunner:
                         return False, str(output_file), f"tsc compile failed: {msg}"
                 except FileNotFoundError:
                     return False, str(output_file), "tsc not found for @tsc-compile"
+            # Optional Python syntax check via py_compile for CLI outputs
+            if language == "python" and mode == "compile" and 'py_compile' in meta:
+                try:
+                    res = subprocess.run(
+                        ["python3", "-m", "py_compile", str(output_file)],
+                        capture_output=True,
+                        text=True,
+                        timeout=max(self.config.timeout, 10),
+                    )
+                    if res.returncode != 0:
+                        msg = res.stderr or res.stdout or "py_compile failed"
+                        return False, str(output_file), f"py_compile failed: {msg}"
+                except FileNotFoundError:
+                    return False, str(output_file), "python3 not found for @py-compile"
             # Optional import-call smoke for Python compiled module
             if language == "python" and 'import_call' in meta and mode == "compile" and not is_neg:
                 try:

@@ -301,27 +301,67 @@ V3 codegen emits a Python class with:
   - `system.return` per‑call stack and generated interface methods mirroring the Python/TS design.
   - Curated exec suites (`v3_core`, `v3_control_flow`, `v3_scoping`, `v3_systems`) running against the real Rust runtime.
 
-- Target structure (design):
-  - A `struct` for the system, containing:
-    - A compartment struct (`FrameCompartment` analog) holding `StateId`, args, vars, etc.
-    - A stack of compartments for `$$[+]`/`$$[-]`.
-    - A per‑call `system_return_stack: Vec<Value>` analogous to the Python/TS `_systemReturnStack`.
-  - An `enum StateId { A, B, … }` (default‑on).
-  - Methods:
-    - `fn new(...) -> Self` initializing the compartment to the start state (first state in `machine:` per Arcanum) and firing `$enter`.
-    - `fn frame_transition(&mut self, next: FrameCompartment)` switching the active compartment and firing `$enter`.
-    - `fn frame_router(&mut self, e: FrameEvent)` switching on `(self.compartment.state, e.message)` and invoking state‑specific handlers.
-    - Per‑state handler methods (`fn s_A_tick(&mut self, e: FrameEvent)`, etc.) and generated interface methods that manage `system.return`.
+- Current V3 Rust structure (implemented):
+  - A generated `enum StateId { … }` with `Default`, used by `FrameCompartment`.
+  - A minimal `FrameEvent`:
+    ```rust
+    struct FrameEvent { message: String }
+    ```
+  - A compartment struct:
+    ```rust
+    #[derive(Debug, Default)]
+    struct FrameCompartment {
+        state: StateId,
+        forward_event: Option<FrameEvent>,
+        exit_args: Option<()>,
+        enter_args: Option<()>,
+        parent_compartment: Option<*const FrameCompartment>,
+        state_args: Option<()>,
+    }
+    ```
+  - A per‑system struct:
+    ```rust
+    struct SystemName {
+        compartment: FrameCompartment,
+        _stack: Vec<FrameCompartment>,
+    }
+    ```
+  - Runtime helpers on the system:
+    ```rust
+    impl SystemName {
+        fn new() -> Self {
+            Self {
+                compartment: FrameCompartment { state: StateId::StartState, ..Default::default() },
+                _stack: Vec::new(),
+            }
+        }
 
-- Transitions will lower to:
-  ```rust
-  let mut next_compartment = FrameCompartment::new(StateId::B);
-  // exit/enter/state args wiring
-  self.frame_transition(next_compartment);
-  return;
-  ```
+        fn _frame_transition(&mut self, next: &FrameCompartment) {
+            // Basic transition: update the active compartment state.
+            self.compartment = FrameCompartment { state: next.state, ..self.compartment };
+        }
 
-- `fn main` in Frame will map to a native Rust `fn main()` in the generated module/binary crate when that mode is enabled; otherwise, it is a regular helper function. Parity with Python/TS for `fn main` wiring is part of this plan.
+        fn _frame_router(&mut self, _e: Option<FrameEvent>) {
+            // Router semantics will be provided by a later parity step.
+        }
+
+        fn _frame_stack_push(&mut self) {
+            self._stack.push(self.compartment);
+        }
+
+        fn _frame_stack_pop(&mut self) {
+            if let Some(prev) = self._stack.pop() {
+                self._frame_transition(&prev);
+            }
+        }
+    }
+    ```
+  - Handlers are emitted as methods on the system (e.g. `fn e(&mut self) { … }`) and use `self._frame_transition/_frame_stack_*` in their expanded glue.
+
+- Target structure (next steps, design):
+  - A real `frame_router(&mut self, e: FrameEvent)` that switches on `(self.compartment.state, e.message)` and invokes state‑specific handlers.
+  - Generated interface methods and a `system_return_stack` field mirroring the Python/TS `system.return` semantics.
+  - A `fn main` mapping (when present) to a native Rust `fn main()` in binary builds; otherwise, it remains a helper.
 
 ## Non‑PRT Targets (C/C++/Java/C#)
 
