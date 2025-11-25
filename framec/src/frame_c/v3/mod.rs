@@ -1552,11 +1552,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     }
                                 }
                                 // For multi-state handlers, normalize each logical line by
-                                // stripping all leading whitespace and indenting once under
-                                // the generated guard. This avoids carrying deep pad offsets
-                                // from Frame expansions that can trigger inconsistent
-                                // indentation errors in Python while preserving order.
-                                // Normalize indentation per state body while preserving
+                                // stripping a common leading indentation while preserving
                                 // relative nesting (e.g., nested defs / blocks) so that
                                 // Python does not see inconsistent indentation.
                                 let mut min_indent: Option<usize> = None;
@@ -1592,16 +1588,8 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                         .iter()
                                         .take_while(|b| **b == b' ' || **b == b'\t')
                                         .count();
-                                    let offset =
-                                        if indent >= base { base } else { indent };
-                                    let content = &t[offset..];
-                                    let extra = if indent > base {
-                                        std::str::from_utf8(&bytes_ln[base..indent])
-                                            .unwrap_or("")
-                                    } else {
-                                        ""
-                                    };
-                                    let trimmed = content.trim_start();
+                                    let stripped = &t[indent..];
+                                    let trimmed = stripped.trim_start();
                                     if trimmed.is_empty() {
                                         module.push_str("            \n");
                                         continue;
@@ -1612,6 +1600,25 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                     if !trimmed.starts_with('#') {
                                         has_non_comment = true;
                                     }
+                                    // Router/transition calls generated from Frame semantics
+                                    // should always live at the top level of the state guard,
+                                    // not nested under any local defs/blocks. Force their
+                                    // indentation to the guard level by ignoring any extra
+                                    // leading spaces beyond the base.
+                                    let is_frame_line =
+                                        trimmed.starts_with("next_compartment = FrameCompartment(") ||
+                                        trimmed.starts_with("next_compartment.exit_args") ||
+                                        trimmed.starts_with("next_compartment.enter_args") ||
+                                        trimmed.starts_with("next_compartment.state_args") ||
+                                        trimmed.starts_with("self._frame_transition(") ||
+                                        trimmed.starts_with("self._frame_router(__e, compartment.parent_compartment)") ||
+                                        trimmed.starts_with("self._frame_stack_push()") ||
+                                        trimmed.starts_with("self._frame_stack_pop()");
+                                    let rel = if is_frame_line {
+                                        0
+                                    } else {
+                                        indent.saturating_sub(base)
+                                    };
                                     if trimmed.starts_with("return ")
                                         && !trimmed.starts_with("return:")
                                         && trimmed != "return"
@@ -1622,21 +1629,21 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                             .trim_end();
                                         if !expr.is_empty() {
                                             module.push_str("            ");
-                                            module.push_str(extra);
+                                            for _ in 0..rel { module.push(' '); }
                                             module.push_str(
                                                 "self._system_return_stack[-1] = ",
                                             );
                                             module.push_str(expr);
                                             module.push('\n');
                                             module.push_str("            ");
-                                            module.push_str(extra);
+                                            for _ in 0..rel { module.push(' '); }
                                             module.push_str("return\n");
                                             continue;
                                         }
                                     }
                                     module.push_str("            ");
-                                    module.push_str(extra);
-                                    module.push_str(trimmed);
+                                    for _ in 0..rel { module.push(' '); }
+                                    module.push_str(stripped);
                                     module.push('\n');
                                 }
                                 if !has_non_comment {
