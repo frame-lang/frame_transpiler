@@ -1,5 +1,6 @@
 @target python
 # @compile-expect: def _operation_calc\(
+# @py-compile
 
 system S {
     operations:
