@@ -7,7 +7,7 @@ use crate::frame_c::v3::expander::{FrameStatementExpanderV3, PyExpanderV3, TsExp
 use crate::frame_c::v3::splice::SplicerV3;
 use crate::frame_c::v3::validator::{ValidatorV3, ValidationResultV3, ValidatorPolicyV3, BodyKindV3};
 use crate::frame_c::v3::system_parser::SystemParserV3;
-use crate::frame_c::v3::interface_parser::InterfaceParserV3;
+use crate::frame_c::v3::interface_parser::{InterfaceParserV3, InterfaceMethodMeta};
 
 pub mod body_closer;
 pub mod native_region_scanner;
@@ -1946,7 +1946,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 TargetLanguage::Rust => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
                     // Collect per-system interface method metadata so we can derive
-                    // a typed return enum (scaffold only; not yet wired into semantics).
+                    // a typed return enum and (later) interface wrappers.
                     let module_ast_rust = SystemParserV3::parse_module(bytes, TargetLanguage::Rust);
                     let iface_parser_rust = InterfaceParserV3;
                     let iface_meta_map_rust =
@@ -1962,6 +1962,67 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     // RustExpanderV3 can use `..Default::default()`.
                     module.push_str("#[derive(Debug, Clone)] struct FrameEvent{ message: String }\n");
                     module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
+                    // Helper: emit a Rust handler body, optionally rewriting `system.return`
+                    // usage for interface handlers into calls on the per-method setter.
+                    fn emit_rs_handler_body(
+                        module: &mut String,
+                        body: &str,
+                        pad: &str,
+                        setter_name: Option<&str>,
+                    ) {
+                        for ln in body.lines() {
+                            let raw = ln.trim_end();
+                            if raw.trim().is_empty() {
+                                module.push_str(pad);
+                                module.push('\n');
+                                continue;
+                            }
+                            let t = raw.to_string();
+                            let trimmed = t.trim_start();
+                            if let Some(method) = setter_name {
+                                // Handler-only sugar: `return expr;` => setter call + `return;`.
+                                if trimmed.starts_with("return ")
+                                    && trimmed.trim_end() != "return;"
+                                    && trimmed != "return"
+                                {
+                                    let expr = trimmed["return ".len()..]
+                                        .trim_end_matches(';')
+                                        .trim();
+                                    if !expr.is_empty() {
+                                        module.push_str(pad);
+                                        module.push_str("self._set_system_return_for_");
+                                        module.push_str(method);
+                                        module.push('(');
+                                        module.push_str(expr);
+                                        module.push_str(");\n");
+                                        module.push_str(pad);
+                                        module.push_str("return;\n");
+                                        continue;
+                                    }
+                                }
+                                // Direct assignment form: `system.return = expr;`.
+                                if trimmed.starts_with("system.return") {
+                                    if let Some(eq_idx) = trimmed.find('=') {
+                                        let expr = trimmed[eq_idx + 1..]
+                                            .trim_end_matches(';')
+                                            .trim();
+                                        if !expr.is_empty() {
+                                            module.push_str(pad);
+                                            module.push_str("self._set_system_return_for_");
+                                            module.push_str(method);
+                                            module.push('(');
+                                            module.push_str(expr);
+                                            module.push_str(");\n");
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            module.push_str(pad);
+                            module.push_str(trimmed);
+                            module.push('\n');
+                        }
+                    }
                     // System struct scaffold: one per Frame system.
                     module.push_str(&format!("struct {} {{\n    compartment: FrameCompartment,\n    _stack: Vec<FrameCompartment>,\n", sys_name));
                     if has_returns {
@@ -1994,7 +2055,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     module.push_str("    }\n");
                     module.push_str("}\n\n");
                     // Group handlers by interface name and state so we can emit a single
-                    // public method per interface that dispatches on `self.compartment.state`.
+                    // internal method per interface that dispatches on `self.compartment.state`.
                     use std::collections::BTreeMap;
                     let mut handler_map: BTreeMap<String, Vec<(Option<String>, String)>> = BTreeMap::new();
                     for (idx, b) in parts.bodies.iter().enumerate() {
@@ -2033,16 +2094,36 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         }
                     }
                     if !handler_map.is_empty() {
+                        // Helper: decide whether a handler owner id can be used as a
+                        // Rust identifier. We keep the original message name for
+                        // FrameEvent but skip router arms for names that are not valid
+                        // Rust identifiers (e.g., entry handlers like `$>()`).
+                        fn is_valid_rust_ident(name: &str) -> bool {
+                            let mut chars = name.chars();
+                            match chars.next() {
+                                Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+                                _ => return false,
+                            }
+                            for c in chars {
+                                if !(c.is_ascii_alphanumeric() || c == '_') {
+                                    return false;
+                                }
+                            }
+                            true
+                        }
                         module.push_str(&format!("impl {} {{\n", sys_name));
                         // Router: dispatch based on message name and current StateId by
-                        // calling the corresponding handler method. This provides a
+                        // calling the corresponding internal handler method. This provides a
                         // minimal runtime entrypoint for interface wrappers and future
                         // event plumbing.
                         module.push_str("    fn _frame_router(&mut self, e: Option<FrameEvent>) {\n");
                         module.push_str("        if let Some(ev) = e {\n");
                         module.push_str("            match ev.message.as_str() {\n");
                         for hname in handler_map.keys() {
-                            module.push_str(&format!("                \"{}\" => self.{}(),\n", hname, hname));
+                            if !is_valid_rust_ident(hname) {
+                                continue;
+                            }
+                            module.push_str(&format!("                \"{}\" => self._event_{}(),\n", hname, hname));
                         }
                         module.push_str("                _ => { }\n");
                         module.push_str("            }\n");
@@ -2051,47 +2132,127 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         // Emit methods that implement each handler, dispatching on StateId
                         // when a handler is implemented in multiple states.
                         for (hname, entries) in handler_map {
-                            // State-less handler: emit a simple method with the body as-is.
-                            if entries.len() == 1 && entries[0].0.is_none() {
-                                module.push_str(&format!("    fn {}(&mut self) {{\n", hname));
-                                for line in entries[0].1.lines() {
-                                    module.push_str("        ");
-                                    module.push_str(line);
-                                    module.push('\n');
-                                }
-                                module.push_str("    }\n");
-                            } else {
-                                // Multi-state handler: dispatch on StateId and splice per-state bodies.
-                                module.push_str(&format!("    fn {}(&mut self) {{\n", hname));
-                                module.push_str("        match self.compartment.state {\n");
-                                for (state_opt, body) in &entries {
-                                    if let Some(ref sid) = state_opt {
-                                        module.push_str(&format!("            StateId::{} => {{\n", sid));
-                                        for line in body.lines() {
-                                            module.push_str("                ");
-                                            module.push_str(line);
-                                            module.push('\n');
-                                        }
-                                        module.push_str("            }\n");
+                            let use_name_in_code = is_valid_rust_ident(&hname);
+                            let setter_name = if has_returns {
+                                if let Some(meta_map) = iface_meta_for_sys_rust {
+                                    if meta_map.contains_key(&hname) {
+                                        Some(hname.as_str())
                                     } else {
-                                        // Fallback for handlers not tied to a specific state when
-                                        // others are state-qualified.
-                                        module.push_str("            _ => {\n");
-                                        for line in body.lines() {
-                                            module.push_str("                ");
-                                            module.push_str(line);
-                                            module.push('\n');
-                                        }
-                                        module.push_str("            }\n");
+                                        None
                                     }
+                                } else {
+                                    None
                                 }
-                                // Ensure exhaustive match in case there are states without handlers.
-                                module.push_str("            _ => { }\n");
-                                module.push_str("        }\n");
-                                module.push_str("    }\n");
+                            } else {
+                                None
+                            };
+                            // State-less handler: emit a simple internal method with the body as-is.
+                            if use_name_in_code {
+                                if entries.len() == 1 && entries[0].0.is_none() {
+                                    module.push_str(&format!("    fn _event_{}(&mut self) {{\n", hname));
+                                    emit_rs_handler_body(&mut module, &entries[0].1, "        ", setter_name);
+                                    module.push_str("    }\n");
+                                } else {
+                                    // Multi-state handler: dispatch on StateId and splice per-state bodies.
+                                    module.push_str(&format!("    fn _event_{}(&mut self) {{\n", hname));
+                                    module.push_str("        match self.compartment.state {\n");
+                                    for (state_opt, body) in &entries {
+                                        if let Some(ref sid) = state_opt {
+                                            module.push_str(&format!("            StateId::{} => {{\n", sid));
+                                            emit_rs_handler_body(&mut module, body, "                ", setter_name);
+                                            module.push_str("            }\n");
+                                        } else {
+                                            // Fallback for handlers not tied to a specific state when
+                                            // others are state-qualified.
+                                            module.push_str("            _ => {\n");
+                                            emit_rs_handler_body(&mut module, body, "                ", setter_name);
+                                            module.push_str("            }\n");
+                                        }
+                                    }
+                                    // Ensure exhaustive match in case there are states without handlers.
+                                    module.push_str("            _ => { }\n");
+                                    module.push_str("        }\n");
+                                    module.push_str("    }\n");
+                                }
                             }
                         }
                         module.push_str("}\n\n");
+                    }
+                    // If this system declares interface methods, synthesize per-method
+                    // setters for `system.return` and public interface wrappers that
+                    // allocate a per-call return slot, route an event, and then pop
+                    // the slot and return the payload.
+                    if has_returns {
+                        if let Some(iface_meta) = iface_meta_for_sys_rust {
+                            use std::collections::BTreeMap;
+                            let mut ordered: BTreeMap<&String, &InterfaceMethodMeta> = BTreeMap::new();
+                            for (name, meta) in iface_meta {
+                                ordered.insert(name, meta);
+                            }
+                            module.push_str(&format!("impl {} {{\n", sys_name));
+                            for (name, meta) in ordered {
+                                let ty = meta.return_type.as_deref().unwrap_or("()");
+                                // Per-method setter: update the payload in the top-of-stack
+                                // slot when the current call belongs to this interface.
+                                module.push_str(&format!(
+                                    "    fn _set_system_return_for_{}(&mut self, value: {}) {{\n",
+                                    name, ty
+                                ));
+                                module.push_str("        if let Some(");
+                                module.push_str(&return_enum_name);
+                                module.push_str("::");
+                                module.push_str(name);
+                                module.push_str("(ref mut v)) = self._system_return_stack.last_mut() {\n");
+                                module.push_str("            *v = value;\n");
+                                module.push_str("        }\n");
+                                module.push_str("    }\n");
+                                // Public interface wrapper: initialize the per-call slot,
+                                // route an event, then pop and return the payload.
+                                module.push_str(&format!(
+                                    "    pub fn {}(&mut self) -> {} {{\n",
+                                    name, ty
+                                ));
+                                if let Some(init) = meta.return_init.as_deref() {
+                                    module.push_str("        let __initial: ");
+                                    module.push_str(ty);
+                                    module.push_str(" = ");
+                                    module.push_str(init);
+                                    module.push_str(";\n");
+                                } else if ty == "()" {
+                                    module.push_str("        let __initial: () = ();\n");
+                                } else {
+                                    module.push_str("        let __initial: ");
+                                    module.push_str(ty);
+                                    module.push_str(" = ::std::default::Default::default();\n");
+                                }
+                                module.push_str("        self._system_return_stack.push(");
+                                module.push_str(&return_enum_name);
+                                module.push_str("::");
+                                module.push_str(name);
+                                module.push_str("(__initial));\n");
+                                module.push_str("        let __event = FrameEvent{ message: \"");
+                                module.push_str(name);
+                                module.push_str("\".to_string() };\n");
+                                module.push_str("        self._frame_router(Some(__event));\n");
+                                module.push_str("        let __result = match self._system_return_stack.pop() {\n");
+                                module.push_str("            Some(");
+                                module.push_str(&return_enum_name);
+                                module.push_str("::");
+                                module.push_str(name);
+                                module.push_str("(value)) => value,\n");
+                                module.push_str("            _ => {\n");
+                                if ty == "()" {
+                                    module.push_str("                ()\n");
+                                } else {
+                                    module.push_str("                ::std::default::Default::default()\n");
+                                }
+                                module.push_str("            }\n");
+                                module.push_str("        };\n");
+                                module.push_str("        __result\n");
+                                module.push_str("    }\n");
+                            }
+                            module.push_str("}\n\n");
+                        }
                     }
                     // Enum StateId
                     let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
@@ -2291,7 +2452,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         if std::env::var("FRAME_NATIVE_SYMBOL_SNAPSHOT").ok().as_deref() == Some("1") {
             let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
             let (items, _issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
-            fn extract_params_with_spans(hdr: &str) -> (Vec<String>, Vec<(usize, usize)>) {
+                fn extract_params_with_spans(hdr: &str) -> (Vec<String>, Vec<(usize, usize)>) {
                 if let Some(lp) = hdr.find('(') {
                     if let Some(rp_rel) = hdr[lp+1..].find(')') {
                         let rp = lp + 1 + rp_rel;
@@ -2299,8 +2460,8 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         let mut names = Vec::new();
                         let mut spans = Vec::new();
                         let bytes = inside.as_bytes();
-                        let mut i = 0usize;
-                        while i < bytes.len() {
+                    let mut i = 0usize;
+                    while i < bytes.len() {
                             while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b',') { i += 1; }
                             if i >= bytes.len() { break; }
                             let tok_start = i;
@@ -2332,7 +2493,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 if matches!(it.kind, crate::frame_c::v3::validator::BodyKindV3::Handler) {
                     let start = it.header_span.start; let end = it.header_span.end.min(bytes.len());
                     let hdr = std::str::from_utf8(&bytes[start..end]).unwrap_or("");
-                    let (mut params, pspans) = extract_params_with_spans(hdr);
+                    let (params, pspans) = extract_params_with_spans(hdr);
                     // Stage 10C: parser-backed extraction for Python (RustPython) when available; fallback to header-based
                     #[cfg(feature = "native-py-rp")]
                     {

@@ -37,20 +37,21 @@ Performance
 CI Integration
 - Run all 7 language suites for V3 categories on meaningful changes to scanning/segmentation/MIR/validator/expander. LLVM is out of scope (on hold).
 
-Curated Exec (Python/TypeScript)
-- Purpose: end-to-end execution for selected categories (`v3_core`, `v3_control_flow`, `v3_systems`) to validate production glue and control-flow insertion.
+Curated Exec (Python/TypeScript/Rust)
+- Purpose: end-to-end execution for selected categories (`v3_core`, `v3_control_flow`, `v3_systems`) to validate production glue and control-flow insertion for PRT.
 - Enable with runner flag `--exec-v3` and author fixtures with inline expectations:
   - Python: `# @run-expect: <regex>` lines
-  - TypeScript: `// @run-expect: <regex>` lines
+  - TypeScript/Rust: `// @run-expect: <regex>` lines
 - The curated harness asserts expected markers in output (`TRANSITION:`, `FORWARD:PARENT`, `STACK:PUSH|POP`). It executes expansions only (no branch evaluation).
-- Example:
-```
-python3 framec_tests/runner/frame_test_runner.py \
-  --languages python typescript \
-  --categories v3_control_flow v3_core v3_systems \
-  --framec ./target/release/framec \
-  --exec-v3 --run -v
-```
+- Example (Python/TypeScript):
+  ```
+  python3 framec_tests/runner/frame_test_runner.py \
+    --languages python typescript \
+    --categories v3_control_flow v3_core v3_systems v3_systems_runtime \
+    --framec ./target/release/framec \
+    --exec-v3 --run -v
+  ```
+- Rust curated exec currently uses the same harness and markers for `v3_core` and `v3_systems` exec-smoke fixtures; expanding this to full curated exec is a future enhancement once the Rust runtime is fully exercised.
 
 JUnit Artifacts
 - All V3 workflows upload JUnit XML reports suitable for CI dashboards and local inspection:

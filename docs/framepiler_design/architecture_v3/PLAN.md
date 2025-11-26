@@ -771,13 +771,13 @@ PRT Stages 7–13 Closure Checklist
   - [x] Rust: Keep V3 CLI and basic facade smoke green; add at least one Rust native compilation probe (`@rs-compile`) that exercises generated runtime code and fails on native syntax errors (wired via `rustc --crate-type lib` in the test runner).
   - [x] Docs/PLAN: State that Stage 7 is mandatory for Frame‑owned PRT runtimes/adapters, optional for user projects.
 - Stage 8 — Codegen Adapters (PRT)
-  - [ ] Python: Decide on minimal AST/codegen adapter (or explicitly defer) and document its scope; keep off by default.
-  - [ ] TypeScript: Same for TS (optional formatting/codegen adapter, gated by a flag).
-  - [ ] Rust: Decide whether to rely on `rustfmt` as an optional formatting step or defer Rust Stage 8; document choice.
+  - [x] Python: Stage 8 codegen adapters are explicitly deferred for PRT; V3 Python continues to emit deterministic string‑based code without an external formatter/AST printer. Any future adapter (e.g., `black`/`ruff`) must be gated behind CLI flags and not required in CI.
+  - [x] TypeScript: Stage 8 codegen adapters are explicitly deferred; V3 TypeScript relies on the existing deterministic generator. Future adapters (e.g., SWC/TypeScript AST printers) must be optional and off by default.
+  - [x] Rust: Stage 8 formatting/codegen adapters are explicitly deferred; V3 Rust uses the embedded struct‑based runtime and string‑based emission. Optional `rustfmt` integration, if added later, must be behind an opt‑in flag and not part of the core pipeline.
 - Stage 9 — Policy Validation (PRT)
   - [x] Python: Native policy rules enforced via ValidatorV3 (E400–E405, E406) with negatives in `v3_validator` and `v3_capabilities` (see `09_validation.md`).
   - [x] TypeScript: Same ValidatorV3 policy coverage as Python with TS-specific negatives in `v3_validator`/`v3_capabilities` (including system.calls E406 tied to bugs 73/74/88/89).
-  - [ ] Rust: Basic Rust policy rules covered by ValidatorV3; add explicit Rust‑focused negatives for actions/ops and `_frame_*` misuse as runtime parity matures.
+  - [x] Rust: Basic Rust policy rules covered by ValidatorV3; explicit Rust‑focused negatives exist for actions/ops (E401), handler/section structure (E111/E113), and `system.method` E406. `_frame_*` misuse remains a future enhancement once more Rust‑specific facade/runtime policies are introduced.
   - [x] Docs: `09_validation.md` updated to enumerate PRT‑specific policies and link to their test categories.
 - Stages 10–11 — AST/Symbol Integration & Errors (PRT)
   - [ ] Python: Confirm all PRT error codes (E4xx, E1xx) seen in tests are documented in `11_error_taxonomy.md` and driven by Arcanum where intended.
@@ -792,4 +792,4 @@ PRT Stages 7–13 Closure Checklist
   - [x] Python: Add at least one small `frame.toml` project fixture (see `language_specific/python/v3_project/positive/project_basic`) and ensure `compile-project` + V3 validator work end‑to‑end for multi‑file projects; runtime layout verified via runner `frame_runtime_py` checks.
   - [x] TypeScript: Same for TS (`language_specific/typescript/v3_project/positive/project_basic`) using `compile-project`; `v3_project` positives/negatives green.
   - [x] Rust: Same for Rust (`language_specific/rust/v3_project/positive/project_basic`) with a simple multi‑file project; `v3_project` positives/negatives green under `compile-project`.
-  - [ ] Docs: Make clear that, for PRT, Stage 13 currently covers manifest + project build only (no FID), and that this is “complete for 1–13” once these project fixtures are green.
+  - [x] Docs: Make clear that, for PRT, Stage 13 currently covers manifest + project build only (no FID), and that this is “complete for 1–13” once these project fixtures are green. See `architecture_v3_overview.md` (“Project Configuration (frame.toml)” and “Project Layer (Stage 13, PRT)”) for the authoritative description.

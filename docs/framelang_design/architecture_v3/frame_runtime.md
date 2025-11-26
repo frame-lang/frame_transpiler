@@ -317,10 +317,17 @@ Abstract rules:
 - `system.return` is a special variable associated with the **current call to
   an interface method**. Each interface invocation allocates a per‑call slot on
   a return stack (`_system_return_stack`).
+- That slot is always initialized before any handler code runs, so
+  `system.return` is a valid lvalue **and** rvalue expression in all supported
+  targets:
+  - If the interface header declares a default (`name(params): Type = Expr`),
+    the slot is initialized from `Expr`.
+  - Otherwise the slot is initialized to a target‑appropriate default
+    (for example `None`/`undefined`/`()` or `T::default()`), and handler code
+    may overwrite it.
 - When a generated interface method returns, it reads the current `system.return`
   value from the top of that stack and returns it; if no handler or helper has
-  written to it, the value comes from the interface header default
-  (`name(params): Type = Expr`).
+  written to it, the value comes from the initialized slot as described above.
 - Handlers, actions, and non‑static operations may all assign to
   `system.return` so they can participate in computing the interface return.
 - In event handlers only, a `return expr` statement is treated as sugar for
@@ -554,7 +561,7 @@ Rust currently has two layers:
      validate that Frame statements expand into valid Rust statements and
      produce the expected markers on stdout.
 
-2. **V3 module‑path runtime scaffold** (new, PRT work in progress):
+2. **V3 module‑path runtime** (PRT struct‑based runtime):
 
    - For V3 module‑path compiles (`framec compile -l rust` under the V3 path),
      the generator now emits a minimal struct‑based runtime similar in shape to
@@ -648,11 +655,31 @@ Rust currently has two layers:
    - `_frame_router` and these handler methods are used in the V3 module‑path
      codegen; exec‑smoke continues to use the façade functions.
 
-   - `system.return` semantics and per‑call return stacks are **not yet**
-     implemented for Rust; they are tracked as part of the PRT Stage 7–13
-     parity work. For now, Rust’s struct‑based runtime supports state/stack and
-     basic message routing but does not enforce header defaults or return‑slot
-     sugar.
+   - When the system declares interface methods, the generator now synthesizes
+     a typed per‑system return enum and per‑method helpers:
+     - `enum SystemNameReturn { methodName(Type), ... }` with one variant per
+       interface method, where `Type` comes from the interface header’s
+       `: Type` (defaulting to `()` when omitted).
+     - A private setter on the system struct for each interface method:
+       `fn _set_system_return_for_methodName(&mut self, value: Type)`; this
+       updates the payload stored in the top‑of‑stack `SystemNameReturn::methodName(..)`
+       slot when the current interface call matches `methodName`.
+     - A public interface wrapper per method:
+       - Initializes a per‑call slot from the header default (`= Expr`) or from
+         `Default::default()` (or `()` for unit return types).
+       - Pushes a `SystemNameReturn::methodName(initial)` onto
+         `_system_return_stack`.
+       - Builds a `FrameEvent { message: "methodName".into() }` and routes it
+         through `_frame_router(Some(event))`.
+       - Pops `_system_return_stack` and returns the payload from the variant,
+         falling back to the initialized default when the variant does not match.
+
+   - Handler bodies are lowered into internal `_event_methodName(&mut self)`
+     methods that dispatch on `StateId`. Inside these methods the Rust
+     generator applies the same `system.return` sugar used in Python/TS:
+     - `return expr;` becomes a call to the per‑method setter followed by
+       `return;`.
+     - `system.return = expr;` becomes a call to the per‑method setter.
 
 ### 3.4 C / C++ / Java / C#
 

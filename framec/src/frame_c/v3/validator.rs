@@ -110,7 +110,7 @@ impl ValidatorV3 {
         start: usize,
         lang: TargetLanguage,
         arc: &Arcanum,
-        outline: &[OutlineItemV3],
+        _outline: &[OutlineItemV3],
     ) -> Vec<ValidationIssueV3> {
         let mut issues: Vec<ValidationIssueV3> = Vec::new();
         // Parse all systems once to obtain system parameters per name.
@@ -335,7 +335,7 @@ impl ValidatorV3 {
                                 break;
                             }
                             // Parse method identifier after the dot.
-                            let mut name_start = j;
+                            let name_start = j;
                             if !((seg[j] as char).is_ascii_alphabetic() || seg[j] == b'_') {
                                 i += 1;
                                 continue;

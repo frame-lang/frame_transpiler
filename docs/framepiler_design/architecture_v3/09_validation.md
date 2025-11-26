@@ -37,7 +37,10 @@ PRT Policy Coverage (Python / TypeScript / Rust)
   - E406: `framec_tests/language_specific/typescript/v3_capabilities/system_calls/negative/system_calls_non_interface_v3.frm`.
 - Rust:
   - Structural and policy validation uses the same ValidatorV3 core (E400/E401/E402/E403/E404/E405).
-  - Stage 7 native validation for Rust is enforced via `@rs-compile` on V3 CLI fixtures (e.g., `language_specific/rust/v3_cli/positive/basic_cli_compile.frm`), which requires generated Rust to pass `rustc` syntax checks.
+  - No Frame statements in actions/operations (E401) is exercised by `language_specific/rust/v3_validator/negative/action_has_frame.frm`.
+  - Handler placement, section ordering, and related structural rules are covered by `v3_validator/negative/system_block_order.frm` and `.../handler_multiple_directives.frm`.
+  - E406 (system.method must target interface method) is covered by `language_specific/rust/v3_capabilities/system_calls/negative/system_calls_non_interface_v3.frm`.
+  - Stage 7 native validation for Rust is enforced via `@rs-compile` on V3 CLI fixtures (e.g., `language_specific/rust/v3_cli/positive/basic_cli_compile.frm` and `.../system_return_cli.frm`), which requires generated Rust to pass `rustc` syntax checks.
 
 Complexity
 - Linear in item count per handler.

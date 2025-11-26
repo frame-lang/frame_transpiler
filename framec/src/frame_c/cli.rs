@@ -217,7 +217,7 @@ pub fn run_with(args: Cli) {
                     vec![project_root.join("src")]
                 };
                 for dir in src_dirs {
-                    let mut project_args = Cli {
+                    let project_args = Cli {
                         stdin_flag: false,
                         path: None,
                         // The compile-project command carries the language/dir/output;
@@ -241,7 +241,7 @@ pub fn run_with(args: Cli) {
                 }
             } else {
                 let dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-                let mut project_args = Cli {
+                let project_args = Cli {
                     stdin_flag: false,
                     path: None,
                     language: None,
