@@ -7,7 +7,7 @@ system IndentNormalizer {
         run()
 
     machine:
-        $Init {
+        $ComputeBase {
             run() {
                 // Phase A: inline the two logical phases described in the
                 // design doc (ComputeBase and Normalize) directly in native
@@ -123,8 +123,8 @@ system IndentNormalizer {
 
         // Phase A/B bridge: placeholder state to model the Normalize phase
         // explicitly in the machine layout. A later revision will move the
-        // logic from `normalize_lines` into this state and drive it via
-        // domain fields and explicit iteration over `lines`.
+        // loop over `lines` into this state and drive it via the domain
+        // fields instead of local variables.
         $Normalize {
             run() {
                 // No-op for now; present to exercise multi-state interface
@@ -132,7 +132,15 @@ system IndentNormalizer {
             }
         }
 
+        // Terminal state for future API where `run(...)` returns `out_lines`
+        // once normalization is complete. In Phase A this is a stub to keep
+        // the machine layout aligned with the Stage 14 design doc.
+        $Done {
+            run() { }
+        }
+
     // Domain state mirrors the design doc; in Phase A we only define the
+
     // fields and keep them initialized to simple defaults.
     domain:
         // Input lines and flags (to be populated by a future harness)
