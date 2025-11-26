@@ -122,21 +122,19 @@ system IndentNormalizer {
         }
 
         // Phase A/B bridge: placeholder state to model the Normalize phase
-        // explicitly in the machine layout. A later revision will move the
-        // loop over `lines` into this state and drive it via the domain
-        // fields instead of local variables.
+        // explicitly in the machine layout. Once we introduce real transitions
+        // from $ComputeBase, the work for this phase will live in the entry
+        // handler ($>()), not a separate run() interface handler.
         $Normalize {
-            run() {
-                // No-op for now; present to exercise multi-state interface
-                // codegen and to match the Stage 14 machine sketch.
-            }
+            // Future: entry handler ($>()) will apply Normalize-phase logic
+            // once we introduce real transitions from $ComputeBase.
         }
 
         // Terminal state for future API where `run(...)` returns `out_lines`
-        // once normalization is complete. In Phase A this is a stub to keep
-        // the machine layout aligned with the Stage 14 design doc.
+        // once normalization is complete. In a later phase we will transition
+        // to $Done and use its entry handler as the finalization point.
         $Done {
-            run() { }
+            // Future: entry handler ($>()) will finalize and surface results.
         }
 
     // Domain state mirrors the design doc; in Phase A we only define the
