@@ -199,6 +199,7 @@ Deferred Improvements (postpone until TS/Py are 100% debugger‑ready)
 - Project layer (Phase A, retired): earlier sketch of a metadata‑driven linking layer; removed in favour of native parsing + Arcanum. No current implementation.
 - Debug JSON envelope: add stable top‑level `code` alias and `targetLanguage` in debug output; keep language‑specific key for one minor cycle; ensure runner/tooling supports both.
 - Performance/Robustness: small‑buffer reuse in scanners/closers; fuzz/torture suites for protected regions and SOL anchoring; no panics.
+- Typed `system.return` across languages (post‑PRT): for Rust (and eventually other statically typed targets), replace untyped return stacks with enums or other concrete types per interface, so `system.return` is represented as a `Vec<MyEnum>`/equivalent rather than an untyped `any`/`object`. Track this as a follow‑up after PRT Stage 7–13 parity is complete and semantics are stable.
 
 Production‑ready criteria (not done unless explicitly checked):
 - [x] Authoritative module outline (prolog/imports/owner_id) with SOL scanners
