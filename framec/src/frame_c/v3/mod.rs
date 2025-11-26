@@ -1945,6 +1945,15 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                 }
                 TargetLanguage::Rust => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    // Collect per-system interface method metadata so we can derive
+                    // a typed return enum (scaffold only; not yet wired into semantics).
+                    let module_ast_rust = SystemParserV3::parse_module(bytes, TargetLanguage::Rust);
+                    let iface_parser_rust = InterfaceParserV3;
+                    let iface_meta_map_rust =
+                        iface_parser_rust.collect_method_metadata(bytes, &module_ast_rust, TargetLanguage::Rust);
+                    let iface_meta_for_sys_rust = iface_meta_map_rust.get(&sys_name);
+                    let has_returns = iface_meta_for_sys_rust.map_or(false, |m| !m.is_empty());
+                    let return_enum_name = format!("{}Return", sys_name);
                     // Prefer the first declared state as the start state when available.
                     let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
                     let mut module = String::new();
@@ -1954,17 +1963,23 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     module.push_str("#[derive(Debug, Clone)] struct FrameEvent{ message: String }\n");
                     module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
                     // System struct scaffold: one per Frame system.
-                    module.push_str(&format!("struct {} {{\n    compartment: FrameCompartment,\n    _stack: Vec<FrameCompartment>,\n}}\n\n", sys_name));
+                    module.push_str(&format!("struct {} {{\n    compartment: FrameCompartment,\n    _stack: Vec<FrameCompartment>,\n", sys_name));
+                    if has_returns {
+                        module.push_str(&format!("    _system_return_stack: Vec<{}>,\n", return_enum_name));
+                    }
+                    module.push_str("}\n\n");
                     // Minimal runtime methods on the system. These provide basic
                     // transition/stack semantics for V3 Rust while remaining compatible
                     // with the existing exec-smoke harnesses (which still use facade
                     // wrapper calls).
                     module.push_str(&format!("impl {} {{\n", sys_name));
                     // Basic constructor: seed the compartment with the start state and an empty stack.
-                    module.push_str(&format!(
-                        "    fn new() -> Self {{ Self {{ compartment: FrameCompartment{{ state: StateId::{}, ..Default::default() }}, _stack: Vec::new(), }} }}\n",
-                        start_state
-                    ));
+                    module.push_str(&format!("    fn new() -> Self {{ Self {{ compartment: FrameCompartment{{ state: StateId::{}, ..Default::default() }}, _stack: Vec::new(),", start_state));
+                    if has_returns {
+                        module.push_str(&format!(" _system_return_stack: Vec::<{}>::new() }} }}\n", return_enum_name));
+                    } else {
+                        module.push_str(" }} }\n");
+                    }
                     module.push_str("    fn _frame_transition(&mut self, next: &FrameCompartment){\n");
                     module.push_str("        // Basic transition: update the active state id; other fields remain unchanged for now.\n");
                     module.push_str("        self.compartment.state = next.state;\n");
@@ -2102,11 +2117,31 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         } else {
                             states.iter().next().map(|s| s.as_str()).unwrap_or(start_state.as_str())
                         };
-                        enum_src.push_str(&format!(
-                            "\nimpl Default for StateId {{ fn default() -> Self {{ StateId::{} }} }}\n\n",
-                            default_state
-                        ));
+                        enum_src.push_str(&format!("\nimpl Default for StateId {{ fn default() -> Self {{ StateId::{} }} }}\n\n", default_state));
                         module = enum_src + &module;
+                    }
+                    // Scaffold: per-system typed return enum (not yet wired into semantics).
+                    if has_returns {
+                        if let Some(iface) = iface_meta_for_sys_rust {
+                            let mut ret_enum = String::new();
+                            ret_enum.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone)]\n");
+                            ret_enum.push_str(&format!("enum {} {{ ", return_enum_name));
+                            let mut first = true;
+                            for (mname, meta) in iface {
+                                if !first {
+                                    ret_enum.push_str(", ");
+                                }
+                                first = false;
+                                let vname = mname; // method name as variant id (Rust allows lower_snake, though unusual)
+                                let ty = meta.return_type.as_deref().unwrap_or("()");
+                                ret_enum.push_str(vname);
+                                ret_enum.push('(');
+                                ret_enum.push_str(ty);
+                                ret_enum.push(')');
+                            }
+                            ret_enum.push_str(" }\n\n");
+                            module = ret_enum + &module;
+                        }
                     }
                     out = module;
                 }
