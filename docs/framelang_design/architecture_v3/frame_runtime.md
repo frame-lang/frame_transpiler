@@ -537,22 +537,122 @@ Python; tests live under `language_specific/typescript/v3_*`.
 
 ### 3.3 Rust Runtime
 
-Rust currently has:
+Rust currently has two layers:
 
-- A lightweight `FrameCompartment` struct in generated code and in some
-  runtime helpers.
-- Expansions via `RustExpanderV3` that use:
+1. **Exec‑smoke façade** (unchanged):
 
-```rust
-fn __frame_transition(state: &str) { println!("TRANSITION:{}", state); }
-fn __frame_forward() { println!("FORWARD:PARENT"); }
-fn __frame_stack_push() { println!("STACK:PUSH"); }
-fn __frame_stack_pop() { println!("STACK:POP"); }
-```
+   - For exec‑smoke fixtures, the legacy façade still emits free functions:
 
-Rust’s V3 runtime behaves like a façade: it proves that Frame statements map to
-valid Rust and can execute smoke tests, but it does not yet provide a full
-structural class‑based system runtime equivalent to Python/TS.
+     ```rust
+     fn __frame_transition(state: &str) { println!("TRANSITION:{}", state); }
+     fn __frame_forward() { println!("FORWARD:PARENT"); }
+     fn __frame_stack_push() { println!("STACK:PUSH"); }
+     fn __frame_stack_pop() { println!("STACK:POP"); }
+     ```
+
+   - These are used only by `v3_exec_smoke` and related marker tests to
+     validate that Frame statements expand into valid Rust statements and
+     produce the expected markers on stdout.
+
+2. **V3 module‑path runtime scaffold** (new, PRT work in progress):
+
+   - For V3 module‑path compiles (`framec compile -l rust` under the V3 path),
+     the generator now emits a minimal struct‑based runtime similar in shape to
+     Python/TypeScript:
+
+     ```rust
+     #[allow(dead_code)]
+     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+     enum StateId { /* per-system states */ }
+
+     impl Default for StateId { fn default() -> Self { StateId::StartState } }
+
+     #[derive(Debug, Clone)]
+     struct FrameEvent { message: String }
+
+     #[derive(Debug, Clone, Default)]
+     struct FrameCompartment {
+         state: StateId,
+         forward_event: Option<FrameEvent>,
+         exit_args: Option<()>,
+         enter_args: Option<()>,
+         parent_compartment: Option<*const FrameCompartment>,
+         state_args: Option<()>,
+     }
+
+     struct SystemName {
+         compartment: FrameCompartment,
+         _stack: Vec<FrameCompartment>,
+     }
+
+     impl SystemName {
+         fn new() -> Self {
+             Self {
+                 compartment: FrameCompartment {
+                     state: StateId::StartState,
+                     ..Default::default()
+                 },
+                 _stack: Vec::new(),
+             }
+         }
+
+         fn _frame_transition(&mut self, next: &FrameCompartment) {
+             // Basic transition: update the active state id; other fields remain unchanged for now.
+             self.compartment.state = next.state;
+         }
+
+         fn _frame_stack_push(&mut self) {
+             self._stack.push(self.compartment.clone());
+         }
+
+         fn _frame_stack_pop(&mut self) {
+             if let Some(prev) = self._stack.pop() {
+                 self._frame_transition(&prev);
+             }
+         }
+
+         /// Minimal router: dispatch based on event message name by calling
+         /// the corresponding handler method. Each handler method performs
+         /// its own per-state dispatch on `self.compartment.state`.
+         fn _frame_router(&mut self, e: Option<FrameEvent>) {
+             if let Some(ev) = e {
+                 match ev.message.as_str() {
+                     // one arm per handler name (e.g., "e", "tick", "start", …)
+                     // "e" => self.e(),
+                     _ => { }
+                 }
+             }
+         }
+     }
+     ```
+
+   - For each handler name (e.g. `e`, `tick`), the generator emits a single
+     method on the system:
+
+     ```rust
+     impl SystemName {
+         fn e(&mut self) {
+             match self.compartment.state {
+                 StateId::A => {
+                     // body for $A.e()
+                 }
+                 StateId::B => {
+                     // body for $B.e()
+                 }
+                 _ => { }
+             }
+         }
+     }
+     ```
+
+   - `_frame_router` and these handler methods are used in the V3 module‑path
+     codegen; exec‑smoke continues to use the façade functions.
+
+   - `system.return` semantics and per‑call return stacks are **not yet**
+     implemented for Rust; they are tracked as part of the PRT Stage 7–13
+     parity work. For now, Rust’s struct‑based runtime supports state/stack and
+     basic message routing but does not enforce header defaults or return‑slot
+     sugar.
 
 ### 3.4 C / C++ / Java / C#
 
