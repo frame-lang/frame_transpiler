@@ -1969,9 +1969,6 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     module.push_str("        // Basic transition: update the active state id; other fields remain unchanged for now.\n");
                     module.push_str("        self.compartment.state = next.state;\n");
                     module.push_str("    }\n");
-                    module.push_str("    fn _frame_router(&mut self, _e: Option<FrameEvent>) {\n");
-                    module.push_str("        // Router semantics will be provided by a future runtime-aware generator.\n");
-                    module.push_str("    }\n");
                     module.push_str("    fn _frame_stack_push(&mut self){\n");
                     module.push_str("        self._stack.push(self.compartment.clone());\n");
                     module.push_str("    }\n");
@@ -2022,6 +2019,22 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     }
                     if !handler_map.is_empty() {
                         module.push_str(&format!("impl {} {{\n", sys_name));
+                        // Router: dispatch based on message name and current StateId by
+                        // calling the corresponding handler method. This provides a
+                        // minimal runtime entrypoint for interface wrappers and future
+                        // event plumbing.
+                        module.push_str("    fn _frame_router(&mut self, e: Option<FrameEvent>) {\n");
+                        module.push_str("        if let Some(ev) = e {\n");
+                        module.push_str("            match ev.message.as_str() {\n");
+                        for hname in handler_map.keys() {
+                            module.push_str(&format!("                \"{}\" => self.{}(),\n", hname, hname));
+                        }
+                        module.push_str("                _ => { }\n");
+                        module.push_str("            }\n");
+                        module.push_str("        }\n");
+                        module.push_str("    }\n");
+                        // Emit methods that implement each handler, dispatching on StateId
+                        // when a handler is implemented in multiple states.
                         for (hname, entries) in handler_map {
                             // State-less handler: emit a simple method with the body as-is.
                             if entries.len() == 1 && entries[0].0.is_none() {
