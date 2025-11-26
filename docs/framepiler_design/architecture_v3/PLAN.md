@@ -2,27 +2,26 @@
 
 ## Todo Next
 
-- [ ] Python Indent Normalizer Machine (self‑hosting path) — Phase B  
-  Implement the Python V3 handler indentation algorithm as a Frame system
-  (`.frs`) and drive it via the Rust backend: (1) create a small Frame machine
-  that takes a handler body + guard indent and emits normalized Python lines
-  (base‑indent strip + guard‑indent reapply + `system.return`/`return expr`
-  rewrites) **[Phase A: machine scaffold now exists under**
-  `framec_tests/language_specific/rust/v3_internal/indent_normalizer.frs` **and
-  compiles to Rust with multi‑state dispatch]**, (2) add one or more fixtures in
-  the shared env
-  (`framepiler_test_env`) that compile this machine to Rust and validate it via
-  `py_compile`/exec, and (3) continue improving the Rust V3 codegen/runtime
-  until those fixtures pass and the compiler can rely on the machine for
-  Python indentation instead of ad‑hoc string logic in `mod.rs`.
-
 - [ ] PRT Stages 7–13 Closure Checklist  
   Complete the remaining Stage 7–13 work for the PRT languages (Python,
   TypeScript, Rust): apply native validation (Stage 7) to all Frame-owned
   runtimes/adapters, finalize PRT policy rules (Stage 9), finish Rust runtime
   parity (router + `system.return` + curated exec), and add minimal project
   fixtures for PRT in Stage 13. Keep the checklist below as the authoritative
-  list of outstanding Stage 7–13 items for PRT.
+  list of outstanding Stage 7–13 items for PRT. **All Stage 14 work is paused
+  until this checklist is green.**
+
+- [ ] Python Indent Normalizer Machine (self‑hosting path) — Phase B (AFTER PRT 7–13)  
+  Implement the Python V3 handler indentation algorithm as a Frame system
+  (`.frs`) and drive it via the Rust backend once PRT Stage 7–13 parity is
+  reached: (1) take the existing machine scaffold under
+  `framec_tests/language_specific/rust/v3_internal/indent_normalizer.frs` (Phase
+  A) and wire it to operate on the domain fields instead of local variables,
+  (2) add one or more fixtures in the shared env (`framepiler_test_env`) that
+  compile this machine to Rust and validate it via `py_compile`/exec against the
+  current Python indentation helper, and (3) only after those fixtures pass,
+  replace the ad‑hoc string logic in the Python V3 emitter (`mod.rs`) with a
+  call into the compiled IndentNormalizer machine.
 
 Goal
 - Rebuild the single‑file pipeline from first principles using the V3 docs as the source of truth, then add the multi‑file project layer. Keep the new code hermetic and deterministic.
