@@ -2,12 +2,15 @@
 
 ## Todo Next
 
-- [ ] Python Indent Normalizer Machine (self‑hosting path)  
+- [ ] Python Indent Normalizer Machine (self‑hosting path) — Phase B  
   Implement the Python V3 handler indentation algorithm as a Frame system
   (`.frs`) and drive it via the Rust backend: (1) create a small Frame machine
   that takes a handler body + guard indent and emits normalized Python lines
   (base‑indent strip + guard‑indent reapply + `system.return`/`return expr`
-  rewrites), (2) add one or more fixtures in the shared env
+  rewrites) **[Phase A: machine scaffold now exists under**
+  `framec_tests/language_specific/rust/v3_internal/indent_normalizer.frs` **and
+  compiles to Rust with multi‑state dispatch]**, (2) add one or more fixtures in
+  the shared env
   (`framepiler_test_env`) that compile this machine to Rust and validate it via
   `py_compile`/exec, and (3) continue improving the Rust V3 codegen/runtime
   until those fixtures pass and the compiler can rely on the machine for
