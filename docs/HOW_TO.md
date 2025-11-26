@@ -67,6 +67,9 @@ Frame module file (.frm with @target <lang>)
   - `docs/framepiler_design/architecture_v3/architecture_v3_overview.md`
   - `docs/framepiler_design/architecture_v3/03_frame_segment_parser.md` (Frame statement syntax: `Transition`, `Forward`, `Stack`)
   - `docs/framepiler_design/architecture_v3/04_mir_assembly.md` (MixedBody/MIR + terminal‑statement rules)
+  - `docs/framelang_design/architecture_v3/grammar.md` (minimal non‑native grammar)
+  - `docs/framelang_design/architecture_v3/frame_language_guide.md` (human‑oriented language guide)
+  - `docs/framelang_design/architecture_v3/frame_ai_guide.md` (AI‑oriented generation guide — **must read before emitting Frame code**)
   - Per‑language scanner/expander docs:
     - Python:
       - `docs/framepiler_design/architecture_v3/01_body_closers_python.md`
