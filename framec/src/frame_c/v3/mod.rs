@@ -1981,32 +1981,89 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     module.push_str("        }\n");
                     module.push_str("    }\n");
                     module.push_str("}\n\n");
-                    // Emit handlers as methods on the system struct. The method form will be wired
-                    // into a real router in a later parity step. We deliberately avoid emitting
-                    // free-function variants here so the expanded bodies can rely on `self.` calls
-                    // to the runtime helpers without introducing uncompilable top-level code.
+                    // Group handlers by interface name and state so we can emit a single
+                    // public method per interface that dispatches on `self.compartment.state`.
+                    use std::collections::BTreeMap;
+                    let mut handler_map: BTreeMap<String, Vec<(Option<String>, String)>> = BTreeMap::new();
                     for (idx, b) in parts.bodies.iter().enumerate() {
                         if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
-                            let hname = b.owner_id.as_deref().unwrap_or("handler");
-                            let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
+                            let hname = b.owner_id.as_deref().unwrap_or("handler").to_string();
+                            let spliced_full = frameful_chunks
+                                .get(idx)
+                                .map(|(_, s)| s.as_str())
+                                .unwrap_or("");
                             let spliced_slice = {
                                 let bytes = spliced_full.as_bytes();
-                                let mut li = 0usize; let mut ri = bytes.len();
-                                while li < ri && bytes[li].is_ascii_whitespace() { li += 1; }
-                                while ri > li && bytes[ri-1].is_ascii_whitespace() { ri -= 1; }
-                                if li < ri && bytes[li] == b'{' && ri > 0 && bytes[ri-1] == b'}' && li+1 < ri-1 {
-                                    &spliced_full[li+1..ri-1]
-                                } else { spliced_full }
+                                let mut li = 0usize;
+                                let mut ri = bytes.len();
+                                while li < ri && bytes[li].is_ascii_whitespace() {
+                                    li += 1;
+                                }
+                                while ri > li && bytes[ri - 1].is_ascii_whitespace() {
+                                    ri -= 1;
+                                }
+                                if li < ri
+                                    && bytes[li] == b'{'
+                                    && ri > 0
+                                    && bytes[ri - 1] == b'}'
+                                    && li + 1 < ri - 1
+                                {
+                                    &spliced_full[li + 1..ri - 1]
+                                } else {
+                                    spliced_full
+                                }
                             };
                             let spliced = spliced_slice.to_string();
-                            // Method on the system struct (scaffold for future router wiring)
-                            module.push_str(&format!("impl {} {{\n", sys_name));
-                            module.push_str(&format!("    fn {}(&mut self) {{\n", hname));
-                            for line in spliced.lines() {
-                                module.push_str("        "); module.push_str(line); module.push('\n');
-                            }
-                            module.push_str("    }\n}\n\n");
+                            handler_map
+                                .entry(hname)
+                                .or_default()
+                                .push((b.state_id.clone(), spliced));
                         }
+                    }
+                    if !handler_map.is_empty() {
+                        module.push_str(&format!("impl {} {{\n", sys_name));
+                        for (hname, entries) in handler_map {
+                            // State-less handler: emit a simple method with the body as-is.
+                            if entries.len() == 1 && entries[0].0.is_none() {
+                                module.push_str(&format!("    fn {}(&mut self) {{\n", hname));
+                                for line in entries[0].1.lines() {
+                                    module.push_str("        ");
+                                    module.push_str(line);
+                                    module.push('\n');
+                                }
+                                module.push_str("    }\n");
+                            } else {
+                                // Multi-state handler: dispatch on StateId and splice per-state bodies.
+                                module.push_str(&format!("    fn {}(&mut self) {{\n", hname));
+                                module.push_str("        match self.compartment.state {\n");
+                                for (state_opt, body) in &entries {
+                                    if let Some(ref sid) = state_opt {
+                                        module.push_str(&format!("            StateId::{} => {{\n", sid));
+                                        for line in body.lines() {
+                                            module.push_str("                ");
+                                            module.push_str(line);
+                                            module.push('\n');
+                                        }
+                                        module.push_str("            }\n");
+                                    } else {
+                                        // Fallback for handlers not tied to a specific state when
+                                        // others are state-qualified.
+                                        module.push_str("            _ => {\n");
+                                        for line in body.lines() {
+                                            module.push_str("                ");
+                                            module.push_str(line);
+                                            module.push('\n');
+                                        }
+                                        module.push_str("            }\n");
+                                    }
+                                }
+                                // Ensure exhaustive match in case there are states without handlers.
+                                module.push_str("            _ => { }\n");
+                                module.push_str("        }\n");
+                                module.push_str("    }\n");
+                            }
+                        }
+                        module.push_str("}\n\n");
                     }
                     // Enum StateId
                     let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
