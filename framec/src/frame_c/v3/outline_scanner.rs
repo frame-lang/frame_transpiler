@@ -188,7 +188,11 @@ impl OutlineScannerV3 {
                 while p < n && is_space(bytes[p]) { p += 1; }
                 // For non-global section members, allow optional header type/default
                 // segments like ': Type = default' between ')' and '{'.
-                if !is_global_fn && matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
+                if !is_global_fn && (matches!(section, Section::Machine)
+                    || matches!(section, Section::Actions)
+                    || matches!(section, Section::Operations)
+                    || matches!(section, Section::Interface))
+                {
                     // Optional ': Type ...'
                     if p < n && bytes[p] == b':' {
                         p += 1;
@@ -212,6 +216,15 @@ impl OutlineScannerV3 {
                         }
                         while p < n && is_space(bytes[p]) { p += 1; }
                     }
+                } else if is_global_fn && p < n && bytes[p] == b':' {
+                    // Global Frame functions (fn name(...) : Type { ... }) may also
+                    // carry a return type between ')' and '{'. Skip the type
+                    // expression up to the opening brace or end-of-line.
+                    p += 1;
+                    while p < n && bytes[p] != b'{' && bytes[p] != b'\n' {
+                        p += 1;
+                    }
+                    while p < n && is_space(bytes[p]) { p += 1; }
                 }
                 if p < n && bytes[p] == b'{' {
                     if std::env::var("FRAME_DEBUG_OUTLINE").ok().as_deref() == Some("1") {

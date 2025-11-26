@@ -714,7 +714,26 @@ Owner’s Notes
 - The only “parser” in core is `FrameStatementParserV3` (tiny, FIRST‑set). Everything else is scanning/assembly/expansion.
 - Default to textual expansions; AST involvement is optional.
 
-Stage 14 — Persistence & Snapshots (PRT Progress)
+Stage 14 — Python Indent Normalizer Machine (Self‑Hosting)
+- [ ] Design: document the indent normalizer machine (inputs/outputs, state,
+      algorithm) and keep it aligned with the current Rust helper logic in
+      `framec/src/frame_c/v3/mod.rs` (see `14_indent_normalizer_machine.md`).
+- [ ] Implementation (Phase A): add an `@target rust` Frame system
+      `IndentNormalizer` that accepts a vector of lines + flags and returns
+      normalized Python lines. Place the `.frs` in a V3 internal test area
+      (e.g., `framec_tests/language_specific/rust/v3_internal/`) and compile
+      it to Rust as part of test builds.
+- [ ] Tests (Phase A): add a small Rust harness that feeds known handler
+      bodies (e.g., the `stopOnEntry` and `PythonDebugRuntime` cases) into
+      `IndentNormalizer.run(...)` and asserts its output matches the current
+      `emit_py_handler_body` behavior. Keep the compiler on the Rust helper
+      in production; the machine is test‑only here.
+- [ ] Integration (Phase B): once the machine is stable, replace the ad‑hoc
+      indentation logic in `mod.rs` by calling the generated Rust machine,
+      wiring per‑line flags (`is_frame_expansion`, `is_comment`, etc.) from
+      the MIR/expander.
+
+Stage 15 — Persistence & Snapshots (PRT Progress)
 - [x] Python: `frame_persistence_py` module added with `SystemSnapshot`,
       `snapshot_system`, `restore_system`, and JSON helpers as specified in
       `14_persistence_and_snapshots.md`. No core pipeline behavior change.
