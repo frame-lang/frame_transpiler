@@ -1,4 +1,5 @@
 @target rust
+// @meta: rs_compile
 
 system RuntimeProtocol {
     interface:

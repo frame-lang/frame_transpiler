@@ -1,4 +1,5 @@
 @target rust
+// @meta: rs_compile
 # @cwd: tmp
 
 system S {
@@ -10,4 +11,3 @@ system S {
         }
         $B { e() { } }
 }
-
