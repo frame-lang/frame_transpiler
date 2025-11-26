@@ -1,106 +1,5 @@
 @target rust
 
-// Stage 14 — Python Indent Normalizer Machine (Phase A)
-//
-// This file uses two native helper functions to model the logical parsing
-// states described in the design doc:
-//   - compute_base_indent(..)  ~ $ComputeBase
-//   - normalize_lines(..)      ~ $Normalize
-// The Frame machine remains small and delegates to these helpers.
-
-// Compute the minimal indentation over non-blank lines (ComputeBase phase).
-fn compute_base_indent(lines: &Vec<&str>) : usize {
-    let mut base_indent: Option<usize> = None;
-    for ln in lines {
-        let trimmed = ln.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let indent = ln.chars().take_while(|c| *c == ' ' || *c == '\t').count();
-        base_indent = Some(base_indent.map_or(indent, |m| m.min(indent)));
-    }
-    base_indent.unwrap_or(0)
-}
-
-// Normalize a sequence of lines given a base indent and guard pad (Normalize phase).
-fn normalize_lines(lines: &Vec<&str>, base_indent: usize, pad: &str) : Vec<String> {
-    let mut prev_indent_norm: Option<usize> = None;
-    let mut last_line_ended_with_colon = false;
-    let mut has_non_comment = false;
-    let mut out_lines: Vec<String> = Vec::new();
-
-    for ln in lines {
-        let raw = ln.trim_end();
-        if raw.trim().is_empty() {
-            out_lines.push(format!("{}\n", pad));
-            continue;
-        }
-
-        let mut t = raw.to_string();
-        // In a real integration we would also rewrite system.return here.
-
-        let indent_orig = t.chars().take_while(|c| *c == ' ' || *c == '\t').count();
-        let content = &t[indent_orig..];
-        let trimmed = content.trim_start();
-        if trimmed.is_empty() {
-            out_lines.push(format!("{}\n", pad));
-            continue;
-        }
-
-        let is_comment = trimmed.starts_with('#');
-        if !is_comment {
-            has_non_comment = true;
-        }
-
-        let is_expander =
-            trimmed.starts_with("next_compartment = FrameCompartment(") ||
-            trimmed.starts_with("self._frame_transition(");
-
-        // Choose normalized indent:
-        // - If the previous logical line ended with a colon, indent the first
-        //   statement one level deeper.
-        // - Otherwise, align expansion lines with the previous logical indent
-        //   when available; keep native indent for other lines.
-        let mut indent_norm = if last_line_ended_with_colon {
-            prev_indent_norm.unwrap_or(base_indent) + 4
-        } else if is_expander {
-            prev_indent_norm.unwrap_or(indent_orig)
-        } else {
-            indent_orig
-        };
-        if indent_norm < base_indent {
-            indent_norm = base_indent;
-        }
-        let extra_width = indent_norm.saturating_sub(base_indent);
-        let extra = " ".repeat(extra_width);
-
-        // Handler-only sugar: `return expr` => system.return = expr; return.
-        if trimmed.starts_with("return ")
-            && trimmed != "return"
-            && trimmed != "return:"
-        {
-            let expr = trimmed["return ".len()..].trim_end_matches(':').trim();
-            if !expr.is_empty() {
-                out_lines.push(format!("{}{}self._system_return_stack[-1] = {}\n", pad, extra, expr));
-                out_lines.push(format!("{}{}return\n", pad, extra));
-                prev_indent_norm = Some(indent_norm);
-                last_line_ended_with_colon = false;
-                continue;
-            }
-        }
-
-        out_lines.push(format!("{}{}{}\n", pad, extra, trimmed));
-        prev_indent_norm = Some(indent_norm);
-        last_line_ended_with_colon = trimmed.ends_with(':');
-    }
-
-    if !has_non_comment {
-        out_lines.push(format!("{}pass\n", pad));
-    }
-
-    out_lines
-}
-
 system IndentNormalizer {
     interface:
         // Phase A: no arguments yet; this will grow into a more detailed API
@@ -110,8 +9,9 @@ system IndentNormalizer {
     machine:
         $Init {
             run() {
-                // Phase A: call into the two native helpers that model the
-                // parsing states ($ComputeBase and $Normalize).
+                // Phase A: inline the two logical phases described in the
+                // design doc (ComputeBase and Normalize) directly in native
+                // Rust, using the domain fields as the eventual home.
 
                 // Sample handler body lines, roughly mirroring a Python
                 // handler with an if/else and a Frame transition.
@@ -124,9 +24,93 @@ system IndentNormalizer {
                     "",
                 ];
 
-                let base_indent = compute_base_indent(&lines);
+                // ComputeBase phase: minimal indentation over non-blank lines.
+                let mut base_indent_opt: Option<usize> = None;
+                for ln in &lines {
+                    let trimmed = ln.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    let indent = ln.chars().take_while(|c| *c == ' ' || *c == '\t').count();
+                    base_indent_opt = Some(base_indent_opt.map_or(indent, |m| m.min(indent)));
+                }
+                let base_indent = base_indent_opt.unwrap_or(0);
+
+                // Normalize phase.
                 let pad = "        ".to_string();
-                let out_lines = normalize_lines(&lines, base_indent, &pad);
+                let mut prev_indent_norm: Option<usize> = None;
+                let mut last_line_ended_with_colon = false;
+                let mut has_non_comment = false;
+                let mut out_lines: Vec<String> = Vec::new();
+
+                for ln in &lines {
+                    let raw = ln.trim_end();
+                    if raw.trim().is_empty() {
+                        out_lines.push(format!("{}\n", pad));
+                        continue;
+                    }
+
+                    let mut t = raw.to_string();
+                    // In a real integration we would also rewrite system.return here.
+
+                    let indent_orig = t.chars().take_while(|c| *c == ' ' || *c == '\t').count();
+                    let content = &t[indent_orig..];
+                    let trimmed = content.trim_start();
+                    if trimmed.is_empty() {
+                        out_lines.push(format!("{}\n", pad));
+                        continue;
+                    }
+
+                    let is_comment = trimmed.starts_with('#');
+                    if !is_comment {
+                        has_non_comment = true;
+                    }
+
+                    let is_expander =
+                        trimmed.starts_with("next_compartment = FrameCompartment(") ||
+                        trimmed.starts_with("self._frame_transition(");
+
+                    // Choose normalized indent:
+                    // - If the previous logical line ended with a colon, indent the first
+                    //   statement one level deeper.
+                    // - Otherwise, align expansion lines with the previous logical indent
+                    //   when available; keep native indent for other lines.
+                    let mut indent_norm = if last_line_ended_with_colon {
+                        prev_indent_norm.unwrap_or(base_indent) + 4
+                    } else if is_expander {
+                        prev_indent_norm.unwrap_or(indent_orig)
+                    } else {
+                        indent_orig
+                    };
+                    if indent_norm < base_indent {
+                        indent_norm = base_indent;
+                    }
+                    let extra_width = indent_norm.saturating_sub(base_indent);
+                    let extra = " ".repeat(extra_width);
+
+                    // Handler-only sugar: `return expr` => system.return = expr; return.
+                    if trimmed.starts_with("return ")
+                        && trimmed != "return"
+                        && trimmed != "return:"
+                    {
+                        let expr = trimmed["return ".len()..].trim_end_matches(':').trim();
+                        if !expr.is_empty() {
+                            out_lines.push(format!("{}{}self._system_return_stack[-1] = {}\n", pad, extra, expr));
+                            out_lines.push(format!("{}{}return\n", pad, extra));
+                            prev_indent_norm = Some(indent_norm);
+                            last_line_ended_with_colon = false;
+                            continue;
+                        }
+                    }
+
+                    out_lines.push(format!("{}{}{}\n", pad, extra, trimmed));
+                    prev_indent_norm = Some(indent_norm);
+                    last_line_ended_with_colon = trimmed.ends_with(':');
+                }
+
+                if !has_non_comment {
+                    out_lines.push(format!("{}pass\n", pad));
+                }
 
                 // Phase A: print the normalized lines for inspection. A later
                 // harness will compare them against the existing Python
@@ -134,6 +118,17 @@ system IndentNormalizer {
                 for l in out_lines {
                     println!("{}", l.trim_end_matches('\n'));
                 }
+            }
+        }
+
+        // Phase A/B bridge: placeholder state to model the Normalize phase
+        // explicitly in the machine layout. A later revision will move the
+        // logic from `normalize_lines` into this state and drive it via
+        // domain fields and explicit iteration over `lines`.
+        $Normalize {
+            run() {
+                // No-op for now; present to exercise multi-state interface
+                // codegen and to match the Stage 14 machine sketch.
             }
         }
 
