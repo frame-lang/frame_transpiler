@@ -84,19 +84,17 @@ Machine Sketch (Frame System)
 
 Integration Plan
 - Phase A (tests only):
-  - Implement `IndentNormalizer` in a `.frs` file under `framec_tests/language_specific/rust/v3_internal/` with `@target rust`.
-  - Add a small Rust harness (or Python/TS harness calling Rust) that:
-    - Feeds a hard‑coded handler body (e.g., the `stopOnEntry` or `PythonDebugRuntime` cases) into `run(...)`.
-    - Asserts that the normalized lines match the current `emit_py_handler_body` output in `mod.rs`.
-  - Keep the existing Rust indentation helper as the production path; the machine is used only by tests.
+  - Implement `IndentNormalizer` in a `.frs` file under the main repo with `@target rust` and the domain layout above.
+  - Add small harnesses that:
+    - Feed a hard‑coded handler body (e.g., the `stopOnEntry` or `PythonDebugRuntime` cases) into the machine via its domain (`lines`, flags, `pad`).
+    - Assert that the normalized lines match the expected Stage 14 output.
+  - Keep existing Rust helpers as the production path initially; the machine is used only by tests and harnesses.
 - Phase B (compiler integration):
-  - Generate Rust for `IndentNormalizer` as part of the build or vendored runtime.
-  - Replace the ad‑hoc `emit_py_handler_body` logic in `mod.rs` by:
-    - Computing the per‑line flags (`is_frame_expansion`, `is_comment`, etc.) in Rust.
-    - Calling the generated Rust machine to normalize indentation and sugar per handler.
+  - Move the FRM machine into the V3 code tree under `framec/src/frame_c/v3/machines/indent_normalizer.frs` and treat it as the authoritative spec.
+  - Refactor the Python V3 emitter (`mod.rs`) so handler emission flows through a domain-based normalizer that matches this machine’s semantics (using `lines`, `flags_is_expansion`, `flags_is_comment`, and `pad`).
+  - Introduce a precompile helper that uses a pinned bootstrap compiler (see PLAN Stage 14 Phase B) to regenerate any machine-generated Rust from `.frs` if/when the compiler begins to consume generated Rust directly.
   - Maintain DFAs/DPDAs as the authoritative front‑end; the machine operates purely on the already‑segmented line stream.
 
 Notes
 - The machine is intentionally line‑oriented and stateless with respect to Python syntax beyond indentation and colons; all Python syntax awareness (strings, comments, etc.) remains in the body closers and native scanners.
 - This keeps Stage 14 as a self‑hosting, DPDA‑style transformer that can be compiled and tested like any other Frame system, while respecting the existing scanning/lexing/parsing invariants.
-
