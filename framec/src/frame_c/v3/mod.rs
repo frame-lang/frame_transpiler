@@ -1244,15 +1244,18 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                             _ => {}
                         }
                     }
-                    // Helper: emit a Python handler body with normalized indentation while
-                    // preserving relative nesting (including nested defs / blocks) and
-                    // aligning Frame expansion lines (transitions, forwards, stack ops)
-                    // to the logical block they belong to.
-                    fn emit_py_handler_body(module: &mut String, body: &str, pad: &str) {
-                        // Compute the minimal indent across non-empty lines to serve as
-                        // the normalization base for this handler body.
+                    // Helper: normalize a Python handler body using the same
+                    // domain shape as the Stage 14 IndentNormalizer machine:
+                    // `lines`, `flags_is_expansion`, `flags_is_comment`, and `pad`.
+                    fn normalize_py_handler_lines(
+                        lines: &[String],
+                        flags_is_expansion: &[bool],
+                        flags_is_comment: &[bool],
+                        pad: &str,
+                    ) -> Vec<String> {
+                        // Compute minimal indent across non-empty lines as the base.
                         let mut min_indent: Option<usize> = None;
-                        for ln in body.lines() {
+                        for ln in lines {
                             if ln.trim().is_empty() {
                                 continue;
                             }
@@ -1263,48 +1266,98 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 .count();
                             min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
                         }
-                        let base = min_indent.unwrap_or(0);
+                        let base = min_indent.unwrap_or(0) as i32;
                         let mut has_non_comment = false;
-                        // Track the last logical indent so that Frame expansion lines
-                        // (e.g., transitions) can align with their surrounding native
-                        // statements instead of inheriting any extra indent coming from
-                        // the original Frame source. Also track whether the previous
-                        // logical line ended with a colon so we can indent the first
-                        // statement in that block one level deeper.
-                        let mut prev_indent_norm: Option<usize> = None;
+                        let mut prev_indent_norm: Option<i32> = None;
                         let mut last_line_ended_with_colon = false;
+                        let mut out: Vec<String> = Vec::new();
 
-                        for ln in body.lines() {
-                            let raw = ln.trim_end();
+                        for (idx, ln) in lines.iter().enumerate() {
+                            let raw = ln.trim_end().to_string();
                             if raw.trim().is_empty() {
-                                module.push_str(pad);
-                                module.push('\n');
+                                out.push(format!("{}\n", pad));
                                 continue;
                             }
-                            let mut t = raw.to_string();
-                            // Rewrite system.return to top-of-stack access.
-                            if t.contains("system.return") {
-                                t = t.replace("system.return", "self._system_return_stack[-1]");
-                            }
-                            let bytes_ln = t.as_bytes();
-                            let indent_orig = bytes_ln
-                                .iter()
-                                .take_while(|b| **b == b' ' || **b == b'\t')
-                                .count();
-                            let content = &t[indent_orig..];
-                            let trimmed = content.trim_start();
+                            // system.return rewrite is handled in generators; here we
+                            // only normalize indentation and apply `return expr` sugar.
+                            let indent_orig = raw
+                                .chars()
+                                .take_while(|c| *c == ' ' || *c == '\t')
+                                .count() as i32;
+                            let content = raw[indent_orig as usize..].to_string();
+                            let trimmed = content.trim_start().to_string();
                             if trimmed.is_empty() {
-                                module.push_str(pad);
-                                module.push('\n');
+                                out.push(format!("{}\n", pad));
                                 continue;
                             }
-                            let is_comment = trimmed.starts_with('#');
-                            if !is_comment {
+                            let is_comment_flag = flags_is_comment
+                                .get(idx)
+                                .copied()
+                                .unwrap_or_else(|| trimmed.starts_with('#'));
+                            if !is_comment_flag {
                                 has_non_comment = true;
                             }
-                            // Frame expansion lines emitted by the expander should align
-                            // with the surrounding block rather than keep any extra
-                            // indentation from the original Frame file.
+                            let is_expansion = flags_is_expansion
+                                .get(idx)
+                                .copied()
+                                .unwrap_or(false);
+                            // Choose normalized indent per Stage 14 algorithm.
+                            let mut indent_norm = if last_line_ended_with_colon {
+                                prev_indent_norm.unwrap_or(base) + 4
+                            } else if is_expansion {
+                                prev_indent_norm.unwrap_or(indent_orig)
+                            } else {
+                                indent_orig
+                            };
+                            if indent_norm < base {
+                                indent_norm = base;
+                            }
+                            let extra_width = (indent_norm - base).max(0) as usize;
+                            let extra = " ".repeat(extra_width);
+
+                            // Handler-only sugar: `return expr` => system.return = expr; return.
+                            if trimmed.starts_with("return ")
+                                && trimmed != "return"
+                                && trimmed != "return:"
+                            {
+                                let expr = trimmed["return ".len()..]
+                                    .trim_end_matches(':')
+                                    .trim()
+                                    .to_string();
+                                if !expr.is_empty() {
+                                    out.push(format!(
+                                        "{}{}self._system_return_stack[-1] = {}\n",
+                                        pad, extra, expr
+                                    ));
+                                    out.push(format!("{}{}return\n", pad, extra));
+                                    prev_indent_norm = Some(indent_norm);
+                                    last_line_ended_with_colon = false;
+                                    continue;
+                                }
+                            }
+
+                            out.push(format!("{}{}{}\n", pad, extra, trimmed));
+                            prev_indent_norm = Some(indent_norm);
+                            last_line_ended_with_colon = trimmed.ends_with(':');
+                        }
+
+                        if !has_non_comment {
+                            out.push(format!("{}pass\n", pad));
+                        }
+                        out
+                    }
+
+                    // Helper: emit a Python handler body by constructing the
+                    // IndentNormalizer domain (lines + flags) and delegating to
+                    // `normalize_py_handler_lines`.
+                    fn emit_py_handler_body(module: &mut String, body: &str, pad: &str) {
+                        let mut lines: Vec<String> = Vec::new();
+                        let mut flags_is_expansion: Vec<bool> = Vec::new();
+                        let mut flags_is_comment: Vec<bool> = Vec::new();
+                        for ln in body.lines() {
+                            let raw = ln.to_string();
+                            let trimmed = raw.trim_start();
+                            let is_comment = trimmed.starts_with('#');
                             let is_expander = trimmed.starts_with("next_compartment = FrameCompartment(")
                                 || trimmed.starts_with("next_compartment.exit_args =")
                                 || trimmed.starts_with("next_compartment.enter_args =")
@@ -1315,64 +1368,14 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                                 || trimmed.starts_with(
                                     "self._frame_router(__e, compartment.parent_compartment)",
                                 );
-                            // Choose a normalized indent:
-                            // - If the previous logical line ended with a colon, the first
-                            //   statement in that block must be indented one level deeper
-                            //   than the colon line.
-                            // - Otherwise, for expansion lines, align to the previous
-                            //   logical indent when available; for native lines, keep the
-                            //   original indent.
-                            // Clamp to at least `base` so expansion lines do not end up
-                            // less indented than their block.
-                            let mut indent_norm = if last_line_ended_with_colon {
-                                prev_indent_norm.unwrap_or(base).saturating_add(4)
-                            } else if is_expander {
-                                prev_indent_norm.unwrap_or(indent_orig)
-                            } else {
-                                indent_orig
-                            };
-                            if indent_norm < base {
-                                indent_norm = base;
-                            }
-                            let extra_width = indent_norm.saturating_sub(base);
-                            let extra = " ".repeat(extra_width);
-
-                            // Handler-only sugar: `return expr` => `system.return = expr; return`.
-                            if trimmed.starts_with("return ")
-                                && !trimmed.starts_with("return:")
-                                && trimmed != "return"
-                                && trimmed != "return:"
-                            {
-                                let expr = trimmed["return ".len()..]
-                                    .trim_end_matches(':')
-                                    .trim_end();
-                                if !expr.is_empty() {
-                                    module.push_str(pad);
-                                    module.push_str(&extra);
-                                    module.push_str("self._system_return_stack[-1] = ");
-                                    module.push_str(expr);
-                                    module.push('\n');
-                                    module.push_str(pad);
-                                    module.push_str(&extra);
-                                    module.push_str("return\n");
-                                    prev_indent_norm = Some(indent_norm);
-                                    last_line_ended_with_colon = false;
-                                    continue;
-                                }
-                            }
-
-                            module.push_str(pad);
-                            module.push_str(&extra);
-                            module.push_str(trimmed);
-                            module.push('\n');
-                            prev_indent_norm = Some(indent_norm);
-                            last_line_ended_with_colon = trimmed.ends_with(':');
+                            lines.push(raw);
+                            flags_is_expansion.push(is_expander);
+                            flags_is_comment.push(is_comment);
                         }
-                        // If the handler body was comment-only, Python still
-                        // requires a statement; emit a pass after the comments.
-                        if !has_non_comment {
-                            module.push_str(pad);
-                            module.push_str("pass\n");
+                        let normalized =
+                            normalize_py_handler_lines(&lines, &flags_is_expansion, &flags_is_comment, pad);
+                        for line in normalized {
+                            module.push_str(&line);
                         }
                     }
 
