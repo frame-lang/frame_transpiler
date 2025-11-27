@@ -36,19 +36,14 @@ system IndentNormalizer {
                 }
                 self.base_indent = base_opt.unwrap_or(0) as i32;
 
-                // Reset normalization state and move to $Normalize.
+                // Reset normalization state.
                 self.prev_indent_norm = 0;
                 self.has_prev_indent = false;
                 self.last_line_ended_with_colon = false;
                 self.has_non_comment = false;
                 self.out_lines.clear();
                 self.i = 0;
-                -> $Normalize()
-            }
-        }
 
-        $Normalize {
-            $>() {
                 // Normalize each line according to the Stage 14 algorithm.
                 while (self.i as usize) < self.lines.len() {
                     let ln = self.lines[self.i as usize].to_string();
@@ -123,8 +118,6 @@ system IndentNormalizer {
                 }
             }
         }
-
-        $Done { }
 
     // Domain state mirrors the design doc; in Phase A we define the
     // fields using standard Rust-style types and defaults.
