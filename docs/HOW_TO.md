@@ -230,9 +230,12 @@ python3 framec_tests/runner/frame_test_runner.py --no-validate --languages pytho
 ./scripts/sync-versions.sh
 
 # 3. Rebuild to pick up the new version
-cargo build --release
+cargo build --release -p framec
 
-# 4. Verify version in output
+# 4. Publish the release binary for bootstrapping + shared env
+python3 tools/publish_framec_release.py
+
+# 5. Verify version in output
 ./target/release/framec --version
 ./target/release/framec -l python_3 test.frm | head -3  # Check header comment
 ```
