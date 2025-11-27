@@ -780,9 +780,9 @@ PRT Stages 7–13 Closure Checklist
   - [x] Rust: Basic Rust policy rules covered by ValidatorV3; explicit Rust‑focused negatives exist for actions/ops (E401), handler/section structure (E111/E113), and `system.method` E406. `_frame_*` misuse remains a future enhancement once more Rust‑specific facade/runtime policies are introduced.
   - [x] Docs: `09_validation.md` updated to enumerate PRT‑specific policies and link to their test categories.
 - Stages 10–11 — AST/Symbol Integration & Errors (PRT)
-  - [ ] Python: Confirm all PRT error codes (E4xx, E1xx) seen in tests are documented in `11_error_taxonomy.md` and driven by Arcanum where intended.
-  - [ ] TypeScript: Same for TS (error codes + Arcanum usage).
-  - [ ] Rust: Same for Rust, plus ensure any remaining string‑based header parsing is replaced by the AST/header helpers where appropriate.
+  - [x] Python: All PRT error codes (E1xx/E2xx/E3xx/E4xx/E5xx) observed in V3 Python tests are documented in `11_error_taxonomy.md`. Arcanum‑backed semantics are used for E402/E403/E404/E405 as intended; other policies (e.g., E406) are driven by ModuleAst + interface metadata.
+  - [x] TypeScript: Same for TS; the shared taxonomy covers the TS scanner/outline codes and the PRT policy set, including E406 for `system.method` calls.
+  - [x] Rust: Same for Rust; the Rust validator now uses the shared taxonomy for structural and policy errors, and any remaining string‑based header parsing has been migrated to OutlineScannerV3/ModuleAst helpers.
 - Stage 12 — Testing Strategy (PRT)
   - [ ] Python: Curated exec (`v3_core`, `v3_control_flow`, `v3_scoping`, `v3_systems`) stable; add explicit Stage‑7 native‑validation negatives (e.g. invalid Python bodies) that must fail when native validation is enabled.
   - [ ] TypeScript: Curated exec and `v3_capabilities` stable; ensure adapter/TS runtime fixtures cover key semantics.
