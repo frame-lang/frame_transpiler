@@ -83,7 +83,7 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                             issues.push(ValidationIssueV3{ message: "E110: unterminated import/export statement".into() });
                         }
                         spans.push(RegionSpan { start: stmt_start, end: n });
-                        i = n; break;
+                        break;
                     }
                     continue;
                 }

@@ -54,6 +54,7 @@ pub(crate) fn header_param_names(hdr: &str) -> Vec<String> {
 /// Extract parameter names from a `$State(...)` header using the state's span.
 /// This reads the header line starting at `span.start` up to the end of line
 /// and then delegates to `header_param_names`.
+#[allow(dead_code)]
 pub(crate) fn state_header_param_names(bytes: &[u8], span: &Span) -> Vec<String> {
     let n = bytes.len();
     if span.start >= n {

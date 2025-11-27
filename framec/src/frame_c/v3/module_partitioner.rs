@@ -38,13 +38,12 @@ pub struct ModulePartitionerV3;
 
 impl ModulePartitionerV3 {
     pub fn partition(bytes: &[u8], lang: TargetLanguage) -> Result<ModulePartitionsV3, ModulePartitionErrorV3> {
-        let mut i = 0usize;
         // Required prolog: must be first non-whitespace token
         let prolog = match PrologScannerV3.scan(bytes) {
             Ok(span) => Some(span),
             Err(e) => return Err(ModulePartitionErrorV3(format!("prolog error: {:?}", e.kind))),
         };
-        i = prolog.as_ref().map(|p| p.end).unwrap_or(0);
+        let mut i = prolog.as_ref().map(|p| p.end).unwrap_or(0);
         let mut imports: Vec<RegionSpan> = Vec::new();
         // Import scanning (language-specific). For now, Python only in this step.
         let mut import_issues = Vec::new();

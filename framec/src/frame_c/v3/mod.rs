@@ -166,7 +166,6 @@ pub fn compile_single_file(
         let asm = MirAssemblerV3;
         let mir = asm.assemble(content, &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
         // Build expansions aligned with region indents
-        let mut out_text = String::new();
         let exps: Vec<String> = {
             let mut v = Vec::new();
             let mut mi = 0usize;
@@ -190,7 +189,7 @@ pub fn compile_single_file(
             v
         };
         let spliced = SplicerV3.splice(content, &scan.regions, &exps);
-        out_text = spliced.text.clone();
+        let mut out_text = spliced.text.clone();
 
         // If debug_output is requested, emit a structured JSON envelope instead of plain code.
         if _debug_output {
@@ -2856,13 +2855,15 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     // include import scanning issues
     all_issues.extend(parts.import_issues.into_iter());
     // Outer grammar: re-scan outline and enforce section placement
-    let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
-    let mut known_states = std::collections::HashSet::new();
-    let mut system_name: Option<String> = None;
-    let mut interface_methods: std::collections::HashSet<String> = std::collections::HashSet::new();
-    // Build Arcanum symbol table from outline
-    let mut arcanum_symtab: Option<crate::frame_c::v3::arcanum::Arcanum> = None;
-    {
+    let outline_start = parts
+        .imports
+        .last()
+        .map(|s| s.end)
+        .or(parts.prolog.as_ref().map(|p| p.end))
+        .unwrap_or(0);
+    // Collect known state names and per-module context for validations that
+    // depend on Arcanum or system-wide information.
+    let (known_states, system_name, interface_methods, arcanum_symtab) = {
         let (items, outline_issues) = crate::frame_c::v3::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
         all_issues.extend(outline_issues);
         let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
@@ -2887,18 +2888,19 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         // Collect known state names (coarse) and build Arcanum for symbol-precision.
         // For PRT languages we rely on the ModuleAst-backed Arcanum; non-PRT languages
         // continue to use a coarse known-state set for E402.
-        known_states = validator.collect_machine_state_names(bytes, outline_start);
-        arcanum_symtab = Some(arc_for_ctx.clone());
+        let known_states = validator.collect_machine_state_names(bytes, outline_start);
+        let arcanum_symtab = Some(arc_for_ctx.clone());
         let sys_param_issues =
             validator.validate_system_param_semantics(bytes, outline_start, lang, &arc_for_ctx, &items);
         all_issues.extend(sys_param_issues);
         // Collect interface method names for system.method(...) validation using the system parser.
-        interface_methods =
+        let interface_methods =
             InterfaceParserV3.collect_all_interface_method_names(bytes, &module_ast, lang);
         // Best-effort scan for system name
-        system_name = find_system_name(bytes, 0);
+        let system_name = find_system_name(bytes, 0);
         // Debug hook removed: known_states reporting was temporary for triage
-    }
+        (known_states, system_name, interface_methods, arcanum_symtab)
+    };
     for b in parts.bodies {
         let body_bytes = &bytes[b.open_byte..=b.close_byte];
         // scan and assemble

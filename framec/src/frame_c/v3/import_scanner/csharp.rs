@@ -33,7 +33,7 @@ impl ImportScannerV3 for ImportScannerCsV3 {
                     let mut in_s: u8 = 0; // 1 '"', 2 verbatim, 3 interp normal, 4 interp verbatim, 5 raw ("""), braces tracked
                     let mut raw_quotes: usize = 0; let mut interp_brace: i32 = 0;
                     // consume until ';' at top level
-                    let mut found_semicolon = false;
+                    let found_semicolon = false;
                     while k < n {
                         let b = bytes[k];
                         match b {
@@ -64,7 +64,6 @@ impl ImportScannerV3 for ImportScannerCsV3 {
                             }
                             b';' if in_s == 0 => {
                                 spans.push(RegionSpan{ start: stmt_start, end: k });
-                                found_semicolon = true;
                                 k+=1; i = k; at_sol = true; continue 'outer;
                             }
                             b'\n' => { k+=1; }
@@ -76,7 +75,7 @@ impl ImportScannerV3 for ImportScannerCsV3 {
                         issues.push(ValidationIssueV3{ message: "E110: unterminated using directive".into() });
                     }
                     spans.push(RegionSpan{ start: stmt_start, end: n });
-                    i = n; break;
+                    break;
                 }
                 // Not a preprocessor/using at SOL => imports block finished
                 break;

@@ -123,9 +123,11 @@ impl SystemHierarchy {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_node(&self, node_name: &str) -> Option<&Node> {
         self.index.get(node_name)
     }
+    #[allow(dead_code)]
     pub(crate) fn get_system_node(&mut self) -> Option<&Node> {
         self.index.get(&self.system_name)
     }

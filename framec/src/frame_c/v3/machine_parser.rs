@@ -16,7 +16,7 @@ impl MachineParserV3 {
         bytes: &[u8],
         machine_span: &Span,
         state_name: &str,
-        lang: TargetLanguage,
+        _lang: TargetLanguage,
     ) -> Option<Vec<String>> {
         let n = bytes.len();
         if machine_span.start >= n || machine_span.end > n {

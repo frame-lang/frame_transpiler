@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 /// a more full-featured entry point.
 #[wasm_bindgen]
 pub fn run(frame_code: &str, format: &str) -> String {
-    let exe = Exe::new();
+    let _exe = Exe::new();
     match TargetLanguage::try_from(format) {
         Ok(target) => {
             let result = CompilerV3::compile_single_file(None, frame_code, Some(target), false);

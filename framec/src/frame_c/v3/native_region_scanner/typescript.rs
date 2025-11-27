@@ -5,6 +5,7 @@ use crate::frame_c::v3::body_closer::BodyCloserV3;
 pub struct NativeRegionScannerTsV3;
 
 impl NativeRegionScannerV3 for NativeRegionScannerTsV3 {
+    #[allow(unused_assignments)]
     fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
         let mut closer = BodyCloserTsV3;
         let close = closer.close_byte(bytes, open_brace_index).map_err(|e| ScanErrorV3{ kind: ScanErrorV3Kind::UnterminatedProtected, message: format!("{:?}", e) })?;

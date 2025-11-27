@@ -144,7 +144,6 @@ impl OutlineScannerV3 {
                 if p > k {
                     name_start = k;
                     name_end = p;
-                    j = p;
                     k = p;
                     while k < n && is_space(bytes[k]) { k += 1; }
                     is_func_header = true;

@@ -86,7 +86,7 @@ impl ImportScannerV3 for ImportScannerPyV3 {
                         if paren > 0 || in_s != 0 || in_triple != 0 {
                             issues.push(ValidationIssueV3{ message: "E110: unterminated import statement".into() });
                         }
-                        spans.push(RegionSpan { start: stmt_start, end: n }); i = n; break; }
+                        spans.push(RegionSpan { start: stmt_start, end: n }); break; }
                     continue;
                 }
                 // Not an import line; advance to end of line
