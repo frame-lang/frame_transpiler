@@ -347,7 +347,7 @@ pub fn run_with(args: Cli) {
                     }
                 }
                 if args.validate_only { continue; }
-                match crate::frame_c::v3::compile_module_demo(&content, lang) {
+                match crate::frame_c::v3::compile_module(&content, lang) {
                     Ok(code) => {
                         let ext = match lang { TargetLanguage::Python3 => ".py", TargetLanguage::TypeScript => ".ts", TargetLanguage::CSharp => ".cs", TargetLanguage::C => ".c", TargetLanguage::Cpp => ".cpp", TargetLanguage::Java => ".java", TargetLanguage::Rust => ".rs", _ => ".txt" };
                         let stem = f.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
@@ -428,7 +428,7 @@ pub fn run_with(args: Cli) {
                             Err(e) => { eprintln!("validation error: {}", e.error); if args.validate_only || args.validate_native { std::process::exit(e.code); } }
                         }
                     }
-                    match crate::frame_c::v3::compile_module_demo(&content, lang) {
+                    match crate::frame_c::v3::compile_module(&content, lang) {
                         Ok(code) => {
                             if let Some(dir) = args.output_dir.as_ref() {
                                 if let Err(e) = std::fs::create_dir_all(dir) { eprintln!("cannot create output dir: {}", e); std::process::exit(exitcode::IOERR); }
@@ -605,7 +605,7 @@ pub fn run_with(args: Cli) {
                             Err(e) => { eprintln!("{}: validation error: {}", file.display(), e.error); if args.validate_only || args.validate_native { std::process::exit(e.code); } }
                         }
                     }
-                    match crate::frame_c::v3::compile_module_demo(&content, lang) {
+                    match crate::frame_c::v3::compile_module(&content, lang) {
                         Ok(code) => { println!("{}", code); }
                         Err(e) => { eprintln!("{}", e.error); std::process::exit(e.code); }
                     }

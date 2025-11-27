@@ -13,7 +13,7 @@ semantics unchanged while improving module-level codegen.
 ## Changes
 
 - **Python V3 runtime glue**
-  - `compile_module_demo` now:
+- `compile_module` (formerly `compile_module_demo`) now:
     - Uses Arcanum to choose the first declared state as the start state for
       the initial `FrameCompartment` instead of hard-coding `A`.
     - Parses `system` parameter lists (`$(start)`, `$>(enter)`, `domain`) via
@@ -59,4 +59,3 @@ semantics unchanged while improving module-level codegen.
 - The Python and TypeScript runtimes still treat some aspects of the abstract
   runtime (e.g., parent-forward and rich stack semantics) as stubs; these are
   intentionally documented as evolving in `architecture_v3/frame_runtime.md`.
-

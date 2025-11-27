@@ -20,7 +20,7 @@ Restored the main CLI compile path for module files. Files containing an `@targe
 
 ## Fix Details
 - Compiler routing (non-demo path):
-  - `run_file` / `run_file_debug` now check for `@target` and call `v3::compile_module_demo(content, lang)`.
+  - `run_file` / `run_file_debug` now check for `@target` and call `v3::compile_module(content, lang)` (formerly `compile_module_demo`).
   - Body-only inputs continue to use the single-body demo path.
 - Artifacts: `--emit-debug` works for modules and embeds errors-json, frame-map, visitor-map (Py/TS), and debug-manifest.
 

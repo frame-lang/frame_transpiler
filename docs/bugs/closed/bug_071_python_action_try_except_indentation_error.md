@@ -25,7 +25,7 @@ The debugger harness FRM (`RuntimeProtocol`) and minimal repros for bug #071 fai
 
 ## Root Cause
 
-- The V3 Python emitter (`compile_module_demo` in `framec/src/frame_c/v3/mod.rs`) originally:
+- The V3 Python emitter (`compile_module` in `framec/src/frame_c/v3/mod.rs`, formerly `compile_module_demo`) originally:
   - Trimmed each body line and re-indented everything uniformly, which broke block structure for `try/except/finally` and other nested constructs.
   - Ignored `async` in headers for handlers/actions/ops, always emitting `def` rather than `async def`.
 - As a result:
@@ -93,4 +93,3 @@ The debugger harness FRM (`RuntimeProtocol`) and minimal repros for bug #071 fai
 
 ---
 *Bug tracking policy version: 1.1*
-

@@ -123,7 +123,7 @@ V3 semantics (using `ModuleAst` + `Arcanum`):
 Runtime:
 
 - Python V3:
-  - `compile_module_demo` partitions constructor arguments into start, enter,
+  - `compile_module` partitions constructor arguments into start, enter,
     and domain groups based on the parsed `system_params`.
   - Seeds the initial `FrameCompartment` using the first declared state (via
     `Arcanum`) and fires an initial `$enter` event.

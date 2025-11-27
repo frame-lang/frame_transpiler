@@ -164,7 +164,7 @@ class MySystem:
 
 - The v2 runtime implemented this behavior concretely (via system initializer
   lists). V3 grammar and docs preserve the concept.
-- **Python**: `compile_module_demo` now implements this wiring for V3 modules:
+- **Python**: `compile_module` now implements this wiring for V3 modules:
   it parses `system` parameter lists, partitions constructor arguments into
   start/enter/domain groups, seeds the initial `FrameCompartment` for the
   first declared state (via Arcanum), and fires an initial `$enter` event.

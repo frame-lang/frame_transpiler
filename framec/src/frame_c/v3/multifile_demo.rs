@@ -33,7 +33,7 @@ pub fn compile_directory_demo(dir: &Path, lang: TargetLanguage, recursive: bool)
                 let bytes = content.as_bytes();
                 if content.contains("@target ") {
                     // Treat as module file
-                    match crate::frame_c::v3::compile_module_demo(&content, lang) {
+                    match crate::frame_c::v3::compile_module(&content, lang) {
                         Ok(code) => outputs.push((file.clone(), code)),
                         Err(e) => return Err(e),
                     }

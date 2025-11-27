@@ -571,12 +571,11 @@ fn find_start_state_name(
 
 /// Main V3 module compiler for `@target` files.
 ///
-/// NOTE: despite the historical `*_demo` suffix, this is the production module
-/// path used by the CLI `compile` / `compile-project` commands when a V3
-/// `@target` header is present. The single-body “demo-frame” path is
-/// implemented separately by `CompilerV3::compile_single_file` /
-/// `validate_single_body`.
-pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<String, RunError> {
+/// This is the production module path used by the CLI `compile` /
+/// `compile-project` commands when a V3 `@target` header is present. The
+/// single-body “demo-frame” path is implemented separately by
+/// `CompilerV3::compile_single_file` / `validate_single_body`.
+pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String, RunError> {
     // Partition file into bodies and rewrite each body via the V3 pipeline.
     let bytes = content_str.as_bytes();
     let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
@@ -2808,6 +2807,12 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
         }
         Ok(out)
     }
+}
+
+/// Backwards-compat shim for older code paths and docs. Prefer
+/// [`compile_module`] for all new usage.
+pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<String, RunError> {
+    compile_module(content_str, lang)
 }
 
 pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<ValidationResultV3, RunError> {
