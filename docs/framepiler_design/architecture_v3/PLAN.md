@@ -728,6 +728,17 @@ Owner’s Notes
 - The only “parser” in core is `FrameStatementParserV3` (tiny, FIRST‑set). Everything else is scanning/assembly/expansion.
 - Default to textual expansions; AST involvement is optional.
 
+High‑Level Roadmap Arcs (PRT Focus)
+- Arc 1 — Rust V3 Runtime Parity
+  - Goal: bring Rust V3 module‑path runtime up to Python/TypeScript semantics (router, `system.return`, curated exec) before relying on additional self‑hosting.
+  - Scope: the “Rust Runtime Parity (PRT Progress)” checklist below (router semantics, `system.return` stack/enum, curated Rust exec fixtures and harness).
+- Arc 2 — Self‑Hosting Machines (IndentNormalizer and Friends)
+  - Goal: move core Stage‑7+ algorithms that are currently Rust helpers in `mod.rs` into Frame machines (`.frs`) and use the boot‑compiler + precompile pipeline to generate their Rust implementations.
+  - Scope: Stage 14 (Python Indent Normalizer Machine) and any future V3 machines added under `framec/src/frame_c/v3/machines/`, plus their harnesses in the main repo and shared env.
+- Arc 3 — Broader PRT & Ecosystem
+  - Goal: once PRT (Python/TypeScript/Rust) is solid through Stage 15, extend V3 and persistence semantics outward (non‑PRT targets, cross‑language snapshots, CI workflows).
+  - Scope: non‑PRT language adoption of V3, cross‑language `SystemSnapshot` demonstrations, and CI jobs that gate on `all_v3`, curated exec, and persistence suites for PRT.
+
 Stage 14 — Python Indent Normalizer Machine (Self‑Hosting)
 - [ ] Design: document the indent normalizer machine (inputs/outputs, state,
       algorithm) and keep it aligned with the current Rust helper logic in
@@ -766,19 +777,24 @@ Rust Runtime Parity (PRT Progress)
   - `StateId` enum with `Default`, a minimal `FrameEvent` struct, and a
     `FrameCompartment` struct with `Default` and a `state: StateId` field.
   - Generated system struct per Frame system with `compartment` and
-    `_stack: Vec<FrameCompartment>`.
+      `_stack: Vec<FrameCompartment>`.
   - Runtime helpers on the system: `_frame_transition`, `_frame_router`
-    (stub), `_frame_stack_push`, `_frame_stack_pop`, and `new()` seeded from
-    the Arcanum start state.
-- [ ] Router semantics: implement `_frame_router` for Rust V3 to dispatch
-      `(state, event)` to the appropriate handler methods, mirroring the
-      Python/TypeScript design.
-- [ ] `system.return` for Rust: add a per‑call return stack to the Rust
-      system struct and generated interface methods following the V3
-      semantics described in `frame_runtime.md` and `codegen.md`.
-- [ ] Curated Rust exec: extend the V3 runner to execute Rust V3 systems
-      against the real runtime (not just facade markers) for
-      `v3_core`/`v3_control_flow`/`v3_scoping`/`v3_systems`.
+      (stub), `_frame_stack_push`, `_frame_stack_pop`, and `new()` seeded from
+      the Arcanum start state.
+- [x] Router semantics: `_frame_router` for Rust V3 now dispatches on
+      `FrameEvent.message` by calling internal `_event_<name>()` methods
+      that in turn switch on `StateId`, mirroring the Python/TypeScript
+      design for module‑path systems.
+- [x] `system.return` for Rust: module‑path systems synthesize a typed
+      per‑system return enum, a per‑method setter
+      (`_set_system_return_for_<name>`) and public wrappers that push a
+      per‑call slot, route an event, and pop/return the payload, following
+      the semantics in `frame_runtime.md` and `codegen.md` (verified by
+      `v3_cli/positive/system_return_cli.frm`).
+- [x] Curated Rust exec: the V3 runner executes Rust V3 systems via the
+      module‑path runtime for `v3_core`/`v3_control_flow`/`v3_systems`
+      (gated by `--exec-v3 --run`), and all curated exec fixtures in these
+      categories pass under `framec` v0.86.64.
 
 PRT Stages 7–13 Closure Checklist
 - Stage 7 — Native Validation (PRT)
