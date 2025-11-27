@@ -2,7 +2,7 @@
 
 ## Todo Next
 
-- [ ] PRT Stages 7–13 Closure Checklist  
+- [x] PRT Stages 7–13 Closure Checklist  
   Complete the remaining Stage 7–13 work for the PRT languages (Python,
   TypeScript, Rust): apply native validation (Stage 7) to all Frame-owned
   runtimes/adapters, finalize PRT policy rules (Stage 9), finish Rust runtime
