@@ -66,11 +66,10 @@ V3 uses a dedicated, Frame‑only outer pipeline to interpret the outline:
   - Finds `$State` headers and `$>()` entry handlers (`$>() { … }`) for the start state.
   - Supplies state/entry parameter names for system‑parameter semantics (E416/E417).
 
-- `DomainBlockScannerV3`:
-  - Operates within a system’s `domain:` span.
-  - Enforces that each non‑blank, non‑comment line is a declaration‐shaped statement:
-    - `var ident = <expr>` or `ident = <expr>`.
-  - Reports E419 if a line does not match this form.
+// Domain blocks
+- `domain:` is treated as native code for the target language. The outer
+  pipeline only locates the `domain:` span; it does not impose additional
+  structure beyond normal host‑language parsing.
 
 - `ModuleAst` + `Arcanum`:
   - `ModuleAst` is the primary outer AST; `Arcanum` is a symbol table built from

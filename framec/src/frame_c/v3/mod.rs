@@ -2051,12 +2051,21 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     // wrapper calls).
                     module.push_str(&format!("impl {} {{\n", sys_name));
                     // Basic constructor: seed the compartment with the start state and an empty stack.
-                    module.push_str(&format!("    fn new() -> Self {{ Self {{ compartment: FrameCompartment{{ state: StateId::{}, ..Default::default() }}, _stack: Vec::new(),", start_state));
+                    module.push_str("    fn new() -> Self {\n");
+                    module.push_str("        Self {\n");
+                    module.push_str(&format!(
+                        "            compartment: FrameCompartment{{ state: StateId::{}, ..Default::default() }},\n",
+                        start_state
+                    ));
+                    module.push_str("            _stack: Vec::new(),\n");
                     if has_returns {
-                        module.push_str(&format!(" _system_return_stack: Vec::<{}>::new(),", return_enum_name));
+                        module.push_str(&format!(
+                            "            _system_return_stack: Vec::<{}>::new(),\n",
+                            return_enum_name
+                        ));
                     }
                     for (name, _, init_opt) in &domain_fields_rs {
-                        module.push_str(" ");
+                        module.push_str("            ");
                         module.push_str(name);
                         module.push_str(": ");
                         if let Some(init) = init_opt.as_ref() {
@@ -2068,9 +2077,10 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                         } else {
                             module.push_str("Default::default()");
                         }
-                        module.push_str(",");
+                        module.push_str(",\n");
                     }
-                    module.push_str(" }} }\n");
+                    module.push_str("        }\n");
+                    module.push_str("    }\n");
                     module.push_str("    fn _frame_transition(&mut self, next: &FrameCompartment){\n");
                     module.push_str("        // Basic transition: update the active state id; other fields remain unchanged for now.\n");
                     module.push_str("        self.compartment.state = next.state;\n");

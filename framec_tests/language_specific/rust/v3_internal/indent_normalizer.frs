@@ -12,12 +12,12 @@ system IndentNormalizer {
                 // Phase A: seed the domain with a single hard-coded example
                 // handler body. Later phases will pass input via parameters.
                 self.lines = vec![
-                    "        if self.stopOnEntry:",
-                    "            # Skip stop on entry if user continues",
-                    "            next_compartment = FrameCompartment(\"__S_state_Waiting\")",
-                    "            self._frame_transition(next_compartment)",
-                    "            return",
-                    "",
+                    "        if self.stopOnEntry:".to_string(),
+                    "            # Skip stop on entry if user continues".to_string(),
+                    "            next_compartment = FrameCompartment(\"__S_state_Waiting\")".to_string(),
+                    "            self._frame_transition(next_compartment)".to_string(),
+                    "            return".to_string(),
+                    "".to_string(),
                 ];
                 self.flags_is_expansion = vec![false, false, true, true, false, false];
                 self.flags_is_comment = vec![false, true, false, false, false, false];
@@ -43,7 +43,7 @@ system IndentNormalizer {
                 self.has_non_comment = false;
                 self.out_lines.clear();
                 self.i = 0;
-                -> $Normalize();
+                -> $Normalize()
             }
         }
 
@@ -126,23 +126,23 @@ system IndentNormalizer {
 
         $Done { }
 
-    // Domain state mirrors the design doc; in Phase A we only define the
-    // fields and keep them initialized to simple defaults.
+    // Domain state mirrors the design doc; in Phase A we define the
+    // fields using standard Rust-style types and defaults.
     domain:
         // Input lines and flags (to be populated by a future harness)
-        lines = []                  # list[str]
-        flags_is_expansion = []     # list[bool]
-        flags_is_comment = []       # list[bool]
-        pad = ""                    # guard indentation pad
+        lines: Vec<String> = Vec::new();
+        flags_is_expansion: Vec<bool> = Vec::new();
+        flags_is_comment: Vec<bool> = Vec::new();
+        pad: String = String::new();
 
         // Normalization state
-        base_indent = 0
-        prev_indent_norm = 0
-        has_prev_indent = false
-        last_line_ended_with_colon = false
-        has_non_comment = false
+        base_indent: i32 = 0;
+        prev_indent_norm: i32 = 0;
+        has_prev_indent: bool = false;
+        last_line_ended_with_colon: bool = false;
+        has_non_comment: bool = false;
 
         // Output and index
-        out_lines = []              # list[str]
-        i = 0
+        out_lines: Vec<String> = Vec::new();
+        i: usize = 0;
 }
