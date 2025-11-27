@@ -750,11 +750,16 @@ Stage 14 — Python Indent Normalizer Machine (Self‑Hosting)
 Stage 15 — Persistence & Snapshots (PRT Progress)
 - [x] Python: `frame_persistence_py` module added with `SystemSnapshot`,
       `snapshot_system`, `restore_system`, and JSON helpers as specified in
-      `14_persistence_and_snapshots.md`. No core pipeline behavior change.
-- [ ] TypeScript: `frame_persistence_ts` library mirroring the same snapshot
-      shape and helpers.
-- [ ] Rust: `frame_persistence_rs` library using `serde`‑backed
-      `SystemSnapshot` and `from_snapshot`/`to_snapshot` implementations.
+      `14_persistence_and_snapshots.md`. Covered by
+      `language_specific/python/v3_persistence/positive/traffic_light_persistence.frm`.
+- [x] TypeScript: `frame_persistence_ts` library mirroring the same snapshot
+      shape and helpers (`snapshotSystem`, `restoreSystem`,
+      `snapshotToJson`, `snapshotFromJson`), exercised by
+      `language_specific/typescript/v3_persistence/positive/traffic_light_persistence.frm`.
+- [x] Rust: `frame_persistence_rs` helper crate added with serde‑backed
+      `SystemSnapshot` / `FrameCompartmentSnapshot` and a `SnapshotableSystem`
+      trait, validated by internal unit tests; wiring into V3 Rust codegen is
+      tracked separately under the Rust runtime parity work.
 
 Rust Runtime Parity (PRT Progress)
 - [x] Basic Rust V3 runtime scaffold:

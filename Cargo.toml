@@ -4,8 +4,9 @@ members = [
     "framec",
     "frame_build", 
     "runtime/llvm",
+    "runtime/persistence_rs",
 ]
 exclude = ["framec_tests"]
 
 [workspace.package]
-version = "0.86.63"
+version = "0.86.64"

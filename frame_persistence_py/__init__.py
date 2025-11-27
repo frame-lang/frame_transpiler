@@ -49,7 +49,11 @@ class SystemSnapshot:
     schemaVersion: int
     systemName: str
     state: str
-    stateArgs: Dict[str, Any]
+    # `stateArgs` is stored in the same structural shape as the runtime
+    # `FrameCompartment.state_args` attribute. It is typically a dict for
+    # start-state parameters and may be a list for transitions that were
+    # emitted positionally.
+    stateArgs: Any
     domainState: Dict[str, Any]
     stack: List[Dict[str, Any]]
 
@@ -58,7 +62,7 @@ class SystemSnapshot:
             "schemaVersion": self.schemaVersion,
             "systemName": self.systemName,
             "state": self.state,
-            "stateArgs": dict(self.stateArgs),
+            "stateArgs": self.stateArgs,
             "domainState": dict(self.domainState),
             "stack": [dict(frame) for frame in self.stack],
         }
@@ -69,7 +73,7 @@ class SystemSnapshot:
             schemaVersion=int(data.get("schemaVersion", 1)),
             systemName=str(data.get("systemName", "")),
             state=str(data.get("state", "")),
-            stateArgs=dict(data.get("stateArgs", {}) or {}),
+            stateArgs=data.get("stateArgs", {}) or {},
             domainState=dict(data.get("domainState", {}) or {}),
             stack=[dict(frame) for frame in data.get("stack", []) or []],
         )
@@ -104,6 +108,7 @@ def snapshot_system(
     *,
     system_name: Optional[str] = None,
     domain_keys: Optional[Iterable[str]] = None,
+    domain_encoder: Optional[Callable[[Any], MutableMapping[str, Any]]] = None,
 ) -> SystemSnapshot:
     """Create a `SystemSnapshot` for a generated Python V3 system.
 
@@ -126,29 +131,47 @@ def snapshot_system(
         raise ValueError("snapshot_system expects a V3 Python system with a '_compartment' attribute") from exc
 
     state = getattr(compartment, "state", "")
-    state_args = getattr(compartment, "state_args", {}) or {}
+    raw_state_args = getattr(compartment, "state_args", {}) or {}
+    # Preserve the structural shape of state_args (dict, list, etc.) while
+    # avoiding aliasing mutable containers from the live system.
+    if isinstance(raw_state_args, dict):
+        state_args: Any = dict(raw_state_args)
+    elif isinstance(raw_state_args, (list, tuple)):
+        state_args = list(raw_state_args)
+    else:
+        state_args = raw_state_args
 
-    # Domain state
-    if domain_keys is None:
-        domain_keys = _default_domain_keys(system)
-    domain: Dict[str, Any] = {}
-    for name in domain_keys:
-        try:
-            domain[name] = getattr(system, name)
-        except AttributeError:
-            # Skip missing keys to keep the snapshot tolerant
-            continue
+    # Domain state: either delegate to a custom encoder or infer attributes.
+    if domain_encoder is not None:
+        raw_domain = domain_encoder(system)
+        domain = dict(raw_domain)
+    else:
+        if domain_keys is None:
+            domain_keys = _default_domain_keys(system)
+        domain = {}
+        for name in domain_keys:
+            try:
+                domain[name] = getattr(system, name)
+            except AttributeError:
+                # Skip missing keys to keep the snapshot tolerant
+                continue
 
     # Stack of prior compartments (if any)
     stack_snapshots: List[Dict[str, Any]] = []
     stack = getattr(system, "_stack", []) or []
     for comp in stack:
         comp_state = getattr(comp, "state", "")
-        comp_state_args = getattr(comp, "state_args", {}) or {}
+        raw_comp_state_args = getattr(comp, "state_args", {}) or {}
+        if isinstance(raw_comp_state_args, dict):
+            comp_state_args: Any = dict(raw_comp_state_args)
+        elif isinstance(raw_comp_state_args, (list, tuple)):
+            comp_state_args = list(raw_comp_state_args)
+        else:
+            comp_state_args = raw_comp_state_args
         stack_snapshots.append(
             {
                 "state": comp_state,
-                "stateArgs": dict(comp_state_args),
+                "stateArgs": comp_state_args,
             }
         )
 
@@ -156,7 +179,7 @@ def snapshot_system(
         schemaVersion=1,
         systemName=sys_name,
         state=str(state),
-        stateArgs=dict(state_args),
+        stateArgs=state_args,
         domainState=domain,
         stack=stack_snapshots,
     )
@@ -167,6 +190,7 @@ def restore_system(
     system_factory: Callable[[], SystemT],
     *,
     domain_keys: Optional[Iterable[str]] = None,
+    domain_decoder: Optional[Callable[[SystemSnapshot, SystemT], None]] = None,
 ) -> SystemT:
     """Restore a system instance from a `SystemSnapshot`.
 
@@ -189,7 +213,7 @@ def restore_system(
     comp = FrameCompartment(
         snapshot.state,
         enter_args=None,
-        state_args=dict(snapshot.stateArgs),
+        state_args=snapshot.stateArgs,
     )
     setattr(sys, "_compartment", comp)
 
@@ -197,16 +221,21 @@ def restore_system(
     stack: List[FrameCompartment] = []
     for entry in snapshot.stack:
         state = str(entry.get("state", ""))
-        state_args = dict(entry.get("stateArgs", {}) or {})
+        state_args = entry.get("stateArgs", {}) or {}
         stack.append(FrameCompartment(state, enter_args=None, state_args=state_args))
     setattr(sys, "_stack", stack)
 
-    # Restore domain fields
+    # Restore domain fields using the generic attribute mapper, then allow an
+    # optional domain_decoder to perform additional reconstruction for complex
+    # object graphs.
     domain = snapshot.domainState
     keys = list(domain_keys) if domain_keys is not None else list(domain.keys())
     for name in keys:
         if name in domain:
             setattr(sys, name, domain[name])
+
+    if domain_decoder is not None:
+        domain_decoder(snapshot, sys)
 
     return sys
 
@@ -231,4 +260,3 @@ __all__ = [
     "snapshot_to_json",
     "snapshot_from_json",
 ]
-

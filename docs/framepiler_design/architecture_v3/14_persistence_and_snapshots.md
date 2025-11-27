@@ -50,7 +50,10 @@ Conceptual Model: SystemSnapshot
   - `state`: logical state name (V3 treats this as the abstract state id,
     independent of target-specific mangling such as `"__Sys_state_Red"`).
   - `stateArgs`: map of state parameter names to values at the time of
-    snapshot.
+    snapshot. In early PRT implementations this MAY be stored in the same
+    structural shape as the underlying runtime (`dict` or `list` in Python);
+    cross-language adapters can re-map it to a canonical name-keyed form if
+    needed.
   - `domainState`: map of selected domain fields and other stable system
     variables. The exact set is under user control (see per-language APIs).
   - `stack`: array of prior compartments on the state stack, encoded in the
@@ -96,12 +99,21 @@ Python (Stage 15 requirements)
 - Instead:
   - Implement `frame_persistence_py.snapshot_system(system)` that:
     - Inspects `_compartment`, `_stack`, and selected domain fields.
-    - Produces a `SystemSnapshot` structure.
+    - Produces a `SystemSnapshot` structure whose `stateArgs` field mirrors
+      the runtime `FrameCompartment.state_args` value (typically a dict for
+      start-state parameters, sometimes a list for positional transition
+      args).
+    - Optionally accepts a `domain_encoder(system) -> Mapping[str, Any]`
+      callback that can override the default domain inference when complex
+      object graphs must be projected into a stable DTO.
   - Implement `frame_persistence_py.restore_system(snapshot, system_factory)` that:
     - Instantiates a new system via `system_factory` (calling the Python
       constructor in a defined way).
-    - Rebuilds the initial compartment and stack from the snapshot without
-      firing `$enter` unexpectedly.
+      - Rebuilds the initial compartment and stack from the snapshot without
+        firing `$enter` unexpectedly.
+    - Optionally accepts a `domain_decoder(snapshot, system)` callback that
+      can perform additional reconstruction of complex domain state after the
+      generic attribute-based restore has run.
   - Provide helpers for encoding/decoding snapshots to JSON using standard
     libraries (`json`, optional `orjson`), with `schemaVersion` included.
 
@@ -109,37 +121,56 @@ TypeScript (Stage 15 requirements)
 - Do NOT rely on `JSON.stringify(this)` for systems; it fails on cycles and
   loses class identity.
 - Instead:
-  - Implement `frame_persistence_ts.snapshot(system: System): SystemSnapshot`
-    that builds the DTO from:
-    - `_compartment` (state name and args).
-    - Public domain fields.
-    - `_stack`.
-  - Implement `frame_persistence_ts.restore(snapshot: SystemSnapshot): System`
-    that:
-    - Constructs a new system instance.
-    - Seeds `_compartment` and `_stack` according to the snapshot.
-  - Provide JSON encode/decode helpers that preserve `schemaVersion`.
+  - Implement `frame_persistence_ts.snapshotSystem(system)` that builds the
+    DTO from:
+    - `_compartment` (state name and args; `stateArgs` mirrors the runtime
+      `FrameCompartment.stateArgs` shape).
+    - Public domain fields (own, non-function properties whose names do not
+      start with `_`).
+    - `_stack` (when present).
+    - Optional `encodeDomain(system)` callback in the options bag can
+      override default domain inference when complex graphs are projected
+      into DTOs.
+  - Implement `frame_persistence_ts.restoreSystem(snapshot, factory)` that:
+    - Constructs a new system instance via the provided `factory`.
+    - Seeds `_compartment` and `_stack` with new `FrameCompartment` objects,
+      using the snapshot's `state` / `stateArgs`.
+    - Optional `decodeDomain(snapshot, system)` callback in the options bag
+      can refine or replace the default attribute-based restore logic.
+  - Provide JSON encode/decode helpers (`snapshotToJson`, `snapshotFromJson`)
+    that preserve `schemaVersion`.
 
 Rust (Stage 15 requirements)
 - Use `serde` over a dedicated `SystemSnapshot` struct instead of serializing
   the live system struct directly.
-- Define:
+- Implement a small helper crate `frame_persistence_rs` that exposes:
   ```rust
-  #[derive(Serialize, Deserialize)]
-  struct SystemSnapshot {
-      schema_version: u32,
-      system_name: String,
-      state: StateId,
-      state_args: serde_json::Value,
-      domain_state: serde_json::Value,
-      stack: Vec<FrameCompartmentSnapshot>,
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct FrameCompartmentSnapshot {
+      pub state: String,
+      pub state_args: serde_json::Value,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct SystemSnapshot {
+      pub schema_version: u32,
+      pub system_name: String,
+      pub state: String,
+      pub state_args: serde_json::Value,
+      pub domain_state: serde_json::Value,
+      pub stack: Vec<FrameCompartmentSnapshot>,
+  }
+
+  pub trait SnapshotableSystem: Sized {
+      fn snapshot_system(&self) -> SystemSnapshot;
+      fn restore_system(snapshot: SystemSnapshot) -> Self;
   }
   ```
-  (details may evolve, but the pattern must match the conceptual model).
-- Implement:
-  - `impl From<&System> for SystemSnapshot`
-  - `impl System { fn from_snapshot(snapshot: SystemSnapshot) -> Self }`
-  - JSON encode/decode via `serde_json`.
+  Generated V3 Rust systems can implement `SnapshotableSystem` in their
+  module, mapping their internal `compartment` / `_stack` / domain fields
+  into this neutral shape.
+- `SystemSnapshot` provides JSON helpers (`to_json`, `to_json_pretty`,
+  `from_json`) using `serde_json`.
 
 Integration with Workflows (mandatory)
 - Stage 15 is a **required capability** for production workflows on PRT:
