@@ -14,14 +14,25 @@
 - [ ] Python Indent Normalizer Machine (self‑hosting path) — Phase B (AFTER PRT 7–13)  
   Implement the Python V3 handler indentation algorithm as a Frame system
   (`.frs`) and drive it via the Rust backend once PRT Stage 7–13 parity is
-  reached: (1) take the existing machine scaffold under
-  `framec_tests/language_specific/rust/v3_internal/indent_normalizer.frs` (Phase
-  A) and wire it to operate on the domain fields instead of local variables,
-  (2) add one or more fixtures in the shared env (`framepiler_test_env`) that
-  compile this machine to Rust and validate it via `py_compile`/exec against the
-  current Python indentation helper, and (3) only after those fixtures pass,
-  replace the ad‑hoc string logic in the Python V3 emitter (`mod.rs`) with a
-  call into the compiled IndentNormalizer machine.
+  reached: (1) move the Stage 14 `IndentNormalizer` machine into the V3 code
+  tree under `framec/src/frame_c/v3/machines/indent_normalizer.frs` and treat
+  it as the authoritative spec for Python handler indentation, (2) add one or
+  more fixtures in the shared env (`framepiler_test_env`) that compile this
+  machine to Rust and validate it via `py_compile`/exec against the current
+  Python indentation helper, (3) refactor the Python V3 emitter (`mod.rs`) so
+  handler emission flows through a domain-based normalizer that matches the
+  machine semantics, and (4) introduce a **boot compiler** policy for all
+  self-hosted FRM machines:
+    - The repo MUST contain a single pinned bootstrap compiler under
+      `boot/framec/framec` which is the only binary used to regenerate any
+      machine-generated Rust from `.frs` sources (e.g. Stage 14+ machines).
+    - `cargo build` MUST NOT invoke `boot/framec/framec` automatically; FRM →
+      Rust regeneration is an explicit step (e.g. a script in `tools/`) and the
+      build may fail fast if a `.frs` is newer than its generated `.rs`.
+    - The bootstrap compiler in `boot/framec/framec` is updated in place when
+      semantics for these machines change, and its version is tracked in docs so
+      contributors can reproduce the precompile step without access to the
+      shared test environment.
 
 Goal
 - Rebuild the single‑file pipeline from first principles using the V3 docs as the source of truth, then add the multi‑file project layer. Keep the new code hermetic and deterministic.
