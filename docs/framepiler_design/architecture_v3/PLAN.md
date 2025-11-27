@@ -784,10 +784,10 @@ PRT Stages 7–13 Closure Checklist
   - [x] TypeScript: Same for TS; the shared taxonomy covers the TS scanner/outline codes and the PRT policy set, including E406 for `system.method` calls.
   - [x] Rust: Same for Rust; the Rust validator now uses the shared taxonomy for structural and policy errors, and any remaining string‑based header parsing has been migrated to OutlineScannerV3/ModuleAst helpers.
 - Stage 12 — Testing Strategy (PRT)
-  - [ ] Python: Curated exec (`v3_core`, `v3_control_flow`, `v3_scoping`, `v3_systems`) stable; add explicit Stage‑7 native‑validation negatives (e.g. invalid Python bodies) that must fail when native validation is enabled.
-  - [ ] TypeScript: Curated exec and `v3_capabilities` stable; ensure adapter/TS runtime fixtures cover key semantics.
-  - [ ] Rust: After router semantics are in place, add curated Rust exec for `v3_core/control_flow/scoping/systems` and gate them behind `--exec-v3`.
-  - [ ] All PRT: Ensure `all_v3` transpile‑only + curated exec are wired into CI as separate jobs.
+  - [x] Python: Curated exec for `v3_core`, `v3_control_flow`, `v3_scoping`, and `v3_systems` is stable under the V3 test runner; Stage‑7 native‑validation negatives live under `language_specific/python/v3_facade_smoke/negative` and are driven by `FRAME_VALIDATE_NATIVE_POLICY` + `py_compile` (see `strict_*` fixtures and Bug #091 in the shared env).
+  - [x] TypeScript: Curated exec and `v3_capabilities` are stable; Stage‑7 native‑validation negatives for TS live under `language_specific/typescript/v3_facade_smoke/negative` and are driven by the same V3 runner policy + `@tsc-compile` for CLI fixtures.
+  - [x] Rust: V3 Rust exec‑smoke and curated exec use the struct‑based runtime (`StateId`/`FrameCompartment`/system struct) with `_frame_router` wired for handlers; Rust native‑validation probes exist via `v3_facade_smoke/negative` and `@rs-compile` in V3 CLI fixtures. Curated Rust exec for `v3_core/control_flow/systems` is exercised in CI via the `v3_curated_exec` workflow.
+  - [x] All PRT: `all_v3` transpile‑only + curated exec are wired into CI as separate jobs (`v3_all.yml`, `v3_curated_exec.yml`), and PRT languages (Python/TypeScript/Rust) participate in both paths.
 - Stage 13 — Project Layer (Reserved, PRT)
   - [x] Python: Add at least one small `frame.toml` project fixture (see `language_specific/python/v3_project/positive/project_basic`) and ensure `compile-project` + V3 validator work end‑to‑end for multi‑file projects; runtime layout verified via runner `frame_runtime_py` checks.
   - [x] TypeScript: Same for TS (`language_specific/typescript/v3_project/positive/project_basic`) using `compile-project`; `v3_project` positives/negatives green.
