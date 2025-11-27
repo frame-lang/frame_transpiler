@@ -22,7 +22,8 @@ from pathlib import Path
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parents[2]
+    # Repo root is one level above tools/
+    root = Path(__file__).resolve().parents[1]
     framec = os.environ.get("FRAMEC_BIN", str(root / "target" / "release" / "framec"))
 
     frs = root / "framec_tests" / "language_specific" / "rust" / "v3_internal" / "indent_normalizer.frs"
@@ -57,6 +58,19 @@ def main() -> int:
         'include!("indent_normalizer.rs");\n\n'
         "fn main() {\n"
         "    let mut s = IndentNormalizer::new();\n"
+        "    // Seed the domain with the canonical sample handler body used\n"
+        "    // during Stage 14 design, then run normalization.\n"
+        "    s.lines = vec![\n"
+        "        \"        if self.stopOnEntry:\".to_string(),\n"
+        "        \"            # Skip stop on entry if user continues\".to_string(),\n"
+        "        \"            next_compartment = FrameCompartment(\\\"__S_state_Waiting\\\")\".to_string(),\n"
+        "        \"            self._frame_transition(next_compartment)\".to_string(),\n"
+        "        \"            return\".to_string(),\n"
+        "        \"\".to_string(),\n"
+        "    ];\n"
+        "    s.flags_is_expansion = vec![false, false, true, true, false, false];\n"
+        "    s.flags_is_comment = vec![false, true, false, false, false, false];\n"
+        "    s.pad = \"        \".to_string();\n"
         "    s.run();\n"
         "}\n",
         encoding="utf-8",

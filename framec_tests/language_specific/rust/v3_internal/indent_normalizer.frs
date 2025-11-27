@@ -2,27 +2,14 @@
 
 system IndentNormalizer {
     interface:
-        // Phase A: seed the domain from hard-coded sample input.
-        // Later phases will expand this to accept parameters.
+        // General entrypoint: run normalization using the current
+        // domain fields (lines/flags/pad) and print the normalized
+        // lines to stdout.
         run()
 
     machine:
         $ComputeBase {
             run() {
-                // Phase A: seed the domain with a single hard-coded example
-                // handler body. Later phases will pass input via parameters.
-                self.lines = vec![
-                    "        if self.stopOnEntry:".to_string(),
-                    "            # Skip stop on entry if user continues".to_string(),
-                    "            next_compartment = FrameCompartment(\"__S_state_Waiting\")".to_string(),
-                    "            self._frame_transition(next_compartment)".to_string(),
-                    "            return".to_string(),
-                    "".to_string(),
-                ];
-                self.flags_is_expansion = vec![false, false, true, true, false, false];
-                self.flags_is_comment = vec![false, true, false, false, false, false];
-                self.pad = "        ".to_string();
-
                 // Compute base_indent: minimal non-blank indent across lines.
                 self.base_indent = 0;
                 let mut base_opt: Option<usize> = None;
