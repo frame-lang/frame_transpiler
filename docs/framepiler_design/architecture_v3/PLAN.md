@@ -11,7 +11,7 @@
   list of outstanding Stage 7–13 items for PRT. **All Stage 14 work is paused
   until this checklist is green.**
 
-- [ ] Python Indent Normalizer Machine (self‑hosting path) — Phase B (AFTER PRT 7–13)  
+- [x] Python Indent Normalizer Machine (self‑hosting path) — Phase B (AFTER PRT 7–13)  
   Implement the Python V3 handler indentation algorithm as a Frame system
   (`.frs`) and drive it via the Rust backend once PRT Stage 7–13 parity is
   reached: (1) move the Stage 14 `IndentNormalizer` machine into the V3 code
