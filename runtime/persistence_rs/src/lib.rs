@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Snapshot of a single compartment on the state stack.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FrameCompartmentSnapshot {
     pub state: String,
     pub state_args: Value,
@@ -40,6 +40,53 @@ impl SystemSnapshot {
     /// Decode a snapshot from JSON.
     pub fn from_json(text: &str) -> serde_json::Result<Self> {
         serde_json::from_str(text)
+    }
+
+    /// Compare two snapshots for structural equality.
+    ///
+    /// Returns (equal, differences), where `differences` contains
+    /// human-readable descriptions of any mismatched fields.
+    pub fn compare(&self, other: &SystemSnapshot) -> (bool, Vec<String>) {
+        let mut diffs = Vec::new();
+
+        if self.schema_version != other.schema_version {
+            diffs.push(format!(
+                "schema_version: {} != {}",
+                self.schema_version, other.schema_version
+            ));
+        }
+        if self.system_name != other.system_name {
+            diffs.push(format!(
+                "system_name: {:?} != {:?}",
+                self.system_name, other.system_name
+            ));
+        }
+        if self.state != other.state {
+            diffs.push(format!(
+                "state: {:?} != {:?}",
+                self.state, other.state
+            ));
+        }
+        if self.state_args != other.state_args {
+            diffs.push(format!(
+                "state_args differ: {} != {}",
+                self.state_args, other.state_args
+            ));
+        }
+        if self.domain_state != other.domain_state {
+            diffs.push(format!(
+                "domain_state differ: {} != {}",
+                self.domain_state, other.domain_state
+            ));
+        }
+        if self.stack != other.stack {
+            diffs.push(format!(
+                "stack differ: {:?} != {:?}",
+                self.stack, other.stack
+            ));
+        }
+
+        (diffs.is_empty(), diffs)
     }
 }
 
@@ -150,5 +197,28 @@ mod tests {
         assert_eq!(restored.color, "red");
         assert_eq!(restored.cycles, 1);
     }
-}
 
+    #[test]
+    fn system_snapshot_compare_reports_differences() {
+        let snap1 = SystemSnapshot {
+            schema_version: 1,
+            system_name: "S".to_string(),
+            state: "A".to_string(),
+            state_args: json!({"x": 1}),
+            domain_state: json!({"d": true}),
+            stack: Vec::new(),
+        };
+        let mut snap2 = snap1.clone();
+
+        // Equal snapshots compare as equal with no diffs.
+        let (eq, diffs) = snap1.compare(&snap2);
+        assert!(eq);
+        assert!(diffs.is_empty());
+
+        // Change a field and ensure we see a difference.
+        snap2.state = "B".to_string();
+        let (eq2, diffs2) = snap1.compare(&snap2);
+        assert!(!eq2);
+        assert!(diffs2.iter().any(|d| d.contains("state:")));
+    }
+}
