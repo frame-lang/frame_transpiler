@@ -2809,12 +2809,6 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
     }
 }
 
-/// Backwards-compat shim for older code paths and docs. Prefer
-/// [`compile_module`] for all new usage.
-pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<String, RunError> {
-    compile_module(content_str, lang)
-}
-
 pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<ValidationResultV3, RunError> {
     validate_module_demo_with_mode(content_str, lang, false)
 }
