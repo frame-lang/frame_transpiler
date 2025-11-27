@@ -236,22 +236,9 @@ impl ValidatorV3 {
         issues
     }
 
-    /// Validate that `domain:` blocks inside each system contain only declarations.
-    ///
-    /// Delegates to `DomainBlockScannerV3` and maps its issues into `ValidationIssueV3`.
-    pub fn validate_domain_blocks_decls_only(
-        &self,
-        bytes: &[u8],
-        start: usize,
-        lang: TargetLanguage,
-    ) -> Vec<ValidationIssueV3> {
-        let scanner = crate::frame_c::v3::domain_scanner::DomainBlockScannerV3;
-        scanner
-            .validate_decls_only(bytes, start, lang)
-            .into_iter()
-            .map(|d| ValidationIssueV3 { message: d.message })
-            .collect()
-    }
+    // `domain:` is now treated as native code for the target language; no
+    // additional structural validation is applied beyond general parsing and
+    // host-language rules.
 
     // Strict terminal check: Transition must be last statement in its containing block
     pub fn validate_terminal_last_native(&self, bytes: &[u8], regions: &[RegionV3], mir: &[MirItemV3], lang: crate::frame_c::visitors::TargetLanguage) -> Vec<ValidationIssueV3> {

@@ -110,8 +110,9 @@ Key points for generation:
     - `$>(...)` enter parameters.
     - Plain identifiers for domain parameters.
 - Blocks when present must follow the order above.
-- `domain:` lines should be simple declarations:
-  - `name = <expr>` or `var name = <expr>`.
+- `domain:` is native code for the target language:
+  - Its body must be valid Python/TypeScript/Rust/etc., and is run in the system’s initialization context.
+  - There is no separate declaration DSL; you write native field declarations/initialization exactly as you would in a normal host module.
 
 ---
 
@@ -436,4 +437,3 @@ If you are unsure whether a construct is valid Frame:
 
 - Check `docs/framelang_design/architecture_v3/grammar.md`.
 - If it isn’t there, **do not generate it** without updating the docs and tests first.
-

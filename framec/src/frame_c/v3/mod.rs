@@ -31,6 +31,7 @@ pub mod system_parser;
 pub mod machine_parser;
 pub mod native_symbol_snapshot;
 pub mod system_param_semantics;
+pub mod rust_domain_scanner;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
@@ -1962,6 +1963,10 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     // RustExpanderV3 can use `..Default::default()`.
                     module.push_str("#[derive(Debug, Clone)] struct FrameEvent{ message: String }\n");
                     module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
+                    // Domain fields (if any) from a top-level domain: block. For Rust
+                    // demo modules we assume a single system per file and emit domain
+                    // variables as struct fields with their declared type when present.
+                    let domain_fields_rs = crate::frame_c::v3::rust_domain_scanner::scan_rs_domain_fields(bytes);
                     // Helper: emit a Rust handler body, optionally rewriting `system.return`
                     // usage for interface handlers into calls on the per-method setter.
                     fn emit_rs_handler_body(
@@ -2028,6 +2033,17 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     if has_returns {
                         module.push_str(&format!("    _system_return_stack: Vec<{}>,\n", return_enum_name));
                     }
+                    for (name, ty_opt, _) in &domain_fields_rs {
+                        module.push_str("    ");
+                        module.push_str(name);
+                        module.push_str(": ");
+                        if let Some(ty) = ty_opt.as_ref() {
+                            module.push_str(ty);
+                        } else {
+                            module.push_str("()");
+                        }
+                        module.push_str(",\n");
+                    }
                     module.push_str("}\n\n");
                     // Minimal runtime methods on the system. These provide basic
                     // transition/stack semantics for V3 Rust while remaining compatible
@@ -2037,10 +2053,24 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
                     // Basic constructor: seed the compartment with the start state and an empty stack.
                     module.push_str(&format!("    fn new() -> Self {{ Self {{ compartment: FrameCompartment{{ state: StateId::{}, ..Default::default() }}, _stack: Vec::new(),", start_state));
                     if has_returns {
-                        module.push_str(&format!(" _system_return_stack: Vec::<{}>::new() }} }}\n", return_enum_name));
-                    } else {
-                        module.push_str(" }} }\n");
+                        module.push_str(&format!(" _system_return_stack: Vec::<{}>::new(),", return_enum_name));
                     }
+                    for (name, _, init_opt) in &domain_fields_rs {
+                        module.push_str(" ");
+                        module.push_str(name);
+                        module.push_str(": ");
+                        if let Some(init) = init_opt.as_ref() {
+                            if !init.is_empty() {
+                                module.push_str(init);
+                            } else {
+                                module.push_str("Default::default()");
+                            }
+                        } else {
+                            module.push_str("Default::default()");
+                        }
+                        module.push_str(",");
+                    }
+                    module.push_str(" }} }\n");
                     module.push_str("    fn _frame_transition(&mut self, next: &FrameCompartment){\n");
                     module.push_str("        // Basic transition: update the active state id; other fields remain unchanged for now.\n");
                     module.push_str("        self.compartment.state = next.state;\n");
@@ -2844,9 +2874,6 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         let handler_scope_issues =
             validator.validate_handlers_in_state_ast(bytes, &items, &module_ast, &arc_for_ctx);
         all_issues.extend(handler_scope_issues);
-        // domain blocks must contain only variable declarations
-        let domain_issues = validator.validate_domain_blocks_decls_only(bytes, outline_start, lang);
-        all_issues.extend(domain_issues);
         // Collect known state names (coarse) and build Arcanum for symbol-precision.
         // For PRT languages we rely on the ModuleAst-backed Arcanum; non-PRT languages
         // continue to use a coarse known-state set for E402.
