@@ -32,6 +32,7 @@ pub mod machine_parser;
 pub mod native_symbol_snapshot;
 pub mod system_param_semantics;
 pub mod rust_domain_scanner;
+pub mod machines;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
@@ -1260,98 +1261,14 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         flags_is_comment: &[bool],
                         pad: &str,
                     ) -> Vec<String> {
-                        // Compute minimal indent across non-empty lines as the base.
-                        let mut min_indent: Option<usize> = None;
-                        for ln in lines {
-                            if ln.trim().is_empty() {
-                                continue;
-                            }
-                            let indent = ln
-                                .as_bytes()
-                                .iter()
-                                .take_while(|b| **b == b' ' || **b == b'\t')
-                                .count();
-                            min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
-                        }
-                        let base = min_indent.unwrap_or(0) as i32;
-                        let mut has_non_comment = false;
-                        let mut prev_indent_norm: Option<i32> = None;
-                        let mut last_line_ended_with_colon = false;
-                        let mut out: Vec<String> = Vec::new();
-
-                        for (idx, ln) in lines.iter().enumerate() {
-                            let raw = ln.trim_end().to_string();
-                            if raw.trim().is_empty() {
-                                out.push(format!("{}\n", pad));
-                                continue;
-                            }
-                            // system.return rewrite is handled in generators; here we
-                            // only normalize indentation and apply `return expr` sugar.
-                            let indent_orig = raw
-                                .chars()
-                                .take_while(|c| *c == ' ' || *c == '\t')
-                                .count() as i32;
-                            let content = raw[indent_orig as usize..].to_string();
-                            let trimmed = content.trim_start().to_string();
-                            if trimmed.is_empty() {
-                                out.push(format!("{}\n", pad));
-                                continue;
-                            }
-                            let is_comment_flag = flags_is_comment
-                                .get(idx)
-                                .copied()
-                                .unwrap_or_else(|| trimmed.starts_with('#'));
-                            if !is_comment_flag {
-                                has_non_comment = true;
-                            }
-                            let is_expansion = flags_is_expansion
-                                .get(idx)
-                                .copied()
-                                .unwrap_or(false);
-                            // Choose normalized indent per Stage 14 algorithm.
-                            let mut indent_norm = if last_line_ended_with_colon {
-                                prev_indent_norm.unwrap_or(base) + 4
-                            } else if is_expansion {
-                                prev_indent_norm.unwrap_or(indent_orig)
-                            } else {
-                                indent_orig
-                            };
-                            if indent_norm < base {
-                                indent_norm = base;
-                            }
-                            let extra_width = (indent_norm - base).max(0) as usize;
-                            let extra = " ".repeat(extra_width);
-
-                            // Handler-only sugar: `return expr` => system.return = expr; return.
-                            if trimmed.starts_with("return ")
-                                && trimmed != "return"
-                                && trimmed != "return:"
-                            {
-                                let expr = trimmed["return ".len()..]
-                                    .trim_end_matches(':')
-                                    .trim()
-                                    .to_string();
-                                if !expr.is_empty() {
-                                    out.push(format!(
-                                        "{}{}self._system_return_stack[-1] = {}\n",
-                                        pad, extra, expr
-                                    ));
-                                    out.push(format!("{}{}return\n", pad, extra));
-                                    prev_indent_norm = Some(indent_norm);
-                                    last_line_ended_with_colon = false;
-                                    continue;
-                                }
-                            }
-
-                            out.push(format!("{}{}{}\n", pad, extra, trimmed));
-                            prev_indent_norm = Some(indent_norm);
-                            last_line_ended_with_colon = trimmed.ends_with(':');
-                        }
-
-                        if !has_non_comment {
-                            out.push(format!("{}pass\n", pad));
-                        }
-                        out
+                        // Delegate to the self-hosted IndentNormalizer machine
+                        // compiled into `crate::frame_c::v3::machines`.
+                        crate::frame_c::v3::machines::run_indent_normalizer(
+                            lines,
+                            flags_is_expansion,
+                            flags_is_comment,
+                            pad,
+                        )
                     }
 
                     // Helper: emit a Python handler body by constructing the

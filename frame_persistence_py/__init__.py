@@ -33,7 +33,7 @@ Notes:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, MutableMapping, Optional, Tuple, TypeVar
 import json
 
 from frame_runtime_py import FrameCompartment
@@ -259,4 +259,40 @@ __all__ = [
     "restore_system",
     "snapshot_to_json",
     "snapshot_from_json",
+    "compare_snapshots",
 ]
+
+
+def compare_snapshots(
+    a: SystemSnapshot, b: SystemSnapshot
+) -> Tuple[bool, List[str]]:
+    """Compare two SystemSnapshot instances for equality.
+
+    Returns (equal, differences), where `equal` is True when all fields match
+    structurally and `differences` contains human-readable descriptions of
+    any mismatched fields. This is intended for tests and tooling (including
+    potential cross-language snapshot comparisons)."""
+    differences: List[str] = []
+
+    if a.schemaVersion != b.schemaVersion:
+        differences.append(
+            f"schemaVersion: {a.schemaVersion!r} != {b.schemaVersion!r}"
+        )
+    if a.systemName != b.systemName:
+        differences.append(
+            f"systemName: {a.systemName!r} != {b.systemName!r}"
+        )
+    if a.state != b.state:
+        differences.append(f"state: {a.state!r} != {b.state!r}")
+    if a.stateArgs != b.stateArgs:
+        differences.append(
+            f"stateArgs: {a.stateArgs!r} != {b.stateArgs!r}"
+        )
+    if a.domainState != b.domainState:
+        differences.append(
+            f"domainState: {a.domainState!r} != {b.domainState!r}"
+        )
+    if a.stack != b.stack:
+        differences.append(f"stack: {a.stack!r} != {b.stack!r}")
+
+    return not differences, differences

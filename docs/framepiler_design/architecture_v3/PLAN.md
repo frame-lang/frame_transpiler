@@ -740,23 +740,23 @@ High‑Level Roadmap Arcs (PRT Focus)
   - Scope: non‑PRT language adoption of V3, cross‑language `SystemSnapshot` demonstrations, and CI jobs that gate on `all_v3`, curated exec, and persistence suites for PRT.
 
 Stage 14 — Python Indent Normalizer Machine (Self‑Hosting)
-- [ ] Design: document the indent normalizer machine (inputs/outputs, state,
+- [x] Design: document the indent normalizer machine (inputs/outputs, state,
       algorithm) and keep it aligned with the current Rust helper logic in
       `framec/src/frame_c/v3/mod.rs` (see `14_indent_normalizer_machine.md`).
-- [ ] Implementation (Phase A): add an `@target rust` Frame system
+- [x] Implementation (Phase A): add an `@target rust` Frame system
       `IndentNormalizer` that accepts a vector of lines + flags and returns
-      normalized Python lines. Place the `.frs` in a V3 internal test area
-      (e.g., `framec_tests/language_specific/rust/v3_internal/`) and compile
-      it to Rust as part of test builds.
-- [ ] Tests (Phase A): add a small Rust harness that feeds known handler
-      bodies (e.g., the `stopOnEntry` and `PythonDebugRuntime` cases) into
-      `IndentNormalizer.run(...)` and asserts its output matches the current
-      `emit_py_handler_body` behavior. Keep the compiler on the Rust helper
-      in production; the machine is test‑only here.
-- [ ] Integration (Phase B): once the machine is stable, replace the ad‑hoc
-      indentation logic in `mod.rs` by calling the generated Rust machine,
-      wiring per‑line flags (`is_frame_expansion`, `is_comment`, etc.) from
-      the MIR/expander.
+      normalized Python lines. Place the `.frs` in the V3 code tree under
+      `framec/src/frame_c/v3/machines/` and precompile it to Rust with the
+      bootstrap compiler.
+- [x] Tests (Phase A): add harnesses in the main repo and shared env that
+      feed known handler bodies (e.g., the `stopOnEntry` and
+      `PythonDebugRuntime` cases) into `IndentNormalizer.run(...)` and assert
+      that its output matches the Stage 14 algorithm used by
+      `normalize_py_handler_lines` / `emit_py_handler_body` in `mod.rs`.
+- [ ] Integration (Phase B): replace the remaining ad‑hoc indentation helper
+      in `mod.rs` by calling the generated Rust machine directly, wiring
+      per‑line flags (`is_frame_expansion`, `is_comment`, etc.) from the
+      MIR/expander. (Deferred to Stage 16 for PRT‑only integration.)
 
 Stage 15 — Persistence & Snapshots (PRT Progress)
 - [x] Python: `frame_persistence_py` module added with `SystemSnapshot`,
@@ -771,6 +771,36 @@ Stage 15 — Persistence & Snapshots (PRT Progress)
       `SystemSnapshot` / `FrameCompartmentSnapshot` and a `SnapshotableSystem`
       trait, validated by internal unit tests; wiring into V3 Rust codegen is
       tracked separately under the Rust runtime parity work.
+
+Stage 16 — Self‑Hosted Normalizers & Harness Builders (PRT Integration)
+- [ ] Python: call the generated `IndentNormalizer` machine from the V3
+      Python emitter in place of the inline helper, preserving existing
+      semantics while moving indentation fully into the self‑hosted machine
+      for `v3_core`/`v3_control_flow`/`v3_systems`/`v3_systems_runtime`.
+- [ ] TypeScript: design and (optionally) implement a small Frame machine
+      that can build façade harnesses or other post‑MIR normalizers used in
+      Stage 7 TS tests, mirroring the approach taken for Python indentation.
+- [ ] Rust: identify any remaining ad‑hoc, post‑MIR transforms in the Rust
+      path that would benefit from being expressed as machines (e.g., future
+      harness builders or snapshot/diff tools), and add corresponding `.frs`
+      systems under `framec/src/frame_c/v3/machines/`.
+- [ ] Boot/precompile policy: document and, if necessary, refine the use of
+      `boot/framec/framec` and `tools/gen_v3_machines_rs.py` so that all
+      PRT machines (IndentNormalizer and follow‑ons) share a consistent
+      precompile story.
+
+Stage 17 — Cross‑Language Snapshot Semantics (PRT)
+- [ ] Define a small `SnapshotDiff` / `SnapshotValidator` tool (potentially
+      as a Frame machine) that compares two `SystemSnapshot` values and
+      reports equality / compatibility / incompatibility, to be used in
+      tests and tooling across Python/TypeScript/Rust.
+- [ ] Add cross‑language fixtures where the same logical system (e.g.,
+      TrafficLight) is compiled to Python, TypeScript, and Rust, then
+      snapshotted and compared via the shared `SystemSnapshot` shape.
+- [ ] Tighten `schemaVersion` / `systemName` handling in the PRT
+      persistence helpers so that mismatches are surfaced consistently
+      (e.g., explicit errors for unknown `schemaVersion` or mismatched
+      `systemName`), with tests covering these cases.
 
 Rust Runtime Parity (PRT Progress)
 - [x] Basic Rust V3 runtime scaffold:

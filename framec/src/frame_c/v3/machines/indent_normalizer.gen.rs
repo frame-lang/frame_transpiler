@@ -166,11 +166,6 @@ impl IndentNormalizer {
                 self.out_lines.push(format!("{}pass\n", self.pad));
                 }
                 
-                // Phase A/B: print normalized lines for inspection.
-                for l in &self.out_lines {
-                println!("{}", l.trim_end_matches('\n'));
-                }
-                
             }
             _ => { }
         }

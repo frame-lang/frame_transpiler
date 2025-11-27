@@ -194,3 +194,48 @@ export function snapshotFromJson(text: string): SystemSnapshot {
     stack,
   };
 }
+
+export interface SnapshotComparison {
+  equal: boolean;
+  differences: string[];
+}
+
+export function compareSnapshots(
+  a: SystemSnapshot,
+  b: SystemSnapshot
+): SnapshotComparison {
+  const differences: string[] = [];
+
+  if (a.schemaVersion !== b.schemaVersion) {
+    differences.push(
+      `schemaVersion: ${a.schemaVersion} != ${b.schemaVersion}`
+    );
+  }
+  if (a.systemName !== b.systemName) {
+    differences.push(`systemName: ${a.systemName} != ${b.systemName}`);
+  }
+  if (a.state !== b.state) {
+    differences.push(`state: ${a.state} != ${b.state}`);
+  }
+  if (JSON.stringify(a.stateArgs) !== JSON.stringify(b.stateArgs)) {
+    differences.push(
+      `stateArgs differ: ${JSON.stringify(a.stateArgs)} != ${JSON.stringify(
+        b.stateArgs
+      )}`
+    );
+  }
+  if (JSON.stringify(a.domainState) !== JSON.stringify(b.domainState)) {
+    differences.push(
+      `domainState differ: ${JSON.stringify(
+        a.domainState
+      )} != ${JSON.stringify(b.domainState)}`
+    );
+  }
+  if (JSON.stringify(a.stack) !== JSON.stringify(b.stack)) {
+    differences.push(
+      `stack differ: ${JSON.stringify(a.stack)} != ${JSON.stringify(b.stack)}`
+    );
+  }
+
+  return { equal: differences.length === 0, differences };
+}

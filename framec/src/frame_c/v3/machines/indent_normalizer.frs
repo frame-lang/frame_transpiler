@@ -98,11 +98,6 @@ system IndentNormalizer {
                 if !self.has_non_comment {
                     self.out_lines.push(format!("{}pass\n", self.pad));
                 }
-
-                // Phase A/B: print normalized lines for inspection.
-                for l in &self.out_lines {
-                    println!("{}", l.trim_end_matches('\n'));
-                }
             }
         }
 
@@ -125,4 +120,3 @@ system IndentNormalizer {
         out_lines: Vec<String> = Vec::new();
         i: usize = 0;
 }
-

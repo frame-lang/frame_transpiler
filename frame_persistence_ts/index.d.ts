@@ -22,3 +22,8 @@ export declare function snapshotSystem(system: any, opts?: SnapshotSystemOptions
 export declare function restoreSystem(snapshot: SystemSnapshot, systemFactory: () => any, opts?: RestoreSystemOptions): any;
 export declare function snapshotToJson(snapshot: SystemSnapshot, indent?: number): string;
 export declare function snapshotFromJson(text: string): SystemSnapshot;
+export interface SnapshotComparison {
+    equal: boolean;
+    differences: string[];
+}
+export declare function compareSnapshots(a: SystemSnapshot, b: SystemSnapshot): SnapshotComparison;

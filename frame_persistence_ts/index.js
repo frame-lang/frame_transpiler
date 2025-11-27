@@ -4,6 +4,7 @@ exports.snapshotSystem = snapshotSystem;
 exports.restoreSystem = restoreSystem;
 exports.snapshotToJson = snapshotToJson;
 exports.snapshotFromJson = snapshotFromJson;
+exports.compareSnapshots = compareSnapshots;
 const frame_runtime_ts_1 = require("frame_runtime_ts");
 function cloneValue(value) {
     if (Array.isArray(value)) {
@@ -133,4 +134,26 @@ function snapshotFromJson(text) {
         domainState,
         stack,
     };
+}
+function compareSnapshots(a, b) {
+    const differences = [];
+    if (a.schemaVersion !== b.schemaVersion) {
+        differences.push(`schemaVersion: ${a.schemaVersion} != ${b.schemaVersion}`);
+    }
+    if (a.systemName !== b.systemName) {
+        differences.push(`systemName: ${a.systemName} != ${b.systemName}`);
+    }
+    if (a.state !== b.state) {
+        differences.push(`state: ${a.state} != ${b.state}`);
+    }
+    if (JSON.stringify(a.stateArgs) !== JSON.stringify(b.stateArgs)) {
+        differences.push(`stateArgs differ: ${JSON.stringify(a.stateArgs)} != ${JSON.stringify(b.stateArgs)}`);
+    }
+    if (JSON.stringify(a.domainState) !== JSON.stringify(b.domainState)) {
+        differences.push(`domainState differ: ${JSON.stringify(a.domainState)} != ${JSON.stringify(b.domainState)}`);
+    }
+    if (JSON.stringify(a.stack) !== JSON.stringify(b.stack)) {
+        differences.push(`stack differ: ${JSON.stringify(a.stack)} != ${JSON.stringify(b.stack)}`);
+    }
+    return { equal: differences.length === 0, differences };
 }
