@@ -274,8 +274,9 @@ pub fn compile_single_file(
             return Ok(json);
         }
 
-        // Structured error JSON trailer for tools (always emitted in V3 demo paths)
-        // Note: Kept unconditional for V3 demo compiles so test infrastructure can assert shape deterministically.
+        // Structured error JSON trailer for tools (always emitted in the V3
+        // single‑body demo path). Kept unconditional so test infrastructure
+        // can assert shape deterministically.
         let issues = ValidatorV3
             .validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
         let json = build_errors_json(&issues);
@@ -568,8 +569,15 @@ fn find_start_state_name(
     best_name
 }
 
+/// Main V3 module compiler for `@target` files.
+///
+/// NOTE: despite the historical `*_demo` suffix, this is the production module
+/// path used by the CLI `compile` / `compile-project` commands when a V3
+/// `@target` header is present. The single-body “demo-frame” path is
+/// implemented separately by `CompilerV3::compile_single_file` /
+/// `validate_single_body`.
 pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<String, RunError> {
-    // Partition file into bodies and rewrite each body via single-body pipeline
+    // Partition file into bodies and rewrite each body via the V3 pipeline.
     let bytes = content_str.as_bytes();
     let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
         Ok(p) => p,
@@ -2669,7 +2677,7 @@ pub fn compile_module_demo(content_str: &str, lang: TargetLanguage) -> Result<St
             entries_json.push_str("],\"schemaVersion\":1}");
             out.push_str("\n/*#native-symbols#\n"); out.push_str(&entries_json); out.push_str("\n#native-symbols#*/\n");
         }
-        // Structured errors JSON trailer for module compile (always for V3 demo)
+        // Structured errors JSON trailer for the V3 module compile path.
         {
             // Run validation to collect issues akin to validate_module_demo_with_mode
             let mut issues = Vec::new();
