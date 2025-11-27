@@ -99,17 +99,16 @@ system IndentNormalizer {
                     self.out_lines.push(format!("{}pass\n", self.pad));
                 }
 
-                // Phase A: print normalized lines for inspection.
+                // Phase A/B: print normalized lines for inspection.
                 for l in &self.out_lines {
                     println!("{}", l.trim_end_matches('\n'));
                 }
             }
         }
 
-    // Domain state mirrors the design doc; in Phase A we define the
-    // fields using standard Rust-style types and defaults.
+    // Domain state follows the Stage 14 design doc.
     domain:
-        // Input lines and flags (to be populated by a future harness)
+        // Input lines and flags
         lines: Vec<String> = Vec::new();
         flags_is_expansion: Vec<bool> = Vec::new();
         flags_is_comment: Vec<bool> = Vec::new();
@@ -126,3 +125,4 @@ system IndentNormalizer {
         out_lines: Vec<String> = Vec::new();
         i: usize = 0;
 }
+

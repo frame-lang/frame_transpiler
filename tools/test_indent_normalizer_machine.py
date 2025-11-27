@@ -26,7 +26,7 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     framec = os.environ.get("FRAMEC_BIN", str(root / "target" / "release" / "framec"))
 
-    frs = root / "framec_tests" / "language_specific" / "rust" / "v3_internal" / "indent_normalizer.frs"
+    frs = root / "framec" / "src" / "frame_c" / "v3" / "machines" / "indent_normalizer.frs"
     if not frs.is_file():
         print(f"ERROR: IndentNormalizer FRM not found at {frs}", file=sys.stderr)
         return 1
