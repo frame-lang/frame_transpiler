@@ -27,7 +27,7 @@
       `boot/framec/framec` which is the only binary used to regenerate any
       machine-generated Rust from `.frs` sources (e.g. Stage 14+ machines).
     - `cargo build` MUST NOT invoke `boot/framec/framec` automatically; FRM →
-      Rust regeneration is an explicit step (e.g. a script in `tools/`) and the
+      Rust regeneration is an explicit step (e.g. `tools/gen_v3_machines_rs.py`) and the
       build may fail fast if a `.frs` is newer than its generated `.rs`.
     - The bootstrap compiler in `boot/framec/framec` is updated in place when
       semantics for these machines change, and its version is tracked in docs so

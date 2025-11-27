@@ -84,8 +84,13 @@ Frame module file (.frm with @target <lang>)
 ## Development Environment
 
 ### Required Tools
-- **Rust**: Latest stable version
-- **Python 3**: For test execution and validation
+- **Rust**: Latest stable version (builds all crates)
+- **Python 3**: For test execution, validation, and build helpers  
+  - Test runner: `framec_tests/runner/frame_test_runner.py`  
+  - Source‑map validators and integration scripts under `tools/`  
+  - Release + bootstrap tools:
+    - `tools/publish_framec_release.py` (publishes `framec` to `boot/framec/framec` and the shared test env)
+    - `tools/gen_v3_machines_rs.py` (regenerates Rust sources from Stage‑14+ FRM machines using the bootstrap compiler)
 - **Node.js + TypeScript**: For TypeScript target validation
 - **Git**: Version control
 
