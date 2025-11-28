@@ -11,18 +11,34 @@ use serde_json::Value;
 /// Snapshot of a single compartment on the state stack.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FrameCompartmentSnapshot {
+    /// Logical state name at this stack frame.
+    #[serde(rename = "state")]
     pub state: String,
+    /// State arguments at this frame (mirrors `stateArgs` in JSON).
+    #[serde(rename = "stateArgs")]
     pub state_args: Value,
 }
 
 /// Language-neutral snapshot of a Frame system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemSnapshot {
+    /// Snapshot schema version (`schemaVersion` in JSON).
+    #[serde(rename = "schemaVersion")]
     pub schema_version: u32,
+    /// System name (`systemName` in JSON).
+    #[serde(rename = "systemName")]
     pub system_name: String,
+    /// Current logical state (`state` in JSON).
+    #[serde(rename = "state")]
     pub state: String,
+    /// Current state arguments (`stateArgs` in JSON).
+    #[serde(rename = "stateArgs")]
     pub state_args: Value,
+    /// Domain / system-level state (`domainState` in JSON).
+    #[serde(rename = "domainState")]
     pub domain_state: Value,
+    /// Stack of prior compartments (`stack` in JSON).
+    #[serde(rename = "stack")]
     pub stack: Vec<FrameCompartmentSnapshot>,
 }
 
@@ -220,5 +236,39 @@ mod tests {
         let (eq2, diffs2) = snap1.compare(&snap2);
         assert!(!eq2);
         assert!(diffs2.iter().any(|d| d.contains("state:")));
+    }
+
+    #[test]
+    fn system_snapshot_canonical_json_round_trip() {
+        // Canonical JSON shape used across PRT languages (camelCase fields).
+        let json = r#"
+        {
+            "schemaVersion": 1,
+            "systemName": "TrafficLight",
+            "state": "Red",
+            "stateArgs": { "color": "red" },
+            "domainState": { "timeout": 3.0, "retryCount": 1 },
+            "stack": [
+                { "state": "Green", "stateArgs": { "color": "green" } }
+            ]
+        }
+        "#;
+
+        let snap = SystemSnapshot::from_json(json).expect("parse canonical snapshot JSON");
+        assert_eq!(snap.schema_version, 1);
+        assert_eq!(snap.system_name, "TrafficLight");
+        assert_eq!(snap.state, "Red");
+        assert_eq!(snap.state_args["color"], "red");
+        assert_eq!(snap.domain_state["timeout"], json!(3.0));
+        assert_eq!(snap.domain_state["retryCount"], json!(1));
+        assert_eq!(snap.stack.len(), 1);
+        assert_eq!(snap.stack[0].state, "Green");
+        assert_eq!(snap.stack[0].state_args["color"], json!("green"));
+
+        // Round-trip through JSON should preserve structure.
+        let json2 = snap.to_json_pretty().expect("encode snapshot to JSON");
+        let snap2 = SystemSnapshot::from_json(&json2).expect("reparse round-tripped JSON");
+        let (equal, diffs) = snap.compare(&snap2);
+        assert!(equal, "expected snapshots to be equal, diffs: {:?}", diffs);
     }
 }

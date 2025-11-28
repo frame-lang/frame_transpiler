@@ -773,34 +773,87 @@ Stage 15 — Persistence & Snapshots (PRT Progress)
       tracked separately under the Rust runtime parity work.
 
 Stage 16 — Self‑Hosted Normalizers & Harness Builders (PRT Integration)
-- [ ] Python: call the generated `IndentNormalizer` machine from the V3
+- [x] Python: call the generated `IndentNormalizer` machine from the V3
       Python emitter in place of the inline helper, preserving existing
       semantics while moving indentation fully into the self‑hosted machine
       for `v3_core`/`v3_control_flow`/`v3_systems`/`v3_systems_runtime`.
-- [ ] TypeScript: design and (optionally) implement a small Frame machine
+- [x] TypeScript: design and implement a small Frame machine
       that can build façade harnesses or other post‑MIR normalizers used in
       Stage 7 TS tests, mirroring the approach taken for Python indentation.
-- [ ] Rust: identify any remaining ad‑hoc, post‑MIR transforms in the Rust
-      path that would benefit from being expressed as machines (e.g., future
-      harness builders or snapshot/diff tools), and add corresponding `.frs`
-      systems under `framec/src/frame_c/v3/machines/`.
-- [ ] Boot/precompile policy: document and, if necessary, refine the use of
-      `boot/framec/framec` and `tools/gen_v3_machines_rs.py` so that all
-      PRT machines (IndentNormalizer and follow‑ons) share a consistent
-      precompile story.
+      This is currently the `TsHarnessBuilder` system under
+      `framec/src/frame_c/v3/machines/ts_harness_builder.frs`, precompiled
+      via `tools/gen_v3_machines_rs.py` into
+      `ts_harness_builder.gen.rs` and wired into the crate as
+      `framec::frame_c::v3::ts_harness_machine::run_ts_harness_builder`,
+      with a unit test that asserts its output matches the behavior of
+      `_execute_ts_harness_from_spliced` in the Python test runner.
+- [x] Rust: audit the Rust V3 module path for post‑MIR string‑based
+      transforms and confirm that, for current PRT scope, there are no
+      additional Rust‑specific harness/normalizer transforms that merit
+      extraction into machines beyond the existing runtime generator. Future
+      Rust machines (e.g., snapshot diff tools) can be added on demand under
+      `framec/src/frame_c/v3/machines/` following the same pattern as
+      IndentNormalizer/TsHarnessBuilder.
+- [x] Boot/precompile policy: align all PRT machines with a single
+      precompile story:
+      - FRM machines live under `framec/src/frame_c/v3/machines/*.frs`.
+      - Rust sources are regenerated via `tools/gen_v3_machines_rs.py`
+        using the pinned bootstrap compiler at `boot/framec/framec`, not as
+        part of `cargo build`.
+      - `framec/build.rs` emits `rerun-if-changed` hints and a warning when
+        a `.frs` is newer than its `.gen.rs`, instructing contributors to
+        run the precompile tool explicitly.
 
 Stage 17 — Cross‑Language Snapshot Semantics (PRT)
-- [ ] Define a small `SnapshotDiff` / `SnapshotValidator` tool (potentially
-      as a Frame machine) that compares two `SystemSnapshot` values and
-      reports equality / compatibility / incompatibility, to be used in
-      tests and tooling across Python/TypeScript/Rust.
-- [ ] Add cross‑language fixtures where the same logical system (e.g.,
-      TrafficLight) is compiled to Python, TypeScript, and Rust, then
-      snapshotted and compared via the shared `SystemSnapshot` shape.
-- [ ] Tighten `schemaVersion` / `systemName` handling in the PRT
-      persistence helpers so that mismatches are surfaced consistently
-      (e.g., explicit errors for unknown `schemaVersion` or mismatched
-      `systemName`), with tests covering these cases.
+- [x] Define a small schema-level snapshot comparison tool that can be
+      used across PRT languages. This is currently implemented as:
+      - Python/TypeScript: `tools/test_cross_language_snapshot_shape.py`,
+        which round‑trips a canonical `TrafficLight` snapshot JSON through
+        `frame_persistence_py` / `frame_persistence_ts` and asserts
+        structural equality via `compare_snapshots`.
+      - Rust: `frame_persistence_rs::SystemSnapshot` tests (including
+        `system_snapshot_canonical_json_round_trip`) which parse the same
+        canonical JSON and validate `SystemSnapshot::compare`.
+- [x] Add cross‑language fixtures where the same logical system (TrafficLight)
+      is executed in Python and TypeScript, then snapshotted and compared
+      via the shared `SystemSnapshot` shape. This is exercised by:
+      - `language_specific/python/v3_persistence/positive/traffic_light_snapshot_dump.frm`
+      - `language_specific/typescript/v3_persistence/positive/traffic_light_snapshot_dump.frm`
+      - `tools/test_cross_language_snapshot_traffic_light.py`, which
+        compiles/runs both fixtures via the V3 module path and compares
+        the resulting JSON snapshots for structural equality.
+- [ ] Extend the runtime‑level TrafficLight snapshot comparison to Rust by:
+      - [ ] Adding a small `@target rust` V3 `TrafficLight` system under
+            `framec_tests/language_specific/rust/v3_persistence/positive/`
+            that mirrors the Python/TypeScript fixtures (same states,
+            parameters, and domain).
+      - [ ] Implementing a minimal Rust harness (either via a dedicated test
+            crate or a generated harness file) that:
+            - includes the generated Rust module for `TrafficLight`,
+            - drives it to the same logical state (`Green` with
+              `domain = "red"`), and
+            - constructs a `SystemSnapshot` using `frame_persistence_rs`
+              (via a `SnapshotableSystem` impl or a direct mapping) and
+              prints its JSON.
+      - [ ] Integrating the Rust JSON snapshot into the existing
+            cross‑language comparison flow (extending
+            `tools/test_cross_language_snapshot_traffic_light.py` or a
+            sibling tool) so that Python, TypeScript, and Rust snapshots
+            are compared structurally against the canonical shape.
+
+Stage 18 — Rust-Native Test Runner & Tooling Exploration (Future Work)
+- [ ] Evaluate the feasibility and benefits of migrating selected
+      Python-based V3 tooling (e.g., `framec_tests/runner/frame_test_runner.py`
+      and small helpers under `tools/`) to Rust:
+      - Identify high-value candidates where a Rust implementation would
+        reduce runtime dependencies, improve performance, or simplify
+        integration with the Rust CLI.
+      - Prototype a Rust-based harness for a small subset of tests (e.g.,
+        a minimal `all_v3` transpile-only runner) and compare behavior
+        against the existing Python runner.
+      - Document tradeoffs (developer ergonomics, build complexity, CI
+        impact) and keep Python tools as the reference until a Rust path
+        can fully match their coverage and determinism.
 
 Rust Runtime Parity (PRT Progress)
 - [x] Basic Rust V3 runtime scaffold:

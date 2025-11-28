@@ -364,11 +364,19 @@ dependencies = [
 
 [[package]]
 name = "frame_build"
-version = "0.86.63"
+version = "0.86.66"
 dependencies = [
  "anyhow",
  "framec",
  "walkdir",
+]
+
+[[package]]
+name = "frame_persistence_rs"
+version = "0.86.63"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -380,7 +388,7 @@ dependencies = [
 
 [[package]]
 name = "framec"
-version = "0.86.63"
+version = "0.86.66"
 dependencies = [
  "chrono",
  "clap",

@@ -185,6 +185,24 @@ Integration with Workflows (mandatory)
   - Negative: snapshots with unknown `schemaVersion` or mismatched
     `systemName` are rejected gracefully.
 
+Cross-Language Validation (Stage 17 linkage)
+- Schema-level shape:
+  - Python/TypeScript: `tools/test_cross_language_snapshot_shape.py` uses a
+    canonical `TrafficLight` snapshot JSON to exercise
+    `frame_persistence_py` and `frame_persistence_ts`, round-tripping via
+    their JSON helpers and comparing snapshots with `compare_snapshots`.
+  - Rust: `frame_persistence_rs` tests (`SystemSnapshot::from_json`,
+    `SystemSnapshot::to_json_pretty`, and `SystemSnapshot::compare`) validate
+    that the same canonical JSON shape can be parsed and re-emitted without
+    structural differences.
+- Runtime-level semantics:
+  - Python/TypeScript: `tools/test_cross_language_snapshot_traffic_light.py`
+    compiles and runs the `TrafficLight` persistence fixtures under the V3
+    module path, captures their snapshots via the per-language helpers, and
+    asserts structural equality on the resulting JSON.
+  - Rust: a matching runtime-level harness is planned as a follow-on Stage 17
+    task once a small V3 Rust system is wired to `frame_persistence_rs`.
+
 Relationship to Stages 01–13
 - Stage 15 depends on:
   - Stage 04/05/06 for accurate MIR/expansion/splice behavior (so state and

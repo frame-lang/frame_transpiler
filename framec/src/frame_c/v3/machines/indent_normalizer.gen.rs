@@ -3,6 +3,7 @@
 // Do not edit directly.
 
 #[allow(dead_code)]
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 enum IndentNormalizerReturn { run(()) }
 
@@ -192,4 +193,3 @@ impl IndentNormalizer {
         __result
     }
 }
-

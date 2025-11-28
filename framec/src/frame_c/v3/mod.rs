@@ -8,6 +8,7 @@ use crate::frame_c::v3::splice::SplicerV3;
 use crate::frame_c::v3::validator::{ValidatorV3, ValidationResultV3, ValidatorPolicyV3, BodyKindV3};
 use crate::frame_c::v3::system_parser::SystemParserV3;
 use crate::frame_c::v3::interface_parser::{InterfaceParserV3, InterfaceMethodMeta};
+use crate::frame_c::v3::body_closer::BodyCloserV3;
 
 pub mod body_closer;
 pub mod native_region_scanner;
@@ -33,6 +34,7 @@ pub mod native_symbol_snapshot;
 pub mod system_param_semantics;
 pub mod rust_domain_scanner;
 pub mod machines;
+pub mod ts_harness_machine;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
@@ -1439,8 +1441,8 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     let mut module = String::new();
                     module.push_str(&format!("import {{ FrameEvent, FrameCompartment }} from '{}'\n\n", ts_import));
                     module.push_str("export class "); module.push_str(&sys_name); module.push_str(" {\n");
-                    // Domain fields (if any) from domain: block
-                    let domain_fields = scan_ts_domain_fields(bytes);
+                    // Domain fields (if any) from this system's domain: block.
+                    let domain_fields = scan_ts_domain_fields(bytes, &sys_name);
                     for (name, ty_opt, init_opt) in domain_fields.iter() {
                         module.push_str("  public ");
                         module.push_str(name);
@@ -1976,13 +1978,13 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // with the existing exec-smoke harnesses (which still use facade
                     // wrapper calls).
                     module.push_str(&format!("impl {} {{\n", sys_name));
-                    // Basic constructor: seed the compartment with the start state and an empty stack.
+                    // Basic constructor: seed the compartment using StateId::default()
+                    // (which prefers the Arcanum start state when available).
                     module.push_str("    fn new() -> Self {\n");
                     module.push_str("        Self {\n");
-                    module.push_str(&format!(
-                        "            compartment: FrameCompartment{{ state: StateId::{}, ..Default::default() }},\n",
-                        start_state
-                    ));
+                    module.push_str(
+                        "            compartment: FrameCompartment{ state: StateId::default(), ..Default::default() },\n",
+                    );
                     module.push_str("            _stack: Vec::new(),\n");
                     if has_returns {
                         module.push_str(&format!(
@@ -2251,7 +2253,9 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     if has_returns {
                         if let Some(iface) = iface_meta_for_sys_rust {
                             let mut ret_enum = String::new();
-                            ret_enum.push_str("#[allow(dead_code)]\n#[derive(Debug, Clone)]\n");
+                            ret_enum.push_str(
+                                "#[allow(dead_code)]\n#[allow(non_camel_case_types)]\n#[derive(Debug, Clone)]\n",
+                            );
                             ret_enum.push_str(&format!("enum {} {{ ", return_enum_name));
                             let mut first = true;
                             for (mname, meta) in iface {
@@ -3123,49 +3127,234 @@ fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
 // Minimal domain: scanner for TypeScript runnable modules.
 // Scans for a top-level `domain:` block and extracts Frame-style domain
 // variables into (name, type, initializer) triples.
-fn scan_ts_domain_fields(bytes: &[u8]) -> Vec<(String, Option<String>, Option<String>)> {
+fn scan_ts_domain_fields(bytes: &[u8], target_system: &str) -> Vec<(String, Option<String>, Option<String>)> {
     let n = bytes.len();
-    let mut i = 0usize;
-    let mut domain_start: Option<usize> = None;
-    while i < n {
-        // skip leading whitespace
-        while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
-        if i >= n { break; }
-        let line_start = i;
-        // skip comments
-        if bytes[i] == b'#' {
-            while i < n && bytes[i] != b'\n' { i += 1; }
-            continue;
-        }
-        if bytes[i] == b'/' && i + 1 < n && bytes[i + 1] == b'/' {
-            while i < n && bytes[i] != b'\n' { i += 1; }
-            continue;
-        }
-        // read identifier at SOL
-        let mut j = i;
-        while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
-        let kw_start = j;
-        while j < n && (bytes[j] as char).is_ascii_alphanumeric() { j += 1; }
-        if kw_start < j && j < n && bytes[j] == b':' {
-            let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
-            if kw.as_str() == "domain" {
-                // domain: header detected; domain block begins after this line
-                let mut k = line_start;
-                while k < n && bytes[k] != b'\n' { k += 1; }
-                domain_start = Some(if k < n { k + 1 } else { n });
+    let mut out: Vec<(String, Option<String>, Option<String>)> = Vec::new();
+
+    // Find the target system block and its domain: span, mirroring the
+    // structure used by DomainBlockScannerV3.
+    fn is_space(b: u8) -> bool {
+        b == b' ' || b == b'\t'
+    }
+
+    // Locate the start/end byte offsets of the domain block for the given system.
+    fn find_domain_span(
+        bytes: &[u8],
+        target_system: &str,
+    ) -> Option<(usize, usize)> {
+        use crate::frame_c::v3::body_closer;
+        let n = bytes.len();
+        let mut i = 0usize;
+        while i < n {
+            // Skip whitespace and blank lines.
+            while i < n
+                && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n')
+            {
+                i += 1;
+            }
+            if i >= n {
                 break;
             }
+            // Skip comment-only lines.
+            if bytes[i] == b'#' {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            if i + 1 < n && bytes[i] == b'/' && bytes[i + 1] == b'/' {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+
+            // Look for `system` keyword at SOL.
+            let mut j = i;
+            while j < n && is_space(bytes[j]) {
+                j += 1;
+            }
+            let kw_start = j;
+            while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                j += 1;
+            }
+            if kw_start == j {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
+            if kw.as_str() != "system" {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+
+            // Read system name.
+            let mut k = j;
+            while k < n && is_space(bytes[k]) {
+                k += 1;
+            }
+            let name_start = k;
+            while k < n && (bytes[k].is_ascii_alphanumeric() || bytes[k] == b'_') {
+                k += 1;
+            }
+            if name_start == k {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            let sys_name_cur = String::from_utf8_lossy(&bytes[name_start..k]).to_string();
+
+            // Only consider the target system.
+            if sys_name_cur != target_system {
+                // Skip this system's block entirely.
+                while i < n && bytes[i] != b'{' && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                if i >= n || bytes[i] != b'{' {
+                    continue;
+                }
+                let open = i;
+                let close = body_closer::typescript::BodyCloserTsV3
+                    .close_byte(&bytes[open..], 0)
+                    .ok()
+                    .map(|c| open + c)
+                    .unwrap_or(open);
+                i = close + 1;
+                continue;
+            }
+
+            // Find opening '{' for this system.
+            while k < n && bytes[k] != b'{' && bytes[k] != b'\n' {
+                k += 1;
+            }
+            if k >= n || bytes[k] != b'{' {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            let open = k;
+            let close = match body_closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0)
+            {
+                Ok(c) => open + c,
+                Err(_) => {
+                    while i < n && bytes[i] != b'\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+            };
+
+            // Collect section markers inside this system.
+            let mut marks: Vec<(usize, String)> = Vec::new();
+            let mut q = open + 1;
+            while q < close {
+                while q < close
+                    && (bytes[q] == b' ' || bytes[q] == b'\t' || bytes[q] == b'\r' || bytes[q] == b'\n')
+                {
+                    q += 1;
+                }
+                if q >= close {
+                    break;
+                }
+                let line = q;
+                // Skip comments.
+                if bytes[q] == b'#' {
+                    while q < close && bytes[q] != b'\n' {
+                        q += 1;
+                    }
+                    continue;
+                }
+                if q + 1 < close && bytes[q] == b'/' {
+                    let c2 = bytes[q + 1];
+                    if c2 == b'/' {
+                        while q < close && bytes[q] != b'\n' {
+                            q += 1;
+                        }
+                        continue;
+                    } else if c2 == b'*' {
+                        q += 2;
+                        while q + 1 < close {
+                            if bytes[q] == b'*' && bytes[q + 1] == b'/' {
+                                q += 2;
+                                break;
+                            }
+                            q += 1;
+                        }
+                        continue;
+                    }
+                }
+                let mut s = q;
+                while s < close && (bytes[s] == b' ' || bytes[s] == b'\t') {
+                    s += 1;
+                }
+                let sec_start = s;
+                while s < close && (bytes[s].is_ascii_alphanumeric() || bytes[s] == b'_') {
+                    s += 1;
+                }
+                if sec_start < s && s < close && bytes[s] == b':' {
+                    let kw_sec =
+                        String::from_utf8_lossy(&bytes[sec_start..s]).to_ascii_lowercase();
+                    if kw_sec.as_str() == "domain"
+                        || kw_sec.as_str() == "operations"
+                        || kw_sec.as_str() == "interface"
+                        || kw_sec.as_str() == "machine"
+                        || kw_sec.as_str() == "actions"
+                    {
+                        marks.push((line, kw_sec));
+                    }
+                }
+                while q < close && bytes[q] != b'\n' {
+                    q += 1;
+                }
+            }
+
+            // Locate the domain block span within this system, if present.
+            if let Some((idx, _)) = marks
+                .iter()
+                .enumerate()
+                .find(|(_, (_, kw_sec))| kw_sec.as_str() == "domain")
+            {
+                let dom_start_line = marks[idx].0;
+                let dom_end = if idx + 1 < marks.len() {
+                    marks[idx + 1].0
+                } else {
+                    close
+                };
+                // Skip the `domain:` line itself.
+                let mut p = dom_start_line;
+                while p < dom_end && bytes[p] != b'\n' {
+                    p += 1;
+                }
+                if p < dom_end {
+                    p += 1;
+                }
+                return Some((p, dom_end));
+            }
+
+            // No domain block for this system.
+            return None;
         }
-        while i < n && bytes[i] != b'\n' { i += 1; }
-        if i < n { i += 1; }
+        None
     }
+
+    let (dom_start, dom_end) = match find_domain_span(bytes, target_system) {
+        Some(span) => span,
+        None => return out,
+    };
+
+    let mut p = dom_start;
     let mut out: Vec<(String, Option<String>, Option<String>)> = Vec::new();
-    let mut p = match domain_start { Some(s) => s, None => return out };
-    while p < n {
+    while p < dom_end {
         let line_start = p;
-        while p < n && bytes[p] != b'\n' { p += 1; }
+        while p < dom_end && bytes[p] != b'\n' { p += 1; }
         let line_end = p;
-        if p < n { p += 1; }
+        if p < dom_end { p += 1; }
         let line = &bytes[line_start..line_end];
         // trim
         let mut s = 0usize; let mut e = line.len();

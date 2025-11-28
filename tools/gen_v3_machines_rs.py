@@ -34,31 +34,22 @@ def find_bootstrap() -> Path:
     return root / "boot" / "framec" / "framec"
 
 
-def regen_indent_normalizer_rs(bootstrap: Path, repo_root: Path) -> None:
-    """Regenerate Rust for the Stage 14 IndentNormalizer machine."""
-    frs = (
-        repo_root
-        / "framec"
-        / "src"
-        / "frame_c"
-        / "v3"
-        / "machines"
-        / "indent_normalizer.frs"
-    )
+def _compile_machine(
+    bootstrap: Path,
+    repo_root: Path,
+    frs_rel: Path,
+    expected_rs_name: str,
+    out_rel: Path,
+    tmp_prefix: str,
+) -> None:
+    """Shared helper: compile a Frame machine to Rust using the bootstrap."""
+    frs = repo_root / frs_rel
     if not frs.is_file():
-        raise SystemExit(f"ERROR: IndentNormalizer FRM not found at {frs}")
+        raise SystemExit(f"ERROR: FRM machine not found at {frs}")
 
-    out_rs = (
-        repo_root
-        / "framec"
-        / "src"
-        / "frame_c"
-        / "v3"
-        / "machines"
-        / "indent_normalizer.gen.rs"
-    )
+    out_rs = repo_root / out_rel
 
-    tmpdir = Path(tempfile.mkdtemp(prefix="v3_machines_indent_norm_"))
+    tmpdir = Path(tempfile.mkdtemp(prefix=tmp_prefix))
     try:
         # Compile the FRM machine to Rust using the bootstrap compiler.
         cmd = [str(bootstrap), "compile", "-l", "rust", str(frs), "-o", str(tmpdir)]
@@ -73,7 +64,7 @@ def regen_indent_normalizer_rs(bootstrap: Path, repo_root: Path) -> None:
             sys.stderr.write(res.stderr or "")
             raise SystemExit(res.returncode)
 
-        generated = tmpdir / "indent_normalizer.rs"
+        generated = tmpdir / expected_rs_name
         if not generated.is_file():
             raise SystemExit(
                 f"ERROR: Expected generated Rust file at {generated}"
@@ -81,8 +72,7 @@ def regen_indent_normalizer_rs(bootstrap: Path, repo_root: Path) -> None:
 
         # Copy with a small header noting that this file is generated.
         header = (
-            "// NOTE: This file is generated from "
-            "framec/src/frame_c/v3/machines/indent_normalizer.frs\n"
+            f"// NOTE: This file is generated from {frs_rel.as_posix()}\n"
             "// via tools/gen_v3_machines_rs.py using the bootstrap compiler.\n"
             "// Do not edit directly.\n\n"
         )
@@ -96,6 +86,30 @@ def regen_indent_normalizer_rs(bootstrap: Path, repo_root: Path) -> None:
             pass
 
 
+def regen_indent_normalizer_rs(bootstrap: Path, repo_root: Path) -> None:
+    """Regenerate Rust for the Stage 14 IndentNormalizer machine."""
+    _compile_machine(
+        bootstrap=bootstrap,
+        repo_root=repo_root,
+        frs_rel=Path("framec/src/frame_c/v3/machines/indent_normalizer.frs"),
+        expected_rs_name="indent_normalizer.rs",
+        out_rel=Path("framec/src/frame_c/v3/machines/indent_normalizer.gen.rs"),
+        tmp_prefix="v3_machines_indent_norm_",
+    )
+
+
+def regen_ts_harness_builder_rs(bootstrap: Path, repo_root: Path) -> None:
+    """Regenerate Rust for the Stage 16 TypeScript harness builder machine."""
+    _compile_machine(
+        bootstrap=bootstrap,
+        repo_root=repo_root,
+        frs_rel=Path("framec/src/frame_c/v3/machines/ts_harness_builder.frs"),
+        expected_rs_name="ts_harness_builder.rs",
+        out_rel=Path("framec/src/frame_c/v3/machines/ts_harness_builder.gen.rs"),
+        tmp_prefix="v3_machines_ts_harness_",
+    )
+
+
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[1]
     bootstrap = find_bootstrap()
@@ -107,9 +121,9 @@ def main() -> int:
         return 1
 
     regen_indent_normalizer_rs(bootstrap, repo_root)
+    regen_ts_harness_builder_rs(bootstrap, repo_root)
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
