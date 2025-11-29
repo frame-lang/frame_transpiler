@@ -248,7 +248,13 @@ Scope:
 - As of v0.86.66 the prototype is wired and validated for:
   - `python v3_core`
   - `python v3_control_flow`
+  - `python v3_systems`
+  - `python v3_persistence`
+  - `python v3_systems_runtime`
   - `typescript v3_core`
+  - `typescript v3_control_flow`
+  - `typescript v3_systems`
+  - `typescript v3_persistence`
 - It is intended as a stepping stone toward Rust-native tooling and should
   be kept in sync with the Python runner’s behavior as additional
   categories are brought under this harness.

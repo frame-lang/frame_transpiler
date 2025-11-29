@@ -3128,9 +3128,6 @@ fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
 // Scans for a top-level `domain:` block and extracts Frame-style domain
 // variables into (name, type, initializer) triples.
 fn scan_ts_domain_fields(bytes: &[u8], target_system: &str) -> Vec<(String, Option<String>, Option<String>)> {
-    let n = bytes.len();
-    let mut out: Vec<(String, Option<String>, Option<String>)> = Vec::new();
-
     // Find the target system block and its domain: span, mirroring the
     // structure used by DomainBlockScannerV3.
     fn is_space(b: u8) -> bool {
@@ -3345,7 +3342,7 @@ fn scan_ts_domain_fields(bytes: &[u8], target_system: &str) -> Vec<(String, Opti
 
     let (dom_start, dom_end) = match find_domain_span(bytes, target_system) {
         Some(span) => span,
-        None => return out,
+        None => return Vec::new(),
     };
 
     let mut p = dom_start;

@@ -1,6 +1,7 @@
 @target typescript
 
 // System with duplicate machine: blocks. Expect E114.
+// @expect: E114
 
 system S {
     machine:
@@ -12,4 +13,3 @@ system S {
             e() { x(); }
         }
 }
-

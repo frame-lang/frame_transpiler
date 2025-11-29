@@ -5,6 +5,13 @@
 // `indent_normalizer.gen.rs` via `tools/gen_v3_machines_rs.py` using the
 // bootstrap compiler. This module wires the generated struct into a small
 // helper function that the main V3 pipeline can call.
+//
+// Machine-generated code tends to trigger a few lints (unreachable_patterns,
+// unused_mut, dead_code) that are not actionable here, so relax them at the
+// module level.
+#![allow(unreachable_patterns)]
+#![allow(unused_mut)]
+#![allow(dead_code)]
 
 // Bring the generated IndentNormalizer into this module's scope.
 include!("indent_normalizer.gen.rs");
@@ -28,4 +35,3 @@ pub fn run_indent_normalizer(
     m.run();
     m.out_lines
 }
-

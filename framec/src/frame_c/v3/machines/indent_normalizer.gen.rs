@@ -35,7 +35,7 @@ struct IndentNormalizer {
 impl IndentNormalizer {
     fn new() -> Self {
         Self {
-            compartment: FrameCompartment{ state: StateId::ComputeBase, ..Default::default() },
+            compartment: FrameCompartment{ state: StateId::default(), ..Default::default() },
             _stack: Vec::new(),
             _system_return_stack: Vec::<IndentNormalizerReturn>::new(),
             lines: Vec::new(),
@@ -193,3 +193,4 @@ impl IndentNormalizer {
         __result
     }
 }
+

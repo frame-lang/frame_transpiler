@@ -4,6 +4,11 @@
 // `framec/src/frame_c/v3/machines/ts_harness_builder.frs`) into a small
 // helper function that mirrors the behavior of
 // `_execute_ts_harness_from_spliced` in the Python test runner.
+//
+// Machine-generated code can trigger lints like `unreachable_patterns` and
+// `dead_code` that are not actionable here, so relax them at the module level.
+#![allow(unreachable_patterns)]
+#![allow(dead_code)]
 
 include!("machines/ts_harness_builder.gen.rs");
 

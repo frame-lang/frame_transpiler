@@ -71,6 +71,8 @@ def _compile_machine(
             )
 
         # Copy with a small header noting that this file is generated.
+        # Lints for machine-generated code are relaxed at the module level in
+        # `framec/src/frame_c/v3/machines/mod.rs`.
         header = (
             f"// NOTE: This file is generated from {frs_rel.as_posix()}\n"
             "// via tools/gen_v3_machines_rs.py using the bootstrap compiler.\n"

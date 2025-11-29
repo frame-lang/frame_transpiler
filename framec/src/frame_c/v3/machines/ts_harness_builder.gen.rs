@@ -26,7 +26,7 @@ struct TsHarnessBuilder {
 impl TsHarnessBuilder {
     fn new() -> Self {
         Self {
-            compartment: FrameCompartment{ state: StateId::Init, ..Default::default() },
+            compartment: FrameCompartment{ state: StateId::default(), ..Default::default() },
             _stack: Vec::new(),
             _system_return_stack: Vec::<TsHarnessBuilderReturn>::new(),
             lines: Vec::new(),
@@ -131,3 +131,4 @@ impl TsHarnessBuilder {
         __result
     }
 }
+

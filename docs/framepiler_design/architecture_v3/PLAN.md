@@ -845,15 +845,31 @@ Stage 18 — Rust-Native Test Runner & Tooling Exploration (Future Work)
 - [ ] Evaluate the feasibility and benefits of migrating selected
       Python-based V3 tooling (e.g., `framec_tests/runner/frame_test_runner.py`
       and small helpers under `tools/`) to Rust:
-      - Identify high-value candidates where a Rust implementation would
+      - [x] Identify high-value candidates where a Rust implementation would
         reduce runtime dependencies, improve performance, or simplify
-        integration with the Rust CLI.
-      - Prototype a Rust-based harness for a small subset of tests (e.g.,
-        a minimal `all_v3` transpile-only runner) and compare behavior
-        against the existing Python runner.
-      - Document tradeoffs (developer ergonomics, build complexity, CI
+        integration with the Rust CLI. The initial prototype is the
+        `v3_rs_test_runner` binary under `framec/src/bin`, which can run
+        validation-only suites directly from Rust.
+      - [x] Prototype a Rust-based harness for a small subset of tests and
+        compare behavior against the existing Python runner:
+        - `v3_rs_test_runner` currently drives:
+          - `python v3_core`, `python v3_control_flow`,
+            `python v3_systems`, `python v3_persistence`,
+            `python v3_systems_runtime`
+          - `typescript v3_core`, `typescript v3_control_flow`,
+            `typescript v3_systems`, `typescript v3_persistence`
+          using `@expect: Exxx` metadata on negative fixtures to match the
+          Python runner’s semantics.
+      - [ ] Expand coverage to additional categories (e.g., additional PRT
+        suites and, later, Rust language-specific categories) and, once
+        behavior is stable, consider wiring a Rust-driven validation path
+        into CI alongside the Python runner.
+      - [ ] Document tradeoffs (developer ergonomics, build complexity, CI
         impact) and keep Python tools as the reference until a Rust path
-        can fully match their coverage and determinism.
+        can fully match their coverage and determinism. This includes a
+        follow-up task to explore migrating more Python-based test tooling
+        and helpers to Rust-only equivalents once Stage 18 prototypes have
+        matured.
 
 Rust Runtime Parity (PRT Progress)
 - [x] Basic Rust V3 runtime scaffold:
