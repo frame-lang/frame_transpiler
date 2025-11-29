@@ -76,26 +76,72 @@ fn main() {
     let mut failed = 0usize;
 
     for path in files {
-        let status = Command::new(&framec_path)
+        let expected_codes = parse_expected_codes(&path);
+        let is_negative = !expected_codes.is_empty();
+
+        let output = Command::new(&framec_path)
             .arg("compile")
             .arg("--language")
             .arg(language)
-            .arg("--validate-only")
+            .arg("--validation-only")
             .arg(&path)
             .current_dir(&root)
-            .status();
+            .output();
 
-        match status {
-            Ok(s) if s.success() => {
-                passed += 1;
-            }
-            Ok(s) => {
-                failed += 1;
-                eprintln!(
-                    "  FAIL (exit={}): {}",
-                    s.code().unwrap_or(-1),
-                    path.display()
-                );
+        match output {
+            Ok(out) => {
+                let success = out.status.success();
+                let code = out.status.code().unwrap_or(-1);
+                let mut text = String::new();
+                text.push_str(&String::from_utf8_lossy(&out.stdout));
+                text.push_str(&String::from_utf8_lossy(&out.stderr));
+
+                let (test_passed, reason) = if !is_negative {
+                    // Positive fixture (no @expect): expect validation success.
+                    if success {
+                        (true, None)
+                    } else {
+                        (false, Some(format!("expected success, exit={code}")))
+                    }
+                } else {
+                    // Negative fixture (has @expect): expect failure and all expected codes present.
+                    if success {
+                        (
+                            false,
+                            Some("expected failure, but validation succeeded".to_string()),
+                        )
+                    } else {
+                        let mut missing: Vec<String> = Vec::new();
+                        for ec in &expected_codes {
+                            if !text.contains(ec) {
+                                missing.push(ec.clone());
+                            }
+                        }
+                        if missing.is_empty() {
+                            (true, None)
+                        } else {
+                            (
+                                false,
+                                Some(format!("missing expected codes: {:?}", missing)),
+                            )
+                        }
+                    }
+                };
+
+                if test_passed {
+                    passed += 1;
+                } else {
+                    failed += 1;
+                    eprintln!("  FAIL: {}", path.display());
+                    if let Some(r) = reason {
+                        eprintln!("    {}", r);
+                    }
+                    if !text.trim().is_empty() {
+                        for line in text.lines() {
+                            eprintln!("    {}", line);
+                        }
+                    }
+                }
             }
             Err(e) => {
                 failed += 1;
@@ -135,3 +181,30 @@ fn collect_frm_files(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// Parse expected error codes from metadata (`@expect:`) in a .frm file.
+///
+/// This is a minimal parser intended for V3 fixtures that use lines like:
+///   # @expect: E301
+///   // @expect: E200 E300
+fn parse_expected_codes(path: &Path) -> Vec<String> {
+    let mut codes: Vec<String> = Vec::new();
+    let content = match fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(_) => return codes,
+    };
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with('#') || trimmed.starts_with("//") {
+            if let Some(idx) = trimmed.find("@expect:") {
+                let rest = &trimmed[idx + "@expect:".len()..];
+                for tok in rest.split(|c: char| c.is_whitespace() || c == ',' || c == ';') {
+                    let t = tok.trim();
+                    if t.len() >= 2 && t.starts_with('E') && t[1..].chars().all(|ch| ch.is_ascii_digit()) {
+                        codes.push(t.to_string());
+                    }
+                }
+            }
+        }
+    }
+    codes
+}
