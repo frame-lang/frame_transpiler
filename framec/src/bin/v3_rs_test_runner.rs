@@ -47,19 +47,73 @@ fn main() {
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
-    let summary = match run_validation_for_category(&root, &framec_path, language, category) {
-        Ok(s) => s,
-        Err(err) => {
-            eprintln!("{}", err);
-            std::process::exit(1);
-        }
+    // Support a special `all_v3` category to run validation over all
+    // `v3_*` language-specific categories for the given language.
+    let categories: Vec<String> = if category.eq_ignore_ascii_case("all_v3") {
+        discover_v3_categories(&root, language)
+    } else {
+        vec![category.to_string()]
     };
 
-    println!(
-        "Summary: passed={} failed={}",
-        summary.passed, summary.failed
-    );
-    if summary.failed > 0 {
+    if categories.is_empty() {
+        eprintln!(
+            "No v3_* categories found for language '{}' under framec_tests/language_specific",
+            language
+        );
         std::process::exit(1);
     }
+
+    let mut total_passed = 0usize;
+    let mut total_failed = 0usize;
+
+    for cat in &categories {
+        let summary = match run_validation_for_category(&root, &framec_path, language, cat) {
+            Ok(s) => s,
+            Err(err) => {
+                eprintln!("{}", err);
+                std::process::exit(1);
+            }
+        };
+        println!(
+            "Category {}: passed={} failed={}",
+            cat, summary.passed, summary.failed
+        );
+        total_passed += summary.passed;
+        total_failed += summary.failed;
+    }
+
+    println!(
+        "Total summary: passed={} failed={}",
+        total_passed, total_failed
+    );
+    if total_failed > 0 {
+        std::process::exit(1);
+    }
+}
+
+/// Discover `v3_*` categories for the given language under
+/// `framec_tests/language_specific/<language>/`.
+fn discover_v3_categories(root: &Path, language: &str) -> Vec<String> {
+    let base = root
+        .join("framec_tests")
+        .join("language_specific")
+        .join(language);
+    // For now, restrict `all_v3` to the PRT-focused V3 categories where the
+    // Rust harness is known to match the Python runner's semantics.
+    let candidates: &[&str] = match language {
+        "python" => &["v3_core", "v3_control_flow", "v3_systems", "v3_persistence", "v3_systems_runtime"],
+        "typescript" => &["v3_core", "v3_control_flow", "v3_systems", "v3_persistence"],
+        "rust" => &["v3_core", "v3_control_flow"],
+        _ => &[],
+    };
+
+    let mut out: Vec<String> = Vec::new();
+    for cat in candidates {
+        let p = base.join(cat);
+        if p.is_dir() {
+            out.push(cat.to_string());
+        }
+    }
+    out.sort();
+    out
 }
