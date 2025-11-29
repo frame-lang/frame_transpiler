@@ -2637,10 +2637,16 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                 // E400: terminal-last policy
                 let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
                 for is in extra { issues.push(is); }
-                // E402: unknown state (prefer Arcanum resolution)
+                // E402: unknown state.
+                //
+                // Use Arcanum-backed resolution, but only emit an error when
+                // both the symbol table and the coarse known-state set agree
+                // that the target is unknown. This preserves PRT parity while
+                // avoiding false positives when Arcanum and outline-based
+                // scanning disagree for a given target.
                 if !known_states.is_empty() {
                     let sys = system_name.as_deref();
-                    let e402 = validator.validate_transition_targets_arcanum(&mir, &arcanum, sys);
+                    let e402 = validator.validate_transition_targets_arcanum(&mir, &arcanum, &known_states, sys);
                     for is in e402 { issues.push(is); }
                 }
                 // E405: advisory state param arity (flag-gated)
@@ -2855,9 +2861,11 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
             TargetLanguage::Python3 | TargetLanguage::TypeScript | TargetLanguage::Rust => {
                 if let Some(ref arc) = arcanum_symtab {
                     let sys = system_name.as_deref();
-                    res.issues.extend(
-                        validator.validate_transition_targets_arcanum(&mir, arc, sys)
-                    );
+                    if !known_states.is_empty() {
+                        res.issues.extend(
+                            validator.validate_transition_targets_arcanum(&mir, arc, &known_states, sys)
+                        );
+                    }
                 }
             }
             _ => {
@@ -2999,6 +3007,7 @@ pub fn validate_module_with_arcanum(
     all_issues.extend(handler_scope_issues);
 
     let system_name = find_system_name(bytes, 0);
+    let known_states = validator.collect_machine_state_names(bytes, outline_start);
 
     for b in parts.bodies {
         let body_bytes = &bytes[b.open_byte..=b.close_byte];
@@ -3019,7 +3028,11 @@ pub fn validate_module_with_arcanum(
         let mut res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
         // Cross-file transition targets
         let sys = system_name.as_deref();
-        res.issues.extend(validator.validate_transition_targets_arcanum(&mir, arc, sys));
+        if !known_states.is_empty() {
+            res.issues.extend(
+                validator.validate_transition_targets_arcanum(&mir, arc, &known_states, sys)
+            );
+        }
         // Optional advisory policy: state parameter arity (Stage 10B).
         if std::env::var("FRAME_VALIDATE_NATIVE_POLICY").ok().as_deref() == Some("1") {
             res.issues.extend(validator.validate_transition_state_arity_arcanum(&mir, arc, sys));

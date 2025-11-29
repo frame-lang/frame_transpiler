@@ -738,14 +738,26 @@ impl ValidatorV3 {
         issues
     }
 
-    // Arcanum-backed variant: resolve against symbol table instead of coarse HashSet
-    pub fn validate_transition_targets_arcanum(&self, mir: &[MirItemV3], arcanum: &Arcanum, system_name: Option<&str>) -> Vec<ValidationIssueV3> {
+    // Arcanum-backed variant: resolve against symbol table instead of coarse HashSet.
+    // A transition is considered unknown only if it cannot be resolved via
+    // Arcanum *and* the coarse known-state set does not contain the target.
+    pub fn validate_transition_targets_arcanum(
+        &self,
+        mir: &[MirItemV3],
+        arcanum: &Arcanum,
+        known_states: &HashSet<String>,
+        system_name: Option<&str>,
+    ) -> Vec<ValidationIssueV3> {
         let mut issues = Vec::new();
         let sys = system_name.unwrap_or("_");
         for m in mir {
             if let MirItemV3::Transition{ target, .. } = m {
-                let found = arcanum.resolve_state(sys, target).or_else(|| arcanum.resolve_state("_", target)).is_some();
-                if !found {
+                let coarse_known = known_states.contains(target);
+                let arc_known = arcanum
+                    .resolve_state(sys, target)
+                    .or_else(|| arcanum.resolve_state("_", target))
+                    .is_some();
+                if !coarse_known && !arc_known {
                     issues.push(ValidationIssueV3{ message: format!("E402: unknown state '{}'", target) });
                 }
             }
