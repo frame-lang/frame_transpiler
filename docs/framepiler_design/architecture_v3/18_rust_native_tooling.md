@@ -167,8 +167,60 @@ full execution harnesses provided by the Python runner.
     them in `PLAN.md` as explicit follow-up items, keeping in mind the
     tradeoffs above.
 
+## 4. Roadmap to a Rust-First Harness (Exec Parity)
+
+This section mirrors the high-level Stage 18 roadmap from `PLAN.md` in more
+detail. The intent is not to remove the Python runner, but to reach a point
+where a Rust-first harness can cover the full PRT surface, including exec.
+
+1. **Phase 1 — Validation parity**
+   - Refactor `v3_rs_test_runner` into a small library + bin that:
+     - Parses metadata from `.frm` headers and comments in a way that
+       matches the Python runner (negative tests, `@expect`, `@meta`,
+       `@skip-if`, torture/infinite loop detection).
+     - Can run validation-only tests for arbitrary `<language>/<category>`
+       pairs.
+   - Expand validation coverage to all PRT V3 categories for Python,
+     TypeScript, and Rust.
+   - Add a “compare with Python” mode that runs both runners on the same
+     fixture set and reports divergences in pass/fail and error codes.
+
+2. **Phase 2 — Rust exec harness for Rust targets**
+   - Implement a Rust-native exec path that:
+     - Compiles `.frs` to Rust via `framec`.
+     - Builds the generated Rust via `rustc` (or `cargo` for multi-file).
+     - Runs the resulting binary and captures stdout/stderr.
+   - Mirror the Python runner’s `v3_exec_smoke` semantics:
+     - Expected markers in output.
+     - Toolchain-missing skips.
+   - Gradually move Rust exec-smoke and curated exec suites under this
+     harness as the primary path once behavior is proven equivalent.
+
+3. **Phase 3 — Exec harness for Python/TypeScript from Rust**
+   - Extend the Rust harness to drive exec for Py/TS fixtures by:
+     - Compiling `.frm` to `.py`/`.ts` using the same V3 module paths and
+       `FRAME_EMIT_EXEC` policies as the Python runner.
+     - Invoking `python3`, `tsc`, and `node` as subprocesses, with the same
+       treatment of `@py-compile`, `@tsc-compile`, and toolchain-skips as
+       in the Python runner.
+   - Keep the Python runner as the reference while iterating on this path.
+
+4. **Phase 4 — Cross-language persistence/snapshot exec in Rust**
+   - Port cross-language persistence tests (e.g., TrafficLight snapshots)
+     into a Rust binary that:
+       - Compiles and runs the Py/TS/Rust snapshot fixtures.
+       - Uses `frame_persistence_py`, `frame_persistence_ts`, and
+         `frame_persistence_rs` to compare JSON snapshots.
+
+5. **Phase 5 — Unified Rust test CLI**
+   - Introduce a CLI entry (e.g., `framec test`) that:
+     - Accepts language/category filters and modes (`--transpile-only`,
+       `--exec`, `--validation-only`).
+     - Internally uses the Rust harness library to drive tests across
+       languages and categories.
+     - Can optionally run in “compare with Python” mode for extra safety.
+
 Rust-native tooling is a complement to, not a replacement for, the Python
 tooling. Any migration or expansion should preserve determinism, keep DFA /
 DPDA analyzers as the ground truth, and remain fully reflected in the V3
 PLAN and docs.
-

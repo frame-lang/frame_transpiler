@@ -871,7 +871,37 @@ Stage 18 — Rust-Native Test Runner & Tooling Exploration (Future Work)
         can fully match their coverage and determinism. This includes a
         follow-up task to explore migrating more Python-based test tooling
         and helpers to Rust-only equivalents once Stage 18 prototypes have
-        matured.
+        matured. See `18_rust_native_tooling.md` for details.
+- [ ] Longer-term roadmap for a Rust-first harness with full exec parity:
+      - Phase 1 — Validation parity:
+        - Generalize `v3_rs_test_runner` into a small Rust library + bin that
+          understands the same metadata as the Python runner (`@expect`,
+          `@meta`, `@skip-if`, etc.).
+        - Expand Rust validation coverage to all PRT V3 categories for
+          Python, TypeScript, and Rust (transpile/validation-only).
+        - Add a compare mode that runs both the Rust and Python runners for
+          a set of categories and reports any differences in pass/fail and
+          error codes.
+      - Phase 2 — Rust exec harness for Rust targets:
+        - Implement a Rust-native exec path that compiles `.frs` to Rust,
+          builds with `rustc`, and runs the resulting binary, mirroring the
+          current `execute_rust` behavior from the Python runner.
+        - Move `v3_exec_smoke` and curated Rust exec suites under this
+          harness as the primary path once behavior matches the Python
+          runner.
+      - Phase 3 — Exec harness for Python/TypeScript targets from Rust:
+        - Extend the Rust harness to drive exec for Python and TypeScript
+          fixtures by invoking `python3`, `tsc`, and `node` as subprocesses,
+          using the same expectations and toolchain skips as the Python
+          runner.
+      - Phase 4 — Cross-language persistence/snapshot tests in Rust:
+        - Port the cross-language TrafficLight snapshot tests to a Rust
+          binary that compiles and runs the Py/TS/Rust fixtures and compares
+          their JSON snapshots via the shared persistence libraries.
+      - Phase 5 — Unified Rust test CLI:
+        - Introduce a Rust CLI entry (e.g., `framec test`) that can drive
+          validation and exec across languages and categories using the
+          Rust harness, with modes for Rust-only, Python-only, or compare.
 
 Rust Runtime Parity (PRT Progress)
 - [x] Basic Rust V3 runtime scaffold:
