@@ -1,4 +1,5 @@
 @target typescript
+// @expect: E200
 
 system S {
     machine:
@@ -8,4 +9,3 @@ system S {
             }
         }
 }
-

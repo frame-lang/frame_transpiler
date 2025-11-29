@@ -1,4 +1,5 @@
 @target typescript
+// @expect: E301
 
 system S {
     machine:
@@ -8,4 +9,3 @@ system S {
             }
         }
 }
-
