@@ -35,6 +35,7 @@ pub mod system_param_semantics;
 pub mod rust_domain_scanner;
 pub mod machines;
 pub mod ts_harness_machine;
+pub mod test_harness_rs;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
