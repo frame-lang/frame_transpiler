@@ -861,9 +861,11 @@ Stage 18 — Rust-Native Test Runner & Tooling Exploration (Future Work)
           using `@expect: Exxx` metadata on negative fixtures to match the
           Python runner’s semantics.
       - [ ] Expand coverage to additional categories (e.g., additional PRT
-        suites and, later, Rust language-specific categories) and, once
-        behavior is stable, consider wiring a Rust-driven validation path
-        into CI alongside the Python runner.
+        suites and, later, more Rust language-specific categories such as
+        persistence and systems/runtime) and, once behavior is stable,
+        consider wiring a Rust-driven validation path into CI alongside the
+        Python runner. Initial Rust coverage now includes `rust v3_core`
+        and `rust v3_control_flow`.
       - [ ] Document tradeoffs (developer ergonomics, build complexity, CI
         impact) and keep Python tools as the reference until a Rust path
         can fully match their coverage and determinism. This includes a
