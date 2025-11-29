@@ -822,24 +822,24 @@ Stage 17 — Cross‑Language Snapshot Semantics (PRT)
       - `tools/test_cross_language_snapshot_traffic_light.py`, which
         compiles/runs both fixtures via the V3 module path and compares
         the resulting JSON snapshots for structural equality.
-- [ ] Extend the runtime‑level TrafficLight snapshot comparison to Rust by:
-      - [ ] Adding a small `@target rust` V3 `TrafficLight` system under
+- [x] Extend the runtime‑level TrafficLight snapshot comparison to Rust by:
+      - [x] Adding a small `@target rust` V3 `TrafficLight` system under
             `framec_tests/language_specific/rust/v3_persistence/positive/`
             that mirrors the Python/TypeScript fixtures (same states,
-            parameters, and domain).
-      - [ ] Implementing a minimal Rust harness (either via a dedicated test
-            crate or a generated harness file) that:
+            parameters, and domain). This is
+            `traffic_light_snapshot_dump.frm`.
+      - [x] Implementing a minimal Rust harness that:
             - includes the generated Rust module for `TrafficLight`,
-            - drives it to the same logical state (`Green` with
-              `domain = "red"`), and
-            - constructs a `SystemSnapshot` using `frame_persistence_rs`
-              (via a `SnapshotableSystem` impl or a direct mapping) and
-              prints its JSON.
-      - [ ] Integrating the Rust JSON snapshot into the existing
-            cross‑language comparison flow (extending
-            `tools/test_cross_language_snapshot_traffic_light.py` or a
-            sibling tool) so that Python, TypeScript, and Rust snapshots
-            are compared structurally against the canonical shape.
+            - drives it to the `Green` state with `domain = "red"`, and
+            - constructs a `SystemSnapshot` JSON compatible with the
+              canonical shape via `frame_persistence_rs::SystemSnapshot`.
+            - This is wired via `tools/test_cross_language_snapshot_traffic_light.py`,
+              which compiles the harness with `rustc` against the existing
+              `frame_persistence_rs` rlib and captures its JSON output.
+      - [x] Integrating the Rust JSON snapshot into the existing
+            cross‑language comparison flow (`tools/test_cross_language_snapshot_traffic_light.py`)
+            so that Python, TypeScript, and Rust snapshots are compared
+            structurally against the canonical TrafficLight snapshot.
 
 Stage 18 — Rust-Native Test Runner & Tooling Exploration (Future Work)
 - [ ] Evaluate the feasibility and benefits of migrating selected

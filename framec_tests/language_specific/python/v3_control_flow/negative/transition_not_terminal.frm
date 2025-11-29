@@ -1,4 +1,5 @@
 @target python
+# @expect: E400
 
 system S {
     machine:
@@ -11,4 +12,3 @@ system S {
         }
         $B { }
 }
-

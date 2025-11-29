@@ -199,6 +199,60 @@ python3 framec_tests/runner/frame_test_runner.py --no-validate --languages pytho
 # TypeScript target
 ./target/release/framec -l typescript path/to/test.frm
 
+### Rust-Based V3 Test Runner Prototype (Stage 18)
+
+In addition to the Python runner, there is an experimental Rust-based V3
+test harness that exercises validation-only checks for language-specific
+categories without going through `framec_tests/runner/frame_test_runner.py`.
+This is part of Stage 18 and is **not** a replacement for the Python
+runner, but it can be useful for quick, targeted validation.
+
+Binary:
+- `v3_rs_test_runner` under the `framec` crate (`framec/src/bin/v3_rs_test_runner.rs`).
+
+Usage:
+- General form:
+  ```bash
+  cargo run -p framec --bin v3_rs_test_runner -- <language> <category> [framec_path]
+  ```
+- Examples:
+  ```bash
+  # Validate Python v3_core fixtures using target/debug/framec
+  cargo run -p framec --bin v3_rs_test_runner -- python v3_core ./target/debug/framec
+
+  # Validate Python v3_control_flow fixtures
+  cargo run -p framec --bin v3_rs_test_runner -- python v3_control_flow ./target/debug/framec
+
+  # Validate TypeScript v3_core fixtures
+  cargo run -p framec --bin v3_rs_test_runner -- typescript v3_core ./target/debug/framec
+  ```
+
+Semantics:
+- The runner discovers `.frm` files under
+  `framec_tests/language_specific/<language>/<category>/`.
+- For each file, it calls:
+  ```bash
+  framec compile --language <language> --validation-only <file>
+  ```
+- Fixtures without `@expect:` metadata are treated as **positive**:
+  validation must succeed for the test to pass.
+- Fixtures with `@expect:` metadata are treated as **negative**:
+  validation must fail, and all listed error codes must appear in the
+  validation output. Metadata is parsed from comment lines like:
+  ```frame
+  # @expect: E301
+  // @expect: E200 E300
+  ```
+
+Scope:
+- As of v0.86.66 the prototype is wired and validated for:
+  - `python v3_core`
+  - `python v3_control_flow`
+  - `typescript v3_core`
+- It is intended as a stepping stone toward Rust-native tooling and should
+  be kept in sync with the Python runner’s behavior as additional
+  categories are brought under this harness.
+
 # GraphViz target
 ./target/release/framec -l graphviz path/to/test.frm
 ```
