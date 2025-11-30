@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use framec::frame_c::v3::test_harness_rs::{
+    run_python_exec_smoke,
     run_rust_curated_exec_for_category,
     run_rust_exec_smoke,
     run_validation_for_category,
@@ -143,17 +144,15 @@ fn run_exec_smoke_mode(args: &[String]) {
     if args.len() < 4 || args.len() > 5 {
         let bin = args.get(0).map(String::as_str).unwrap_or("v3_rs_test_runner");
         eprintln!(
-            "Usage: {bin} exec-smoke rust v3_exec_smoke [framec_path]"
+            "Usage: {bin} exec-smoke <language> v3_exec_smoke [framec_path]"
         );
         std::process::exit(1);
     }
 
     let language = &args[2];
     let category = &args[3];
-    if language != "rust" || category != "v3_exec_smoke" {
-        eprintln!(
-            "exec-smoke mode currently supports only: exec-smoke rust v3_exec_smoke"
-        );
+    if category != "v3_exec_smoke" {
+        eprintln!("exec-smoke mode currently expects category v3_exec_smoke");
         std::process::exit(1);
     }
 
@@ -168,13 +167,20 @@ fn run_exec_smoke_mode(args: &[String]) {
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
 
-    let summary = match run_rust_exec_smoke(&root, &framec_path, category) {
-        Ok(s) => s,
-        Err(err) => {
-            eprintln!("{}", err);
+    let summary = match language.as_str() {
+        "rust" => run_rust_exec_smoke(&root, &framec_path, category),
+        "python" => run_python_exec_smoke(&root, &framec_path, category),
+        _ => {
+            eprintln!(
+                "exec-smoke mode currently supports languages: python, rust (category v3_exec_smoke)"
+            );
             std::process::exit(1);
         }
-    };
+    }
+    .unwrap_or_else(|err| {
+        eprintln!("{}", err);
+        std::process::exit(1);
+    });
 
     println!(
         "Exec-smoke summary: passed={} failed={}",

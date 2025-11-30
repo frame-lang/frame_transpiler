@@ -475,6 +475,227 @@ pub fn run_rust_exec_smoke(
     })
 }
 
+/// Execute Python V3 exec-smoke fixtures by:
+///   - compiling `.frm` to a standalone Python program via FRAME_EMIT_EXEC=1
+///   - running `python3` on the emitted script
+///   - applying the same stem-based marker checks as the Python runner
+pub fn run_python_exec_smoke(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+) -> Result<TestSummary, String> {
+    let language = "python";
+    let tests_root = repo_root
+        .join("framec_tests")
+        .join("language_specific")
+        .join(language)
+        .join(category);
+
+    if !tests_root.is_dir() {
+        return Err(format!("Test directory not found: {}", tests_root.display()));
+    }
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_frm_files(&tests_root, &mut files);
+    if files.is_empty() {
+        return Err(format!(
+            "No .frm files found under {}",
+            tests_root.display()
+        ));
+    }
+
+    println!(
+        "v3_rs_exec_harness: language={} category={} files={}",
+        language,
+        category,
+        files.len()
+    );
+
+    let mut passed = 0usize;
+    let mut failed = 0usize;
+
+    let out_root = repo_root.join("target").join("v3_rs_exec_smoke").join("python");
+    if let Err(e) = fs::create_dir_all(&out_root) {
+        return Err(format!(
+            "Failed to create Python exec-smoke output dir {}: {e}",
+            out_root.display()
+        ));
+    }
+
+    for frm_path in files {
+        let stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
+            Some(s) => s.to_string(),
+            None => {
+                eprintln!("  WARN: skipping fixture with invalid name: {}", frm_path.display());
+                continue;
+            }
+        };
+
+        let py_path = out_root.join(format!("{stem}__v3.py"));
+
+        // Compile Frame → Python with FRAME_EMIT_EXEC=1.
+        let mut cmd = Command::new(framec_path);
+        cmd.arg("compile")
+            .arg("-l")
+            .arg("python_3")
+            .arg("--emit-debug")
+            .arg(&frm_path)
+            .current_dir(repo_root);
+        cmd.env("FRAME_EMIT_EXEC", "1");
+        let compile_output = cmd.output();
+
+        let program_src = match compile_output {
+            Ok(out) => {
+                if !out.status.success() {
+                    failed += 1;
+                    eprintln!("  FAIL (compile): {}", frm_path.display());
+                    let mut text = String::new();
+                    text.push_str(&String::from_utf8_lossy(&out.stdout));
+                    text.push_str(&String::from_utf8_lossy(&out.stderr));
+                    for line in text.lines() {
+                        eprintln!("    {}", line);
+                    }
+                    continue;
+                }
+                String::from_utf8_lossy(&out.stdout).to_string()
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn framec): {} ({})",
+                    frm_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        if let Err(e) = fs::write(&py_path, program_src) {
+            failed += 1;
+            eprintln!(
+                "  ERROR: failed to write Python script {}: {}",
+                py_path.display(),
+                e
+            );
+            continue;
+        }
+
+        // Run python3 on the emitted script. Prepend the repo root to PYTHONPATH
+        // so `frame_runtime_py` can be imported consistently.
+        let mut cmd = Command::new("python3");
+        cmd.arg(&py_path).current_dir(&out_root);
+        if let Ok(existing) = std::env::var("PYTHONPATH") {
+            let mut new_path = repo_root.to_path_buf();
+            new_path.push(""); // ensure trailing separator
+            let merged = format!(
+                "{}{}{}",
+                repo_root.display(),
+                std::path::MAIN_SEPARATOR,
+                existing
+            );
+            cmd.env("PYTHONPATH", merged);
+        } else {
+            cmd.env("PYTHONPATH", repo_root);
+        }
+        let run_output = match cmd.output() {
+            Ok(run) => run,
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn python3): {} ({})",
+                    py_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        let mut out_text = String::new();
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stdout));
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stderr));
+
+        let mut exec_ok = true;
+        let mut reason = String::new();
+
+        if !run_output.status.success() {
+            exec_ok = false;
+            reason = format!("non-zero exit ({})", run_output.status);
+        } else {
+            let lower = out_text.to_lowercase();
+            if lower.contains("traceback") || lower.contains("error") {
+                // Treat uncaught errors as failures for exec smoke.
+                exec_ok = false;
+                reason = "Python error/traceback detected".to_string();
+            }
+        }
+
+        // Apply the same stem-based markers as the Python runner uses for
+        // v3_exec_smoke (TRANSITION:, FORWARD:PARENT, STACK:PUSH/STACK:POP).
+        if exec_ok {
+            let name = stem.as_str();
+            match name {
+                "transition_basic" | "transition_args" => {
+                    if !out_text.contains("TRANSITION:") {
+                        exec_ok = false;
+                        reason = "Missing TRANSITION marker".to_string();
+                    }
+                }
+                "forward_parent" => {
+                    if !out_text.contains("FORWARD:PARENT") {
+                        exec_ok = false;
+                        reason = "Missing FORWARD:PARENT marker".to_string();
+                    }
+                }
+                "stack_ops" => {
+                    if !(out_text.contains("STACK:PUSH") && out_text.contains("STACK:POP")) {
+                        exec_ok = false;
+                        reason = "Missing STACK markers".to_string();
+                    }
+                }
+                "mixed_ops" => {
+                    if !(out_text.contains("STACK:PUSH") && out_text.contains("TRANSITION:")) {
+                        exec_ok = false;
+                        reason = "Missing MIXED markers".to_string();
+                    }
+                }
+                "stack_then_transition" | "nested_stack_then_transition" => {
+                    if !(out_text.contains("STACK:PUSH")
+                        && out_text.contains("STACK:POP")
+                        && out_text.contains("TRANSITION:"))
+                    {
+                        exec_ok = false;
+                        reason = "Missing STACK/TRANSITION markers".to_string();
+                    }
+                }
+                "if_forward_else_transition" => {
+                    if !(out_text.contains("FORWARD:PARENT") || out_text.contains("TRANSITION:")) {
+                        exec_ok = false;
+                        reason = "Missing FORWARD or TRANSITION marker".to_string();
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if exec_ok {
+            passed += 1;
+        } else {
+            failed += 1;
+            eprintln!("  FAIL (exec): {} -- {}", frm_path.display(), reason);
+            for line in out_text.lines().take(20) {
+                eprintln!("    {}", line);
+            }
+        }
+    }
+
+    Ok(TestSummary {
+        language: language.to_string(),
+        category: category.to_string(),
+        passed,
+        failed,
+    })
+}
+
 /// Execute curated Rust V3 exec fixtures (v3_core, v3_control_flow, v3_systems)
 /// using FRAME_EMIT_EXEC wrappers and `@run-expect` / `@run-exact` metadata.
 pub fn run_rust_curated_exec_for_category(
