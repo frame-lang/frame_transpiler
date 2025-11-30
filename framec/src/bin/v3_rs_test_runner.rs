@@ -167,17 +167,19 @@ fn run_exec_smoke_mode(args: &[String]) {
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
 
-    let summary = match language.as_str() {
+    let summary_result = match language.as_str() {
         "rust" => run_rust_exec_smoke(&root, &framec_path, category),
         "python" => run_python_exec_smoke(&root, &framec_path, category),
+        "typescript" => framec::frame_c::v3::test_harness_rs::run_typescript_exec_smoke(&root, &framec_path, category),
         _ => {
             eprintln!(
-                "exec-smoke mode currently supports languages: python, rust (category v3_exec_smoke)"
+                "exec-smoke mode currently supports languages: python, typescript, rust (category v3_exec_smoke)"
             );
             std::process::exit(1);
         }
-    }
-    .unwrap_or_else(|err| {
+    };
+
+    let summary = summary_result.unwrap_or_else(|err| {
         eprintln!("{}", err);
         std::process::exit(1);
     });

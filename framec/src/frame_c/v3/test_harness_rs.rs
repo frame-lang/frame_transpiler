@@ -696,6 +696,283 @@ pub fn run_python_exec_smoke(
     })
 }
 
+/// Execute TypeScript V3 exec-smoke fixtures by:
+///   - compiling `.frm` to a standalone TS program via FRAME_EMIT_EXEC=1
+///   - compiling TS to JS with `tsc`
+///   - running `node` on the emitted JS
+///   - applying the same stem-based marker checks as the Python runner
+pub fn run_typescript_exec_smoke(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+) -> Result<TestSummary, String> {
+    let language = "typescript";
+    let tests_root = repo_root
+        .join("framec_tests")
+        .join("language_specific")
+        .join(language)
+        .join(category);
+
+    if !tests_root.is_dir() {
+        return Err(format!("Test directory not found: {}", tests_root.display()));
+    }
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_frm_files(&tests_root, &mut files);
+    if files.is_empty() {
+        return Err(format!(
+            "No .frm files found under {}",
+            tests_root.display()
+        ));
+    }
+
+    println!(
+        "v3_rs_exec_harness: language={} category={} files={}",
+        language,
+        category,
+        files.len()
+    );
+
+    let mut passed = 0usize;
+    let mut failed = 0usize;
+
+    let out_root = repo_root.join("target").join("v3_rs_exec_smoke").join("typescript");
+    if let Err(e) = fs::create_dir_all(&out_root) {
+        return Err(format!(
+            "Failed to create TypeScript exec-smoke output dir {}: {e}",
+            out_root.display()
+        ));
+    }
+
+    // Resolve TypeScript compiler similarly to the Python runner.
+    let tsc_cmd = {
+        let project_root = repo_root;
+        let local_bin = project_root
+            .join("node_modules")
+            .join(".bin")
+            .join("tsc");
+        let local_direct = project_root
+            .join("node_modules")
+            .join("typescript")
+            .join("bin")
+            .join("tsc");
+        if local_bin.is_file() {
+            Some(local_bin)
+        } else if local_direct.is_file() {
+            Some(local_direct)
+        } else {
+            // Fallback: rely on PATH and assume `tsc` is resolvable there.
+            // We do not introduce an additional crate dependency here.
+            Some(PathBuf::from("tsc"))
+        }
+    };
+
+    let tsc = match tsc_cmd {
+        Some(p) => p,
+        None => {
+            return Err("tsc not found - please install TypeScript (npm install)".to_string());
+        }
+    };
+
+    for frm_path in files {
+        let stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
+            Some(s) => s.to_string(),
+            None => {
+                eprintln!("  WARN: skipping fixture with invalid name: {}", frm_path.display());
+                continue;
+            }
+        };
+
+        let ts_path = out_root.join(format!("{stem}__v3.ts"));
+        let js_path = out_root.join(format!("{stem}__v3.js"));
+
+        // Compile Frame → TypeScript with FRAME_EMIT_EXEC=1.
+        let mut cmd = Command::new(framec_path);
+        cmd.arg("compile")
+            .arg("-l")
+            .arg("typescript")
+            .arg("--emit-debug")
+            .arg(&frm_path)
+            .current_dir(repo_root);
+        cmd.env("FRAME_EMIT_EXEC", "1");
+        // Provide FRAME_TS_EXEC_IMPORT so the generated harness can import the runtime.
+        let runtime_ts = repo_root.join("frame_runtime_ts").join("index");
+        cmd.env(
+            "FRAME_TS_EXEC_IMPORT",
+            runtime_ts.to_str().unwrap_or("frame_runtime_ts/index"),
+        );
+        let compile_output = cmd.output();
+
+        let program_src = match compile_output {
+            Ok(out) => {
+                if !out.status.success() {
+                    failed += 1;
+                    eprintln!("  FAIL (compile): {}", frm_path.display());
+                    let mut text = String::new();
+                    text.push_str(&String::from_utf8_lossy(&out.stdout));
+                    text.push_str(&String::from_utf8_lossy(&out.stderr));
+                    for line in text.lines() {
+                        eprintln!("    {}", line);
+                    }
+                    continue;
+                }
+                String::from_utf8_lossy(&out.stdout).to_string()
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn framec): {} ({})",
+                    frm_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        if let Err(e) = fs::write(&ts_path, program_src) {
+            failed += 1;
+            eprintln!(
+                "  ERROR: failed to write TS script {}: {}",
+                ts_path.display(),
+                e
+            );
+            continue;
+        }
+
+        // Compile TS → JS using tsc.
+        let tsc_output = Command::new(&tsc)
+            .arg("--target")
+            .arg("es5")
+            .arg("--module")
+            .arg("commonjs")
+            .arg("--skipLibCheck")
+            .arg(&ts_path)
+            .current_dir(&out_root)
+            .output();
+
+        let run_output = match tsc_output {
+            Ok(out) => {
+                if !out.status.success() {
+                    failed += 1;
+                    eprintln!("  FAIL (tsc): {}", ts_path.display());
+                    let mut text = String::new();
+                    text.push_str(&String::from_utf8_lossy(&out.stdout));
+                    text.push_str(&String::from_utf8_lossy(&out.stderr));
+                    for line in text.lines() {
+                        eprintln!("    {}", line);
+                    }
+                    continue;
+                }
+                // Run JS via node.
+                match Command::new("node")
+                    .arg(&js_path)
+                    .current_dir(&out_root)
+                    .output()
+                {
+                    Ok(run) => run,
+                    Err(e) => {
+                        failed += 1;
+                        eprintln!(
+                            "  ERROR (spawn node): {} ({})",
+                            js_path.display(),
+                            e
+                        );
+                        continue;
+                    }
+                }
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn tsc): {} ({})",
+                    ts_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        let mut out_text = String::new();
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stdout));
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stderr));
+
+        let mut exec_ok = true;
+        let mut reason = String::new();
+
+        if !run_output.status.success() {
+            exec_ok = false;
+            reason = format!("non-zero exit ({})", run_output.status);
+        } else if out_text.contains("FAIL") {
+            exec_ok = false;
+            reason = "FAIL marker detected".to_string();
+        }
+
+        // Apply the same stem-based markers as Python exec-smoke (TRANSITION, FORWARD, STACK).
+        if exec_ok {
+            let name = stem.as_str();
+            match name {
+                "transition_basic" => {
+                    if !out_text.contains("TRANSITION:") {
+                        exec_ok = false;
+                        reason = "Missing TRANSITION marker".to_string();
+                    }
+                }
+                "forward_parent" => {
+                    if !out_text.contains("FORWARD:PARENT") {
+                        exec_ok = false;
+                        reason = "Missing FORWARD:PARENT marker".to_string();
+                    }
+                }
+                "stack_ops" => {
+                    if !(out_text.contains("STACK:PUSH") && out_text.contains("STACK:POP")) {
+                        exec_ok = false;
+                        reason = "Missing STACK markers".to_string();
+                    }
+                }
+                "mixed_ops" => {
+                    if !(out_text.contains("STACK:PUSH") && out_text.contains("TRANSITION:")) {
+                        exec_ok = false;
+                        reason = "Missing MIXED markers".to_string();
+                    }
+                }
+                "stack_then_transition" | "nested_stack_then_transition" => {
+                    if !(out_text.contains("STACK:PUSH")
+                        && out_text.contains("STACK:POP")
+                        && out_text.contains("TRANSITION:"))
+                    {
+                        exec_ok = false;
+                        reason = "Missing STACK/TRANSITION markers".to_string();
+                    }
+                }
+                "if_forward_else_transition" => {
+                    if !(out_text.contains("FORWARD:PARENT") || out_text.contains("TRANSITION:")) {
+                        exec_ok = false;
+                        reason = "Missing FORWARD or TRANSITION marker".to_string();
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if exec_ok {
+            passed += 1;
+        } else {
+            failed += 1;
+            eprintln!("  FAIL (exec): {} -- {}", frm_path.display(), reason);
+            for line in out_text.lines().take(20) {
+                eprintln!("    {}", line);
+            }
+        }
+    }
+
+    Ok(TestSummary {
+        language: language.to_string(),
+        category: category.to_string(),
+        passed,
+        failed,
+    })
+}
+
 /// Execute curated Rust V3 exec fixtures (v3_core, v3_control_flow, v3_systems)
 /// using FRAME_EMIT_EXEC wrappers and `@run-expect` / `@run-exact` metadata.
 pub fn run_rust_curated_exec_for_category(
