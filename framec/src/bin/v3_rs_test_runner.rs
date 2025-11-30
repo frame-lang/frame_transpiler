@@ -3,9 +3,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use framec::frame_c::v3::test_harness_rs::{
+    run_python_curated_exec_for_category,
     run_python_exec_smoke,
     run_rust_curated_exec_for_category,
     run_rust_exec_smoke,
+    run_typescript_curated_exec_for_category,
     run_validation_for_category,
 };
 
@@ -193,25 +195,21 @@ fn run_exec_smoke_mode(args: &[String]) {
     }
 }
 
-/// Execute curated Rust V3 exec fixtures (core/control_flow/systems) using the
-/// Rust harness and FRAME_EMIT_EXEC wrappers.
+/// Execute curated V3 exec fixtures using the Rust harness and FRAME_EMIT_EXEC
+/// wrappers. Supported languages:
+///   - rust: v3_core, v3_control_flow, v3_systems
+///   - python/typescript: v3_core, v3_control_flow, v3_systems, v3_persistence
 fn run_exec_curated_mode(args: &[String]) {
     if args.len() < 4 || args.len() > 5 {
         let bin = args.get(0).map(String::as_str).unwrap_or("v3_rs_test_runner");
         eprintln!(
-            "Usage: {bin} exec-curated rust <v3_core|v3_control_flow|v3_systems|all_curated> [framec_path]"
+            "Usage: {bin} exec-curated <language> <category|all_curated> [framec_path]"
         );
         std::process::exit(1);
     }
 
     let language = &args[2];
     let category = &args[3];
-    if language != "rust" {
-        eprintln!(
-            "exec-curated mode currently supports only Rust curated V3 categories"
-        );
-        std::process::exit(1);
-    }
 
     let framec_path = if args.len() == 5 {
         PathBuf::from(&args[4])
@@ -224,23 +222,35 @@ fn run_exec_curated_mode(args: &[String]) {
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
 
-    let categories: Vec<&str> = if category.eq_ignore_ascii_case("all_curated") {
-        vec!["v3_core", "v3_control_flow", "v3_systems"]
-    } else {
-        vec![category.as_str()]
+    let categories: Vec<&str> = match (language.as_str(), category.as_str()) {
+        ("rust", "all_curated") => vec!["v3_core", "v3_control_flow", "v3_systems"],
+        ("rust", cat) => vec![cat],
+        ("python", "all_curated") | ("typescript", "all_curated") => {
+            vec!["v3_core", "v3_control_flow", "v3_systems", "v3_persistence"]
+        }
+        ("python", cat) | ("typescript", cat) => vec![cat],
+        _ => {
+            eprintln!(
+                "exec-curated mode currently supports languages: rust, python, typescript"
+            );
+            std::process::exit(1);
+        }
     };
 
     let mut total_passed = 0usize;
     let mut total_failed = 0usize;
 
     for cat in categories {
-        let summary = match run_rust_curated_exec_for_category(&root, &framec_path, cat) {
-            Ok(s) => s,
-            Err(err) => {
-                eprintln!("{}", err);
-                std::process::exit(1);
-            }
-        };
+        let summary = match language.as_str() {
+            "rust" => run_rust_curated_exec_for_category(&root, &framec_path, cat),
+            "python" => run_python_curated_exec_for_category(&root, &framec_path, cat),
+            "typescript" => run_typescript_curated_exec_for_category(&root, &framec_path, cat),
+            _ => unreachable!(),
+        }
+        .unwrap_or_else(|err| {
+            eprintln!("{}", err);
+            std::process::exit(1);
+        });
         println!(
             "Curated exec category {}: passed={} failed={}",
             cat, summary.passed, summary.failed

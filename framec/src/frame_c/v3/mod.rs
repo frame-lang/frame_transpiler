@@ -1440,7 +1440,14 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     let field_candidates = collect_ts_field_candidates(content_str, &parts);
                     let ts_import = std::env::var("FRAME_TS_EXEC_IMPORT").ok().unwrap_or_else(|| String::from("frame_runtime_ts"));
                     let mut module = String::new();
-                    module.push_str(&format!("import {{ FrameEvent, FrameCompartment }} from '{}'\n\n", ts_import));
+                    module.push_str(&format!("import {{ FrameEvent, FrameCompartment }} from '{}'\n", ts_import));
+                    // Extra native imports lifted out of Frame functions (e.g., fn main)
+                    // so that TypeScript sees them at the top level rather than inside
+                    // a function body.
+                    let mut extra_imports: Vec<String> = Vec::new();
+                    // (Body collection below will populate `extra_imports`.)
+                    // Defer emission of extra_imports until after body collection so we
+                    // can avoid duplicates.
                     module.push_str("export class "); module.push_str(&sys_name); module.push_str(" {\n");
                     // Domain fields (if any) from this system's domain: block.
                     let domain_fields = scan_ts_domain_fields(bytes, &sys_name);
@@ -1497,6 +1504,10 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // Tuple: (name, is_async, params_text, body_text, return_type_opt)
                     let mut actions: Vec<(String, bool, String, String, Option<String>)> = Vec::new();
                     let mut operations: Vec<(String, bool, String, String, Option<String>)> = Vec::new();
+                    // Collect top-level Frame functions (fn name(...)) so we can append
+                    // them after the generated class. This is used primarily for
+                    // `fn main` in V3 module demos and persistence fixtures.
+                    let mut function_defs_ts: Vec<String> = Vec::new();
                     for (idx, b) in parts.bodies.iter().enumerate() {
                         let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
                         let spliced_trimmed = {
@@ -1580,6 +1591,112 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                                     (async_flag, param_text, ret_ty)
                                 } else { (false, String::new(), None) };
                                 operations.push((oname, is_async, params, spliced_trimmed.to_string(), ret_type_opt));
+                            }
+                            crate::frame_c::v3::validator::BodyKindV3::Function => {
+                                let fname = b.owner_id.as_deref().unwrap_or("fn");
+                                // Extract async flag and parameter list from header (best-effort).
+                                let (is_async, params) = if let Some(hs) = b.header_span {
+                                    let hdr =
+                                        std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                    let mut core = hdr.trim_start();
+                                    let async_flag = core.starts_with("async ");
+                                    if async_flag {
+                                        core = core["async ".len()..].trim_start();
+                                    }
+                                    let param_text = if let Some(lp) = core.find('(') {
+                                        if let Some(rp_rel) = core[lp + 1..].find(')') {
+                                            core[lp + 1..lp + 1 + rp_rel].trim().to_string()
+                                        } else {
+                                            String::new()
+                                        }
+                                    } else {
+                                        String::new()
+                                    };
+                                    (async_flag, param_text)
+                                } else {
+                                    (false, String::new())
+                                };
+                                let sig = if params.is_empty() {
+                                    if is_async {
+                                        format!("export async function {}() {{\n", fname)
+                                    } else {
+                                        format!("export function {}() {{\n", fname)
+                                    }
+                                } else {
+                                    if is_async {
+                                        format!("export async function {}({}) {{\n", fname, params)
+                                    } else {
+                                        format!("export function {}({}) {{\n", fname, params)
+                                    }
+                                };
+                                let mut fun = String::new();
+                                fun.push_str(&sig);
+                                // Lift any leading native `import ...;` statements out of
+                                // the function body and into `extra_imports` so TypeScript
+                                // sees them at the top level.
+                                let mut body_core = spliced_trimmed.to_string();
+                                loop {
+                                    if let Some(idx) = body_core.find("import ") {
+                                        if let Some(rel) = body_core[idx..].find(';') {
+                                            let end = idx + rel + 1;
+                                            let import_stmt = body_core[idx..end].trim().to_string();
+                                            if !extra_imports.contains(&import_stmt) {
+                                                extra_imports.push(import_stmt);
+                                            }
+                                            body_core.replace_range(idx..end, "");
+                                            continue;
+                                        }
+                                    }
+                                    break;
+                                }
+                                // Normalize indentation relative to the minimal indent in
+                                // the remaining native body while preserving nested blocks.
+                                let mut min_indent: Option<usize> = None;
+                                for ln in body_core.lines() {
+                                    if ln.trim().is_empty() {
+                                        continue;
+                                    }
+                                    let indent = ln
+                                        .as_bytes()
+                                        .iter()
+                                        .take_while(|b| **b == b' ' || **b == b'\t')
+                                        .count();
+                                    min_indent =
+                                        Some(min_indent.map_or(indent, |m| m.min(indent)));
+                                }
+                                let base = min_indent.unwrap_or(0);
+                                let mut emitted = false;
+                                for ln in body_core.lines() {
+                                    let raw = ln.trim_end();
+                                    let trimmed = raw.trim_start();
+                                    if trimmed.is_empty() {
+                                        fun.push_str("  \n");
+                                        continue;
+                                    }
+                                    let bytes_ln = raw.as_bytes();
+                                    let indent = bytes_ln
+                                        .iter()
+                                        .take_while(|b| **b == b' ' || **b == b'\t')
+                                        .count();
+                                    let offset = if indent >= base { base } else { indent };
+                                    let content = &raw[offset..];
+                                    let extra = if indent > base {
+                                        let extra_bytes = &bytes_ln[base..indent];
+                                        std::str::from_utf8(extra_bytes).unwrap_or("")
+                                    } else {
+                                        ""
+                                    };
+                                    emitted = true;
+                                    fun.push_str("  ");
+                                    fun.push_str(extra);
+                                    fun.push_str(content);
+                                    fun.push('\n');
+                                }
+                                if !emitted {
+                                    fun.push_str("  // empty function body\n");
+                                }
+                                fun.push_str("}\n");
+                                function_defs_ts.push(fun);
                             }
                             _ => {}
                         }
@@ -1871,6 +1988,22 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         module.push_str(": any;\n");
                     }
                     module.push_str("}\n");
+                    // Emit any lifted native imports immediately after the runtime import.
+                    if !extra_imports.is_empty() {
+                        module.push('\n');
+                        for imp in &extra_imports {
+                            module.push_str(imp);
+                            module.push('\n');
+                        }
+                        module.push('\n');
+                    }
+                    // Append any top-level functions (including fn main) after the class
+                    // so that fixtures like v3_persistence can define a native entry
+                    // point that is callable from curated exec harnesses.
+                    for fun in function_defs_ts {
+                        module.push('\n');
+                        module.push_str(&fun);
+                    }
                     out = module;
                 }
                 TargetLanguage::Rust => {

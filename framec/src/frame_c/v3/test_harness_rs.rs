@@ -533,7 +533,8 @@ pub fn run_python_exec_smoke(
 
         let py_path = out_root.join(format!("{stem}__v3.py"));
 
-        // Compile Frame → Python with FRAME_EMIT_EXEC=1.
+        // Compile Frame → Python. For core/control_flow/systems we use the
+        // exec wrapper; for persistence we rely on the module's own `main`.
         let mut cmd = Command::new(framec_path);
         cmd.arg("compile")
             .arg("-l")
@@ -541,7 +542,9 @@ pub fn run_python_exec_smoke(
             .arg("--emit-debug")
             .arg(&frm_path)
             .current_dir(repo_root);
-        cmd.env("FRAME_EMIT_EXEC", "1");
+        if category == "v3_core" || category == "v3_control_flow" || category == "v3_systems" {
+            cmd.env("FRAME_EMIT_EXEC", "1");
+        }
         let compile_output = cmd.output();
 
         let program_src = match compile_output {
@@ -569,6 +572,16 @@ pub fn run_python_exec_smoke(
                 continue;
             }
         };
+
+        let mut program_src = program_src;
+        // For persistence fixtures, ensure `main()` is invoked when the script
+        // is executed so that @run-expect patterns based on prints are
+        // observable, even if the compiled module does not auto-call main.
+        if category == "v3_persistence" && program_src.contains("def main(") {
+            if !program_src.contains("if __name__ == '__main__'") {
+                program_src.push_str("\nif __name__ == '__main__':\n    main()\n");
+            }
+        }
 
         if let Err(e) = fs::write(&py_path, program_src) {
             failed += 1;
@@ -829,6 +842,15 @@ pub fn run_typescript_exec_smoke(
             }
         };
 
+        let mut program_src = program_src;
+        // For persistence fixtures, ensure `main()` is invoked when executing
+        // the compiled TypeScript module.
+        if category == "v3_persistence" && program_src.contains("function main(") {
+            if !program_src.contains("main();") {
+                program_src.push_str("\nmain();\n");
+            }
+        }
+
         if let Err(e) = fs::write(&ts_path, program_src) {
             failed += 1;
             eprintln!(
@@ -864,11 +886,18 @@ pub fn run_typescript_exec_smoke(
                     continue;
                 }
                 // Run JS via node.
-                match Command::new("node")
-                    .arg(&js_path)
-                    .current_dir(&out_root)
-                    .output()
-                {
+                let mut node_cmd = Command::new("node");
+                node_cmd.arg(&js_path).current_dir(&out_root);
+                // Ensure Node can resolve project-local modules such as
+                // `frame_runtime_ts` and `frame_persistence_ts` by prepending
+                // the repo root to NODE_PATH.
+                if let Ok(existing) = std::env::var("NODE_PATH") {
+                    let merged = format!("{}{}{}", repo_root.display(), std::path::MAIN_SEPARATOR, existing);
+                    node_cmd.env("NODE_PATH", merged);
+                } else {
+                    node_cmd.env("NODE_PATH", repo_root);
+                }
+                match node_cmd.output() {
                     Ok(run) => run,
                     Err(e) => {
                         failed += 1;
@@ -959,6 +988,492 @@ pub fn run_typescript_exec_smoke(
         } else {
             failed += 1;
             eprintln!("  FAIL (exec): {} -- {}", frm_path.display(), reason);
+            for line in out_text.lines().take(20) {
+                eprintln!("    {}", line);
+            }
+        }
+    }
+
+    Ok(TestSummary {
+        language: language.to_string(),
+        category: category.to_string(),
+        passed,
+        failed,
+    })
+}
+
+/// Execute Python curated exec fixtures (e.g., v3_core, v3_control_flow,
+/// v3_systems, v3_persistence) using FRAME_EMIT_EXEC and `@run-expect` /
+/// `@run-exact` metadata.
+pub fn run_python_curated_exec_for_category(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+) -> Result<TestSummary, String> {
+    let language = "python";
+    let tests_root = repo_root
+        .join("framec_tests")
+        .join("language_specific")
+        .join(language)
+        .join(category);
+
+    if !tests_root.is_dir() {
+        return Err(format!("Test directory not found: {}", tests_root.display()));
+    }
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_frm_files(&tests_root, &mut files);
+    if files.is_empty() {
+        return Err(format!(
+            "No .frm files found under {}",
+            tests_root.display()
+        ));
+    }
+
+    println!(
+        "v3_rs_exec_harness_curated: language={} category={} files={}",
+        language,
+        category,
+        files.len()
+    );
+
+    let mut passed = 0usize;
+    let mut failed = 0usize;
+
+    let out_root = repo_root.join("target").join("v3_rs_exec_curated").join("python");
+    if let Err(e) = fs::create_dir_all(&out_root) {
+        return Err(format!(
+            "Failed to create curated Python exec output dir {}: {e}",
+            out_root.display()
+        ));
+    }
+
+    for frm_path in files {
+        let stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
+            Some(s) => s.to_string(),
+            None => {
+                eprintln!("  WARN: skipping fixture with invalid name: {}", frm_path.display());
+                continue;
+            }
+        };
+
+        let (run_expect, run_exact) = parse_run_meta(&frm_path);
+        if run_expect.is_empty() && run_exact.is_none() {
+            println!(
+                "  SKIP (no @run-expect/@run-exact): {}",
+                frm_path.display()
+            );
+            passed += 1;
+            continue;
+        }
+
+        let py_path = out_root.join(format!("{stem}__v3.py"));
+
+        // Compile Frame → Python. For core/control_flow/systems we use the
+        // exec wrapper; for persistence we rely on the module's own
+        // `main()` function and append a call guard if needed.
+        let mut cmd = Command::new(framec_path);
+        cmd.arg("compile")
+            .arg("-l")
+            .arg("python_3")
+            .arg("--emit-debug")
+            .arg(&frm_path)
+            .current_dir(repo_root);
+        if category == "v3_core" || category == "v3_control_flow" || category == "v3_systems" {
+            cmd.env("FRAME_EMIT_EXEC", "1");
+        }
+        let compile_output = cmd.output();
+
+        let mut program_src = match compile_output {
+            Ok(out) => {
+                if !out.status.success() {
+                    failed += 1;
+                    eprintln!("  FAIL (compile): {}", frm_path.display());
+                    let mut text = String::new();
+                    text.push_str(&String::from_utf8_lossy(&out.stdout));
+                    text.push_str(&String::from_utf8_lossy(&out.stderr));
+                    for line in text.lines() {
+                        eprintln!("    {}", line);
+                    }
+                    continue;
+                }
+                String::from_utf8_lossy(&out.stdout).to_string()
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn framec): {} ({})",
+                    frm_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        // For persistence fixtures, ensure `main()` is invoked when the script
+        // runs, so @run-expect patterns based on prints are observable.
+        if category == "v3_persistence" && program_src.contains("def main(") {
+            if !program_src.contains("if __name__ == '__main__'") {
+                program_src.push_str("\nif __name__ == '__main__':\n    main()\n");
+            }
+        }
+
+        if let Err(e) = fs::write(&py_path, program_src) {
+            failed += 1;
+            eprintln!(
+                "  ERROR: failed to write Python script {}: {}",
+                py_path.display(),
+                e
+            );
+            continue;
+        }
+
+        // Run python3 on the emitted script with PYTHONPATH including the repo root.
+        let mut run_cmd = Command::new("python3");
+        run_cmd.arg(&py_path).current_dir(&out_root);
+        if let Ok(existing) = std::env::var("PYTHONPATH") {
+            let merged = format!("{}{}{}", repo_root.display(), std::path::MAIN_SEPARATOR, existing);
+            run_cmd.env("PYTHONPATH", merged);
+        } else {
+            run_cmd.env("PYTHONPATH", repo_root);
+        }
+        let run_output = match run_cmd.output() {
+            Ok(run) => run,
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn python3): {} ({})",
+                    py_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        let mut out_text = String::new();
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stdout));
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stderr));
+
+        let mut exec_ok = true;
+        let mut reason = String::new();
+
+        if !run_output.status.success() {
+            exec_ok = false;
+            reason = format!("non-zero exit ({})", run_output.status);
+        } else {
+            let lower = out_text.to_lowercase();
+            if lower.contains("traceback") || lower.contains("error") {
+                exec_ok = false;
+                reason = "Python error/traceback detected".to_string();
+            }
+        }
+
+        // Apply @run-expect patterns as regexes (fallback to literal).
+        if exec_ok && !run_expect.is_empty() {
+            for pat in &run_expect {
+                let re = Regex::new(pat).unwrap_or_else(|_| Regex::new(&regex::escape(pat)).unwrap());
+                if !re.is_match(&out_text) {
+                    exec_ok = false;
+                    reason = format!("Run output expectation failed: missing pattern {:?}", pat);
+                    break;
+                }
+            }
+        }
+
+        if exec_ok {
+            if let Some(ref exact) = run_exact {
+                let want = exact.trim();
+                let got = out_text.trim();
+                if got != want {
+                    exec_ok = false;
+                    reason = format!("Run exact mismatch.\nWanted:\n{}\nGot:\n{}", want, got);
+                }
+            }
+        }
+
+        if exec_ok {
+            passed += 1;
+        } else {
+            failed += 1;
+            eprintln!("  FAIL (curated exec): {} -- {}", frm_path.display(), reason);
+            for line in out_text.lines().take(20) {
+                eprintln!("    {}", line);
+            }
+        }
+    }
+
+    Ok(TestSummary {
+        language: language.to_string(),
+        category: category.to_string(),
+        passed,
+        failed,
+    })
+}
+
+/// Execute TypeScript curated exec fixtures using FRAME_EMIT_EXEC and
+/// `@run-expect` / `@run-exact` metadata.
+pub fn run_typescript_curated_exec_for_category(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+) -> Result<TestSummary, String> {
+    let language = "typescript";
+    let tests_root = repo_root
+        .join("framec_tests")
+        .join("language_specific")
+        .join(language)
+        .join(category);
+
+    if !tests_root.is_dir() {
+        return Err(format!("Test directory not found: {}", tests_root.display()));
+    }
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_frm_files(&tests_root, &mut files);
+    if files.is_empty() {
+        return Err(format!(
+            "No .frm files found under {}",
+            tests_root.display()
+        ));
+    }
+
+    println!(
+        "v3_rs_exec_harness_curated: language={} category={} files={}",
+        language,
+        category,
+        files.len()
+    );
+
+    let mut passed = 0usize;
+    let mut failed = 0usize;
+
+    let out_root = repo_root.join("target").join("v3_rs_exec_curated").join("typescript");
+    if let Err(e) = fs::create_dir_all(&out_root) {
+        return Err(format!(
+            "Failed to create curated TypeScript exec output dir {}: {e}",
+            out_root.display()
+        ));
+    }
+
+    // Resolve TypeScript compiler as for exec-smoke.
+    let tsc_cmd = {
+        let project_root = repo_root;
+        let local_bin = project_root
+            .join("node_modules")
+            .join(".bin")
+            .join("tsc");
+        let local_direct = project_root
+            .join("node_modules")
+            .join("typescript")
+            .join("bin")
+            .join("tsc");
+        if local_bin.is_file() {
+            Some(local_bin)
+        } else if local_direct.is_file() {
+            Some(local_direct)
+        } else {
+            Some(PathBuf::from("tsc"))
+        }
+    };
+
+    let tsc = match tsc_cmd {
+        Some(p) => p,
+        None => {
+            return Err("tsc not found - please install TypeScript (npm install)".to_string());
+        }
+    };
+
+    for frm_path in files {
+        let stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
+            Some(s) => s.to_string(),
+            None => {
+                eprintln!("  WARN: skipping fixture with invalid name: {}", frm_path.display());
+                continue;
+            }
+        };
+
+        let (run_expect, run_exact) = parse_run_meta(&frm_path);
+        if run_expect.is_empty() && run_exact.is_none() {
+            println!(
+                "  SKIP (no @run-expect/@run-exact): {}",
+                frm_path.display()
+            );
+            passed += 1;
+            continue;
+        }
+
+        let ts_path = out_root.join(format!("{stem}__v3.ts"));
+        let js_path = out_root.join(format!("{stem}__v3.js"));
+
+        // Compile Frame → TypeScript. For core/control_flow/systems we use
+        // exec wrappers; for persistence we rely on module `main` and append
+        // a call to `main()` if needed.
+        let mut cmd = Command::new(framec_path);
+        cmd.arg("compile")
+            .arg("-l")
+            .arg("typescript")
+            .arg("--emit-debug")
+            .arg(&frm_path)
+            .current_dir(repo_root);
+        if category == "v3_core" || category == "v3_control_flow" || category == "v3_systems" {
+            cmd.env("FRAME_EMIT_EXEC", "1");
+            let runtime_ts = repo_root.join("frame_runtime_ts").join("index");
+            cmd.env(
+                "FRAME_TS_EXEC_IMPORT",
+                runtime_ts.to_str().unwrap_or("frame_runtime_ts/index"),
+            );
+        }
+        let compile_output = cmd.output();
+
+        let mut program_src = match compile_output {
+            Ok(out) => {
+                if !out.status.success() {
+                    failed += 1;
+                    eprintln!("  FAIL (compile): {}", frm_path.display());
+                    let mut text = String::new();
+                    text.push_str(&String::from_utf8_lossy(&out.stdout));
+                    text.push_str(&String::from_utf8_lossy(&out.stderr));
+                    for line in text.lines() {
+                        eprintln!("    {}", line);
+                    }
+                    continue;
+                }
+                String::from_utf8_lossy(&out.stdout).to_string()
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn framec): {} ({})",
+                    frm_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        if category == "v3_persistence" && program_src.contains("function main(") {
+            if !program_src.contains("main();") {
+                program_src.push_str("\nmain();\n");
+            }
+        }
+
+        if let Err(e) = fs::write(&ts_path, program_src) {
+            failed += 1;
+            eprintln!(
+                "  ERROR: failed to write TS script {}: {}",
+                ts_path.display(),
+                e
+            );
+            continue;
+        }
+
+        // Compile TS → JS using tsc.
+        let tsc_output = Command::new(&tsc)
+            .arg("--target")
+            .arg("es5")
+            .arg("--module")
+            .arg("commonjs")
+            .arg("--skipLibCheck")
+            .arg(&ts_path)
+            .current_dir(&out_root)
+            .output();
+
+        let run_output = match tsc_output {
+            Ok(out) => {
+                if !out.status.success() {
+                    failed += 1;
+                    eprintln!("  FAIL (tsc): {}", ts_path.display());
+                    let mut text = String::new();
+                    text.push_str(&String::from_utf8_lossy(&out.stdout));
+                    text.push_str(&String::from_utf8_lossy(&out.stderr));
+                    for line in text.lines() {
+                        eprintln!("    {}", line);
+                    }
+                    continue;
+                }
+                // Run JS via node. Ensure Node can resolve project-local
+                // modules such as `frame_runtime_ts` and
+                // `frame_persistence_ts` by prepending the repo root to
+                // NODE_PATH, mirroring the exec-smoke harness.
+                let mut node_cmd = Command::new("node");
+                node_cmd.arg(&js_path).current_dir(&out_root);
+                if let Ok(existing) = std::env::var("NODE_PATH") {
+                    let merged = format!(
+                        "{}{}{}",
+                        repo_root.display(),
+                        std::path::MAIN_SEPARATOR,
+                        existing
+                    );
+                    node_cmd.env("NODE_PATH", merged);
+                } else {
+                    node_cmd.env("NODE_PATH", repo_root);
+                }
+                match node_cmd.output() {
+                    Ok(run) => run,
+                    Err(e) => {
+                        failed += 1;
+                        eprintln!(
+                            "  ERROR (spawn node): {} ({})",
+                            js_path.display(),
+                            e
+                        );
+                        continue;
+                    }
+                }
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn tsc): {} ({})",
+                    ts_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        let mut out_text = String::new();
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stdout));
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stderr));
+
+        let mut exec_ok = true;
+        let mut reason = String::new();
+
+        if !run_output.status.success() {
+            exec_ok = false;
+            reason = format!("non-zero exit ({})", run_output.status);
+        } else if out_text.contains("FAIL") {
+            exec_ok = false;
+            reason = "FAIL marker detected".to_string();
+        }
+
+        if exec_ok && !run_expect.is_empty() {
+            for pat in &run_expect {
+                let re = Regex::new(pat).unwrap_or_else(|_| Regex::new(&regex::escape(pat)).unwrap());
+                if !re.is_match(&out_text) {
+                    exec_ok = false;
+                    reason = format!("Run output expectation failed: missing pattern {:?}", pat);
+                    break;
+                }
+            }
+        }
+
+        if exec_ok {
+            if let Some(ref exact) = run_exact {
+                let want = exact.trim();
+                let got = out_text.trim();
+                if got != want {
+                    exec_ok = false;
+                    reason = format!("Run exact mismatch.\nWanted:\n{}\nGot:\n{}", want, got);
+                }
+            }
+        }
+
+        if exec_ok {
+            passed += 1;
+        } else {
+            failed += 1;
+            eprintln!("  FAIL (curated exec): {} -- {}", frm_path.display(), reason);
             for line in out_text.lines().take(20) {
                 eprintln!("    {}", line);
             }

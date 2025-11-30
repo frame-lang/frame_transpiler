@@ -7,7 +7,7 @@ Highlights
 - Rust-based V3 test runner (`v3_rs_test_runner`):
   - Extended coverage beyond the initial core/control-flow sets:
     - Python: `v3_core`, `v3_control_flow`, `v3_systems`, `v3_persistence`, `v3_systems_runtime`.
-    - TypeScript: `v3_core`, `v3_control_flow`, `v3_systems`, `v3_persistence`.
+    - TypeScript: `v3_core`, `v3_control_flow`, `v3_systems`, `v3_persistence` (including curated exec for `traffic_light_persistence`).
   - The runner treats fixtures without `@expect:` as positives (validation must succeed) and fixtures with `@expect:` as negatives (validation must fail and include all listed error codes), matching the Python runner’s semantics.
   - `docs/HOW_TO.md` and `PLAN.md` updated to document the expanded scope and Stage 18 status.
 
@@ -50,4 +50,3 @@ Highlights
     - Update the bootstrap compiler at `boot/framec/framec`.
     - Update the shared env reference at `framepiler_test_env/bug/releases/frame_transpiler/v0.86.67/framec/framec`.
   - Re-ran `all_v3` transpile-only for Python, TypeScript, and Rust using the debug binary; Python and TypeScript remained fully green, with the existing known Rust `v3_persistence/traffic_light_snapshot_dump` E402 negative unchanged by this release.
-
