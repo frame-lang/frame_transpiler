@@ -1,5 +1,6 @@
 use std::env;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use framec::frame_c::v3::test_harness_rs::run_validation_for_category;
 
@@ -19,12 +20,17 @@ use framec::frame_c::v3::test_harness_rs::run_validation_for_category;
 ///   v3_rs_test_runner python v3_core ./target/debug/framec
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 3 || args.len() > 4 {
-        eprintln!(
-            "Usage: {} <language> <category> [framec_path]",
-            args.get(0).map(String::as_str).unwrap_or("v3_rs_test_runner")
-        );
+    if args.len() < 3 {
+        let bin = args.get(0).map(String::as_str).unwrap_or("v3_rs_test_runner");
+        eprintln!("Usage:");
+        eprintln!("  {bin} <language> <category> [framec_path]");
+        eprintln!("  {bin} compare <language> <category|all_v3> [framec_path]");
         std::process::exit(1);
+    }
+
+    if args[1] == "compare" {
+        run_compare_mode(&args);
+        return;
     }
 
     let language = &args[1];
@@ -116,4 +122,113 @@ fn discover_v3_categories(root: &Path, language: &str) -> Vec<String> {
     }
     out.sort();
     out
+}
+
+/// Compare the Rust harness against the Python runner for the given
+/// language/category pair (or `all_v3` subset).
+fn run_compare_mode(args: &[String]) {
+    if args.len() < 4 || args.len() > 5 {
+        let bin = args.get(0).map(String::as_str).unwrap_or("v3_rs_test_runner");
+        eprintln!(
+            "Usage: {bin} compare <language> <category|all_v3> [framec_path]"
+        );
+        std::process::exit(1);
+    }
+
+    let language = &args[2];
+    let category = &args[3];
+    let framec_path = if args.len() == 5 {
+        PathBuf::from(&args[4])
+    } else {
+        PathBuf::from("target/debug/framec")
+    };
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+
+    let categories: Vec<String> = if category.eq_ignore_ascii_case("all_v3") {
+        discover_v3_categories(&root, language)
+    } else {
+        vec![category.to_string()]
+    };
+
+    if categories.is_empty() {
+        eprintln!(
+            "No v3_* categories found for language '{}' under framec_tests/language_specific (compare mode)",
+            language
+        );
+        std::process::exit(1);
+    }
+
+    let mut mismatches = 0usize;
+
+    for cat in &categories {
+        println!("== compare: language={} category={} ==", language, cat);
+
+        // 1) Run Rust harness (validation-only).
+        let rust_summary =
+            match run_validation_for_category(&root, &framec_path, language, cat) {
+                Ok(s) => s,
+                Err(err) => {
+                    eprintln!("  Rust harness error: {}", err);
+                    mismatches += 1;
+                    continue;
+                }
+            };
+
+        // 2) Run Python test runner in transpile-only mode for the same slice.
+        let py_output = Command::new("python3")
+            .arg("framec_tests/runner/frame_test_runner.py")
+            .arg("--languages")
+            .arg(language)
+            .arg("--categories")
+            .arg(cat)
+            .arg("--framec")
+            .arg(&framec_path)
+            .arg("--transpile-only")
+            .arg("--no-run")
+            .output();
+
+        let (py_ok, py_text) = match py_output {
+            Ok(out) => {
+                let ok = out.status.success();
+                let mut text = String::new();
+                text.push_str(&String::from_utf8_lossy(&out.stdout));
+                text.push_str(&String::from_utf8_lossy(&out.stderr));
+                (ok, text)
+            }
+            Err(e) => {
+                eprintln!("  Python runner spawn error: {}", e);
+                mismatches += 1;
+                continue;
+            }
+        };
+
+        let rust_ok = rust_summary.failed == 0;
+
+        println!(
+            "  Rust harness: passed={} failed={}",
+            rust_summary.passed, rust_summary.failed
+        );
+        println!("  Python runner exit: {}", if py_ok { "ok" } else { "non-zero" });
+
+        if !py_ok || !rust_ok {
+            mismatches += 1;
+            if !py_ok {
+                eprintln!("  Python runner reported failure for this slice:");
+                for line in py_text.lines() {
+                    eprintln!("    {}", line);
+                }
+            }
+        }
+    }
+
+    if mismatches > 0 {
+        eprintln!("compare: {} mismatched slice(s)", mismatches);
+        std::process::exit(1);
+    } else {
+        println!("compare: all slices matched (Python runner and Rust harness both succeeded)");
+    }
 }
