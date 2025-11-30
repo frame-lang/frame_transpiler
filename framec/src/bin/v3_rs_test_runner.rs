@@ -2,7 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use framec::frame_c::v3::test_harness_rs::run_validation_for_category;
+use framec::frame_c::v3::test_harness_rs::{run_rust_exec_smoke, run_validation_for_category};
 
 /// Minimal Rust-based V3 test harness prototype.
 ///
@@ -30,6 +30,11 @@ fn main() {
 
     if args[1] == "compare" {
         run_compare_mode(&args);
+        return;
+    }
+
+    if args[1] == "exec-smoke" {
+        run_exec_smoke_mode(&args);
         return;
     }
 
@@ -122,6 +127,53 @@ fn discover_v3_categories(root: &Path, language: &str) -> Vec<String> {
     }
     out.sort();
     out
+}
+
+/// Execute Rust V3 exec-smoke fixtures using the Rust harness.
+fn run_exec_smoke_mode(args: &[String]) {
+    if args.len() < 4 || args.len() > 5 {
+        let bin = args.get(0).map(String::as_str).unwrap_or("v3_rs_test_runner");
+        eprintln!(
+            "Usage: {bin} exec-smoke rust v3_exec_smoke [framec_path]"
+        );
+        std::process::exit(1);
+    }
+
+    let language = &args[2];
+    let category = &args[3];
+    if language != "rust" || category != "v3_exec_smoke" {
+        eprintln!(
+            "exec-smoke mode currently supports only: exec-smoke rust v3_exec_smoke"
+        );
+        std::process::exit(1);
+    }
+
+    let framec_path = if args.len() == 5 {
+        PathBuf::from(&args[4])
+    } else {
+        PathBuf::from("target/debug/framec")
+    };
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+
+    let summary = match run_rust_exec_smoke(&root, &framec_path, category) {
+        Ok(s) => s,
+        Err(err) => {
+            eprintln!("{}", err);
+            std::process::exit(1);
+        }
+    };
+
+    println!(
+        "Exec-smoke summary: passed={} failed={}",
+        summary.passed, summary.failed
+    );
+    if summary.failed > 0 {
+        std::process::exit(1);
+    }
 }
 
 /// Compare the Rust harness against the Python runner for the given
