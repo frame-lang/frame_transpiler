@@ -2,6 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use regex::Regex;
+
 /// Summary of a single category run under the Rust V3 test harness.
 pub struct TestSummary {
     pub language: String,
@@ -192,6 +194,41 @@ fn parse_expected_codes(path: &Path) -> Vec<String> {
         }
     }
     codes
+}
+
+/// Parse `@run-expect:` and `@run-exact:` metadata from the first 20 lines
+/// of a fixture, mirroring the Python runner's behavior.
+fn parse_run_meta(path: &Path) -> (Vec<String>, Option<String>) {
+    let mut run_expect: Vec<String> = Vec::new();
+    let mut run_exact: Option<String> = None;
+    let content = match fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(_) => return (run_expect, run_exact),
+    };
+    for (i, line) in content.lines().enumerate() {
+        if i > 20 {
+            break;
+        }
+        let trimmed = line.trim_start();
+        if !(trimmed.starts_with('#') || trimmed.starts_with("//")) {
+            continue;
+        }
+        if let Some(idx) = trimmed.find("@run-expect:") {
+            let pat = trimmed[idx + "@run-expect:".len()..].trim();
+            if !pat.is_empty() {
+                run_expect.push(pat.to_string());
+            }
+            continue;
+        }
+        if let Some(idx) = trimmed.find("@run-exact:") {
+            let pat = trimmed[idx + "@run-exact:".len()..].trim_end();
+            if !pat.is_empty() {
+                run_exact = Some(pat.to_string());
+            }
+            continue;
+        }
+    }
+    (run_expect, run_exact)
 }
 
 /// Execute Rust V3 exec-smoke fixtures by:
@@ -427,6 +464,233 @@ pub fn run_rust_exec_smoke(
         }
 
         // Best-effort cleanup of the executable (ignore errors).
+        let _ = fs::remove_file(&exe_path);
+    }
+
+    Ok(TestSummary {
+        language: language.to_string(),
+        category: category.to_string(),
+        passed,
+        failed,
+    })
+}
+
+/// Execute curated Rust V3 exec fixtures (v3_core, v3_control_flow, v3_systems)
+/// using FRAME_EMIT_EXEC wrappers and `@run-expect` / `@run-exact` metadata.
+pub fn run_rust_curated_exec_for_category(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+) -> Result<TestSummary, String> {
+    let language = "rust";
+    let tests_root = repo_root
+        .join("framec_tests")
+        .join("language_specific")
+        .join(language)
+        .join(category);
+
+    if !tests_root.is_dir() {
+        return Err(format!("Test directory not found: {}", tests_root.display()));
+    }
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_frm_files(&tests_root, &mut files);
+    if files.is_empty() {
+        return Err(format!(
+            "No .frm files found under {}",
+            tests_root.display()
+        ));
+    }
+
+    println!(
+        "v3_rs_exec_harness_curated: language={} category={} files={}",
+        language,
+        category,
+        files.len()
+    );
+
+    let mut passed = 0usize;
+    let mut failed = 0usize;
+
+    let out_root = repo_root.join("target").join("v3_rs_exec_curated").join("rust");
+    if let Err(e) = fs::create_dir_all(&out_root) {
+        return Err(format!(
+            "Failed to create curated exec output dir {}: {e}",
+            out_root.display()
+        ));
+    }
+
+    for frm_path in files {
+        let stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
+            Some(s) => s.to_string(),
+            None => {
+                eprintln!("  WARN: skipping fixture with invalid name: {}", frm_path.display());
+                continue;
+            }
+        };
+
+        let (run_expect, run_exact) = parse_run_meta(&frm_path);
+        // Mirror the Python runner's gating: only enforce curated exec when
+        // run expectations are present; otherwise treat as exec-gated.
+        if run_expect.is_empty() && run_exact.is_none() {
+            println!(
+                "  SKIP (no @run-expect/@run-exact): {}",
+                frm_path.display()
+            );
+            passed += 1;
+            continue;
+        }
+
+        let rs_path = out_root.join(format!("{stem}__v3.rs"));
+        let exe_path = out_root.join(format!("{stem}__v3_exec"));
+
+        // Compile Frame → Rust source with FRAME_EMIT_EXEC=1.
+        let mut cmd = Command::new(framec_path);
+        cmd.arg("compile")
+            .arg("-l")
+            .arg(language)
+            .arg("--emit-debug")
+            .arg(&frm_path)
+            .current_dir(repo_root);
+        cmd.env("FRAME_EMIT_EXEC", "1");
+        let compile_output = cmd.output();
+
+        let compile_src = match compile_output {
+            Ok(out) => {
+                if !out.status.success() {
+                    failed += 1;
+                    eprintln!("  FAIL (compile): {}", frm_path.display());
+                    let mut text = String::new();
+                    text.push_str(&String::from_utf8_lossy(&out.stdout));
+                    text.push_str(&String::from_utf8_lossy(&out.stderr));
+                    for line in text.lines() {
+                        eprintln!("    {}", line);
+                    }
+                    continue;
+                }
+                String::from_utf8_lossy(&out.stdout).to_string()
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn framec): {} ({})",
+                    frm_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        if let Err(e) = fs::write(&rs_path, compile_src) {
+            failed += 1;
+            eprintln!(
+                "  ERROR: failed to write Rust source {}: {}",
+                rs_path.display(),
+                e
+            );
+            continue;
+        }
+
+        // rustc compile
+        let rustc_output = Command::new("rustc")
+            .arg(&rs_path)
+            .arg("-o")
+            .arg(&exe_path)
+            .current_dir(&out_root)
+            .output();
+
+        let run_output = match rustc_output {
+            Ok(out) => {
+                if !out.status.success() {
+                    failed += 1;
+                    eprintln!("  FAIL (rustc): {}", rs_path.display());
+                    let mut text = String::new();
+                    text.push_str(&String::from_utf8_lossy(&out.stdout));
+                    text.push_str(&String::from_utf8_lossy(&out.stderr));
+                    for line in text.lines() {
+                        eprintln!("    {}", line);
+                    }
+                    continue;
+                }
+                match Command::new(&exe_path)
+                    .current_dir(&out_root)
+                    .output()
+                {
+                    Ok(run) => run,
+                    Err(e) => {
+                        failed += 1;
+                        eprintln!(
+                            "  ERROR (spawn exec): {} ({})",
+                            exe_path.display(),
+                            e
+                        );
+                        continue;
+                    }
+                }
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn rustc): {} ({})",
+                    rs_path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
+        let mut out_text = String::new();
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stdout));
+        out_text.push_str(&String::from_utf8_lossy(&run_output.stderr));
+
+        let mut exec_ok = true;
+        let mut reason = String::new();
+
+        if !run_output.status.success() {
+            exec_ok = false;
+            reason = format!("non-zero exit ({})", run_output.status);
+        } else {
+            let lower = out_text.to_lowercase();
+            if lower.contains("panic") || out_text.contains("FAIL:") || out_text.contains("FAILED:") {
+                exec_ok = false;
+                reason = "panic/FAIL marker detected".to_string();
+            }
+        }
+
+        // Apply @run-expect patterns as regexes (fall back to literal match on error).
+        if exec_ok && !run_expect.is_empty() {
+            for pat in &run_expect {
+                let re = Regex::new(pat).unwrap_or_else(|_| Regex::new(&regex::escape(pat)).unwrap());
+                if !re.is_match(&out_text) {
+                    exec_ok = false;
+                    reason = format!("Run output expectation failed: missing pattern {:?}", pat);
+                    break;
+                }
+            }
+        }
+
+        // Apply @run-exact if present.
+        if exec_ok {
+            if let Some(ref exact) = run_exact {
+                let want = exact.trim();
+                let got = out_text.trim();
+                if got != want {
+                    exec_ok = false;
+                    reason = format!("Run exact mismatch.\nWanted:\n{}\nGot:\n{}", want, got);
+                }
+            }
+        }
+
+        if exec_ok {
+            passed += 1;
+        } else {
+            failed += 1;
+            eprintln!("  FAIL (curated exec): {} -- {}", frm_path.display(), reason);
+            for line in out_text.lines().take(20) {
+                eprintln!("    {}", line);
+            }
+        }
+
         let _ = fs::remove_file(&exe_path);
     }
 

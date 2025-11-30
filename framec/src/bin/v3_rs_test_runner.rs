@@ -2,7 +2,11 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use framec::frame_c::v3::test_harness_rs::{run_rust_exec_smoke, run_validation_for_category};
+use framec::frame_c::v3::test_harness_rs::{
+    run_rust_curated_exec_for_category,
+    run_rust_exec_smoke,
+    run_validation_for_category,
+};
 
 /// Minimal Rust-based V3 test harness prototype.
 ///
@@ -35,6 +39,11 @@ fn main() {
 
     if args[1] == "exec-smoke" {
         run_exec_smoke_mode(&args);
+        return;
+    }
+
+    if args[1] == "exec-curated" {
+        run_exec_curated_mode(&args);
         return;
     }
 
@@ -172,6 +181,71 @@ fn run_exec_smoke_mode(args: &[String]) {
         summary.passed, summary.failed
     );
     if summary.failed > 0 {
+        std::process::exit(1);
+    }
+}
+
+/// Execute curated Rust V3 exec fixtures (core/control_flow/systems) using the
+/// Rust harness and FRAME_EMIT_EXEC wrappers.
+fn run_exec_curated_mode(args: &[String]) {
+    if args.len() < 4 || args.len() > 5 {
+        let bin = args.get(0).map(String::as_str).unwrap_or("v3_rs_test_runner");
+        eprintln!(
+            "Usage: {bin} exec-curated rust <v3_core|v3_control_flow|v3_systems|all_curated> [framec_path]"
+        );
+        std::process::exit(1);
+    }
+
+    let language = &args[2];
+    let category = &args[3];
+    if language != "rust" {
+        eprintln!(
+            "exec-curated mode currently supports only Rust curated V3 categories"
+        );
+        std::process::exit(1);
+    }
+
+    let framec_path = if args.len() == 5 {
+        PathBuf::from(&args[4])
+    } else {
+        PathBuf::from("target/debug/framec")
+    };
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+
+    let categories: Vec<&str> = if category.eq_ignore_ascii_case("all_curated") {
+        vec!["v3_core", "v3_control_flow", "v3_systems"]
+    } else {
+        vec![category.as_str()]
+    };
+
+    let mut total_passed = 0usize;
+    let mut total_failed = 0usize;
+
+    for cat in categories {
+        let summary = match run_rust_curated_exec_for_category(&root, &framec_path, cat) {
+            Ok(s) => s,
+            Err(err) => {
+                eprintln!("{}", err);
+                std::process::exit(1);
+            }
+        };
+        println!(
+            "Curated exec category {}: passed={} failed={}",
+            cat, summary.passed, summary.failed
+        );
+        total_passed += summary.passed;
+        total_failed += summary.failed;
+    }
+
+    println!(
+        "Curated exec summary: passed={} failed={}",
+        total_passed, total_failed
+    );
+    if total_failed > 0 {
         std::process::exit(1);
     }
 }
