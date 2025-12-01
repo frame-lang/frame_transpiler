@@ -30,6 +30,10 @@ path = "src/main.rs"
 name = "v3_rs_snapshot_shape"
 path = "src/bin/v3_rs_snapshot_shape.rs"
 
+[[bin]]
+name = "v3_rs_snapshot_traffic_light"
+path = "src/bin/v3_rs_snapshot_traffic_light.rs"
+
 [dependencies]
 chrono = "0.4"
 clap = { version = "4.5" }
