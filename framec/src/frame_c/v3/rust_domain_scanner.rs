@@ -56,15 +56,27 @@ pub(crate) fn scan_rs_domain_fields(bytes: &[u8]) -> Vec<(String, Option<String>
         let line_end = p;
         if p < n { p += 1; }
         let line = &bytes[line_start..line_end];
+        // Compute indent before trimming so we can detect when the domain
+        // block has ended and top-level code (e.g., `fn main`) begins.
+        let mut indent = 0usize;
+        while indent < line.len() && (line[indent] == b' ' || line[indent] == b'\t') {
+            indent += 1;
+        }
         // trim
-        let mut s = 0usize; let mut e = line.len();
-        while s < e && (line[s] == b' ' || line[s] == b'\t') { s += 1; }
+        let mut s = indent; let mut e = line.len();
         while e > s && (line[e-1] == b' ' || line[e-1] == b'\t' || line[e-1] == b'\r') { e -= 1; }
         if s >= e { continue; }
         let slice = &line[s..e];
         // comments
         if slice[0] == b'#' { continue; }
         if slice.len() >= 2 && slice[0] == b'/' && slice[1] == b'/' { continue; }
+        // Heuristic: domain variables live inside the `domain:` block at an
+        // indented level. Once we see a non-empty, non-comment line at
+        // indent == 0, we treat that as the end of the domain block and stop
+        // scanning to avoid mis-parsing `fn main` / other top-level Rust.
+        if indent == 0 {
+            break;
+        }
         let line_str = String::from_utf8_lossy(slice).to_string();
         // helper to trim trailing ';'
         let trim_semicolon = |s: &str| {
@@ -109,4 +121,3 @@ pub(crate) fn scan_rs_domain_fields(bytes: &[u8]) -> Vec<(String, Option<String>
     }
     out
 }
-
