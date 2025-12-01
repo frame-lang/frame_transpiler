@@ -295,10 +295,16 @@ Cross-Language Validation (Stage 17 linkage)
     canonical `TrafficLight` snapshot JSON to exercise
     `frame_persistence_py` and `frame_persistence_ts`, round-tripping via
     their JSON helpers and comparing snapshots with `compare_snapshots`.
-  - Rust: `frame_persistence_rs` tests (`SystemSnapshot::from_json`,
-    `SystemSnapshot::to_json_pretty`, and `SystemSnapshot::compare`) validate
-    that the same canonical JSON shape can be parsed and re-emitted without
-    structural differences.
+  - Rust:
+    - `frame_persistence_rs` tests (`SystemSnapshot::from_json`,
+      `SystemSnapshot::to_json_pretty`, and `SystemSnapshot::compare`)
+      validate that the same canonical JSON shape can be parsed and
+      re-emitted without structural differences.
+    - A Rust-native tool, `v3_rs_snapshot_shape` (under
+      `framec/src/bin/`), constructs the same canonical JSON and invokes
+      the Python and TypeScript persistence helpers via subprocesses,
+      ensuring that all three PRT targets agree on the snapshot DTO
+      from a single Rust entrypoint.
 - Runtime-level semantics:
   - Python/TypeScript: `tools/test_cross_language_snapshot_traffic_light.py`
     compiles and runs the `TrafficLight` persistence fixtures under the V3

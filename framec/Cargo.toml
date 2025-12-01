@@ -26,6 +26,10 @@ crate-type = ["cdylib", "rlib"]
 name = "framec"
 path = "src/main.rs"
 
+[[bin]]
+name = "v3_rs_snapshot_shape"
+path = "src/bin/v3_rs_snapshot_shape.rs"
+
 [dependencies]
 chrono = "0.4"
 clap = { version = "4.5" }
@@ -55,6 +59,9 @@ tree-sitter-python = { version = "0.20", optional = true }
 
 # Python parser (pure Rust) for hermetic native parsing
 rustpython-parser = { version = "0.3", optional = true }
+
+# Internal persistence library used by Stage 15/17 tooling.
+frame_persistence_rs = { path = "../runtime/persistence_rs" }
 
 # Note: rustpython-parser intentionally omitted here for now; Python adapter will be added later.
 

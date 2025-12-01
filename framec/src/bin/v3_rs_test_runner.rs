@@ -224,7 +224,14 @@ fn run_exec_curated_mode(args: &[String]) {
 
     let categories: Vec<&str> = match (language.as_str(), category.as_str()) {
         ("rust", "all_curated") => vec!["v3_core", "v3_control_flow", "v3_systems"],
-        ("rust", cat) => vec![cat],
+        ("rust", "v3_core") | ("rust", "v3_control_flow") | ("rust", "v3_systems") => vec![category],
+        ("rust", other) => {
+            eprintln!(
+                "exec-curated rust currently supports categories: v3_core, v3_control_flow, v3_systems (got: {})",
+                other
+            );
+            std::process::exit(1);
+        }
         ("python", "all_curated") | ("typescript", "all_curated") => {
             vec!["v3_core", "v3_control_flow", "v3_systems", "v3_persistence"]
         }

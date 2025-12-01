@@ -815,9 +815,15 @@ Stage 17 — Cross‑Language Snapshot Semantics (PRT)
         which round‑trips a canonical `TrafficLight` snapshot JSON through
         `frame_persistence_py` / `frame_persistence_ts` and asserts
         structural equality via `compare_snapshots`.
-      - Rust: `frame_persistence_rs::SystemSnapshot` tests (including
-        `system_snapshot_canonical_json_round_trip`) which parse the same
-        canonical JSON and validate `SystemSnapshot::compare`.
+      - Rust:
+        - `frame_persistence_rs::SystemSnapshot` tests (including
+          `system_snapshot_canonical_json_round_trip`) which parse the same
+          canonical JSON and validate `SystemSnapshot::compare`.
+        - A Rust-native shape harness,
+          `framec/src/bin/v3_rs_snapshot_shape.rs`, which constructs the
+          same canonical JSON, invokes the Python and TypeScript libraries
+          via subprocesses, and verifies that all three PRT targets agree
+          on the DTO shape from a single Rust entrypoint.
 - [x] Add cross‑language fixtures where the same logical system (TrafficLight)
       is executed in Python and TypeScript, then snapshotted and compared
       via the shared `SystemSnapshot` shape. This is exercised by:
