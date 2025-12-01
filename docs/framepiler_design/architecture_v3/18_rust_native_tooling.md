@@ -76,8 +76,24 @@ pipeline.
       - `v3_core`
       - `v3_control_flow`
 
-The Rust runner is purely validation-only and does not attempt to mirror the
-full execution harnesses provided by the Python runner.
+- **Rust snapshot shape tool**
+  - `framec/src/bin/v3_rs_snapshot_shape.rs`
+  - Usage:
+    ```bash
+    cargo run -p framec --bin v3_rs_snapshot_shape
+    ```
+  - Behavior:
+    - Constructs the canonical `SystemSnapshot` JSON for a TrafficLight
+      system (same shape as described in `14_persistence_and_snapshots.md`).
+    - Uses `frame_persistence_rs::SystemSnapshot` to validate Rust-side
+      parse/encode/compare semantics.
+    - Invokes the Python and TypeScript persistence helpers via
+      subprocesses (`frame_persistence_py`, `frame_persistence_ts`) and
+      asserts that all three agree on the DTO shape.
+
+The Rust tools above are primarily focused on validation and DTO shape
+checks; they do not yet attempt to mirror the full execution harnesses
+provided by the Python runner.
 
 ## 2. Tradeoffs: Python vs Rust Tooling
 
