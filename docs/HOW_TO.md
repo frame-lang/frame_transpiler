@@ -259,6 +259,22 @@ Scope:
   be kept in sync with the Python runner’s behavior as additional
   categories are brought under this harness.
 
+Rust-native snapshot shape:
+- Binary: `v3_rs_snapshot_shape` (built with `cargo build -p framec`)
+- Usage:
+  ```bash
+  cargo run -p framec --bin v3_rs_snapshot_shape
+  ```
+- Behavior:
+  - Constructs the canonical `SystemSnapshot` JSON for a TrafficLight system
+    (as described in the Stage 15 doc).
+  - Uses `frame_persistence_rs::SystemSnapshot` to validate Rust-side
+    parse/encode/compare semantics.
+  - Invokes the Python and TypeScript persistence helpers via subprocesses
+    (`frame_persistence_py`, `frame_persistence_ts`) and asserts that all
+    three PRT targets agree on the DTO shape. This is the Rust-native
+    counterpart to `tools/test_cross_language_snapshot_shape.py`.
+
 # GraphViz target
 ./target/release/framec -l graphviz path/to/test.frm
 ```
