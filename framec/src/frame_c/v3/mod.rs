@@ -922,6 +922,12 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     let iface_parser = crate::frame_c::v3::interface_parser::InterfaceParserV3;
                     let iface_meta_map = iface_parser.collect_method_metadata(bytes, &module_ast, TargetLanguage::Python3);
                     let iface_meta_for_sys = iface_meta_map.get(&sys_name);
+                    // Look up optional persistence attribute for this system.
+                    let sys_persist = module_ast
+                        .systems
+                        .iter()
+                        .find(|s| s.name == sys_name)
+                        .and_then(|s| s.persist_attr.as_ref());
 
                     module.push_str(&format!("class {}:\n", sys_name));
                     // For now, accept arbitrary system parameters but keep semantics simple:
@@ -1398,18 +1404,20 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         module.push_str("            self._system_return_stack.pop()\n");
                     }
 
-                    // Class-level helpers for persistence: saveToJson/restoreFromJson.
-                    module.push_str("    @classmethod\n");
-                    module.push_str("    def save_to_json(cls, system):\n");
-                    module.push_str("        from frame_persistence_py import snapshot_system, snapshot_to_json\n");
-                    module.push_str("        snap = snapshot_system(system)\n");
-                    module.push_str("        return snapshot_to_json(snap, indent=2)\n");
-                    module.push_str("\n");
-                    module.push_str("    @classmethod\n");
-                    module.push_str("    def restore_from_json(cls, text):\n");
-                    module.push_str("        from frame_persistence_py import snapshot_from_json, restore_system\n");
-                    module.push_str("        snap = snapshot_from_json(text)\n");
-                    module.push_str("        return restore_system(snap, cls)\n");
+                    // Class-level helpers for persistence: save_to_json/restore_from_json.
+                    if sys_persist.is_some() {
+                        module.push_str("    @classmethod\n");
+                        module.push_str("    def save_to_json(cls, system):\n");
+                        module.push_str("        from frame_persistence_py import snapshot_system, snapshot_to_json\n");
+                        module.push_str("        snap = snapshot_system(system)\n");
+                        module.push_str("        return snapshot_to_json(snap, indent=2)\n");
+                        module.push_str("\n");
+                        module.push_str("    @classmethod\n");
+                        module.push_str("    def restore_from_json(cls, text):\n");
+                        module.push_str("        from frame_persistence_py import snapshot_from_json, restore_system\n");
+                        module.push_str("        snap = snapshot_from_json(text)\n");
+                        module.push_str("        return restore_system(snap, cls)\n");
+                    }
 
                     // Append top-level functions (including fn main) after the class.
                     for fun in function_defs {
@@ -1458,6 +1466,13 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // full Node typings dependency; used for optional persistence
                     // helpers that load frame_persistence_ts at runtime.
                     module.push_str("declare function require(path: string): any;\n\n");
+                    // Optional per-system persistence attribute determines whether we
+                    // emit saveToJson/restoreFromJson helpers on this class.
+                    let sys_persist = module_ast
+                        .systems
+                        .iter()
+                        .find(|s| s.name == sys_name)
+                        .and_then(|s| s.persist_attr.as_ref());
                     // Extra native imports lifted out of Frame functions (e.g., fn main)
                     // so that TypeScript sees them at the top level rather than inside
                     // a function body.
@@ -1967,18 +1982,20 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         module.push_str("  }\n");
                     }
                     // Static helpers for persistence: saveToJson/restoreFromJson.
-                    module.push_str(&format!("  static saveToJson(system: {}): string {{\n", sys_name));
-                    module.push_str("    const lib = require(\"frame_persistence_ts\");\n");
-                    module.push_str("    const snap = lib.snapshotSystem(system);\n");
-                    module.push_str("    return lib.snapshotToJson(snap, 2);\n");
-                    module.push_str("  }\n");
-                    module.push_str(&format!("  static restoreFromJson(text: string): {} {{\n", sys_name));
-                    module.push_str("    const lib = require(\"frame_persistence_ts\");\n");
-                    module.push_str("    const snap = lib.snapshotFromJson(text);\n");
-                    module.push_str("    return lib.restoreSystem(snap, () => new ");
-                    module.push_str(&sys_name);
-                    module.push_str("());\n");
-                    module.push_str("  }\n");
+                    if sys_persist.is_some() {
+                        module.push_str(&format!("  static saveToJson(system: {}): string {{\n", sys_name));
+                        module.push_str("    const lib = require(\"frame_persistence_ts\");\n");
+                        module.push_str("    const snap = lib.snapshotSystem(system);\n");
+                        module.push_str("    return lib.snapshotToJson(snap, 2);\n");
+                        module.push_str("  }\n");
+                        module.push_str(&format!("  static restoreFromJson(text: string): {} {{\n", sys_name));
+                        module.push_str("    const lib = require(\"frame_persistence_ts\");\n");
+                        module.push_str("    const snap = lib.snapshotFromJson(text);\n");
+                        module.push_str("    return lib.restoreSystem(snap, () => new ");
+                        module.push_str(&sys_name);
+                        module.push_str("());\n");
+                        module.push_str("  }\n");
+                    }
                     // Synthesize class fields for native-body state stored on `this.`.
                     let mut reserved: std::collections::HashSet<String> = std::collections::HashSet::new();
                     // Domain fields
@@ -2039,8 +2056,15 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                 TargetLanguage::Rust => {
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
                     // Collect per-system interface method metadata so we can derive
-                    // a typed return enum and (later) interface wrappers.
+                    // a typed return enum and (later) interface wrappers, and read
+                    // any `@persist` attribute on the system header.
                     let module_ast_rust = SystemParserV3::parse_module(bytes, TargetLanguage::Rust);
+                    let has_persist_attr = module_ast_rust
+                        .systems
+                        .iter()
+                        .find(|s| s.name == sys_name)
+                        .and_then(|s| s.persist_attr.as_ref())
+                        .is_some();
                     let iface_parser_rust = InterfaceParserV3;
                     let iface_meta_map_rust =
                         iface_parser_rust.collect_method_metadata(bytes, &module_ast_rust, TargetLanguage::Rust);
@@ -2050,11 +2074,14 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // Prefer the first declared state as the start state when available.
                     let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
                     let mut module = String::new();
+                    if has_persist_attr {
+                        module.push_str("use frame_persistence_rs::{SystemSnapshot, FrameCompartmentSnapshot, SnapshotableSystem};\n");
+                    }
                     // Minimal event and compartment structs for mapping/debug output and
                     // basic runtime semantics. Derive Default on the compartment so
                     // RustExpanderV3 can use `..Default::default()`.
                     module.push_str("#[derive(Debug, Clone)] struct FrameEvent{ message: String }\n");
-                    module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }\n");
+                    module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: serde_json::Value, }\n");
                     // Domain fields (if any) from a top-level domain: block. For Rust
                     // demo modules we assume a single system per file and emit domain
                     // variables as struct fields with their declared type when present.
@@ -2410,7 +2437,27 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         } else {
                             states.iter().next().map(|s| s.as_str()).unwrap_or(start_state.as_str())
                         };
-                        enum_src.push_str(&format!("\nimpl Default for StateId {{ fn default() -> Self {{ StateId::{} }} }}\n\n", default_state));
+                        enum_src.push_str(&format!("\nimpl Default for StateId {{ fn default() -> Self {{ StateId::{} }} }}\n", default_state));
+                        // Helper: map StateId to the canonical state string used in
+                        // snapshots and cross-language tooling (e.g.,
+                        // \"__System_state_State\").
+                        enum_src.push_str("\nimpl StateId {\n    fn as_str(&self) -> &'static str {\n        match self {\n");
+                        for s in states.iter() {
+                            enum_src.push_str(&format!(
+                                "            StateId::{} => \"__{}_state_{}\",\n",
+                                s, sys_name, s
+                            ));
+                        }
+                        enum_src.push_str("        }\n    }\n");
+                        // Helper: map a canonical state string back to StateId.
+                        enum_src.push_str("    fn from_str(s: &str) -> Option<Self> {\n        match s {\n");
+                        for s in states.iter() {
+                            enum_src.push_str(&format!(
+                                "            \"__{}_state_{}\" => Some(StateId::{}),\n",
+                                sys_name, s, s
+                            ));
+                        }
+                        enum_src.push_str("            _ => None,\n        }\n    }\n}\n\n");
                         module = enum_src + &module;
                     }
                     // Scaffold: per-system typed return enum (not yet wired into semantics).
@@ -2437,6 +2484,96 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                             ret_enum.push_str(" }\n\n");
                             module = ret_enum + &module;
                         }
+                    }
+                    // If this system is annotated with `@persist`, synthesize a
+                    // SnapshotableSystem implementation and ergonomic JSON helpers
+                    // that delegate to frame_persistence_rs.
+                    if has_persist_attr {
+                        module.push_str(&format!(
+                            "impl SnapshotableSystem for {} {{\n",
+                            sys_name
+                        ));
+                        // Snapshot: capture state id, state args, domain, and stack in
+                        // the canonical SystemSnapshot shape.
+                        module.push_str("    fn snapshot_system(&self) -> SystemSnapshot {\n");
+                        module.push_str("        let state_str = self.compartment.state.as_str().to_string();\n");
+                        module.push_str("        let state_args = self.compartment.state_args.clone();\n");
+                        module.push_str("        let mut domain = serde_json::Map::new();\n");
+                        for (name, _, _) in &domain_fields_rs {
+                            module.push_str("        domain.insert(\"");
+                            module.push_str(name);
+                            module.push_str("\".to_string(), serde_json::to_value(&self.");
+                            module.push_str(name);
+                            module.push_str(").unwrap_or(serde_json::Value::Null));\n");
+                        }
+                        module.push_str("        let mut stack_snapshots: Vec<FrameCompartmentSnapshot> = Vec::new();\n");
+                        module.push_str("        for c in &self._stack {\n");
+                        module.push_str("            stack_snapshots.push(FrameCompartmentSnapshot {\n");
+                        module.push_str("                state: c.state.as_str().to_string(),\n");
+                        module.push_str("                state_args: c.state_args.clone(),\n");
+                        module.push_str("            });\n");
+                        module.push_str("        }\n");
+                        module.push_str("        SystemSnapshot {\n");
+                        module.push_str("            schema_version: 1,\n");
+                        module.push_str("            system_name: \"");
+                        module.push_str(&sys_name);
+                        module.push_str("\".to_string(),\n");
+                        module.push_str("            state: state_str,\n");
+                        module.push_str("            state_args,\n");
+                        module.push_str("            domain_state: serde_json::Value::Object(domain),\n");
+                        module.push_str("            stack: stack_snapshots,\n");
+                        module.push_str("        }\n");
+                        module.push_str("    }\n");
+                        module.push_str("\n");
+                        // Restore: rebuild a fresh system from a SystemSnapshot. This
+                        // implementation is intentionally conservative: it restores the
+                        // current state id and stateArgs and attempts to map domain
+                        // JSON back onto typed domain fields when a concrete type was
+                        // declared in the domain block. Fields without an explicit type
+                        // annotation are left at their `new()` defaults.
+                        module.push_str("    fn restore_system(snapshot: SystemSnapshot) -> Self {\n");
+                        module.push_str("        let mut sys = Self::new();\n");
+                        module.push_str("        if let Some(state_id) = StateId::from_str(&snapshot.state) {\n");
+                        module.push_str("            sys.compartment.state = state_id;\n");
+                        module.push_str("        }\n");
+                        module.push_str("        sys.compartment.state_args = snapshot.state_args.clone();\n");
+                        module.push_str("        if let serde_json::Value::Object(map) = snapshot.domain_state {\n");
+                        for (name, ty_opt, _) in &domain_fields_rs {
+                            if let Some(ty) = ty_opt.as_ref() {
+                                module.push_str("            if let Some(v) = map.get(\"");
+                                module.push_str(name);
+                                module.push_str("\") {\n");
+                                module.push_str("                sys.");
+                                module.push_str(name);
+                                module.push_str(" = serde_json::from_value::<");
+                                module.push_str(ty);
+                                module.push_str(">(v.clone()).unwrap_or_default();\n");
+                                module.push_str("            }\n");
+                            }
+                        }
+                        module.push_str("        }\n");
+                        module.push_str("        sys._stack.clear();\n");
+                        module.push_str("        for frame in snapshot.stack.into_iter() {\n");
+                        module.push_str("            let mut c = FrameCompartment{ state: StateId::default(), ..Default::default() };\n");
+                        module.push_str("            if let Some(sid) = StateId::from_str(&frame.state) {\n");
+                        module.push_str("                c.state = sid;\n");
+                        module.push_str("            }\n");
+                        module.push_str("            c.state_args = frame.state_args;\n");
+                        module.push_str("            sys._stack.push(c);\n");
+                        module.push_str("        }\n");
+                        module.push_str("        sys\n");
+                        module.push_str("    }\n");
+                        module.push_str("}\n\n");
+                        // Ergonomic helpers on the system struct for JSON round-trips.
+                        module.push_str(&format!("impl {} {{\n", sys_name));
+                        module.push_str("    pub fn save_to_json(&self) -> String {\n");
+                        module.push_str("        self.snapshot_system().to_json_pretty().expect(\"encode Rust snapshot\")\n");
+                        module.push_str("    }\n");
+                        module.push_str("    pub fn restore_from_json(text: &str) -> Self {\n");
+                        module.push_str("        let snap = SystemSnapshot::from_json(text).expect(\"decode Rust snapshot\");\n");
+                        module.push_str("        Self::restore_system(snap)\n");
+                        module.push_str("    }\n");
+                        module.push_str("}\n");
                     }
                     out = module;
                 }

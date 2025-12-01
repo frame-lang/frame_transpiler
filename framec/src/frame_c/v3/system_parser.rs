@@ -92,11 +92,50 @@ impl SystemParserV3 {
 
             let system_line_start = i;
 
-            // Look for `system` keyword at SOL.
+            // Optional per-system attribute at SOL, e.g. `@persist system Foo {`.
+            // For now we only recognize `@persist` without parameters and treat it
+            // as an opt-in for persistence helpers during codegen.
+            let mut persist_attr: Option<crate::frame_c::v3::ast::PersistAttrAst> = None;
+
+            // Look for optional `@persist` followed by `system` keyword at SOL.
             let mut j = i;
             while j < n && is_space(bytes[j]) {
                 j += 1;
             }
+            if j < n && bytes[j] == b'@' {
+                j += 1;
+                let attr_start = j;
+                while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                    j += 1;
+                }
+                if attr_start == j {
+                    // Malformed attribute; skip this line.
+                    while i < n && bytes[i] != b'\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                let attr =
+                    String::from_utf8_lossy(&bytes[attr_start..j]).to_ascii_lowercase();
+                if attr.as_str() != "persist" {
+                    // Unknown attribute at SOL; skip this line for now.
+                    while i < n && bytes[i] != b'\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                // For now we do not parse parameters on @persist; language-specific
+                // defaults are used for helper names.
+                persist_attr = Some(crate::frame_c::v3::ast::PersistAttrAst {
+                    save_name: None,
+                    restore_name: None,
+                });
+                // Skip any whitespace between the attribute and `system`.
+                while j < n && is_space(bytes[j]) {
+                    j += 1;
+                }
+            }
+
             let kw_start = j;
             while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
                 j += 1;
@@ -360,6 +399,7 @@ impl SystemParserV3 {
                 },
                 sections,
                 section_order,
+                persist_attr,
             };
             if std::env::var("FRAME_DEBUG_SYSPARAMS").ok().as_deref() == Some("1") {
                 eprintln!(

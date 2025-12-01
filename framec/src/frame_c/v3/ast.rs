@@ -46,6 +46,18 @@ pub struct SystemParamsAst {
     pub domain_params: Vec<String>,
 }
 
+/// Optional per-system persistence attribute, parsed from an `@persist`
+/// annotation on the system header line.
+#[derive(Debug, Clone)]
+pub struct PersistAttrAst {
+    /// Optional custom save method name. When None, language-specific
+    /// defaults are used (e.g., save_to_json / saveToJson).
+    pub save_name: Option<String>,
+    /// Optional custom restore method name. When None, language-specific
+    /// defaults are used (e.g., restore_from_json / restoreFromJson).
+    pub restore_name: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemSectionKind {
     Operations,
@@ -72,6 +84,8 @@ pub struct SystemAst {
     pub sections: SystemSectionsAst,
     /// Section order as encountered in the source (may contain duplicates).
     pub section_order: Vec<SystemSectionKind>,
+    /// Optional persistence metadata derived from `@persist`.
+    pub persist_attr: Option<PersistAttrAst>,
 }
 
 #[derive(Debug, Clone, Default)]

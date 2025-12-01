@@ -94,6 +94,48 @@ Per-Language Libraries (mandatory for PRT)
     - Domain fields populated from `domainState`.
     - Stack rebuilt from the snapshot.
 
+System-Level Helpers and `@persist`
+- In addition to the library functions above, V3 systems may opt in to
+  type-centric convenience helpers by annotating the system header:
+
+  ```frame
+  @persist system TrafficLight($(color), domain) {
+      // ...
+  }
+  ```
+
+- When `@persist` is present, the long-term goal (tracked in `PLAN.md`) is
+  for the per-language V3 module-path codegen to emit idiomatic helpers on
+  the generated system type that delegate to the persistence libraries:
+  - Python (class-level helpers):
+    - `@classmethod def save_to_json(cls, system) -> str`
+    - `@classmethod def restore_from_json(cls, text: str)`
+  - TypeScript (static helpers):
+    - `static saveToJson(system: S): string`
+    - `static restoreFromJson(text: string): S`
+  - Rust (inherent methods on the generated system struct):
+    - `pub fn save_to_json(&self) -> String`
+    - `pub fn restore_from_json(text: &str) -> Self`
+
+- These helpers are thin, type-centric wrappers around the persistence
+  libraries:
+  - Python: `frame_persistence_py.snapshot_system` /
+    `frame_persistence_py.restore_system` plus JSON helpers.
+  - TypeScript: `frame_persistence_ts.snapshotSystem` /
+    `frame_persistence_ts.restoreSystem` plus JSON helpers.
+  - Rust: `frame_persistence_rs::SnapshotableSystem` /
+    `frame_persistence_rs::SystemSnapshot` and their JSON helpers.
+- A future extension (`@persist(save_name, restore_name)`) MAY allow
+  per-system customization of helper names while keeping semantics aligned
+  with the standard `save_to_json` / `restore_from_json` (or `saveToJson` /
+  `restoreFromJson`) pattern.
+- Implementation status:
+  - The library-level helpers (`snapshot_system` / `restore_system` and
+    their JSON counterparts) are implemented for all PRT languages.
+  - System-level helpers driven by `@persist` are being introduced
+    incrementally and will be wired into the V3 module-path codegen as part
+    of the Stage 19 Rust-first tooling and persistence work.
+
 Python (Stage 15 requirements)
 - Do NOT rely on `jsonpickle.encode(self)` for full-system persistence in V3.
 - Instead:

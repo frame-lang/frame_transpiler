@@ -148,10 +148,37 @@ pub(crate) fn collect_domain_vars_per_system(
                 continue;
             }
         }
-        // Read potential "system" keyword.
+        // Read potential "system" keyword, optionally preceded by an attribute
+        // such as `@persist`.
         let mut j = i;
         while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') {
             j += 1;
+        }
+        // Optional system-level attribute (currently only `@persist` is recognized).
+        if j < n && bytes[j] == b'@' {
+            j += 1;
+            let attr_start = j;
+            while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                j += 1;
+            }
+            if attr_start == j {
+                // Malformed attribute; skip this line.
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            let attr = String::from_utf8_lossy(&bytes[attr_start..j]).to_ascii_lowercase();
+            if attr.as_str() != "persist" {
+                // Unknown attribute at SOL; skip this line for now.
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') {
+                j += 1;
+            }
         }
         let kw_start = j;
         while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {

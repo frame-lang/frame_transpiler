@@ -249,11 +249,7 @@ def run_rust_snapshot() -> str:
         '// same canonical snapshot shape used in the cross-language harness.\n'
         'impl SnapshotableSystem for TrafficLight {\n'
         '    fn snapshot_system(&self) -> SystemSnapshot {\n'
-        '        let state_str = match self.compartment.state {\n'
-        '            StateId::Red => "__TrafficLight_state_Red",\n'
-        '            StateId::Green => "__TrafficLight_state_Green",\n'
-        '            StateId::Yellow => "__TrafficLight_state_Yellow",\n'
-        '        };\n'
+        '        let state_str = self.compartment.state.as_str();\n'
         '        let json = format!(\n'
         '            "{{\\"schemaVersion\\":1,\\"systemName\\":\\"TrafficLight\\",\\"state\\":\\"{}\\",\\"stateArgs\\":[\\"green\\"],\\"domainState\\":{{\\"domain\\":\\"red\\"}},\\"stack\\":[]}}",\n'
         '            state_str,\n'
@@ -298,7 +294,7 @@ def run_rust_snapshot() -> str:
         encoding="utf-8",
     )
 
-    # Locate the already-built frame_persistence_rs rlib.
+    # Locate the already-built frame_persistence_rs and serde_json rlibs.
     deps_dir = REPO_ROOT / "target" / "debug" / "deps"
     candidates = sorted(deps_dir.glob("libframe_persistence_rs-*.rlib"))
     if not candidates:
@@ -306,6 +302,13 @@ def run_rust_snapshot() -> str:
             "frame_persistence_rs debug rlib not found; run 'cargo test -p frame_persistence_rs' first"
         )
     rlib = candidates[0]
+
+    serde_candidates = sorted(deps_dir.glob("libserde_json-*.rlib"))
+    if not serde_candidates:
+        raise SystemExit(
+            "serde_json debug rlib not found; build framec (which depends on serde_json) first"
+        )
+    serde_rlib = serde_candidates[0]
 
     bin_path = rs_out_dir / "traffic_light_snapshot_harness"
     run = subprocess.run(
@@ -316,6 +319,8 @@ def run_rust_snapshot() -> str:
             str(deps_dir),
             "--extern",
             f"frame_persistence_rs={rlib}",
+            "--extern",
+            f"serde_json={serde_rlib}",
             "-O",
             "-o",
             str(bin_path),

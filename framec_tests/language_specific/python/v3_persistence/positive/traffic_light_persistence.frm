@@ -7,7 +7,7 @@
 # @run-expect: Yellow
 # @run-expect: Red
 
-system TrafficLight($(color), domain) {
+@persist system TrafficLight($(color), domain) {
     interface:
         tick()
 

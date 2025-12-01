@@ -907,6 +907,59 @@ Stage 18 — Rust-Native Test Runner & Tooling Exploration (Future Work)
           validation and exec across languages and categories using the
           Rust harness, with modes for Rust-only, Python-only, or compare.
 
+Stage 19 — Rust-First Tooling Migration (Replace Python Harnesses)
+- [ ] Replace Python-based orchestration tools (`framec_tests/runner/frame_test_runner.py`
+      and selected helpers under `tools/`) with Rust-native equivalents,
+      using the Stage 18 harness library as the foundation.
+  - [ ] Persistence helpers driven by `@persist`:
+    - [ ] Python: update V3 module-path codegen so that `@persist system S`
+          emits `@classmethod save_to_json(cls, system)` and
+          `@classmethod restore_from_json(cls, text)` on the generated class,
+          delegating to `frame_persistence_py.snapshot_system` /
+          `frame_persistence_py.restore_system` (plus JSON helpers), and
+          update the Python TrafficLight persistence fixtures to call these
+          helpers directly.
+    - [ ] TypeScript: update V3 module-path codegen so that `@persist system S`
+          emits static `saveToJson(system: S)` and `restoreFromJson(text: string)`
+          methods on the generated class, delegating to
+          `frame_persistence_ts.snapshotSystem` /
+          `frame_persistence_ts.restoreSystem`, and update the TS TrafficLight
+          persistence fixtures accordingly.
+    - [ ] Rust: for `@persist` V3 systems, derive or synthesize
+          `frame_persistence_rs::SnapshotableSystem` implementations and
+          emit inherent `save_to_json(&self)` / `restore_from_json(text: &str) -> Self`
+          helpers on the generated system struct, then add a Rust persistence
+          fixture that exercises these helpers.
+  - [ ] Snapshot comparison tooling:
+    - Port `tools/test_cross_language_snapshot_shape.py` and
+      `tools/test_cross_language_snapshot_traffic_light.py` to a Rust
+      binary that:
+        - Compiles and runs the Py/TS/Rust fixtures via the V3 pipeline.
+        - Uses `frame_persistence_py`, `frame_persistence_ts`, and
+          `frame_persistence_rs` to compare snapshots through the shared
+          `SystemSnapshot` shape.
+        - Validates that all PRT runtimes agree on the canonical snapshot
+          JSON without invoking Python tooling as the driver.
+  - [ ] Test runner consolidation:
+    - Extend `v3_rs_test_runner` (or a successor crate) into a general
+      `framec test` harness that:
+        - Understands the same metadata as the Python runner (`@expect`,
+          `@meta`, `@skip-if`, etc.).
+        - Can drive validation-only and exec tests for Python, TypeScript,
+          and Rust across PRT categories.
+        - Offers a `--compare-python` mode that runs both the Rust and
+          Python runners on the same fixture set and reports divergences
+          in exit codes, error codes, and output expectations.
+    - Gradually deprecate Python-specific runners for V3-only suites once
+      the Rust harness reaches coverage and determinism parity, keeping the
+      Python path available as a fallback for non-PRT languages.
+  - [ ] CI integration and docs:
+    - Add an optional CI job that runs the Rust-native harness for a
+      selected subset of categories alongside the existing Python jobs.
+    - Update `HOW_TO.md` and `18_rust_native_tooling.md` with guidance on
+      using the Rust-first test CLI, and document which Python tools remain
+      as reference implementations (e.g., legacy/compat suites).
+
 Rust Runtime Parity (PRT Progress)
 - [x] Basic Rust V3 runtime scaffold:
   - `StateId` enum with `Default`, a minimal `FrameEvent` struct, and a
