@@ -918,34 +918,40 @@ Stage 19 — Rust-First Tooling Migration (Replace Python Harnesses)
       and selected helpers under `tools/`) with Rust-native equivalents,
       using the Stage 18 harness library as the foundation.
   - [ ] Persistence helpers driven by `@persist`:
-    - [ ] Python: update V3 module-path codegen so that `@persist system S`
+    - [x] Python: update V3 module-path codegen so that `@persist system S`
           emits `@classmethod save_to_json(cls, system)` and
           `@classmethod restore_from_json(cls, text)` on the generated class,
           delegating to `frame_persistence_py.snapshot_system` /
           `frame_persistence_py.restore_system` (plus JSON helpers), and
           update the Python TrafficLight persistence fixtures to call these
           helpers directly.
-    - [ ] TypeScript: update V3 module-path codegen so that `@persist system S`
+    - [x] TypeScript: update V3 module-path codegen so that `@persist system S`
           emits static `saveToJson(system: S)` and `restoreFromJson(text: string)`
           methods on the generated class, delegating to
           `frame_persistence_ts.snapshotSystem` /
           `frame_persistence_ts.restoreSystem`, and update the TS TrafficLight
           persistence fixtures accordingly.
-    - [ ] Rust: for `@persist` V3 systems, derive or synthesize
+    - [x] Rust: for `@persist` V3 systems, derive or synthesize
           `frame_persistence_rs::SnapshotableSystem` implementations and
           emit inherent `save_to_json(&self)` / `restore_from_json(text: &str) -> Self`
           helpers on the generated system struct, then add a Rust persistence
           fixture that exercises these helpers.
   - [ ] Snapshot comparison tooling:
-    - Port `tools/test_cross_language_snapshot_shape.py` and
+    - [x] Schema-level shape: port the cross-language snapshot shape check
+      to a Rust-native tool:
+        - Implemented as `v3_rs_snapshot_shape` under `framec/src/bin/`,
+          which constructs the canonical TrafficLight snapshot JSON and
+          uses `frame_persistence_py`, `frame_persistence_ts`, and
+          `frame_persistence_rs` to compare snapshots through the shared
+          `SystemSnapshot` shape.
+    - [ ] Runtime-level TrafficLight snapshots: port
       `tools/test_cross_language_snapshot_traffic_light.py` to a Rust
       binary that:
         - Compiles and runs the Py/TS/Rust fixtures via the V3 pipeline.
-        - Uses `frame_persistence_py`, `frame_persistence_ts`, and
-          `frame_persistence_rs` to compare snapshots through the shared
-          `SystemSnapshot` shape.
-        - Validates that all PRT runtimes agree on the canonical snapshot
-          JSON without invoking Python tooling as the driver.
+        - Uses the per-language persistence libraries to compare JSON
+          snapshots at runtime, validating that all PRT runtimes agree on
+          the canonical TrafficLight snapshot without invoking the Python
+          tool as the top-level driver.
   - [ ] Test runner consolidation:
     - Extend `v3_rs_test_runner` (or a successor crate) into a general
       `framec test` harness that:
