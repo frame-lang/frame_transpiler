@@ -38,26 +38,17 @@ system TrafficLight($(color), domain) {
 }
 
 fn main() {
-    from frame_persistence_py import (
-        snapshot_system,
-        restore_system,
-        snapshot_to_json,
-        snapshot_from_json,
-    )
-
     # Start in Red and advance once.
     tl = TrafficLight("red", "red", None)
     tl.tick()
 
-    # Take a snapshot, round-trip through JSON, and restore into a fresh instance.
-    snap = snapshot_system(tl)
-    data = snapshot_to_json(snap)
-    snap2 = snapshot_from_json(data)
-    tl2 = restore_system(snap2, lambda: TrafficLight("red", "red", None))
+    # Take a snapshot, round-trip through JSON, and restore into a fresh instance
+    # using the generated class helpers.
+    data = TrafficLight.save_to_json(tl)
+    tl2 = TrafficLight.restore_from_json(data)
 
     # Continue execution from the restored state.
     tl2.tick()
     tl2.tick()
     tl2.tick()
 }
-

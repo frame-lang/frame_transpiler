@@ -1398,6 +1398,19 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         module.push_str("            self._system_return_stack.pop()\n");
                     }
 
+                    // Class-level helpers for persistence: saveToJson/restoreFromJson.
+                    module.push_str("    @classmethod\n");
+                    module.push_str("    def save_to_json(cls, system):\n");
+                    module.push_str("        from frame_persistence_py import snapshot_system, snapshot_to_json\n");
+                    module.push_str("        snap = snapshot_system(system)\n");
+                    module.push_str("        return snapshot_to_json(snap, indent=2)\n");
+                    module.push_str("\n");
+                    module.push_str("    @classmethod\n");
+                    module.push_str("    def restore_from_json(cls, text):\n");
+                    module.push_str("        from frame_persistence_py import snapshot_from_json, restore_system\n");
+                    module.push_str("        snap = snapshot_from_json(text)\n");
+                    module.push_str("        return restore_system(snap, cls)\n");
+
                     // Append top-level functions (including fn main) after the class.
                     for fun in function_defs {
                         module.push('\n');
@@ -1441,6 +1454,10 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     let ts_import = std::env::var("FRAME_TS_EXEC_IMPORT").ok().unwrap_or_else(|| String::from("frame_runtime_ts"));
                     let mut module = String::new();
                     module.push_str(&format!("import {{ FrameEvent, FrameCompartment }} from '{}'\n", ts_import));
+                    // Allow require() in generated TypeScript without pulling in a
+                    // full Node typings dependency; used for optional persistence
+                    // helpers that load frame_persistence_ts at runtime.
+                    module.push_str("declare function require(path: string): any;\n\n");
                     // Extra native imports lifted out of Frame functions (e.g., fn main)
                     // so that TypeScript sees them at the top level rather than inside
                     // a function body.
@@ -1949,6 +1966,19 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         }
                         module.push_str("  }\n");
                     }
+                    // Static helpers for persistence: saveToJson/restoreFromJson.
+                    module.push_str(&format!("  static saveToJson(system: {}): string {{\n", sys_name));
+                    module.push_str("    const lib = require(\"frame_persistence_ts\");\n");
+                    module.push_str("    const snap = lib.snapshotSystem(system);\n");
+                    module.push_str("    return lib.snapshotToJson(snap, 2);\n");
+                    module.push_str("  }\n");
+                    module.push_str(&format!("  static restoreFromJson(text: string): {} {{\n", sys_name));
+                    module.push_str("    const lib = require(\"frame_persistence_ts\");\n");
+                    module.push_str("    const snap = lib.snapshotFromJson(text);\n");
+                    module.push_str("    return lib.restoreSystem(snap, () => new ");
+                    module.push_str(&sys_name);
+                    module.push_str("());\n");
+                    module.push_str("  }\n");
                     // Synthesize class fields for native-body state stored on `this.`.
                     let mut reserved: std::collections::HashSet<String> = std::collections::HashSet::new();
                     // Domain fields

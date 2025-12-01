@@ -761,11 +761,15 @@ Stage 14 — Python Indent Normalizer Machine (Self‑Hosting)
 Stage 15 — Persistence & Snapshots (PRT Progress)
 - [x] Python: `frame_persistence_py` module added with `SystemSnapshot`,
       `snapshot_system`, `restore_system`, and JSON helpers as specified in
-      `14_persistence_and_snapshots.md`. Covered by
+      `14_persistence_and_snapshots.md`. V3 Python systems now expose
+      class-level helpers `save_to_json` / `restore_from_json` that wrap
+      these primitives, covered by
       `language_specific/python/v3_persistence/positive/traffic_light_persistence.frm`.
 - [x] TypeScript: `frame_persistence_ts` library mirroring the same snapshot
       shape and helpers (`snapshotSystem`, `restoreSystem`,
-      `snapshotToJson`, `snapshotFromJson`), exercised by
+      `snapshotToJson`, `snapshotFromJson`). V3 TypeScript systems now
+      expose static helpers `saveToJson` / `restoreFromJson` that wrap these
+      primitives, exercised by
       `language_specific/typescript/v3_persistence/positive/traffic_light_persistence.frm`.
 - [x] Rust: `frame_persistence_rs` helper crate added with serde‑backed
       `SystemSnapshot` / `FrameCompartmentSnapshot` and a `SnapshotableSystem`

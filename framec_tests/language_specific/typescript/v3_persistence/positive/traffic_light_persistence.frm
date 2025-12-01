@@ -35,23 +35,13 @@ system TrafficLight($(color), domain) {
 }
 
 fn main() {
-    import {
-        snapshotSystem,
-        restoreSystem,
-        snapshotToJson,
-        snapshotFromJson,
-    } from "../../../frame_persistence_ts";
-
     const tl = new TrafficLight("red", "red", null);
     tl.tick();
 
-    const snap = snapshotSystem(tl);
-    const json = snapshotToJson(snap);
-    const snap2 = snapshotFromJson(json);
-    const tl2 = restoreSystem(snap2, () => new TrafficLight("red", "red", null));
+    const json = TrafficLight.saveToJson(tl);
+    const tl2 = TrafficLight.restoreFromJson(json);
 
     tl2.tick();
     tl2.tick();
     tl2.tick();
 }
-

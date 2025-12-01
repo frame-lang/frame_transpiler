@@ -172,6 +172,68 @@ Rust (Stage 15 requirements)
 - `SystemSnapshot` provides JSON helpers (`to_json`, `to_json_pretty`,
   `from_json`) using `serde_json`.
 
+Practical How-To (Python / TypeScript / Rust)
+- This section shows concrete, minimal examples for taking and restoring
+  snapshots in each PRT language using the TrafficLight fixtures.
+
+- Python (`frame_persistence_py`):
+  - Fixture: `framec_tests/language_specific/python/v3_persistence/positive/traffic_light_persistence.frm`.
+  - Typical usage:
+    ```python
+    from traffic_light_persistence_v3 import TrafficLight  # generated V3 module
+
+    # Create and run the system to a non-trivial state.
+    tl = TrafficLight("red", "red", None)
+    tl.tick()  # e.g., Red -> Green
+
+    # Take a snapshot and round-trip via JSON using
+    # the generated class helpers.
+    json_text = TrafficLight.save_to_json(tl)
+    tl2 = TrafficLight.restore_from_json(json_text)
+    # Continue from the restored state.
+    tl2.tick()
+    tl2.tick()
+    ```
+
+- TypeScript (`frame_persistence_ts`):
+  - Fixture: `framec_tests/language_specific/typescript/v3_persistence/positive/traffic_light_persistence.frm`.
+  - Typical usage (in the generated module’s `main`):
+    ```ts
+    const tl = new TrafficLight("red", "red", null);
+    tl.tick(); // Red -> Green
+
+    const jsonText = TrafficLight.saveToJson(tl);
+    const tl2 = TrafficLight.restoreFromJson(jsonText);
+    tl2.tick();
+    tl2.tick();
+    tl2.tick();
+    ```
+
+- Rust (`frame_persistence_rs`):
+  - Fixture: `framec_tests/language_specific/rust/v3_persistence/positive/traffic_light_snapshot_dump.frm`.
+  - Typical usage pattern in a small harness:
+    ```rust
+    use frame_persistence_rs::{SystemSnapshot};
+
+    // Assume `TrafficLight` is the generated V3 Rust system and implements
+    // SnapshotableSystem.
+    fn main() {
+        let mut tl = TrafficLight::new("red".into(), "red".into(), ());
+        tl.tick(); // Red -> Green
+
+        let snap = tl.snapshot_system();
+        let json = snap.to_json_pretty().unwrap();
+        let snap2 = SystemSnapshot::from_json(&json).unwrap();
+
+        let mut tl2 = TrafficLight::restore_system(snap2);
+        tl2.tick();
+        tl2.tick();
+    }
+    ```
+  - The exact constructor and type signatures depend on the generated V3
+    system, but the snapshot/restore flow always follows:
+    `system → SystemSnapshot → JSON → SystemSnapshot → system`.
+
 Integration with Workflows (mandatory)
 - Stage 15 is a **required capability** for production workflows on PRT:
   - The PRT runtimes and codegen must support round-tripping a system through
