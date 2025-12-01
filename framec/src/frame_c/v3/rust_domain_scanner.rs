@@ -63,7 +63,7 @@ pub(crate) fn scan_rs_domain_fields(bytes: &[u8]) -> Vec<(String, Option<String>
             indent += 1;
         }
         // trim
-        let mut s = indent; let mut e = line.len();
+        let s = indent; let mut e = line.len();
         while e > s && (line[e-1] == b' ' || line[e-1] == b'\t' || line[e-1] == b'\r') { e -= 1; }
         if s >= e { continue; }
         let slice = &line[s..e];
