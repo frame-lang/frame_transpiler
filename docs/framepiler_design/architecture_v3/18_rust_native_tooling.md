@@ -48,6 +48,9 @@ pipeline.
   - Usage:
     ```bash
     cargo run -p framec --bin v3_rs_test_runner -- <language> <category> [framec_path]
+    cargo run -p framec --bin v3_rs_test_runner -- compare <language> <category|all_v3> [framec_path]
+    cargo run -p framec --bin v3_rs_test_runner -- exec-smoke <language> v3_exec_smoke [framec_path]
+    cargo run -p framec --bin v3_rs_test_runner -- exec-curated <language> <category|all_curated> [framec_path]
     ```
   - Behavior:
     - Discovers `.frm` under
@@ -56,11 +59,25 @@ pipeline.
       ```bash
       framec compile --language <language> --validation-only <file>
       ```
-    - Interprets `@expect: Exxx` metadata in comments:
+    - Validation mode:
+      - Interprets `@expect: Exxx` metadata in comments:
       - No `@expect:` → positive: validation must succeed.
       - `@expect:` present → negative: validation must fail and the output
         must contain all listed error codes.
-  - Current coverage (PRT V3 categories):
+    - Compare mode:
+      - `compare <language> <category|all_v3>` runs both the Rust harness
+        and the Python V3 runner (`--transpile-only --no-run`) over the same
+        slice and reports mismatches in success/failure.
+    - Exec modes (exploratory, gated):
+      - `exec-smoke`:
+        - Mirrors the `v3_exec_smoke` category for Python, TypeScript, and
+          Rust using FRAME_EMIT_EXEC and the same marker semantics as the
+          Python runner.
+      - `exec-curated`:
+        - Rust: curated exec for `v3_core`, `v3_control_flow`, `v3_systems`.
+        - Python/TypeScript: curated exec for `v3_core`, `v3_control_flow`,
+          `v3_systems`, `v3_persistence`.
+  - Current coverage (PRT V3 categories, validation-only):
     - Python:
       - `v3_core`
       - `v3_control_flow`

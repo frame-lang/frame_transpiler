@@ -225,6 +225,9 @@ Usage:
 
   # Validate TypeScript v3_core fixtures
   cargo run -p framec --bin v3_rs_test_runner -- typescript v3_core ./target/debug/framec
+  
+  # Compare Rust harness vs Python runner on python v3_core
+  cargo run -p framec --bin v3_rs_test_runner -- compare python v3_core ./target/debug/framec
   ```
 
 Semantics:
