@@ -1409,9 +1409,10 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // Class-level helpers for persistence: save_to_json/restore_from_json.
                     if sys_persist.is_some() {
                         module.push_str("    @classmethod\n");
-                        module.push_str("    def save_to_json(cls, system):\n");
+                        module.push_str("    def save_to_json(cls, system=None):\n");
                         module.push_str("        from frame_persistence_py import snapshot_system, snapshot_to_json\n");
-                        module.push_str("        snap = snapshot_system(system)\n");
+                        module.push_str("        target = system if system is not None else cls\n");
+                        module.push_str("        snap = snapshot_system(target)\n");
                         module.push_str("        return snapshot_to_json(snap, indent=2)\n");
                         module.push_str("\n");
                         module.push_str("    @classmethod\n");
