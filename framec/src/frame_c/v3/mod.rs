@@ -447,7 +447,9 @@ pub(crate) fn parse_system_params(bytes: &[u8], sys_name: &str) -> (Vec<String>,
         while j < n && !is_space(bytes[j]) { j += 1; }
         let token = String::from_utf8_lossy(&bytes[i..j]).to_ascii_lowercase();
         if token != "system" {
-            while i < n && bytes[i] != b'\n' { i += 1; }
+            // Keep scanning the same line so we can catch `system` after
+            // annotations like `@persist system Foo`.
+            i = j;
             continue;
         }
         // Found "system"; read name
@@ -2054,11 +2056,17 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     out = module;
                 }
                 TargetLanguage::Rust => {
-                    let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
+                    // Prefer the parsed module name; fall back to outline/textual name.
+                    let module_ast_rust = SystemParserV3::parse_module(bytes, TargetLanguage::Rust);
+                    let sys_name = module_ast_rust
+                        .systems
+                        .first()
+                        .map(|s| s.name.clone())
+                        .or_else(|| system_name.clone())
+                        .unwrap_or_else(|| String::from("S"));
                     // Collect per-system interface method metadata so we can derive
                     // a typed return enum and (later) interface wrappers, and read
                     // any `@persist` attribute on the system header.
-                    let module_ast_rust = SystemParserV3::parse_module(bytes, TargetLanguage::Rust);
                     let has_persist_attr = module_ast_rust
                         .systems
                         .iter()
@@ -2071,6 +2079,8 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     let iface_meta_for_sys_rust = iface_meta_map_rust.get(&sys_name);
                     let has_returns = iface_meta_for_sys_rust.map_or(false, |m| !m.is_empty());
                     let return_enum_name = format!("{}Return", sys_name);
+                    // System parameters: start-state args, enter-event args, and domain args.
+                    let (start_params, enter_params, domain_params) = parse_system_params(bytes, &sys_name);
                     // Prefer the first declared state as the start state when available.
                     let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
                     let mut module = String::new();
@@ -2152,12 +2162,15 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     if has_returns {
                         module.push_str(&format!("    _system_return_stack: Vec<{}>,\n", return_enum_name));
                     }
+                    let domain_param_set: std::collections::HashSet<String> = domain_params.iter().cloned().collect();
                     for (name, ty_opt, _) in &domain_fields_rs {
                         module.push_str("    ");
                         module.push_str(name);
                         module.push_str(": ");
                         if let Some(ty) = ty_opt.as_ref() {
                             module.push_str(ty);
+                        } else if domain_param_set.contains(name) {
+                            module.push_str("serde_json::Value");
                         } else {
                             module.push_str("()");
                         }
@@ -2171,11 +2184,44 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     module.push_str(&format!("impl {} {{\n", sys_name));
                     // Basic constructor: seed the compartment using StateId::default()
                     // (which prefers the Arcanum start state when available).
-                    module.push_str("    fn new() -> Self {\n");
+                    let mut ctor_params: Vec<String> = Vec::new();
+                    for name in &start_params {
+                        ctor_params.push(format!("{}: serde_json::Value", name));
+                    }
+                    for name in &enter_params {
+                        ctor_params.push(format!("_enter_{}: serde_json::Value", name));
+                    }
+                    for name in &domain_params {
+                        let ty_opt = domain_fields_rs
+                            .iter()
+                            .find(|(n, _, _)| n == name)
+                            .and_then(|(_, ty, _)| ty.as_ref());
+                        if let Some(ty) = ty_opt {
+                            ctor_params.push(format!("{}: {}", name, ty));
+                        } else {
+                            ctor_params.push(format!("{}: serde_json::Value", name));
+                        }
+                    }
+                    if ctor_params.is_empty() {
+                        module.push_str("    fn new() -> Self {\n");
+                    } else {
+                        module.push_str(&format!("    fn new({}) -> Self {{\n", ctor_params.join(", ")));
+                    }
+                    if start_params.is_empty() {
+                        module.push_str("        let __state_args_value = serde_json::Value::Null;\n");
+                    } else {
+                        module.push_str("        let mut __state_args = serde_json::Map::new();\n");
+                        for name in &start_params {
+                            module.push_str("        __state_args.insert(\"");
+                            module.push_str(name);
+                            module.push_str("\".to_string(), serde_json::to_value(");
+                            module.push_str(name);
+                            module.push_str(").unwrap_or(serde_json::Value::Null));\n");
+                        }
+                        module.push_str("        let __state_args_value = serde_json::Value::Object(__state_args);\n");
+                    }
                     module.push_str("        Self {\n");
-                    module.push_str(
-                        "            compartment: FrameCompartment{ state: StateId::default(), ..Default::default() },\n",
-                    );
+                    module.push_str("            compartment: FrameCompartment{ state: StateId::default(), state_args: __state_args_value, ..Default::default() },\n");
                     module.push_str("            _stack: Vec::new(),\n");
                     if has_returns {
                         module.push_str(&format!(
@@ -2187,14 +2233,20 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         module.push_str("            ");
                         module.push_str(name);
                         module.push_str(": ");
-                        if let Some(init) = init_opt.as_ref() {
-                            if !init.is_empty() {
-                                module.push_str(init);
+                        if domain_param_set.contains(name) {
+                            module.push_str(name);
+                        } else {
+                            if let Some(init) = init_opt.as_ref() {
+                                if !init.is_empty() {
+                                    module.push_str(init);
+                                } else {
+                                    module.push_str("Default::default()");
+                                }
+                            } else if domain_param_set.contains(name) {
+                                module.push_str("Default::default()");
                             } else {
                                 module.push_str("Default::default()");
                             }
-                        } else {
-                            module.push_str("Default::default()");
                         }
                         module.push_str(",\n");
                     }
@@ -3432,8 +3484,13 @@ fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
                     return Some(String::from_utf8_lossy(&bytes[name_start..j]).to_string());
                 }
             }
+            // Continue scanning the rest of the line so we can catch `system`
+            // after leading annotations (e.g., `@persist system Foo {`).
+            i = j;
+            continue;
         }
-        while i < n && bytes[i] != b'\n' { i += 1; }
+        // Non-identifier character: advance one byte and keep scanning
+        i += 1;
     }
     None
 }

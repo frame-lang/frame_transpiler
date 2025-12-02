@@ -41,57 +41,53 @@ These Python tools are the canonical path: CI and local workflows rely on
 them, and any new language, category, or policy is first wired through this
 pipeline.
 
-### 1.2 Rust-Based Tools (Exploratory)
+### 1.2 Rust-Based Tools (Current State)
 
-- **Rust V3 test runner prototype**
-  - `framec/src/bin/v3_rs_test_runner.rs`
-  - Usage:
+- **Rust V3 test harness (`framec test`)**
+  - CLI entry:
+    - `framec/src/frame_c/cli.rs` exposes a `test` subcommand on the main
+      `framec` binary.
+  - Usage (validation-only):
     ```bash
-    cargo run -p framec --bin v3_rs_test_runner -- <language> <category> [framec_path]
-    cargo run -p framec --bin v3_rs_test_runner -- compare <language> <category|all_v3> [framec_path]
-    cargo run -p framec --bin v3_rs_test_runner -- exec-smoke <language> v3_exec_smoke [framec_path]
-    cargo run -p framec --bin v3_rs_test_runner -- exec-curated <language> <category|all_curated> [framec_path]
+    cargo run -p framec --bin framec -- \
+      test --language <python_3|typescript|rust> --category <v3_category>
     ```
-  - Behavior:
-    - Discovers `.frm` under
-      `framec_tests/language_specific/<language>/<category>/`.
-    - Runs:
-      ```bash
-      framec compile --language <language> --validation-only <file>
-      ```
-    - Validation mode:
-      - Interprets `@expect: Exxx` metadata in comments:
-      - No `@expect:` → positive: validation must succeed.
-      - `@expect:` present → negative: validation must fail and the output
-        must contain all listed error codes.
-    - Compare mode:
-      - `compare <language> <category|all_v3>` runs both the Rust harness
-        and the Python V3 runner (`--transpile-only --no-run`) over the same
-        slice and reports mismatches in success/failure.
-    - Exec modes (exploratory, gated):
-      - `exec-smoke`:
-        - Mirrors the `v3_exec_smoke` category for Python, TypeScript, and
-          Rust using FRAME_EMIT_EXEC and the same marker semantics as the
-          Python runner.
-      - `exec-curated`:
-        - Rust: curated exec for `v3_core`, `v3_control_flow`, `v3_systems`.
-        - Python/TypeScript: curated exec for `v3_core`, `v3_control_flow`,
-          `v3_systems`, `v3_persistence`.
-  - Current coverage (PRT V3 categories, validation-only):
-    - Python:
-      - `v3_core`
-      - `v3_control_flow`
-      - `v3_systems`
-      - `v3_persistence`
-      - `v3_systems_runtime`
-    - TypeScript:
-      - `v3_core`
-      - `v3_control_flow`
-      - `v3_systems`
-      - `v3_persistence`
-    - Rust:
-      - `v3_core`
-      - `v3_control_flow`
+  - Compare-with-Python mode:
+    ```bash
+    cargo run -p framec --bin framec -- \
+      test --language python_3 --category v3_core --compare-python
+    ```
+    - Runs the Rust harness and the Python V3 runner on the same slice and
+      reports whether both succeeded.
+  - Exec modes:
+    - `--exec-smoke`:
+      - Drives the `v3_exec_smoke` category for python/typescript/rust using
+        FRAME_EMIT_EXEC and the same marker semantics as the Python runner.
+    - `--exec-curated`:
+      - Drives curated exec for `v3_core` (and will be extended to other
+        curated categories) for python/typescript/rust, interpreting
+        `@run-expect` / `@run-exact` metadata in fixtures.
+  - Implementation details:
+    - All test logic lives in `framec::frame_c::v3::test_harness_rs`:
+      - `run_validation_for_category`
+      - `run_rust_exec_smoke`, `run_python_exec_smoke`,
+        `run_typescript_exec_smoke`
+      - `run_rust_curated_exec_for_category`,
+        `run_python_curated_exec_for_category`,
+        `run_typescript_curated_exec_for_category`
+    - The older `v3_rs_test_runner` binary still exists as a thin,
+      developer-facing wrapper around this library but is no longer the
+      primary documented entry point.
+  - Current PRT V3 coverage:
+    - Validation + compare-Python:
+      - python/typescript/rust: `v3_core`, `v3_control_flow`,
+        `v3_systems`, `v3_persistence`, `v3_systems_runtime`.
+    - Exec-smoke:
+      - python/typescript/rust: `v3_exec_smoke`.
+    - Exec-curated:
+      - python/typescript/rust: `v3_core` (additional curated categories are
+        available via `v3_rs_test_runner` and will be folded into
+        `framec test` over time).
 
 - **Rust snapshot shape tool**
   - `framec/src/bin/v3_rs_snapshot_shape.rs`

@@ -364,7 +364,7 @@ dependencies = [
 
 [[package]]
 name = "frame_build"
-version = "0.86.69"
+version = "0.86.70"
 dependencies = [
  "anyhow",
  "framec",
@@ -388,7 +388,7 @@ dependencies = [
 
 [[package]]
 name = "framec"
-version = "0.86.69"
+version = "0.86.70"
 dependencies = [
  "chrono",
  "clap",
@@ -396,6 +396,7 @@ dependencies = [
  "convert_case",
  "downcast-rs",
  "exitcode",
+ "frame_persistence_rs",
  "indoc",
  "petgraph",
  "regex",

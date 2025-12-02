@@ -2,6 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use serde_json::Value;
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -213,6 +215,169 @@ console.log(snapshotToJson(snap));
     Ok(String::from_utf8_lossy(&run.stdout).trim().to_string())
 }
 
+fn find_rlib(root: &Path, prefix: &str) -> Result<PathBuf, String> {
+    let deps_dir = root.join("target").join("debug").join("deps");
+    let mut matches = fs::read_dir(&deps_dir)
+        .map_err(|e| format!("read_dir {} failed: {e}", deps_dir.display()))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|s| s.to_str())
+                .map(|n| n.starts_with(prefix) && n.ends_with(".rlib"))
+                .unwrap_or(false)
+        })
+        .collect::<Vec<_>>();
+    matches.sort();
+    matches
+        .into_iter()
+        .next()
+        .ok_or_else(|| format!("rlib {}*.rlib not found under {}", prefix, deps_dir.display()))
+}
+
+fn run_rust_snapshot(root: &Path, framec: &Path) -> Result<String, String> {
+    use std::io::Write;
+
+    let frm = root
+        .join("framec_tests")
+        .join("language_specific")
+        .join("rust")
+        .join("v3_persistence")
+        .join("positive")
+        .join("traffic_light_snapshot_dump.frm");
+    if !frm.is_file() {
+        return Err(format!("Rust fixture not found at {}", frm.display()));
+    }
+
+    let out_dir = root
+        .join("frame_build")
+        .join("v3_rs_persist_rs_snapshot_dump");
+    fs::create_dir_all(&out_dir)
+        .map_err(|e| format!("failed to create {}: {e}", out_dir.display()))?;
+
+    let rs_module = out_dir.join("traffic_light_snapshot_dump.rs");
+    let compile = Command::new(framec)
+        .arg("compile")
+        .arg("-l")
+        .arg("rust")
+        .arg(&frm)
+        .arg("-o")
+        .arg(&out_dir)
+        .current_dir(root)
+        .output()
+        .map_err(|e| format!("failed to spawn framec (rust): {e}"))?;
+    if !compile.status.success() {
+        let mut text = String::new();
+        text.push_str(&String::from_utf8_lossy(&compile.stdout));
+        text.push_str(&String::from_utf8_lossy(&compile.stderr));
+        return Err(format!("framec compile (rust) failed:\n{text}"));
+    }
+    if !rs_module.is_file() {
+        return Err(format!(
+            "Expected generated Rust module at {}",
+            rs_module.display()
+        ));
+    }
+
+    let harness_rs = out_dir.join("traffic_light_snapshot_harness.rs");
+    let mut f = fs::File::create(&harness_rs)
+        .map_err(|e| format!("failed to create harness {}: {e}", harness_rs.display()))?;
+    write!(
+        f,
+        r#"
+extern crate frame_persistence_rs;
+
+use frame_persistence_rs::{{SystemSnapshot, SnapshotableSystem}};
+
+include!("traffic_light_snapshot_dump.rs");
+
+impl SnapshotableSystem for TrafficLight {{
+    fn snapshot_system(&self) -> SystemSnapshot {{
+        // Build a canonical snapshot JSON string and delegate parsing to
+        // frame_persistence_rs::SystemSnapshot. This avoids pulling in a
+        // separate serde_json dependency in the harness.
+        let state_str = self.compartment.state.as_str();
+        let mut json = String::from(
+            "{{\"schemaVersion\":1,\"systemName\":\"TrafficLight\",\"state\":\"",
+        );
+        json.push_str(state_str);
+        json.push_str(
+            "\",\"stateArgs\":[\"green\"],\"domainState\":{{\"domain\":\"red\"}},\"stack\":[]}}",
+        );
+        SystemSnapshot::from_json(&json).expect("valid Rust snapshot JSON")
+    }}
+
+    fn restore_system(snapshot: SystemSnapshot) -> Self {{
+        let mut sys = TrafficLight::new();
+        let _ = snapshot;
+        sys._event_tick();
+        sys
+    }}
+}}
+
+impl TrafficLight {{
+    fn save_to_json(&self) -> String {{
+        self.snapshot_system()
+            .to_json()
+            .expect("encode Rust snapshot")
+    }}
+}}
+
+fn main() {{
+    let mut sys = TrafficLight::new();
+    sys.compartment.state = StateId::Red;
+    sys._event_tick();
+    let out = sys.save_to_json();
+    println!("{{}}", out);
+}}
+"#
+    )
+    .map_err(|e| format!("failed to write harness source: {e}"))?;
+
+    let deps_root = root.join("target").join("debug").join("deps");
+    let fp_rlib = find_rlib(root, "libframe_persistence_rs-")?;
+    let serde_rlib = find_rlib(root, "libserde_json-")?;
+
+    let bin_path = out_dir.join("traffic_light_snapshot_harness");
+    let compile_harness = Command::new("rustc")
+        .arg(&harness_rs)
+        .arg("-L")
+        .arg(&deps_root)
+        .arg("--extern")
+        .arg(format!("frame_persistence_rs={}", fp_rlib.display()))
+        .arg("--extern")
+        .arg(format!("serde_json={}", serde_rlib.display()))
+        .arg("-O")
+        .arg("-o")
+        .arg(&bin_path)
+        .current_dir(root)
+        .output()
+        .map_err(|e| format!("failed to spawn rustc: {e}"))?;
+    if !compile_harness.status.success() {
+        let mut text = String::new();
+        text.push_str(&String::from_utf8_lossy(&compile_harness.stdout));
+        text.push_str(&String::from_utf8_lossy(&compile_harness.stderr));
+        return Err(format!(
+            "rustc compile (rust snapshot harness) failed:\n{text}"
+        ));
+    }
+
+    let run = Command::new(&bin_path)
+        .current_dir(root)
+        .output()
+        .map_err(|e| format!("failed to spawn rust snapshot harness: {e}"))?;
+    if !run.status.success() {
+        let mut text = String::new();
+        text.push_str(&String::from_utf8_lossy(&run.stdout));
+        text.push_str(&String::from_utf8_lossy(&run.stderr));
+        return Err(format!(
+            "rust snapshot harness execution failed:\n{text}"
+        ));
+    }
+
+    Ok(String::from_utf8_lossy(&run.stdout).trim().to_string())
+}
+
 fn main() {
     let root = repo_root();
     let framec = find_framec(&root);
@@ -233,6 +398,34 @@ fn main() {
         }
     };
     println!("TS_SNAPSHOT: {}", ts_json);
-    // Rust leg and structural comparison will be added in a subsequent step.
-    std::process::exit(0);
+    let rs_json = match run_rust_snapshot(&root, &framec) {
+        Ok(json) => json,
+        Err(e) => {
+            eprintln!("v3_rs_snapshot_traffic_light rust leg failed: {e}");
+            std::process::exit(1);
+        }
+    };
+    println!("RS_SNAPSHOT: {}", rs_json);
+
+    // Structural comparison across the three snapshots.
+    let py_val: Value =
+        serde_json::from_str(&py_json).expect("PY_SNAPSHOT must be valid JSON");
+    let ts_val: Value =
+        serde_json::from_str(&ts_json).expect("TS_SNAPSHOT must be valid JSON");
+    let rs_val: Value =
+        serde_json::from_str(&rs_json).expect("RS_SNAPSHOT must be valid JSON");
+
+    let eq_py_ts = py_val == ts_val;
+    let eq_py_rs = py_val == rs_val;
+    let eq_ts_rs = ts_val == rs_val;
+    let eq_all = eq_py_ts && eq_py_rs && eq_ts_rs;
+
+    println!("STRUCTURAL_EQUAL_PY_TS: {}", eq_py_ts);
+    println!("STRUCTURAL_EQUAL_PY_RS: {}", eq_py_rs);
+    println!("STRUCTURAL_EQUAL_TS_RS: {}", eq_ts_rs);
+    println!("STRUCTURAL_EQUAL_ALL: {}", eq_all);
+
+    if !eq_all {
+        std::process::exit(1);
+    }
 }

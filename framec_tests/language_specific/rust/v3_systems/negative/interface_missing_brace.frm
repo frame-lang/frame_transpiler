@@ -1,4 +1,5 @@
 @target rust
+// @expect: E111
 
 system S {
     interface:

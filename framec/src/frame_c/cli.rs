@@ -30,6 +30,14 @@ pub enum CliCommand {
     Compile { language: String, file: PathBuf },
     ProjectBuild { language: String, output_dir: PathBuf, recursive: bool },
     FidImport { target: String, input: PathBuf, cache_root: Option<PathBuf> },
+    Test {
+        language: String,
+        category: String,
+        framec_bin: Option<PathBuf>,
+        compare_python: bool,
+        exec_smoke: bool,
+        exec_curated: bool,
+    },
 }
 
 impl Cli {
@@ -76,6 +84,31 @@ impl Cli {
                     .arg(Arg::new("output-dir").long("output-dir").short('o').value_name("DIR").required(true))
                     .arg(Arg::new("recursive").long("recursive").short('r').action(clap::ArgAction::SetTrue))
                     .arg(Arg::new("dir").value_name("DIR").required(true))
+            )
+            .subcommand(
+                Command::new("test")
+                    .about("Run V3 PRT tests via the Rust harness (validation / exec prototype)")
+                    .arg(Arg::new("language").long("language").short('l').value_name("LANG").required(true))
+                    .arg(Arg::new("category").long("category").short('c').value_name("CATEGORY").required(true))
+                    .arg(Arg::new("framec-bin").long("framec-bin").value_name("PATH"))
+                    .arg(
+                        Arg::new("compare-python")
+                            .long("compare-python")
+                            .help("Also run the Python V3 runner for this slice and compare validation results")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("exec-smoke")
+                            .long("exec-smoke")
+                            .help("Run exec-smoke harness for this slice instead of validation-only")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("exec-curated")
+                            .long("exec-curated")
+                            .help("Run curated exec harness for this slice instead of validation-only")
+                            .action(clap::ArgAction::SetTrue),
+                    )
             )
             .arg(Arg::new("FILE-PATH").help("File path").value_name("FILE").index(1))
             .arg(Arg::new("language").value_name("LANG").long("language").short('l').help("Target language (python_3, typescript, graphviz, llvm)").num_args(1))
@@ -130,6 +163,38 @@ impl Cli {
                                 CliCommand::FidImport { target, input, cache_root }
                             }
                             _ => CliCommand::None,
+                        }
+                    }
+                    "test" => {
+                        let lang = sub
+                            .get_one::<String>("language")
+                            .expect("language required")
+                            .to_string();
+                        let cat = sub
+                            .get_one::<String>("category")
+                            .expect("category required")
+                            .to_string();
+                        let framec_bin = sub
+                            .get_one::<String>("framec-bin")
+                            .map(|s| PathBuf::from(s));
+                        let compare_python = sub.get_flag("compare-python");
+                        let exec_smoke = sub.get_flag("exec-smoke");
+                        let exec_curated = sub.get_flag("exec-curated");
+                        if compare_python && (exec_smoke || exec_curated) {
+                            eprintln!("--compare-python is only supported in validation mode (no --exec-* flags)");
+                            std::process::exit(exitcode::USAGE);
+                        }
+                        if exec_smoke && exec_curated {
+                            eprintln!("--exec-smoke and --exec-curated are mutually exclusive");
+                            std::process::exit(exitcode::USAGE);
+                        }
+                        CliCommand::Test {
+                            language: lang,
+                            category: cat,
+                            framec_bin,
+                            compare_python,
+                            exec_smoke,
+                            exec_curated,
                         }
                     }
                     _ => CliCommand::None,
@@ -187,6 +252,192 @@ pub fn run_with(args: Cli) {
         CliCommand::Init => {
             handle_init_command();
             return;
+        }
+        CliCommand::Test {
+            language,
+            category,
+            framec_bin,
+            compare_python,
+            exec_smoke,
+            exec_curated,
+        } => {
+            // Minimal Rust-based V3 test entry point:
+            // - validation-only for a single `<language>/<category>` pair
+            // - optional `--compare-python` to run the Python runner for the
+            //   same slice and compare validation outcomes.
+            // - `--exec-smoke` / `--exec-curated` to run exec harnesses instead.
+            let harness_lang = match language.as_str() {
+                "python_3" | "py" | "python" => "python",
+                "typescript" | "ts" => "typescript",
+                "rust" | "rs" => "rust",
+                other => other,
+            }
+            .to_string();
+            let framec_path = framec_bin.unwrap_or_else(|| {
+                std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("framec"))
+            });
+            let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .unwrap_or_else(|| std::path::Path::new("."))
+                .to_path_buf();
+
+            // Exec-smoke mode
+            if exec_smoke {
+                let summary = match harness_lang.as_str() {
+                    "rust" => crate::frame_c::v3::test_harness_rs::run_rust_exec_smoke(
+                        &repo_root,
+                        &framec_path,
+                        &category,
+                    ),
+                    "python" => crate::frame_c::v3::test_harness_rs::run_python_exec_smoke(
+                        &repo_root,
+                        &framec_path,
+                        &category,
+                    ),
+                    "typescript" => {
+                        crate::frame_c::v3::test_harness_rs::run_typescript_exec_smoke(
+                            &repo_root,
+                            &framec_path,
+                            &category,
+                        )
+                    }
+                    other => {
+                        eprintln!(
+                            "framec test --exec-smoke currently supports languages: python_3, typescript, rust (got: {})",
+                            other
+                        );
+                        std::process::exit(exitcode::USAGE);
+                    }
+                }
+                .unwrap_or_else(|e| {
+                    eprintln!("framec test exec-smoke error: {}", e);
+                    std::process::exit(exitcode::IOERR);
+                });
+
+                println!(
+                    "framec test exec-smoke: language={} category={} passed={} failed={}",
+                    summary.language, summary.category, summary.passed, summary.failed
+                );
+                if summary.failed > 0 {
+                    std::process::exit(exitcode::DATAERR);
+                } else {
+                    std::process::exit(0);
+                }
+            }
+
+            // Exec-curated mode
+            if exec_curated {
+                let summary = match harness_lang.as_str() {
+                    "rust" => crate::frame_c::v3::test_harness_rs::run_rust_curated_exec_for_category(
+                        &repo_root,
+                        &framec_path,
+                        &category,
+                    ),
+                    "python" => crate::frame_c::v3::test_harness_rs::run_python_curated_exec_for_category(
+                        &repo_root,
+                        &framec_path,
+                        &category,
+                    ),
+                    "typescript" => crate::frame_c::v3::test_harness_rs::run_typescript_curated_exec_for_category(
+                        &repo_root,
+                        &framec_path,
+                        &category,
+                    ),
+                    other => {
+                        eprintln!(
+                            "framec test --exec-curated currently supports languages: python_3, typescript, rust (got: {})",
+                            other
+                        );
+                        std::process::exit(exitcode::USAGE);
+                    }
+                }
+                .unwrap_or_else(|e| {
+                    eprintln!("framec test exec-curated error: {}", e);
+                    std::process::exit(exitcode::IOERR);
+                });
+
+                println!(
+                    "framec test exec-curated: language={} category={} passed={} failed={}",
+                    summary.language, summary.category, summary.passed, summary.failed
+                );
+                if summary.failed > 0 {
+                    std::process::exit(exitcode::DATAERR);
+                } else {
+                    std::process::exit(0);
+                }
+            }
+
+            // Default: validation-only mode.
+            let summary = match crate::frame_c::v3::test_harness_rs::run_validation_for_category(
+                &repo_root,
+                &framec_path,
+                &harness_lang,
+                &category,
+            ) {
+                Ok(summary) => summary,
+                Err(e) => {
+                    eprintln!("framec test error (Rust harness): {}", e);
+                    std::process::exit(exitcode::IOERR);
+                }
+            };
+
+            println!(
+                "framec test: language={} category={} passed={} failed={}",
+                summary.language, summary.category, summary.passed, summary.failed
+            );
+
+            if compare_python {
+                // Mirror v3_rs_test_runner's compare mode for a single slice.
+                let py_output = std::process::Command::new("python3")
+                    .arg("framec_tests/runner/frame_test_runner.py")
+                    .arg("--languages")
+                    .arg(&harness_lang)
+                    .arg("--categories")
+                    .arg(&category)
+                    .arg("--framec")
+                    .arg(&framec_path)
+                    .arg("--transpile-only")
+                    .arg("--no-run")
+                    .current_dir(&repo_root)
+                    .output();
+
+                let (py_ok, py_text) = match py_output {
+                    Ok(out) => {
+                        let ok = out.status.success();
+                        let mut text = String::new();
+                        text.push_str(&String::from_utf8_lossy(&out.stdout));
+                        text.push_str(&String::from_utf8_lossy(&out.stderr));
+                        (ok, text)
+                    }
+                    Err(e) => {
+                        eprintln!("framec test compare-python: failed to spawn Python runner: {}", e);
+                        std::process::exit(exitcode::IOERR);
+                    }
+                };
+
+                let rust_ok = summary.failed == 0;
+                println!(
+                    "framec test compare-python: rust_ok={} python_ok={}",
+                    rust_ok, py_ok
+                );
+
+                if !py_ok {
+                    eprintln!("Python runner reported failure for this slice:");
+                    for line in py_text.lines() {
+                        eprintln!("    {}", line);
+                    }
+                }
+
+                if !py_ok || !rust_ok {
+                    std::process::exit(exitcode::DATAERR);
+                } else {
+                    std::process::exit(0);
+                }
+            } else if summary.failed > 0 {
+                std::process::exit(exitcode::DATAERR);
+            } else {
+                std::process::exit(0);
+            }
         }
         CliCommand::ProjectBuild { language, ref output_dir, recursive } => {
             // PRT-first, advisory project build:

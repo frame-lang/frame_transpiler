@@ -1,4 +1,5 @@
 @target rust
+// @expect: E113
 
 system S {
     actions:

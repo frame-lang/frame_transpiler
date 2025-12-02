@@ -1,4 +1,5 @@
 import { FrameEvent, FrameCompartment } from 'frame_runtime_ts'
+declare function require(path: string): any;
 
 export class TrafficLight {
   public domain: any =  null;

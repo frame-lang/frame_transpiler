@@ -1,11 +1,29 @@
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StateId { Red, Yellow, Green }
+enum StateId { Green, Red, Yellow }
 
-impl Default for StateId { fn default() -> Self { StateId::Red } }
+impl Default for StateId { fn default() -> Self { StateId::Green } }
+
+impl StateId {
+    fn as_str(&self) -> &'static str {
+        match self {
+            StateId::Green => "__TrafficLight_state_Green",
+            StateId::Red => "__TrafficLight_state_Red",
+            StateId::Yellow => "__TrafficLight_state_Yellow",
+        }
+    }
+    fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "__TrafficLight_state_Green" => Some(StateId::Green),
+            "__TrafficLight_state_Red" => Some(StateId::Red),
+            "__TrafficLight_state_Yellow" => Some(StateId::Yellow),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, Clone)] struct FrameEvent{ message: String }
-#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: Option<()>, }
+#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: serde_json::Value, }
 struct TrafficLight {
     compartment: FrameCompartment,
     _stack: Vec<FrameCompartment>,

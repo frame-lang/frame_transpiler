@@ -29,6 +29,9 @@ CLAUDE.local.md
 # Generated test files
 framec_tests/**/*.py
 
+# Large local fixture sources (kept out of git; shared via external env)
+framec_tests/python/src/positive_tests/
+
 # Python caches
 **/__pycache__/
 *.pyc

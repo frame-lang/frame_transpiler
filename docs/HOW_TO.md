@@ -199,68 +199,121 @@ python3 framec_tests/runner/frame_test_runner.py --no-validate --languages pytho
 # TypeScript target
 ./target/release/framec -l typescript path/to/test.frm
 
-### Rust-Based V3 Test Runner Prototype (Stage 18)
+### Rust-Based V3 Test Harness (`framec test`, Stage 18/19)
 
-In addition to the Python runner, there is an experimental Rust-based V3
-test harness that exercises validation-only checks for language-specific
-categories without going through `framec_tests/runner/frame_test_runner.py`.
-This is part of Stage 18 and is **not** a replacement for the Python
-runner, but it can be useful for quick, targeted validation.
+In addition to the Python runner, there is a Rust-based V3 test harness
+exposed via the `framec` CLI. It exercises validation and execution for
+language-specific V3 categories using the shared harness library
+(`framec::frame_c::v3::test_harness_rs`) without going through
+`framec_tests/runner/frame_test_runner.py`. Python remains the reference
+for non-PRT suites, but for PRT V3 categories the Rust path is now a
+first-class option.
 
-Binary:
-- `v3_rs_test_runner` under the `framec` crate (`framec/src/bin/v3_rs_test_runner.rs`).
+CLI entry:
+- `framec` binary (built from `framec/src/main.rs` + `framec/src/frame_c/cli.rs`).
 
-Usage:
+Usage (validation-only):
 - General form:
   ```bash
-  cargo run -p framec --bin v3_rs_test_runner -- <language> <category> [framec_path]
+  cargo run -p framec --bin framec -- \
+    test --language <python_3|typescript|rust> --category <v3_category>
   ```
 - Examples:
   ```bash
-  # Validate Python v3_core fixtures using target/debug/framec
-  cargo run -p framec --bin v3_rs_test_runner -- python v3_core ./target/debug/framec
+  # Validate Python v3_core fixtures
+  cargo run -p framec --bin framec -- \
+    test --language python_3 --category v3_core
 
-  # Validate Python v3_control_flow fixtures
-  cargo run -p framec --bin v3_rs_test_runner -- python v3_control_flow ./target/debug/framec
+  # Validate TypeScript v3_systems fixtures
+  cargo run -p framec --bin framec -- \
+    test --language typescript --category v3_systems
 
-  # Validate TypeScript v3_core fixtures
-  cargo run -p framec --bin v3_rs_test_runner -- typescript v3_core ./target/debug/framec
-  
-  # Compare Rust harness vs Python runner on python v3_core
-  cargo run -p framec --bin v3_rs_test_runner -- compare python v3_core ./target/debug/framec
+  # Validate Rust v3_persistence fixtures
+  cargo run -p framec --bin framec -- \
+    test --language rust --category v3_persistence
   ```
 
-Semantics:
-- The runner discovers `.frm` files under
-  `framec_tests/language_specific/<language>/<category>/`.
-- For each file, it calls:
+Compare-with-Python mode (validation):
+- `framec test` can run the Python runner for the same slice and compare
+  outcomes:
   ```bash
-  framec compile --language <language> --validation-only <file>
-  ```
-- Fixtures without `@expect:` metadata are treated as **positive**:
-  validation must succeed for the test to pass.
-- Fixtures with `@expect:` metadata are treated as **negative**:
-  validation must fail, and all listed error codes must appear in the
-  validation output. Metadata is parsed from comment lines like:
-  ```frame
-  # @expect: E301
-  // @expect: E200 E300
-  ```
+  cargo run -p framec --bin framec -- \
+    test --language python_3 --category v3_core --compare-python
 
-Scope:
-- As of v0.86.66 the prototype is wired and validated for:
-  - `python v3_core`
-  - `python v3_control_flow`
-  - `python v3_systems`
-  - `python v3_persistence`
-  - `python v3_systems_runtime`
-  - `typescript v3_core`
-  - `typescript v3_control_flow`
-  - `typescript v3_systems`
-  - `typescript v3_persistence`
-- It is intended as a stepping stone toward Rust-native tooling and should
-  be kept in sync with the Python runner’s behavior as additional
-  categories are brought under this harness.
+  cargo run -p framec --bin framec -- \
+    test --language typescript --category v3_control_flow --compare-python
+
+  cargo run -p framec --bin framec -- \
+    test --language rust --category v3_systems --compare-python
+  ```
+- Semantics:
+  - The Rust harness discovers `.frm` files under
+    `framec_tests/language_specific/<language>/<category>/` (with
+    `<language>` normalized to `python`, `typescript`, or `rust`).
+  - For each file, it calls:
+    ```bash
+    framec compile --language <language> --validation-only <file>
+    ```
+  - Fixtures without `@expect:` metadata are treated as **positive**:
+    validation must succeed for the test to pass.
+  - Fixtures with `@expect:` metadata are treated as **negative**:
+    validation must fail and all listed error codes must appear in the
+    validation output (`# @expect: E301`, `// @expect: E200 E300`, etc.).
+  - With `--compare-python`, the CLI also runs the Python runner in
+    `--transpile-only --no-run` mode for the same slice and reports
+    whether both paths succeeded.
+
+Exec-smoke mode:
+- For V3 exec-smoke fixtures (`v3_exec_smoke`), `framec test` can run
+  the execution harness instead of validation:
+  ```bash
+  cargo run -p framec --bin framec -- \
+    test --language python_3 --category v3_exec_smoke --exec-smoke
+
+  cargo run -p framec --bin framec -- \
+    test --language typescript --category v3_exec_smoke --exec-smoke
+
+  cargo run -p framec --bin framec -- \
+    test --language rust --category v3_exec_smoke --exec-smoke
+  ```
+- Semantics:
+  - Py/TS/Rust exec-smoke harnesses compile fixtures with `FRAME_EMIT_EXEC=1`
+    and run the resulting programs, applying the same marker checks as
+    the Python runner (`TRANSITION:`, `FORWARD:PARENT`,
+    `STACK:PUSH`/`STACK:POP`, etc.).
+
+Exec-curated mode:
+- For curated exec categories (`v3_core`, `v3_control_flow`, `v3_systems`,
+  `v3_persistence`), `framec test` can run the curated exec harness:
+  ```bash
+  cargo run -p framec --bin framec -- \
+    test --language python_3 --category v3_core --exec-curated
+
+  cargo run -p framec --bin framec -- \
+    test --language typescript --category v3_core --exec-curated
+
+  cargo run -p framec --bin framec -- \
+    test --language rust --category v3_core --exec-curated
+  ```
+- Semantics:
+  - Uses FRAME_EMIT_EXEC wrappers (for core/control_flow/systems) or the
+    module’s own `main()` for persistence.
+  - Interprets `@run-expect` and `@run-exact` metadata in fixtures to
+    decide pass/fail; fixtures without run expectations are SKIPped but
+    counted as passed (aligned with the Python runner).
+
+Scope (as of v0.86.69):
+- Validation + compare-python:
+  - PRT V3 categories:
+    - `v3_core`, `v3_control_flow`, `v3_systems`,
+      `v3_persistence`, `v3_systems_runtime` for
+      python/typescript/rust.
+- Exec-smoke:
+  - `v3_exec_smoke` for python/typescript/rust.
+- Exec-curated:
+  - `v3_core` for python/typescript/rust (other curated categories are
+    available via `v3_rs_test_runner` and will be folded into `framec test`
+    over time).
 
 Rust-native snapshot shape:
 - Binary: `v3_rs_snapshot_shape` (built with `cargo build -p framec`)

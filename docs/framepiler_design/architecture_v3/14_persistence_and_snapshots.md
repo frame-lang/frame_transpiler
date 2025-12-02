@@ -276,6 +276,25 @@ Practical How-To (Python / TypeScript / Rust)
     system, but the snapshot/restore flow always follows:
     `system → SystemSnapshot → JSON → SystemSnapshot → system`.
 
+Naming convention for generated helpers
+- For systems annotated with `@persist`, V3 adopts a standard naming
+  convention for marshalling helpers on the generated types:
+  - Python:
+    - `TrafficLight.save_to_json(system)` and
+      `TrafficLight.restore_from_json(text)`
+  - TypeScript:
+    - `TrafficLight.saveToJson(system)` and
+      `TrafficLight.restoreFromJson(text)`
+  - Rust:
+    - `impl SnapshotableSystem for TrafficLight` and inherent
+      `TrafficLight::save_to_json(&self)` /
+      `TrafficLight::restore_from_json(&str) -> Self`
+- These helpers are **opt-in** (only for `@persist` systems) and delegate
+  to the language-specific persistence libraries; they are intended to be
+  the canonical marshalling surface for common workflows, while the
+  underlying libraries (`frame_persistence_py`, `frame_persistence_ts`,
+  `frame_persistence_rs`) remain available for advanced/custom encoders.
+
 Integration with Workflows (mandatory)
 - Stage 15 is a **required capability** for production workflows on PRT:
   - The PRT runtimes and codegen must support round-tripping a system through

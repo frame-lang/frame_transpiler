@@ -533,8 +533,9 @@ pub fn run_python_exec_smoke(
 
         let py_path = out_root.join(format!("{stem}__v3.py"));
 
-        // Compile Frame → Python. For core/control_flow/systems we use the
-        // exec wrapper; for persistence we rely on the module's own `main`.
+        // Compile Frame → Python. For core/control_flow/systems and
+        // exec-smoke we use the exec wrapper; for persistence we rely on
+        // the module's own `main`.
         let mut cmd = Command::new(framec_path);
         cmd.arg("compile")
             .arg("-l")
@@ -542,7 +543,11 @@ pub fn run_python_exec_smoke(
             .arg("--emit-debug")
             .arg(&frm_path)
             .current_dir(repo_root);
-        if category == "v3_core" || category == "v3_control_flow" || category == "v3_systems" {
+        if category == "v3_core"
+            || category == "v3_control_flow"
+            || category == "v3_systems"
+            || category == "v3_exec_smoke"
+        {
             cmd.env("FRAME_EMIT_EXEC", "1");
         }
         let compile_output = cmd.output();

@@ -944,49 +944,48 @@ Stage 19 — Rust-First Tooling Migration (Replace Python Harnesses)
           uses `frame_persistence_py`, `frame_persistence_ts`, and
           `frame_persistence_rs` to compare snapshots through the shared
           `SystemSnapshot` shape.
-    - [ ] Runtime-level TrafficLight snapshots: port
+    - [x] Runtime-level TrafficLight snapshots: port
       `tools/test_cross_language_snapshot_traffic_light.py` to a Rust
       binary that:
-        - Compiles and runs the Py/TS/Rust fixtures via the V3 pipeline.
-        - Uses the per-language persistence libraries to compare JSON
-          snapshots at runtime, validating that all PRT runtimes agree on
-          the canonical TrafficLight snapshot without invoking the Python
-          tool as the top-level driver.
-        - Fine-grained steps:
-          - [ ] Define the Rust CLI surface (e.g. `v3_rs_snapshot_traffic_light`)
-                and its inputs (optional `FRAMEC_BIN`, fixture paths, output
-                format).
-          - [ ] Implement per-language runners in Rust that mirror the
-                Python tool’s behavior:
-                - Py: `framec compile -l python_3` + `python3` with an
-                  injected `sys.path`.
-                - TS: `framec compile -l typescript` + `tsc` + `node`
-                  with `NODE_PATH` set so `frame_runtime_ts` /
-                  `frame_persistence_ts` are resolvable.
-                - Rust: `framec compile -l rust` + a small harness that
-                  includes the generated module and uses
-                  `frame_persistence_rs::SystemSnapshot`.
-          - [ ] Normalize and compare the three JSON snapshots in Rust
-                (e.g. via sorted-key `serde_json::Value`) and wire the
-                tool into HOW_TO / Stage 17 docs once stable.
+        - Implemented as `v3_rs_snapshot_traffic_light` under
+          `framec/src/bin/`, which:
+          - Compiles and runs the Py/TS/Rust fixtures via the V3 pipeline.
+          - Uses the per-language persistence libraries to generate JSON
+            snapshots at runtime.
+          - Normalizes and compares the three JSON snapshots in Rust via
+            `serde_json::Value` and exits non-zero on divergence, so all
+            PRT runtimes must agree on the canonical TrafficLight snapshot
+            without invoking the Python tool as the top-level driver.
   - [ ] Test runner consolidation:
-    - [ ] Library extraction:
-      - Refactor the core harness logic from `v3_rs_test_runner` into a
-        small internal module (e.g., `test_harness_lib`) so both
-        `v3_rs_test_runner` and a future `framec test` subcommand can call
-        the same code.
-    - [ ] Minimal `framec test` subcommand (validation-only):
-      - Add a `test` subcommand to the `framec` CLI that accepts
-        `--language` and `--category` filters and delegates to the shared
-        harness library for validation-only runs.
-    - [ ] Compare mode in `framec test`:
-      - Add a `--compare-python` flag that mirrors the `compare` mode in
-        `v3_rs_test_runner`, running both the Rust harness and the Python
-        runner on the same slice and reporting divergences.
-    - [ ] Exec modes in `framec test`:
-      - Add `--exec-smoke` and `--exec-curated` flags as thin wrappers
-        around the existing exec helpers in the harness library, with the
-        same category gating.
+    - [x] Library extraction:
+      - Core harness logic lives in `framec::frame_c::v3::test_harness_rs`
+        (validation, exec-smoke, curated exec helpers), and
+        `v3_rs_test_runner` calls into this module so that future CLI
+        entry points (e.g., `framec test`) can share the same behavior.
+    - [x] Minimal `framec test` subcommand (validation-only):
+      - `framec test` subcommand added to the `framec` CLI with
+        `--language` and `--category` filters, delegating to the shared
+        harness library for validation-only runs (single category at a
+        time), currently exercised for PRT V3 `v3_core` slices.
+    - [x] Compare mode in `framec test`:
+      - `framec test` supports a `--compare-python` flag that mirrors the
+        `compare` mode in `v3_rs_test_runner` for a single slice by
+        running both the Rust harness and the Python runner on the same
+        `<language>/<category>` and reporting divergences; initial usage
+        validated for PRT `v3_core` (python/typescript/rust).
+    - [x] Exec modes in `framec test`:
+      - `framec test` supports `--exec-smoke` and `--exec-curated` flags
+        as thin wrappers around the existing exec helpers in the harness
+        library, with the same category gating as `v3_rs_test_runner`
+        (currently exercised for `v3_exec_smoke` and curated `v3_core`
+        slices across PRT languages).
+    - [x] Validation coverage expansion:
+      - `framec test` + `--compare-python` has been validated for the PRT
+        V3 categories `v3_core`, `v3_control_flow`, `v3_systems`,
+        `v3_persistence`, and `v3_systems_runtime` across
+        python/typescript/rust, and fixtures have been updated with
+        `@expect` where needed so that the Rust harness and Python runner
+        agree on validation outcomes.
     - [ ] Gradual deprecation:
       - Gradually deprecate Python-specific runners for V3-only suites
         once the Rust harness reaches coverage and determinism parity,
@@ -998,6 +997,11 @@ Stage 19 — Rust-First Tooling Migration (Replace Python Harnesses)
     - Update `HOW_TO.md` and `18_rust_native_tooling.md` with guidance on
       using the Rust-first test CLI, and document which Python tools remain
       as reference implementations (e.g., legacy/compat suites).
+  - [ ] Productionalization:
+    - Move bulky repo-local fixtures/runners (e.g.,
+      `framec_tests/python/src/positive_tests/` and adapter protocol smoke
+      assets) into the shared test environment and wire the harnesses to
+      consume them from there.
 
 Rust Runtime Parity (PRT Progress)
 - [x] Basic Rust V3 runtime scaffold:
