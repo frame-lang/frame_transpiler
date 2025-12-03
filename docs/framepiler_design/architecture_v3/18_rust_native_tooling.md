@@ -1,8 +1,9 @@
 # Stage 18 — Rust-Native Test Runner & Tooling Exploration
 
 This document describes the current state of Rust-native V3 tooling, the
-relationship to the existing Python-based tools, and the tradeoffs involved
-in moving more of the test/tooling surface to Rust.
+relationship to the existing Python-based tools, the tradeoffs involved
+in moving more of the test/tooling surface to Rust, and the steps required
+to fully replace the Python runner should we choose to do so.
 
 It is intentionally descriptive rather than prescriptive: the Python runner
 remains the source of truth, and Rust-native tooling is exploratory.
@@ -198,6 +199,55 @@ provided by the Python runner.
     implementation (e.g., simple validators, index comparers) and record
     them in `PLAN.md` as explicit follow-up items, keeping in mind the
     tradeoffs above.
+
+## 4. Expanded plan to replace the Python runner (Stage 18 → Stage 19 bridge)
+
+If we choose to make the Rust harness the primary/authoritative path and
+deprecate the Python runner, we need to execute the following steps:
+
+- **Coverage parity**
+  - Ensure `framec test` covers all PRT V3 categories (v3_prolog,
+    v3_imports, v3_outline, v3_demos, v3_validator, v3_mapping,
+    v3_project, v3_persistence) with the same metadata semantics
+    (`@expect`, `@run-*`, `@tsc-compile`, `@rs-compile`, etc.).
+  - Exec modes: add curated/exec-smoke parity for Python/TypeScript via
+    Rust harness orchestration (`python3`, `tsc`, `node`), matching skips.
+
+- **Toolchain orchestration**
+  - Mirror the Python runner’s toolchain handling in Rust:
+    - Locate/interpolate `tsc`/Node for TS exec/validate.
+    - Locate `python3` (and virtualenv) for Py exec/py_compile when needed.
+    - Handle `rustc` probes for Rust native validations.
+    - Reproduce skip semantics when toolchains are missing.
+
+- **Reporting/diagnostics**
+  - Emit JUnit (or a compatible) report from the Rust harness so CI can
+    consume results identically to the Python runner.
+  - Preserve errors-json/frame-map/visitor-map trailers in compile paths
+    when debug flags are set; ensure the harness surfaces these for tests.
+
+- **CLI surface and defaults**
+  - Make `framec test` the primary entry; keep the Python runner available
+    as a fallback/compat path initially, then deprecate once parity is
+    demonstrated.
+  - Update docs/HOW_TO/PLAN to declare the Rust harness authoritative once
+    parity + CI gating are in place.
+
+- **CI migration**
+  - Add a full CI job running `framec test` across PRT categories (validate
+    + exec modes) and gate PRs on it.
+  - Keep Python runner jobs temporarily as a safety net; remove or demote
+    once the Rust job is stable.
+
+- **Shared env integration**
+  - Wire shared env scripts (adapter smoke, persistence harnesses) to use
+    the Rust harness path where applicable, or document the expected
+    `framec test` usage alongside CLI paths.
+
+- **Deprecation path**
+  - Announce a deprecation window for the Python runner as the primary
+    harness once Rust parity + CI are stable; retain the Python runner for
+    non-PRT or legacy suites as needed.
 
 ## 4. Roadmap to a Rust-First Harness (Exec Parity)
 
