@@ -189,6 +189,9 @@ provided by the Python runner.
   - Consider adding an optional CI job that runs `v3_rs_test_runner` for a
     small, focused subset of categories alongside the Python runner, to
     exercise the Rust tooling without making it mandatory.
+  - Suggested pilot: `framec test --language rust --category v3_core` (and
+    a single python/typescript slice) using the release binary; gate the job
+    to avoid blocking when toolchains are missing.
 
 - **Explore migration candidates**
   - Identify Python tools that could benefit most from a Rust
