@@ -554,6 +554,28 @@ pub fn run_with(args: Cli) {
         }
         CliCommand::CompileProject { language, dir, output_dir, recursive } => {
             let lang = match TargetLanguage::try_from(language) { Ok(l) => l, Err(e) => { eprintln!("Invalid target language: {}", e); std::process::exit(exitcode::USAGE); } };
+            let allowed_targets: std::collections::HashSet<&str> = match lang {
+                TargetLanguage::Python3 => ["python_3", "python"].into_iter().collect(),
+                TargetLanguage::TypeScript => ["typescript", "ts"].into_iter().collect(),
+                TargetLanguage::Rust => ["rust", "rs"].into_iter().collect(),
+                TargetLanguage::CSharp => ["csharp"].into_iter().collect(),
+                TargetLanguage::C => ["c"].into_iter().collect(),
+                TargetLanguage::Cpp => ["cpp", "c++"].into_iter().collect(),
+                TargetLanguage::Java => ["java"].into_iter().collect(),
+                _ => ["python_3"].into_iter().collect(), // default/fallback
+            };
+            fn detect_target(content: &str) -> Option<String> {
+                for line in content.lines() {
+                    let trimmed = line.trim_start();
+                    if trimmed.starts_with("@target") {
+                        let rest = trimmed["@target".len()..].trim();
+                        let token = rest.split_whitespace().next()?;
+                        let clean = token.trim_matches(|c| c == '"' || c == '\'').to_lowercase();
+                        return Some(clean);
+                    }
+                }
+                None
+            }
             // Walk directory, compile module files (@target present), write outputs to output_dir
             fn iter(dir: &std::path::Path, recursive: bool) -> std::io::Result<Vec<std::path::PathBuf>> {
                 let mut out = Vec::new();
@@ -580,9 +602,22 @@ pub fn run_with(args: Cli) {
             let mut had_errors = false;
             let mut errors_count: usize = 0;
             let mut validated_count: usize = 0;
+            let mut missing_target: Vec<std::path::PathBuf> = Vec::new();
+            let mut mismatched_target: Vec<(std::path::PathBuf, String)> = Vec::new();
             for f in files {
                 let Ok(content) = std::fs::read_to_string(&f) else { continue };
-                if !content.contains("@target ") { continue; }
+                let target_decl = detect_target(&content);
+                if target_decl.is_none() {
+                    missing_target.push(f.clone());
+                    had_errors = true;
+                    continue;
+                }
+                let target_decl = target_decl.unwrap();
+                if !allowed_targets.contains(target_decl.as_str()) {
+                    mismatched_target.push((f.clone(), target_decl));
+                    had_errors = true;
+                    continue;
+                }
                 if args.validate || args.validate_only {
                     match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
                         Ok(res) => {
@@ -609,11 +644,24 @@ pub fn run_with(args: Cli) {
                     Err(e) => { eprintln!("{}", e.error); std::process::exit(e.code); }
                 }
             }
+            if !missing_target.is_empty() {
+                for p in &missing_target {
+                    eprintln!("{}: missing @target declaration (compile-project requires explicit @target per module)", p.display());
+                }
+            }
+            if !mismatched_target.is_empty() {
+                for (p, t) in &mismatched_target {
+                    eprintln!("{}: @target '{}' does not match requested project target", p.display(), t);
+                }
+            }
             if args.validate_only {
                 println!("[compile-project] summary: validated={} errors={}", validated_count, errors_count);
                 // Fail if no modules were validated or if any had errors
                 if validated_count == 0 || had_errors { std::process::exit(exitcode::DATAERR); }
                 else { std::process::exit(0); }
+            }
+            if !missing_target.is_empty() || !mismatched_target.is_empty() {
+                std::process::exit(exitcode::DATAERR);
             }
             // Print a simple manifest for now
             println!("Compiled {} module(s)", compiled.len());
