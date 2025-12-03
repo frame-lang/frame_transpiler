@@ -1,0 +1,48 @@
+name: V3 Project Builds
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ going_native, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  compile-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Set up Node.js (TypeScript)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install TypeScript
+        run: npm install -g typescript
+
+      - name: Build framec (release)
+        run: cargo build --release
+
+      - name: Compile project fixtures (Py/TS/Rust)
+        run: |
+          mkdir -p reports
+          python3 framec_tests/runner/frame_test_runner.py \
+            --languages python typescript rust \
+            --categories v3_project \
+            --framec ./target/release/framec \
+            --transpile-only \
+            --validation-format junit \
+            --junit reports/v3_project_junit.xml \
+            -v
