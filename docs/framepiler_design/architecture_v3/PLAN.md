@@ -1063,8 +1063,8 @@ PRT Stages 7–13 Closure Checklist
   - [x] Rust: Same for Rust (`language_specific/rust/v3_project/positive/project_basic`) with a simple multi‑file project; `v3_project` positives/negatives green under `compile-project`.
   - [x] Docs: Make clear that, for PRT, Stage 13 currently covers manifest + project build only (no FID), and that this is “complete for 1–13” once these project fixtures are green. See `architecture_v3_overview.md` (“Project Configuration (frame.toml)” and “Project Layer (Stage 13, PRT)”) for the authoritative description.
   - [ ] Production polish (project layer):
-    - Robust error handling/diagnostics: validate `frame.toml` schema; emit friendly messages for missing entry points, duplicate systems across modules, conflicting `@target` files.
-    - Path resolution hardening: ensure `paths.modules` handles relative/absolute paths safely; add fixtures for multiple source dirs and nested packages.
-    - Multi-target stance: explicitly disallow mixed `@target` files in one project for now; add fixtures/diagnostics to enforce single-target projects (unless a future flag enables multi-target).
-    - CI: add a dedicated `compile-project` job for Py/TS/Rust to catch regressions.
+    - [x] Robust error handling/diagnostics: validate `frame.toml` schema; emit friendly messages for missing entry points, duplicate systems across modules, conflicting `@target` files (compile-project now enforces single-target and reports missing/mismatched targets and dup systems).
+    - [x] Path resolution hardening: ensure `paths.modules` handles relative/absolute paths safely; add fixtures for multiple source dirs (multi-dir v3_project fixtures added).
+    - [x] Multi-target stance: explicitly disallow mixed `@target` files in one project; fixtures/diagnostics enforce single-target projects.
+    - [x] CI: add a dedicated `compile-project` job for Py/TS/Rust to catch regressions.
     - [x] Packaging: define a stable output layout for project builds (runtime copying, build dirs) and document it.
