@@ -618,6 +618,11 @@ pub fn run_with(args: Cli) {
                     had_errors = true;
                     continue;
                 }
+                // Check for duplicate system names across modules (best-effort)
+                if let Some(sys_name) = crate::frame_c::v3::find_system_name(content.as_bytes(), 0) {
+                    let entry = dup_systems.entry(sys_name).or_insert_with(Vec::new);
+                    entry.push(f.clone());
+                }
                 if args.validate || args.validate_only {
                     match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
                         Ok(res) => {
@@ -654,13 +659,21 @@ pub fn run_with(args: Cli) {
                     eprintln!("{}: @target '{}' does not match requested project target", p.display(), t);
                 }
             }
+            for (sys, paths) in &dup_systems {
+                if paths.len() > 1 {
+                    eprintln!("Duplicate system '{}' across modules:", sys);
+                    for p in paths {
+                        eprintln!("  - {}", p.display());
+                    }
+                }
+            }
             if args.validate_only {
                 println!("[compile-project] summary: validated={} errors={}", validated_count, errors_count);
                 // Fail if no modules were validated or if any had errors
                 if validated_count == 0 || had_errors { std::process::exit(exitcode::DATAERR); }
                 else { std::process::exit(0); }
             }
-            if !missing_target.is_empty() || !mismatched_target.is_empty() {
+            if !missing_target.is_empty() || !mismatched_target.is_empty() || dup_systems.values().any(|v| v.len() > 1) {
                 std::process::exit(exitcode::DATAERR);
             }
             // Print a simple manifest for now

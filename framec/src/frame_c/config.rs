@@ -236,7 +236,16 @@ impl FrameConfig {
         let contents =
             fs::read_to_string(path).map_err(|e| format!("Failed to read config file: {}", e))?;
 
-        toml::from_str(&contents).map_err(|e| format!("Failed to parse config file: {}", e))
+        let cfg: FrameConfig =
+            toml::from_str(&contents).map_err(|e| format!("Failed to parse config file: {}", e))?;
+        // Basic validation: require an entry point and at least one module path.
+        if cfg.project.entry.is_none() {
+            return Err("frame.toml is missing [project.entry]".to_string());
+        }
+        if cfg.paths.modules.is_empty() && cfg.build.source_dirs.is_empty() {
+            return Err("frame.toml is missing module paths (paths.modules or build.source_dirs)".to_string());
+        }
+        Ok(cfg)
     }
 
     /// Find and load frame.toml from current directory or parents
