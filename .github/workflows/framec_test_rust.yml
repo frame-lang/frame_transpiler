@@ -38,6 +38,12 @@ jobs:
       - name: Run rust harness (v3_core)
         run: ./target/release/framec test --language rust --category v3_core
 
+      - name: Run rust harness (v3_control_flow)
+        run: ./target/release/framec test --language rust --category v3_control_flow
+
+      - name: Run rust harness (v3_systems)
+        run: ./target/release/framec test --language rust --category v3_systems
+
       - name: Run rust harness compare-python (v3_core)
         run: ./target/release/framec test --language python_3 --category v3_core --compare-python
 
