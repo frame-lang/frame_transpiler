@@ -54,6 +54,7 @@ Stages
   - For PRT languages, Stage 13 currently covers:
     - Manifest‑based projects using `frame.toml` / `.framerc.toml` and
     - Multi‑file builds driven by `framec compile-project` over the configured `source_dirs`/`paths.modules` (see `v3_project` fixtures for Python/TypeScript/Rust).
+    - Output layout (compile-project): generated code is placed under `<out>/build/<lang>/` mirroring the source tree; runtimes (`frame_runtime_py`, `frame_runtime_ts`) are copied once per project under that lang-specific build root.
 
 Project Configuration (frame.toml)
 - V3 supports a TOML-based project manifest used by the CLI and build tooling:
