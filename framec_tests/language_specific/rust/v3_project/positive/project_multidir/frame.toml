@@ -1,0 +1,8 @@
+name = "v3_project_multidir_rs"
+version = "0.1.0"
+
+[project]
+entry = "src/main.frm"
+
+[paths]
+modules = ["src", "lib"]
