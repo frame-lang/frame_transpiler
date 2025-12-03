@@ -44,6 +44,9 @@ jobs:
       - name: Run rust harness (v3_systems)
         run: ./target/release/framec test --language rust --category v3_systems
 
+      - name: Run rust harness exec-smoke (v3_exec_smoke)
+        run: ./target/release/framec test --language rust --category v3_exec_smoke --exec-smoke
+
       - name: Run rust harness compare-python (v3_core)
         run: ./target/release/framec test --language python_3 --category v3_core --compare-python
 
