@@ -50,7 +50,7 @@ Stages
   - `ValidatorV3` rules: terminal‑last; no Frame statements in actions/ops; per‑language native policies.
  
 - 13 Project Layer (Reserved)
-  - Reserved for future project‑level features (e.g., richer manifest‑driven builds). The earlier FID/cache experiment has been removed from V3; there is no FID‑based behavior in the current compiler.
+  - Reserved for future project‑level features (e.g., richer manifest‑driven builds). The earlier cache/FID experiment has been removed from V3; there is no FID‑based behavior in the current compiler.
   - For PRT languages, Stage 13 currently covers:
     - Manifest‑based projects using `frame.toml` / `.framerc.toml` and
     - Multi‑file builds driven by `framec compile-project` over the configured `source_dirs`/`paths.modules` (see `v3_project` fixtures for Python/TypeScript/Rust).

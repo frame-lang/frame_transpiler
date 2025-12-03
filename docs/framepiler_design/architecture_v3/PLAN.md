@@ -40,7 +40,7 @@ Goal
 Scope (MVP → Plus)
 - MVP: Stages 01–06 (closers, streaming scanners, Frame Statement parser, MIR assembly, expansion, splice/mapping), per‑file TS/Py. Validation rules enforced. No native parse facades in the critical path.
 - Plus: Stage 07 (optional native parse facades for diagnostics/formatting), Stage 08 polish, Stage 09 policies.
-- Project Layer: Stage 13 is reserved and currently has no active design beyond basic project manifests and `framec project build`.
+- Project Layer: Stage 13 is reserved and currently has no active design beyond basic project manifests and `framec project build` (no FID/cache layer).
 - Self‑Hosting Infra: Stage 14 — Python Indent Normalizer Machine is the first self‑hosting milestone (see below).
 - Persistence: Stage 15 — Persistence & Snapshots is **mandatory** for PRT (Py/TS/Rust) workflows and defines the per-language snapshot libraries and schema.
 
@@ -1062,3 +1062,9 @@ PRT Stages 7–13 Closure Checklist
   - [x] TypeScript: Same for TS (`language_specific/typescript/v3_project/positive/project_basic`) using `compile-project`; `v3_project` positives/negatives green.
   - [x] Rust: Same for Rust (`language_specific/rust/v3_project/positive/project_basic`) with a simple multi‑file project; `v3_project` positives/negatives green under `compile-project`.
   - [x] Docs: Make clear that, for PRT, Stage 13 currently covers manifest + project build only (no FID), and that this is “complete for 1–13” once these project fixtures are green. See `architecture_v3_overview.md` (“Project Configuration (frame.toml)” and “Project Layer (Stage 13, PRT)”) for the authoritative description.
+  - [ ] Production polish (project layer):
+    - Robust error handling/diagnostics: validate `frame.toml` schema; emit friendly messages for missing entry points, duplicate systems across modules, conflicting `@target` files.
+    - Path resolution hardening: ensure `paths.modules` handles relative/absolute paths safely; add fixtures for multiple source dirs and nested packages.
+    - Multi-target stance: explicitly disallow mixed `@target` files in one project for now; add fixtures/diagnostics to enforce single-target projects (unless a future flag enables multi-target).
+    - CI: add a dedicated `compile-project` job for Py/TS/Rust to catch regressions.
+    - Packaging: define a stable output layout for project builds (runtime copying, build dirs) and document it.
