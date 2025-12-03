@@ -198,6 +198,16 @@ python3 framec_tests/runner/frame_test_runner.py --no-validate --languages pytho
 
 # TypeScript target
 ./target/release/framec -l typescript path/to/test.frm
+```
+
+### Project Builds (manifest-driven)
+
+- `framec compile-project -l <lang> -o <out_dir> [--recursive]`: compile all `@target` modules under a directory (or `paths.modules` from `frame.toml`) into a stable layout under `<out_dir>/build/<lang>/...`, mirroring the source tree. Python/TypeScript runtimes are copied once per project into the lang-specific build root.
+- `framec project -l <lang> -o <out_dir>`: wrapper that locates `frame.toml` (or `.framerc.toml`) in the cwd/parents and delegates to `compile-project` using the configured module/source paths. Falls back to the current directory when no manifest is found.
+- Project requirements:
+  - `frame.toml` must specify `[project.entry]`.
+  - `paths.modules` or `build.source_dirs` must exist; missing paths fail fast with clear errors.
+  - Single-target projects only: all modules must declare `@target` matching the requested target; mixed targets error.
 
 ### Rust-Based V3 Test Harness (`framec test`, Stage 18/19)
 

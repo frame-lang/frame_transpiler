@@ -1067,4 +1067,4 @@ PRT Stages 7–13 Closure Checklist
     - Path resolution hardening: ensure `paths.modules` handles relative/absolute paths safely; add fixtures for multiple source dirs and nested packages.
     - Multi-target stance: explicitly disallow mixed `@target` files in one project for now; add fixtures/diagnostics to enforce single-target projects (unless a future flag enables multi-target).
     - CI: add a dedicated `compile-project` job for Py/TS/Rust to catch regressions.
-    - Packaging: define a stable output layout for project builds (runtime copying, build dirs) and document it.
+    - [x] Packaging: define a stable output layout for project builds (runtime copying, build dirs) and document it.
