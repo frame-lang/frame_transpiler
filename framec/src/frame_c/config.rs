@@ -245,6 +245,14 @@ impl FrameConfig {
         if cfg.paths.modules.is_empty() && cfg.build.source_dirs.is_empty() {
             return Err("frame.toml is missing module paths (paths.modules or build.source_dirs)".to_string());
         }
+        // Validate that configured module/source paths exist (relative to config dir).
+        let cfg_dir = path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
+        for p in cfg.paths.modules.iter().chain(cfg.build.source_dirs.iter()) {
+            let abs = cfg_dir.join(p);
+            if !abs.exists() {
+                return Err(format!("frame.toml path does not exist: {}", abs.display()));
+            }
+        }
         Ok(cfg)
     }
 

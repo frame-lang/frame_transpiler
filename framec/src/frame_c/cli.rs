@@ -597,7 +597,8 @@ pub fn run_with(args: Cli) {
                 std::env::set_var("FRAME_MAP_TRAILER", "1");
                 std::env::set_var("FRAME_DEBUG_MANIFEST", "1");
             }
-            if let Err(e) = std::fs::create_dir_all(&output_dir) { eprintln!("cannot create output dir: {}", e); std::process::exit(exitcode::IOERR); }
+            let output_root = output_dir.join("build");
+            if let Err(e) = std::fs::create_dir_all(&output_root) { eprintln!("cannot create output dir: {}", e); std::process::exit(exitcode::IOERR); }
             let mut compiled: Vec<String> = Vec::new();
             let mut had_errors = false;
             let mut errors_count: usize = 0;
@@ -642,7 +643,25 @@ pub fn run_with(args: Cli) {
                     Ok(code) => {
                         let ext = match lang { TargetLanguage::Python3 => ".py", TargetLanguage::TypeScript => ".ts", TargetLanguage::CSharp => ".cs", TargetLanguage::C => ".c", TargetLanguage::Cpp => ".cpp", TargetLanguage::Java => ".java", TargetLanguage::Rust => ".rs", _ => ".txt" };
                         let stem = f.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
-                        let outp = output_dir.join(format!("{}{}", stem, ext));
+                        let lang_dir = match lang {
+                            TargetLanguage::Python3 => "python",
+                            TargetLanguage::TypeScript => "typescript",
+                            TargetLanguage::CSharp => "csharp",
+                            TargetLanguage::C => "c",
+                            TargetLanguage::Cpp => "cpp",
+                            TargetLanguage::Java => "java",
+                            TargetLanguage::Rust => "rust",
+                            _ => "out",
+                        };
+                        let rel = f.strip_prefix(&dir).unwrap_or(&f);
+                        let mut outp = output_root.join(lang_dir).join(rel);
+                        outp.set_extension(ext.trim_start_matches('.'));
+                        if let Some(parent) = outp.parent() {
+                            if let Err(e) = std::fs::create_dir_all(parent) {
+                                eprintln!("cannot create output dir: {}", e);
+                                std::process::exit(exitcode::IOERR);
+                            }
+                        }
                         if let Err(e) = std::fs::write(&outp, code) { eprintln!("write error: {}", e); std::process::exit(exitcode::IOERR); }
                         compiled.push(outp.display().to_string());
                     }
@@ -682,6 +701,7 @@ pub fn run_with(args: Cli) {
             // For Python projects, copy frame_runtime_py once to the output directory root
             if matches!(lang, TargetLanguage::Python3) {
                 if let Some(outdir) = args.output_dir.as_ref() {
+                    let outdir = outdir.join("build").join("python");
                     let env_override = std::env::var("FRAME_RUNTIME_PY_DIR").ok().map(std::path::PathBuf::from);
                     let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()));
                     let repo_guess = exe_dir.as_ref()
