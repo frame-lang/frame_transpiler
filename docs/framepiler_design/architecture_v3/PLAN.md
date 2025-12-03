@@ -1,7 +1,7 @@
 # V3 Execution Plan — First Principles Rebuild
 
 ## Todo Next
-
+``
 - [x] PRT Stages 7–13 Closure Checklist  
   Complete the remaining Stage 7–13 work for the PRT languages (Python,
   TypeScript, Rust): apply native validation (Stage 7) to all Frame-owned
@@ -838,6 +838,12 @@ Stage 17 — Cross‑Language Snapshot Semantics (PRT)
             that mirrors the Python/TypeScript fixtures (same states,
             parameters, and domain). This is
             `traffic_light_snapshot_dump.frm`.
+      - [x] Wiring Rust @persist helpers: V3 Rust codegen now threads system
+            parameters into generated constructors (annotated system headers
+            are detected even with leading `@persist`) and seeds start params
+            into `state_args`; persistence helpers (`save_to_json` /
+            `restore_from_json`) remain on the system struct via
+            `SnapshotableSystem`.
       - [x] Implementing a minimal Rust harness that:
             - includes the generated Rust module for `TrafficLight`,
             - drives it to the `Green` state with `domain = "red"`, and
