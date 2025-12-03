@@ -1,0 +1,47 @@
+name: Rust Harness Pilot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ going_native, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  rust-harness-pilot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Set up Node.js (TypeScript)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install TypeScript
+        run: npm install -g typescript
+
+      - name: Build framec (release)
+        run: cargo build --release
+
+      - name: Run rust harness (v3_core)
+        run: ./target/release/framec test --language rust --category v3_core
+
+      - name: Run rust harness compare-python (v3_core)
+        run: ./target/release/framec test --language python_3 --category v3_core --compare-python
+
+      - name: Run rust harness compare-typescript (v3_core)
+        run: ./target/release/framec test --language typescript --category v3_core --compare-python
+        env:
+          FRAME_TS_PATH: node_modules/typescript/bin/tsc
