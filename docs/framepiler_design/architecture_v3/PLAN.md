@@ -1004,6 +1004,10 @@ Stage 19 — Rust-First Tooling Migration (Replace Python Harnesses)
     - Update `HOW_TO.md` and `18_rust_native_tooling.md` with guidance on
       using the Rust-first test CLI, and document which Python tools remain
       as reference implementations (e.g., legacy/compat suites).
+  - [ ] Cross-language test parity (PRT fixtures):
+    - Add async/await fixtures for TypeScript and Rust (interface/actions/operations/functions) mirroring Python async support; keep Python-only legacy async separate.
+    - Add Rust persistence/data_types breadth to match Python/TS counts.
+    - Ensure operators/scoping/systems_runtime are aligned across Py/TS/Rust (fixtures added where applicable; keep truly language-specific cases segregated).
   - [ ] Productionalization:
     - Move bulky repo-local fixtures/runners (e.g.,
       `framec_tests/python/src/positive_tests/` and adapter protocol smoke
