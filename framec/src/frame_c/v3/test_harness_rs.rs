@@ -12,6 +12,21 @@ pub struct TestSummary {
     pub failed: usize,
 }
 
+impl TestSummary {
+    pub fn total(&self) -> usize {
+        self.passed + self.failed
+    }
+    pub fn junit(&self) -> String {
+        format!(
+            "<testsuite name=\"{}-{}\" tests=\"{}\" failures=\"{}\" skipped=\"0\"></testsuite>",
+            self.language,
+            self.category,
+            self.total(),
+            self.failed
+        )
+    }
+}
+
 /// Run validation-only tests for a single `<language>/<category>` pair.
 ///
 /// This is the library entrypoint used by the `v3_rs_test_runner` binary and
