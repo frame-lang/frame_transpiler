@@ -1,3 +1,4 @@
+@target typescript
 {
-    const s = `unterminated ${1+2`;
+    const t = `unterminated ${1 + 2}
 }

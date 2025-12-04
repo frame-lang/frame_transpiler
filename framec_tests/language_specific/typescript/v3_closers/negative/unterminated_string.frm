@@ -1,4 +1,4 @@
+@target typescript
 {
-    const s = "no close;
+    const s = "unterminated;
 }
-
