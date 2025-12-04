@@ -888,7 +888,7 @@ Stage 18 — Rust-Native Test Runner & Tooling Exploration (Future Work)
         follow-up task to explore migrating more Python-based test tooling
         and helpers to Rust-only equivalents once Stage 18 prototypes have
         matured. See `18_rust_native_tooling.md` for details.
-      - [ ] Rust test parity (PRT): port missing language_specific fixtures to Rust so counts match Py/TS (operators, scoping, systems_runtime, legacy_async, and the smaller persistence/data_types sets); add fixtures and wire into the runner.
+      - [ ] Rust test parity (PRT): port missing language_specific fixtures to Rust so counts match Py/TS, keeping truly language-specific cases segregated (e.g., legacy_async/py-runtime quirks stay under python-only; add Rust equivalents where semantics apply such as operators/scoping/systems_runtime/persistence/data_types); wire new fixtures into the runner.
 - [ ] Longer-term roadmap for a Rust-first harness with full exec parity:
       - Phase 1 — Validation parity:
         - Generalize `v3_rs_test_runner` into a small Rust library + bin that
