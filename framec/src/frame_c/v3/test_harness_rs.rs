@@ -539,6 +539,25 @@ pub fn run_rust_exec_smoke_with_filter(
     category: &str,
     metadata_filter: Option<&str>,
 ) -> Result<TestSummary, String> {
+    // Use default test config for backwards compatibility
+    let config = TestConfig::default();
+    run_rust_exec_smoke_with_config(
+        repo_root,
+        framec_path,
+        category,
+        metadata_filter,
+        &config,
+    )
+}
+
+/// Execute Rust V3 exec-smoke fixtures with full configuration
+pub fn run_rust_exec_smoke_with_config(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+    metadata_filter: Option<&str>,
+    config: &TestConfig,
+) -> Result<TestSummary, String> {
     let language = "rust";
     let tests_root = repo_root
         .join("framec_tests")

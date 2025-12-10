@@ -377,11 +377,12 @@ pub fn run_with(args: Cli) {
             // Exec-smoke mode
             if exec_smoke {
                 let summary = match harness_lang.as_str() {
-                    "rust" => crate::frame_c::v3::test_harness_rs::run_rust_exec_smoke_with_filter(
+                    "rust" => crate::frame_c::v3::test_harness_rs::run_rust_exec_smoke_with_config(
                         &repo_root,
                         &framec_path,
                         &category,
                         metadata_filter.as_deref(),
+                        &test_config,
                     ),
                     "python" => crate::frame_c::v3::test_harness_rs::run_python_exec_smoke_with_config(
                         &repo_root,
