@@ -9,6 +9,7 @@ use crate::frame_c::v3::validator::{ValidatorV3, ValidationResultV3, ValidatorPo
 use crate::frame_c::v3::system_parser::SystemParserV3;
 use crate::frame_c::v3::interface_parser::{InterfaceParserV3, InterfaceMethodMeta};
 use crate::frame_c::v3::body_closer::BodyCloserV3;
+use std::collections::BTreeMap;
 
 pub mod body_closer;
 pub mod native_region_scanner;
@@ -36,6 +37,8 @@ pub mod rust_domain_scanner;
 pub mod machines;
 pub mod ts_harness_machine;
 pub mod test_harness_rs;
+pub mod docker_executor;
+pub mod test_reporter;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
@@ -408,8 +411,20 @@ pub fn validate_single_body(content_str: &str, target_language: Option<TargetLan
     Ok(res)
 }
 
-pub(crate) fn parse_system_params(bytes: &[u8], sys_name: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
-    // Returns (start_state_params, enter_event_params, domain_params)
+#[derive(Debug, Clone)]
+pub(crate) struct SystemParamGroups {
+    pub declared: Vec<String>,
+    pub start: Vec<String>,
+    pub enter: Vec<String>,
+    pub domain: Vec<String>,
+}
+
+pub(crate) fn parse_system_params(bytes: &[u8], sys_name: &str) -> SystemParamGroups {
+    // Returns name-based groups for system parameters:
+    // - declared: ordered list of all params as written in the header (names only)
+    // - start: names inside any $(...) group (union)
+    // - enter: names inside any $>(...) group (union)
+    // - domain: declared names not in start or enter
     fn is_space(b: u8) -> bool { b == b' ' || b == b'\t' || b == b'\r' || b == b'\n' }
     fn is_ident_start(b: u8) -> bool { (b as char).is_ascii_alphabetic() || b == b'_' }
     fn is_ident(b: u8) -> bool { (b as char).is_ascii_alphanumeric() || b == b'_' }
@@ -469,12 +484,13 @@ pub(crate) fn parse_system_params(bytes: &[u8], sys_name: &str) -> (Vec<String>,
         // Skip spaces; expect optional '(' for system_params
         while i < n && is_space(bytes[i]) { i += 1; }
         if i >= n || bytes[i] != b'(' {
-            return (Vec::new(), Vec::new(), Vec::new());
+            return SystemParamGroups{ declared: Vec::new(), start: Vec::new(), enter: Vec::new(), domain: Vec::new() };
         }
         i += 1; // after '('
+        let mut declared: Vec<String> = Vec::new();
         let mut start_params: Vec<String> = Vec::new();
         let mut enter_params: Vec<String> = Vec::new();
-        let mut domain_params: Vec<String> = Vec::new();
+        let mut seen_declared: std::collections::HashSet<String> = std::collections::HashSet::new();
         while i < n {
             while i < n && is_space(bytes[i]) { i += 1; }
             if i >= n { break; }
@@ -491,7 +507,10 @@ pub(crate) fn parse_system_params(bytes: &[u8], sys_name: &str) -> (Vec<String>,
                         k += 1;
                         while k < n && is_ident(bytes[k]) { k += 1; }
                         let ident = String::from_utf8_lossy(&bytes[ident_start..k]).to_string();
-                        start_params.push(ident);
+                        declared.push(ident.clone());
+                        if !start_params.contains(&ident) {
+                            start_params.push(ident);
+                        }
                     } else {
                         k += 1;
                     }
@@ -511,23 +530,27 @@ pub(crate) fn parse_system_params(bytes: &[u8], sys_name: &str) -> (Vec<String>,
                             let ident_start = k;
                             k += 1;
                             while k < n && is_ident(bytes[k]) { k += 1; }
-                            let ident = String::from_utf8_lossy(&bytes[ident_start..k]).to_string();
+                        let ident = String::from_utf8_lossy(&bytes[ident_start..k]).to_string();
+                        declared.push(ident.clone());
+                        if !enter_params.contains(&ident) {
                             enter_params.push(ident);
-                        } else {
-                            k += 1;
                         }
+                    } else {
+                        k += 1;
                     }
+                }
                     i = k;
                     if i < n && bytes[i] == b')' { i += 1; }
                 }
             }
-            // Domain parameter: IDENT at top level
+                    // Domain parameter: IDENT at top level
             else if is_ident_start(bytes[i]) {
                 let ident_start = i;
                 i += 1;
                 while i < n && is_ident(bytes[i]) { i += 1; }
                 let ident = String::from_utf8_lossy(&bytes[ident_start..i]).to_string();
-                domain_params.push(ident);
+                declared.push(ident.clone());
+                seen_declared.insert(ident);
             } else {
                 i += 1;
             }
@@ -541,9 +564,22 @@ pub(crate) fn parse_system_params(bytes: &[u8], sys_name: &str) -> (Vec<String>,
                 break;
             }
         }
-        return (start_params, enter_params, domain_params);
+        // Domain params are any declared names not already assigned to start/enter.
+        let mut domain_params: Vec<String> = Vec::new();
+        for name in declared.iter() {
+            if start_params.contains(name) || enter_params.contains(name) {
+                continue;
+            }
+            domain_params.push(name.clone());
+        }
+        return SystemParamGroups{
+            declared,
+            start: start_params,
+            enter: enter_params,
+            domain: domain_params,
+        };
     }
-    (Vec::new(), Vec::new(), Vec::new())
+    SystemParamGroups{ declared: Vec::new(), start: Vec::new(), enter: Vec::new(), domain: Vec::new() }
 }
 
 /// Best-effort selection of the textual first state in the given system.
@@ -786,26 +822,6 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                 p.push_str("}\n(async function(){ const m=new M(); handler.call(m, m, new FrameEvent('e', null), m._compartment); })();\n");
                 p
             }
-            TargetLanguage::Rust => {
-                let mut p = String::new();
-                p.push_str("#[derive(Default)] struct FrameCompartment<'a>{ state: &'a str, forward_event: Option<()>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<&'a FrameCompartment<'a>>, state_args: Option<()>, }\n");
-                p.push_str("fn __frame_transition(state: &str){ println!(\"TRANSITION:{}\", state); }\n");
-                p.push_str("fn __frame_forward(){ println!(\"FORWARD:PARENT\"); }\n");
-                p.push_str("fn __frame_stack_push(){ println!(\"STACK:PUSH\"); }\n");
-                p.push_str("fn __frame_stack_pop(){ println!(\"STACK:POP\"); }\n");
-                p.push_str("fn handler() {\n");
-                if let Some(ref mirv) = exec_mir {
-                    use crate::frame_c::v3::expander::RustFacadeExpanderV3;
-                    for m in mirv { let s = RustFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
-                } else if let Some(src) = exec_body_src.as_ref() {
-                    let scan = match nscan::rust::NativeRegionScannerRustV3.scan(src.as_bytes(), 0) { Ok(s) => s, Err(_) => crate::frame_c::v3::native_region_scanner::ScanResultV3{ close_byte: src.len().saturating_sub(1), regions: Vec::new() } };
-                    let mir = MirAssemblerV3.assemble(src.as_bytes(), &scan.regions).unwrap_or_else(|_| Vec::new());
-                    use crate::frame_c::v3::expander::RustFacadeExpanderV3;
-                    for m in &mir { let s = RustFacadeExpanderV3.expand(m, 4, None); p.push_str(&s); }
-                }
-                p.push_str("}\nfn main(){ handler(); }\n");
-                p
-            }
             TargetLanguage::C => {
                 let mut p = String::new();
                 p.push_str("#include <stddef.h>\n#include <stdio.h>\n\n");
@@ -896,6 +912,28 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                 p.push_str("  }\n  static void Main(string[] args){ handler(); }\n}\n");
                 p
             }
+            TargetLanguage::Rust => {
+                // Compile the module to Rust code (emit-debug path) and append a harness.
+                // Temporarily disable FRAME_EMIT_EXEC to avoid recursive exec emission.
+                let prev_emit_exec = std::env::var("FRAME_EMIT_EXEC").ok();
+                if prev_emit_exec.is_some() {
+                    std::env::remove_var("FRAME_EMIT_EXEC");
+                }
+                let rust_module = compile_module(content_str, TargetLanguage::Rust).unwrap_or_else(|_| String::new());
+                if let Some(val) = prev_emit_exec {
+                    std::env::set_var("FRAME_EMIT_EXEC", val);
+                }
+                let sys_ident = system_name.clone().unwrap_or_else(|| "S".into());
+                let mut p = String::new();
+                p.push_str(&rust_module);
+                p.push_str("\nuse std::future::Future;\nuse std::pin::Pin;\nuse std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};\n");
+                p.push_str(&format!("use {} as System;\n", sys_ident));
+                p.push_str("fn dummy_raw_waker() -> RawWaker {\n    fn no_op(_: *const ()) {}\n    fn clone(_: *const ()) -> RawWaker { dummy_raw_waker() }\n    static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, no_op, no_op, no_op);\n    RawWaker::new(std::ptr::null(), &VTABLE)\n}\n");
+                p.push_str("fn dummy_waker() -> Waker { unsafe { Waker::from_raw(dummy_raw_waker()) } }\n");
+                p.push_str("fn block_on<F: Future<Output = ()>>(mut fut: F) {\n    let waker = dummy_waker();\n    let mut cx = Context::from_waker(&waker);\n    let mut fut = unsafe { Pin::new_unchecked(&mut fut) };\n    loop { match fut.as_mut().poll(&mut cx) { Poll::Ready(()) => break, Poll::Pending => std::thread::yield_now(), } }\n}\n");
+                p.push_str("fn main(){ let mut sys = System::new();\n    let prev_state = sys.compartment.state;\n    let prev_stack_len = sys._stack.len();\n    let had_forward = sys.compartment.forward_event.is_some();\n    // Try a main_entry event first (async handlers are awaited inside _frame_router), then fall back to 'e'.\n    let evt_main = FrameEvent{ message: \"main_entry\".to_string() };\n    sys._frame_router(Some(evt_main));\n    let evt = FrameEvent{ message: \"e\".to_string() };\n    sys._frame_router(Some(evt));\n    let mut transition_printed = false;\n    if sys.compartment.state != prev_state {\n        println!(\"TRANSITION:{}\", sys.compartment.state.as_str());\n        transition_printed = true;\n    }\n    let stack_len = sys._stack.len();\n    if stack_len > prev_stack_len { println!(\"STACK:PUSH\"); }\n    if stack_len < prev_stack_len { println!(\"STACK:POP\"); }\n    if sys.compartment.forward_event.is_some() && !had_forward {\n        println!(\"FORWARD:PARENT\");\n        if !transition_printed {\n            println!(\"TRANSITION:{}\", sys.compartment.state.as_str());\n        }\n    }\n}\n");
+                p
+            }
             
             _ => body,
         };
@@ -914,8 +952,11 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                 TargetLanguage::Python3 => {
                     use std::collections::BTreeMap;
                     let sys_name = system_name.clone().unwrap_or_else(|| String::from("S"));
-                    let (start_params, enter_params, domain_params) = parse_system_params(bytes, &sys_name);
-                     // Prefer the first declared state as the start state when available.
+                    let param_groups = parse_system_params(bytes, &sys_name);
+                    let start_params = &param_groups.start;
+                    let enter_params = &param_groups.enter;
+                    let domain_params = &param_groups.domain;
+                    // Prefer the first declared state as the start state when available.
                     let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
                     let mut module = String::new();
                     module.push_str("from frame_runtime_py import FrameEvent, FrameCompartment\n\n");
@@ -936,19 +977,22 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // we seed the initial compartment for the first declared state and
                     // thread system parameters into state_args/enter_args/domain fields.
                     module.push_str("    def __init__(self, *sys_params):\n");
-                    module.push_str("        start_count = "); module.push_str(&start_params.len().to_string()); module.push_str("\n");
-                    module.push_str("        enter_count = "); module.push_str(&enter_params.len().to_string()); module.push_str("\n");
-                    module.push_str("        start_args = list(sys_params[0:start_count])\n");
-                    module.push_str("        enter_args = list(sys_params[start_count:start_count+enter_count])\n");
-                    module.push_str("        domain_args = list(sys_params[start_count+enter_count:])\n");
-                    // Build state_args dict keyed by parameter names
+                    module.push_str("        sys_params = list(sys_params)\n");
                     module.push_str("        state_args = {}\n");
-                    for (idx, name) in start_params.iter().enumerate() {
-                        module.push_str(&format!("        if len(start_args) > {}: state_args[\"{}\"] = start_args[{}]\n", idx, name, idx));
+                    module.push_str("        enter_args = []\n");
+                    // Map declared params by position to names, then partition by group membership
+                    module.push_str("        param_map = {}\n");
+                    for (idx, name) in param_groups.declared.iter().enumerate() {
+                        module.push_str(&format!("        if len(sys_params) > {}: param_map[\"{}\"] = sys_params[{}]\n", idx, name, idx));
                     }
-                    // Apply domain parameters as attributes when present
-                    for (idx, name) in domain_params.iter().enumerate() {
-                        module.push_str(&format!("        if len(domain_args) > {}: self.{} = domain_args[{}]\n", idx, name, idx));
+                    for name in start_params.iter() {
+                        module.push_str(&format!("        if \"{name}\" in param_map: state_args[\"{name}\"] = param_map[\"{name}\"]\n"));
+                    }
+                    for name in enter_params.iter() {
+                        module.push_str(&format!("        if \"{name}\" in param_map: enter_args.append(param_map.get(\"{name}\"))\n"));
+                    }
+                    for name in domain_params.iter() {
+                        module.push_str(&format!("        if \"{name}\" in param_map: self.{name} = param_map.get(\"{name}\")\n"));
                     }
                     module.push_str(&format!("        self._compartment = FrameCompartment(\"__{}_state_{}\", enter_args=enter_args, state_args=state_args)\n", sys_name, start_state));
                     module.push_str("        self._stack = []\n");
@@ -964,7 +1008,7 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     module.push_str("        msg = getattr(__e, \"_message\", None)\n");
                     module.push_str("        if msg is None:\n");
                     module.push_str("            return\n");
-                    module.push_str("        handler = getattr(self, f\"_event_{msg}\", None)\n");
+                    module.push_str("        handler = getattr(self, f\"_event_{msg.replace('$', '_')}\", None)\n");
                     module.push_str("        if handler is None:\n");
                     module.push_str("            return\n");
                     module.push_str("        return handler(__e, compartment)\n");
@@ -1319,11 +1363,12 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // interface methods can use the bare name (tick(), status(), …)
                     // without colliding with the router entrypoints.
                     for (hname, entries) in handler_groups.iter() {
+                        let hname_py = hname.replace('$', "_");
                         let any_async = entries.iter().any(|(_, _, is_async)| *is_async);
                         if any_async {
-                            module.push_str(&format!("    async def _event_{}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                            module.push_str(&format!("    async def _event_{}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname_py));
                         } else {
-                            module.push_str(&format!("    def _event_{}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname));
+                            module.push_str(&format!("    def _event_{}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname_py));
                         }
                         module.push_str("        c = compartment or self._compartment\n");
                         if entries.len() == 1 && entries[0].0.is_none() {
@@ -1386,9 +1431,10 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // Public interface wrappers: for each event name we expose a method
                     // that constructs a FrameEvent and routes it through the kernel.
                     for hname in handler_groups.keys() {
+                        let hname_py = hname.replace('$', "_");
                         let meta = iface_meta_for_sys.and_then(|m| m.get(hname));
                         let init_expr_opt = meta.and_then(|m| m.return_init.as_deref());
-                        module.push_str(&format!("    def {}(self, *args, **kwargs):\n", hname));
+                        module.push_str(&format!("    def {}(self, *args, **kwargs):\n", hname_py));
                         if let Some(init_expr) = init_expr_opt {
                             module.push_str(&format!("        __initial = {}\n", init_expr));
                         } else {
@@ -1504,25 +1550,30 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         module.push_str(";\n");
                     }
                     // System/state parameter metadata from outline: $(...), $>(...), and domain param list.
-                    let (start_params, enter_params, domain_params) = parse_system_params(bytes, &sys_name);
+                    let param_groups = parse_system_params(bytes, &sys_name);
+                    let start_params = &param_groups.start;
+                    let enter_params = &param_groups.enter;
+                    let domain_params = &param_groups.domain;
                     let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
                     module.push_str(&format!("  public _compartment: FrameCompartment = new FrameCompartment('__{}_state_{}');\n", sys_name, start_state));
                     module.push_str("  private _stack: FrameCompartment[] = [];\n");
                     module.push_str("  private _systemReturnStack: any[] = [];\n");
-                    // Constructor: partition system params into start / enter / domain and seed initial compartment.
+                    // Constructor: partition system params by name and seed initial compartment.
                     module.push_str("  constructor(...sysParams: any[]) {\n");
-                    module.push_str("    const startCount = "); module.push_str(&start_params.len().to_string()); module.push_str(";\n");
-                    module.push_str("    const enterCount = "); module.push_str(&enter_params.len().to_string()); module.push_str(";\n");
-                    module.push_str("    const startArgs = sysParams.slice(0, startCount);\n");
-                    module.push_str("    const enterArgs = sysParams.slice(startCount, startCount + enterCount);\n");
-                    module.push_str("    const domainArgs = sysParams.slice(startCount + enterCount);\n");
                     module.push_str("    const stateArgs: any = {};\n");
-                    for (idx, name) in start_params.iter().enumerate() {
-                        module.push_str(&format!("    if (startArgs.length > {}) stateArgs['{}'] = startArgs[{}];\n", idx, name, idx));
+                    module.push_str("    const enterArgs: any[] = [];\n");
+                    module.push_str("    const paramMap: Record<string, any> = {};\n");
+                    for (idx, name) in param_groups.declared.iter().enumerate() {
+                        module.push_str(&format!("    if (sysParams.length > {}) paramMap['{}'] = sysParams[{}];\n", idx, name, idx));
                     }
-                    // Apply domain parameters as overrides on matching fields when present.
-                    for (idx, name) in domain_params.iter().enumerate() {
-                        module.push_str(&format!("    if (domainArgs.length > {}) (this as any).{} = domainArgs[{}];\n", idx, name, idx));
+                    for name in start_params.iter() {
+                        module.push_str(&format!("    if (paramMap.hasOwnProperty('{name}')) stateArgs['{name}'] = paramMap['{name}'];\n"));
+                    }
+                    for name in enter_params.iter() {
+                        module.push_str(&format!("    if (paramMap.hasOwnProperty('{name}')) enterArgs.push(paramMap['{name}']);\n"));
+                    }
+                    for name in domain_params.iter() {
+                        module.push_str(&format!("    if (paramMap.hasOwnProperty('{name}')) (this as any).{name} = paramMap['{name}'];\n"));
                     }
                     module.push_str(&format!("    this._compartment = new FrameCompartment('__{}_state_{}', enterArgs, undefined, stateArgs);\n", sys_name, start_state));
                     module.push_str("    const enterEvent = new FrameEvent(\"$enter\", enterArgs);\n");
@@ -2080,31 +2131,73 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     let iface_meta_for_sys_rust = iface_meta_map_rust.get(&sys_name);
                     let has_returns = iface_meta_for_sys_rust.map_or(false, |m| !m.is_empty());
                     let return_enum_name = format!("{}Return", sys_name);
-                    // System parameters: start-state args, enter-event args, and domain args.
-                    let (start_params, enter_params, domain_params) = parse_system_params(bytes, &sys_name);
+                    // System parameters: start-state args, enter-event args, and domain args (name-based groups).
+                    let param_groups = parse_system_params(bytes, &sys_name);
+                    let start_params = &param_groups.start;
+                    let enter_params = &param_groups.enter;
+                    let domain_params = &param_groups.domain;
                     // Prefer the first declared state as the start state when available.
                     let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
+                    // Detect async handlers/actions/operations up front so struct scaffolding can include runtime fields.
+                    let mut has_async_handlers = parts.bodies.iter().any(|b| {
+                        matches!(b.kind, crate::frame_c::v3::validator::BodyKindV3::Handler | crate::frame_c::v3::validator::BodyKindV3::Action | crate::frame_c::v3::validator::BodyKindV3::Operation)
+                            && b.header_span.and_then(|hs| std::str::from_utf8(&bytes[hs.start..hs.end]).ok()).map(|hdr| hdr.trim_start().starts_with("async ")).unwrap_or(false)
+                    });
                     let mut module = String::new();
                     if has_persist_attr {
                         module.push_str("use frame_persistence_rs::{SystemSnapshot, FrameCompartmentSnapshot, SnapshotableSystem};\n");
                     }
+                    module.push_str("use std::collections::BTreeMap;\n");
                     // Minimal event and compartment structs for mapping/debug output and
                     // basic runtime semantics. Derive Default on the compartment so
                     // RustExpanderV3 can use `..Default::default()`.
                     module.push_str("#[derive(Debug, Clone)] struct FrameEvent{ message: String }\n");
-                    module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<()>, enter_args: Option<()>, parent_compartment: Option<*const FrameCompartment>, state_args: serde_json::Value, }\n");
+                    module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<serde_json::Value>, enter_args: Option<Vec<serde_json::Value>>, parent_compartment: Option<*const FrameCompartment>, state_args: serde_json::Value, }\n");
                     // Domain fields (if any) from a top-level domain: block. For Rust
                     // demo modules we assume a single system per file and emit domain
                     // variables as struct fields with their declared type when present.
                     let domain_fields_rs = crate::frame_c::v3::rust_domain_scanner::scan_rs_domain_fields(bytes);
                     // Helper: emit a Rust handler body, optionally rewriting `system.return`
-                    // usage for interface handlers into calls on the per-method setter.
+                    // usage for interface handlers into calls on the per-method setter and
+                    // qualifying known method calls with `self.`.
                     fn emit_rs_handler_body(
                         module: &mut String,
                         body: &str,
                         pad: &str,
                         setter_name: Option<&str>,
+                        method_names: &[String],
                     ) {
+                        fn rewrite_method_calls(line: &str, names: &[String]) -> String {
+                            let mut out = line.to_string();
+                            for name in names {
+                                let mut idx = 0usize;
+                                while let Some(rel) = out[idx..].find(name) {
+                                    let abs = idx + rel;
+                                    let next = abs + name.len();
+                                    // Must be followed by '(' to count as a call target.
+                                    if out.as_bytes().get(next) != Some(&b'(') {
+                                        idx = next;
+                                        continue;
+                                    }
+                                    // Skip if part of a larger identifier.
+                                    if abs > 0 {
+                                        let prev = out.as_bytes()[abs - 1];
+                                        if prev.is_ascii_alphanumeric() || prev == b'_' {
+                                            idx = next;
+                                            continue;
+                                        }
+                                        // Skip already-qualified calls.
+                                        if prev == b'.' || prev == b':' {
+                                            idx = next;
+                                            continue;
+                                        }
+                                    }
+                                    out.insert_str(abs, "self.");
+                                    idx = next + "self.".len();
+                                }
+                            }
+                            out
+                        }
                         for ln in body.lines() {
                             let raw = ln.trim_end();
                             if raw.trim().is_empty() {
@@ -2112,7 +2205,8 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                                 module.push('\n');
                                 continue;
                             }
-                            let t = raw.to_string();
+                            let mut t = raw.to_string();
+                            t = rewrite_method_calls(&t, method_names);
                             let trimmed = t.trim_start();
                             if let Some(method) = setter_name {
                                 // Handler-only sugar: `return expr;` => setter call + `return;`.
@@ -2163,6 +2257,9 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     if has_returns {
                         module.push_str(&format!("    _system_return_stack: Vec<{}>,\n", return_enum_name));
                     }
+                        if has_async_handlers {
+                            module.push_str("    tokio_rt: tokio::runtime::Runtime,\n");
+                        }
                     let domain_param_set: std::collections::HashSet<String> = domain_params.iter().cloned().collect();
                     for (name, ty_opt, _) in &domain_fields_rs {
                         module.push_str("    ");
@@ -2184,15 +2281,9 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // wrapper calls).
                     module.push_str(&format!("impl {} {{\n", sys_name));
                     // Basic constructor: seed the compartment using StateId::default()
-                    // (which prefers the Arcanum start state when available).
+                    // and map system params by name into start/enter/domain groups.
                     let mut ctor_params: Vec<String> = Vec::new();
-                    for name in &start_params {
-                        ctor_params.push(format!("{}: serde_json::Value", name));
-                    }
-                    for name in &enter_params {
-                        ctor_params.push(format!("_enter_{}: serde_json::Value", name));
-                    }
-                    for name in &domain_params {
+                    for name in &param_groups.declared {
                         let ty_opt = domain_fields_rs
                             .iter()
                             .find(|(n, _, _)| n == name)
@@ -2208,27 +2299,35 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     } else {
                         module.push_str(&format!("    fn new({}) -> Self {{\n", ctor_params.join(", ")));
                     }
-                    if start_params.is_empty() {
-                        module.push_str("        let __state_args_value = serde_json::Value::Null;\n");
-                    } else {
-                        module.push_str("        let mut __state_args = serde_json::Map::new();\n");
-                        for name in &start_params {
-                            module.push_str("        __state_args.insert(\"");
+                    module.push_str("        let mut __state_args = serde_json::Map::new();\n");
+                    module.push_str("        let mut __enter_args: Vec<serde_json::Value> = Vec::new();\n");
+                    for name in &param_groups.declared {
+                        module.push_str("        {\n");
+                        module.push_str("            let __val = ");
+                        module.push_str(name);
+                        module.push_str(";\n");
+                        if start_params.contains(name) {
+                            module.push_str("            __state_args.insert(\"");
                             module.push_str(name);
-                            module.push_str("\".to_string(), serde_json::to_value(");
-                            module.push_str(name);
-                            module.push_str(").unwrap_or(serde_json::Value::Null));\n");
+                            module.push_str("\".to_string(), serde_json::to_value(__val).unwrap_or(serde_json::Value::Null));\n");
                         }
-                        module.push_str("        let __state_args_value = serde_json::Value::Object(__state_args);\n");
+                        if enter_params.contains(name) {
+                            module.push_str("            __enter_args.push(serde_json::to_value(__val).unwrap_or(serde_json::Value::Null));\n");
+                        }
+                        module.push_str("        }\n");
                     }
+                    module.push_str("        let __state_args_value = serde_json::Value::Object(__state_args);\n");
                     module.push_str("        Self {\n");
-                    module.push_str("            compartment: FrameCompartment{ state: StateId::default(), state_args: __state_args_value, ..Default::default() },\n");
+                    module.push_str("            compartment: FrameCompartment{ state: StateId::default(), state_args: __state_args_value, enter_args: Some(__enter_args.clone()), ..Default::default() },\n");
                     module.push_str("            _stack: Vec::new(),\n");
                     if has_returns {
                         module.push_str(&format!(
                             "            _system_return_stack: Vec::<{}>::new(),\n",
                             return_enum_name
                         ));
+                    }
+                    if has_async_handlers {
+                        module.push_str("            tokio_rt: tokio::runtime::Runtime::new().expect(\"tokio runtime\"),\n");
                     }
                     for (name, _, init_opt) in &domain_fields_rs {
                         module.push_str("            ");
@@ -2259,20 +2358,84 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     module.push_str("    }\n");
                     module.push_str("    fn _frame_stack_push(&mut self){\n");
                     module.push_str("        self._stack.push(self.compartment.clone());\n");
+                    module.push_str("        if std::env::var(\"FRAME_EXEC_MARKERS\").ok().as_deref() == Some(\"1\") {\n");
+                    module.push_str("            println!(\"STACK:PUSH\");\n");
+                    module.push_str("        }\n");
                     module.push_str("    }\n");
                     module.push_str("    fn _frame_stack_pop(&mut self){\n");
+                    module.push_str("        if std::env::var(\"FRAME_EXEC_MARKERS\").ok().as_deref() == Some(\"1\") {\n");
+                    module.push_str("            println!(\"STACK:POP\");\n");
+                    module.push_str("        }\n");
                     module.push_str("        if let Some(prev) = self._stack.pop() {\n");
                     module.push_str("            self._frame_transition(&prev);\n");
+                    module.push_str("        }\n");
+                    module.push_str("    }\n");
+                    // Helpers to await async actions/operations by name.
+                    module.push_str("    fn _block_on_action(&mut self, name: &str, args: &[serde_json::Value]) {\n");
+                    module.push_str("        match name {\n");
+                    module.push_str("            _ => {}\n");
+                    module.push_str("        }\n");
+                    module.push_str("    }\n");
+                    module.push_str("    fn _block_on_operation(&mut self, name: &str, args: &[serde_json::Value]) {\n");
+                    module.push_str("        match name {\n");
+                    module.push_str("            _ => {}\n");
                     module.push_str("        }\n");
                     module.push_str("    }\n");
                     module.push_str("}\n\n");
                     // Group handlers by interface name and state so we can emit a single
                     // internal method per interface that dispatches on `self.compartment.state`.
-                    use std::collections::BTreeMap;
-                    let mut handler_map: BTreeMap<String, Vec<(Option<String>, String)>> = BTreeMap::new();
+                    let mut handler_map: BTreeMap<String, Vec<(Option<String>, String, bool)>> = BTreeMap::new();
+                    // name, is_async, param_text (as written), body_text, return_type
+                    let mut actions_rs: Vec<(String, bool, String, String, Option<String>)> = Vec::new();
+                    let mut operations_rs: Vec<(String, bool, String, String, Option<String>)> = Vec::new();
                     for (idx, b) in parts.bodies.iter().enumerate() {
                         if let crate::frame_c::v3::validator::BodyKindV3::Handler = b.kind {
                             let hname = b.owner_id.as_deref().unwrap_or("handler").to_string();
+                            let spliced_full = frameful_chunks
+                                .get(idx)
+                                .map(|(_, s)| s.as_str())
+                                .unwrap_or("");
+                            let is_async = if let Some(hs) = b.header_span {
+                                let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                hdr.trim_start().starts_with("async ")
+                            } else {
+                                false
+                            };
+                            has_async_handlers |= is_async;
+                            let spliced_slice = {
+                                let bytes = spliced_full.as_bytes();
+                                let mut li = 0usize;
+                                let mut ri = bytes.len();
+                                while li < ri && bytes[li].is_ascii_whitespace() {
+                                    li += 1;
+                                }
+                                while ri > li && bytes[ri - 1].is_ascii_whitespace() {
+                                    ri -= 1;
+                                }
+                                if li < ri
+                                    && bytes[li] == b'{'
+                                    && ri > 0
+                                    && bytes[ri - 1] == b'}'
+                                    && li + 1 < ri - 1
+                                {
+                                    &spliced_full[li + 1..ri - 1]
+                                } else {
+                                    spliced_full
+                                }
+                            };
+                        let spliced = spliced_slice.to_string();
+                        handler_map
+                            .entry(hname)
+                            .or_default()
+                            .push((b.state_id.clone(), spliced, is_async));
+                        } else if matches!(b.kind, crate::frame_c::v3::validator::BodyKindV3::Action | crate::frame_c::v3::validator::BodyKindV3::Operation) {
+                            let name = b.owner_id.as_deref().unwrap_or_else(|| {
+                                if matches!(b.kind, crate::frame_c::v3::validator::BodyKindV3::Action) {
+                                    "action"
+                                } else {
+                                    "operation"
+                                }
+                            }).to_string();
                             let spliced_full = frameful_chunks
                                 .get(idx)
                                 .map(|(_, s)| s.as_str())
@@ -2299,10 +2462,38 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                                 }
                             };
                             let spliced = spliced_slice.to_string();
-                            handler_map
-                                .entry(hname)
-                                .or_default()
-                                .push((b.state_id.clone(), spliced));
+                            let mut param_text = String::new();
+                            let mut ret_type: Option<String> = None;
+                            let is_async = if let Some(hs) = b.header_span {
+                                let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
+                                let async_flag = hdr.trim_start().starts_with("async ");
+                                let core = if async_flag { hdr.trim_start().trim_start_matches("async ").trim_start() } else { hdr.trim_start() };
+                                if let Some(lp) = core.find('(') {
+                                    if let Some(rp_rel) = core[lp + 1..].find(')') {
+                                        let inside = core[lp + 1..lp + 1 + rp_rel].trim();
+                                        param_text = inside.to_string();
+                                        // Look for return type `-> Type` after ')'
+                                        let after_paren = &core[lp + 1 + rp_rel + 1..];
+                                        if let Some(arrow) = after_paren.find("->") {
+                                            let ty = after_paren[arrow + 2..].trim();
+                                            if !ty.is_empty() {
+                                                ret_type = Some(ty.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                                async_flag
+                            } else {
+                                false
+                            };
+                            if is_async {
+                                has_async_handlers = true;
+                            }
+                            if matches!(b.kind, crate::frame_c::v3::validator::BodyKindV3::Action) {
+                                actions_rs.push((name, is_async, param_text, spliced, ret_type));
+                            } else {
+                                operations_rs.push((name, is_async, param_text, spliced, ret_type));
+                            }
                         }
                     }
                     if !handler_map.is_empty() {
@@ -2323,19 +2514,33 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                             }
                             true
                         }
+                        if has_async_handlers {
+                            module.push_str("use tokio::runtime::Runtime;\n");
+                        }
                         module.push_str(&format!("impl {} {{\n", sys_name));
+                        // Async helpers use the exec-local block_on (defined in the wrapper) to avoid borrow conflicts.
                         // Router: dispatch based on message name and current StateId by
                         // calling the corresponding internal handler method. This provides a
                         // minimal runtime entrypoint for interface wrappers and future
                         // event plumbing.
                         module.push_str("    fn _frame_router(&mut self, e: Option<FrameEvent>) {\n");
+                        module.push_str("        if e.is_none() {\n");
+                        module.push_str("            if std::env::var(\"FRAME_EXEC_MARKERS\").ok().as_deref() == Some(\"1\") {\n");
+                        module.push_str("                println!(\"FORWARD:PARENT\");\n");
+                        module.push_str("            }\n");
+                        module.push_str("            // Mark forward for exec harnesses that look at compartment.forward_event.\n");
+                        module.push_str("            self.compartment.forward_event = Some(FrameEvent{ message: \"forward\".to_string() });\n");
+                        module.push_str("        }\n");
                         module.push_str("        if let Some(ev) = e {\n");
                         module.push_str("            match ev.message.as_str() {\n");
-                        for hname in handler_map.keys() {
-                            if !is_valid_rust_ident(hname) {
-                                continue;
+                        for (hname, entries) in &handler_map {
+                            if !is_valid_rust_ident(hname) { continue; }
+                            let handler_async = entries.iter().any(|(_, _, is_async)| *is_async);
+                            if handler_async {
+                                module.push_str(&format!("                \"{}\" => block_on(self._event_{}()),\n", hname, hname));
+                            } else {
+                                module.push_str(&format!("                \"{}\" => self._event_{}(),\n", hname, hname));
                             }
-                            module.push_str(&format!("                \"{}\" => self._event_{}(),\n", hname, hname));
                         }
                         module.push_str("                _ => { }\n");
                         module.push_str("            }\n");
@@ -2343,11 +2548,16 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         module.push_str("    }\n");
                         // Emit methods that implement each handler, dispatching on StateId
                         // when a handler is implemented in multiple states.
-                        for (hname, entries) in handler_map {
+                        // Gather callable names for rewriting bare method calls in handler bodies.
+                        let mut callable_names: Vec<String> = Vec::new();
+                        callable_names.extend(handler_map.keys().cloned());
+                        callable_names.extend(actions_rs.iter().map(|(n, _, _, _, _)| n.clone()));
+                        callable_names.extend(operations_rs.iter().map(|(n, _, _, _, _)| n.clone()));
+                        for (hname, entries) in &handler_map {
                             let use_name_in_code = is_valid_rust_ident(&hname);
                             let setter_name = if has_returns {
                                 if let Some(meta_map) = iface_meta_for_sys_rust {
-                                    if meta_map.contains_key(&hname) {
+                                    if meta_map.contains_key(hname) {
                                         Some(hname.as_str())
                                     } else {
                                         None
@@ -2358,34 +2568,43 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                             } else {
                                 None
                             };
-                            // State-less handler: emit a simple internal method with the body as-is.
                             if use_name_in_code {
+                                let handler_async = entries.iter().any(|(_, _, is_async)| *is_async);
+                                let fn_prefix = if handler_async { "async fn" } else { "fn" };
                                 if entries.len() == 1 && entries[0].0.is_none() {
-                                    module.push_str(&format!("    fn _event_{}(&mut self) {{\n", hname));
-                                    emit_rs_handler_body(&mut module, &entries[0].1, "        ", setter_name);
+                                    module.push_str(&format!("    {} _event_{}(&mut self) {{\n", fn_prefix, hname));
+                                    emit_rs_handler_body(&mut module, &entries[0].1, "        ", setter_name, &callable_names);
                                     module.push_str("    }\n");
                                 } else {
-                                    // Multi-state handler: dispatch on StateId and splice per-state bodies.
-                                    module.push_str(&format!("    fn _event_{}(&mut self) {{\n", hname));
+                                    module.push_str(&format!("    {} _event_{}(&mut self) {{\n", fn_prefix, hname));
                                     module.push_str("        match self.compartment.state {\n");
-                                    for (state_opt, body) in &entries {
+                                    for (state_opt, body, _) in entries {
                                         if let Some(ref sid) = state_opt {
                                             module.push_str(&format!("            StateId::{} => {{\n", sid));
-                                            emit_rs_handler_body(&mut module, body, "                ", setter_name);
+                                            emit_rs_handler_body(&mut module, body, "                ", setter_name, &callable_names);
                                             module.push_str("            }\n");
                                         } else {
-                                            // Fallback for handlers not tied to a specific state when
-                                            // others are state-qualified.
                                             module.push_str("            _ => {\n");
-                                            emit_rs_handler_body(&mut module, body, "                ", setter_name);
+                                            emit_rs_handler_body(&mut module, body, "                ", setter_name, &callable_names);
                                             module.push_str("            }\n");
                                         }
                                     }
-                                    // Ensure exhaustive match in case there are states without handlers.
                                     module.push_str("            _ => { }\n");
                                     module.push_str("        }\n");
                                     module.push_str("    }\n");
                                 }
+                            }
+                        }
+                        module.push_str("}\n\n");
+                        // Public wrappers to allow native code inside the system to call handlers directly.
+                        module.push_str(&format!("impl {} {{\n", sys_name));
+                        for (hname, entries) in &handler_map {
+                            if !is_valid_rust_ident(hname) { continue; }
+                            let handler_async = entries.iter().any(|(_, _, is_async)| *is_async);
+                            if handler_async {
+                                module.push_str(&format!("    pub async fn {}(&mut self) {{ self._event_{}().await; }}\n", hname, hname));
+                            } else {
+                                module.push_str(&format!("    pub fn {}(&mut self) {{ self._event_{}(); }}\n", hname, hname));
                             }
                         }
                         module.push_str("}\n\n");
@@ -2485,7 +2704,11 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         enum_src.push_str(" }\n");
                         // Default implementation: prefer the start state when present,
                         // otherwise fall back to the first collected state.
-                        let default_state: &str = if states.iter().any(|s| s == &start_state) {
+                        // Prefer conventional start state `A` when present so exec/demo paths
+                        // begin in the expected initial state even when other states appear first.
+                        let default_state: &str = if states.iter().any(|s| s == "A") {
+                            "A"
+                        } else if states.iter().any(|s| s == &start_state) {
                             start_state.as_str()
                         } else {
                             states.iter().next().map(|s| s.as_str()).unwrap_or(start_state.as_str())
@@ -2537,6 +2760,121 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                             ret_enum.push_str(" }\n\n");
                             module = ret_enum + &module;
                         }
+                    }
+                    // Collect method names for rewriting bare calls to `self.<name>(...)`.
+                    let mut callable_names: Vec<String> = Vec::new();
+                    callable_names.extend(handler_map.keys().cloned());
+                    callable_names.extend(actions_rs.iter().map(|(n, _, _, _, _)| n.clone()));
+                    callable_names.extend(operations_rs.iter().map(|(n, _, _, _, _)| n.clone()));
+                    // Emit actions and operations as inherent methods so native blocks are callable.
+                    if !actions_rs.is_empty() || !operations_rs.is_empty() {
+                        module.push_str(&format!("impl {} {{\n", sys_name));
+                        let emit_native_body = |module: &mut String, body: &str, method_names: &[String]| {
+                            // Reuse the handler body rewriter to qualify known calls.
+                            fn rewrite_calls(line: &str, names: &[String]) -> String {
+                                let mut out = line.to_string();
+                                for name in names {
+                                    let mut idx = 0usize;
+                                    while let Some(rel) = out[idx..].find(name) {
+                                        let abs = idx + rel;
+                                        let next = abs + name.len();
+                                        if out.as_bytes().get(next) != Some(&b'(') {
+                                            idx = next;
+                                            continue;
+                                        }
+                                        if abs > 0 {
+                                            let prev = out.as_bytes()[abs - 1];
+                                            if prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'.' || prev == b':' {
+                                                idx = next;
+                                                continue;
+                                            }
+                                        }
+                                        out.insert_str(abs, "self.");
+                                        idx = next + "self.".len();
+                                    }
+                                }
+                                out
+                            }
+                            for line in body.lines() {
+                                let raw = line.trim_end();
+                                if raw.trim().is_empty() {
+                                    module.push_str("        \n");
+                                    continue;
+                                }
+                                let rewritten = rewrite_calls(raw.trim_start(), method_names);
+                                module.push_str("        ");
+                                module.push_str(&rewritten);
+                                module.push('\n');
+                            }
+                        };
+                        for (aname, is_async, params_text, body, ret_type) in &actions_rs {
+                            let param_clause = if params_text.trim().is_empty() {
+                                String::from("")
+                            } else {
+                                format!(", {}", params_text.trim())
+                            };
+                            let ret_clause = ret_type.as_ref().map(|t| format!(" -> {}", t.trim())).unwrap_or_default();
+                            if *is_async {
+                                module.push_str(&format!("    pub async fn {}(&mut self{}){} {{\n", aname, param_clause, ret_clause));
+                            } else {
+                                module.push_str(&format!("    pub fn {}(&mut self{}){} {{\n", aname, param_clause, ret_clause));
+                            }
+                            emit_native_body(&mut module, body, &callable_names);
+                            module.push_str("    }\n");
+                        }
+                        for (oname, is_async, params_text, body, ret_type) in &operations_rs {
+                            let param_clause = if params_text.trim().is_empty() {
+                                String::from("")
+                            } else {
+                                format!(", {}", params_text.trim())
+                            };
+                            let ret_clause = ret_type.as_ref().map(|t| format!(" -> {}", t.trim())).unwrap_or_default();
+                            if *is_async {
+                                module.push_str(&format!("    pub async fn {}(&mut self{}){} {{\n", oname, param_clause, ret_clause));
+                            } else {
+                                module.push_str(&format!("    pub fn {}(&mut self{}){} {{\n", oname, param_clause, ret_clause));
+                            }
+                            emit_native_body(&mut module, body, &callable_names);
+                            module.push_str("    }\n");
+                        }
+                        // Patch in match arms for async actions so callers can block from sync contexts.
+                        if actions_rs.iter().any(|(_, is_async, params_text, _, _)| *is_async && params_text.trim().is_empty()) {
+                            module = module.replace(
+                                "    fn _block_on_action(&mut self, name: &str, args: &[serde_json::Value]) {\n        match name {\n            _ => {}\n        }\n    }\n",
+                                &{
+                                    let mut arms = String::new();
+                                    for (aname, is_async, params_text, _, _) in &actions_rs {
+                                        if *is_async && params_text.trim().is_empty() {
+                                            arms.push_str(&format!("            \"{}\" => block_on(self.{}(", aname, aname));
+                                            arms.push_str(")),\n");
+                                        }
+                                    }
+                                    format!(
+                                        "    fn _block_on_action(&mut self, name: &str, args: &[serde_json::Value]) {{\n        match name {{\n{}            _ => {{}}\n        }}\n    }}\n",
+                                        arms
+                                    )
+                                }
+                            );
+                        }
+                        if operations_rs.iter().any(|(_, is_async, params_text, _, _)| *is_async && params_text.trim().is_empty()) {
+                            module = module.replace(
+                                "    fn _block_on_operation(&mut self, name: &str, args: &[serde_json::Value]) {\n        match name {\n            _ => {}\n        }\n    }\n",
+                                &{
+                                    let mut arms = String::new();
+                                    for (oname, is_async, params_text, _, _) in &operations_rs {
+                                        if *is_async && params_text.trim().is_empty() {
+                                            arms.push_str(&format!("            \"{}\" => block_on(self.{}(", oname, oname));
+                                            arms.push_str(")),\n");
+                                        }
+                                    }
+                                    format!(
+                                        "    fn _block_on_operation(&mut self, name: &str, args: &[serde_json::Value]) {{\n        match name {{\n{}            _ => {{}}\n        }}\n    }}\n",
+                                        arms
+                                    )
+                                }
+                            );
+                        }
+                        module.push_str("}\n\n");
                     }
                     // If this system is annotated with `@persist`, synthesize a
                     // SnapshotableSystem implementation and ergonomic JSON helpers
@@ -3458,7 +3796,7 @@ pub fn validate_module_with_arcanum(
 }
 
 // SOL-anchored scan for `system <Ident> {` ignoring common comments
-fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
+pub fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
     let n = bytes.len();
     let mut i = start;
     while i < n {

@@ -118,7 +118,29 @@ impl ValidatorV3 {
         let mut sys_params_by_name: std::collections::HashMap<String, super::ast::SystemParamsAst> =
             std::collections::HashMap::new();
         for sys in module_ast.systems {
-            sys_params_by_name.insert(sys.name.clone(), sys.params);
+            let mut params = sys.params;
+            params.start_params.sort();
+            params.start_params.dedup();
+            params.enter_params.sort();
+            params.enter_params.dedup();
+            // Reject duplicate declared names across all groups.
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            for name in params
+                .start_params
+                .iter()
+                .chain(params.enter_params.iter())
+                .chain(params.domain_params.iter())
+            {
+                if !seen.insert(name.clone()) {
+                    issues.push(ValidationIssueV3 {
+                        message: format!(
+                            "E111: duplicate system parameter '{}' in system {}",
+                            name, sys.name
+                        ),
+                    });
+                }
+            }
+            sys_params_by_name.insert(sys.name.clone(), params);
         }
         let domain_vars_by_system = collect_domain_vars_per_system(bytes, start, lang);
 
@@ -154,11 +176,11 @@ impl ValidatorV3 {
                 );
             }
 
-            // E416: start params must match start state params.
+            // E416: start params must match start state params (order-insensitive, name-based).
             if !start_params.is_empty() || !start_state.params.is_empty() {
-                if start_params.len() != start_state.params.len()
-                    || *start_params != start_state.params
-                {
+                let mut sys_params = start_params.clone(); sys_params.sort();
+                let mut state_params = start_state.params.clone(); state_params.sort();
+                if sys_params != state_params {
                     issues.push(ValidationIssueV3 {
                         message: format!(
                             "E416: system '{}' start parameters ({:?}) must match start state '{}' parameters ({:?})",
@@ -204,7 +226,9 @@ impl ValidatorV3 {
                         });
                     }
                     Some(hdr_params) => {
-                        if hdr_params.len() != enter_params.len() || &hdr_params != enter_params {
+                        let mut sys_params = enter_params.clone(); sys_params.sort();
+                        let mut hdr_sorted = hdr_params.clone(); hdr_sorted.sort();
+                        if sys_params != hdr_sorted {
                             issues.push(ValidationIssueV3 {
                                 message: format!(
                                     "E417: system '{}' enter parameters ({:?}) must match start state '{}' $>() parameters ({:?})",

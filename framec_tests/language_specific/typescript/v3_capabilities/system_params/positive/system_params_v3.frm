@@ -3,6 +3,7 @@
 # V3 capability: system parameters ($(start), $>(enter), domain) for TypeScript.
 # Positive: names align with start state, $>() handler, and domain variable.
 # Compile/validate-only (no main).
+# @core
 
 system SystemParamsDemoTs($(color), $>(enterColor), domain) {
     interface:

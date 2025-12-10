@@ -46,6 +46,19 @@ enter_event_param
               ::= '$>' '(' param_list? ')'
 domain_param  ::= IDENT                 // domain object injected at construction time
 
+// Param grouping semantics:
+// - The header may contain multiple $(...) and $>(...) groups in any order.
+// - Group membership is name-based: any declared identifier that appears in
+//   a $(...) belongs to the start-state param set; any that appears in a
+//   $>(...) belongs to the enter-event param set. Remaining declared params
+//   are domain params.
+// - A declared name may appear in both start and enter sets; it will seed both
+//   state_args and enter_args. Duplicate mentions within the same set are
+//   ignored after de-duplication. Declared names must be unique; unknown names
+//   in a group are an error.
+// - State headers never repeat $(...); they declare state params directly
+//   (e.g., `$A(x, y)`), and mapping uses the name-based sets above.
+
 native_item  ::= /* any target‑language construct not recognized as Frame; ignored by Frame grammar */
 ```
 

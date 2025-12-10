@@ -1,4 +1,5 @@
 @target typescript
+// @core
 // @run-expect: Red
 // @run-expect: Green
 // @run-expect: Yellow

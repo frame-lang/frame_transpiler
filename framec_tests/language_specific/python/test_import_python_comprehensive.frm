@@ -19,44 +19,42 @@ from os.path import join, exists
 # Wildcard imports
 from typing import *
 
-fn test_simple_imports() {
+def test_simple_imports():
     print("=== Testing Simple Imports ===")
-    # Using math module (simplified for now)
-    pi = 3.14159
-    sqrt_result = 4.0
+    pi = math.pi
+    sqrt_result = math.sqrt(16)
     print("math.pi: " + str(pi))
     print("math.sqrt(16): " + str(sqrt_result))
-    
-    # Using json module (simplified for now)
-    data = "{\"key\": \"value\"}"
+    data = json.dumps({"key": "value"})
     print("json.dumps(): " + data)
-}
 
-fn test_aliased_imports() {
+def test_aliased_imports():
     print("=== Testing Aliased Imports ===")
-    # Using datetime with alias (simplified)
-    now = "2025-09-06"
+    now = dt.now().strftime("%Y-%m-%d")
     print("Current date: " + now)
-    
-    # Using random with alias (simplified)
-    random_num = 7
+    random_num = rand.randint(1, 10)
     print("Random number (1-10): " + str(random_num))
-}
 
-fn test_from_imports() {
+def test_from_imports():
     print("=== Testing From Imports ===")
-    # Using defaultdict (simplified)
-    dd = "defaultdict"
-    print("Created defaultdict")
-    
-    # Using Counter (simplified)
-    counter = "Counter"
-    print("Created Counter")
-    
-    # Using os.path functions (simplified)
-    path = "/usr/local"
-    print("Joined path: " + path)
-}
+    dd = defaultdict(int)
+    dd["k"] += 1
+    print("Created defaultdict: " + str(dd))
+    counter = Counter([1, 1, 2])
+    print("Created Counter: " + str(counter))
+    joined = join('/usr', 'local')
+    print("Joined path: " + joined)
+
+def main():
+    test_simple_imports()
+    test_aliased_imports()
+    test_from_imports()
+
+if __name__ == '__main__':
+    main()
+
+if __name__ == '__main__':
+    main()
 
 fn test_wildcard_imports() {
     print("=== Testing Wildcard Imports ===")

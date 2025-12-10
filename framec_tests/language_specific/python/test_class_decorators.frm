@@ -60,7 +60,9 @@ system PyDecorAll {
         }
 }
 
-fn main() {
+def main():
     s = PyDecorAll()
     s._action_run()
-}
+
+if __name__ == '__main__':
+    main()

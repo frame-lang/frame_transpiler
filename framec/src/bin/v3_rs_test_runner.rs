@@ -126,7 +126,7 @@ fn discover_v3_categories(root: &Path, language: &str) -> Vec<String> {
     let candidates: &[&str] = match language {
         "python" => &["v3_core", "v3_control_flow", "v3_systems", "v3_persistence", "v3_systems_runtime"],
         "typescript" => &["v3_core", "v3_control_flow", "v3_systems", "v3_persistence"],
-        "rust" => &["v3_core", "v3_control_flow"],
+        "rust" => &["v3_core", "v3_control_flow", "v3_systems", "v3_async"],
         _ => &[],
     };
 
@@ -223,11 +223,11 @@ fn run_exec_curated_mode(args: &[String]) {
         .to_path_buf();
 
     let categories: Vec<&str> = match (language.as_str(), category.as_str()) {
-        ("rust", "all_curated") => vec!["v3_core", "v3_control_flow", "v3_systems"],
-        ("rust", "v3_core") | ("rust", "v3_control_flow") | ("rust", "v3_systems") => vec![category],
+        ("rust", "all_curated") => vec!["v3_core", "v3_control_flow", "v3_systems", "v3_async"],
+        ("rust", "v3_core") | ("rust", "v3_control_flow") | ("rust", "v3_systems") | ("rust", "v3_async") => vec![category],
         ("rust", other) => {
             eprintln!(
-                "exec-curated rust currently supports categories: v3_core, v3_control_flow, v3_systems (got: {})",
+                "exec-curated rust currently supports categories: v3_core, v3_control_flow, v3_systems, v3_async (got: {})",
                 other
             );
             std::process::exit(1);

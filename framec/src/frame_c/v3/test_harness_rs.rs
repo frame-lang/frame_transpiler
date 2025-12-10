@@ -3,6 +3,48 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+
+/// Comprehensive test metadata matching Python runner capabilities
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct TestMetadata {
+    /// Expected error codes for negative tests
+    pub expect: Vec<String>,
+    /// Mode for error code matching: "equal" or "superset"
+    pub expect_mode: Option<String>,
+    /// Test description/metadata
+    pub meta: Vec<String>,
+    /// Conditions for skipping test
+    pub skip_if: Vec<String>,
+    /// Expected patterns in execution output
+    pub run_expect: Vec<String>,
+    /// Exact execution output expected
+    pub run_exact: Vec<String>,
+    /// Expected patterns in compilation output
+    pub compile_expect: Vec<String>,
+    /// Working directory for test execution
+    pub cwd: Option<String>,
+    /// Marker that execution should succeed
+    pub exec_ok: bool,
+    /// Test is known to be flaky
+    pub flaky: bool,
+    /// Test is core functionality
+    pub core: bool,
+    /// Test is non-core functionality
+    pub noncore: bool,
+    /// Import call validations
+    pub import_calls: Vec<String>,
+    /// Golden frame map file
+    pub frame_map_golden: Option<String>,
+    /// Golden visitor map file
+    pub visitor_map_golden: Option<String>,
+    /// Python-specific compilation check
+    pub py_compile: bool,
+    /// TypeScript-specific compilation check
+    pub tsc_compile: bool,
+    /// Rust-specific compilation check
+    pub rs_compile: bool,
+}
 
 /// Summary of a single category run under the Rust V3 test harness.
 pub struct TestSummary {
@@ -10,21 +52,79 @@ pub struct TestSummary {
     pub category: String,
     pub passed: usize,
     pub failed: usize,
+    pub skipped: usize,
 }
 
 impl TestSummary {
     pub fn total(&self) -> usize {
-        self.passed + self.failed
+        self.passed + self.failed + self.skipped
     }
     pub fn junit(&self) -> String {
         format!(
-            "<testsuite name=\"{}-{}\" tests=\"{}\" failures=\"{}\" skipped=\"0\"></testsuite>",
+            "<testsuite name=\"{}-{}\" tests=\"{}\" failures=\"{}\" skipped=\"{}\"></testsuite>",
             self.language,
             self.category,
             self.total(),
-            self.failed
+            self.failed,
+            self.skipped
         )
     }
+}
+
+/// Ensure a reusable Cargo crate exists for Rust exec fixtures so we can link
+/// against tokio/serde without invoking rustc directly.
+fn ensure_rust_exec_crate(out_root: &Path, repo_root: &Path, package_name: &str) -> Result<(), String> {
+    fs::create_dir_all(out_root.join("src"))
+        .map_err(|e| format!("create exec output dir {}: {e}", out_root.display()))?;
+    let persistence_path = repo_root.join("runtime").join("persistence_rs");
+    let persistence_str = persistence_path
+        .to_str()
+        .ok_or_else(|| format!("non-UTF8 path for persistence lib: {}", persistence_path.display()))?
+        .replace('\\', "\\\\");
+    let cargo_toml = format!(
+        r#"[package]
+name = "{package_name}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = {{ version = "1", features = ["rt-multi-thread", "macros", "time"] }}
+serde = {{ version = "1", features = ["derive"] }}
+serde_json = "1"
+frame_persistence_rs = {{ path = "{persistence_str}" }}
+
+[workspace]
+members = ["."]
+resolver = "2"
+"#
+    );
+    fs::write(out_root.join("Cargo.toml"), cargo_toml)
+        .map_err(|e| format!("write Cargo.toml in {}: {e}", out_root.display()))
+}
+
+/// Write the generated Rust program into the exec crate and run it via Cargo,
+/// returning the combined stdout/stderr for downstream checks.
+fn cargo_run_rust_program(out_root: &Path, program_src: &str) -> Result<std::process::Output, String> {
+    let src_path = out_root.join("src").join("main.rs");
+    fs::write(&src_path, program_src).map_err(|e| {
+        format!(
+            "  ERROR: failed to write Rust source {}: {}",
+            src_path.display(),
+            e
+        )
+    })?;
+    let mut cmd = Command::new("cargo");
+    // Propagate marker env so FRAME_EMIT_EXEC wrappers can print stack/forward markers.
+    let markers = std::env::var("FRAME_EXEC_MARKERS").unwrap_or_else(|_| "1".to_string());
+    cmd.env("FRAME_EXEC_MARKERS", markers);
+    cmd
+        .arg("run")
+        .arg("--quiet")
+        .arg("--manifest-path")
+        .arg(out_root.join("Cargo.toml"))
+        .current_dir(out_root)
+        .output()
+        .map_err(|e| format!("  ERROR (spawn cargo run): {} ({})", src_path.display(), e))
 }
 
 /// Run validation-only tests for a single `<language>/<category>` pair.
@@ -36,11 +136,23 @@ impl TestSummary {
 ///     `framec_tests/language_specific/<language>/<category>/`
 ///   - treats fixtures with `@expect: Exxx` metadata as negatives
 ///   - treats fixtures without `@expect:` as positives
+///   - optionally filters tests by metadata tags
 pub fn run_validation_for_category(
     repo_root: &Path,
     framec_path: &Path,
     language: &str,
     category: &str,
+) -> Result<TestSummary, String> {
+    run_validation_for_category_with_filter(repo_root, framec_path, language, category, None)
+}
+
+/// Run validation-only tests with optional metadata filtering
+pub fn run_validation_for_category_with_filter(
+    repo_root: &Path,
+    framec_path: &Path,
+    language: &str,
+    category: &str,
+    metadata_filter: Option<&str>,
 ) -> Result<TestSummary, String> {
     if !framec_path.is_file() {
         return Err(format!(
@@ -77,8 +189,18 @@ pub fn run_validation_for_category(
 
     let mut passed = 0usize;
     let mut failed = 0usize;
+    let mut skipped = 0usize;
 
     for path in files {
+        // Apply metadata filtering if requested
+        if let Some(filter) = metadata_filter {
+            let metadata = parse_fixture_metadata(&path);
+            if !should_run_test(&metadata, filter) {
+                skipped += 1;
+                continue;
+            }
+        }
+
         let expected_codes = parse_expected_codes(&path);
         let is_negative = !expected_codes.is_empty();
 
@@ -162,6 +284,7 @@ pub fn run_validation_for_category(
         category: category.to_string(),
         passed,
         failed,
+        skipped,
     })
 }
 
@@ -183,32 +306,132 @@ fn collect_frm_files(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// Check if a test should run based on metadata filter.
+/// Supports multiple filter types:
+///   - @core: Run only core tests
+///   - @noncore: Run only non-core tests
+///   - @flaky: Include flaky tests (normally skipped)
+///   - !flaky: Exclude flaky tests
+///   - skip:<condition>: Check skip conditions
+fn should_run_test(metadata: &TestMetadata, filter: &str) -> bool {
+    // Parse filter expression
+    let filter_lower = filter.to_lowercase();
+    
+    // Handle negation
+    if let Some(negated) = filter_lower.strip_prefix('!') {
+        return !matches_filter(metadata, negated);
+    }
+    
+    matches_filter(metadata, &filter_lower)
+}
+
+/// Check if metadata matches a single filter criterion
+fn matches_filter(metadata: &TestMetadata, filter: &str) -> bool {
+    match filter {
+        "core" | "@core" => metadata.core,
+        "noncore" | "@noncore" => metadata.noncore,
+        "flaky" | "@flaky" => metadata.flaky,
+        "exec-ok" | "@exec-ok" => metadata.exec_ok,
+        "py-compile" | "@py-compile" => metadata.py_compile,
+        "tsc-compile" | "@tsc-compile" => metadata.tsc_compile,
+        "rs-compile" | "@rs-compile" => metadata.rs_compile,
+        filter if filter.starts_with("skip:") => {
+            let condition = &filter[5..];
+            metadata.skip_if.iter().any(|s| s.contains(condition))
+        }
+        filter if filter.starts_with("meta:") => {
+            let tag = &filter[5..];
+            metadata.meta.iter().any(|m| m.to_lowercase().contains(tag))
+        }
+        _ => {
+            // Check if filter matches any meta tag
+            metadata.meta.iter().any(|m| m.to_lowercase().contains(filter))
+        }
+    }
+}
+
+/// Parse comprehensive metadata from fixture header (first 20 lines).
+/// Matches Python runner's parse_fixture_meta() functionality.
+pub fn parse_fixture_metadata(path: &Path) -> TestMetadata {
+    let mut meta = TestMetadata::default();
+    
+    let content = match fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(_) => return meta,
+    };
+    
+    let lines: Vec<_> = content.lines().take(20).collect();
+    
+    for line in lines {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with('#') && !trimmed.starts_with("//") {
+            continue;
+        }
+        
+        // Remove comment markers and trim
+        let clean = if trimmed.starts_with('#') {
+            trimmed.trim_start_matches('#').trim()
+        } else {
+            trimmed.trim_start_matches("//").trim()
+        };
+        
+        // Parse various directives
+        if let Some(rest) = clean.strip_prefix("@expect:") {
+            // Extract error codes
+            for tok in rest.split(|c: char| c.is_whitespace() || c == ',' || c == ';') {
+                let t = tok.trim();
+                if t.len() >= 2 && t.starts_with('E') && t[1..].chars().all(|ch| ch.is_ascii_digit()) {
+                    meta.expect.push(t.to_string());
+                }
+            }
+        } else if let Some(mode) = clean.strip_prefix("@expect-mode:") {
+            meta.expect_mode = Some(mode.trim().to_string());
+        } else if let Some(desc) = clean.strip_prefix("@meta:") {
+            meta.meta.push(desc.trim().to_string());
+        } else if let Some(cond) = clean.strip_prefix("@skip-if:") {
+            meta.skip_if.push(cond.trim().to_string());
+        } else if let Some(pat) = clean.strip_prefix("@run-expect:") {
+            meta.run_expect.push(pat.trim().to_string());
+        } else if let Some(exact) = clean.strip_prefix("@run-exact:") {
+            meta.run_exact.push(exact.trim().to_string());
+        } else if let Some(pat) = clean.strip_prefix("@compile-expect:") {
+            meta.compile_expect.push(pat.trim().to_string());
+        } else if let Some(dir) = clean.strip_prefix("@cwd:") {
+            meta.cwd = Some(dir.trim().to_string());
+        } else if clean.starts_with("@exec-ok") {
+            meta.exec_ok = true;
+        } else if clean.starts_with("@flaky") {
+            meta.flaky = true;
+        } else if clean.starts_with("@core") {
+            meta.core = true;
+        } else if clean.starts_with("@noncore") {
+            meta.noncore = true;
+        } else if let Some(call) = clean.strip_prefix("@import-call:") {
+            meta.import_calls.push(call.trim().to_string());
+        } else if let Some(golden) = clean.strip_prefix("@frame-map-golden:") {
+            meta.frame_map_golden = Some(golden.trim().to_string());
+        } else if let Some(golden) = clean.strip_prefix("@visitor-map-golden:") {
+            meta.visitor_map_golden = Some(golden.trim().to_string());
+        } else if clean.starts_with("@py-compile") {
+            meta.py_compile = true;
+        } else if clean.starts_with("@tsc-compile") {
+            meta.tsc_compile = true;
+        } else if clean.starts_with("@rs-compile") {
+            meta.rs_compile = true;
+        }
+    }
+    
+    meta
+}
+
 /// Parse expected error codes from metadata (`@expect:`) in a .frm file.
 ///
 /// This is a minimal parser intended for V3 fixtures that use lines like:
 ///   # @expect: E301
 ///   // @expect: E200 E300
 fn parse_expected_codes(path: &Path) -> Vec<String> {
-    let mut codes: Vec<String> = Vec::new();
-    let content = match fs::read_to_string(path) {
-        Ok(s) => s,
-        Err(_) => return codes,
-    };
-    for line in content.lines() {
-        let trimmed = line.trim_start();
-        if trimmed.starts_with('#') || trimmed.starts_with("//") {
-            if let Some(idx) = trimmed.find("@expect:") {
-                let rest = &trimmed[idx + "@expect:".len()..];
-                for tok in rest.split(|c: char| c.is_whitespace() || c == ',' || c == ';') {
-                    let t = tok.trim();
-                    if t.len() >= 2 && t.starts_with('E') && t[1..].chars().all(|ch| ch.is_ascii_digit()) {
-                        codes.push(t.to_string());
-                    }
-                }
-            }
-        }
-    }
-    codes
+    let meta = parse_fixture_metadata(path);
+    meta.expect
 }
 
 /// Parse `@run-expect:` and `@run-exact:` metadata from the first 20 lines
@@ -256,6 +479,16 @@ pub fn run_rust_exec_smoke(
     framec_path: &Path,
     category: &str,
 ) -> Result<TestSummary, String> {
+    run_rust_exec_smoke_with_filter(repo_root, framec_path, category, None)
+}
+
+/// Execute Rust V3 exec-smoke fixtures with optional metadata filtering
+pub fn run_rust_exec_smoke_with_filter(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+    metadata_filter: Option<&str>,
+) -> Result<TestSummary, String> {
     let language = "rust";
     let tests_root = repo_root
         .join("framec_tests")
@@ -285,17 +518,22 @@ pub fn run_rust_exec_smoke(
 
     let mut passed = 0usize;
     let mut failed = 0usize;
+    let mut skipped = 0usize;
 
     // Use a fixed temporary directory under the repo for generated Rust sources.
     let out_root = repo_root.join("target").join("v3_rs_exec_smoke").join("rust");
-    if let Err(e) = fs::create_dir_all(&out_root) {
-        return Err(format!(
-            "Failed to create exec-smoke output dir {}: {e}",
-            out_root.display()
-        ));
-    }
+    ensure_rust_exec_crate(&out_root, repo_root, "v3_rs_exec_smoke")
+        .map_err(|e| format!("Failed to prepare Rust exec-smoke crate: {e}"))?;
 
     for frm_path in files {
+        // Apply metadata filtering if requested
+        if let Some(filter) = metadata_filter {
+            let metadata = parse_fixture_metadata(&frm_path);
+            if !should_run_test(&metadata, filter) {
+                skipped += 1;
+                continue;
+            }
+        }
         let stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
             Some(s) => s.to_string(),
             None => {
@@ -304,10 +542,7 @@ pub fn run_rust_exec_smoke(
             }
         };
 
-        let rs_path = out_root.join(format!("{stem}__v3.rs"));
-        let exe_path = out_root.join(format!("{stem}__v3_exec"));
-
-        // 1) Compile Frame → Rust source via framec --emit-debug with FRAME_EMIT_EXEC=1
+        // 1) Compile Frame → Rust source via framec --emit-debug with FRAME_EMIT_EXEC=1.
         let mut cmd = Command::new(framec_path);
         cmd.arg("compile")
             .arg("-l")
@@ -344,61 +579,11 @@ pub fn run_rust_exec_smoke(
             }
         };
 
-        if let Err(e) = fs::write(&rs_path, compile_src) {
-            failed += 1;
-            eprintln!(
-                "  ERROR: failed to write Rust source {}: {}",
-                rs_path.display(),
-                e
-            );
-            continue;
-        }
-
-        // 2) rustc compile
-        let rustc_output = Command::new("rustc")
-            .arg(&rs_path)
-            .arg("-o")
-            .arg(&exe_path)
-            .current_dir(&out_root)
-            .output();
-
-        let run_output = match rustc_output {
-            Ok(out) => {
-                if !out.status.success() {
-                    failed += 1;
-                    eprintln!("  FAIL (rustc): {}", rs_path.display());
-                    let mut text = String::new();
-                    text.push_str(&String::from_utf8_lossy(&out.stdout));
-                    text.push_str(&String::from_utf8_lossy(&out.stderr));
-                    for line in text.lines() {
-                        eprintln!("    {}", line);
-                    }
-                    continue;
-                }
-                // 3) Run binary
-                match Command::new(&exe_path)
-                    .current_dir(&out_root)
-                    .output()
-                {
-                    Ok(run) => run,
-                    Err(e) => {
-                        failed += 1;
-                        eprintln!(
-                            "  ERROR (spawn exec): {} ({})",
-                            exe_path.display(),
-                            e
-                        );
-                        continue;
-                    }
-                }
-            }
+        let run_output = match cargo_run_rust_program(&out_root, &compile_src) {
+            Ok(run) => run,
             Err(e) => {
                 failed += 1;
-                eprintln!(
-                    "  ERROR (spawn rustc): {} ({})",
-                    rs_path.display(),
-                    e
-                );
+                eprintln!("  {}", e);
                 continue;
             }
         };
@@ -479,7 +664,6 @@ pub fn run_rust_exec_smoke(
         }
 
         // Best-effort cleanup of the executable (ignore errors).
-        let _ = fs::remove_file(&exe_path);
     }
 
     Ok(TestSummary {
@@ -487,6 +671,7 @@ pub fn run_rust_exec_smoke(
         category: category.to_string(),
         passed,
         failed,
+        skipped,
     })
 }
 
@@ -498,6 +683,16 @@ pub fn run_python_exec_smoke(
     repo_root: &Path,
     framec_path: &Path,
     category: &str,
+) -> Result<TestSummary, String> {
+    run_python_exec_smoke_with_filter(repo_root, framec_path, category, None)
+}
+
+/// Execute Python V3 exec-smoke fixtures with optional metadata filtering
+pub fn run_python_exec_smoke_with_filter(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+    metadata_filter: Option<&str>,
 ) -> Result<TestSummary, String> {
     let language = "python";
     let tests_root = repo_root
@@ -528,6 +723,7 @@ pub fn run_python_exec_smoke(
 
     let mut passed = 0usize;
     let mut failed = 0usize;
+    let mut skipped = 0usize;
 
     let out_root = repo_root.join("target").join("v3_rs_exec_smoke").join("python");
     if let Err(e) = fs::create_dir_all(&out_root) {
@@ -538,6 +734,14 @@ pub fn run_python_exec_smoke(
     }
 
     for frm_path in files {
+        // Apply metadata filtering if requested
+        if let Some(filter) = metadata_filter {
+            let metadata = parse_fixture_metadata(&frm_path);
+            if !should_run_test(&metadata, filter) {
+                skipped += 1;
+                continue;
+            }
+        }
         let stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
             Some(s) => s.to_string(),
             None => {
@@ -546,7 +750,7 @@ pub fn run_python_exec_smoke(
             }
         };
 
-        let py_path = out_root.join(format!("{stem}__v3.py"));
+        let py_path = out_root.join(format!("{stem}.fpy"));
 
         // Compile Frame → Python. For core/control_flow/systems and
         // exec-smoke we use the exec wrapper; for persistence we rely on
@@ -726,6 +930,7 @@ pub fn run_python_exec_smoke(
         category: category.to_string(),
         passed,
         failed,
+        skipped,
     })
 }
 
@@ -738,6 +943,16 @@ pub fn run_typescript_exec_smoke(
     repo_root: &Path,
     framec_path: &Path,
     category: &str,
+) -> Result<TestSummary, String> {
+    run_typescript_exec_smoke_with_filter(repo_root, framec_path, category, None)
+}
+
+/// Execute TypeScript V3 exec-smoke fixtures with optional metadata filtering
+pub fn run_typescript_exec_smoke_with_filter(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+    metadata_filter: Option<&str>,
 ) -> Result<TestSummary, String> {
     let language = "typescript";
     let tests_root = repo_root
@@ -768,6 +983,7 @@ pub fn run_typescript_exec_smoke(
 
     let mut passed = 0usize;
     let mut failed = 0usize;
+    let mut skipped = 0usize;
 
     let out_root = repo_root.join("target").join("v3_rs_exec_smoke").join("typescript");
     if let Err(e) = fs::create_dir_all(&out_root) {
@@ -808,6 +1024,15 @@ pub fn run_typescript_exec_smoke(
     };
 
     for frm_path in files {
+        // Apply metadata filtering if requested
+        if let Some(filter) = metadata_filter {
+            let metadata = parse_fixture_metadata(&frm_path);
+            if !should_run_test(&metadata, filter) {
+                skipped += 1;
+                continue;
+            }
+        }
+        
         let stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
             Some(s) => s.to_string(),
             None => {
@@ -816,8 +1041,8 @@ pub fn run_typescript_exec_smoke(
             }
         };
 
-        let ts_path = out_root.join(format!("{stem}__v3.ts"));
-        let js_path = out_root.join(format!("{stem}__v3.js"));
+        let ts_path = out_root.join(format!("{stem}.frts"));
+        let js_path = out_root.join(format!("{stem}.js"));
 
         // Compile Frame → TypeScript with FRAME_EMIT_EXEC=1.
         let mut cmd = Command::new(framec_path);
@@ -1019,6 +1244,7 @@ pub fn run_typescript_exec_smoke(
         category: category.to_string(),
         passed,
         failed,
+        skipped,
     })
 }
 
@@ -1059,6 +1285,7 @@ pub fn run_python_curated_exec_for_category(
 
     let mut passed = 0usize;
     let mut failed = 0usize;
+    let skipped = 0usize;  // TODO: Add metadata filtering support for curated tests
 
     let out_root = repo_root.join("target").join("v3_rs_exec_curated").join("python");
     if let Err(e) = fs::create_dir_all(&out_root) {
@@ -1087,7 +1314,7 @@ pub fn run_python_curated_exec_for_category(
             continue;
         }
 
-        let py_path = out_root.join(format!("{stem}__v3.py"));
+        let py_path = out_root.join(format!("{stem}.fpy"));
 
         // Compile Frame → Python. For core/control_flow/systems we use the
         // exec wrapper; for persistence we rely on the module's own
@@ -1227,6 +1454,7 @@ pub fn run_python_curated_exec_for_category(
         category: category.to_string(),
         passed,
         failed,
+        skipped,
     })
 }
 
@@ -1266,6 +1494,7 @@ pub fn run_typescript_curated_exec_for_category(
 
     let mut passed = 0usize;
     let mut failed = 0usize;
+    let skipped = 0usize;  // TODO: Add metadata filtering support for curated tests
 
     let out_root = repo_root.join("target").join("v3_rs_exec_curated").join("typescript");
     if let Err(e) = fs::create_dir_all(&out_root) {
@@ -1322,8 +1551,8 @@ pub fn run_typescript_curated_exec_for_category(
             continue;
         }
 
-        let ts_path = out_root.join(format!("{stem}__v3.ts"));
-        let js_path = out_root.join(format!("{stem}__v3.js"));
+        let ts_path = out_root.join(format!("{stem}.frts"));
+        let js_path = out_root.join(format!("{stem}.js"));
 
         // Compile Frame → TypeScript. For core/control_flow/systems we use
         // exec wrappers; for persistence we rely on module `main` and append
@@ -1505,6 +1734,7 @@ pub fn run_typescript_curated_exec_for_category(
         category: category.to_string(),
         passed,
         failed,
+        skipped,
     })
 }
 
@@ -1544,17 +1774,14 @@ pub fn run_rust_curated_exec_for_category(
 
     let mut passed = 0usize;
     let mut failed = 0usize;
+    let skipped = 0usize;  // TODO: Add metadata filtering support for curated tests
 
     let out_root = repo_root.join("target").join("v3_rs_exec_curated").join("rust");
-    if let Err(e) = fs::create_dir_all(&out_root) {
-        return Err(format!(
-            "Failed to create curated exec output dir {}: {e}",
-            out_root.display()
-        ));
-    }
+    ensure_rust_exec_crate(&out_root, repo_root, "v3_rs_exec_curated")
+        .map_err(|e| format!("Failed to prepare Rust curated exec crate: {e}"))?;
 
     for frm_path in files {
-        let stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
+        let _stem = match frm_path.file_stem().and_then(|s| s.to_str()) {
             Some(s) => s.to_string(),
             None => {
                 eprintln!("  WARN: skipping fixture with invalid name: {}", frm_path.display());
@@ -1573,9 +1800,6 @@ pub fn run_rust_curated_exec_for_category(
             passed += 1;
             continue;
         }
-
-        let rs_path = out_root.join(format!("{stem}__v3.rs"));
-        let exe_path = out_root.join(format!("{stem}__v3_exec"));
 
         // Compile Frame → Rust source with FRAME_EMIT_EXEC=1.
         let mut cmd = Command::new(framec_path);
@@ -1614,60 +1838,11 @@ pub fn run_rust_curated_exec_for_category(
             }
         };
 
-        if let Err(e) = fs::write(&rs_path, compile_src) {
-            failed += 1;
-            eprintln!(
-                "  ERROR: failed to write Rust source {}: {}",
-                rs_path.display(),
-                e
-            );
-            continue;
-        }
-
-        // rustc compile
-        let rustc_output = Command::new("rustc")
-            .arg(&rs_path)
-            .arg("-o")
-            .arg(&exe_path)
-            .current_dir(&out_root)
-            .output();
-
-        let run_output = match rustc_output {
-            Ok(out) => {
-                if !out.status.success() {
-                    failed += 1;
-                    eprintln!("  FAIL (rustc): {}", rs_path.display());
-                    let mut text = String::new();
-                    text.push_str(&String::from_utf8_lossy(&out.stdout));
-                    text.push_str(&String::from_utf8_lossy(&out.stderr));
-                    for line in text.lines() {
-                        eprintln!("    {}", line);
-                    }
-                    continue;
-                }
-                match Command::new(&exe_path)
-                    .current_dir(&out_root)
-                    .output()
-                {
-                    Ok(run) => run,
-                    Err(e) => {
-                        failed += 1;
-                        eprintln!(
-                            "  ERROR (spawn exec): {} ({})",
-                            exe_path.display(),
-                            e
-                        );
-                        continue;
-                    }
-                }
-            }
+        let run_output = match cargo_run_rust_program(&out_root, &compile_src) {
+            Ok(run) => run,
             Err(e) => {
                 failed += 1;
-                eprintln!(
-                    "  ERROR (spawn rustc): {} ({})",
-                    rs_path.display(),
-                    e
-                );
+                eprintln!("  {}", e);
                 continue;
             }
         };
@@ -1723,8 +1898,6 @@ pub fn run_rust_curated_exec_for_category(
                 eprintln!("    {}", line);
             }
         }
-
-        let _ = fs::remove_file(&exe_path);
     }
 
     Ok(TestSummary {
@@ -1732,5 +1905,6 @@ pub fn run_rust_curated_exec_for_category(
         category: category.to_string(),
         passed,
         failed,
+        skipped,
     })
 }

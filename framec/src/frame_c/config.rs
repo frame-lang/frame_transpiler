@@ -247,7 +247,9 @@ impl FrameConfig {
         }
         // Validate that configured module/source paths exist (relative to config dir).
         let cfg_dir = path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
-        for p in cfg.paths.modules.iter().chain(cfg.build.source_dirs.iter()) {
+        let mut module_paths: Vec<PathBuf> = cfg.paths.modules.iter().map(|p| PathBuf::from(p)).collect();
+        module_paths.extend(cfg.build.source_dirs.iter().cloned());
+        for p in module_paths {
             let abs = cfg_dir.join(p);
             if !abs.exists() {
                 return Err(format!("frame.toml path does not exist: {}", abs.display()));

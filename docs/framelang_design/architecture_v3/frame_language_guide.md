@@ -105,6 +105,13 @@ Grammar (see `architecture_v3/grammar.md`):
 - `start_state_param ::= '$(' param_list? ')'`
 - `enter_event_param ::= '$>' '(' param_list? ')'`
 - `domain_param ::= IDENT`
+- Param grouping is name-based (no positional buckets): any declared identifier
+  listed in a `$(...)` belongs to the start-state set; any listed in a
+  `$>(...)` belongs to the enter-event set. Remaining declared identifiers are
+  domain params. Multiple `$(...)`/`$>(...)` groups are allowed in one header.
+  Declared names must be unique; unknown names in a group are errors. State
+  headers never repeat `$(...)`; they declare state params directly, and
+  mapping is by name.
 
 V3 semantics (using `ModuleAst` + `Arcanum`):
 

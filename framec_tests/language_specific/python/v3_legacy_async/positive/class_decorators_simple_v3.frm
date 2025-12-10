@@ -18,8 +18,9 @@ system PyDecorSimpleV3 {
         }
 }
 
-fn main() {
+def main():
     s = PyDecorSimpleV3()
     s.run()
-}
 
+if __name__ == '__main__':
+    main()

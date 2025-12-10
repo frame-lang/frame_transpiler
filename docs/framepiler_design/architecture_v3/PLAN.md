@@ -1,7 +1,70 @@
 # V3 Execution Plan — First Principles Rebuild
 
 ## Todo Next
-``
+
+- [ ] **Test Infrastructure Migration to Shared Environment** (CRITICAL PATH)
+  
+  **UPDATE (2024-12-08)**: Significant progress made on Rust test runner infrastructure:
+  - ✅ Implemented comprehensive metadata parsing in `test_harness_rs.rs` 
+  - ✅ Created Docker executor module with container lifecycle management
+  - ✅ Built test reporter supporting JSON, JUnit, TAP, and human formats
+  - ✅ Enhanced CLI with Docker, parallel, timeout, and reporting flags
+  - ✅ Successfully built and tested basic functionality
+  
+  **Next Steps**:
+  - Complete metadata-based test filtering implementation
+  - Add unit tests for new components
+  - Push Docker images to registry for CI use
+  - Begin parallel validation between Python and Rust runners
+  - Start fixture migration to shared environment
+  
+  Migrate all testing to the shared test environment (`framepiler_test_env`) and deprecate 
+  the Python test runner in favor of the Rust test runner. This is now the highest priority 
+  to clean separation of concerns and enable independent evolution of tests and transpiler.
+  
+  **Requirements:**
+  - All validation tests MUST run in Docker containers for reproducibility
+  - Focus on PRT languages (Python, TypeScript, Rust) exclusively for initial migration
+  - Rust test runner must reach 100% parity with Python runner for PRT languages before deprecation
+  
+  **Phase 1 - Rust Runner to 100% Parity (PRT-only)**:
+  - [ ] Complete all metadata support (`@meta`, `@skip-if`, `@expect`, `@run-expect`, `@run-exact`)
+  - [ ] Full exec harness for Python/TypeScript/Rust (including async fixtures)
+  - [ ] Docker container integration for all test execution
+  - [ ] JUnit XML and JSON report generation matching Python runner
+  - [ ] Toolchain detection and graceful skipping in containers
+  - [ ] Complete coverage of all PRT test categories:
+    - `v3_prolog`, `v3_imports`, `v3_outline`, `v3_demos`
+    - `v3_exec_smoke`, `v3_core`, `v3_control_flow`, `v3_systems`
+    - `v3_persistence`, `v3_systems_runtime`, `v3_async`
+    - `v3_validator`, `v3_mapping`, `v3_facade_smoke`
+  
+  **Phase 2 - Shared Test Env Structure**:
+  - [ ] Create Docker-based test environment with:
+    - Containerized test execution for each language target
+    - Volume mounts for framec binary and test fixtures
+    - Standardized container images with all language toolchains
+  - [ ] Migrate all PRT test fixtures to shared env:
+    - `framec_tests/language_specific/{python,typescript,rust}/`
+    - Keep structure but move to `framepiler_test_env/fixtures/`
+  - [ ] Establish stable interface contract:
+    - Input: framec binary path + test selection parameters
+    - Output: Standardized results (JSON/JUnit/TAP)
+    - No internal dependencies on framec repo structure
+  
+  **Phase 3 - Migration Execution**:
+  - [ ] Freeze test additions in main repo (document in CLAUDE.md)
+  - [ ] Parallel run period: both runners for 2 weeks validation
+  - [ ] CI cutover to Docker-based shared env for PRT languages
+  - [ ] Deprecate Python runner with 30-day sunset period
+  - [ ] Remove `framec_tests/` from main repo (except bootstrap fixtures)
+  
+  **Success Criteria**:
+  - 100% of PRT language tests passing in Docker containers
+  - Zero dependency on Python runner for PRT languages
+  - All CI/CD using shared test env for validation
+  - Development workflow documented for test changes
+
 - [x] PRT Stages 7–13 Closure Checklist  
   Complete the remaining Stage 7–13 work for the PRT languages (Python,
   TypeScript, Rust): apply native validation (Stage 7) to all Frame-owned
@@ -163,6 +226,83 @@ Milestone — Py/TS/Rust to 100%
 - [x] TypeScript: native parsing default‑on in validation (SWC); curated exec expanded across core/control_flow/systems; runner asserts errors-json trailers and runtime output markers.
 - [x] Python: strict/native adapter via RustPython parser (pure Rust) enabled in CI; curated exec breadth expanded; runner asserts errors-json trailers and runtime output markers.
 - [x] Rust: syn default‑on validation; curated exec expanded across control_flow/core/systems with markers; parity with Py/TS subsets validated; promotion to real runtime glue deferred until Py/TS stabilization.
+
+## Next Actions (PRT parity hardening)
+
+**CRITICAL: Test Migration Focus**
+- The test infrastructure migration to shared environment is now the highest priority
+- Focus EXCLUSIVELY on PRT languages (Python, TypeScript, Rust) for initial migration
+- Non-PRT languages (C, C++, Java, C#) remain in main repo until PRT migration proves stable
+- All test execution must move to Docker containers for reproducibility and isolation
+
+**Migration Prerequisites**:
+1. Rust test runner at 100% parity with Python runner for PRT languages
+2. Docker containerization working for all PRT test categories
+3. Stable interface between test env and framec binary (no internal dependencies)
+4. CI/CD fully cutover to containerized testing for PRT validation
+
+## Immediate Implementation Steps (Current Sprint)
+
+### Week 1: Metadata Parser Implementation
+**File: `framec/src/frame_c/v3/test_harness_rs.rs`**
+- [x] Add `TestMetadata` struct with all directive fields
+- [x] Implement `parse_fixture_metadata()` matching Python runner logic
+- [x] Support all directives: `@meta`, `@skip-if`, `@run-exact`, `@compile-expect`, `@cwd`, `@exec-ok`, `@flaky`, `@core`, `@import-call`, `@frame-map-golden`, `@visitor-map-golden`
+- [ ] Add metadata-based test filtering and execution control
+- [ ] Unit tests for metadata parsing with sample fixtures
+
+### Week 1: Docker Base Image Creation
+**File: `docker/prt-test-base.dockerfile`**
+- [x] Create Ubuntu 22.04 base with Python 3.10+, Node 18+, Rust stable
+- [x] Install build essentials, git, and test dependencies
+- [x] Configure non-root user for test execution
+- [x] Add volume mount points for `/framec` and `/fixtures`
+- [ ] Build and push to registry for CI use
+
+### Week 2: Container Execution Integration
+**File: `framec/src/frame_c/v3/docker_executor.rs`**
+- [x] Implement `DockerTestExecutor` struct
+- [x] Add container lifecycle management (create, run, cleanup)
+- [x] Volume mounting for framec binary and test fixtures
+- [x] Result extraction from container stdout/stderr
+- [x] Parallel container orchestration support (basic implementation)
+
+### Week 2: Enhanced Reporting
+**File: `framec/src/frame_c/v3/test_reporter.rs`**
+- [x] Add JSON report generation with full metadata
+- [x] Implement JUnit XML format output
+- [x] Implement TAP format output
+- [x] Add timing and performance metrics
+- [x] Create unified error aggregation (no fail-fast)
+- [ ] Match Python runner's output format exactly
+
+### Week 3: CLI Enhancement
+**File: `framec/src/frame_c/cli.rs`**
+- [x] Add `--docker` flag to force containerized execution
+- [x] Add `--parallel` with worker count
+- [x] Add `--timeout` for test execution limits
+- [x] Add `--report-format` (json|junit|tap|human)
+- [x] Add `--metadata-filter` for tag-based filtering
+- [x] Integration with DockerTestExecutor and TestReporter
+
+### Week 3: Parallel Validation
+- [ ] Run both Python and Rust runners on all PRT v3_* categories
+- [ ] Create comparison script to validate output parity
+- [ ] Document and fix any discrepancies
+- [ ] Performance benchmarking (Rust should be faster)
+
+**Original parity tasks** (continue in parallel):
+- Full test sweep ordering: 1) drive Python language_specific suite to 100% (resolve import/multifile gaps and decorator/arg validation issues), 2) do the same for TypeScript language_specific suite, 3) then lift Rust to parity with the now-green Py/TS common-core (@core) fixtures and mark any language-specific deltas explicitly.
+- Rust native body emission: enable V3 Rust module/exec paths to splice native bodies (actions/ops/handlers) so native code executes, then restore @run-expect assertions for async fixtures and other native-heavy cases. Use the Cargo-based exec harness for validation.
+- Async parity close-out: keep Py/TS async fixtures as the truth; add Rust run-expect once native emission is in place.
+- Parity audit: inventory remaining Python-only functional fixtures and port to Rust/TS (mark @core) or document as language-specific; ensure common-core counts match across PRT.
+- Rust codegen refactor (in progress): emit action/operation/handler bodies with native code in the Rust module path, and update FRAME_EMIT_EXEC to run the generated system struct (not raw body text). This unblocks native/async run-expect assertions.
+  - Step 1: Emit actions/operations as inherent methods with spliced native bodies; add simple dispatch helpers (`_block_on_action/_block_on_operation`) using serde_json-typed params.
+  - Step 2: Emit handler methods with state dispatch and spliced bodies (facade frame expansions); wire `_frame_router` and async blocking.
+  - Step 3: Update FRAME_EMIT_EXEC Rust path to emit the generated module + a harness that instantiates the system and invokes a real entry (main_entry or default handler), not a no-op.
+  - Step 4: Re-enable Rust async @run-expect and rerun Rust all_v3 + curated exec.
+  - Step 5: Parity audit/port remaining Python-only functional fixtures to Rust/TS (@core) or mark language-specific; align common-core counts.
+  - Step 6: Confirm system.return/interface wrappers are exercised under exec once harness is wired.
 
 Stage 10 — AST & Symbol Integration (Fine‑Grained)
 
@@ -857,10 +997,36 @@ Stage 17 — Cross‑Language Snapshot Semantics (PRT)
             so that Python, TypeScript, and Rust snapshots are compared
             structurally against the canonical TrafficLight snapshot.
 
-Stage 18 — Rust-Native Test Runner & Tooling Exploration (Future Work)
-- [ ] Evaluate the feasibility and benefits of migrating selected
-      Python-based V3 tooling (e.g., `framec_tests/runner/frame_test_runner.py`
-      and small helpers under `tools/`) to Rust:
+Stage 18 — Rust-Native Test Runner & Tooling (PRIORITY: 100% Parity for PRT)
+- [ ] **CRITICAL PATH**: Achieve 100% feature parity with Python runner for PRT languages
+      before ANY migration to shared test environment can proceed.
+      
+      **Mandatory Parity Requirements for PRT Languages**:
+      - [ ] Docker container support with volume mounts for fixtures and binaries
+      - [ ] Full metadata parsing: `@expect`, `@run-expect`, `@run-exact`, `@meta`, `@skip-if`, `@cwd`, `@exec-ok`
+      - [ ] Execution modes: transpile-only, validation-only, exec-smoke, exec-curated, full-run
+      - [ ] Report generation: JSON, JUnit XML, TAP, human-readable output
+      - [ ] Toolchain management: auto-detection, version checking, graceful skipping
+      - [ ] Error aggregation: collect all issues (not fail-fast) with proper error codes
+      - [ ] Parallel execution support for independent test categories
+      - [ ] Source map validation and mapping checks
+      - [ ] Native validation with py_compile, tsc, rustc as appropriate
+      - [ ] Runtime copying and project structure validation
+      - [ ] Compare mode against Python runner for verification
+      
+      **PRT-Specific Coverage Requirements**:
+      - [ ] Python: All v3_* categories, language_specific/python tests
+      - [ ] TypeScript: All v3_* categories, language_specific/typescript tests  
+      - [ ] Rust: All v3_* categories, language_specific/rust tests
+      - [ ] Cross-language: persistence snapshots, shared runtime validation
+      
+      **Docker Integration Requirements**:
+      - [ ] Base images with all PRT toolchains (Python 3.10+, Node 18+, Rust stable)
+      - [ ] Volume mount strategies for framec binary and test fixtures
+      - [ ] Container orchestration for parallel test execution
+      - [ ] Result aggregation from containerized runs
+      - [ ] Cache management for dependencies and build artifacts
+      
       - [x] Identify high-value candidates where a Rust implementation would
         reduce runtime dependencies, improve performance, or simplify
         integration with the Rust CLI. The initial prototype is the
@@ -920,7 +1086,37 @@ Stage 18 — Rust-Native Test Runner & Tooling Exploration (Future Work)
           validation and exec across languages and categories using the
           Rust harness, with modes for Rust-only, Python-only, or compare.
 
-Stage 19 — Rust-First Tooling Migration (Replace Python Harnesses)
+Stage 19 — Test Environment Migration & Python Runner Deprecation
+- [ ] **IMMEDIATE**: Migrate all PRT testing to shared Docker-based environment
+      (`framepiler_test_env`) and deprecate Python runner after achieving parity.
+      
+      **Migration Timeline**:
+      - Week 1-2: Complete Rust runner parity for PRT languages
+        - [x] Metadata parsing implementation (all directives)
+        - [x] Metadata-based test filtering (@core, @flaky, etc.)
+        - [x] Test summary with skipped count tracking
+        - [x] File extension standardization (.fpy, .frts, .frs)
+        - [ ] Unit tests for metadata parsing
+        - [ ] Docker executor implementation (not placeholder)
+        - [ ] Parallel validation vs Python runner
+      - Week 3-4: Set up Docker-based shared test environment
+        - [x] Directory structure with team segregation
+        - [x] Docker namespace isolation (frame-transpiler-* vs frame-debugger-*)
+        - [x] Network segregation (172.28.0.0/16 vs 172.29.0.0/16)
+        - [x] Monitoring scripts for conflict detection
+        - [ ] Docker images built and pushed to registry
+      - Week 5-6: Parallel execution (both runners) for validation
+      - Week 7-8: Cutover CI/CD to shared environment
+      - Week 9-12: Deprecation period for Python runner
+      - Week 13: Remove test infrastructure from main repo
+      
+      **Shared Environment Requirements**:
+      - All tests run in Docker containers (no host dependencies)
+      - Fixtures organized by language under `framepiler_test_env/fixtures/`
+      - Rust test runner as the ONLY test executor
+      - Standardized interfaces (binary path in, JSON/XML out)
+      - No coupling to framec internal structures
+      
 - [ ] Replace Python-based orchestration tools (`framec_tests/runner/frame_test_runner.py`
       and selected helpers under `tools/`) with Rust-native equivalents,
       using the Stage 18 harness library as the foundation.
@@ -1004,6 +1200,21 @@ Stage 19 — Rust-First Tooling Migration (Replace Python Harnesses)
     - Update `HOW_TO.md` and `18_rust_native_tooling.md` with guidance on
       using the Rust-first test CLI, and document which Python tools remain
       as reference implementations (e.g., legacy/compat suites).
+
+Stage 20 — Cross-Language Parity Completion (PRT)
+- [ ] Async parity:
+  - Implement async/await support in Rust codegen/harness using Tokio (no feature flags) so async Frame code runs in exec modes; align generated Rust with Py/TS semantics.
+    - [x] Router + handler glue use tokio runtime for async handlers; emit async `_event_*` where needed.
+    - [x] Actions/operations/functions emission supports `async` headers and awaits in generated Rust.
+  - Add async fixtures for TypeScript and Rust (interface/actions/operations/functions) mirroring Python async capabilities; keep Python-only legacy async separate.
+    - [x] Seeded TS/Rust async smoke fixture (`v3_async/positive/async_functions.frm`) and added `v3_async` category to all_v3 (TS/Rust only).
+- [ ] Fixture breadth:
+  - Expand Rust persistence/data_types fixtures to match Py/TS coverage.
+  - Ensure operators/scoping/systems_runtime suites remain aligned across Py/TS/Rust (fixtures added where applicable; keep language-specific cases isolated).
+- [ ] Infrastructure suites parity:
+  - Add closer/native-symbol/facade/mapping/capabilities/MIR/expansion coverage for TS/Rust where applicable; mark truly language-specific suites as such.
+- [ ] CI gating:
+  - Promote the Rust harness job to cover all PRT categories (validate + exec) once parity tasks above land; keep Python runner as fallback until confidence is high.
   - [ ] Cross-language test parity (PRT fixtures):
     - Add async/await fixtures for TypeScript and Rust (interface/actions/operations/functions) mirroring Python async support; keep Python-only legacy async separate.
     - Add Rust persistence/data_types breadth to match Python/TS counts.

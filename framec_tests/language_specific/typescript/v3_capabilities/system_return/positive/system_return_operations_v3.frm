@@ -7,6 +7,11 @@
 // return stack.
 
 system SystemReturnOpDemoTs {
+  operations:
+    compute_default() {
+      system.return = "op-default"
+    }
+
   interface:
     status(): string = "idle"
     getDefault(): string = "op-default"
@@ -23,10 +28,4 @@ system SystemReturnOpDemoTs {
         this.compute_default()
       }
     }
-
-  operations:
-    compute_default() {
-      system.return = "op-default"
-    }
 }
-

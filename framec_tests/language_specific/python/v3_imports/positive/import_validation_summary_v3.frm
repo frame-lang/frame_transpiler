@@ -85,10 +85,9 @@ fn test_edge_cases() {
 }
 
 fn main() {
-    print("=== COMPREHENSIVE IMPORT/FSL VALIDATION (V3) ===")
+    print("=== COMPREHENSIVE IMPORT VALIDATION (V3) ===")
     test_all_conversions()
     test_import_contexts()
     test_edge_cases()
     print("=== ALL SYNTAX VALIDATED ===")
 }
-

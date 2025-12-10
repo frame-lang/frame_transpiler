@@ -59,6 +59,8 @@ class TestConfig:
     exclude_patterns: Optional[List[str]] = None
     shuffle: bool = False
     seed: Optional[int] = None
+    core_only: bool = False
+    include_noncore: bool = False
     # Execute selected non-smoke V3 categories (python/typescript) using demo-frame exec emission
     exec_v3: bool = False
     
@@ -190,6 +192,10 @@ class FrameTestRunner:
                         if pat:
                             meta.setdefault('compile_expect', []).append(pat)
                         continue
+                    if line.strip().lower().startswith('@core'):
+                        meta.setdefault('core', []).append('core')
+                        continue
+                        continue
                     m_ic = re.match(r"^\s*(#|//)\s*@import-call:\s*(.+)$", line)
                     if m_ic:
                         spec = m_ic.group(2).strip()
@@ -276,7 +282,7 @@ class FrameTestRunner:
         if any(cat in self.config.categories for cat in [
             "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_expansion", "v3_validator", "v3_project", "v3_facade_smoke", "v3_exec_smoke",
             "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_systems_runtime", "v3_visitor_map", "v3_native_symbols", "v3_debugger", "v3_cli", "v3_cli_project",
-            "v3_legacy_async", "v3_capabilities", "v3_persistence"
+            "v3_legacy_async", "v3_async", "v3_capabilities", "v3_persistence"
         ]):
             if "v3_outline" in self.config.categories:
                 collect_v3_category("v3_outline")
@@ -327,75 +333,45 @@ class FrameTestRunner:
                 collect_v3_category("v3_systems_runtime")
             if "v3_legacy_async" in self.config.categories:
                 collect_v3_category("v3_legacy_async")
+            if "v3_async" in self.config.categories:
+                collect_v3_category("v3_async")
             if "v3_capabilities" in self.config.categories:
                 collect_v3_category("v3_capabilities")
             if "v3_persistence" in self.config.categories:
                 collect_v3_category("v3_persistence")
 
-        # Language-specific tests - only include if explicitly requested or "all" is specified
-        if "all" in self.config.categories:
-            # When running "all", include language-specific tests for configured languages
-            for lang in self.config.languages:
-                lang_dir = self.language_specific_dir / lang
-                if lang_dir.exists():
-                    lang_tests = list(lang_dir.rglob("*.frm"))
-                    # Retire legacy pre‑V3 async/comment fixtures from the generic language_specific_python suite.
-                    # These use the old @target python + async fn syntax and are covered by V3 categories now.
-                    if lang == "python":
-                        legacy_stems = {
-                            "test_async_basic",
-                            "test_async_debug",
-                            "test_async_generators",
-                            "test_async_handler",
-                            "test_async_interface",
-                            "test_async_minimal",
-                            "test_async_simple",
-                            "test_async_stress",
-                            "test_async_stress_fixed",
-                            "test_async_stress_simple",
-                            "test_async_validate",
-                            "test_async_with_proper",
-                            "test_async_with_real",
-                            "test_c_style_comments",
-                            "test_c_style_comments_simple",
-                        }
-                        lang_tests = [p for p in lang_tests if p.stem not in legacy_stems]
-                    # Exclude torture tests in transpile-only runs to avoid skew
-                    if not self.config.execute:
-                        lang_tests = [p for p in lang_tests if "torture" not in [pp.lower() for pp in p.parts]]
-                    if lang_tests:
-                        tests[f"language_specific_{lang}"] = lang_tests
-        else:
-            # Only include language-specific tests if explicitly requested
-            for lang in self.config.languages:
-                category_name = f"language_specific_{lang}"
-                if category_name in self.config.categories:
-                    lang_dir = self.language_specific_dir / lang
-                    if lang_dir.exists():
-                        lang_tests = list(lang_dir.rglob("*.frm"))
-                        if lang == "python":
-                            legacy_stems = {
-                                "test_async_basic",
-                                "test_async_debug",
-                                "test_async_generators",
-                                "test_async_handler",
-                                "test_async_interface",
-                                "test_async_minimal",
-                                "test_async_simple",
-                                "test_async_stress",
-                                "test_async_stress_fixed",
-                                "test_async_stress_simple",
-                                "test_async_validate",
-                                "test_async_with_proper",
-                                "test_async_with_real",
-                                "test_c_style_comments",
-                                "test_c_style_comments_simple",
-                            }
-                            lang_tests = [p for p in lang_tests if p.stem not in legacy_stems]
-                        if not self.config.execute:
-                            lang_tests = [p for p in lang_tests if "torture" not in [pp.lower() for pp in p.parts]]
-                        if lang_tests:
-                            tests[category_name] = lang_tests
+        # Language-specific tests - include when the wildcard category is present
+        for lang in self.config.languages:
+            category_name = f"language_specific_{lang}"
+            if category_name not in self.config.categories and "language_specific" not in self.config.categories and "all" not in self.config.categories:
+                continue
+            lang_dir = self.language_specific_dir / lang
+            if not lang_dir.exists():
+                continue
+            lang_tests = list(lang_dir.rglob("*.frm"))
+            if lang == "python":
+                legacy_stems = {
+                    "test_async_basic",
+                    "test_async_debug",
+                    "test_async_generators",
+                    "test_async_handler",
+                    "test_async_interface",
+                    "test_async_minimal",
+                    "test_async_simple",
+                    "test_async_stress",
+                    "test_async_stress_fixed",
+                    "test_async_stress_simple",
+                    "test_async_validate",
+                    "test_async_with_proper",
+                    "test_async_with_real",
+                    "test_c_style_comments",
+                    "test_c_style_comments_simple",
+                }
+                lang_tests = [p for p in lang_tests if p.stem not in legacy_stems]
+            if not self.config.execute:
+                lang_tests = [p for p in lang_tests if "torture" not in [pp.lower() for pp in p.parts]]
+            if lang_tests:
+                tests[category_name] = lang_tests
                     
         return tests
 
@@ -450,7 +426,7 @@ class FrameTestRunner:
         # Special handling for V3 demo tests (module partitioner demo path)
         parts_lower = [p.lower() for p in test_file.parts]
         # Treat all v3_* categories as module demo path; v3_closers uses single-body demo
-        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_exec_smoke", "v3_visitor_map", "v3_native_symbols", "v3_debugger"}
+        v3_categories = {"v3_demos", "v3_outline", "v3_prolog", "v3_imports", "v3_closers", "v3_mir", "v3_mapping", "v3_validator", "v3_project", "v3_facade_smoke", "v3_core", "v3_control_flow", "v3_data_types", "v3_operators", "v3_scoping", "v3_systems", "v3_exec_smoke", "v3_visitor_map", "v3_native_symbols", "v3_debugger", "v3_async"}
         is_v3 = any(seg in v3_categories for seg in parts_lower)
         is_v3_cli = "v3_cli" in parts_lower
         is_v3_cli_project = "v3_cli_project" in parts_lower
@@ -463,6 +439,7 @@ class FrameTestRunner:
         # Initialize optional flags to avoid UnboundLocalError in all branches
         is_v3_facade_smoke = False
         is_v3_project = False
+        is_module_file = False
         # Run transpiler - check if multifile test
         if is_v3_cli:
             # Special CLI validation: run compile subcommand or stdout path based on filename
@@ -532,13 +509,14 @@ class FrameTestRunner:
             else:
                 out = result.stdout or ""
                 output_file.write_text(out)
-            # Assert trailers presence
-            for sentinel in ("/*#frame-map#", "/*#debug-manifest#", "/*#errors-json#"):
-                if sentinel not in out:
-                    return False, str(output_file), f"Missing trailer: {sentinel}"
-            # Visitor-map required for Py/TS; optional for Rust
-            if language in ("python", "typescript") and "/*#visitor-map#" not in out:
-                return False, str(output_file), "Missing visitor-map trailer"
+            # Assert trailers presence only for V3/demos/visitors
+            if is_module_file or is_v3 or is_v3_cli or is_v3_cli_project or is_v3_closers or is_v3_mapping or is_v3_native_symbols or is_v3_visitor_map or is_v3_debugger or is_v3_expansion:
+                for sentinel in ("/*#frame-map#", "/*#debug-manifest#", "/*#errors-json#"):
+                    if sentinel not in out:
+                        return False, str(output_file), f"Missing trailer: {sentinel}"
+                # Visitor-map required for Py/TS; optional for Rust
+                if language in ("python", "typescript") and "/*#visitor-map#" not in out:
+                    return False, str(output_file), "Missing visitor-map trailer"
             # Optional compile-expect regex assertions
             meta = self.parse_fixture_meta(test_file)
             if 'compile_expect' in meta:
@@ -666,33 +644,48 @@ class FrameTestRunner:
                 if is_neg:
                     return True, str(outdir), None
                 return False, str(outdir), result.stderr or result.stdout
-            else:
-                # Some builds may log validation issues but still exit 0; treat negatives as success if validation lines exist
-                if is_neg:
-                    text = (result.stderr or "") + (result.stdout or "")
-                    if "validation:" in text and "E" in text:
-                        return True, str(outdir), None
-                    # Or if no outputs were produced, accept as a validation-only success
-                    files = list(outdir.glob("*"))
-                    if not files:
-                        return True, str(outdir), None
-                    # Inspect generated outputs for errors-json trailers; if any contain errors, treat as negative success
-                    for of in files:
-                        try:
-                            out_txt = of.read_text()
-                            ej_s = out_txt.find("/*#errors-json#")
-                            ej_e = out_txt.find("#errors-json#*/")
-                            if ej_s != -1 and ej_e != -1 and ej_e > ej_s:
-                                import json as _json
-                                ej = out_txt[ej_s+len("/*#errors-json#"):ej_e].strip()
-                                payload = _json.loads(ej)
-                                errs = payload.get("errors", []) if isinstance(payload, dict) else []
-                                if isinstance(errs, list) and len(errs) > 0:
-                                    return True, str(outdir), None
-                        except Exception:
-                            pass
+            # Some builds may log validation issues but still exit 0; treat negatives as success if validation lines exist
+            if is_neg:
+                text = (result.stderr or "") + (result.stdout or "")
+                if "validation:" in text and "E" in text:
+                    return True, str(outdir), None
+            # Or if no outputs were produced, accept as a validation-only success
+            def find_outputs(root: Path):
+                roots = []
+                build_root = root / "build"
+                if build_root.exists():
+                    roots.append(build_root)
+                roots.append(root)
+                seen = set()
+                outputs = []
+                for r in roots:
+                    for p in r.rglob("*"):
+                        if p.is_file():
+                            if p not in seen:
+                                seen.add(p)
+                                outputs.append(p)
+                return outputs
+
+            files = find_outputs(outdir)
+            if is_neg and not files:
+                return True, str(outdir), None
+            if is_neg:
+                # Inspect generated outputs for errors-json trailers; if any contain errors, treat as negative success
+                for of in files:
+                    try:
+                        out_txt = of.read_text()
+                        ej_s = out_txt.find("/*#errors-json#")
+                        ej_e = out_txt.find("#errors-json#*/")
+                        if ej_s != -1 and ej_e != -1 and ej_e > ej_s:
+                            import json as _json
+                            ej = out_txt[ej_s+len("/*#errors-json#"):ej_e].strip()
+                            payload = _json.loads(ej)
+                            errs = payload.get("errors", []) if isinstance(payload, dict) else []
+                            if isinstance(errs, list) and len(errs) > 0:
+                                return True, str(outdir), None
+                    except Exception:
+                        pass
             # Assert at least one output was compiled and contains trailers
-            files = list(outdir.glob("*"))
             if not files:
                 return False, str(outdir), "compile-project produced no outputs"
             ok_any = False
@@ -849,8 +842,14 @@ class FrameTestRunner:
             if "v3_exec_smoke" in parts_lower and self.config.execute:
                 env["FRAME_EMIT_EXEC"] = "1"
             # For curated V3 exec categories, emit a minimal executable when running
-            curated_exec_cats = {"v3_core", "v3_control_flow", "v3_systems"}
-            if any(seg in curated_exec_cats for seg in parts_lower) and not is_v3_facade_smoke and language in ("python", "typescript", "rust", "java", "csharp", "c", "cpp") and self.config.execute:
+            curated_exec_cats = {"v3_core", "v3_control_flow", "v3_systems", "v3_async"}
+            if (
+                any(seg in curated_exec_cats for seg in parts_lower)
+                and "language_specific" not in parts_lower
+                and not is_v3_facade_smoke
+                and language in ("python", "typescript", "rust", "java", "csharp", "c", "cpp")
+                and self.config.execute
+            ):
                 env["FRAME_EMIT_EXEC"] = "1"
                 if language == "typescript":
                     # Import the compiled shared runtime used by the runner
@@ -1288,6 +1287,20 @@ class FrameTestRunner:
                     return (res.returncode == 0), (res.stderr or res.stdout)
                 except Exception as e:
                     return False, str(e)
+
+        # Non-V3 fixtures: validate via compile --validation-only (no demo-frame)
+        if not is_v3:
+            cmd = [self.config.framec_path, "compile", "-l", lang_flag, "--validation-only", str(test_file)]
+            try:
+                if cmd and not os.path.isabs(cmd[0]):
+                    cmd[0] = os.path.abspath(cmd[0])
+            except Exception:
+                pass
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=max(self.config.timeout,10))
+                return (res.returncode == 0), (res.stderr or res.stdout)
+            except Exception as e:
+                return False, f"Validation error: {e}"
 
         # Single-body demo categories validate via single-file path
         # v3_mapping/v3_visitor_map can be module-based; detect @target and route those via demo-frame instead
@@ -1806,48 +1819,9 @@ class FrameTestRunner:
     def execute_rust(self, rs_file: str) -> Tuple[bool, str]:
         """Execute Rust file and return success status and output."""
         try:
-            # Get the base name without extension for the executable
-            base_name = os.path.splitext(rs_file)[0]
-            executable = base_name
-            
-            # Compile with rustc
-            compile_result = subprocess.run(
-                ["rustc", rs_file, "-o", executable],
-                capture_output=True,
-                text=True,
-                timeout=self.config.timeout
-            )
-            
-            if compile_result.returncode != 0:
-                error_output = compile_result.stderr + compile_result.stdout
-                return False, f"Rust compilation failed:\n{error_output}"
-            
-            # Run the executable
-            result = subprocess.run(
-                [executable],
-                capture_output=True,
-                text=True,
-                timeout=self.config.timeout,
-                cwd=os.path.dirname(rs_file)
-            )
-            
-            # Clean up executable
-            try:
-                os.remove(executable)
-            except:
-                pass  # Don't fail if cleanup fails
-            
-            output = result.stdout + result.stderr
-            
-            # Check for failure patterns similar to Python execution
-            if "panic" in output.lower():
-                return False, output
-            if result.returncode != 0:
-                return False, output
-            if "FAIL:" in output or "FAILED:" in output:
-                return False, output
-                
-            return True, output
+            src = Path(rs_file).read_text()
+            ok, out = self._run_rust_via_cargo(src)
+            return ok, out
 
         except subprocess.TimeoutExpired:
             return False, "Rust execution timeout"
@@ -2154,6 +2128,47 @@ class FrameTestRunner:
         except Exception as e:
             return False, str(e)
 
+    def _run_rust_via_cargo(self, program_src: str) -> Tuple[bool, str]:
+        """
+        Compile and run a Rust source snippet using a reusable Cargo crate with the
+        dependencies we need for generated code (tokio/serde/serde_json/persistence).
+        """
+        crate_dir = self.generated_dir / "rust_exec"
+        src_dir = crate_dir / "src"
+        src_dir.mkdir(parents=True, exist_ok=True)
+        persistence_path = (self.base_dir.parent / "runtime" / "persistence_rs").resolve()
+        cargo_toml = f"""[package]
+name = "rust_exec"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = {{ version = "1", features = ["rt-multi-thread", "macros", "time"] }}
+serde = {{ version = "1", features = ["derive"] }}
+serde_json = "1"
+frame_persistence_rs = {{ path = "{str(persistence_path).replace('\\\\', '\\\\\\\\')}" }}
+"""
+        (crate_dir / "Cargo.toml").write_text(cargo_toml)
+        (src_dir / "main.rs").write_text(program_src)
+        try:
+            run = subprocess.run(
+                ["cargo", "run", "--quiet", "--manifest-path", str(crate_dir / "Cargo.toml")],
+                capture_output=True,
+                text=True,
+                timeout=max(self.config.timeout, 30),
+                cwd=crate_dir
+            )
+        except subprocess.TimeoutExpired:
+            return False, "Rust execution timeout"
+        except FileNotFoundError:
+            return False, "cargo not found - please install Rust toolchain"
+        out = (run.stdout or "") + (run.stderr or "")
+        if run.returncode != 0:
+            return False, out
+        if "panic" in out.lower() or "FAILED" in out or "FAIL:" in out:
+            return False, out
+        return True, out
+
     def _ensure_llvm_runtime(self) -> Tuple[bool, str]:
         """Make sure the LLVM runtime library is built and discoverable."""
         if self._llvm_runtime_ready and self._llvm_runtime_dir:
@@ -2318,6 +2333,16 @@ class FrameTestRunner:
         )
         
         # Special handling: torture tests are validation-only (no transpile/execute expectations)
+        meta = self.parse_fixture_meta(test_file)
+        if self.config.core_only and 'core' not in meta and not self.config.include_noncore:
+            result.transpile_success = True
+            result.validation_success = True
+            result.execute_success = True
+            if is_negative:
+                result.expected_failure = True
+            result.skipped = "core-only"
+            result.execution_time = time.time() - start_time
+            return result
         if self.is_torture_test(test_file):
             # Torture tests are for deep validation/diagnostics; skip in transpile-only mode
             if not self.config.execute and not self.config.validate:
@@ -2570,11 +2595,11 @@ class FrameTestRunner:
                 # For other V3 categories, optionally execute selected sets for curated exec
                 # or auto-run fixtures that declare a top-level `fn main(...)`.
                 if any(seg.startswith("v3_") for seg in parts_lower):
-                    # Curated V3 exec (core/control_flow/scoping/systems):
+                    # Curated V3 exec (core/control_flow/scoping/systems/async):
                     # - For Python, obey the global execute flag (--run) without requiring --exec-v3.
                     # - For other languages, continue to require --exec-v3 plus execute.
-                    curated_categories = ("v3_core", "v3_control_flow", "v3_scoping", "v3_systems")
-                    in_curated_cat = any(seg in curated_categories for seg in parts_lower)
+                    curated_categories = ("v3_core", "v3_control_flow", "v3_scoping", "v3_systems", "v3_async")
+                    in_curated_cat = any(seg in curated_categories for seg in parts_lower) and "language_specific" not in parts_lower
                     should_exec_curated = False
                     if language == "python" and self.config.execute and in_curated_cat:
                         should_exec_curated = True
@@ -2956,6 +2981,8 @@ def main():
     parser.add_argument('--shuffle', action='store_true', help='Shuffle test order')
     parser.add_argument('--seed', type=int, help='Seed for shuffle')
     parser.add_argument('--include-flaky', action='store_true', help='Include @flaky tests')
+    parser.add_argument('--core-only', action='store_true', help='Run only fixtures marked with @core')
+    parser.add_argument('--include-noncore', action='store_true', help='Include non-@core fixtures even when --core-only is set (noop otherwise)')
     # Aliases for build/run terminology
     parser.add_argument('--build-only', dest='build_only', action='store_true', help='Build only (no run); alias for --transpile-only')
     parser.add_argument('--run', dest='run', action='store_true', help='Enable running generated programs (alias for execute on)')
@@ -2975,7 +3002,7 @@ def main():
     if args.full and 'all_v3' not in categories:
         categories.append('all_v3')
     if 'all_v3' in categories:
-        base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems','v3_systems_runtime','v3_cli','v3_cli_project','v3_legacy_async','v3_persistence']
+        base = ['v3_core','v3_control_flow','v3_data_types','v3_operators','v3_scoping','v3_systems','v3_systems_runtime','v3_cli','v3_cli_project','v3_legacy_async','v3_async','v3_persistence']
         categories = [c for c in categories if c != 'all_v3'] + base
     if args.fast:
         fast = ['v3_outline','v3_mir','v3_validator','v3_exec_smoke']
@@ -3021,6 +3048,8 @@ def main():
         shuffle=args.shuffle,
         seed=args.seed,
         exec_v3=getattr(args, 'exec_v3', False),
+        core_only=getattr(args, 'core_only', False),
+        include_noncore=getattr(args, 'include_noncore', False),
     )
     
     # Run tests

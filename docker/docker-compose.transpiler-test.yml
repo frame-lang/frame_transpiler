@@ -1,0 +1,185 @@
+version: '3.8'
+
+# Frame Transpiler Test Environment - Segregated from Debugger
+# All resources prefixed with 'transpiler-' to avoid conflicts
+
+services:
+  # Python test runner container (transpiler-specific)
+  transpiler-python-tests:
+    build:
+      context: .
+      dockerfile: transpiler-test-base.dockerfile
+    image: frame-transpiler/test-prt:latest  # Namespaced image
+    container_name: frame-transpiler-python-${TEST_RUN_ID:-default}
+    hostname: transpiler-python-test
+    volumes:
+      # Map to shared test env structure (not local repo)
+      - ${FRAMEPILER_TEST_ENV}/framec:/transpiler/framec:ro
+      - ${FRAMEPILER_TEST_ENV}/fixtures/python:/transpiler/fixtures:ro
+      - ${FRAMEPILER_TEST_ENV}/results/transpiler/python:/transpiler/results
+    environment:
+      - TEST_LANGUAGE=python
+      - TEST_RUNNER=/transpiler/framec/framec
+      - FRAME_EXEC_MARKERS=1
+      - FRAME_TEST_NAMESPACE=transpiler
+      - FRAME_TEST_COMPONENT=python-runner
+      - TEST_RUN_ID=${TEST_RUN_ID:-default}
+    command: |
+      bash -c "
+        echo 'Transpiler Python Test Runner - Run ID: ${TEST_RUN_ID:-default}' &&
+        /transpiler/framec/framec test \
+          --language python \
+          --category all_v3 \
+          --report-format json \
+          --output /transpiler/results/report-${TEST_RUN_ID:-default}.json
+      "
+    networks:
+      - transpiler-test-network
+    labels:
+      - "frame.component=transpiler"
+      - "frame.test.language=python"
+
+  # TypeScript test runner container (transpiler-specific)
+  transpiler-typescript-tests:
+    build:
+      context: .
+      dockerfile: transpiler-test-base.dockerfile
+    image: frame-transpiler/test-prt:latest
+    container_name: frame-transpiler-typescript-${TEST_RUN_ID:-default}
+    hostname: transpiler-typescript-test
+    volumes:
+      - ${FRAMEPILER_TEST_ENV}/framec:/transpiler/framec:ro
+      - ${FRAMEPILER_TEST_ENV}/fixtures/typescript:/transpiler/fixtures:ro
+      - ${FRAMEPILER_TEST_ENV}/results/transpiler/typescript:/transpiler/results
+    environment:
+      - TEST_LANGUAGE=typescript
+      - TEST_RUNNER=/transpiler/framec/framec
+      - FRAME_EXEC_MARKERS=1
+      - FRAME_TEST_NAMESPACE=transpiler
+      - FRAME_TEST_COMPONENT=typescript-runner
+      - TEST_RUN_ID=${TEST_RUN_ID:-default}
+    command: |
+      bash -c "
+        echo 'Transpiler TypeScript Test Runner - Run ID: ${TEST_RUN_ID:-default}' &&
+        /transpiler/framec/framec test \
+          --language typescript \
+          --category all_v3 \
+          --report-format json \
+          --output /transpiler/results/report-${TEST_RUN_ID:-default}.json
+      "
+    networks:
+      - transpiler-test-network
+    labels:
+      - "frame.component=transpiler"
+      - "frame.test.language=typescript"
+
+  # Rust test runner container (transpiler-specific)
+  transpiler-rust-tests:
+    build:
+      context: .
+      dockerfile: transpiler-test-base.dockerfile
+    image: frame-transpiler/test-prt:latest
+    container_name: frame-transpiler-rust-${TEST_RUN_ID:-default}
+    hostname: transpiler-rust-test
+    volumes:
+      - ${FRAMEPILER_TEST_ENV}/framec:/transpiler/framec:ro
+      - ${FRAMEPILER_TEST_ENV}/fixtures/rust:/transpiler/fixtures:ro
+      - ${FRAMEPILER_TEST_ENV}/results/transpiler/rust:/transpiler/results
+    environment:
+      - TEST_LANGUAGE=rust
+      - TEST_RUNNER=/transpiler/framec/framec
+      - FRAME_EXEC_MARKERS=1
+      - FRAME_TEST_NAMESPACE=transpiler
+      - FRAME_TEST_COMPONENT=rust-runner
+      - TEST_RUN_ID=${TEST_RUN_ID:-default}
+    command: |
+      bash -c "
+        echo 'Transpiler Rust Test Runner - Run ID: ${TEST_RUN_ID:-default}' &&
+        /transpiler/framec/framec test \
+          --language rust \
+          --category all_v3 \
+          --report-format json \
+          --output /transpiler/results/report-${TEST_RUN_ID:-default}.json
+      "
+    networks:
+      - transpiler-test-network
+    labels:
+      - "frame.component=transpiler"
+      - "frame.test.language=rust"
+
+  # Parallel test orchestrator (transpiler-specific)
+  transpiler-test-orchestrator:
+    build:
+      context: .
+      dockerfile: transpiler-test-base.dockerfile
+    image: frame-transpiler/test-prt:latest
+    container_name: frame-transpiler-orchestrator-${TEST_RUN_ID:-default}
+    hostname: transpiler-orchestrator
+    volumes:
+      - ${FRAMEPILER_TEST_ENV}/framec:/transpiler/framec:ro
+      - ${FRAMEPILER_TEST_ENV}/fixtures:/transpiler/fixtures:ro
+      - ${FRAMEPILER_TEST_ENV}/results/transpiler:/transpiler/results
+    environment:
+      - PARALLEL_WORKERS=4
+      - TEST_TIMEOUT=300
+      - FRAME_TEST_NAMESPACE=transpiler
+      - FRAME_TEST_COMPONENT=orchestrator
+      - TEST_RUN_ID=${TEST_RUN_ID:-default}
+    depends_on:
+      - transpiler-python-tests
+      - transpiler-typescript-tests
+      - transpiler-rust-tests
+    command: |
+      bash -c "
+        echo 'Transpiler Test Orchestrator - Run ID: ${TEST_RUN_ID:-default}' &&
+        echo 'Waiting for test completion...' &&
+        sleep 5 &&
+        echo 'Aggregating transpiler results...' &&
+        python3 -c '
+import json
+import glob
+import os
+run_id = os.environ.get(\"TEST_RUN_ID\", \"default\")
+results = []
+for lang in [\"python\", \"typescript\", \"rust\"]:
+    report_file = f\"/transpiler/results/{lang}/report-{run_id}.json\"
+    if os.path.exists(report_file):
+        with open(report_file) as rf:
+            data = json.load(rf)
+            data[\"namespace\"] = \"transpiler\"
+            results.append(data)
+output_file = f\"/transpiler/results/aggregated-{run_id}.json\"
+with open(output_file, \"w\") as out:
+    json.dump({
+        \"namespace\": \"transpiler\",
+        \"run_id\": run_id,
+        \"languages\": results
+    }, out, indent=2)
+print(f\"Transpiler: Aggregated {len(results)} test results for run {run_id}\")
+        '
+      "
+    networks:
+      - transpiler-test-network
+    labels:
+      - "frame.component=transpiler"
+      - "frame.test.role=orchestrator"
+
+# Transpiler-specific network (isolated from debugger)
+networks:
+  transpiler-test-network:
+    driver: bridge
+    name: frame-transpiler-test-net-${TEST_RUN_ID:-default}
+    labels:
+      - "frame.component=transpiler"
+    ipam:
+      config:
+        # Use different subnet to avoid conflicts with debugger
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
+
+# Named volumes with transpiler namespace
+volumes:
+  transpiler-test-results:
+    name: frame-transpiler-results-${TEST_RUN_ID:-default}
+    labels:
+      - "frame.component=transpiler"

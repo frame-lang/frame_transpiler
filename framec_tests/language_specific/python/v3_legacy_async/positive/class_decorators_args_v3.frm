@@ -17,7 +17,9 @@ system PyDecorArgsV3 {
         }
 }
 
-fn main() {
+def main():
     s = PyDecorArgsV3()
     s.run()
-}
+
+if __name__ == '__main__':
+    main()

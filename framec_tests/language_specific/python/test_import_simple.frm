@@ -8,18 +8,13 @@ import os.path as osp
 from collections import defaultdict
 from typing import List, Dict
 
-fn main() {
+def main():
     print("Testing imports...")
-    
-    # math module
     pi_value = math.pi
     root = math.sqrt(16)
     print("Pi: " + str(pi_value))
     print("Square root of 16: " + str(root))
-    
-    # Test that imported modules work
     print("Imports completed successfully")
-}
 
 system ImportTest {
     operations:
@@ -39,3 +34,6 @@ system ImportTest {
             }
         }
 }
+
+if __name__ == '__main__':
+    main()

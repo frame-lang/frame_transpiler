@@ -1,6 +1,7 @@
 use crate::frame_c::compiler::{Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
 use clap::{Arg, Command};
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 
@@ -37,6 +38,12 @@ pub enum CliCommand {
         compare_python: bool,
         exec_smoke: bool,
         exec_curated: bool,
+        docker: bool,
+        parallel: usize,
+        timeout: u64,
+        report_format: String,
+        output: Option<PathBuf>,
+        metadata_filter: Option<String>,
     },
 }
 
@@ -109,6 +116,46 @@ impl Cli {
                             .help("Run curated exec harness for this slice instead of validation-only")
                             .action(clap::ArgAction::SetTrue),
                     )
+                    .arg(
+                        Arg::new("docker")
+                            .long("docker")
+                            .help("Run tests in Docker containers for isolation")
+                            .action(clap::ArgAction::SetTrue),
+                    )
+                    .arg(
+                        Arg::new("parallel")
+                            .long("parallel")
+                            .help("Number of parallel test workers")
+                            .value_name("N")
+                            .default_value("4"),
+                    )
+                    .arg(
+                        Arg::new("timeout")
+                            .long("timeout")
+                            .help("Test execution timeout in seconds")
+                            .value_name("SECONDS")
+                            .default_value("300"),
+                    )
+                    .arg(
+                        Arg::new("report-format")
+                            .long("report-format")
+                            .help("Output report format: json|junit|tap|human")
+                            .value_name("FORMAT")
+                            .default_value("human"),
+                    )
+                    .arg(
+                        Arg::new("output")
+                            .long("output")
+                            .short('o')
+                            .help("Output file for test report")
+                            .value_name("FILE"),
+                    )
+                    .arg(
+                        Arg::new("metadata-filter")
+                            .long("metadata-filter")
+                            .help("Filter tests by metadata tag (e.g., @core, @flaky)")
+                            .value_name("TAG"),
+                    )
             )
             .arg(Arg::new("FILE-PATH").help("File path").value_name("FILE").index(1))
             .arg(Arg::new("language").value_name("LANG").long("language").short('l').help("Target language (python_3, typescript, graphviz, llvm)").num_args(1))
@@ -180,6 +227,25 @@ impl Cli {
                         let compare_python = sub.get_flag("compare-python");
                         let exec_smoke = sub.get_flag("exec-smoke");
                         let exec_curated = sub.get_flag("exec-curated");
+                        let docker = sub.get_flag("docker");
+                        let parallel = sub
+                            .get_one::<String>("parallel")
+                            .and_then(|s| s.parse::<usize>().ok())
+                            .unwrap_or(4);
+                        let timeout = sub
+                            .get_one::<String>("timeout")
+                            .and_then(|s| s.parse::<u64>().ok())
+                            .unwrap_or(300);
+                        let report_format = sub
+                            .get_one::<String>("report-format")
+                            .cloned()
+                            .unwrap_or_else(|| "human".to_string());
+                        let output = sub
+                            .get_one::<String>("output")
+                            .map(|s| PathBuf::from(s));
+                        let metadata_filter = sub
+                            .get_one::<String>("metadata-filter")
+                            .cloned();
                         if compare_python && (exec_smoke || exec_curated) {
                             eprintln!("--compare-python is only supported in validation mode (no --exec-* flags)");
                             std::process::exit(exitcode::USAGE);
@@ -195,6 +261,12 @@ impl Cli {
                             compare_python,
                             exec_smoke,
                             exec_curated,
+                            docker,
+                            parallel,
+                            timeout,
+                            report_format,
+                            output,
+                            metadata_filter,
                         }
                     }
                     _ => CliCommand::None,
@@ -260,12 +332,21 @@ pub fn run_with(args: Cli) {
             compare_python,
             exec_smoke,
             exec_curated,
+            docker,
+            parallel,
+            timeout,
+            report_format,
+            output,
+            metadata_filter,
         } => {
             // Minimal Rust-based V3 test entry point:
             // - validation-only for a single `<language>/<category>` pair
             // - optional `--compare-python` to run the Python runner for the
             //   same slice and compare validation outcomes.
             // - `--exec-smoke` / `--exec-curated` to run exec harnesses instead.
+            // - `--docker` to run tests in Docker containers
+            // - `--parallel` for number of workers
+            // - `--report-format` for output format
             let harness_lang = match language.as_str() {
                 "python_3" | "py" | "python" => "python",
                 "typescript" | "ts" => "typescript",
@@ -284,21 +365,24 @@ pub fn run_with(args: Cli) {
             // Exec-smoke mode
             if exec_smoke {
                 let summary = match harness_lang.as_str() {
-                    "rust" => crate::frame_c::v3::test_harness_rs::run_rust_exec_smoke(
+                    "rust" => crate::frame_c::v3::test_harness_rs::run_rust_exec_smoke_with_filter(
                         &repo_root,
                         &framec_path,
                         &category,
+                        metadata_filter.as_deref(),
                     ),
-                    "python" => crate::frame_c::v3::test_harness_rs::run_python_exec_smoke(
+                    "python" => crate::frame_c::v3::test_harness_rs::run_python_exec_smoke_with_filter(
                         &repo_root,
                         &framec_path,
                         &category,
+                        metadata_filter.as_deref(),
                     ),
                     "typescript" => {
-                        crate::frame_c::v3::test_harness_rs::run_typescript_exec_smoke(
+                        crate::frame_c::v3::test_harness_rs::run_typescript_exec_smoke_with_filter(
                             &repo_root,
                             &framec_path,
                             &category,
+                            metadata_filter.as_deref(),
                         )
                     }
                     other => {
@@ -368,22 +452,69 @@ pub fn run_with(args: Cli) {
             }
 
             // Default: validation-only mode.
-            let summary = match crate::frame_c::v3::test_harness_rs::run_validation_for_category(
-                &repo_root,
-                &framec_path,
-                &harness_lang,
-                &category,
-            ) {
-                Ok(summary) => summary,
-                Err(e) => {
-                    eprintln!("framec test error (Rust harness): {}", e);
-                    std::process::exit(exitcode::IOERR);
+            // If Docker is requested, use the Docker executor
+            let summary = if docker {
+                use crate::frame_c::v3::docker_executor::DockerTestExecutor;
+                use crate::frame_c::v3::test_reporter::{TestReporter, ReportFormat};
+                
+                // Initialize Docker executor
+                let mut executor = DockerTestExecutor::new(&format!("frame-test-{}", harness_lang));
+                executor.add_volume(&repo_root, &PathBuf::from("/workspace"));
+                
+                // Set timeout
+                executor.set_timeout(std::time::Duration::from_secs(timeout));
+                
+                // Run tests in Docker
+                match executor.run_tests(&harness_lang, &category, parallel) {
+                    Ok(results) => {
+                        // Create test reporter
+                        let reporter = TestReporter::new();
+                        
+                        // Convert Docker results to test summary
+                        let summary = crate::frame_c::v3::test_harness_rs::TestSummary {
+                            language: harness_lang.clone(),
+                            category: category.clone(),
+                            passed: results.iter().filter(|r| r.success).count(),
+                            failed: results.iter().filter(|r| !r.success).count(),
+                            skipped: 0,  // TODO: Track skipped tests in Docker execution
+                        };
+                        
+                        // Generate report if output file specified
+                        if let Some(ref output_path) = output {
+                            let format = ReportFormat::from_str(&report_format)
+                                .unwrap_or(ReportFormat::Human);
+                            if let Err(e) = reporter.write_report(output_path, format) {
+                                eprintln!("Failed to write test report: {}", e);
+                            }
+                        }
+                        
+                        summary
+                    }
+                    Err(e) => {
+                        eprintln!("Docker test execution failed: {}", e);
+                        std::process::exit(exitcode::IOERR);
+                    }
+                }
+            } else {
+                // Run tests directly without Docker
+                match crate::frame_c::v3::test_harness_rs::run_validation_for_category_with_filter(
+                    &repo_root,
+                    &framec_path,
+                    &harness_lang,
+                    &category,
+                    metadata_filter.as_deref(),
+                ) {
+                    Ok(summary) => summary,
+                    Err(e) => {
+                        eprintln!("framec test error (Rust harness): {}", e);
+                        std::process::exit(exitcode::IOERR);
+                    }
                 }
             };
 
             println!(
-                "framec test: language={} category={} passed={} failed={}",
-                summary.language, summary.category, summary.passed, summary.failed
+                "framec test: language={} category={} passed={} failed={} skipped={}",
+                summary.language, summary.category, summary.passed, summary.failed, summary.skipped
             );
 
             if compare_python {
@@ -605,6 +736,7 @@ pub fn run_with(args: Cli) {
             let mut validated_count: usize = 0;
             let mut missing_target: Vec<std::path::PathBuf> = Vec::new();
             let mut mismatched_target: Vec<(std::path::PathBuf, String)> = Vec::new();
+            let mut dup_systems: BTreeMap<String, Vec<std::path::PathBuf>> = BTreeMap::new();
             for f in files {
                 let Ok(content) = std::fs::read_to_string(&f) else { continue };
                 let target_decl = detect_target(&content);
@@ -642,7 +774,7 @@ pub fn run_with(args: Cli) {
                 match crate::frame_c::v3::compile_module(&content, lang) {
                     Ok(code) => {
                         let ext = match lang { TargetLanguage::Python3 => ".py", TargetLanguage::TypeScript => ".ts", TargetLanguage::CSharp => ".cs", TargetLanguage::C => ".c", TargetLanguage::Cpp => ".cpp", TargetLanguage::Java => ".java", TargetLanguage::Rust => ".rs", _ => ".txt" };
-                        let stem = f.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
+                        let _stem = f.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
                         let lang_dir = match lang {
                             TargetLanguage::Python3 => "python",
                             TargetLanguage::TypeScript => "typescript",
@@ -795,6 +927,7 @@ pub fn run_with(args: Cli) {
                                 for issue in res.issues { eprintln!("validation: {}", issue.message); }
                                 if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
                                 if args.validate_native && !res.ok { std::process::exit(exitcode::DATAERR); }
+                                if args.validate && !res.ok { std::process::exit(exitcode::DATAERR); }
                             }
                             Err(e) => { eprintln!("validation error: {}", e.error); if args.validate_only || args.validate_native { std::process::exit(e.code); } }
                         }

@@ -125,17 +125,19 @@ impl OutlineScannerV3 {
             let mut is_global_fn = false;
             // Global functions: fn name(...) or async fn name(...)
             let mut is_global_candidate = false;
-            if first_tok == "fn" {
-                is_global_candidate = true;
-            } else if first_tok == "async" {
-                // Look ahead for 'fn' after async
-                let mut next = j; while next < n && is_space(bytes[next]) { next += 1; }
-                let mut w = next; while w < n && is_ident(bytes[w]) { w += 1; }
-                let maybe_fn = to_lower_ascii(&bytes[next..w]);
-                if maybe_fn == "fn" {
+            if matches!(section, Section::None) {
+                if first_tok == "fn" {
                     is_global_candidate = true;
-                    // Position k at start of name after 'fn'
-                    k = w; while k < n && is_space(bytes[k]) { k += 1; }
+                } else if first_tok == "async" {
+                    // Look ahead for 'fn' after async
+                    let mut next = j; while next < n && is_space(bytes[next]) { next += 1; }
+                    let mut w = next; while w < n && is_ident(bytes[w]) { w += 1; }
+                    let maybe_fn = to_lower_ascii(&bytes[next..w]);
+                    if maybe_fn == "fn" {
+                        is_global_candidate = true;
+                        // Position k at start of name after 'fn'
+                        k = w; while k < n && is_space(bytes[k]) { k += 1; }
+                    }
                 }
             }
             if is_global_candidate {
@@ -162,11 +164,18 @@ impl OutlineScannerV3 {
                     }
                 } else {
                     if first_tok == "async" {
-                        // Advance to the actual function name after 'async'
+                        // Advance to the actual function name after 'async' (and an optional 'fn')
                         let mut p = k;
+                        // Skip an optional 'fn' token after 'async'.
+                        let mut ident_start = p;
                         while p < n && is_ident(bytes[p]) { p += 1; }
-                        if p > k {
-                            name_start = k;
+                        if to_lower_ascii(&bytes[ident_start..p]) == "fn" {
+                            while p < n && is_space(bytes[p]) { p += 1; }
+                            ident_start = p;
+                            while p < n && is_ident(bytes[p]) { p += 1; }
+                        }
+                        if p > ident_start {
+                            name_start = ident_start;
                             name_end = p;
                             k = p;
                             while k < n && is_space(bytes[k]) { k += 1; }
@@ -214,6 +223,13 @@ impl OutlineScannerV3 {
                             p += 1;
                         }
                         while p < n && is_space(bytes[p]) { p += 1; }
+                    } else if p + 1 < n && bytes[p] == b'-' && bytes[p + 1] == b'>' {
+                        // Rust-style return type `-> Type { ... }`
+                        p += 2;
+                        while p < n && bytes[p] != b'{' && bytes[p] != b'\n' {
+                            p += 1;
+                        }
+                        while p < n && is_space(bytes[p]) { p += 1; }
                     }
                 } else if is_global_fn && p < n && bytes[p] == b':' {
                     // Global Frame functions (fn name(...) : Type { ... }) may also
@@ -224,6 +240,29 @@ impl OutlineScannerV3 {
                         p += 1;
                     }
                     while p < n && is_space(bytes[p]) { p += 1; }
+                }
+                if p < n && bytes[p] != b'{' {
+                    // Last chance: scan forward on the same line for an opening brace,
+                    // but ignore braces that appear inside line comments.
+                    let mut q = p;
+                    let mut found = None;
+                    let mut saw_comment = false;
+                    while q < n && bytes[q] != b'\n' {
+                        if bytes[q] == b'/' && q + 1 < n && bytes[q + 1] == b'/' {
+                            saw_comment = true;
+                            break;
+                        }
+                        if bytes[q] == b'{' {
+                            found = Some(q);
+                            break;
+                        }
+                        q += 1;
+                    }
+                    if let Some(pos) = found {
+                        p = pos;
+                    } else if saw_comment {
+                        // No brace before comment; leave p unchanged so we surface E111.
+                    }
                 }
                 if p < n && bytes[p] == b'{' {
                     if std::env::var("FRAME_DEBUG_OUTLINE").ok().as_deref() == Some("1") {
@@ -321,7 +360,7 @@ impl OutlineScannerV3 {
         let mut issues: Vec<ValidationIssueV3> = Vec::new();
         let n = bytes.len();
         let mut i = start;
-        #[derive(Clone, Copy, PartialEq, Eq)]
+        #[derive(Clone, Copy, PartialEq, Eq, Debug)]
         enum Section { None, Actions, Operations, Interface, Machine }
         let mut section = Section::None;
         let mut state_scopes: Vec<(String, usize)> = Vec::new();
@@ -380,7 +419,7 @@ impl OutlineScannerV3 {
             let mut is_func_header = false;
             let mut _name_start = kw_start;
             let mut _name_end = j;
-            if first_tok == "fn" || first_tok == "async" {
+            if matches!(section, Section::None) && (first_tok == "fn" || first_tok == "async") {
                 // Global function or 'async fn'
                 let mut next = k; while next < n && is_space(bytes[next]) { next += 1; }
                 if first_tok == "async" {
@@ -408,11 +447,17 @@ impl OutlineScannerV3 {
                     }
                 } else {
                     if first_tok == "async" {
-                        // Support 'async name(...) { ... }' inside these sections by advancing to the actual name.
+                        // Support 'async name(...) { ... }' (with optional 'fn') inside these sections by advancing to the actual name.
                         let mut p = k;
+                        let mut ident_start = p;
                         while p < n && is_ident(bytes[p]) { p += 1; }
-                        if p > k {
-                            _name_start = k;
+                        if to_lower_ascii(&bytes[ident_start..p]) == "fn" {
+                            while p < n && is_space(bytes[p]) { p += 1; }
+                            ident_start = p;
+                            while p < n && is_ident(bytes[p]) { p += 1; }
+                        }
+                        if p > ident_start {
+                            _name_start = ident_start;
                             _name_end = p;
                             k = p;
                             while k < n && is_space(bytes[k]) { k += 1; }
@@ -429,7 +474,11 @@ impl OutlineScannerV3 {
                 while p < n && is_space(bytes[p]) { p += 1; }
                 // For section members (non-global), allow optional ': Type = default'
                 // between ')' and '{' on the same line.
-                if !(first_tok == "fn" || first_tok == "async") && matches!(section, Section::Machine) || matches!(section, Section::Actions) || matches!(section, Section::Operations) || matches!(section, Section::Interface) {
+                if matches!(section, Section::Machine)
+                    || matches!(section, Section::Actions)
+                    || matches!(section, Section::Operations)
+                    || matches!(section, Section::Interface)
+                {
                     if p < n && bytes[p] == b':' {
                         p += 1;
                         while p < n && bytes[p] != b'{' && bytes[p] != b'=' && bytes[p] != b'\n' {
@@ -448,6 +497,45 @@ impl OutlineScannerV3 {
                             p += 1;
                         }
                         while p < n && is_space(bytes[p]) { p += 1; }
+                    } else if p + 1 < n && bytes[p] == b'-' && bytes[p + 1] == b'>' {
+                        // Rust-style return type `-> Type { ... }`
+                        p += 2;
+                        while p < n && bytes[p] != b'{' && bytes[p] != b'\n' {
+                            p += 1;
+                        }
+                        while p < n && is_space(bytes[p]) { p += 1; }
+                    }
+                } else if matches!(section, Section::None) && p < n && bytes[p] == b':' {
+                    // Global Frame functions (fn name(...) : Type { ... }) may also carry
+                    // a return type between ')' and '{'. Skip the type expression up to
+                    // the opening brace or end-of-line.
+                    p += 1;
+                    while p < n && bytes[p] != b'{' && bytes[p] != b'\n' {
+                        p += 1;
+                    }
+                    while p < n && is_space(bytes[p]) { p += 1; }
+                }
+                if p < n && bytes[p] != b'{' {
+                    // Last chance: scan forward on the same line for an opening brace,
+                    // but ignore braces that appear inside line comments.
+                    let mut q = p;
+                    let mut found = None;
+                    let mut saw_comment = false;
+                    while q < n && bytes[q] != b'\n' {
+                        if bytes[q] == b'/' && q + 1 < n && bytes[q + 1] == b'/' {
+                            saw_comment = true;
+                            break;
+                        }
+                        if bytes[q] == b'{' {
+                            found = Some(q);
+                            break;
+                        }
+                        q += 1;
+                    }
+                    if let Some(pos) = found {
+                        p = pos;
+                    } else if saw_comment {
+                        // No brace before comment; leave p unchanged so we surface E111.
                     }
                 }
                 if p < n && bytes[p] == b'{' {
@@ -494,7 +582,7 @@ impl OutlineScannerV3 {
                         TargetLanguage::C => match closer::c::BodyCloserCV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
                         TargetLanguage::Cpp => match closer::cpp::BodyCloserCppV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
                         TargetLanguage::Java => match closer::java::BodyCloserJavaV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
-                        TargetLanguage::Rust => match closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[kw_start..j]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
+                        TargetLanguage::Rust => match closer::rust::BodyCloserRustV3.close_byte(&bytes[open..], 0) { Ok(c) => { let close = open + c; let owner_id = Some(String::from_utf8_lossy(&bytes[_name_start.._name_end]).to_string()); let state_id = state_scopes.last().map(|(n, _)| n.clone()); let kind = match section { Section::Actions => BodyKindV3::Action, Section::Operations => BodyKindV3::Operation, Section::None => BodyKindV3::Function, _ => BodyKindV3::Handler }; if std::env::var("FRAME_DEBUG_OUTLINE").ok().as_deref() == Some("1") { eprintln!("[outline] push kind={:?} section={:?} owner={:?} state={:?}", kind, section, owner_id, state_id); } items.push(OutlineItemV3{ header_span: RegionSpan{ start: line_start, end: p }, owner_id, state_id, kind, open_byte: open, close_byte: close }); i = close + 1; continue; }, Err(e) => { issues.push(ValidationIssueV3{ message: format!("body close error: {:?}", e) }); } },
                         _ => {}
                     }
                     // recovery: skip to next line after '{'
@@ -513,6 +601,20 @@ impl OutlineScannerV3 {
                 // Only treat function-like constructs as E111; regular statements
                 // like `print(...)` inside bodies should not surface this error.
                 if first_tok == "fn" || first_tok == "async" {
+                    if std::env::var("FRAME_DEBUG_OUTLINE").ok().as_deref() == Some("1") {
+                        let line_end = {
+                            let mut q = line_start;
+                            while q < n && bytes[q] != b'\n' { q += 1; }
+                            q
+                        };
+                        let hdr = String::from_utf8_lossy(&bytes[line_start..line_end]).to_string();
+                        eprintln!(
+                            "[outline] E111 (collect) section={:?} line_start={} header_text={}",
+                            section,
+                            line_start,
+                            hdr
+                        );
+                    }
                     issues.push(ValidationIssueV3{ message: "E111: missing '{' after module artifact header".into() });
                 }
                 while i<n && bytes[i]!=b'\n' { i+=1; }

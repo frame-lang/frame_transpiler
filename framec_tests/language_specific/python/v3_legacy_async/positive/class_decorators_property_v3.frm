@@ -23,8 +23,9 @@ system PyDecorPropertyV3 {
         }
 }
 
-fn main() {
+def main():
     s = PyDecorPropertyV3()
     s.run()
-}
 
+if __name__ == '__main__':
+    main()
