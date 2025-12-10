@@ -1,9 +1,12 @@
 use crate::frame_c::compiler::{Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
+use crate::frame_c::v3::docker_executor::DockerTestExecutor;
+use crate::frame_c::v3::test_reporter::{TestReporter, ReportFormat};
 use clap::{Arg, Command};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 pub struct Cli {
     stdin_flag: bool,
@@ -362,6 +365,15 @@ pub fn run_with(args: Cli) {
                 .unwrap_or_else(|| std::path::Path::new("."))
                 .to_path_buf();
 
+            // Create test configuration from CLI options
+            let test_config = crate::frame_c::v3::test_harness_rs::TestConfig {
+                use_docker: docker,
+                docker_image: None,
+                parallel_workers: parallel,
+                test_timeout: timeout,
+                verbose: false,
+            };
+
             // Exec-smoke mode
             if exec_smoke {
                 let summary = match harness_lang.as_str() {
@@ -371,18 +383,20 @@ pub fn run_with(args: Cli) {
                         &category,
                         metadata_filter.as_deref(),
                     ),
-                    "python" => crate::frame_c::v3::test_harness_rs::run_python_exec_smoke_with_filter(
+                    "python" => crate::frame_c::v3::test_harness_rs::run_python_exec_smoke_with_config(
                         &repo_root,
                         &framec_path,
                         &category,
                         metadata_filter.as_deref(),
+                        &test_config,
                     ),
                     "typescript" => {
-                        crate::frame_c::v3::test_harness_rs::run_typescript_exec_smoke_with_filter(
+                        crate::frame_c::v3::test_harness_rs::run_typescript_exec_smoke_with_config(
                             &repo_root,
                             &framec_path,
                             &category,
                             metadata_filter.as_deref(),
+                            &test_config,
                         )
                     }
                     other => {

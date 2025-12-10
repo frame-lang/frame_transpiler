@@ -5,6 +5,35 @@ use std::process::Command;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::frame_c::v3::docker_executor::{DockerTestExecutor, DockerTestResult};
+
+/// Test execution configuration
+#[derive(Debug, Clone)]
+pub struct TestConfig {
+    /// Use Docker for test execution
+    pub use_docker: bool,
+    /// Docker image override (if not using default for language)
+    pub docker_image: Option<String>,
+    /// Number of parallel workers for test execution
+    pub parallel_workers: usize,
+    /// Timeout in seconds for individual tests
+    pub test_timeout: u64,
+    /// Verbose output
+    pub verbose: bool,
+}
+
+impl Default for TestConfig {
+    fn default() -> Self {
+        Self {
+            use_docker: false,
+            docker_image: None,
+            parallel_workers: 1,
+            test_timeout: 60,
+            verbose: false,
+        }
+    }
+}
+
 /// Comprehensive test metadata matching Python runner capabilities
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TestMetadata {
@@ -153,6 +182,27 @@ pub fn run_validation_for_category_with_filter(
     language: &str,
     category: &str,
     metadata_filter: Option<&str>,
+) -> Result<TestSummary, String> {
+    // Use default test config for backwards compatibility
+    let config = TestConfig::default();
+    run_validation_for_category_with_config(
+        repo_root,
+        framec_path,
+        language,
+        category,
+        metadata_filter,
+        &config,
+    )
+}
+
+/// Run validation-only tests with full configuration options
+pub fn run_validation_for_category_with_config(
+    repo_root: &Path,
+    framec_path: &Path,
+    language: &str,
+    category: &str,
+    metadata_filter: Option<&str>,
+    config: &TestConfig,
 ) -> Result<TestSummary, String> {
     if !framec_path.is_file() {
         return Err(format!(
@@ -694,6 +744,25 @@ pub fn run_python_exec_smoke_with_filter(
     category: &str,
     metadata_filter: Option<&str>,
 ) -> Result<TestSummary, String> {
+    // Use default test config for backwards compatibility
+    let config = TestConfig::default();
+    run_python_exec_smoke_with_config(
+        repo_root,
+        framec_path,
+        category,
+        metadata_filter,
+        &config,
+    )
+}
+
+/// Execute Python V3 exec-smoke fixtures with full configuration
+pub fn run_python_exec_smoke_with_config(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+    metadata_filter: Option<&str>,
+    config: &TestConfig,
+) -> Result<TestSummary, String> {
     let language = "python";
     let tests_root = repo_root
         .join("framec_tests")
@@ -817,46 +886,83 @@ pub fn run_python_exec_smoke_with_filter(
             continue;
         }
 
-        // Run python3 on the emitted script. Prepend the repo root to PYTHONPATH
-        // so `frame_runtime_py` can be imported consistently.
-        let mut cmd = Command::new("python3");
-        cmd.arg(&py_path).current_dir(&out_root);
-        if let Ok(existing) = std::env::var("PYTHONPATH") {
-            let mut new_path = repo_root.to_path_buf();
-            new_path.push(""); // ensure trailing separator
-            let merged = format!(
-                "{}{}{}",
-                repo_root.display(),
-                std::path::MAIN_SEPARATOR,
-                existing
-            );
-            cmd.env("PYTHONPATH", merged);
-        } else {
-            cmd.env("PYTHONPATH", repo_root);
-        }
-        let run_output = match cmd.output() {
-            Ok(run) => run,
-            Err(e) => {
-                failed += 1;
-                eprintln!(
-                    "  ERROR (spawn python3): {} ({})",
-                    py_path.display(),
-                    e
-                );
-                continue;
+        // Run the test either in Docker or locally based on configuration
+        let (run_success, out_text) = if config.use_docker {
+            // Execute in Docker container
+            let mut executor = match DockerTestExecutor::for_language("python") {
+                Ok(ex) => ex,
+                Err(e) => {
+                    failed += 1;
+                    eprintln!("  ERROR creating Docker executor: {}", e);
+                    continue;
+                }
+            };
+            
+            // Mount the repo root and output directory
+            executor.add_volume(repo_root, Path::new("/repo"));
+            executor.add_volume(&out_root, Path::new("/output"));
+            
+            // Set PYTHONPATH in container
+            executor.add_env("PYTHONPATH", "/repo");
+            executor.workdir("/output");
+            
+            // Run the test file
+            let container_py_path = format!("/output/{}.fpy", stem);
+            match executor.run_test_file("python", &frm_path, Path::new(&container_py_path)) {
+                Ok(result) => {
+                    let mut text = String::new();
+                    text.push_str(&result.stdout);
+                    text.push_str(&result.stderr);
+                    (result.success, text)
+                }
+                Err(e) => {
+                    failed += 1;
+                    eprintln!("  ERROR running Docker test: {}", e);
+                    continue;
+                }
             }
-        };
+        } else {
+            // Run locally with existing logic
+            let mut cmd = Command::new("python3");
+            cmd.arg(&py_path).current_dir(&out_root);
+            if let Ok(existing) = std::env::var("PYTHONPATH") {
+                let mut new_path = repo_root.to_path_buf();
+                new_path.push(""); // ensure trailing separator
+                let merged = format!(
+                    "{}{}{}",
+                    repo_root.display(),
+                    std::path::MAIN_SEPARATOR,
+                    existing
+                );
+                cmd.env("PYTHONPATH", merged);
+            } else {
+                cmd.env("PYTHONPATH", repo_root);
+            }
+            let run_output = match cmd.output() {
+                Ok(run) => run,
+                Err(e) => {
+                    failed += 1;
+                    eprintln!(
+                        "  ERROR (spawn python3): {} ({})",
+                        py_path.display(),
+                        e
+                    );
+                    continue;
+                }
+            };
 
-        let mut out_text = String::new();
-        out_text.push_str(&String::from_utf8_lossy(&run_output.stdout));
-        out_text.push_str(&String::from_utf8_lossy(&run_output.stderr));
+            let mut text = String::new();
+            text.push_str(&String::from_utf8_lossy(&run_output.stdout));
+            text.push_str(&String::from_utf8_lossy(&run_output.stderr));
+            (run_output.status.success(), text)
+        };
 
         let mut exec_ok = true;
         let mut reason = String::new();
 
-        if !run_output.status.success() {
+        if !run_success {
             exec_ok = false;
-            reason = format!("non-zero exit ({})", run_output.status);
+            reason = "non-zero exit".to_string();
         } else {
             let lower = out_text.to_lowercase();
             if lower.contains("traceback") || lower.contains("error") {
@@ -953,6 +1059,25 @@ pub fn run_typescript_exec_smoke_with_filter(
     framec_path: &Path,
     category: &str,
     metadata_filter: Option<&str>,
+) -> Result<TestSummary, String> {
+    // Use default test config for backwards compatibility
+    let config = TestConfig::default();
+    run_typescript_exec_smoke_with_config(
+        repo_root,
+        framec_path,
+        category,
+        metadata_filter,
+        &config,
+    )
+}
+
+/// Execute TypeScript V3 exec-smoke fixtures with full configuration
+pub fn run_typescript_exec_smoke_with_config(
+    repo_root: &Path,
+    framec_path: &Path,
+    category: &str,
+    metadata_filter: Option<&str>,
+    config: &TestConfig,
 ) -> Result<TestSummary, String> {
     let language = "typescript";
     let tests_root = repo_root
