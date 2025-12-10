@@ -1096,9 +1096,32 @@ Stage 19 — Test Environment Migration & Python Runner Deprecation
         - [x] Metadata-based test filtering (@core, @flaky, etc.)
         - [x] Test summary with skipped count tracking
         - [x] File extension standardization (.fpy, .frts, .frs)
-        - [ ] Unit tests for metadata parsing
-        - [ ] Docker executor implementation (not placeholder)
-        - [ ] Parallel validation vs Python runner
+        
+        **Immediate Next Tasks (In Order)**:
+        - [ ] Add unit tests for metadata parsing functionality
+          - Test metadata directive parsing (@expect, @core, @flaky, etc.)
+          - Test filter matching logic (should_run_test function)
+          - Test negation handling (!flaky)
+          - Test complex filters (skip:condition, meta:tag)
+        - [ ] Complete Docker executor implementation (replace placeholder)
+          - Spawn Docker containers using Docker CLI
+          - Mount test directories as volumes
+          - Execute framec inside containers
+          - Capture and parse output
+          - Handle cleanup
+        - [ ] Build and push Docker images
+          - Build frame-transpiler/test-prt:latest
+          - Push to registry (Docker Hub or GitHub Container Registry)
+          - Update CI/CD to use these images
+        - [ ] Implement exec harness support for PRT languages
+          - Python: Run generated .fpy files with python3
+          - TypeScript: Compile .frts with tsc and run with node
+          - Rust: Build with cargo and execute
+        - [ ] Begin parallel validation (Rust vs Python runner)
+          - Create comparison script
+          - Identify discrepancies
+          - Fix issues in Rust runner
+          - Document parity status
       - Week 3-4: Set up Docker-based shared test environment
         - [x] Directory structure with team segregation
         - [x] Docker namespace isolation (frame-transpiler-* vs frame-debugger-*)

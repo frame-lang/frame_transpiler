@@ -313,7 +313,7 @@ fn collect_frm_files(dir: &Path, out: &mut Vec<PathBuf>) {
 ///   - @flaky: Include flaky tests (normally skipped)
 ///   - !flaky: Exclude flaky tests
 ///   - skip:<condition>: Check skip conditions
-fn should_run_test(metadata: &TestMetadata, filter: &str) -> bool {
+pub(crate) fn should_run_test(metadata: &TestMetadata, filter: &str) -> bool {
     // Parse filter expression
     let filter_lower = filter.to_lowercase();
     
@@ -326,7 +326,7 @@ fn should_run_test(metadata: &TestMetadata, filter: &str) -> bool {
 }
 
 /// Check if metadata matches a single filter criterion
-fn matches_filter(metadata: &TestMetadata, filter: &str) -> bool {
+pub(crate) fn matches_filter(metadata: &TestMetadata, filter: &str) -> bool {
     match filter {
         "core" | "@core" => metadata.core,
         "noncore" | "@noncore" => metadata.noncore,

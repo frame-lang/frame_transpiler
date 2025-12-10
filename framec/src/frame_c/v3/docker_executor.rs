@@ -29,9 +29,20 @@ impl DockerTestExecutor {
             volumes: Vec::new(),
             env_vars: HashMap::new(),
             workdir: "/work".to_string(),
-            container_prefix: "frame-test".to_string(),
+            container_prefix: "frame-transpiler-test".to_string(),  // Use transpiler namespace
             auto_cleanup: true,
         }
+    }
+    
+    /// Create executor for a specific language
+    pub fn for_language(language: &str) -> Result<Self, String> {
+        let image = match language {
+            "python" | "python_3" => "frame-transpiler-python:latest",
+            "typescript" => "frame-transpiler-typescript:latest",
+            "rust" => "frame-transpiler-rust:latest",
+            _ => return Err(format!("Unsupported language: {}", language)),
+        };
+        Ok(Self::new(image))
     }
     
     /// Add a volume mount
@@ -112,6 +123,49 @@ impl DockerTestExecutor {
         })
     }
     
+    /// Run a single test file in Docker
+    pub fn run_test_file(
+        &self,
+        language: &str,
+        _test_file: &Path,
+        generated_file: &Path,
+    ) -> Result<DockerTestResult, String> {
+        // Build the test command based on the language
+        let generated_path = generated_file.to_str()
+            .ok_or_else(|| "Invalid generated file path".to_string())?;
+        
+        // Store format strings to avoid temporary lifetime issues
+        let rust_cmd = format!("rustc {} -o /tmp/test && /tmp/test", generated_file.display());
+        
+        let command: Vec<&str> = match language {
+            "python" | "python_3" => {
+                vec![
+                    "python3",
+                    generated_path,
+                ]
+            }
+            "typescript" => {
+                vec![
+                    "node",
+                    generated_path,
+                ]
+            }
+            "rust" => {
+                // For Rust, we need to compile and run
+                vec![
+                    "sh",
+                    "-c",
+                    &rust_cmd,
+                ]
+            }
+            _ => {
+                return Err(format!("Unsupported language: {}", language));
+            }
+        };
+        
+        self.execute(&command)
+    }
+    
     /// Run tests for a specific language and category with parallel workers
     pub fn run_tests(
         &self,
@@ -119,19 +173,52 @@ impl DockerTestExecutor {
         category: &str,
         parallel: usize,
     ) -> Result<Vec<DockerTestResult>, String> {
-        // For now, run a simple test execution
-        // In production, this would coordinate parallel test execution
-        let test_cmd = format!("print('Running {} {} tests with {} workers')", language, category, parallel);
-        let command = vec![
-            "python3",
-            "-c",
-            &test_cmd,
-        ];
+        // Build the test command based on the language
+        // Store format strings to avoid temporary lifetime issues
+        let fixtures_path = format!("/fixtures/{}", category);
+        let cargo_manifest = format!("/fixtures/{}/Cargo.toml", category);
+        let threads_str = parallel.to_string();
+        
+        let command: Vec<&str> = match language {
+            "python" | "python_3" => {
+                vec![
+                    "python3",
+                    "-m",
+                    "pytest",
+                    "-v",
+                    "--json-report",
+                    "--json-report-file=/tmp/test-results.json",
+                    &fixtures_path,
+                ]
+            }
+            "typescript" => {
+                vec![
+                    "npm",
+                    "test",
+                    "--",
+                    &fixtures_path,
+                ]
+            }
+            "rust" => {
+                vec![
+                    "cargo",
+                    "test",
+                    "--manifest-path",
+                    &cargo_manifest,
+                    "--",
+                    "--test-threads",
+                    &threads_str,
+                ]
+            }
+            _ => {
+                return Err(format!("Unsupported language: {}", language));
+            }
+        };
         
         let result = self.execute(&command)?;
         
-        // Return a single result for now
-        // In production, this would return results from all parallel workers
+        // TODO: Parse test results from JSON report
+        // For now, return a single result
         Ok(vec![result])
     }
 }

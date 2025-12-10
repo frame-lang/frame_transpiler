@@ -39,6 +39,7 @@ pub mod ts_harness_machine;
 pub mod test_harness_rs;
 pub mod docker_executor;
 pub mod test_reporter;
+pub mod test_metadata_tests;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
