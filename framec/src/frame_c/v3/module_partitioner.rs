@@ -55,7 +55,9 @@ impl ModulePartitionerV3 {
                 if let Some(last) = imports.last() { i = last.end; }
             }
             crate::frame_c::visitors::TargetLanguage::TypeScript => {
-                let scanner = ImportScannerTsV3;
+                // Frame files use Python-style imports regardless of target language
+                // So we use the Python scanner to find import regions
+                let scanner = ImportScannerPyV3;
                 let res = scanner.scan(bytes, i);
                 imports = res.spans; import_issues.extend(res.issues);
                 if let Some(last) = imports.last() { i = last.end; }

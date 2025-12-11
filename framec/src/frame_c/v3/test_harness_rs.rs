@@ -211,11 +211,31 @@ pub fn run_validation_for_category_with_config(
         ));
     }
 
-    let tests_root = repo_root
-        .join("framec_tests")
-        .join("language_specific")
-        .join(language)
-        .join(category);
+    // Allow override via environment variable for shared test environment
+    let tests_root = if let Ok(shared_env_path) = std::env::var("FRAMEPILER_TEST_ENV") {
+        // Use shared environment test structure
+        let base = PathBuf::from(shared_env_path)
+            .join("common")
+            .join("test-frames")
+            .join("v3")
+            .join(category.replace("v3_", ""));  // Remove v3_ prefix for shared env
+        
+        // Check if there's a direct "positive" subdirectory
+        let positive_path = base.join("positive");
+        if positive_path.exists() {
+            positive_path
+        } else {
+            // Otherwise use the base directory (will recursively find all .frm files)
+            base
+        }
+    } else {
+        // Use original repo structure
+        repo_root
+            .join("framec_tests")
+            .join("language_specific")
+            .join(language)
+            .join(category)
+    };
 
     if !tests_root.is_dir() {
         return Err(format!("Test directory not found: {}", tests_root.display()));
@@ -559,11 +579,31 @@ pub fn run_rust_exec_smoke_with_config(
     config: &TestConfig,
 ) -> Result<TestSummary, String> {
     let language = "rust";
-    let tests_root = repo_root
-        .join("framec_tests")
-        .join("language_specific")
-        .join(language)
-        .join(category);
+    // Allow override via environment variable for shared test environment
+    let tests_root = if let Ok(shared_env_path) = std::env::var("FRAMEPILER_TEST_ENV") {
+        // Use shared environment test structure
+        let base = PathBuf::from(shared_env_path)
+            .join("common")
+            .join("test-frames")
+            .join("v3")
+            .join(category.replace("v3_", ""));  // Remove v3_ prefix for shared env
+        
+        // Check if there's a direct "positive" subdirectory
+        let positive_path = base.join("positive");
+        if positive_path.exists() {
+            positive_path
+        } else {
+            // Otherwise use the base directory (will recursively find all .frm files)
+            base
+        }
+    } else {
+        // Use original repo structure
+        repo_root
+            .join("framec_tests")
+            .join("language_specific")
+            .join(language)
+            .join(category)
+    };
 
     if !tests_root.is_dir() {
         return Err(format!("Test directory not found: {}", tests_root.display()));
@@ -783,11 +823,31 @@ pub fn run_python_exec_smoke_with_config(
     config: &TestConfig,
 ) -> Result<TestSummary, String> {
     let language = "python";
-    let tests_root = repo_root
-        .join("framec_tests")
-        .join("language_specific")
-        .join(language)
-        .join(category);
+    // Allow override via environment variable for shared test environment
+    let tests_root = if let Ok(shared_env_path) = std::env::var("FRAMEPILER_TEST_ENV") {
+        // Use shared environment test structure
+        let base = PathBuf::from(shared_env_path)
+            .join("common")
+            .join("test-frames")
+            .join("v3")
+            .join(category.replace("v3_", ""));  // Remove v3_ prefix for shared env
+        
+        // Check if there's a direct "positive" subdirectory
+        let positive_path = base.join("positive");
+        if positive_path.exists() {
+            positive_path
+        } else {
+            // Otherwise use the base directory (will recursively find all .frm files)
+            base
+        }
+    } else {
+        // Use original repo structure
+        repo_root
+            .join("framec_tests")
+            .join("language_specific")
+            .join(language)
+            .join(category)
+    };
 
     if !tests_root.is_dir() {
         return Err(format!("Test directory not found: {}", tests_root.display()));
@@ -1099,11 +1159,31 @@ pub fn run_typescript_exec_smoke_with_config(
     config: &TestConfig,
 ) -> Result<TestSummary, String> {
     let language = "typescript";
-    let tests_root = repo_root
-        .join("framec_tests")
-        .join("language_specific")
-        .join(language)
-        .join(category);
+    // Allow override via environment variable for shared test environment
+    let tests_root = if let Ok(shared_env_path) = std::env::var("FRAMEPILER_TEST_ENV") {
+        // Use shared environment test structure
+        let base = PathBuf::from(shared_env_path)
+            .join("common")
+            .join("test-frames")
+            .join("v3")
+            .join(category.replace("v3_", ""));  // Remove v3_ prefix for shared env
+        
+        // Check if there's a direct "positive" subdirectory
+        let positive_path = base.join("positive");
+        if positive_path.exists() {
+            positive_path
+        } else {
+            // Otherwise use the base directory (will recursively find all .frm files)
+            base
+        }
+    } else {
+        // Use original repo structure
+        repo_root
+            .join("framec_tests")
+            .join("language_specific")
+            .join(language)
+            .join(category)
+    };
 
     if !tests_root.is_dir() {
         return Err(format!("Test directory not found: {}", tests_root.display()));
@@ -1185,7 +1265,9 @@ pub fn run_typescript_exec_smoke_with_config(
             }
         };
 
-        let ts_path = out_root.join(format!("{stem}.frts"));
+        // Use .ts extension for TypeScript compiler compatibility
+        // (tsc doesn't recognize .frts)
+        let ts_path = out_root.join(format!("{stem}.ts"));
         let js_path = out_root.join(format!("{stem}.js"));
 
         // Compile Frame → TypeScript with FRAME_EMIT_EXEC=1.
@@ -1401,11 +1483,31 @@ pub fn run_python_curated_exec_for_category(
     category: &str,
 ) -> Result<TestSummary, String> {
     let language = "python";
-    let tests_root = repo_root
-        .join("framec_tests")
-        .join("language_specific")
-        .join(language)
-        .join(category);
+    // Allow override via environment variable for shared test environment
+    let tests_root = if let Ok(shared_env_path) = std::env::var("FRAMEPILER_TEST_ENV") {
+        // Use shared environment test structure
+        let base = PathBuf::from(shared_env_path)
+            .join("common")
+            .join("test-frames")
+            .join("v3")
+            .join(category.replace("v3_", ""));  // Remove v3_ prefix for shared env
+        
+        // Check if there's a direct "positive" subdirectory
+        let positive_path = base.join("positive");
+        if positive_path.exists() {
+            positive_path
+        } else {
+            // Otherwise use the base directory (will recursively find all .frm files)
+            base
+        }
+    } else {
+        // Use original repo structure
+        repo_root
+            .join("framec_tests")
+            .join("language_specific")
+            .join(language)
+            .join(category)
+    };
 
     if !tests_root.is_dir() {
         return Err(format!("Test directory not found: {}", tests_root.display()));
@@ -1610,11 +1712,31 @@ pub fn run_typescript_curated_exec_for_category(
     category: &str,
 ) -> Result<TestSummary, String> {
     let language = "typescript";
-    let tests_root = repo_root
-        .join("framec_tests")
-        .join("language_specific")
-        .join(language)
-        .join(category);
+    // Allow override via environment variable for shared test environment
+    let tests_root = if let Ok(shared_env_path) = std::env::var("FRAMEPILER_TEST_ENV") {
+        // Use shared environment test structure
+        let base = PathBuf::from(shared_env_path)
+            .join("common")
+            .join("test-frames")
+            .join("v3")
+            .join(category.replace("v3_", ""));  // Remove v3_ prefix for shared env
+        
+        // Check if there's a direct "positive" subdirectory
+        let positive_path = base.join("positive");
+        if positive_path.exists() {
+            positive_path
+        } else {
+            // Otherwise use the base directory (will recursively find all .frm files)
+            base
+        }
+    } else {
+        // Use original repo structure
+        repo_root
+            .join("framec_tests")
+            .join("language_specific")
+            .join(language)
+            .join(category)
+    };
 
     if !tests_root.is_dir() {
         return Err(format!("Test directory not found: {}", tests_root.display()));
@@ -1695,7 +1817,9 @@ pub fn run_typescript_curated_exec_for_category(
             continue;
         }
 
-        let ts_path = out_root.join(format!("{stem}.frts"));
+        // Use .ts extension for TypeScript compiler compatibility
+        // (tsc doesn't recognize .frts)
+        let ts_path = out_root.join(format!("{stem}.ts"));
         let js_path = out_root.join(format!("{stem}.js"));
 
         // Compile Frame → TypeScript. For core/control_flow/systems we use
@@ -1890,11 +2014,31 @@ pub fn run_rust_curated_exec_for_category(
     category: &str,
 ) -> Result<TestSummary, String> {
     let language = "rust";
-    let tests_root = repo_root
-        .join("framec_tests")
-        .join("language_specific")
-        .join(language)
-        .join(category);
+    // Allow override via environment variable for shared test environment
+    let tests_root = if let Ok(shared_env_path) = std::env::var("FRAMEPILER_TEST_ENV") {
+        // Use shared environment test structure
+        let base = PathBuf::from(shared_env_path)
+            .join("common")
+            .join("test-frames")
+            .join("v3")
+            .join(category.replace("v3_", ""));  // Remove v3_ prefix for shared env
+        
+        // Check if there's a direct "positive" subdirectory
+        let positive_path = base.join("positive");
+        if positive_path.exists() {
+            positive_path
+        } else {
+            // Otherwise use the base directory (will recursively find all .frm files)
+            base
+        }
+    } else {
+        // Use original repo structure
+        repo_root
+            .join("framec_tests")
+            .join("language_specific")
+            .join(language)
+            .join(category)
+    };
 
     if !tests_root.is_dir() {
         return Err(format!("Test directory not found: {}", tests_root.display()));
