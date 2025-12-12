@@ -9,7 +9,9 @@ use framec::frame_c::v3::test_harness_rs::{
     run_rust_exec_smoke,
     run_typescript_curated_exec_for_category,
     run_validation_for_category,
+    TestConfig,
 };
+use framec::frame_c::v3::test_reporter::ReportFormat;
 
 /// Minimal Rust-based V3 test harness prototype.
 ///
@@ -22,6 +24,8 @@ use framec::frame_c::v3::test_harness_rs::{
 ///
 /// Usage:
 ///   v3_rs_test_runner <language> <category> [framec_path]
+///   v3_rs_test_runner <language> <category> [framec_path] --report-format <format> --report-file <path>
+///   v3_rs_test_runner docker-exec <language> <category> [framec_path] [options]
 ///
 /// Example:
 ///   v3_rs_test_runner python v3_core ./target/debug/framec
@@ -30,8 +34,12 @@ fn main() {
     if args.len() < 3 {
         let bin = args.get(0).map(String::as_str).unwrap_or("v3_rs_test_runner");
         eprintln!("Usage:");
-        eprintln!("  {bin} <language> <category> [framec_path]");
+        eprintln!("  {bin} <language> <category> [framec_path] [options]");
         eprintln!("  {bin} compare <language> <category|all_v3> [framec_path]");
+        eprintln!("\nOptions:");
+        eprintln!("  --report-format <format>  Output format: json, junit, tap, human (default: none)");
+        eprintln!("  --report-file <path>      Output file path (default: stdout)");
+        eprintln!("  --verbose                 Verbose output");
         std::process::exit(1);
     }
 
@@ -50,13 +58,56 @@ fn main() {
         return;
     }
 
+
     let language = &args[1];
     let category = &args[2];
-    let framec_path = if args.len() == 4 {
-        PathBuf::from(&args[3])
-    } else {
-        PathBuf::from("target/debug/framec")
-    };
+    
+    // Parse additional arguments
+    let mut framec_path = PathBuf::from("target/debug/framec");
+    let mut report_format: Option<ReportFormat> = None;
+    let mut report_file: Option<PathBuf> = None;
+    let mut verbose = false;
+    
+    let mut i = 3;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--report-format" => {
+                if i + 1 < args.len() {
+                    report_format = ReportFormat::from_str(&args[i + 1]);
+                    if report_format.is_none() {
+                        eprintln!("Invalid report format: {}", args[i + 1]);
+                        eprintln!("Valid formats: json, junit, tap, human");
+                        std::process::exit(1);
+                    }
+                    i += 2;
+                } else {
+                    eprintln!("--report-format requires an argument");
+                    std::process::exit(1);
+                }
+            }
+            "--report-file" => {
+                if i + 1 < args.len() {
+                    report_file = Some(PathBuf::from(&args[i + 1]));
+                    i += 2;
+                } else {
+                    eprintln!("--report-file requires an argument");
+                    std::process::exit(1);
+                }
+            }
+            "--verbose" => {
+                verbose = true;
+                i += 1;
+            }
+            arg if !arg.starts_with("--") => {
+                framec_path = PathBuf::from(arg);
+                i += 1;
+            }
+            _ => {
+                eprintln!("Unknown option: {}", args[i]);
+                std::process::exit(1);
+            }
+        }
+    }
 
     if !framec_path.is_file() {
         eprintln!(
@@ -97,6 +148,7 @@ fn main() {
                 std::process::exit(1);
             }
         };
+        
         println!(
             "Category {}: passed={} failed={}",
             cat, summary.passed, summary.failed

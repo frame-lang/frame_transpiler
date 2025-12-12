@@ -5,15 +5,9 @@ use std::process::Command;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::frame_c::v3::docker_executor::{DockerTestExecutor, DockerTestResult};
-
 /// Test execution configuration
 #[derive(Debug, Clone)]
 pub struct TestConfig {
-    /// Use Docker for test execution
-    pub use_docker: bool,
-    /// Docker image override (if not using default for language)
-    pub docker_image: Option<String>,
     /// Number of parallel workers for test execution
     pub parallel_workers: usize,
     /// Timeout in seconds for individual tests
@@ -25,8 +19,6 @@ pub struct TestConfig {
 impl Default for TestConfig {
     fn default() -> Self {
         Self {
-            use_docker: false,
-            docker_image: None,
             parallel_workers: 1,
             test_timeout: 60,
             verbose: false,
@@ -965,75 +957,39 @@ pub fn run_python_exec_smoke_with_config(
             continue;
         }
 
-        // Run the test either in Docker or locally based on configuration
-        let (run_success, out_text) = if config.use_docker {
-            // Execute in Docker container
-            let mut executor = match DockerTestExecutor::for_language("python") {
-                Ok(ex) => ex,
-                Err(e) => {
-                    failed += 1;
-                    eprintln!("  ERROR creating Docker executor: {}", e);
-                    continue;
-                }
-            };
-            
-            // Mount the repo root and output directory
-            executor.add_volume(repo_root, Path::new("/repo"));
-            executor.add_volume(&out_root, Path::new("/output"));
-            
-            // Set PYTHONPATH in container
-            executor.add_env("PYTHONPATH", "/repo");
-            executor.workdir("/output");
-            
-            // Run the test file - the executor will handle path translation
-            match executor.run_test_file("python", &frm_path, &py_path) {
-                Ok(result) => {
-                    let mut text = String::new();
-                    text.push_str(&result.stdout);
-                    text.push_str(&result.stderr);
-                    (result.success, text)
-                }
-                Err(e) => {
-                    failed += 1;
-                    eprintln!("  ERROR running Docker test: {}", e);
-                    continue;
-                }
-            }
+        // Run the test locally
+        let mut cmd = Command::new("python3");
+        cmd.arg(&py_path).current_dir(&out_root);
+        if let Ok(existing) = std::env::var("PYTHONPATH") {
+            let mut new_path = repo_root.to_path_buf();
+            new_path.push(""); // ensure trailing separator
+            let merged = format!(
+                "{}{}{}",
+                repo_root.display(),
+                std::path::MAIN_SEPARATOR,
+                existing
+            );
+            cmd.env("PYTHONPATH", merged);
         } else {
-            // Run locally with existing logic
-            let mut cmd = Command::new("python3");
-            cmd.arg(&py_path).current_dir(&out_root);
-            if let Ok(existing) = std::env::var("PYTHONPATH") {
-                let mut new_path = repo_root.to_path_buf();
-                new_path.push(""); // ensure trailing separator
-                let merged = format!(
-                    "{}{}{}",
-                    repo_root.display(),
-                    std::path::MAIN_SEPARATOR,
-                    existing
+            cmd.env("PYTHONPATH", repo_root);
+        }
+        let run_output = match cmd.output() {
+            Ok(run) => run,
+            Err(e) => {
+                failed += 1;
+                eprintln!(
+                    "  ERROR (spawn python3): {} ({})",
+                    py_path.display(),
+                    e
                 );
-                cmd.env("PYTHONPATH", merged);
-            } else {
-                cmd.env("PYTHONPATH", repo_root);
+                continue;
             }
-            let run_output = match cmd.output() {
-                Ok(run) => run,
-                Err(e) => {
-                    failed += 1;
-                    eprintln!(
-                        "  ERROR (spawn python3): {} ({})",
-                        py_path.display(),
-                        e
-                    );
-                    continue;
-                }
-            };
-
-            let mut text = String::new();
-            text.push_str(&String::from_utf8_lossy(&run_output.stdout));
-            text.push_str(&String::from_utf8_lossy(&run_output.stderr));
-            (run_output.status.success(), text)
         };
+
+        let mut text = String::new();
+        text.push_str(&String::from_utf8_lossy(&run_output.stdout));
+        text.push_str(&String::from_utf8_lossy(&run_output.stderr));
+        let (run_success, out_text) = (run_output.status.success(), text);
 
         let mut exec_ok = true;
         let mut reason = String::new();

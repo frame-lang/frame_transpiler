@@ -59,7 +59,7 @@ system SystemName {
 - Event handlers are `eventName(params) { }` NOT `|eventName|`
 - Enter/exit handlers are `$>()` and `$<()`
 - Interface methods have signatures like `method(param: type): returnType`
-- Always check actual test files in `framec_tests/python/src/` for examples
+- Always check actual test files in `framepiler_test_env/framepiler/fixtures/test-frames/` for examples
 
 ## Current State
 - **Version**: v0.86.71 (branch `going_native`)
@@ -69,10 +69,12 @@ system SystemName {
 - **Recent Focus**: Moved from embedded testing to shared environment approach, improved TypeScript transpilation with import collection/conversion
 
 ## Quick References
-- **Shared environment**: Set `FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env` for shared test fixtures
-- **Test files (legacy)**: `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`  
-- **Test runner (legacy)**: `python3 runner/frame_test_runner.py --framec ../target/release/framec --languages python typescript`
-- **Test runner (Rust)**: `FRAMEPILER_TEST_ENV=<path> cargo run --bin v3_rs_test_runner -- python v3_data_types`
+- **Shared environment**: Tests now live in `framepiler_test_env/` (symlinked in project root)
+  - 📖 **READ**: `framepiler_test_env/README.md` for shared environment structure
+  - 📖 **READ**: `framepiler_test_env/framepiler/README.md` for transpiler team space
+  - Test fixtures: `framepiler_test_env/framepiler/fixtures/test-frames/`
+  - Set `FRAMEPILER_TEST_ENV=framepiler_test_env` to use shared fixtures
+- **Test runner (Rust)**: `FRAMEPILER_TEST_ENV=framepiler_test_env cargo run --bin v3_rs_test_runner -- python v3_core ./target/release/framec`
 - **Module separator**: `::` (NOT `.` - dot is for member access)
 - **Check before starting**: Read `docs/HOW_TO.md` for complete current processes
 

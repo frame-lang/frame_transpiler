@@ -40,7 +40,6 @@ pub enum CliCommand {
         compare_python: bool,
         exec_smoke: bool,
         exec_curated: bool,
-        docker: bool,
         parallel: usize,
         timeout: u64,
         report_format: String,
@@ -116,12 +115,6 @@ impl Cli {
                         Arg::new("exec-curated")
                             .long("exec-curated")
                             .help("Run curated exec harness for this slice instead of validation-only")
-                            .action(clap::ArgAction::SetTrue),
-                    )
-                    .arg(
-                        Arg::new("docker")
-                            .long("docker")
-                            .help("Run tests in Docker containers for isolation")
                             .action(clap::ArgAction::SetTrue),
                     )
                     .arg(
@@ -229,7 +222,6 @@ impl Cli {
                         let compare_python = sub.get_flag("compare-python");
                         let exec_smoke = sub.get_flag("exec-smoke");
                         let exec_curated = sub.get_flag("exec-curated");
-                        let docker = sub.get_flag("docker");
                         let parallel = sub
                             .get_one::<String>("parallel")
                             .and_then(|s| s.parse::<usize>().ok())
@@ -263,7 +255,6 @@ impl Cli {
                             compare_python,
                             exec_smoke,
                             exec_curated,
-                            docker,
                             parallel,
                             timeout,
                             report_format,
@@ -334,7 +325,6 @@ pub fn run_with(args: Cli) {
             compare_python,
             exec_smoke,
             exec_curated,
-            docker,
             parallel,
             timeout,
             report_format,
@@ -346,7 +336,6 @@ pub fn run_with(args: Cli) {
             // - optional `--compare-python` to run the Python runner for the
             //   same slice and compare validation outcomes.
             // - `--exec-smoke` / `--exec-curated` to run exec harnesses instead.
-            // - `--docker` to run tests in Docker containers
             // - `--parallel` for number of workers
             // - `--report-format` for output format
             let harness_lang = match language.as_str() {
@@ -366,8 +355,6 @@ pub fn run_with(args: Cli) {
 
             // Create test configuration from CLI options
             let test_config = crate::frame_c::v3::test_harness_rs::TestConfig {
-                use_docker: docker,
-                docker_image: None,
                 parallel_workers: parallel,
                 test_timeout: timeout,
                 verbose: false,

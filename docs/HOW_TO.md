@@ -113,6 +113,8 @@ cargo update
 
 ## Testing Framework
 
+📖 **For detailed test infrastructure documentation, see [Test Infrastructure Guide](./test_infrastructure.md)**
+
 ### Test Organization
 
 **Shared Environment Structure (Primary - via FRAMEPILER_TEST_ENV):**
@@ -217,6 +219,15 @@ FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runn
 
 # Execution mode (runs transpiled code)
 FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- --exec-smoke typescript v3_systems
+
+# Generate test reports (JSON, JUnit XML, TAP, Human-readable)
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --release --bin v3_rs_test_runner -- \
+  python v3_core ./target/release/framec \
+  --report-format junit --report-file test-results.xml
+
+# Human-readable report to console
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env ./target/release/v3_rs_test_runner \
+  typescript v3_systems ./target/release/framec --report-format human
 ```
 
 **Legacy Python Runner (Still Supported):**

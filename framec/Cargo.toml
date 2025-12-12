@@ -50,6 +50,7 @@ petgraph = "0.6"
 regex = "1.10"
 toml = "0.9.5"
 uuid = { version = "1", features = ["v4"] }
+tempfile = "3"
 # Parser crates are optional and only used when corresponding features are enabled
 syn = { version = "2", optional = true, features = ["full"] }
 swc_common = { version = "16", features = ["tty-emitter"], optional = true }

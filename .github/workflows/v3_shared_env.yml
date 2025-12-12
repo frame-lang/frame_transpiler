@@ -69,18 +69,16 @@ jobs:
           docker build -f docker/Dockerfile.${{ matrix.language }} \
             -t frame-transpiler-${{ matrix.language }}:latest .
 
-      - name: Run V3 tests in shared environment
-        working-directory: framepiler_test_env/framepiler
+      - name: Run V3 tests using Rust runner
+        working-directory: frame_transpiler
         run: |
           mkdir -p reports
-          python3 test_runner/shared_env_test_runner.py \
-            --framec ../../frame_transpiler/target/release/framec \
-            --test-root fixtures \
-            --language ${{ matrix.language }} \
-            --parallel 4 \
-            --format junit \
-            --output reports/${{ matrix.language }}_results.xml \
-            --verbose
+          # The Rust runner expects tests in framepiler_test_env structure
+          FRAMEPILER_TEST_ENV=../framepiler_test_env \
+          cargo run --release --bin v3_rs_test_runner -- \
+            ${{ matrix.language }} \
+            v3_core \
+            ./target/release/framec
 
       - name: Upload test results
         uses: actions/upload-artifact@v3
