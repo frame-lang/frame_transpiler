@@ -1,7 +1,0 @@
-@target typescript
-
-handler A
-{
-=> $^
-}
-

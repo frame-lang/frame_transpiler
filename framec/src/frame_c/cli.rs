@@ -1,7 +1,6 @@
 use crate::frame_c::compiler::{Exe, TargetLanguage};
 use crate::frame_c::config::FrameConfig;
-use crate::frame_c::v3::docker_executor::DockerTestExecutor;
-use crate::frame_c::v3::test_reporter::{TestReporter, ReportFormat};
+// Docker executor and test reporter will be used when Docker integration is complete
 use clap::{Arg, Command};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
@@ -467,63 +466,19 @@ pub fn run_with(args: Cli) {
             }
 
             // Default: validation-only mode.
-            // If Docker is requested, use the Docker executor
-            let summary = if docker {
-                use crate::frame_c::v3::docker_executor::DockerTestExecutor;
-                use crate::frame_c::v3::test_reporter::{TestReporter, ReportFormat};
-                
-                // Initialize Docker executor
-                let mut executor = DockerTestExecutor::new(&format!("frame-test-{}", harness_lang));
-                executor.add_volume(&repo_root, &PathBuf::from("/workspace"));
-                
-                // Set timeout
-                executor.set_timeout(std::time::Duration::from_secs(timeout));
-                
-                // Run tests in Docker
-                match executor.run_tests(&harness_lang, &category, parallel) {
-                    Ok(results) => {
-                        // Create test reporter
-                        let reporter = TestReporter::new();
-                        
-                        // Convert Docker results to test summary
-                        let summary = crate::frame_c::v3::test_harness_rs::TestSummary {
-                            language: harness_lang.clone(),
-                            category: category.clone(),
-                            passed: results.iter().filter(|r| r.success).count(),
-                            failed: results.iter().filter(|r| !r.success).count(),
-                            skipped: 0,  // TODO: Track skipped tests in Docker execution
-                        };
-                        
-                        // Generate report if output file specified
-                        if let Some(ref output_path) = output {
-                            let format = ReportFormat::from_str(&report_format)
-                                .unwrap_or(ReportFormat::Human);
-                            if let Err(e) = reporter.write_report(output_path, format) {
-                                eprintln!("Failed to write test report: {}", e);
-                            }
-                        }
-                        
-                        summary
-                    }
-                    Err(e) => {
-                        eprintln!("Docker test execution failed: {}", e);
-                        std::process::exit(exitcode::IOERR);
-                    }
-                }
-            } else {
-                // Run tests directly without Docker
-                match crate::frame_c::v3::test_harness_rs::run_validation_for_category_with_filter(
-                    &repo_root,
-                    &framec_path,
-                    &harness_lang,
-                    &category,
-                    metadata_filter.as_deref(),
-                ) {
-                    Ok(summary) => summary,
-                    Err(e) => {
-                        eprintln!("framec test error (Rust harness): {}", e);
-                        std::process::exit(exitcode::IOERR);
-                    }
+            // Pass Docker flag through test config
+            let summary = match crate::frame_c::v3::test_harness_rs::run_validation_for_category_with_config(
+                &repo_root,
+                &framec_path,
+                &harness_lang,
+                &category,
+                metadata_filter.as_deref(),
+                &test_config,
+            ) {
+                Ok(summary) => summary,
+                Err(e) => {
+                    eprintln!("framec test error (Rust harness): {}", e);
+                    std::process::exit(exitcode::IOERR);
                 }
             };
 

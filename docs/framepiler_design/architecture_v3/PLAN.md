@@ -4,28 +4,37 @@
 
 - [ ] **Test Infrastructure Migration to Shared Environment** (CRITICAL PATH)
   
-  **UPDATE (2024-12-08)**: Significant progress made on Rust test runner infrastructure:
+  **UPDATE (2024-12-11)**: Staged migration approach adopted:
   - ✅ Implemented comprehensive metadata parsing in `test_harness_rs.rs` 
-  - ✅ Created Docker executor module with container lifecycle management
+  - ✅ Created Docker executor module with container lifecycle management (temporary in transpiler)
   - ✅ Built test reporter supporting JSON, JUnit, TAP, and human formats
   - ✅ Enhanced CLI with Docker, parallel, timeout, and reporting flags
-  - ✅ Successfully built and tested basic functionality
+  - ✅ Docker integration working: Python 8/8, TypeScript 7/7, Rust 6/7 exec-smoke tests passing
   
-  **Next Steps**:
-  - Complete metadata-based test filtering implementation
-  - Add unit tests for new components
-  - Push Docker images to registry for CI use
-  - Begin parallel validation between Python and Rust runners
-  - Start fixture migration to shared environment
+  **STAGED MIGRATION APPROACH**:
+  1. **Stage 1**: ✅ Get Docker tests working in transpiler repo (COMPLETED)
+  2. **Stage 2**: ✅ Harvest useful local tests that aren't in shared env yet (COMPLETED)
+     - Analyzed 1,635 test files, identified 558 PRT priority tests
+     - Created harvest script and migration tooling
+  3. **Stage 3 (CURRENT)**: Move Docker orchestration to shared test environment
+     - ✅ Created shared_env_staging with complete test infrastructure
+     - ✅ Migrated 558 PRT test files to staging directory
+     - ✅ Built Docker orchestrator and test runner for shared env
+     - ⏳ Need to move staging to actual framepiler_test_env repo
+  4. **Stage 4**: Delete all local test infrastructure from transpiler
+  
+  **Rationale**: The Docker code temporarily lives in the transpiler to prove the concept
+  and make test migration easier. Once tests are harvested and moved to shared env,
+  ALL Docker/test code will be removed from transpiler repo.
   
   Migrate all testing to the shared test environment (`framepiler_test_env`) and deprecate 
-  the Python test runner in favor of the Rust test runner. This is now the highest priority 
-  to clean separation of concerns and enable independent evolution of tests and transpiler.
+  the Python test runner. The transpiler will become test-infrastructure-free, only
+  providing the `framec` binary to the shared environment.
   
   **Requirements:**
   - All validation tests MUST run in Docker containers for reproducibility
   - Focus on PRT languages (Python, TypeScript, Rust) exclusively for initial migration
-  - Rust test runner must reach 100% parity with Python runner for PRT languages before deprecation
+  - Shared env owns ALL test infrastructure after migration
   
   **Phase 1 - Rust Runner to 100% Parity (PRT-only)**:
   - [ ] Complete all metadata support (`@meta`, `@skip-if`, `@expect`, `@run-expect`, `@run-exact`)

@@ -985,9 +985,8 @@ pub fn run_python_exec_smoke_with_config(
             executor.add_env("PYTHONPATH", "/repo");
             executor.workdir("/output");
             
-            // Run the test file
-            let container_py_path = format!("/output/{}.fpy", stem);
-            match executor.run_test_file("python", &frm_path, Path::new(&container_py_path)) {
+            // Run the test file - the executor will handle path translation
+            match executor.run_test_file("python", &frm_path, &py_path) {
                 Ok(result) => {
                     let mut text = String::new();
                     text.push_str(&result.stdout);

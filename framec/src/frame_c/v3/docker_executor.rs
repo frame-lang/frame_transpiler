@@ -82,7 +82,7 @@ impl DockerTestExecutor {
         // Add volumes
         for (host, container) in &self.volumes {
             let volume_spec = format!(
-                "{}:{}:ro",
+                "{}:{}",  // Remove :ro for now to allow writing
                 host.display(),
                 container.display()
             );
@@ -130,40 +130,50 @@ impl DockerTestExecutor {
         _test_file: &Path,
         generated_file: &Path,
     ) -> Result<DockerTestResult, String> {
-        // Build the test command based on the language
-        let generated_path = generated_file.to_str()
-            .ok_or_else(|| "Invalid generated file path".to_string())?;
+        // Convert the host path to container path
+        // Assuming generated_file is in the output directory that's mounted at /output
+        let file_name = generated_file.file_name()
+            .ok_or_else(|| "Invalid generated file path".to_string())?
+            .to_str()
+            .ok_or_else(|| "Non-UTF8 file name".to_string())?;
         
-        // Store format strings to avoid temporary lifetime issues
-        let rust_cmd = format!("rustc {} -o /tmp/test && /tmp/test", generated_file.display());
+        let container_path = format!("/output/{}", file_name);
         
-        let command: Vec<&str> = match language {
+        // Build command based on language
+        match language {
             "python" | "python_3" => {
-                vec![
+                let command = vec![
                     "python3",
-                    generated_path,
-                ]
+                    &container_path,
+                ];
+                self.execute(&command)
             }
             "typescript" => {
-                vec![
-                    "node",
-                    generated_path,
-                ]
+                // First compile TypeScript to JavaScript
+                let compile_cmd = format!("cd /output && tsc {} && node {}", 
+                    file_name, 
+                    file_name.replace(".ts", ".js"));
+                let command = vec![
+                    "sh",
+                    "-c",
+                    &compile_cmd,
+                ];
+                self.execute(&command)
             }
             "rust" => {
                 // For Rust, we need to compile and run
-                vec![
+                let rust_cmd = format!("rustc {} -o /tmp/test && /tmp/test", container_path);
+                let command = vec![
                     "sh",
                     "-c",
                     &rust_cmd,
-                ]
+                ];
+                self.execute(&command)
             }
             _ => {
-                return Err(format!("Unsupported language: {}", language));
+                Err(format!("Unsupported language: {}", language))
             }
-        };
-        
-        self.execute(&command)
+        }
     }
     
     /// Run tests for a specific language and category with parallel workers

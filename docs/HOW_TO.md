@@ -19,13 +19,15 @@ This document captures every process, tool, and workflow used in the Frame Trans
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.50 and in the “Going Native” phase (native bodies with SOL‑anchored Frame statements in handlers).
+Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.71 and in the "Going Native" phase (native bodies with SOL‑anchored Frame statements in handlers).
 
 ### Current Status
-- **Version**: v0.86.50
-- **Branch**: `going_native`
+- **Version**: v0.86.71
+- **Branch**: `going_native` 
 - **Supported Targets (V3 work focus)**: Python 3, TypeScript, C#, C, C++, Java, Rust. (GraphViz remains available but is not V3‑gated.)
 - **LLVM**: on indefinite hold — do not develop or maintain LLVM until further notice.
+- **Shared Test Environment**: Active - using `framepiler_test_env` for isolated transpiler/debugger team development
+- **Test Migration**: Moved from embedded testing to shared environment approach via `FRAMEPILER_TEST_ENV` environment variable
 - **Core policies**:
   - Native bodies by default; MixedBody permitted only in event handlers (actions/operations are native‑only).
   - SOL‑anchored Frame statements (`-> $State(args)`, `=> $^`, `$$+/-`) recognized at start‑of‑line (indentation allowed), ignored in strings/comments/templates.
@@ -112,6 +114,21 @@ cargo update
 ## Testing Framework
 
 ### Test Organization
+
+**Shared Environment Structure (Primary - via FRAMEPILER_TEST_ENV):**
+```
+framepiler_test_env/common/test-frames/v3/
+├── data_types/positive/        # Data type operations and collections
+├── imports/positive/           # Import statement validation  
+├── operators/positive/         # Arithmetic, comparison, logical operators
+├── scoping/positive/           # Variable and function scoping
+├── systems/positive/           # State machine systems and transitions
+├── capabilities/               # System parameters, state parameters
+├── persistence/positive/       # State persistence and snapshots
+└── async/positive/             # Async/await functionality
+```
+
+**Legacy Local Structure (Secondary):**
 ```
 framec_tests/
 ├── common/tests/           # Legacy shared tests (opt-in)
@@ -131,6 +148,39 @@ framec_tests/
 ├── runner/                 # Test runner (frame_test_runner.py)
 └── configs/
 ```
+
+**Environment Selection:**
+- Set `FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env` to use shared environment
+- Unset or leave empty to use local `framec_tests` structure
+- Shared environment is preferred for new development
+
+### Shared Environment Workflow
+
+The shared test environment (`framepiler_test_env`) is the preferred approach for isolated transpiler and debugger team development.
+
+**Setup:**
+```bash
+# Clone and set up shared environment
+git clone <framepiler_test_env_repo> /path/to/framepiler_test_env
+
+# Export environment variable for persistent use
+export FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env
+
+# Or set for individual commands
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- python v3_data_types
+```
+
+**Directory Structure:**
+- Test fixtures: `common/test-frames/v3/{category}/positive/*.frm`
+- Generated output: Uses temp directories per test run
+- Documentation: `common/test-frames/INDEX.json`, `MIGRATION_INFO.md`
+
+**Benefits:**
+- Isolated from main transpiler repository changes
+- Consistent test environment across team members  
+- No interference with ongoing transpiler development
+- Simplified test fixture organization
+- Cross-language test parity tracking
 
 ### Running Tests
 
@@ -158,7 +208,18 @@ Enable strict native parsing (Stage 07 facades)
   `python3 framec_tests/runner/frame_test_runner.py --languages python typescript csharp c cpp java rust --categories v3_facade_smoke --framec ./target/release/framec -v`
 
 
-**V3 Suites (transpile‑only; validation on):**
+**V3 Rust Test Harness (Recommended - Shared Environment):**
+```bash
+# Test specific categories using Rust harness with shared environment
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- python v3_data_types
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- typescript v3_imports  
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- rust v3_operators
+
+# Execution mode (runs transpiled code)
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- --exec-smoke typescript v3_systems
+```
+
+**Legacy Python Runner (Still Supported):**
 ```bash
 # Prolog/Imports/Outline/Demos for all languages
 python3 framec_tests/runner/frame_test_runner.py \
@@ -840,22 +901,14 @@ system FileIOTest {
   - Local vs global TypeScript compiler detection
   - Intelligent compilation caching and error recovery
 - **Dependencies**: Requires Node.js and TypeScript (`npm install typescript @types/node`)
-- **Recent Improvements (v0.86.1-v0.86.3)**:
-  - **FIXED**: Interface method default return values (e.g., `getDefault() : int = 42`)
-  - **FIXED**: Event handler return value overrides (e.g., `getOverride() : int = 99`)
-  - **FIXED**: Call chain handling for nested dictionary access
-  - **BREAKTHROUGH v0.86.3**: Operators category 87.5% success (+31.3% improvement)
-  - **FIXED**: Unary minus operator (`-`) now generates `-` instead of `!`
-  - **FIXED**: Matrix multiplication (@) operator now generates `.matmul()` calls
-  - **FIXED**: `len()` function now properly generates `x.length` instead of `(x)`
-  - **FIXED**: Property access bug - no more `.length` added to numeric literals
-  - **ENHANCED**: 'in'/'not in' operators with comprehensive type checking
-  - **FIXED**: Array length comparisons with comprehensive parentheses support
-  - **FIXED**: String slicing operations (e.g., `text[0:3]` → `text.slice(0, 3)`)
-  - **FIXED**: Set literals (e.g., `{1, 2, 3}` → `new Set([1, 2, 3])`)
-  - **FIXED**: Tuple literals (e.g., `(1, 2, 3)` → `[1, 2, 3]`)
-  - **FIXED**: Dictionary comprehensions (e.g., `{x: x*x for x in nums}` → `Object.fromEntries(nums.map(x => [x, x*x]))`)
-  - **RESULT**: Achieved TypeScript success rate of 74.6% (320/429 tests), excellent performance across multiple categories
+- **Recent Improvements (v0.86.71)**:
+  - **FIXED**: Import handling for Python-style imports in Frame files
+  - **FIXED**: Python-to-TypeScript import conversion with proper comments
+  - **FIXED**: Function generation (`fn main()`) in TypeScript output
+  - **FIXED**: Module partitioner using Python scanner for TypeScript since Frame uses Python-style imports
+  - **ENHANCED**: Shared test environment support via `FRAMEPILER_TEST_ENV`
+  - **RESULT**: Achieved TypeScript test pass rate of 87.5% (35/40 tests) in shared environment
+  - **REMAINING**: 5 import validation tests fail with E110 errors due to validation expecting TypeScript-style imports
 
 ### GraphViz (Visualization)
 - Generates DOT format for state diagrams
@@ -958,8 +1011,8 @@ export namespace AsyncCapabilities {
 
 ---
 
-**Last Updated**: 2025-10-26  
-**Version**: v0.86.25  
-**Status**: Python execution 100% (462/462) · TypeScript execution 100% (433/433) — async runtime parity and capability fixtures verified
+**Last Updated**: 2025-12-11  
+**Version**: v0.86.71  
+**Status**: Shared test environment operational · TypeScript transpilation 87.5% success · Python-style imports properly handled across languages
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.

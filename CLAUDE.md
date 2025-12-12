@@ -62,16 +62,19 @@ system SystemName {
 - Always check actual test files in `framec_tests/python/src/` for examples
 
 ## Current State
-- **Version**: v0.86.17 (branch `dev`)
-- **Test Status**: 458/458 Python passing (100%), 429 TypeScript tests at 84.8% execution success (overall TS execution success rate 84.8%)
-- **Latest Achievements**: Multifile runtime deduplicated, state variables retain compartment scope, control_flow suite at 98% execution
-- **Open Focus Areas**: Close remaining TypeScript execution gaps (math/dict capability shims, systems coverage) and keep roadmap/test docs aligned
+- **Version**: v0.86.71 (branch `going_native`)
+- **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
+- **Test Status**: TypeScript transpilation 87.5% success (35/40 tests) in shared environment
+- **Latest Achievements**: Shared test environment operational, TypeScript import handling improved, Python-style imports properly converted
+- **Recent Focus**: Moved from embedded testing to shared environment approach, improved TypeScript transpilation with import collection/conversion
 
 ## Quick References
-- **Test files**: `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`  
-- **Test runner**: `python3 runner/frame_test_runner.py --framec ../target/release/framec --languages python typescript`
+- **Shared environment**: Set `FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env` for shared test fixtures
+- **Test files (legacy)**: `/Users/marktruluck/projects/frame_transpiler/framec_tests/python/src/`  
+- **Test runner (legacy)**: `python3 runner/frame_test_runner.py --framec ../target/release/framec --languages python typescript`
+- **Test runner (Rust)**: `FRAMEPILER_TEST_ENV=<path> cargo run --bin v3_rs_test_runner -- python v3_data_types`
 - **Module separator**: `::` (NOT `.` - dot is for member access)
-- **Check before starting**: Read `docs/framelang_design/dev_notes.md` and `framec_tests/reports/test_log.md`
+- **Check before starting**: Read `docs/HOW_TO.md` for complete current processes
 
 ## When Tests Fail
 1. Investigate root cause (don't assume test is wrong)
