@@ -1,7 +1,0 @@
-@target cpp
-
-handler H
-{
-=> $^
-}
-

@@ -1,4 +1,0 @@
-@target java
-
-handler H { }
-

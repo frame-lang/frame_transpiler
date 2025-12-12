@@ -1,8 +1,0 @@
-name = "v3_project_mixed_target_ts"
-version = "0.1.0"
-
-[project]
-entry = "src/main.frm"
-
-[paths]
-modules = ["src", "lib"]

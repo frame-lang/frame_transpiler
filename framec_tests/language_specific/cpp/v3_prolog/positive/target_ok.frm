@@ -1,4 +1,0 @@
-@target cpp
-
-handler H { }
-

@@ -1,3 +1,0 @@
-{
-    var s = @"unterminated verbatim string...
-}

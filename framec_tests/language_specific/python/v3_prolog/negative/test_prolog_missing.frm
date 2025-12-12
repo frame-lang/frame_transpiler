@@ -1,4 +1,0 @@
-handler H
-{
--> $Next
-}

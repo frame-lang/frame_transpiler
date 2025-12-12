@@ -1,3 +1,0 @@
-@target rust
-# @cwd: tmp
-

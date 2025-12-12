@@ -10,11 +10,6 @@ target
 
 # Node.js dependencies
 node_modules/
-framec_tests/javascript/node_modules
-
-# Manual LLVM smoke artifacts
-framec_tests/language_specific/llvm/simple
-framec_tests/language_specific/llvm/simple.ll
 
 # Planning docs (internal use only)
 docs/plans/
@@ -26,11 +21,10 @@ docs/tmp/
 CLAUDE.md
 CLAUDE.local.md
 
-# Generated test files
-framec_tests/**/*.py
-
-# Large local fixture sources (kept out of git; shared via external env)
-framec_tests/python/src/positive_tests/
+# Test infrastructure has been moved to shared environment
+# See: framepiler_test_env/framepiler/
+# Backup archives from migration
+framec_tests_backup_*.tar.gz
 
 # Python caches
 **/__pycache__/

@@ -1,3 +1,0 @@
-@target typescript
-// @cwd: tmp
-

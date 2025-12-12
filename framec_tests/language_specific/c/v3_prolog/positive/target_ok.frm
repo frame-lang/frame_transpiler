@@ -1,4 +1,0 @@
-@target c
-
-handler H { }
-
