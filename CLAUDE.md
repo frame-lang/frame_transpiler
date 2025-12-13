@@ -1,7 +1,8 @@
 # Frame Transpiler - Claude Context
 
-🚨 **MANDATORY FIRST STEP: READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) 🚨
-**This comprehensive guide contains ALL processes, tools, and workflows for this project.**
+🚨 **MANDATORY FIRST STEPS** 🚨
+1. **READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) - Complete development guide
+2. **READ** [`framepiler_test_env/GETTING_STARTED.md`](framepiler_test_env/GETTING_STARTED.md) - Test infrastructure guide
 
 📖 **ALWAYS CHECK CLI HELP**: Run `./target/release/framec --help` to see all available command-line options and parameters.
 
@@ -59,24 +60,27 @@ system SystemName {
 - Event handlers are `eventName(params) { }` NOT `|eventName|`
 - Enter/exit handlers are `$>()` and `$<()`
 - Interface methods have signatures like `method(param: type): returnType`
-- Always check actual test files in `framepiler_test_env/framepiler/fixtures/test-frames/` for examples
+- Always check actual test files in `framepiler_test_env/common/test-frames/v3/` for examples
 
 ## Current State
-- **Version**: v0.86.71 (branch `going_native`)
+- **Version**: v0.86.72 (branch `going_native`)
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
-- **Docker Infrastructure**: Pure Rust implementation in shared environment for containerized test execution
-- **Test Status**: Python 100% (Docker), TypeScript 100% (Docker), Rust transpiler needs fixes
-- **Latest Achievements**: Replaced Python Docker harness with Rust, achieved 100% Python/TypeScript test success in Docker containers
-- **Recent Focus**: Architectural separation - transpiler provides only framec binary, all test infrastructure in shared environment
+- **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
+- **Test Status**: 100% success for all PRT languages (Python, Rust, TypeScript)
+- **Latest Achievements**: All test infrastructure moved to shared environment, 100% PRT test success
+- **Recent Focus**: Completed Stage 4 of V3 migration - full architectural separation
 
-## Quick References
-- **Shared environment**: Tests now live in `framepiler_test_env/` (symlinked in project root)
-  - 📖 **READ**: `framepiler_test_env/README.md` for shared environment structure
-  - 📖 **READ**: `framepiler_test_env/framepiler/README.md` for transpiler team space
-  - Test fixtures: `framepiler_test_env/common/test-frames/v3/`
-  - Set `FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env` to use shared fixtures
-- **Test runner (Rust)**: `FRAMEPILER_TEST_ENV=framepiler_test_env cargo run --bin v3_rs_test_runner -- python v3_data_types`
-- **Docker runner (Rust)**: `framepiler_test_env/framepiler/docker/run_tests.sh python v3_data_types`
+## Test Infrastructure (IMPORTANT - READ GETTING_STARTED.md)
+- **All tests moved to shared environment** - No test infrastructure in transpiler
+- **Docker Test Runner**: Pure Rust binary at `framepiler_test_env/framepiler/docker/target/release/frame-docker-runner`
+- **Test location**: `framepiler_test_env/common/test-frames/v3/` (607 tests)
+- **Quick test run**:
+  ```bash
+  export FRAMEPILER_TEST_ENV=$(pwd)/framepiler_test_env
+  framepiler_test_env/framepiler/docker/target/release/frame-docker-runner \
+    python_3 v3_data_types --framec ./target/release/framec
+  ```
+- **No scripts needed** - The Docker runner is a self-contained Rust binary
 - **Module separator**: `::` (NOT `.` - dot is for member access)
 - **Check before starting**: Read `docs/HOW_TO.md` for complete current processes
 

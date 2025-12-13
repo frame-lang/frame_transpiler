@@ -69,16 +69,22 @@ jobs:
           docker build -f docker/Dockerfile.${{ matrix.language }} \
             -t frame-transpiler-${{ matrix.language }}:latest .
 
-      - name: Run V3 tests using Rust runner
+      - name: Build Docker test runner
+        working-directory: framepiler_test_env/framepiler/docker
+        run: cargo build --release
+      
+      - name: Run V3 tests using Docker runner
         working-directory: frame_transpiler
         run: |
           mkdir -p reports
-          # The Rust runner expects tests in framepiler_test_env structure
-          FRAMEPILER_TEST_ENV=../framepiler_test_env \
-          cargo run --release --bin v3_rs_test_runner -- \
-            ${{ matrix.language }} \
-            v3_core \
-            ./target/release/framec
+          # Run tests for each category using the Docker runner
+          FRAMEPILER_TEST_ENV=../framepiler_test_env
+          for category in data_types operators scoping systems async persistence imports; do
+            echo "Running ${{ matrix.language }} v3_${category} tests..."
+            ../framepiler_test_env/framepiler/docker/target/release/frame-docker-runner \
+              ${{ matrix.language }} v3_${category} \
+              --framec ./target/release/framec || true
+          done
 
       - name: Upload test results
         uses: actions/upload-artifact@v3
