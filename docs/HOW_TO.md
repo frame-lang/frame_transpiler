@@ -28,6 +28,7 @@ Frame is a state machine language that transpiles to multiple target languages (
 - **LLVM**: on indefinite hold — do not develop or maintain LLVM until further notice.
 - **Shared Test Environment**: Active - using `framepiler_test_env` for isolated transpiler/debugger team development
 - **Test Migration**: Moved from embedded testing to shared environment approach via `FRAMEPILER_TEST_ENV` environment variable
+- **Docker Test Infrastructure**: Pure Rust implementation in shared environment for containerized test execution
 - **Core policies**:
   - Native bodies by default; MixedBody permitted only in event handlers (actions/operations are native‑only).
   - SOL‑anchored Frame statements (`-> $State(args)`, `=> $^`, `$$+/-`) recognized at start‑of‑line (indentation allowed), ignored in strings/comments/templates.
@@ -228,6 +229,27 @@ FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --release --bin v3_rs
 # Human-readable report to console
 FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env ./target/release/v3_rs_test_runner \
   typescript v3_systems ./target/release/framec --report-format human
+```
+
+**Docker Test Infrastructure (Pure Rust - Shared Environment):**
+```bash
+# Build the Docker test runner (one-time setup)
+cd framepiler_test_env/framepiler/docker
+./build.sh
+
+# Run tests in Docker containers
+./run_tests.sh python v3_data_types
+./run_tests.sh typescript v3_operators --verbose
+./run_tests.sh rust v3_systems --json
+
+# Direct binary usage
+./target/release/frame-docker-runner python_3 v3_data_types --framec ../../../target/release/framec
+./target/release/frame-docker-runner typescript v3_imports --json --verbose
+
+# Docker images required (build with build_images.sh):
+# - frame-transpiler-python:latest
+# - frame-transpiler-typescript:latest  
+# - frame-transpiler-rust:latest
 ```
 
 **Legacy Python Runner (Still Supported):**

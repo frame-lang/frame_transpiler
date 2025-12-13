@@ -64,17 +64,19 @@ system SystemName {
 ## Current State
 - **Version**: v0.86.71 (branch `going_native`)
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
-- **Test Status**: TypeScript transpilation 87.5% success (35/40 tests) in shared environment
-- **Latest Achievements**: Shared test environment operational, TypeScript import handling improved, Python-style imports properly converted
-- **Recent Focus**: Moved from embedded testing to shared environment approach, improved TypeScript transpilation with import collection/conversion
+- **Docker Infrastructure**: Pure Rust implementation in shared environment for containerized test execution
+- **Test Status**: Python 100% (Docker), TypeScript 100% (Docker), Rust transpiler needs fixes
+- **Latest Achievements**: Replaced Python Docker harness with Rust, achieved 100% Python/TypeScript test success in Docker containers
+- **Recent Focus**: Architectural separation - transpiler provides only framec binary, all test infrastructure in shared environment
 
 ## Quick References
 - **Shared environment**: Tests now live in `framepiler_test_env/` (symlinked in project root)
   - 📖 **READ**: `framepiler_test_env/README.md` for shared environment structure
   - 📖 **READ**: `framepiler_test_env/framepiler/README.md` for transpiler team space
-  - Test fixtures: `framepiler_test_env/framepiler/fixtures/test-frames/`
-  - Set `FRAMEPILER_TEST_ENV=framepiler_test_env` to use shared fixtures
-- **Test runner (Rust)**: `FRAMEPILER_TEST_ENV=framepiler_test_env cargo run --bin v3_rs_test_runner -- python v3_core ./target/release/framec`
+  - Test fixtures: `framepiler_test_env/common/test-frames/v3/`
+  - Set `FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env` to use shared fixtures
+- **Test runner (Rust)**: `FRAMEPILER_TEST_ENV=framepiler_test_env cargo run --bin v3_rs_test_runner -- python v3_data_types`
+- **Docker runner (Rust)**: `framepiler_test_env/framepiler/docker/run_tests.sh python v3_data_types`
 - **Module separator**: `::` (NOT `.` - dot is for member access)
 - **Check before starting**: Read `docs/HOW_TO.md` for complete current processes
 
