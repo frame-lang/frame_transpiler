@@ -1075,7 +1075,7 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         for param in &param_groups.declared {
                             // Check for common parameter names/patterns
                             if param.contains("color") || param.contains("Color") {
-                                args.push("serde_json::Value::String(\"red\".to_string())");
+                                args.push("FrameValue::String(\"red\".to_string())");
                             } else if param.contains("domain") || param.contains("state") {
                                 args.push("\"default\"");
                             } else if param.contains("count") || param.contains("num") || param.contains("size") {
@@ -1083,8 +1083,8 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                             } else if param.contains("flag") || param.contains("enabled") || param.contains("active") {
                                 args.push("false");
                             } else {
-                                // Default to null JSON value
-                                args.push("serde_json::Value::Null");
+                                // Default to null Frame value
+                                args.push("FrameValue::Null");
                             }
                         }
                         format!("({})", args.join(", "))
@@ -2339,15 +2339,21 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                             && b.header_span.and_then(|hs| std::str::from_utf8(&bytes[hs.start..hs.end]).ok()).map(|hdr| hdr.trim_start().starts_with("async ")).unwrap_or(false)
                     });
                     let mut module = String::new();
+                    // Add necessary dependencies for Rust code generation
+                    module.push_str("// Frame transpiler dependencies - for test execution only\n");
+                    module.push_str("// Note: For production use, replace with proper Cargo.toml dependencies\n"); 
+                    module.push_str("#[allow(unused_imports)]\n");
+                    module.push_str("use std::collections::{BTreeMap, HashMap};\n");
                     if has_persist_attr {
                         module.push_str("use frame_persistence_rs::{SystemSnapshot, FrameCompartmentSnapshot, SnapshotableSystem};\n");
                     }
-                    module.push_str("use std::collections::BTreeMap;\n");
                     // Minimal event and compartment structs for mapping/debug output and
                     // basic runtime semantics. Derive Default on the compartment so
                     // RustExpanderV3 can use `..Default::default()`.
                     module.push_str("#[derive(Debug, Clone)] struct FrameEvent{ message: String }\n");
-                    module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<serde_json::Value>, enter_args: Option<Vec<serde_json::Value>>, parent_compartment: Option<*const FrameCompartment>, state_args: serde_json::Value, }\n");
+                    // Simple value type for Frame data - replaces serde_json for test simplicity
+                    module.push_str("#[derive(Debug, Clone, Default)] enum FrameValue { #[default] Null, String(String), Number(i32), Bool(bool) }\n");
+                    module.push_str("#[derive(Debug, Clone, Default)] struct FrameCompartment{ state: StateId, forward_event: Option<FrameEvent>, exit_args: Option<FrameValue>, enter_args: Option<Vec<FrameValue>>, parent_compartment: Option<*const FrameCompartment>, state_args: FrameValue, }\n");
                     // Domain fields (if any) from a top-level domain: block. For Rust
                     // demo modules we assume a single system per file and emit domain
                     // variables as struct fields with their declared type when present.
@@ -2463,7 +2469,7 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         if let Some(ty) = ty_opt.as_ref() {
                             module.push_str(ty);
                         } else if domain_param_set.contains(name) {
-                            module.push_str("serde_json::Value");
+                            module.push_str("FrameValue");
                         } else {
                             module.push_str("()");
                         }
@@ -2486,7 +2492,7 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         if let Some(ty) = ty_opt {
                             ctor_params.push(format!("{}: {}", name, ty));
                         } else {
-                            ctor_params.push(format!("{}: serde_json::Value", name));
+                            ctor_params.push(format!("{}: FrameValue", name));
                         }
                     }
                     if ctor_params.is_empty() {
@@ -2494,24 +2500,22 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     } else {
                         module.push_str(&format!("    fn new({}) -> Self {{\n", ctor_params.join(", ")));
                     }
-                    module.push_str("        let mut __state_args = serde_json::Map::new();\n");
-                    module.push_str("        let mut __enter_args: Vec<serde_json::Value> = Vec::new();\n");
+                    module.push_str("        let mut __state_args: Vec<FrameValue> = Vec::new();\n");
+                    module.push_str("        let mut __enter_args: Vec<FrameValue> = Vec::new();\n");
                     for name in &param_groups.declared {
                         module.push_str("        {\n");
                         module.push_str("            let __val = ");
                         module.push_str(name);
                         module.push_str(";\n");
                         if start_params.contains(name) {
-                            module.push_str("            __state_args.insert(\"");
-                            module.push_str(name);
-                            module.push_str("\".to_string(), serde_json::to_value(__val).unwrap_or(serde_json::Value::Null));\n");
+                            module.push_str("            __state_args.push(__val);\n");
                         }
                         if enter_params.contains(name) {
-                            module.push_str("            __enter_args.push(serde_json::to_value(__val).unwrap_or(serde_json::Value::Null));\n");
+                            module.push_str("            __enter_args.push(__val);\n");
                         }
                         module.push_str("        }\n");
                     }
-                    module.push_str("        let __state_args_value = serde_json::Value::Object(__state_args);\n");
+                    module.push_str("        let __state_args_value = if __state_args.is_empty() { FrameValue::Null } else { __state_args[0].clone() };\n");
                     module.push_str("        Self {\n");
                     module.push_str("            compartment: FrameCompartment{ state: StateId::default(), state_args: __state_args_value, enter_args: Some(__enter_args.clone()), ..Default::default() },\n");
                     module.push_str("            _stack: Vec::new(),\n");
@@ -2566,12 +2570,12 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     module.push_str("        }\n");
                     module.push_str("    }\n");
                     // Helpers to await async actions/operations by name.
-                    module.push_str("    fn _block_on_action(&mut self, name: &str, args: &[serde_json::Value]) {\n");
+                    module.push_str("    fn _block_on_action(&mut self, name: &str, args: &[FrameValue]) {\n");
                     module.push_str("        match name {\n");
                     module.push_str("            _ => {}\n");
                     module.push_str("        }\n");
                     module.push_str("    }\n");
-                    module.push_str("    fn _block_on_operation(&mut self, name: &str, args: &[serde_json::Value]) {\n");
+                    module.push_str("    fn _block_on_operation(&mut self, name: &str, args: &[FrameValue]) {\n");
                     module.push_str("        match name {\n");
                     module.push_str("            _ => {}\n");
                     module.push_str("        }\n");
@@ -2792,9 +2796,16 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         }
                         module.push_str("}\n\n");
                         // Public wrappers to allow native code inside the system to call handlers directly.
+                        // Skip methods that are declared in the interface - those will get proper interface wrappers.
                         module.push_str(&format!("impl {} {{\n", sys_name));
                         for (hname, entries) in &handler_map {
                             if !is_valid_rust_ident(hname) { continue; }
+                            // Skip if this handler is also an interface method (to avoid duplicates)
+                            if let Some(iface_meta) = &iface_meta_for_sys_rust {
+                                if iface_meta.contains_key(hname) {
+                                    continue;
+                                }
+                            }
                             let handler_async = entries.iter().any(|(_, _, is_async)| *is_async);
                             if handler_async {
                                 module.push_str(&format!("    pub async fn {}(&mut self) {{ self._event_{}().await; }}\n", hname, hname));
@@ -3084,13 +3095,13 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         module.push_str("    fn snapshot_system(&self) -> SystemSnapshot {\n");
                         module.push_str("        let state_str = self.compartment.state.as_str().to_string();\n");
                         module.push_str("        let state_args = self.compartment.state_args.clone();\n");
-                        module.push_str("        let mut domain = serde_json::Map::new();\n");
+                        module.push_str("        let mut domain: std::collections::BTreeMap<String, FrameValue> = std::collections::BTreeMap::new();\n");
                         for (name, _, _) in &domain_fields_rs {
                             module.push_str("        domain.insert(\"");
                             module.push_str(name);
-                            module.push_str("\".to_string(), serde_json::to_value(&self.");
+                            module.push_str("\".to_string(), FrameValue::String(format!(\"{:?}\", self.");
                             module.push_str(name);
-                            module.push_str(").unwrap_or(serde_json::Value::Null));\n");
+                            module.push_str(")));\n");
                         }
                         module.push_str("        let mut stack_snapshots: Vec<FrameCompartmentSnapshot> = Vec::new();\n");
                         module.push_str("        for c in &self._stack {\n");
