@@ -153,7 +153,7 @@ impl Cli {
                     )
             )
             .arg(Arg::new("FILE-PATH").help("File path").value_name("FILE").index(1))
-            .arg(Arg::new("language").value_name("LANG").long("language").short('l').help("Target language (python_3, typescript, graphviz, llvm)").num_args(1))
+            .arg(Arg::new("language").value_name("LANG").long("language").short('l').help("Target language (python_3, typescript, rust, c, cpp, java, csharp, graphviz)").num_args(1))
             .arg(Arg::new("multifile").long("multifile").short('m').help("Enable multi-file project compilation").action(clap::ArgAction::SetTrue))
             .arg(Arg::new("output-dir").long("output-dir").short('o').help("Output directory for generated files (compile/multi-file)").value_name("DIR").num_args(1).global(true))
             .arg(Arg::new("debug-output").long("debug-output").help("Generate JSON output with transpiled code and source map").action(clap::ArgAction::SetTrue).global(true))

@@ -36,9 +36,11 @@ pub mod system_param_semantics;
 pub mod rust_domain_scanner;
 pub mod machines;
 pub mod ts_harness_machine;
-pub mod test_harness_rs;
-pub mod test_reporter;
-pub mod test_metadata_tests;
+// Test infrastructure moved to shared environment - using stub for backward compatibility
+pub mod test_harness_rs {
+    pub use super::test_harness_stub::*;
+}
+mod test_harness_stub;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
